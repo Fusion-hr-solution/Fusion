@@ -241,9 +241,9 @@ public static class CorePermissionCatalog
             new(PerformancePermissions.StrategicManage, "Manage strategic objectives", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.StrategicPublish, "Publish strategic objectives", "Performance", [PermissionScopes.Tenant], "Explicit deny-by-default publish grant; never auto-granted by top-management position."),
 
-            // Progress correction and collective approval permissions
+            // Progress correction and employee objective plan approval permissions
             new(PerformancePermissions.ObjectiveProgressCorrect, "Correct objective progress (manager override)", "Performance", [PermissionScopes.Tenant]),
-            new(PerformancePermissions.ObjectiveTeamApprove, "Approve collective objectives", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
+            new(PerformancePermissions.ObjectiveTeamApprove, "Approve employee objective plans", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
 
             // Objective planning configuration permissions.
             new(PerformancePermissions.ObjectivePolicyView, "View objective planning configuration", "Performance", [PermissionScopes.Tenant]),

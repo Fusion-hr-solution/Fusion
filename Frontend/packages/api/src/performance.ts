@@ -439,8 +439,9 @@ export interface UpsertTeamObjectiveRequest {
 
 // ── Employee objectives (P1.4) ──────────────────────────────────────
 
-export type EmployeeObjectivePlanStatus = "Draft" | "Submitted";
+export type EmployeeObjectivePlanStatus = "Draft" | "Submitted" | "ChangesRequested" | "Approved";
 export type ObjectiveAlignmentType = "TeamObjective" | "StrategicObjective";
+export type PlanReviewEventType = "Submitted" | "ChangesRequested" | "Resubmitted" | "Approved";
 
 export interface MyObjectivePlanCampaignDto {
   id: string;
@@ -482,10 +483,25 @@ export interface EmployeeObjectivePlanDto {
   submittedAt: string | null;
   approverEmployeeId: string | null;
   approverName: string | null;
+  approvedAt: string | null;
+  approvingManagerEmployeeId: string | null;
+  approvingManagerName: string | null;
+  lastChangeRequestComment: string | null;
   objectiveCount: number;
   totalWeight: number;
   version: number;
   objectives: EmployeeObjectiveDto[];
+  reviewHistory: EmployeeObjectivePlanReviewHistoryEventDto[];
+}
+
+export interface EmployeeObjectivePlanReviewHistoryEventDto {
+  id: string;
+  type: PlanReviewEventType;
+  actorEmployeeId: string;
+  actorName: string;
+  comment: string | null;
+  referencedObjectiveIds: string[];
+  occurredAt: string;
 }
 
 export interface EmployeeObjectiveAlignmentOptionDto {
@@ -500,6 +516,8 @@ export type EmployeeObjectiveWorkspaceState =
   | "entry-not-open"
   | "draft"
   | "submitted"
+  | "changes-requested"
+  | "approved"
   | "empty";
 
 export interface EmployeeObjectivePlanWorkspaceDto {
@@ -543,6 +561,78 @@ export interface SubmitObjectivePlanResponseDto {
   submitted: boolean;
   plan: EmployeeObjectivePlanDto;
   blockingReasons: ObjectivePlanBlockingReasonDto[];
+}
+
+// ── Plan approvals (P1.5) ───────────────────────────────────────────
+
+export interface PlanApprovalCampaignDto {
+  id: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  planningOpeningDate: string | null;
+  employeeSubmissionDeadline: string | null;
+  managerApprovalDeadline: string | null;
+  launchedAt: string | null;
+  waitingForReviewCount: number;
+  changesRequestedCount: number;
+  approvedCount: number;
+  dataIssueCount: number;
+}
+
+export interface PlanApprovalWorkspaceDto {
+  cycleId: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  planningOpeningDate: string | null;
+  employeeSubmissionDeadline: string | null;
+  managerApprovalDeadline: string | null;
+  launchedAt: string | null;
+  waitingForReviewCount: number;
+  changesRequestedCount: number;
+  approvedCount: number;
+  dataIssueCount: number;
+  plans: PlanApprovalReviewDto[];
+}
+
+export interface PlanApprovalReviewDto {
+  planId: string;
+  cycleId: string;
+  employeeId: string;
+  employeeName: string;
+  jobTitle: string | null;
+  orgUnitName: string | null;
+  status: EmployeeObjectivePlanStatus;
+  reviewState: "waiting-for-review" | "changes-requested" | "approved" | "not-ready";
+  objectiveCount: number;
+  totalWeight: number;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  approvingManagerEmployeeId: string | null;
+  approvingManagerName: string | null;
+  lastReviewEventAt: string | null;
+  lastChangeRequestComment: string | null;
+  isSelfApprovalDataIssue: boolean;
+  dataIssueMessage: string | null;
+  version: number;
+  objectives: EmployeeObjectiveDto[];
+  reviewHistory: PlanReviewHistoryEventDto[];
+}
+
+export interface PlanReviewHistoryEventDto {
+  id: string;
+  type: PlanReviewEventType;
+  actorEmployeeId: string;
+  actorName: string;
+  comment: string | null;
+  referencedObjectiveIds: string[];
+  occurredAt: string;
+}
+
+export interface RequestObjectivePlanChangesRequest {
+  comment: string;
+  referencedObjectiveIds?: string[];
 }
 
 // ── Cascade coverage (P1.3) ──────────────────────────────────────────
@@ -638,6 +728,13 @@ export const performancePaths = {
     `/performance/employee-objectives/campaigns/${cycleId}/objectives/${objectiveId}`,
   employeeObjectivePlanSubmit: (cycleId: string) =>
     `/performance/employee-objectives/campaigns/${cycleId}/submit`,
+  myPlanApprovalCampaigns: () => "/performance/plan-approvals/my-campaigns",
+  planApprovalWorkspace: (slug: string) =>
+    `/performance/plan-approvals/campaigns/${slug}`,
+  planApprovalApprove: (cycleId: string, planId: string) =>
+    `/performance/plan-approvals/campaigns/${cycleId}/plans/${planId}/approve`,
+  planApprovalRequestChanges: (cycleId: string, planId: string) =>
+    `/performance/plan-approvals/campaigns/${cycleId}/plans/${planId}/request-changes`,
   cascadeCoverageCampaigns: () => "/performance/cascade-coverage/campaigns",
   cascadeCoverage: (slug: string) =>
     `/performance/cascade-coverage/campaigns/${slug}`,
@@ -704,6 +801,11 @@ export const performanceQueryKeys = {
     [...performanceQueryKeys.myObjectives(), "campaigns"] as const,
   employeeObjectiveWorkspace: (slug: string) =>
     [...performanceQueryKeys.myObjectives(), "workspace", slug] as const,
+  planApprovals: () => [...performanceQueryKeys.all(), "plan-approvals"] as const,
+  myPlanApprovalCampaigns: () =>
+    [...performanceQueryKeys.planApprovals(), "campaigns"] as const,
+  planApprovalWorkspace: (slug: string) =>
+    [...performanceQueryKeys.planApprovals(), "workspace", slug] as const,
   cascadeCoverageAll: () =>
     [...performanceQueryKeys.all(), "cascade-coverage"] as const,
   cascadeCoverageCampaigns: () =>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { CalendarClock, CheckCircle2, ChevronRight, Pencil, Plus, Send, Trash2 } from "lucide-react";
+import { CalendarClock, CheckCircle2, ChevronRight, CircleAlert, MessageSquareText, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import {
   ApiError,
   createPlatformApiClient,
@@ -13,6 +13,7 @@ import {
 } from "@repo/api";
 import type {
   EmployeeObjectiveDto,
+  EmployeeObjectivePlanDto,
   EmployeeObjectivePlanWorkspaceDto,
   MyObjectivePlanCampaignDto,
   SaveEmployeeObjectiveRequest,
@@ -93,6 +94,8 @@ export function MyObjectiveCampaignsPage() {
 
 function CampaignDoorHero({ campaign }: { campaign: MyObjectivePlanCampaignDto }) {
   const submitted = campaign.planStatus === "Submitted";
+  const changesRequested = campaign.planStatus === "ChangesRequested";
+  const approved = campaign.planStatus === "Approved";
   return (
     <Link
       href={`/my-objectives/${campaign.slug}`}
@@ -100,8 +103,14 @@ function CampaignDoorHero({ campaign }: { campaign: MyObjectivePlanCampaignDto }
     >
       <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
         <div className="min-w-0 flex-1">
-          <StatusBadge tone={submitted ? "success" : "info"} dot>
-            {submitted ? myObjectiveTerms.submitted : myObjectiveTerms.draft}
+          <StatusBadge tone={approved ? "success" : changesRequested ? "warning" : submitted ? "info" : "info"} dot>
+            {approved
+              ? myObjectiveTerms.approved
+              : changesRequested
+                ? myObjectiveTerms.changesRequested
+                : submitted
+                  ? myObjectiveTerms.submitted
+                  : myObjectiveTerms.draft}
           </StatusBadge>
           <h2 className="mt-2 font-heading text-2xl font-semibold tracking-tight text-foreground">
             {campaign.name}
@@ -157,6 +166,7 @@ export function MyObjectiveWorkspacePage() {
   const [deleting, setDeleting] = useState<EmployeeObjectiveDto | null>(null);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [submitReasons, setSubmitReasons] = useState<string[]>([]);
+  const [editedReturnedPlanId, setEditedReturnedPlanId] = useState<string | null>(null);
 
   const { data: workspace, error, isLoading, refetch } =
     useApiQuery<EmployeeObjectivePlanWorkspaceDto>(
@@ -182,6 +192,9 @@ export function MyObjectiveWorkspacePage() {
     {
       onSuccess: async () => {
         toast.success(myObjectiveTerms.saved);
+        if (workspace?.state === "changes-requested" && workspace.plan) {
+          setEditedReturnedPlanId(workspace.plan.id);
+        }
         setEditor(null);
         setEditorErrors([]);
         await refetch();
@@ -201,6 +214,9 @@ export function MyObjectiveWorkspacePage() {
     {
       onSuccess: async () => {
         toast.success(myObjectiveTerms.deleted);
+        if (workspace?.state === "changes-requested" && workspace.plan) {
+          setEditedReturnedPlanId(workspace.plan.id);
+        }
         setDeleting(null);
         await refetch();
       },
@@ -224,6 +240,7 @@ export function MyObjectiveWorkspacePage() {
         if (result.submitted) {
           toast.success(myObjectiveTerms.submittedToast);
           setSubmitReasons([]);
+          setEditedReturnedPlanId(null);
         } else {
           setSubmitReasons(result.blockingReasons.map((reason) => reason.message));
         }
@@ -270,11 +287,20 @@ export function MyObjectiveWorkspacePage() {
   const plan = workspace.plan;
   const objectives = plan?.objectives ?? [];
   const totalWeight = plan?.totalWeight ?? 0;
-  const readOnly = workspace.state === "submitted";
+  const readOnly = workspace.state === "submitted" || workspace.state === "approved";
   const atMax = objectives.length >= workspace.maxObjectiveCount;
 
   const checks = readinessChecks(objectives, totalWeight, workspace.maxObjectiveCount);
-  const validForSubmit = workspace.state === "draft" && checks.every((check) => check.done);
+  const latestRequest = latestChangeRequest(plan);
+  const returnedPlanHasEdits =
+    workspace.state !== "changes-requested" ||
+    editedReturnedPlanId === plan?.id ||
+    hasObjectiveEditsAfterRequest(objectives, latestRequest);
+  const planReadyForSubmit = checks.every((check) => check.done);
+  const validForSubmit =
+    (workspace.state === "draft" || workspace.state === "changes-requested") &&
+    planReadyForSubmit &&
+    returnedPlanHasEdits;
 
   const openCreate = () => {
     setEditor({ mode: "create" });
@@ -324,14 +350,26 @@ export function MyObjectiveWorkspacePage() {
             atMax={atMax}
           />
 
-          {readOnly ? (
+          {workspace.state === "submitted" ? (
             <div className="space-y-4">
               <SubmittedNotice approverName={plan?.approverName} submittedAt={plan?.submittedAt} />
+              <ObjectiveList objectives={objectives} readOnly />
+            </div>
+          ) : workspace.state === "approved" ? (
+            <div className="space-y-4">
+              <ApprovedNotice approverName={plan?.approvingManagerName} approvedAt={plan?.approvedAt} />
               <ObjectiveList objectives={objectives} readOnly />
             </div>
           ) : (
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
               <section className="min-w-0 space-y-3">
+                {workspace.state === "changes-requested" ? (
+                  <ChangesRequestedNotice
+                    reviewEvent={latestRequest}
+                    objectives={objectives}
+                    hasEdits={returnedPlanHasEdits}
+                  />
+                ) : null}
                 <div className="flex min-h-9 items-center justify-between gap-3">
                   <h2 className="text-base font-semibold text-foreground">
                     {myObjectiveTerms.objectivesHeading}
@@ -358,6 +396,12 @@ export function MyObjectiveWorkspacePage() {
                   valid={validForSubmit}
                   submitting={submit.isLoading}
                   blockingReasons={submitReasons}
+                  waitingForReturnedPlanEdit={workspace.state === "changes-requested" && !returnedPlanHasEdits}
+                  submitLabel={
+                    workspace.state === "changes-requested"
+                      ? myObjectiveTerms.resubmit
+                      : myObjectiveTerms.submit
+                  }
                   onSubmit={() => setConfirmSubmit(true)}
                 />
               </aside>
@@ -438,10 +482,22 @@ function AllocationSpine({
   const allComplete = objectives.length > 0 && objectives.every(objectiveComplete);
 
   const tone: "success" | "warning" | "info" =
-    state === "submitted" ? "success" : state === "entry-not-open" ? "info" : balanced && allComplete ? "success" : "warning";
+    state === "submitted" || state === "approved"
+      ? "success"
+      : state === "changes-requested"
+        ? "warning"
+        : state === "entry-not-open"
+          ? "info"
+          : balanced && allComplete
+            ? "success"
+            : "warning";
   const tag =
     state === "submitted"
       ? myObjectiveTerms.awaitingReview
+      : state === "approved"
+        ? myObjectiveTerms.approved
+        : state === "changes-requested"
+          ? myObjectiveTerms.changesRequested
       : state === "entry-not-open"
         ? myObjectiveTerms.entryClosed
         : balanced
@@ -686,61 +742,64 @@ function SubmitPanel({
   valid,
   submitting,
   blockingReasons,
+  waitingForReturnedPlanEdit,
+  submitLabel,
   onSubmit,
 }: {
   checks: ReadinessCheck[];
   valid: boolean;
   submitting: boolean;
   blockingReasons: string[];
+  waitingForReturnedPlanEdit: boolean;
+  submitLabel: string;
   onSubmit: () => void;
 }) {
   const remaining = checks.filter((check) => !check.done);
   return (
-    <div className="space-y-3">
-      <div className="flex min-h-9 items-center">
-        <h2 className="text-base font-semibold text-foreground">{myObjectiveTerms.blockingHeading}</h2>
-      </div>
-
-      <div className="space-y-4 rounded-2xl border border-border bg-card p-5">
-        {valid ? (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm">
-              <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <span className="font-medium text-foreground">{myObjectiveTerms.readyToSubmit}</span>
-            </div>
-            <div className="space-y-1 pl-6">
-              <ObjectiveMetadata label={myObjectiveTerms.planWeight}>
-                {myObjectiveTerms.balanced}
-              </ObjectiveMetadata>
-              <ObjectiveMetadata label={myObjectiveTerms.nextStep}>
-                {myObjectiveTerms.managerReview}
-              </ObjectiveMetadata>
-            </div>
+    <div className="space-y-4 rounded-2xl border border-border bg-card p-5">
+      {valid ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-sm">
+            <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <span className="font-medium text-foreground">{myObjectiveTerms.readyToSubmit}</span>
           </div>
-        ) : (
-          <ul className="space-y-2">
-            {remaining.map((check) => (
-              <li key={check.label} className="flex items-start gap-2 text-sm text-muted-foreground">
-                <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
-                <span>{check.label}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+          <div className="space-y-1 pl-6">
+            <ObjectiveMetadata label={myObjectiveTerms.planWeight}>
+              {myObjectiveTerms.balanced}
+            </ObjectiveMetadata>
+            <ObjectiveMetadata label={myObjectiveTerms.nextStep}>
+              {myObjectiveTerms.managerReview}
+            </ObjectiveMetadata>
+          </div>
+        </div>
+      ) : waitingForReturnedPlanEdit ? (
+        <div className="flex items-center gap-2 text-sm">
+          <CircleAlert className="size-4 shrink-0 text-muted-foreground" />
+          <span className="font-medium text-foreground">{myObjectiveTerms.editsRequired}</span>
+        </div>
+      ) : (
+        <ul className="space-y-2">
+          {remaining.map((check) => (
+            <li key={check.label} className="flex items-start gap-2 text-sm text-muted-foreground">
+              <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
+              <span>{check.label}</span>
+            </li>
+          ))}
+        </ul>
+      )}
 
-        {blockingReasons.length > 0 ? (
-          <ul className="space-y-1 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-foreground">
-            {blockingReasons.map((reason) => (
-              <li key={reason}>{reason}</li>
-            ))}
-          </ul>
-        ) : null}
+      {blockingReasons.length > 0 ? (
+        <ul className="space-y-1 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-foreground">
+          {blockingReasons.map((reason) => (
+            <li key={reason}>{reason}</li>
+          ))}
+        </ul>
+      ) : null}
 
-        <Button type="button" className="w-full" disabled={!valid || submitting} onClick={onSubmit}>
-          <Send />
-          {myObjectiveTerms.submit}
-        </Button>
-      </div>
+      <Button type="button" className="w-full" disabled={!valid || submitting} onClick={onSubmit}>
+        <Send />
+        {submitLabel}
+      </Button>
     </div>
   );
 }
@@ -773,6 +832,124 @@ function SubmittedNotice({
   );
 }
 
+function ChangesRequestedNotice({
+  reviewEvent,
+  objectives,
+  hasEdits,
+}: {
+  reviewEvent?: EmployeeObjectivePlanDto["reviewHistory"][number] | null;
+  objectives: EmployeeObjectiveDto[];
+  hasEdits: boolean;
+}) {
+  const managerName = reviewEvent?.actorName ?? myObjectiveTerms.yourManager;
+  const requestedAt = reviewEvent?.occurredAt ? formatDate(reviewEvent.occurredAt) : null;
+  const referencedObjectives = reviewEvent
+    ? objectives.filter((objective) => reviewEvent.referencedObjectiveIds.includes(objective.id))
+    : [];
+  const scopeObjectives = referencedObjectives.length > 0 ? referencedObjectives : objectives;
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="flex flex-col gap-3 border-b border-border bg-muted/35 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <StatusBadge tone="warning" dot>
+            {myObjectiveTerms.changesRequestedTitle}
+          </StatusBadge>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {myObjectiveTerms.changesRequestedBy(managerName, requestedAt)}
+          </p>
+        </div>
+        <span
+          className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border bg-transparent px-2.5 text-xs font-medium text-foreground"
+        >
+          {!hasEdits ? (
+            <span className="flex size-4 items-center justify-center rounded-full border border-current text-[10px] leading-none">
+              !
+            </span>
+          ) : (
+            <CheckCircle2 className="size-3.5" />
+          )}
+          {hasEdits ? myObjectiveTerms.readyToResubmit : myObjectiveTerms.updateAndResubmit}
+        </span>
+      </div>
+
+      <div className="grid md:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="min-w-0 p-5">
+          {reviewEvent?.comment ? (
+            <div>
+              <p className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                <MessageSquareText className="size-3.5" />
+                {myObjectiveTerms.managerComment(managerName)}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-foreground">{reviewEvent.comment}</p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{myObjectiveTerms.noManagerComment}</p>
+          )}
+        </div>
+        <div className="border-t border-border bg-muted/20 p-5 md:border-l md:border-t-0">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-xs font-medium text-muted-foreground">{myObjectiveTerms.scope}</p>
+            <p className="text-xs font-medium text-foreground">
+              {referencedObjectives.length > 0
+                ? myObjectiveTerms.referencedObjectivesWithCount(referencedObjectives.length)
+                : myObjectiveTerms.fullPlanWithCount(objectives.length)}
+            </p>
+          </div>
+          <ObjectiveScope objectives={scopeObjectives} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ObjectiveScope({ objectives }: { objectives: EmployeeObjectiveDto[] }) {
+  if (objectives.length === 0) return null;
+  return (
+    <ul className="mt-3 divide-y divide-border/80">
+      {objectives.map((objective) => (
+        <li
+          key={objective.id}
+          className="flex min-w-0 items-center justify-between gap-3 py-2 text-xs first:pt-0 last:pb-0"
+        >
+          <span className="min-w-0 truncate text-foreground">{objective.title}</span>
+          <span className="shrink-0 font-medium tabular-nums text-muted-foreground">
+            {objective.weight ?? 0}%
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ApprovedNotice({
+  approverName,
+  approvedAt,
+}: {
+  approverName?: string | null;
+  approvedAt?: string | null;
+}) {
+  return (
+    <div className="rounded-2xl border border-emerald-500/35 bg-emerald-500/10 p-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="font-heading text-lg font-semibold text-foreground">
+            {myObjectiveTerms.approvedReadOnly}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{myObjectiveTerms.approvedNote}</p>
+        </div>
+        <dl className="grid gap-x-5 gap-y-1 text-sm sm:grid-cols-2 md:shrink-0">
+          <KeyValue label="Approved">
+            {approvedAt ? formatDate(approvedAt) : myObjectiveTerms.notSet}
+          </KeyValue>
+          <KeyValue label={myObjectiveTerms.managerLabel}>
+            {approverName ?? myObjectiveTerms.notSet}
+          </KeyValue>
+        </dl>
+      </div>
+    </div>
+  );
+}
+
 function ObjectiveMetadata({
   label,
   children,
@@ -786,6 +963,24 @@ function ObjectiveMetadata({
       <span className="min-w-0 font-medium text-foreground/85">{children}</span>
     </p>
   );
+}
+
+function latestChangeRequest(plan?: EmployeeObjectivePlanDto | null) {
+  return [...(plan?.reviewHistory ?? [])]
+    .filter((event) => event.type === "ChangesRequested")
+    .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())[0] ?? null;
+}
+
+function hasObjectiveEditsAfterRequest(
+  objectives: EmployeeObjectiveDto[],
+  reviewEvent?: EmployeeObjectivePlanDto["reviewHistory"][number] | null,
+) {
+  if (!reviewEvent) return false;
+  const requestedAt = new Date(reviewEvent.occurredAt).getTime();
+  return objectives.some((objective) => {
+    const changedAt = new Date(objective.updatedAt ?? objective.createdAt).getTime();
+    return Number.isFinite(changedAt) && changedAt > requestedAt;
+  });
 }
 
 function KeyValue({

@@ -128,6 +128,7 @@ public sealed class SaveObjectiveCommandHandler(
     {
         var plan = await dbContext.EmployeeObjectivePlans
             .Include(item => item.Objectives)
+            .Include(item => item.ReviewEvents)
             .FirstOrDefaultAsync(item => item.CycleId == cycle.Id && item.EmployeeId == participant.EmployeeId, cancellationToken);
 
         if (plan is not null)

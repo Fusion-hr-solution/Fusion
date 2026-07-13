@@ -9,6 +9,7 @@ namespace EY.HRPlatform.Performance.Domain.Entities;
 public sealed class EmployeeObjectivePlan : AggregateRoot, ITenantEntity
 {
     private readonly List<EmployeeObjective> _objectives = new();
+    private readonly List<EmployeeObjectivePlanReviewEvent> _reviewEvents = new();
 
     private EmployeeObjectivePlan() { }
 
@@ -19,8 +20,17 @@ public sealed class EmployeeObjectivePlan : AggregateRoot, ITenantEntity
     public DateTime? SubmittedAt { get; private set; }
     public Guid? ApproverEmployeeId { get; private set; }
     public string? ApproverName { get; private set; }
+    public Guid? ApprovingManagerEmployeeId { get; private set; }
+    public string? ApprovingManagerName { get; private set; }
+    public DateTime? ApprovedAt { get; private set; }
     public uint Version { get; private set; }
     public IReadOnlyCollection<EmployeeObjective> Objectives => _objectives.AsReadOnly();
+    public IReadOnlyCollection<EmployeeObjectivePlanReviewEvent> ReviewEvents => _reviewEvents.AsReadOnly();
+    public string? LastChangeRequestComment => _reviewEvents
+        .Where(item => item.Type == ReviewEventType.ChangesRequested)
+        .OrderByDescending(item => item.OccurredAt)
+        .Select(item => item.Comment)
+        .FirstOrDefault();
 
     public static EmployeeObjectivePlan CreateDraft(
         PerformanceCycle cycle,
@@ -123,7 +133,7 @@ public sealed class EmployeeObjectivePlan : AggregateRoot, ITenantEntity
 
     public void RemoveObjective(Guid objectiveId, DateTime now)
     {
-        EnsureDraft();
+        EnsureEditable();
         var objective = FindObjective(objectiveId);
         _objectives.Remove(objective);
         UpdatedAt = DateTime.UtcNow;
@@ -134,7 +144,7 @@ public sealed class EmployeeObjectivePlan : AggregateRoot, ITenantEntity
         PerformanceCycleParticipant participant,
         DateTime now)
     {
-        EnsureDraft();
+        EnsureEditable();
         EnsureLaunched(cycle);
         EnsureParticipant(cycle, participant);
         EnsureEntryOpen(cycle, now);
@@ -144,12 +154,58 @@ public sealed class EmployeeObjectivePlan : AggregateRoot, ITenantEntity
             return ObjectivePlanSubmissionResult.Blocked(reasons);
 
         var submittedAt = NormalizeUtc(now, nameof(now));
+        var eventType = Status == PlanStatus.ChangesRequested ? ReviewEventType.Resubmitted : ReviewEventType.Submitted;
         Status = PlanStatus.Submitted;
         SubmittedAt = submittedAt;
         ApproverEmployeeId = participant.ApproverEmployeeId;
         ApproverName = participant.ApproverName;
+        AppendReviewEvent(
+            new EmployeeObjectivePlanReviewActor(EmployeeId, participant.FullName),
+            eventType,
+            submittedAt);
         UpdatedAt = DateTime.UtcNow;
         return ObjectivePlanSubmissionResult.Success();
+    }
+
+    public void RequestChanges(
+        EmployeeObjectivePlanReviewActor actor,
+        string comment,
+        DateTime now,
+        IReadOnlyCollection<Guid>? referencedObjectiveIds = null)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+        EnsureSubmitted();
+
+        if (string.IsNullOrWhiteSpace(comment))
+            throw new DomainRuleViolationException("A change-request comment is required.");
+
+        var references = NormalizeObjectiveReferences(referencedObjectiveIds);
+        var occurredAt = NormalizeUtc(now, nameof(now));
+        var reviewEvent = EmployeeObjectivePlanReviewEvent.Create(
+            Id,
+            actor,
+            ReviewEventType.ChangesRequested,
+            occurredAt,
+            comment,
+            references);
+        Status = PlanStatus.ChangesRequested;
+        _reviewEvents.Add(reviewEvent);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void Approve(EmployeeObjectivePlanReviewActor actor, DateTime now, string? note = null)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+        EnsureSubmitted();
+
+        var approvedAt = NormalizeUtc(now, nameof(now));
+        var reviewEvent = EmployeeObjectivePlanReviewEvent.Create(Id, actor, ReviewEventType.Approved, approvedAt, note);
+        Status = PlanStatus.Approved;
+        ApprovingManagerEmployeeId = actor.EmployeeId;
+        ApprovingManagerName = actor.Name.Trim();
+        ApprovedAt = approvedAt;
+        _reviewEvents.Add(reviewEvent);
+        UpdatedAt = DateTime.UtcNow;
     }
 
     private List<ObjectivePlanBlockingReason> ValidateForSubmission(PerformanceCycle cycle)
@@ -200,17 +256,32 @@ public sealed class EmployeeObjectivePlan : AggregateRoot, ITenantEntity
 
     private void EnsureCanMutate(PerformanceCycle cycle, DateTime now)
     {
-        EnsureDraft();
+        EnsureEditable();
         EnsureLaunched(cycle);
         if (cycle.Id != CycleId)
             throw new DomainRuleViolationException("An objective plan cannot move to another campaign.");
         EnsureEntryOpen(cycle, now);
     }
 
-    private void EnsureDraft()
+    private void EnsureEditable()
     {
-        if (Status != PlanStatus.Draft)
-            throw new DomainRuleViolationException("Submitted objective plans are read-only.");
+        if (Status is not (PlanStatus.Draft or PlanStatus.ChangesRequested))
+            throw new DomainRuleViolationException("This objective plan is read-only.");
+    }
+
+    private void EnsureSubmitted()
+    {
+        if (Status != PlanStatus.Submitted)
+            throw new DomainRuleViolationException("Only submitted objective plans can be reviewed.");
+    }
+
+    private void AppendReviewEvent(
+        EmployeeObjectivePlanReviewActor actor,
+        ReviewEventType type,
+        DateTime occurredAt,
+        string? comment = null)
+    {
+        _reviewEvents.Add(EmployeeObjectivePlanReviewEvent.Create(Id, actor, type, occurredAt, comment));
     }
 
     private static void EnsureLaunched(PerformanceCycle cycle)
@@ -237,6 +308,23 @@ public sealed class EmployeeObjectivePlan : AggregateRoot, ITenantEntity
     private EmployeeObjective FindObjective(Guid objectiveId)
         => _objectives.FirstOrDefault(objective => objective.Id == objectiveId)
            ?? throw new ArgumentException("Objective was not found in this plan.", nameof(objectiveId));
+
+    private Guid[] NormalizeObjectiveReferences(IReadOnlyCollection<Guid>? referencedObjectiveIds)
+    {
+        if (referencedObjectiveIds is null || referencedObjectiveIds.Count == 0)
+            return [];
+
+        var objectiveIds = _objectives.Select(objective => objective.Id).ToHashSet();
+        var references = referencedObjectiveIds
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToArray();
+
+        if (references.Any(id => !objectiveIds.Contains(id)))
+            throw new DomainRuleViolationException("Change-request references must belong to this objective plan.");
+
+        return references;
+    }
 
     private static void ValidateWeight(PerformanceCycle cycle, int? weight)
     {

@@ -380,10 +380,11 @@ export function TeamObjectiveWorkspacePage() {
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="min-w-0 space-y-3">
-          {workspace.strategicObjectives.map((strategicObjective) => (
+          {workspace.strategicObjectives.map((strategicObjective, index) => (
             <StrategicObjectiveBand
               key={strategicObjective.id}
               strategicObjective={strategicObjective}
+              defaultOpen={index === 0}
               objectives={workspace.myTeamObjectives.filter(
                 (objective) => objective.strategicObjectiveId === strategicObjective.id,
               )}
@@ -433,6 +434,7 @@ export function TeamObjectiveWorkspacePage() {
 function StrategicObjectiveBand({
   strategicObjective,
   objectives,
+  defaultOpen,
   disabled,
   onAdd,
   onEdit,
@@ -440,6 +442,7 @@ function StrategicObjectiveBand({
 }: {
   strategicObjective: TeamObjectiveWorkspaceDto["strategicObjectives"][number];
   objectives: TeamObjectiveDto[];
+  defaultOpen: boolean;
   disabled: boolean;
   onAdd: () => void;
   onEdit: (objective: TeamObjectiveDto) => void;
@@ -452,7 +455,7 @@ function StrategicObjectiveBand({
     <CascadeRow
       covered={covered}
       collapsible
-      defaultOpen={!covered}
+      defaultOpen={defaultOpen}
       title={strategicObjective.title}
       description={strategicObjective.description}
       functionLabel={strategicObjective.responsibleFunctionLabel}

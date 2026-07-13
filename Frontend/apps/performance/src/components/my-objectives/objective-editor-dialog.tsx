@@ -61,14 +61,14 @@ function emptyForm(workspace: EmployeeObjectivePlanWorkspaceDto): EditorForm {
   };
 }
 
-function fromObjective(objective: EmployeeObjectiveDto): EditorForm {
+function fromObjective(
+  objective: EmployeeObjectiveDto,
+  workspace: EmployeeObjectivePlanWorkspaceDto,
+): EditorForm {
   return {
     title: objective.title,
     description: objective.description ?? "",
-    alignmentKey:
-      objective.alignmentType && objective.alignmentTargetId
-        ? `${objective.alignmentType}:${objective.alignmentTargetId}`
-        : "",
+    alignmentKey: resolveAlignmentKey(objective, workspace),
     weight: objective.weight?.toString() ?? "",
     deadline: toDateInput(objective.deadline),
     measurementMethod: objective.measurementMethod ?? "",
@@ -77,6 +77,38 @@ function fromObjective(objective: EmployeeObjectiveDto): EditorForm {
     targetUnit: objective.targetUnit ?? "",
     successCriteria: objective.successCriteria ?? "",
   };
+}
+
+function resolveAlignmentKey(
+  objective: EmployeeObjectiveDto,
+  workspace: EmployeeObjectivePlanWorkspaceDto,
+): string {
+  if (!objective.alignmentType) return "";
+
+  const exact = workspace.alignmentOptions.find(
+    (option) =>
+      option.type === objective.alignmentType &&
+      option.targetId === objective.alignmentTargetId,
+  );
+  if (exact) return alignmentOptionKey(exact);
+
+  const byStrategicTarget = workspace.alignmentOptions.find(
+    (option) =>
+      option.type === objective.alignmentType &&
+      option.strategicObjectiveId === objective.alignmentTargetId,
+  );
+  if (byStrategicTarget) return alignmentOptionKey(byStrategicTarget);
+
+  const byTitle = workspace.alignmentOptions.find(
+    (option) =>
+      option.type === objective.alignmentType &&
+      option.title === objective.alignmentTitle,
+  );
+  return byTitle ? alignmentOptionKey(byTitle) : "";
+}
+
+function alignmentOptionKey(option: EmployeeObjectivePlanWorkspaceDto["alignmentOptions"][number]) {
+  return `${option.type}:${option.targetId}`;
 }
 
 function toRequest(form: EditorForm): SaveEmployeeObjectiveRequest {
@@ -135,7 +167,7 @@ export function ObjectiveEditorDialog({
       setForm(null);
       return;
     }
-    setForm(state.mode === "edit" ? fromObjective(state.objective) : emptyForm(workspace));
+    setForm(state.mode === "edit" ? fromObjective(state.objective, workspace) : emptyForm(workspace));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
@@ -208,7 +240,7 @@ export function ObjectiveEditorDialog({
               {teamOptions.length > 0 ? (
                 <optgroup label={objectiveEditorTerms.alignmentTeamGroup}>
                   {teamOptions.map((option) => (
-                    <option key={`${option.type}:${option.targetId}`} value={`${option.type}:${option.targetId}`}>
+                    <option key={alignmentOptionKey(option)} value={alignmentOptionKey(option)}>
                       {option.title}
                     </option>
                   ))}
@@ -217,7 +249,7 @@ export function ObjectiveEditorDialog({
               {strategyOptions.length > 0 ? (
                 <optgroup label={objectiveEditorTerms.alignmentStrategyGroup}>
                   {strategyOptions.map((option) => (
-                    <option key={`${option.type}:${option.targetId}`} value={`${option.type}:${option.targetId}`}>
+                    <option key={alignmentOptionKey(option)} value={alignmentOptionKey(option)}>
                       {option.title}
                     </option>
                   ))}

@@ -9,6 +9,7 @@ import {
 } from "@repo/ds/shell";
 import {
   canAccessMyObjectives,
+  canAccessPlanApprovals,
   canAccessTeamObjectives,
   canViewObjectivePlanningConfiguration,
   canViewPerformanceCampaigns,
@@ -22,6 +23,7 @@ import {
   CAMPAIGNS_NAV,
   MY_OBJECTIVES_NAV,
   PLATFORM_ADMIN_NAV,
+  PLAN_APPROVALS_NAV,
   STRATEGY_NAV,
   TEAM_OBJECTIVES_NAV,
   TENANT_CONFIGURATION_NAV,
@@ -36,6 +38,7 @@ export function PerformanceSidebar() {
   const canViewCampaigns = canViewPerformanceCampaigns(user);
   const canAccessMine = canAccessMyObjectives(user);
   const canAccessTeam = canAccessTeamObjectives(user);
+  const canAccessApprovals = canAccessPlanApprovals(user);
   const canViewStrategy = canViewPerformanceStrategy(user);
 
   return (
@@ -48,6 +51,7 @@ export function PerformanceSidebar() {
         OVERVIEW_NAV,
         ...(canAccessMine ? [MY_OBJECTIVES_NAV] : []),
         ...(canAccessTeam ? [TEAM_OBJECTIVES_NAV] : []),
+        ...(canAccessApprovals ? [PLAN_APPROVALS_NAV] : []),
         ...(canViewStrategy ? [STRATEGY_NAV] : []),
         ...(canViewCampaigns ? [CAMPAIGNS_NAV] : []),
         ...(canViewPlanningConfiguration ? [TENANT_CONFIGURATION_NAV] : []),

@@ -39,12 +39,15 @@ public enum PerformanceCycleAuditAction
     EmployeeObjectiveUpdated,
     EmployeeObjectiveDeleted,
     EmployeeObjectivePlanSubmitted,
+    EmployeeObjectivePlanResubmitted,
+    EmployeeObjectivePlanChangesRequested,
+    EmployeeObjectivePlanApproved,
 
     // Strategic objective actions (Plan 03-02)
     StrategicObjectivePublished,
     StrategicObjectiveSuperseded,
 
-    // Collective objective actions (Plan 03-03)
+    // Employee objective actions (Plan 03-03)
     CollectiveObjectiveApprovalRouted,
     CollectiveObjectiveAutoApproved,
 

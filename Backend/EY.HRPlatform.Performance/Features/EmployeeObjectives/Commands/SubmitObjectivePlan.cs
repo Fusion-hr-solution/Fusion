@@ -33,6 +33,7 @@ public sealed class SubmitObjectivePlanCommandHandler(
 
         var plan = await dbContext.EmployeeObjectivePlans
             .Include(item => item.Objectives)
+            .Include(item => item.ReviewEvents)
             .FirstOrDefaultAsync(
                 item => item.CycleId == request.CycleId && item.EmployeeId == participantResult.Value.EmployeeId,
                 cancellationToken);
@@ -41,6 +42,7 @@ public sealed class SubmitObjectivePlanCommandHandler(
 
         ConcurrencyGuard.Ensure(plan.Version, request.ExpectedVersion, nameof(EmployeeObjectivePlan), plan.Id);
 
+        var wasChangesRequested = plan.Status == PlanStatus.ChangesRequested;
         ObjectivePlanSubmissionResult submission;
         try
         {
@@ -62,13 +64,23 @@ public sealed class SubmitObjectivePlanCommandHandler(
                     .ToList()));
         }
 
+        foreach (var entry in dbContext.ChangeTracker.Entries<EmployeeObjectivePlanReviewEvent>()
+                     .Where(entry => entry.State == EntityState.Modified))
+        {
+            entry.State = EntityState.Added;
+        }
+
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
             plan.TenantId,
             plan.CycleId,
-            PerformanceCycleAuditAction.EmployeeObjectivePlanSubmitted,
+            wasChangesRequested
+                ? PerformanceCycleAuditAction.EmployeeObjectivePlanResubmitted
+                : PerformanceCycleAuditAction.EmployeeObjectivePlanSubmitted,
             currentUser.UserId,
             currentUser.FullName,
-            "Submitted employee objective plan."));
+            wasChangesRequested
+                ? "Resubmitted employee objective plan."
+                : "Submitted employee objective plan."));
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return Result.Success(new SubmitObjectivePlanResponseDto(

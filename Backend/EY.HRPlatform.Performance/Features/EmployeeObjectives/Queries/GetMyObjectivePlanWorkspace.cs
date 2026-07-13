@@ -48,6 +48,7 @@ public sealed class GetMyObjectivePlanWorkspaceQueryHandler(
 
         var plan = await dbContext.EmployeeObjectivePlans
             .Include(item => item.Objectives)
+            .Include(item => item.ReviewEvents)
             .FirstOrDefaultAsync(
                 item => item.CycleId == cycle.Id && item.EmployeeId == employeeId.Value,
                 cancellationToken);
@@ -76,11 +77,15 @@ public sealed class GetMyObjectivePlanWorkspaceQueryHandler(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        var state = plan?.Status == PlanStatus.Submitted
-            ? "submitted"
-            : isEntryOpen
+        var state = plan?.Status switch
+        {
+            PlanStatus.Submitted => "submitted",
+            PlanStatus.ChangesRequested => "changes-requested",
+            PlanStatus.Approved => "approved",
+            _ => isEntryOpen
                 ? plan is null ? "empty" : "draft"
-                : "entry-not-open";
+                : "entry-not-open"
+        };
 
         return Result.Success(await BuildWorkspaceAsync(cycle, participant, plan, state, cancellationToken));
     }

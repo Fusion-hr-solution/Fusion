@@ -61,6 +61,12 @@ vi.mock("@repo/auth", () => ({
       (grant) => grant.permissionKey === "performance.objective.team.manage",
     ) ??
       false),
+  canAccessPlanApprovals: (user: TestUser | null) =>
+    !!user?.employeeId &&
+    (user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.objective.team.approve",
+    ) ??
+      false),
   canViewPerformanceStrategy: (user: TestUser | null) =>
     user?.permissions?.some(
       (grant) =>
@@ -127,6 +133,7 @@ describe("PerformanceSidebar", () => {
     expect(sidebar.textContent).not.toContain("Reviews");
     expect(sidebar.textContent).not.toContain("Campaigns");
     expect(sidebar.textContent).not.toContain("Team objectives");
+    expect(sidebar.textContent).not.toContain("Plan approvals");
     expect(sidebar.textContent).not.toContain("My objectives");
     expect(sidebar.textContent).not.toContain("Strategy");
   });
@@ -177,6 +184,39 @@ describe("PerformanceSidebar", () => {
     expect(sidebar.textContent).toContain("Team objectives");
     expect(sidebar.querySelector('a[href="/performance/my-objectives"]')).toBeTruthy();
     expect(sidebar.querySelector('a[href="/performance/team-objectives"]')).toBeTruthy();
+  });
+
+  it("keeps My objectives, Team objectives, and Plan approvals as separate doors for a manager-employee", () => {
+    const sidebar = renderSidebar({
+      fullName: "Manager",
+      roles: ["Manager"],
+      employeeId: "emp-1",
+      permissions: [
+        { permissionKey: "performance.objective.self.manage", scope: "Self" },
+        { permissionKey: "performance.objective.team.manage", scope: "DirectReports" },
+        { permissionKey: "performance.objective.team.approve", scope: "DirectReports" },
+      ],
+    });
+
+    expect(sidebar.textContent).toContain("My objectives");
+    expect(sidebar.textContent).toContain("Team objectives");
+    expect(sidebar.textContent).toContain("Plan approvals");
+    expect(sidebar.querySelector('a[href="/performance/my-objectives"]')).toBeTruthy();
+    expect(sidebar.querySelector('a[href="/performance/team-objectives"]')).toBeTruthy();
+    expect(sidebar.querySelector('a[href="/performance/plan-approvals"]')).toBeTruthy();
+  });
+
+  it("hides Plan approvals from an admin with approval permission but no employee link", () => {
+    const sidebar = renderSidebar({
+      fullName: "HR Admin",
+      roles: ["HRAdmin"],
+      employeeId: null,
+      permissions: [
+        { permissionKey: "performance.objective.team.approve", scope: "Tenant" },
+      ],
+    });
+
+    expect(sidebar.textContent).not.toContain("Plan approvals");
   });
 
   it("hides the Team objectives door from an admin with the permission but no employee link", () => {

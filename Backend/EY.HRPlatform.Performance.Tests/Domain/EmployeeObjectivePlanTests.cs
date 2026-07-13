@@ -36,6 +36,30 @@ public class EmployeeObjectivePlanTests
         return (cycle, cycle.Participants.Single(p => p.EmployeeId == participantId), strategic);
     }
 
+    private static EmployeeObjective AddValidObjective(
+        EmployeeObjectivePlan plan,
+        PerformanceCycle cycle,
+        CampaignStrategicObjective strategic,
+        DateTime now,
+        int weight = 100,
+        string targetValue = "60")
+        => plan.AddObjective(
+            cycle,
+            "Improve delivery quality",
+            ObjectiveAlignmentType.StrategicObjective,
+            strategic.Id,
+            strategic.Title,
+            weight,
+            Start.AddDays(10),
+            "Quantitative",
+            "NPS",
+            targetValue,
+            "%",
+            now);
+
+    private static EmployeeObjectivePlanReviewActor ManagerActor(PerformanceCycleParticipant participant)
+        => new(participant.ApproverEmployeeId, participant.ApproverName);
+
     [Fact]
     public void AddObjective_AllowsIncompleteDraftObjective()
     {
@@ -254,6 +278,10 @@ public class EmployeeObjectivePlanTests
         Assert.Equal(Start.AddDays(3), plan.SubmittedAt);
         Assert.Equal(participant.ApproverEmployeeId, plan.ApproverEmployeeId);
         Assert.Equal(participant.ApproverName, plan.ApproverName);
+        var reviewEvent = Assert.Single(plan.ReviewEvents);
+        Assert.Equal(ReviewEventType.Submitted, reviewEvent.Type);
+        Assert.Equal(participant.EmployeeId, reviewEvent.ActorEmployeeId);
+        Assert.Equal(participant.FullName, reviewEvent.ActorName);
     }
 
     [Fact]
@@ -291,5 +319,144 @@ public class EmployeeObjectivePlanTests
             "65",
             "%",
             Start.AddDays(4)));
+    }
+
+    [Fact]
+    public void RequestChanges_RequiresSubmittedPlanAndComment()
+    {
+        var (cycle, participant, strategic) = LaunchedCycle();
+        var plan = EmployeeObjectivePlan.CreateDraft(cycle, participant, Start.AddDays(2));
+        AddValidObjective(plan, cycle, strategic, Start.AddDays(2));
+
+        Assert.Throws<DomainRuleViolationException>(() =>
+            plan.RequestChanges(ManagerActor(participant), "Add a measurable delivery target.", Start.AddDays(3)));
+        Assert.True(plan.Submit(cycle, participant, Start.AddDays(3)).Succeeded);
+        Assert.Throws<DomainRuleViolationException>(() =>
+            plan.RequestChanges(ManagerActor(participant), "   ", Start.AddDays(4)));
+    }
+
+    [Fact]
+    public void RequestChanges_ReturnsPlanForCorrectionAndLogsComment()
+    {
+        var (cycle, participant, strategic) = LaunchedCycle();
+        var plan = EmployeeObjectivePlan.CreateDraft(cycle, participant, Start.AddDays(2));
+        var objective = AddValidObjective(plan, cycle, strategic, Start.AddDays(2));
+        Assert.True(plan.Submit(cycle, participant, Start.AddDays(3)).Succeeded);
+
+        plan.RequestChanges(
+            ManagerActor(participant),
+            "Add a stronger target value.",
+            Start.AddDays(4),
+            [objective.Id]);
+        plan.UpdateObjective(
+            cycle,
+            objective.Id,
+            "Updated delivery quality",
+            ObjectiveAlignmentType.StrategicObjective,
+            strategic.Id,
+            strategic.Title,
+            100,
+            Start.AddDays(10),
+            "Quantitative",
+            "NPS",
+            "65",
+            "%",
+            Start.AddDays(5));
+
+        Assert.Equal(PlanStatus.ChangesRequested, plan.Status);
+        Assert.Equal("Add a stronger target value.", plan.LastChangeRequestComment);
+        Assert.Equal(["Submitted", "ChangesRequested"], plan.ReviewEvents.Select(item => item.Type.ToString()));
+        Assert.Equal([objective.Id], plan.ReviewEvents.Last().ReferencedObjectiveIds);
+        Assert.Equal("65", plan.Objectives.Single().TargetValue);
+    }
+
+    [Fact]
+    public void RequestChanges_RejectsObjectiveReferencesOutsidePlan()
+    {
+        var (cycle, participant, strategic) = LaunchedCycle();
+        var plan = EmployeeObjectivePlan.CreateDraft(cycle, participant, Start.AddDays(2));
+        AddValidObjective(plan, cycle, strategic, Start.AddDays(2));
+        Assert.True(plan.Submit(cycle, participant, Start.AddDays(3)).Succeeded);
+
+        Assert.Throws<DomainRuleViolationException>(() =>
+            plan.RequestChanges(
+                ManagerActor(participant),
+                "Fix an unrelated objective.",
+                Start.AddDays(4),
+                [Guid.NewGuid()]));
+    }
+
+    [Fact]
+    public void Resubmit_FromChangesRequested_RevalidatesAndRecordsResubmission()
+    {
+        var (cycle, participant, strategic) = LaunchedCycle();
+        var plan = EmployeeObjectivePlan.CreateDraft(cycle, participant, Start.AddDays(2));
+        var objective = AddValidObjective(plan, cycle, strategic, Start.AddDays(2));
+        Assert.True(plan.Submit(cycle, participant, Start.AddDays(3)).Succeeded);
+        plan.RequestChanges(ManagerActor(participant), "Fix the total weight.", Start.AddDays(4));
+        plan.UpdateObjective(
+            cycle,
+            objective.Id,
+            "Updated delivery quality",
+            ObjectiveAlignmentType.StrategicObjective,
+            strategic.Id,
+            strategic.Title,
+            75,
+            Start.AddDays(10),
+            "Quantitative",
+            "NPS",
+            "65",
+            "%",
+            Start.AddDays(5));
+
+        var blocked = plan.Submit(cycle, participant, Start.AddDays(6));
+
+        Assert.False(blocked.Succeeded);
+        Assert.Equal(PlanStatus.ChangesRequested, plan.Status);
+        Assert.Contains(blocked.BlockingReasons, reason => reason.Code == "Weight.TotalMustEqual100");
+
+        plan.UpdateObjective(
+            cycle,
+            objective.Id,
+            "Updated delivery quality",
+            ObjectiveAlignmentType.StrategicObjective,
+            strategic.Id,
+            strategic.Title,
+            100,
+            Start.AddDays(10),
+            "Quantitative",
+            "NPS",
+            "65",
+            "%",
+            Start.AddDays(7));
+
+        var resubmitted = plan.Submit(cycle, participant, Start.AddDays(8));
+
+        Assert.True(resubmitted.Succeeded);
+        Assert.Equal(PlanStatus.Submitted, plan.Status);
+        Assert.Equal(Start.AddDays(8), plan.SubmittedAt);
+        Assert.Equal(["Submitted", "ChangesRequested", "Resubmitted"], plan.ReviewEvents.Select(item => item.Type.ToString()));
+    }
+
+    [Fact]
+    public void Approve_RequiresSubmittedPlanAndIsTerminal()
+    {
+        var (cycle, participant, strategic) = LaunchedCycle();
+        var plan = EmployeeObjectivePlan.CreateDraft(cycle, participant, Start.AddDays(2));
+        var objective = AddValidObjective(plan, cycle, strategic, Start.AddDays(2));
+
+        Assert.Throws<DomainRuleViolationException>(() => plan.Approve(ManagerActor(participant), Start.AddDays(3)));
+        Assert.True(plan.Submit(cycle, participant, Start.AddDays(3)).Succeeded);
+
+        plan.Approve(ManagerActor(participant), Start.AddDays(4), "Ready for evaluation.");
+
+        Assert.Equal(PlanStatus.Approved, plan.Status);
+        Assert.Equal(participant.ApproverEmployeeId, plan.ApprovingManagerEmployeeId);
+        Assert.Equal(participant.ApproverName, plan.ApprovingManagerName);
+        Assert.Equal(Start.AddDays(4), plan.ApprovedAt);
+        Assert.Throws<DomainRuleViolationException>(() => plan.RemoveObjective(objective.Id, Start.AddDays(5)));
+        Assert.Throws<DomainRuleViolationException>(() => plan.RequestChanges(ManagerActor(participant), "Attempt after approval", Start.AddDays(5)));
+        Assert.Throws<DomainRuleViolationException>(() => plan.Approve(ManagerActor(participant), Start.AddDays(5)));
+        Assert.Equal(["Submitted", "Approved"], plan.ReviewEvents.Select(item => item.Type.ToString()));
     }
 }

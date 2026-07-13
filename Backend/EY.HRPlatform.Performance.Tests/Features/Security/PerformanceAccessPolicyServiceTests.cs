@@ -22,6 +22,7 @@ public class PerformanceAccessPolicyServiceTests
         Assert.False(_policy.CanActOnOwnedException(user));
         Assert.False(_policy.CanOverrideException(user));
         Assert.False(_policy.CanViewExceptionAudit(user));
+        Assert.False(_policy.CanApproveEmployeePlans(user));
     }
 
     [Fact]
@@ -209,6 +210,38 @@ public class PerformanceAccessPolicyServiceTests
             .Build();
 
         Assert.False(_policy.CanManageOwnObjectives(user));
+    }
+
+    // ─── P1.5 employee objective plan approvals ─────────────────────────────
+
+    [Fact]
+    public void ObjectiveTeamApprove_AnyCatalogScope_AllowsEmployeePlanApproval()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.ObjectiveTeamApprove, PermissionScopes.DirectReports)
+            .Build();
+
+        Assert.True(_policy.CanApproveEmployeePlans(user));
+    }
+
+    [Fact]
+    public void TeamObjectiveManage_DoesNotAllowEmployeePlanApproval()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.False(_policy.CanApproveEmployeePlans(user));
+    }
+
+    [Fact]
+    public void PlatformAdmin_GetsNoEmployeePlanApprovalBypass()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithRole(PlatformRole.PlatformAdmin)
+            .Build();
+
+        Assert.False(_policy.CanApproveEmployeePlans(user));
     }
 
     [Fact]

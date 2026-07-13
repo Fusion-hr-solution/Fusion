@@ -58,6 +58,7 @@ const PERFORMANCE_PERMISSION = {
   objectivePlanningConfigurationManage: "performance.objective.policy.manage",
   objectiveSelfManage: "performance.objective.self.manage",
   objectiveTeamManage: "performance.objective.team.manage",
+  objectiveTeamApprove: "performance.objective.team.approve",
   strategicView: "performance.strategic.view",
 } as const;
 
@@ -415,6 +416,18 @@ export function canAccessTeamObjectives(user: AuthUser | null): boolean {
   return canManageTeamObjectives(user);
 }
 
+/**
+ * Plan-approval door: the permission opens manager review, but the account must be linked
+ * to an employee because assignment comes from the frozen approver baseline.
+ */
+export function canAccessPlanApprovals(user: AuthUser | null): boolean {
+  if (!user?.employeeId) {
+    return false;
+  }
+
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.objectiveTeamApprove);
+}
+
 export function canAccessMyObjectives(user: AuthUser | null): boolean {
   if (!user?.employeeId) {
     return false;
@@ -437,6 +450,7 @@ export function canAccessPerformance(user: AuthUser | null): boolean {
     canViewPerformanceCycles(user) ||
     canViewObjectivePlanningConfiguration(user) ||
     canAccessMyObjectives(user) ||
+    canAccessPlanApprovals(user) ||
     canManageTeamObjectives(user) ||
     canViewPerformanceStrategy(user)
   );

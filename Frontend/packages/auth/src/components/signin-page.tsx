@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   Button,
   Card,
@@ -31,10 +31,17 @@ function resolveRedirectTarget(searchParams: Pick<URLSearchParams, "get">): stri
   return isSafeInternalRedirect(candidate) ? candidate : "/";
 }
 
+function navigateToRedirectTarget(target: string, mode: "push" | "replace") {
+  if (mode === "replace") {
+    window.location.replace(target);
+  } else {
+    window.location.assign(target);
+  }
+}
+
 export function SignInPage({
   onSuccess,
 }: SignInPageProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { login, isLoading: authLoading, isAuthenticated } = useAuth();
   const redirectTarget = resolveRedirectTarget(searchParams);
@@ -50,10 +57,10 @@ export function SignInPage({
       if (onSuccess) {
         onSuccess();
       } else {
-        router.replace(redirectTarget);
+        navigateToRedirectTarget(redirectTarget, "replace");
       }
     }
-  }, [authLoading, isAuthenticated, router, onSuccess, redirectTarget]);
+  }, [authLoading, isAuthenticated, onSuccess, redirectTarget]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +76,7 @@ export function SignInPage({
         if (onSuccess) {
           onSuccess();
         } else {
-          router.push(redirectTarget);
+          navigateToRedirectTarget(redirectTarget, "push");
         }
       }
     } finally {

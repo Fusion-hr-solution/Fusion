@@ -18,13 +18,15 @@ public sealed class EmployeeObjectivePlanConfiguration : IEntityTypeConfiguratio
         builder.Property(plan => plan.CycleId).IsRequired();
         builder.Property(plan => plan.EmployeeId).IsRequired();
         builder.Property(plan => plan.Status)
-            .HasConversion<string>()
-            .HasMaxLength(20)
+            .HasConversion<int>()
             .IsRequired()
             .HasDefaultValue(PlanStatus.Draft);
         builder.Property(plan => plan.SubmittedAt);
         builder.Property(plan => plan.ApproverEmployeeId);
         builder.Property(plan => plan.ApproverName).HasMaxLength(256);
+        builder.Property(plan => plan.ApprovingManagerEmployeeId);
+        builder.Property(plan => plan.ApprovingManagerName).HasMaxLength(256);
+        builder.Property(plan => plan.ApprovedAt);
         builder.Property(plan => plan.CreatedBy).HasMaxLength(256);
         builder.Property(plan => plan.UpdatedBy).HasMaxLength(256);
 
@@ -78,6 +80,37 @@ public sealed class EmployeeObjectivePlanConfiguration : IEntityTypeConfiguratio
         });
 
         builder.Metadata.FindNavigation(nameof(EmployeeObjectivePlan.Objectives))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+
+        builder.OwnsMany(plan => plan.ReviewEvents, reviewEvent =>
+        {
+            reviewEvent.ToTable("EmployeeObjectivePlanReviewEvents");
+            reviewEvent.WithOwner().HasForeignKey(item => item.PlanId);
+            reviewEvent.HasKey(item => item.Id);
+            reviewEvent.Property(item => item.PlanId).IsRequired();
+            reviewEvent.Property(item => item.ActorEmployeeId).IsRequired();
+            reviewEvent.Property(item => item.ActorName)
+                .HasMaxLength(EmployeeObjectivePlanReviewEvent.ActorNameMaxLength)
+                .IsRequired();
+            reviewEvent.Property(item => item.Type)
+                .HasConversion<int>()
+                .IsRequired();
+            reviewEvent.Property(item => item.Comment)
+                .HasMaxLength(EmployeeObjectivePlanReviewEvent.CommentMaxLength);
+            reviewEvent.Property(item => item.ReferencedObjectiveIds)
+                .HasColumnType("uuid[]")
+                .IsRequired();
+            reviewEvent.Property(item => item.OccurredAt).IsRequired();
+            reviewEvent.Property(item => item.CreatedBy).HasMaxLength(256);
+            reviewEvent.Property(item => item.UpdatedBy).HasMaxLength(256);
+
+            reviewEvent.HasIndex(item => item.PlanId)
+                .HasDatabaseName("IX_EmployeeObjectivePlanReviewEvents_Plan");
+            reviewEvent.HasIndex(item => new { item.PlanId, item.OccurredAt })
+                .HasDatabaseName("IX_EmployeeObjectivePlanReviewEvents_Plan_OccurredAt");
+        });
+
+        builder.Metadata.FindNavigation(nameof(EmployeeObjectivePlan.ReviewEvents))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         builder.HasIndex(plan => new { plan.TenantId, plan.CycleId, plan.EmployeeId })

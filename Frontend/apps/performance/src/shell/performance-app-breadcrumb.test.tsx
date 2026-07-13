@@ -82,4 +82,12 @@ describe("PerformanceAppBreadcrumb", () => {
     expect(breadcrumb.textContent).toContain("My objectives");
     expect(breadcrumb.textContent).toContain("Fy26 objectives");
   });
+
+  it("renders Plan approvals workspace breadcrumb hierarchy", () => {
+    const breadcrumb = renderBreadcrumb("/performance/plan-approvals/fy26-objectives");
+
+    expect(breadcrumb.textContent).toContain("Performance");
+    expect(breadcrumb.textContent).toContain("Plan approvals");
+    expect(breadcrumb.textContent).toContain("Fy26 objectives");
+  });
 });

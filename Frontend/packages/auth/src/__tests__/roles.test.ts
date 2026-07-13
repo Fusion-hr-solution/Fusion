@@ -21,6 +21,7 @@ import {
   canViewObjectivePlanningConfiguration,
   canManageObjectivePlanningConfiguration,
   canAccessMyObjectives,
+  canAccessPlanApprovals,
   canAccessPerformance,
 } from "../roles";
 import type { AuthUser } from "../types";
@@ -294,6 +295,23 @@ describe("role helpers", () => {
     expect(canAccessPerformance(employee)).toBe(true);
     expect(canAccessMyObjectives(unlinked)).toBe(false);
     expect(canAccessMyObjectives(managerOnly)).toBe(false);
+  });
+
+  it("allows only employee-linked approvers to access Plan approvals", () => {
+    const approver = makeUser(["Manager"], "employee-1", [
+      grant("performance.objective.team.approve", "DirectReports"),
+    ]);
+    const unlinkedAdmin = makeUser(["HRAdmin"], null, [
+      grant("performance.objective.team.approve", "Tenant"),
+    ]);
+    const noPermission = makeUser(["Manager"], "employee-2", [
+      grant("performance.objective.team.manage", "DirectReports"),
+    ]);
+
+    expect(canAccessPlanApprovals(approver)).toBe(true);
+    expect(canAccessPerformance(approver)).toBe(true);
+    expect(canAccessPlanApprovals(unlinkedAdmin)).toBe(false);
+    expect(canAccessPlanApprovals(noPermission)).toBe(false);
   });
 
 });

@@ -40,10 +40,24 @@ public sealed record EmployeeObjectivePlanDto(
     DateTime? SubmittedAt,
     Guid? ApproverEmployeeId,
     string? ApproverName,
+    DateTime? ApprovedAt,
+    Guid? ApprovingManagerEmployeeId,
+    string? ApprovingManagerName,
+    string? LastChangeRequestComment,
     int ObjectiveCount,
     int TotalWeight,
     uint Version,
-    IReadOnlyList<EmployeeObjectiveDto> Objectives);
+    IReadOnlyList<EmployeeObjectiveDto> Objectives,
+    IReadOnlyList<EmployeeObjectivePlanReviewHistoryEventDto> ReviewHistory);
+
+public sealed record EmployeeObjectivePlanReviewHistoryEventDto(
+    Guid Id,
+    ReviewEventType Type,
+    Guid ActorEmployeeId,
+    string ActorName,
+    string? Comment,
+    IReadOnlyList<Guid> ReferencedObjectiveIds,
+    DateTime OccurredAt);
 
 public sealed record EmployeeObjectiveAlignmentOptionDto(
     ObjectiveAlignmentType Type,

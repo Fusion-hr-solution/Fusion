@@ -3,6 +3,7 @@ using EY.HRPlatform.Performance.Features.ObjectivePolicy;
 using EY.HRPlatform.Performance.Features.Cycles.Services;
 using EY.HRPlatform.Performance.Features.EmployeeObjectives;
 using EY.HRPlatform.Performance.Features.Exceptions.Services;
+using EY.HRPlatform.Performance.Features.PlanApprovals;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -37,6 +38,7 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IPerformanceAccessPolicyService, PerformanceAccessPolicyService>();
         services.AddScoped<EmployeeObjectivePlanAccessGuard>();
+        services.AddScoped<PlanApprovalAccessGuard>();
         services.AddScoped<IConfigurationAuditWriter, ConfigurationAuditWriter>();
         services.AddScoped<PerformanceConfigurationValidator>();
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
