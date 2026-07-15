@@ -9,6 +9,9 @@ using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
 using EY.HRPlatform.Training.Features.Calendar.Feed;
 using EY.HRPlatform.Training.Features.Calendar.Ics;
+using EY.HRPlatform.Training.Features.Calendar.Invites;
+using EY.HRPlatform.Training.Features.Calendar.Reminders;
+using EY.HRPlatform.Training.Features.Calendar.Sync;
 using EY.HRPlatform.Training.Features.Certifications.Export;
 using EY.HRPlatform.Training.Features.Certifications.Services;
 using EY.HRPlatform.Training.Features.Enrollment.Services;
@@ -114,10 +117,40 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICalendarFeedService, IcsCalendarFeed>();
         services.AddSingleton<ICalendarFeedTokenService, CalendarFeedTokenService>();
 
-        // 8. Register on-site completion materialisation (ADR 0005) — scoped, uses the DbContext
+        // 8. Calendar session-sync (invites). Provider from config (Imip | Graph | None); falls back to
+        //    NoOp when iMIP isn't configured. Graph is a future adapter (seam ready, not yet implemented).
+        services.AddSingleton<IcsInviteBuilder>();
+        var calendarEmailSection = configuration.GetSection(CalendarEmailOptions.SectionName);
+        services.Configure<CalendarEmailOptions>(calendarEmailSection);
+
+        var inviteProvider = configuration["Calendar:InviteProvider"];
+        var imipEnabled = string.Equals(calendarEmailSection["Enabled"], "true", StringComparison.OrdinalIgnoreCase);
+        var imipHost = calendarEmailSection["SmtpHost"]?.Trim();
+        var useImip =
+            (string.IsNullOrWhiteSpace(inviteProvider) || inviteProvider.Equals("Imip", StringComparison.OrdinalIgnoreCase))
+            && imipEnabled
+            && !string.IsNullOrWhiteSpace(imipHost);
+
+        if (useImip)
+            services.AddSingleton<ISessionInviteSync, ImipEmailInviteSync>();
+        else
+            services.AddSingleton<ISessionInviteSync, NoOpInviteSync>();
+
+        // Reminders reuse the same SMTP config (Email:Calendar), independent of the invite provider.
+        var emailConfigured = imipEnabled && !string.IsNullOrWhiteSpace(imipHost);
+        if (emailConfigured)
+            services.AddSingleton<IReminderEmailSender, SmtpReminderEmailSender>();
+        else
+            services.AddSingleton<IReminderEmailSender, NoOpReminderEmailSender>();
+
+        services.AddScoped<CalendarSyncProcessor>();
+        services.AddScoped<ReminderScanner>();
+        services.AddHostedService<CalendarBackgroundService>();
+
+        // 9. Register on-site completion materialisation (ADR 0005) — scoped, uses the DbContext
         services.AddScoped<IAttendanceCompletionService, AttendanceCompletionService>();
 
-        // 9. Budget alert email sender (own SMTP infra; Smtp when enabled + configured, else NoOp)
+        // 10. Budget alert email sender (own SMTP infra; Smtp when enabled + configured, else NoOp)
         var budgetAlertSection = configuration.GetSection(BudgetAlertEmailOptions.SectionName);
         services.Configure<BudgetAlertEmailOptions>(budgetAlertSection);
 
@@ -129,10 +162,10 @@ public static class ServiceCollectionExtensions
         else
             services.AddSingleton<IBudgetAlertEmailSender, SmtpBudgetAlertEmailSender>();
 
-        // 10. Budget threshold notifier (scoped — uses the scoped DbContext)
+        // 11. Budget threshold notifier (scoped — uses the scoped DbContext)
         services.AddScoped<IBudgetAlertNotifier, BudgetAlertNotifier>();
 
-        // 11. Budget report exporter (Excel + PDF)
+        // 12. Budget report exporter (Excel + PDF)
         services.AddSingleton<IBudgetReportExporter, BudgetReportExporter>();
 
         return services;
