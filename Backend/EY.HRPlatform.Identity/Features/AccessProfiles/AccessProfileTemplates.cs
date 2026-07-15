@@ -35,9 +35,18 @@ public static class AccessProfileTemplates
             new(CorePermissions.TeamView, PermissionScopes.DirectReports),
             new(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self),
             new(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.DirectReports),
+            new(PerformancePermissions.ObjectiveTeamApprove, PermissionScopes.DirectReports),
             new(PerformancePermissions.ReviewSelfManage, PermissionScopes.Self),
             new(PerformancePermissions.ReviewTeamManage, PermissionScopes.DirectReports),
             new(PerformancePermissions.FeedbackSubmit, PermissionScopes.Self),
+        ]);
+
+    public static readonly SeededAccessProfileTemplate Direction = new(
+        "direction",
+        "Direction",
+        "Read-only access to campaign strategy and cascade coverage.",
+        [
+            new(PerformancePermissions.StrategicView, PermissionScopes.Tenant),
         ]);
 
     public static readonly SeededAccessProfileTemplate HrAdmin = new(
@@ -117,7 +126,7 @@ public static class AccessProfileTemplates
             new(PerformancePermissions.ConfidentialIdentityView, PermissionScopes.Tenant),
         ]);
 
-    public static IReadOnlyList<SeededAccessProfileTemplate> All => [Employee, Manager, HrAdmin, OrgAdmin];
+    public static IReadOnlyList<SeededAccessProfileTemplate> All => [Employee, Manager, Direction, HrAdmin, OrgAdmin];
 
     public static SeededAccessProfileTemplate? GetByInternalKey(string internalKey)
         => All.FirstOrDefault(t =>
