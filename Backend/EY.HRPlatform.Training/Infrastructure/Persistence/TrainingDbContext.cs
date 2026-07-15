@@ -17,6 +17,7 @@ public class TrainingDbContext : DbContext
     public DbSet<TrainingSession> TrainingSessions => Set<TrainingSession>();
     public DbSet<SessionEnrollment> SessionEnrollments => Set<SessionEnrollment>();
     public DbSet<SessionAttendanceToken> SessionAttendanceTokens => Set<SessionAttendanceToken>();
+    public DbSet<CalendarFeedToken> CalendarFeedTokens => Set<CalendarFeedToken>();
     public DbSet<ChapterProgress> ChapterProgress => Set<ChapterProgress>();
     public DbSet<ContentBlockProgress> ContentBlockProgress => Set<ContentBlockProgress>();
     public DbSet<Exam> Exams => Set<Exam>();
@@ -200,6 +201,15 @@ public class TrainingDbContext : DbContext
                 .HasForeignKey(t => t.SessionId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(t => t.SessionId).IsUnique();
+        });
+
+        // --- CalendarFeedToken (per-learner opaque feed credential; only the hash is stored) ---
+        modelBuilder.Entity<CalendarFeedToken>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.TokenHash).HasMaxLength(128).IsRequired();
+            e.HasIndex(t => t.TokenHash).IsUnique();
+            e.HasIndex(t => t.EmployeeId).IsUnique().HasFilter("\"RevokedAt\" IS NULL");
         });
 
         // --- ChapterProgress ---

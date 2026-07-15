@@ -132,6 +132,7 @@
       "catalog": "Catalogue",
       "myTrainings": "Mes Formations",
       "mySessions": "Mes Séances",
+      "calendar": "Calendrier",
       "scanQr": "Scanner un QR",
       "cursus": "Mon Cursus",
       "certificates": "Certificats",
@@ -145,6 +146,7 @@
       "curriculum": "Curriculum",
       "trainingBudgets": "Budgets de formation",
       "sessions": "Séances",
+      "planning": "Planification",
       "attendance": "Présences",
       "certificateRegistry": "Registre des certificats",
       "feedback": "Avis",
@@ -162,6 +164,40 @@
       "completedShort": "Finies",
       "inProgressShort": "Actives",
       "certificatesShort": "Certif."
+    }
+  },
+  "calendar": {
+    "title": "Mon calendrier",
+    "description": "Vos séances et échéances de formation.",
+    "deadlineBadge": "Échéance",
+    "waitlistedBadge": "Liste d'attente",
+    "subscribe": {
+      "action": "S'abonner au calendrier",
+      "title": "S'abonner à votre calendrier de formation",
+      "description": "Ajoutez ce flux à Outlook, Google ou Apple Calendar pour voir vos séances se mettre à jour automatiquement.",
+      "generate": "Générer mon lien de calendrier",
+      "generating": "Génération…",
+      "webcal": "Lien d'abonnement (webcal)",
+      "https": "Lien d'abonnement (https)",
+      "instructions": "Outlook / Apple : ouvrez le lien webcal pour vous abonner. Google Agenda : Autres agendas → À partir de l'URL → collez le lien https.",
+      "warning": "Toute personne disposant de ce lien peut voir votre planning. Régénérez pour révoquer un lien partagé.",
+      "regenerate": "Régénérer le lien",
+      "copied": "Lien copié",
+      "copyError": "Impossible de copier le lien",
+      "error": "Impossible de générer votre lien de calendrier"
+    },
+    "planning": {
+      "title": "Planification des séances",
+      "description": "Toutes les séances de formation planifiées dans l'organisation.",
+      "filters": {
+        "serviceLine": "Service line",
+        "grade": "Grade",
+        "status": "Statut",
+        "room": "Salle",
+        "all": "Tous",
+        "reset": "Réinitialiser"
+      },
+      "capacity": "{enrolled}/{max} inscrits"
     }
   },
   "languageSwitcher": {

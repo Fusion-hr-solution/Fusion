@@ -132,6 +132,7 @@
       "catalog": "Catalog",
       "myTrainings": "My Trainings",
       "mySessions": "My Sessions",
+      "calendar": "Calendar",
       "scanQr": "Scan QR",
       "cursus": "Mon Cursus",
       "certificates": "Certificates",
@@ -145,6 +146,7 @@
       "curriculum": "Curriculum",
       "trainingBudgets": "Training Budgets",
       "sessions": "Sessions",
+      "planning": "Planning",
       "attendance": "Attendance",
       "certificateRegistry": "Certificate Registry",
       "feedback": "Feedback",
@@ -162,6 +164,40 @@
       "completedShort": "Done",
       "inProgressShort": "Active",
       "certificatesShort": "Certs"
+    }
+  },
+  "calendar": {
+    "title": "My Calendar",
+    "description": "Your enrolled sessions and training deadlines.",
+    "deadlineBadge": "Deadline",
+    "waitlistedBadge": "Waitlisted",
+    "subscribe": {
+      "action": "Subscribe to calendar",
+      "title": "Subscribe to your training calendar",
+      "description": "Add this feed to Outlook, Google or Apple Calendar to see your sessions update automatically.",
+      "generate": "Generate my calendar link",
+      "generating": "Generating…",
+      "webcal": "Subscription link (webcal)",
+      "https": "Subscription link (https)",
+      "instructions": "Outlook / Apple: open the webcal link to subscribe. Google Calendar: Other calendars → From URL → paste the https link.",
+      "warning": "Anyone with this link can see your schedule. Regenerate to revoke a shared link.",
+      "regenerate": "Regenerate link",
+      "copied": "Link copied",
+      "copyError": "Couldn't copy the link",
+      "error": "Couldn't generate your calendar link"
+    },
+    "planning": {
+      "title": "Session Planning",
+      "description": "All scheduled training sessions across the organization.",
+      "filters": {
+        "serviceLine": "Service line",
+        "grade": "Grade",
+        "status": "Status",
+        "room": "Room",
+        "all": "All",
+        "reset": "Reset"
+      },
+      "capacity": "{enrolled}/{max} enrolled"
     }
   },
   "languageSwitcher": {

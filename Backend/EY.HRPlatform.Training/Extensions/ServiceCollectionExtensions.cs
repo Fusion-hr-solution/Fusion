@@ -7,6 +7,8 @@ using EY.HRPlatform.Training.Features.Admin.Budget;
 using EY.HRPlatform.Training.Features.Admin.Budget.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Export;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
+using EY.HRPlatform.Training.Features.Calendar.Feed;
+using EY.HRPlatform.Training.Features.Calendar.Ics;
 using EY.HRPlatform.Training.Features.Certifications.Export;
 using EY.HRPlatform.Training.Features.Certifications.Services;
 using EY.HRPlatform.Training.Features.Enrollment.Services;
@@ -108,10 +110,14 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICertificateRegistryExporter, CertificateRegistryExporter>();
         services.AddScoped<ICertificateIssuanceService, CertificateIssuanceService>();
 
-        // 7. Register on-site completion materialisation (ADR 0005) — scoped, uses the DbContext
+        // 7. Register calendar feed services (ICS builder + feed-token hashing — stateless singletons)
+        services.AddSingleton<ICalendarFeedService, IcsCalendarFeed>();
+        services.AddSingleton<ICalendarFeedTokenService, CalendarFeedTokenService>();
+
+        // 8. Register on-site completion materialisation (ADR 0005) — scoped, uses the DbContext
         services.AddScoped<IAttendanceCompletionService, AttendanceCompletionService>();
 
-        // 8. Budget alert email sender (own SMTP infra; Smtp when enabled + configured, else NoOp)
+        // 9. Budget alert email sender (own SMTP infra; Smtp when enabled + configured, else NoOp)
         var budgetAlertSection = configuration.GetSection(BudgetAlertEmailOptions.SectionName);
         services.Configure<BudgetAlertEmailOptions>(budgetAlertSection);
 
@@ -123,10 +129,10 @@ public static class ServiceCollectionExtensions
         else
             services.AddSingleton<IBudgetAlertEmailSender, SmtpBudgetAlertEmailSender>();
 
-        // 9. Budget threshold notifier (scoped — uses the scoped DbContext)
+        // 10. Budget threshold notifier (scoped — uses the scoped DbContext)
         services.AddScoped<IBudgetAlertNotifier, BudgetAlertNotifier>();
 
-        // 10. Budget report exporter (Excel + PDF)
+        // 11. Budget report exporter (Excel + PDF)
         services.AddSingleton<IBudgetReportExporter, BudgetReportExporter>();
 
         return services;
