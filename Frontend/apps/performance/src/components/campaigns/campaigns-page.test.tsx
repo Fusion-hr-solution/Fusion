@@ -31,6 +31,7 @@ function clickStation(page: HTMLElement, label: string) {
 
 type TestUser = {
   fullName: string;
+  employeeId?: string;
   effectivePermissions: Array<{ permissionKey: string; scope: string }>;
 };
 
@@ -95,6 +96,29 @@ vi.mock("@repo/auth", () => ({
       (grant) =>
         grant.scope === "Tenant" &&
         grant.permissionKey === "performance.cycle.publish"
+    ) ?? false,
+  canAccessMyObjectives: (user: TestUser | null) =>
+    !!user?.employeeId &&
+    (user.effectivePermissions.some(
+      (grant) =>
+        grant.scope === "Self" &&
+        grant.permissionKey === "performance.objective.self.manage"
+    ) ?? false),
+  canAccessTeamObjectives: (user: TestUser | null) =>
+    !!user?.employeeId &&
+    (user.effectivePermissions.some(
+      (grant) => grant.permissionKey === "performance.objective.team.manage"
+    ) ?? false),
+  canAccessPlanApprovals: (user: TestUser | null) =>
+    !!user?.employeeId &&
+    (user.effectivePermissions.some(
+      (grant) => grant.permissionKey === "performance.objective.team.approve"
+    ) ?? false),
+  canViewPerformanceStrategy: (user: TestUser | null) =>
+    user?.effectivePermissions.some(
+      (grant) =>
+        grant.scope === "Tenant" &&
+        grant.permissionKey === "performance.strategic.view"
     ) ?? false,
 }));
 

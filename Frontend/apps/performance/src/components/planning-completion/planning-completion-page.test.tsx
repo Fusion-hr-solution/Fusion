@@ -240,7 +240,7 @@ describe("PlanningCompletionPage", () => {
     expect(page.textContent).toContain("Locked baseline");
     expect(page.textContent).toContain("Followed up before lock.");
     expect(buttonText(page, "Lock planning")).toBeFalsy();
-    expect(buttonText(page, "Reminder")?.disabled).toBe(true);
+    expect(buttonText(page, "Record reminder")?.disabled).toBe(true);
     expect(buttonText(page, "Reassign reviewer")?.disabled).toBe(true);
     expect(buttonText(page, "Exclude")?.disabled).toBe(true);
   });

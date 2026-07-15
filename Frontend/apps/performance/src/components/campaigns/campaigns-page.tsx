@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
+  Compass,
   Lock,
   Pencil,
   Plus,
@@ -25,6 +26,7 @@ import {
   Target,
   Trash2,
   Users,
+  UserRoundCheck,
 } from "lucide-react";
 import {
   ApiError,
@@ -49,9 +51,13 @@ import {
   useApiQueryClient,
 } from "@repo/api/query";
 import {
+  canAccessMyObjectives,
+  canAccessPlanApprovals,
+  canAccessTeamObjectives,
   canManagePerformanceCampaigns,
   canOperatePerformanceCycles,
   canViewPerformanceCampaigns,
+  canViewPerformanceStrategy,
   useAuth,
 } from "@repo/auth";
 import {
@@ -290,6 +296,10 @@ export function CampaignDraftPage() {
   const canView = canViewPerformanceCampaigns(user);
   const canManage = canManagePerformanceCampaigns(user);
   const canOperate = canOperatePerformanceCycles(user);
+  const canAccessMine = canAccessMyObjectives(user);
+  const canAccessTeam = canAccessTeamObjectives(user);
+  const canAccessApprovals = canAccessPlanApprovals(user);
+  const canViewStrategy = canViewPerformanceStrategy(user);
   const [form, setForm] = useState<DraftForm | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const [objectiveForm, setObjectiveForm] = useState<ObjectiveForm>(() =>
@@ -779,7 +789,15 @@ export function CampaignDraftPage() {
           </section>
         </div>
       ) : (
-        <LaunchedCampaignWorkspace campaign={campaign} form={form} />
+        <LaunchedCampaignWorkspace
+          campaign={campaign}
+          form={form}
+          canAccessMine={canAccessMine}
+          canAccessTeam={canAccessTeam}
+          canAccessApprovals={canAccessApprovals}
+          canViewStrategy={canViewStrategy}
+          canViewCompletion={canView}
+        />
       )}
 
       <ConfirmDialog
@@ -842,16 +860,139 @@ function firstOpenStep(
 function LaunchedCampaignWorkspace({
   campaign,
   form,
+  canAccessMine,
+  canAccessTeam,
+  canAccessApprovals,
+  canViewStrategy,
+  canViewCompletion,
 }: {
   campaign: PerformanceCycleDetailDto;
   form: DraftForm;
+  canAccessMine: boolean;
+  canAccessTeam: boolean;
+  canAccessApprovals: boolean;
+  canViewStrategy: boolean;
+  canViewCompletion: boolean;
 }) {
   return (
     <div className="space-y-5">
       <LaunchedCampaignSummary campaign={campaign} form={form} />
+      <PlanningFlowBand
+        slug={campaign.slug}
+        canAccessMine={canAccessMine}
+        canAccessTeam={canAccessTeam}
+        canAccessApprovals={canAccessApprovals}
+        canViewStrategy={canViewStrategy}
+        canViewCompletion={canViewCompletion}
+      />
       <CascadeCoverageSection slug={campaign.slug} />
       <CampaignLaunchedBaseline campaign={campaign} />
     </div>
+  );
+}
+
+function PlanningFlowBand({
+  slug,
+  canAccessMine,
+  canAccessTeam,
+  canAccessApprovals,
+  canViewStrategy,
+  canViewCompletion,
+}: {
+  slug: string;
+  canAccessMine: boolean;
+  canAccessTeam: boolean;
+  canAccessApprovals: boolean;
+  canViewStrategy: boolean;
+  canViewCompletion: boolean;
+}) {
+  const links = [
+    canViewStrategy
+      ? {
+          label: "Strategy coverage",
+          description: "Check cascade visibility",
+          href: `/strategy/${slug}`,
+          icon: Compass,
+        }
+      : null,
+    canAccessTeam
+      ? {
+          label: "Team objectives",
+          description: "Set alignment anchors",
+          href: `/team-objectives/${slug}`,
+          icon: Target,
+        }
+      : null,
+    canAccessMine
+      ? {
+          label: "My objectives",
+          description: "Draft and submit a plan",
+          href: `/my-objectives/${slug}`,
+          icon: UserRoundCheck,
+        }
+      : null,
+    canAccessApprovals
+      ? {
+          label: "Plan approvals",
+          description: "Review submitted plans",
+          href: `/plan-approvals/${slug}`,
+          icon: ClipboardCheck,
+        }
+      : null,
+    canViewCompletion
+      ? {
+          label: "Completion and lock",
+          description: "Resolve blockers",
+          href: `/campaigns/${slug}/completion`,
+          icon: Lock,
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    label: string;
+    description: string;
+    href: string;
+    icon: typeof Lock;
+  }>;
+
+  if (links.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+        <div className="min-w-0 lg:w-56 lg:shrink-0">
+          <h2 className="text-sm font-semibold text-foreground">Planning flow</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Continue this campaign in the workspace that matches your role.
+          </p>
+        </div>
+        <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          {links.map((link) => {
+            const Icon = link.icon;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="group flex min-w-0 items-center gap-3 rounded-xl border border-border bg-background px-3 py-3 transition-colors hover:border-primary/40 hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
+                  <Icon className="size-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-foreground">
+                    {link.label}
+                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {link.description}
+                  </span>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </section>
   );
 }
 

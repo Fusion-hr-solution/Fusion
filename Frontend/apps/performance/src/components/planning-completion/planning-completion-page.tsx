@@ -66,7 +66,7 @@ import { toast } from "sonner";
 
 const statusOptions = [
   ["all", "All"],
-  ["blocked", "Blocked"],
+  ["blocked", "Needs action"],
   ["submitted", "Submitted"],
   ["changes-requested", "Changes requested"],
   ["draft", "Draft"],
@@ -76,6 +76,7 @@ const statusOptions = [
 ] as const;
 
 const PARTICIPANT_QUEUE_LIMIT = 10;
+const FILTERABLE_REMAINING_GROUPS = new Set<string>(statusOptions.map(([value]) => value));
 
 export function PlanningCompletionPage() {
   const params = useParams<{ slug?: string }>();
@@ -278,7 +279,7 @@ export function PlanningCompletionPage() {
         <PageEmpty title="Launch required" description="Planning completion starts after campaign launch." />
       ) : (
         <div className="space-y-5">
-          <CompletionOverview workspace={workspace} />
+          <CompletionOverview workspace={workspace} onSelectStatus={setStatus} />
 
           <div className="grid gap-5 xl:grid-cols-[minmax(20rem,28rem)_minmax(0,1fr)]">
             <section className="min-w-0 space-y-3">
@@ -364,7 +365,13 @@ export function PlanningCompletionPage() {
   );
 }
 
-function CompletionOverview({ workspace }: { workspace: PlanningCompletionWorkspaceDto }) {
+function CompletionOverview({
+  workspace,
+  onSelectStatus,
+}: {
+  workspace: PlanningCompletionWorkspaceDto;
+  onSelectStatus: (status: string) => void;
+}) {
   const { summary } = workspace;
   const denominator = Math.max(1, summary.totalParticipants);
   const approvedWidth = (summary.approvedCount / denominator) * 100;
@@ -399,14 +406,25 @@ function CompletionOverview({ workspace }: { workspace: PlanningCompletionWorksp
       </div>
       {workspace.remainingGroups.length > 0 && !workspace.summary.isReadyToLock ? (
         <div className="mt-4 flex flex-wrap gap-2">
-          {workspace.remainingGroups.map((group) => (
-            <span
-              key={group.code}
-              className="inline-flex items-center rounded-full border border-border bg-muted/35 px-2.5 py-1 text-xs font-medium text-foreground"
-            >
-              {group.label}: {group.count}
-            </span>
-          ))}
+          {workspace.remainingGroups.map((group) =>
+            FILTERABLE_REMAINING_GROUPS.has(group.code) ? (
+              <button
+                key={group.code}
+                type="button"
+                onClick={() => onSelectStatus(group.code)}
+                className="inline-flex items-center rounded-full border border-border bg-muted/35 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {remainingGroupLabel(group.label)}: {group.count}
+              </button>
+            ) : (
+              <span
+                key={group.code}
+                className="inline-flex items-center rounded-full border border-border bg-muted/35 px-2.5 py-1 text-xs font-medium text-foreground"
+              >
+                {remainingGroupLabel(group.label)}: {group.count}
+              </span>
+            ),
+          )}
         </div>
       ) : null}
     </section>
@@ -556,7 +574,7 @@ function ParticipantDetail({
           <div className="mt-5 flex flex-wrap gap-2">
             <Button type="button" variant="outline" size="sm" disabled={!actionsEnabled} onClick={onReminder}>
               <Bell />
-              Reminder
+              Record reminder
             </Button>
             <Button type="button" variant="outline" size="sm" disabled={!actionsEnabled} onClick={onReassign}>
               <Shuffle />
@@ -581,7 +599,7 @@ function HistoryPanel({ detail }: { detail?: PlanningCompletionParticipantDetail
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <section className="rounded-xl border border-border bg-card p-4">
-        <h3 className="text-sm font-semibold text-foreground">Reminders</h3>
+        <h3 className="text-sm font-semibold text-foreground">Reminder log</h3>
         {reminders.length === 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">None recorded.</p>
         ) : (
@@ -844,7 +862,7 @@ function ReasonDialog({
 function CompletionStateBadge({ workspace }: { workspace: PlanningCompletionWorkspaceDto }) {
   if (workspace.state === "locked") return <StatusBadge tone="success" dot>Locked</StatusBadge>;
   if (workspace.state === "ready-to-lock") return <StatusBadge tone="success" dot>Ready</StatusBadge>;
-  if (workspace.state === "blocked") return <StatusBadge tone="warning" dot>Blocked</StatusBadge>;
+  if (workspace.state === "blocked") return <StatusBadge tone="warning" dot>Needs action</StatusBadge>;
   if (workspace.state === "not-launched") return <StatusBadge tone="info" dot>Not launched</StatusBadge>;
   return <StatusBadge tone="info" dot>In progress</StatusBadge>;
 }
@@ -856,7 +874,11 @@ function ParticipantStatusBadge({ participant }: { participant: PlanningCompleti
       : participant.status === "blocked" || participant.status === "changes-requested"
         ? "warning"
         : "info";
-  return <StatusBadge tone={tone} dot>{participant.statusLabel}</StatusBadge>;
+  return <StatusBadge tone={tone} dot>{remainingGroupLabel(participant.statusLabel)}</StatusBadge>;
+}
+
+function remainingGroupLabel(label: string): string {
+  return label === "Blocked" ? "Needs action" : label;
 }
 
 function Metric({ value, label }: { value: number; label: string }) {
