@@ -161,8 +161,8 @@ export function ExamPreviewDialog({
           <div
             className={`flex items-center gap-3 rounded-lg px-4 py-3 ${
               passed
-                ? "bg-green-50 text-green-800 dark:bg-green-950/30 dark:text-green-300"
-                : "bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-300"
+                ? "bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]"
+                : "bg-destructive/10 text-destructive"
             }`}
           >
             {passed ? (
@@ -228,7 +228,7 @@ export function ExamPreviewDialog({
                           currentQuestion.type
                         )
                       }
-                      className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors ${
+                      className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                         isSelected
                           ? "border-primary bg-primary/5 text-foreground"
                           : "border-border/60 bg-background text-foreground hover:border-border hover:bg-muted/30"
@@ -281,9 +281,9 @@ export function ExamPreviewDialog({
                   <CardContent className="p-4 space-y-2">
                     <div className="flex items-start gap-2">
                       {isCorrect ? (
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--ey-green-500))]" />
                       ) : (
-                        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                        <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                       )}
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium">
@@ -299,10 +299,9 @@ export function ExamPreviewDialog({
                             let bg = "bg-muted/30 text-muted-foreground";
                             if (isCorrectOpt)
                               bg =
-                                "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400";
+                                "bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]";
                             else if (wasSelected && !isCorrectOpt)
-                              bg =
-                                "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400";
+                              bg = "bg-destructive/10 text-destructive";
 
                             return (
                               <div
@@ -311,12 +310,12 @@ export function ExamPreviewDialog({
                               >
                                 {wasSelected ? (
                                   isCorrectOpt ? (
-                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-500" />
+                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--ey-green-500))]" />
                                   ) : (
-                                    <XCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                                    <XCircle className="h-3.5 w-3.5 shrink-0 text-destructive" />
                                   )
                                 ) : isCorrectOpt ? (
-                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-green-500 opacity-50" />
+                                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[hsl(var(--ey-green-500))] opacity-50" />
                                 ) : (
                                   <span className="h-3.5 w-3.5 shrink-0" />
                                 )}
@@ -352,8 +351,9 @@ export function ExamPreviewDialog({
                 <button
                   key={i}
                   type="button"
+                  aria-label={`Go to question ${i + 1}`}
                   onClick={() => setCurrentIndex(i)}
-                  className={`h-2 w-2 rounded-full transition-colors ${
+                  className={`h-2 w-2 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                     i === currentIndex
                       ? "bg-primary"
                       : (selectedOptions[questions[i]!.id]?.size ?? 0) > 0

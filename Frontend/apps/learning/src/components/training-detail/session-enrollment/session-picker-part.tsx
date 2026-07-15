@@ -37,7 +37,7 @@ export function SessionPickerPart({ part, selectedSessionId, onSelect }: Session
 
         <div className="flex items-center gap-2 shrink-0">
           {selectedSessionId ? (
-            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs">
+            <Badge className="bg-[hsl(var(--ey-green-500))]/15 text-[hsl(var(--ey-green-500))] border-[hsl(var(--ey-green-500))]/25 text-xs">
               {t("selected")}
             </Badge>
           ) : (

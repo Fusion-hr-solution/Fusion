@@ -1,11 +1,16 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { BarChart3 } from "lucide-react";
 import { Card, CardContent } from "@repo/ui";
 import { CATEGORY_CONFIG } from "@/data/categories";
 import type { CategoryPerformanceProps } from "@/types/admin-props";
 
 export function CategoryPerformance({ items }: CategoryPerformanceProps) {
+  const t = useTranslations("adminDashboard");
+  const tCommon = useTranslations("common");
   return (
-    <Card className="overflow-hidden border border-border/60 bg-white">
+    <Card className="overflow-hidden border border-border/60 bg-card">
       <CardContent className="p-5">
         <div className="flex items-center gap-2.5 mb-5">
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-muted">
@@ -15,7 +20,7 @@ export function CategoryPerformance({ items }: CategoryPerformanceProps) {
             />
           </div>
           <h3 className="text-sm font-bold text-foreground">
-            Category Completion Rates
+            {t("categoryPerformance.heading")}
           </h3>
         </div>
 
@@ -29,7 +34,7 @@ export function CategoryPerformance({ items }: CategoryPerformanceProps) {
                   <span
                     className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide uppercase ${config.badgeClass}`}
                   >
-                    {config.label}
+                    {tCommon(`category.${item.category}`)}
                   </span>
                   <span className="text-xs text-muted-foreground tabular-nums">
                     <span className="font-bold text-foreground">

@@ -98,6 +98,7 @@ export interface BackendTrainingDto {
   categoryName: string;
   chapterCount: number;
   trainingType: string;
+  costType: string;
   scheduledDate: string | null;
   createdAt: string;
 }
@@ -227,6 +228,8 @@ export interface BackendAdminTrainingDto {
   chapterCount: number;
   enrollmentCount: number;
   trainingType: string;
+  costType: string;
+  sponsoringServiceLineId: string | null;
   scheduledDate: string | null;
   isDeleted: boolean;
   createdAt: string;
@@ -281,6 +284,7 @@ export interface BackendAdminExamQuestionDto {
   type: string;
   orderIndex: number;
   points: number;
+  explanation: string | null;
   options: BackendAdminExamOptionDto[];
 }
 
@@ -291,10 +295,50 @@ export interface BackendAdminExamOptionDto {
   orderIndex: number;
 }
 
+/* ── AI quiz generation (US-8.2.5) ── */
+
+export interface BackendQuizDraftOptionDto {
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface BackendQuizDraftQuestionDto {
+  text: string;
+  type: string;
+  points: number;
+  explanation: string | null;
+  order: number;
+  source: string;
+  options: BackendQuizDraftOptionDto[];
+}
+
+export interface BackendQuizDraftDto {
+  trainingId: string;
+  aiAvailable: boolean;
+  questions: BackendQuizDraftQuestionDto[];
+}
+
+export interface BackendQuizPublishResultDto {
+  examId: string;
+  publishedCount: number;
+}
+
 export interface BackendAdminTrainingDetailDto extends BackendAdminTrainingDto {
   chapters: BackendAdminChapterDto[];
   exams: BackendAdminExamDto[];
   onSiteCourses: BackendOnSiteCourseDto[];
+}
+
+export interface BackendTrainingBudgetDto {
+  id: string;
+  serviceLineId: string;
+  periodType: string;
+  periodStart: string;
+  periodEnd: string;
+  allocatedAmount: number;
+  spend: number;
+  remaining: number;
+  percentage: number;
 }
 
 export interface BackendAssignmentDto {
@@ -432,4 +476,138 @@ export interface BackendScanQrResultDto {
   partTitle: string;
   sessionStartUtc: string;
   attendedAt: string;
+}
+
+// --- US-8.1.1 Feedback ---
+
+export interface BackendPendingFeedbackDto {
+  trainingId: string;
+  trainingTitle: string;
+  trainingType: string;
+  completedAt: string;
+}
+
+export interface BackendSubmitFeedbackRequest {
+  trainingId: string;
+  overallRating: number;
+  contentRating: number;
+  relevanceRating: number;
+  trainerRating?: number;
+  wouldRecommend: boolean;
+  comment?: string;
+  suggestions?: string;
+  isAnonymous: boolean;
+  answers: { questionId: string; value: string }[];
+}
+
+export interface BackendFeedbackQuestionDto {
+  id: string;
+  categoryId?: string | null;
+  type: string;
+  label: string;
+  order: number;
+  options?: string | null;
+}
+
+// --- US-8.1.3 Trainer-to-group feedback ---
+
+export interface BackendTrainerSessionDto {
+  sessionId: string;
+  trainingTitle: string;
+  partTitle: string;
+  startUtc: string;
+  endUtc: string;
+  room: string;
+  status: string;
+  hasGroupFeedback: boolean;
+}
+
+export interface BackendTrainerGroupFeedbackDto {
+  sessionId: string;
+  trainerEmployeeId: string;
+  trainerName: string;
+  groupEngagement: number;
+  knowledgeLevel: number;
+  comments?: string | null;
+  prerequisiteSuggestions?: string | null;
+  submittedAt: string;
+}
+
+// --- US-8.1.2 Admin feedback dashboards ---
+
+export interface BackendFeedbackTrendPointDto {
+  year: number;
+  month: number;
+  label: string;
+  avgOverallRating: number;
+  responseCount: number;
+}
+
+export interface BackendFeedbackCommentDto {
+  author: string;
+  comment: string;
+  overallRating: number;
+  submittedAt: string;
+  trainingTitle?: string | null;
+}
+
+export interface BackendTrainingFeedbackSummaryDto {
+  trainingId: string;
+  trainingTitle: string;
+  totalResponses: number;
+  avgOverallRating: number;
+  avgContentRating: number;
+  avgRelevanceRating: number;
+  avgTrainerRating?: number | null;
+  recommendationRate: number;
+  ratingDistribution: number[];
+  monthlyTrend: BackendFeedbackTrendPointDto[];
+  commentsSuppressed: boolean;
+  comments: BackendFeedbackCommentDto[];
+}
+
+export interface BackendTrainerFeedbackListItemDto {
+  trainerKey: string;
+  trainerName: string;
+  sessionsCount: number;
+  feedbackCount: number;
+  avgTrainerRating: number;
+  recommendationRate: number;
+}
+
+export interface BackendTrainerTrainingBreakdownDto {
+  trainingId: string;
+  trainingTitle: string;
+  feedbackCount: number;
+  avgTrainerRating: number;
+}
+
+export interface BackendTrainerFeedbackDetailDto {
+  trainerKey: string;
+  trainerName: string;
+  sessionsCount: number;
+  feedbackCount: number;
+  avgTrainerRating: number;
+  recommendationRate: number;
+  trainings: BackendTrainerTrainingBreakdownDto[];
+  commentsSuppressed: boolean;
+  comments: BackendFeedbackCommentDto[];
+}
+
+export interface BackendFeedbackTrainingRatingDto {
+  trainingId: string;
+  trainingTitle: string;
+  avgOverallRating: number;
+  responseCount: number;
+}
+
+export interface BackendFeedbackOverviewDto {
+  totalFeedbacks: number;
+  avgOverallRating: number;
+  recommendationRate: number;
+  responseRate: number;
+  ratingDistribution: number[];
+  monthlyTrend: BackendFeedbackTrendPointDto[];
+  topTrainings: BackendFeedbackTrainingRatingDto[];
+  bottomTrainings: BackendFeedbackTrainingRatingDto[];
 }

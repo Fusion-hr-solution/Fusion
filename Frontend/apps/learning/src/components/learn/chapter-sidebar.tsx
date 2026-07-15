@@ -51,7 +51,8 @@ export function ChapterSidebar({
                 <button
                   onClick={() => isAccessible && onSelectChapter(chapter.id)}
                   disabled={!isAccessible}
-                  className={`group flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-all ${
+                  aria-disabled={!isAccessible}
+                  className={`group flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                     isActive
                       ? "bg-[hsl(var(--ey-blue-500))]/10 border border-[hsl(var(--ey-blue-500))]/20"
                       : isAccessible
@@ -105,7 +106,8 @@ export function ChapterSidebar({
             <button
               onClick={onOpenExam}
               disabled={!examAvailable}
-              className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-all ${
+              aria-disabled={!examAvailable}
+              className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 ${
                 isExamActive
                   ? "bg-[hsl(var(--ey-yellow))]/15 border border-[hsl(var(--ey-yellow))]/30"
                   : examAvailable

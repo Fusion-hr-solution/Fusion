@@ -13,6 +13,8 @@ public class AdminTrainingDetailDto
     public string CategoryName { get; set; } = string.Empty;
     public int EnrollmentCount { get; set; }
     public string TrainingType { get; set; } = "ELearning";
+    public string CostType { get; set; } = "Internal";
+    public Guid? SponsoringServiceLineId { get; set; }
     public DateTime? ScheduledDate { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime CreatedAt { get; set; }

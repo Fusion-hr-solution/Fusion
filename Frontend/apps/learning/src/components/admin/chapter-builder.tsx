@@ -140,7 +140,7 @@ export function ChapterBuilder({
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
           )}
           {titleSaved && (
-            <span className="flex items-center gap-1 text-xs text-green-600">
+            <span className="flex items-center gap-1 text-xs text-[hsl(var(--ey-green-500))]">
               <Check className="h-3 w-3" /> {t("builder.saved")}
             </span>
           )}

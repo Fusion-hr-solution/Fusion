@@ -1,4 +1,7 @@
+"use client";
+
 import { Badge } from "@repo/ui";
+import { useTranslations } from "next-intl";
 import { SESSION_STATUS_CONFIG } from "@/data/session-status-config";
 import type { SessionStatus } from "@/types/admin";
 
@@ -7,12 +10,13 @@ interface SessionStatusBadgeProps {
 }
 
 export function SessionStatusBadge({ status }: SessionStatusBadgeProps) {
+  const tCommon = useTranslations("common");
   const cfg = SESSION_STATUS_CONFIG[status];
   const Icon = cfg.icon;
   return (
     <Badge variant={cfg.variant} className={`gap-1 ${cfg.className}`}>
       <Icon className="h-3 w-3" />
-      {cfg.label}
+      {tCommon(`sessionStatus.${cfg.labelKey}`)}
     </Badge>
   );
 }

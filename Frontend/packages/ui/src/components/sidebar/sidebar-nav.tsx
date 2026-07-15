@@ -50,17 +50,20 @@ export function SidebarNav({
               item.disabled
                 ? "cursor-not-allowed text-muted-foreground/55"
                 : isActive
-                  ? "bg-foreground text-primary shadow-sm dark:bg-secondary"
+                  ? "bg-foreground font-semibold text-white shadow-sm dark:bg-[hsl(var(--ey-yellow))]/15 dark:text-white"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
             );
 
             const itemContent = (
               <>
                 {isActive && !item.disabled ? (
-                  <span className="absolute left-0 top-1/2 h-5 w-0.75 -translate-y-1/2 rounded-r-full bg-primary" />
+                  <span className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-primary" />
                 ) : null}
                 <Icon
-                  className="h-4 w-4 shrink-0 transition-colors"
+                  className={cn(
+                    "h-4 w-4 shrink-0 transition-colors",
+                    isActive && !item.disabled && "text-primary"
+                  )}
                   aria-hidden="true"
                 />
                 {collapsed && item.disabled ? (
@@ -70,14 +73,7 @@ export function SidebarNav({
                   <>
                     <span className="flex-1">{item.label}</span>
                     {item.badge && (
-                      <span
-                        className={cn(
-                          "flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold transition-colors",
-                          isActive && !item.disabled
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-foreground/[0.08] text-foreground"
-                        )}
-                      >
+                      <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-bold text-primary-foreground">
                         {item.badge}
                       </span>
                     )}

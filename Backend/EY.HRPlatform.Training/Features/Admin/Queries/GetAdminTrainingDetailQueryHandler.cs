@@ -43,6 +43,8 @@ public class GetAdminTrainingDetailQueryHandler : IQueryHandler<GetAdminTraining
             CategoryName = training.Category.Name,
             EnrollmentCount = training.Assignments.Count,
             TrainingType = training.TrainingType.ToString(),
+            CostType = training.CostType.ToString(),
+            SponsoringServiceLineId = training.SponsoringServiceLineId,
             ScheduledDate = training.ScheduledDate,
             IsDeleted = training.IsDeleted,
             CreatedAt = training.CreatedAt,

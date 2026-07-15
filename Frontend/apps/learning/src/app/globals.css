@@ -97,6 +97,30 @@
   100% { transform: scale(1); }
 }
 
+/* ── Reduced-motion fallback (WCAG 2.3.3) ──────────────────────────────
+   Honour prefers-reduced-motion across the whole app: entrance, stagger,
+   count-pop and shimmer collapse to their final state instantly, looping
+   animations stop, and transitions become immediate. The negative delay +
+   sub-frame duration guarantees animated elements render at their END state
+   on first paint, so nothing stays stuck at opacity:0. Unlayered + !important
+   so it wins over the layered .ey-animate-* utilities below. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: -0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+  .ey-shimmer {
+    animation: none !important;
+    background: hsl(var(--ey-grey-200)) !important;
+  }
+}
+
 /* ── EY brand utility classes ── */
 @layer components {
   /* Category badges — neutral */
@@ -366,5 +390,35 @@
   .fc *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
+  }
+}
+
+/* ── Accessibility: honor prefers-reduced-motion (WCAG 2.3.3) ──
+   Users who request reduced motion get the final, visible state with no
+   entrance/decorative movement. Functional loading spinners (animate-spin)
+   are intentionally preserved as progress feedback. */
+@media (prefers-reduced-motion: reduce) {
+  .ey-animate-fade-up,
+  .ey-animate-fade-in,
+  .ey-animate-scale-in,
+  .ey-animate-slide-right,
+  .ey-animate-stripe,
+  .ey-animate-count-pop,
+  .ey-stagger-grid > *,
+  .ey-stagger-list > *,
+  .ey-shimmer,
+  .animate-ping,
+  .animate-pulse,
+  .animate-bounce {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    scroll-behavior: auto !important;
   }
 }

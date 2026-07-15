@@ -19,6 +19,11 @@ public class TrainingSessionDetailDto
     public Guid? TrainerEmployeeId { get; set; }
     public string? TrainerName { get; set; }
     public string? TrainerEmail { get; set; }
+    public decimal? ExternalTrainerCost { get; set; }
+    public decimal? VenueCost { get; set; }
+    public decimal? MaterialsCost { get; set; }
+    public decimal? OtherCost { get; set; }
+    public decimal? TotalCost { get; set; }
     public string Status { get; set; } = "Planned";
     public string? CancelReason { get; set; }
     public DateTime? CancelledAt { get; set; }

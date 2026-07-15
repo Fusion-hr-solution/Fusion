@@ -2,6 +2,7 @@ using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
 using EY.HRPlatform.Training.Domain.Enums;
 using EY.HRPlatform.Training.Features.Admin.Sessions.Services;
+using EY.HRPlatform.Training.Features.Enrollment.Services;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using EY.HRPlatform.Training.Models.Responses;
 using Microsoft.EntityFrameworkCore;
@@ -21,11 +22,16 @@ public class ScanQrAttendanceCommandHandler
 {
     private readonly TrainingDbContext _db;
     private readonly IQrTokenService _qr;
+    private readonly IAttendanceCompletionService _completion;
 
-    public ScanQrAttendanceCommandHandler(TrainingDbContext db, IQrTokenService qr)
+    public ScanQrAttendanceCommandHandler(
+        TrainingDbContext db,
+        IQrTokenService qr,
+        IAttendanceCompletionService completion)
     {
         _db = db;
         _qr = qr;
+        _completion = completion;
     }
 
     public async Task<Result<ScanQrResultDto>> Handle(ScanQrAttendanceCommand request, CancellationToken cancellationToken)
@@ -82,6 +88,14 @@ public class ScanQrAttendanceCommandHandler
                 "Enrollment.Waitlisted", "You are on the waitlist and cannot mark attendance."));
 
         enrollment.MarkAttended();
+
+        // ADR 0005: materialise on-site training completion if this was the final part.
+        await _completion.TryCompleteOnSiteTrainingAsync(
+            request.EmployeeId,
+            enrollment.Session.Part.TrainingId,
+            enrollment.SessionId,
+            cancellationToken);
+
         await _db.SaveChangesAsync(cancellationToken);
 
         return Result.Success(new ScanQrResultDto

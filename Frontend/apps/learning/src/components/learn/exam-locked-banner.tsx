@@ -24,7 +24,7 @@ export function ExamLockedBanner({
         <Button
           onClick={onStartExam}
           size="sm"
-          className="gap-1.5 ey-bg-accent text-foreground hover:opacity-90"
+          className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
         >
           {t("startExam")}
           <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />

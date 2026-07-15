@@ -29,10 +29,18 @@ public class TrainingDbContext : DbContext
     public DbSet<Badge> Badges => Set<Badge>();
     public DbSet<EmployeeBadge> EmployeeBadges => Set<EmployeeBadge>();
     public DbSet<Certification> Certifications => Set<Certification>();
+    public DbSet<TrainingFeedback> TrainingFeedbacks => Set<TrainingFeedback>();
+    public DbSet<FeedbackQuestion> FeedbackQuestions => Set<FeedbackQuestion>();
+    public DbSet<FeedbackAnswer> FeedbackAnswers => Set<FeedbackAnswer>();
+    public DbSet<TrainerGroupFeedback> TrainerGroupFeedbacks => Set<TrainerGroupFeedback>();
     public DbSet<Grade> Grades => Set<Grade>();
     public DbSet<ServiceLine> ServiceLines => Set<ServiceLine>();
     public DbSet<CurriculumMapping> CurriculumMappings => Set<CurriculumMapping>();
     public DbSet<EmployeeProfile> EmployeeProfiles => Set<EmployeeProfile>();
+    public DbSet<TrainingImportSession> TrainingImportSessions => Set<TrainingImportSession>();
+    public DbSet<TrainingImportHistory> TrainingImportHistories => Set<TrainingImportHistory>();
+    public DbSet<QuizDraft> QuizDrafts => Set<QuizDraft>();
+    public DbSet<TrainingBudget> TrainingBudgets => Set<TrainingBudget>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -78,6 +86,9 @@ public class TrainingDbContext : DbContext
             e.Property(t => t.BadgeLevel).HasConversion<string>().HasMaxLength(20);
             e.Property(t => t.TrainingType).HasConversion<string>().HasMaxLength(20).HasDefaultValue(Domain.Enums.TrainingType.ELearning);
             e.Property(t => t.IssuesCertificate).HasDefaultValue(true);
+            e.Property(t => t.CostType).HasConversion<string>().HasMaxLength(20).HasDefaultValue(Domain.Enums.CostType.Internal);
+            // Sponsoring service line is a soft reference (no FK) — cost data must survive service-line edits.
+            e.HasIndex(t => t.SponsoringServiceLineId);
             e.HasQueryFilter(t => !t.IsDeleted);
             e.HasOne(t => t.Category)
                 .WithMany(c => c.Trainings)
@@ -152,6 +163,10 @@ public class TrainingDbContext : DbContext
             e.Property(s => s.TrainerEmail).HasMaxLength(320);
             e.Property(s => s.CancelReason).HasMaxLength(1000);
             e.Property(s => s.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(s => s.ExternalTrainerCost).HasPrecision(18, 2);
+            e.Property(s => s.VenueCost).HasPrecision(18, 2);
+            e.Property(s => s.MaterialsCost).HasPrecision(18, 2);
+            e.Property(s => s.OtherCost).HasPrecision(18, 2);
             e.HasOne(s => s.Part)
                 .WithMany(p => p.Sessions)
                 .HasForeignKey(s => s.PartId)
@@ -405,6 +420,104 @@ public class TrainingDbContext : DbContext
                 .HasForeignKey(p => p.ServiceLineId)
                 .OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(p => p.EmployeeId).IsUnique();
+        });
+
+        // --- TrainingFeedback (one per employee × training; immutable — ADR 0006) ---
+        modelBuilder.Entity<TrainingFeedback>(e =>
+        {
+            e.HasKey(f => f.Id);
+            e.Property(f => f.Comment).HasMaxLength(2000);
+            e.Property(f => f.Suggestions).HasMaxLength(2000);
+            e.HasOne(f => f.Training)
+                .WithMany()
+                .HasForeignKey(f => f.TrainingId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(f => new { f.EmployeeId, f.TrainingId }).IsUnique();
+            e.HasIndex(f => f.TrainingId);
+            e.HasIndex(f => f.SubmittedAt);
+        });
+
+        // --- FeedbackQuestion (custom form, append-only — ADR 0006) ---
+        // CategoryId is a soft reference (no FK): a question outlives category changes; null = default form.
+        modelBuilder.Entity<FeedbackQuestion>(e =>
+        {
+            e.HasKey(q => q.Id);
+            e.Property(q => q.Type).HasConversion<string>().HasMaxLength(30);
+            e.Property(q => q.Label).HasMaxLength(500).IsRequired();
+            e.Property(q => q.Options).HasMaxLength(2000);
+            e.HasIndex(q => new { q.CategoryId, q.Order });
+        });
+
+        // --- FeedbackAnswer (snapshots question label/type at submit time) ---
+        modelBuilder.Entity<FeedbackAnswer>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.Property(a => a.QuestionLabelSnapshot).HasMaxLength(500).IsRequired();
+            e.Property(a => a.QuestionTypeSnapshot).HasMaxLength(30).IsRequired();
+            e.Property(a => a.Value).HasMaxLength(2000).IsRequired();
+            e.HasOne(a => a.Feedback)
+                .WithMany(f => f.Answers)
+                .HasForeignKey(a => a.FeedbackId)
+                .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<FeedbackQuestion>()
+                .WithMany()
+                .HasForeignKey(a => a.QuestionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(a => a.FeedbackId);
+            e.HasIndex(a => a.QuestionId);
+        });
+
+        // --- TrainerGroupFeedback (one per session × trainer; admin-only) ---
+        modelBuilder.Entity<TrainerGroupFeedback>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.Comments).HasMaxLength(2000);
+            e.Property(t => t.PrerequisiteSuggestions).HasMaxLength(2000);
+            e.HasOne(t => t.Session)
+                .WithMany()
+                .HasForeignKey(t => t.SessionId)
+                .OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(t => new { t.SessionId, t.TrainerEmployeeId }).IsUnique();
+            e.HasIndex(t => t.TrainerEmployeeId);
+        });
+
+        // --- TrainingImportSession (US-8.2.3 staged import preview, ADR 0008) ---
+        modelBuilder.Entity<TrainingImportSession>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Property(s => s.FileName).HasMaxLength(260);
+            e.Property(s => s.PayloadJson).HasColumnType("jsonb");
+            e.HasIndex(s => s.CreatedByEmployeeId);
+        });
+
+        // --- TrainingImportHistory (US-8.2.3 applied-import audit log, ADR 0008) ---
+        modelBuilder.Entity<TrainingImportHistory>(e =>
+        {
+            e.HasKey(h => h.Id);
+            e.Property(h => h.FileName).HasMaxLength(260);
+            e.HasIndex(h => h.CreatedByEmployeeId);
+        });
+
+        // --- QuizDraft (US-8.2.5 per-training AI quiz draft, ADR 0009) ---
+        modelBuilder.Entity<QuizDraft>(e =>
+        {
+            e.HasKey(d => d.Id);
+            e.Property(d => d.QuestionsJson).HasColumnType("jsonb");
+            e.HasIndex(d => d.TrainingId).IsUnique();
+        });
+
+        // --- TrainingBudget ---
+        modelBuilder.Entity<TrainingBudget>(e =>
+        {
+            e.HasKey(b => b.Id);
+            // Soft reference to ServiceLine — no FK (budget config survives service-line deletion).
+            e.Property(b => b.ServiceLineId).IsRequired();
+            e.Property(b => b.PeriodType).HasConversion<string>().HasMaxLength(20);
+            e.Property(b => b.AllocatedAmount).HasPrecision(18, 2);
+            // Blocks identical-start duplicates and supports overlap lookups; true range non-overlap
+            // is enforced in the command handlers (an index cannot express range overlap).
+            e.HasIndex(b => new { b.ServiceLineId, b.PeriodStart }).IsUnique();
+            e.HasIndex(b => b.ServiceLineId);
         });
     }
 }

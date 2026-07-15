@@ -27,12 +27,12 @@ export function EnrollmentResultDialog({ result, trainingTitle, open, onClose }:
           <DialogTitle className="flex items-center gap-2">
             {waitlisted.length === 0 ? (
               <>
-                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                <CheckCircle2 className="h-5 w-5 text-[hsl(var(--ey-green-500))]" />
                 {t("confirmedTitle")}
               </>
             ) : (
               <>
-                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <AlertTriangle className="h-5 w-5 text-[hsl(var(--ey-orange-500))]" />
                 {t("submittedTitle")}
               </>
             )}
@@ -45,24 +45,24 @@ export function EnrollmentResultDialog({ result, trainingTitle, open, onClose }:
           )}
 
           {enrolled.length > 0 && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-emerald-800">
+            <div className="rounded-lg border border-[hsl(var(--ey-green-500))]/25 bg-[hsl(var(--ey-green-500))]/15 p-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--ey-green-500))]">
                 <CheckCircle2 className="h-4 w-4" />
                 {t("confirmedCount", { count: enrolled.length })}
               </div>
-              <p className="mt-1 text-xs text-emerald-700">
+              <p className="mt-1 text-xs text-[hsl(var(--ey-green-500))]">
                 {t("confirmedDesc")}
               </p>
             </div>
           )}
 
           {waitlisted.length > 0 && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <div className="flex items-center gap-2 text-sm font-medium text-amber-800">
+            <div className="rounded-lg border border-[hsl(var(--ey-orange-500))]/25 bg-[hsl(var(--ey-orange-500))]/15 p-3">
+              <div className="flex items-center gap-2 text-sm font-medium text-[hsl(var(--ey-orange-500))]">
                 <Clock className="h-4 w-4" />
                 {t("waitlistedCount", { count: waitlisted.length })}
               </div>
-              <p className="mt-1 text-xs text-amber-700">
+              <p className="mt-1 text-xs text-[hsl(var(--ey-orange-500))]">
                 {t("waitlistedDesc", {
                   positions: waitlisted
                     .map((w) => t("position", { position: w.waitlistPosition }))

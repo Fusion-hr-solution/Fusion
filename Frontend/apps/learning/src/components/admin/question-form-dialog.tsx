@@ -75,6 +75,7 @@ export function QuestionFormDialog({
   const [questionText, setQuestionText] = useState("");
   const [type, setType] = useState<QuestionType>("SingleChoice");
   const [points, setPoints] = useState(1);
+  const [explanation, setExplanation] = useState("");
   const [options, setOptions] = useState<OptionDraft[]>(() =>
     defaultOptions("SingleChoice")
   );
@@ -87,6 +88,7 @@ export function QuestionFormDialog({
       setQuestionText(question.questionText);
       setType(question.type);
       setPoints(question.points);
+      setExplanation(question.explanation ?? "");
       setOptions(
         question.options.map((o) => ({
           clientId: genId(),
@@ -98,9 +100,13 @@ export function QuestionFormDialog({
       setQuestionText("");
       setType("SingleChoice");
       setPoints(1);
+      setExplanation("");
       setOptions(defaultOptions("SingleChoice"));
     }
     setError(null);
+    // Reset the in-flight flag so reopening after a successful submit isn't stuck disabled
+    // (the parent owns closing; this dialog stays mounted and is reused for repeated adds).
+    setSaving(false);
   }, [open, question]);
 
   const handleTypeChange = useCallback(
@@ -174,6 +180,7 @@ export function QuestionFormDialog({
         questionText: questionText.trim(),
         type,
         points,
+        explanation: explanation.trim() || undefined,
         options: options.map((o) => ({
           optionText: o.optionText.trim(),
           isCorrect: o.isCorrect,
@@ -205,11 +212,15 @@ export function QuestionFormDialog({
             </div>
           )}
           <div className="space-y-2">
-            <Label className="text-[13px] font-semibold">
+            <Label
+              htmlFor="question-text"
+              className="text-[13px] font-semibold"
+            >
               {t("questionDialog.questionLabel")}{" "}
               <span className="text-destructive">*</span>
             </Label>
             <textarea
+              id="question-text"
               value={questionText}
               onChange={(e) => setQuestionText(e.target.value)}
               placeholder={t("questionDialog.questionPlaceholder")}
@@ -220,14 +231,17 @@ export function QuestionFormDialog({
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-[13px] font-semibold">
+              <Label
+                htmlFor="question-type"
+                className="text-[13px] font-semibold"
+              >
                 {t("questionDialog.questionTypeLabel")}
               </Label>
               <Select
                 value={type}
                 onValueChange={(v) => handleTypeChange(v as QuestionType)}
               >
-                <SelectTrigger>
+                <SelectTrigger id="question-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -240,10 +254,14 @@ export function QuestionFormDialog({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label className="text-[13px] font-semibold">
+              <Label
+                htmlFor="question-points"
+                className="text-[13px] font-semibold"
+              >
                 {t("questionDialog.pointsLabel")}
               </Label>
               <Input
+                id="question-points"
                 type="number"
                 min={1}
                 max={100}
@@ -267,6 +285,19 @@ export function QuestionFormDialog({
               setOptions((prev) => prev.filter((o) => o.clientId !== id))
             }
           />
+          <div className="space-y-2">
+            <Label className="text-[13px] font-semibold">
+              {t("questionDialog.explanationLabel")}
+            </Label>
+            <textarea
+              value={explanation}
+              onChange={(e) => setExplanation(e.target.value)}
+              placeholder={t("questionDialog.explanationPlaceholder")}
+              maxLength={2000}
+              rows={2}
+              className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            />
+          </div>
           <div className="flex items-center justify-end gap-2 border-t pt-4">
             <Button
               type="button"

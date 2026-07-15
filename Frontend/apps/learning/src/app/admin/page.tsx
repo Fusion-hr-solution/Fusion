@@ -1,5 +1,5 @@
-import { AdminDashboard } from "@/components/admin/admin-dashboard";
+import { LearningOverview } from "@/components/admin/overview";
 
-export default function AdminDashboardPage() {
-  return <AdminDashboard />;
+export default function AdminOverviewPage() {
+  return <LearningOverview />;
 }

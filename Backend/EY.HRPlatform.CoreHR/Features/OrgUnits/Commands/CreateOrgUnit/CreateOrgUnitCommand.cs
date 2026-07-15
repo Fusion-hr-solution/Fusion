@@ -11,4 +11,5 @@ public sealed record CreateOrgUnitCommand(
     string Code,
     string Name,
     string Type,
-    Guid? ParentId) : ICommand<Result<OrgUnitDto>>;
+    Guid? ParentId,
+    Guid? ResponsibleManagerEmployeeId = null) : ICommand<Result<OrgUnitDto>>;

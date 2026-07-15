@@ -61,11 +61,11 @@ function SortHeader({
     <Button
       variant="ghost"
       size="sm"
-      className="-ml-2 gap-1 font-medium"
+      className="-ml-2 h-7 gap-1 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground"
       onClick={() => onSortChange(field)}
     >
       {label}
-      <ArrowUpDown className="size-3 text-muted-foreground" />
+      <ArrowUpDown className="size-3 opacity-70" />
       <span className="sr-only">
         {directionHint ? `Sorted ${directionHint}` : "Not sorted"}
       </span>
