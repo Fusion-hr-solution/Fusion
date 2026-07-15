@@ -40,6 +40,7 @@ public class GetAdminExamDetailQueryHandler : IQueryHandler<GetAdminExamDetailQu
                 Type = q.Type.ToString(),
                 OrderIndex = q.OrderIndex,
                 Points = q.Points,
+                Explanation = q.Explanation,
                 Options = q.Options.Select(o => new AdminExamOptionDto
                 {
                     Id = o.Id,

@@ -95,6 +95,8 @@ export interface AdminExamQuestion {
   type: QuestionType;
   orderIndex: number;
   points: number;
+  /** Optional rationale for the correct answer (US-8.2.5). */
+  explanation?: string;
   options: AdminExamOption[];
 }
 
@@ -126,6 +128,7 @@ export interface CreateExamQuestionInput {
   questionText: string;
   type: QuestionType;
   points: number;
+  explanation?: string;
   options: { optionText: string; isCorrect: boolean }[];
 }
 
@@ -133,7 +136,55 @@ export interface UpdateExamQuestionInput {
   questionText: string;
   type: QuestionType;
   points: number;
+  explanation?: string;
   options: { optionText: string; isCorrect: boolean }[];
+}
+
+/* ── AI quiz generation (US-8.2.5) ── */
+
+export interface QuizDraftOption {
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface QuizDraftQuestion {
+  text: string;
+  type: QuestionType;
+  points: number;
+  explanation?: string;
+  order: number;
+  /** "ai" | "manual". */
+  source: string;
+  options: QuizDraftOption[];
+}
+
+export interface QuizDraft {
+  trainingId: string;
+  /** Whether the AI quiz generator is configured (drives the "Generate with AI" button). */
+  aiAvailable: boolean;
+  questions: QuizDraftQuestion[];
+}
+
+/** A question carried in a save-draft / publish request. */
+export interface QuizDraftQuestionInput {
+  text: string;
+  type: QuestionType;
+  points: number;
+  explanation?: string;
+  source?: string;
+  options: { text: string; isCorrect: boolean }[];
+}
+
+export interface QuizPublishResult {
+  examId: string;
+  publishedCount: number;
+}
+
+/** Result of the one-time PDF text backfill (US-8.2.5). */
+export interface BackfillPdfTextResult {
+  scanned: number;
+  updated: number;
+  skipped: number;
 }
 
 /** Admin On-Site Course */
@@ -916,6 +967,7 @@ export interface TrainingImportResult {
 
 /** Per-duplicate action: "skip" | "createNew" | "safeUpdate". */
 export type DuplicateAction = "skip" | "createNew" | "safeUpdate";
+
 /* ── Feedback dashboards (US-8.1.2) ── */
 
 export interface FeedbackTrendPoint {

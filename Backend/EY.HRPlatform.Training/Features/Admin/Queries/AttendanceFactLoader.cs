@@ -51,7 +51,10 @@ internal static class AttendanceFactLoader
             .Where(e =>
                 e.Status != EnrollmentStatus.Cancelled
                 && e.Status != EnrollmentStatus.Waitlisted
-                && e.Session.Status != SessionStatus.Cancelled);
+                && e.Session.Status != SessionStatus.Cancelled
+                // Exclude soft-deleted trainings (referencing the Training nav forces the join so the
+                // global !IsDeleted filter applies) — keeps attendance consistent with the hours/format reports.
+                && !e.Session.Part.Training.IsDeleted);
 
         if (filter.TrainingId.HasValue)
             enrollmentsQuery = enrollmentsQuery.Where(e => e.Session.Part.TrainingId == filter.TrainingId.Value);

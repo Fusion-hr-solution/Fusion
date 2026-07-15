@@ -1,6 +1,7 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
 using EY.HRPlatform.Training.Domain.Enums;
+using EY.HRPlatform.Training.Features.Admin.Content;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,8 +10,13 @@ namespace EY.HRPlatform.Training.Features.Admin.Commands;
 public class UpdateContentBlockCommandHandler : ICommandHandler<UpdateContentBlockCommand, Result>
 {
     private readonly TrainingDbContext _db;
+    private readonly IPdfTextExtractor _pdf;
 
-    public UpdateContentBlockCommandHandler(TrainingDbContext db) => _db = db;
+    public UpdateContentBlockCommandHandler(TrainingDbContext db, IPdfTextExtractor pdf)
+    {
+        _db = db;
+        _pdf = pdf;
+    }
 
     public async Task<Result> Handle(UpdateContentBlockCommand request, CancellationToken cancellationToken)
     {
@@ -31,7 +37,7 @@ public class UpdateContentBlockCommandHandler : ICommandHandler<UpdateContentBlo
         block.Update(
             contentType,
             request.Title,
-            request.TextContent,
+            _pdf.ResolveTextContent(contentType, request.TextContent, request.ContentUri),
             request.ContentUri,
             request.VideoUrl,
             request.EstimatedDurationMinutes);

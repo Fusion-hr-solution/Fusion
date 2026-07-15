@@ -1,5 +1,7 @@
+using System.Net.Http.Headers;
 using System.Text;
 using EY.HRPlatform.Training.Features.Admin.Import;
+using EY.HRPlatform.Training.Features.Admin.Quiz;
 using EY.HRPlatform.Training.Features.Admin.Reports.Export;
 using EY.HRPlatform.Training.Features.Admin.Budget;
 using EY.HRPlatform.Training.Features.Admin.Budget.Export;
@@ -67,6 +69,33 @@ public static class ServiceCollectionExtensions
 
         // 4c. Register training import template generator (US-8.2.4)
         services.AddSingleton<ITrainingImportTemplateGenerator, TrainingImportTemplateGenerator>();
+
+        // 4c-bis. PDF text extraction — stores uploaded-PDF text into ContentBlock.TextContent (US-8.2.5)
+        // so the AI quiz generator (and future search) can read it from the DB.
+        services.AddSingleton<EY.HRPlatform.Training.Features.Admin.Content.IPdfTextExtractor,
+            EY.HRPlatform.Training.Features.Admin.Content.PdfTextExtractor>();
+
+        // 4d. Register the AI quiz client (opencode GO) only when it's configured (US-8.2.5, ADR 0009).
+        // Without it, AI quiz generation is disabled (the endpoint returns 503). BaseUrl is origin-only
+        // (e.g. https://opencode.ai); Path/Model default to opencode GO's "zen go" endpoint and a DeepSeek model.
+        var openCodeBaseUrl = configuration["Training:OpenCode:BaseUrl"];
+        var openCodeApiKey = configuration["Training:OpenCode:ApiKey"];
+        if (!string.IsNullOrWhiteSpace(openCodeBaseUrl) && !string.IsNullOrWhiteSpace(openCodeApiKey))
+        {
+            services.AddSingleton(new OpenCodeGoOptions
+            {
+                BaseUrl = openCodeBaseUrl,
+                ApiKey = openCodeApiKey,
+                Model = configuration["Training:OpenCode:Model"] ?? "glm-5.2",
+                Path = configuration["Training:OpenCode:Path"] ?? "/zen/go/v1/chat/completions",
+            });
+            services.AddHttpClient<ILlmClient, OpenCodeGoLlmClient>(client =>
+            {
+                client.BaseAddress = new Uri(openCodeBaseUrl);
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", openCodeApiKey);
+                client.Timeout = TimeSpan.FromSeconds(120);
+            });
+        }
 
         // 5. Register QR token service (rotating HMAC payloads for session attendance)
         services.AddSingleton<IQrTokenService, QrTokenService>();

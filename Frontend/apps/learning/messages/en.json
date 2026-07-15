@@ -698,6 +698,7 @@
       "uploadError": "Could not process the file.",
       "templateError": "Could not download the template.",
       "applied": "Import complete.",
+      "appliedWithErrors": "{failed, plural, one {Import finished — # row failed.} other {Import finished — # rows failed.}}",
       "applyError": "Could not complete the import.",
       "errorLogError": "Could not download the error log."
     },
@@ -1439,7 +1440,8 @@
     },
     "card": {
       "points": "{count, plural, one {# pt} other {# pts}}",
-      "optionsCount": "{count, plural, one {# option} other {# options}}"
+      "optionsCount": "{count, plural, one {# option} other {# options}}",
+      "explanation": "Explanation"
     },
     "preview": {
       "title": "Preview: {title}",
@@ -1490,6 +1492,8 @@
       "cancel": "Cancel",
       "updateQuestion": "Update Question",
       "addQuestion": "Add Question",
+      "explanationLabel": "Explanation (optional)",
+      "explanationPlaceholder": "Explain why the correct answer is right...",
       "unexpectedError": "An unexpected error occurred."
     },
     "options": {
@@ -1516,6 +1520,60 @@
     "toast": {
       "confirmDeleteExam": "Delete this exam and all its questions? This cannot be undone.",
       "confirmDeleteQuestion": "Delete question \"{text}\"?"
+    }
+  },
+  "adminQuiz": {
+    "title": "AI Quiz Generator",
+    "generateWithAi": "Generate with AI",
+    "description": "Generate multiple-choice questions from this training's content, review and edit them, then publish to the exam.",
+    "loading": "Loading draft...",
+    "unavailable": "AI quiz generation isn't configured for this environment.",
+    "countLabel": "Number of questions",
+    "generate": "Generate",
+    "regenerate": "Regenerate",
+    "generating": "Generating questions...",
+    "generatingHint": "This can take a minute or two for a full quiz — you can keep this open.",
+    "stageReading": "Reading the training content...",
+    "stageAnalyzing": "Analyzing the material...",
+    "stageWriting": "Writing questions...",
+    "stageFinalizing": "Finalizing the quiz...",
+    "generated": "{count, plural, one {# question generated} other {# questions generated}}",
+    "addManually": "Add manually",
+    "emptyTitle": "No questions yet",
+    "emptyDescription": "Generate with AI or add questions manually to build your quiz.",
+    "questionsCount": "{count, plural, one {# question} other {# questions}}",
+    "invalidHint": "{count, plural, one {# question needs attention} other {# questions need attention}}",
+    "untitled": "Untitled question",
+    "emptyOption": "Empty option",
+    "points": "{count, plural, one {# pt} other {# pts}}",
+    "type": {
+      "SingleChoice": "Single Choice",
+      "MultipleChoice": "Multiple Choice",
+      "TrueFalse": "True / False"
+    },
+    "sourceAi": "AI",
+    "sourceManual": "Manual",
+    "explanationLabel": "Explanation",
+    "discard": "Discard",
+    "saveDraft": "Save draft",
+    "publish": "Publish to exam",
+    "publishExisting": "Add to exam",
+    "confirmPublish": "Publish {count, plural, one {# question} other {# questions}} to the exam?",
+    "confirmDiscard": "Discard this draft? This cannot be undone.",
+    "published": "{count, plural, one {# question published to the exam} other {# questions published to the exam}}",
+    "saved": "Draft saved.",
+    "discarded": "Draft discarded.",
+    "genError": "Could not generate a quiz. Please try again.",
+    "saveError": "Could not save the draft.",
+    "publishError": "Could not publish the quiz.",
+    "discardError": "Could not discard the draft.",
+    "backfill": {
+      "title": "Extract text from existing PDFs",
+      "description": "Reads the text of already-uploaded PDF lessons into the database so the AI quiz generator can use them. Runs once; safe to repeat.",
+      "button": "Extract PDF text",
+      "running": "Extracting...",
+      "done": "Done — extracted text from {updated} of {scanned} PDF(s); {skipped} skipped.",
+      "error": "Could not run the PDF text extraction."
     }
   },
   "adminGrades": {
