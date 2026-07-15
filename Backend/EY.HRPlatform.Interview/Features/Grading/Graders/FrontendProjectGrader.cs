@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EY.HRPlatform.Interview.Domain;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Features.Grading.Dtos;
@@ -17,8 +18,6 @@ namespace EY.HRPlatform.Interview.Features.Grading.Graders;
 /// </summary>
 public class FrontendProjectGrader(IFrontendProjectRunner runner, ILogger<FrontendProjectGrader> logger) : IGrader
 {
-    private const string DefaultTestCommand = "npm test";
-
     public bool CanGrade(Question question) =>
         question.Type == QuestionType.FrontendProject
         && !string.IsNullOrWhiteSpace(question.FrontendTestFiles);
@@ -51,7 +50,7 @@ public class FrontendProjectGrader(IFrontendProjectRunner runner, ILogger<Fronte
         try
         {
             run = await runner.RunAsync(
-                new FrontendRunRequest(framework, merged.Values.ToList(), DefaultTestCommand), ct);
+                new FrontendRunRequest(framework, merged.Values.ToList()), ct);
         }
         catch (OperationCanceledException)
         {
@@ -104,12 +103,10 @@ public class FrontendProjectGrader(IFrontendProjectRunner runner, ILogger<Fronte
             Feedback: feedback,
             NeedsHumanReview: needsReview);
 
-    private static string NormalizeFramework(string? framework) => (framework ?? string.Empty).Trim().ToLowerInvariant() switch
-    {
-        "angular" => "angular",
-        "next" or "next.js" or "nextjs" => "next",
-        _ => "react",
-    };
+    // Supported set is single-sourced in FrontendFrameworks; authoring validation guarantees stored
+    // values are already canonical, so the React fallback only guards null/legacy data.
+    private static string NormalizeFramework(string? framework) =>
+        FrontendFrameworks.Resolve(framework) ?? FrontendFrameworks.React;
 
     /// <summary>Parses a project JSON ({ files: [{ path, content }], entry? }) into a flat file list.</summary>
     private static List<FrontendRunFile> ParseFiles(string? json)

@@ -1,3 +1,4 @@
+using EY.HRPlatform.Interview.Domain;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Infrastructure;
@@ -9,6 +10,10 @@ namespace EY.HRPlatform.Interview.Features.Questions;
 
 public class QuestionService(AppDbContext dbContext) : IQuestionService
 {
+    // Upper bound for a Frontend Project's starter/test JSON. Generous for source trees (the Docker
+    // grader separately caps the MERGED project at 512 KB) but stops multi-MB blobs at authoring.
+    private const int MaxProjectJsonChars = 512 * 1024;
+
     public async Task<PagedResultDto<QuestionDto>> GetAsync(QuestionFilterDto filter, CancellationToken cancellationToken)
     {
         ValidatePaging(filter.Page, filter.PageSize);
@@ -99,7 +104,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             Language = string.IsNullOrWhiteSpace(request.Language) ? null : request.Language.Trim(),
             StarterCode = string.IsNullOrWhiteSpace(request.StarterCode) ? null : request.StarterCode,
             ProjectFiles = string.IsNullOrWhiteSpace(request.ProjectFiles) ? null : request.ProjectFiles,
-            Framework = string.IsNullOrWhiteSpace(request.Framework) ? null : request.Framework.Trim(),
+            Framework = FrontendFrameworks.Resolve(request.Framework),
             FrontendTestFiles = string.IsNullOrWhiteSpace(request.FrontendTestFiles) ? null : request.FrontendTestFiles,
             EvaluationCriteria = string.IsNullOrWhiteSpace(request.EvaluationCriteria) ? null : request.EvaluationCriteria.Trim(),
             TestCases = string.IsNullOrWhiteSpace(request.TestCases) ? null : request.TestCases,
@@ -140,7 +145,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         question.Language = string.IsNullOrWhiteSpace(request.Language) ? null : request.Language.Trim();
         question.StarterCode = string.IsNullOrWhiteSpace(request.StarterCode) ? null : request.StarterCode;
         question.ProjectFiles = string.IsNullOrWhiteSpace(request.ProjectFiles) ? null : request.ProjectFiles;
-        question.Framework = string.IsNullOrWhiteSpace(request.Framework) ? null : request.Framework.Trim();
+        question.Framework = FrontendFrameworks.Resolve(request.Framework);
         question.FrontendTestFiles = string.IsNullOrWhiteSpace(request.FrontendTestFiles) ? null : request.FrontendTestFiles;
         question.EvaluationCriteria = string.IsNullOrWhiteSpace(request.EvaluationCriteria) ? null : request.EvaluationCriteria.Trim();
         question.TestCases = string.IsNullOrWhiteSpace(request.TestCases) ? null : request.TestCases;
@@ -245,8 +250,19 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         if ((type is QuestionType.Coding or QuestionType.Sql) && string.IsNullOrWhiteSpace(request.Language))
             errors.Add("Coding and SQL questions require language.");
 
-        if (type is QuestionType.FrontendProject && string.IsNullOrWhiteSpace(request.Framework))
-            errors.Add("Frontend Project questions require a framework (react, angular, or next).");
+        if (type is QuestionType.FrontendProject && FrontendFrameworks.Resolve(request.Framework) is null)
+        {
+            errors.Add(string.IsNullOrWhiteSpace(request.Framework)
+                ? "Frontend Project questions require a framework (react, angular, or next)."
+                : $"Unsupported framework '{request.Framework}'. Supported: react, angular, next.");
+        }
+
+        // These are unbounded `text` columns served to candidates and materialized to disk by the
+        // grader — cap them so a huge author-supplied blob can't bloat the DB / candidate payload.
+        if ((request.ProjectFiles?.Length ?? 0) > MaxProjectJsonChars)
+            errors.Add($"Starter project is too large (max {MaxProjectJsonChars / 1024} KB).");
+        if ((request.FrontendTestFiles?.Length ?? 0) > MaxProjectJsonChars)
+            errors.Add($"Grading tests are too large (max {MaxProjectJsonChars / 1024} KB).");
 
         if (options.Any(o => string.IsNullOrWhiteSpace(o.Text)))
             errors.Add("option text is required.");

@@ -31,11 +31,6 @@ export function frameworkDevCommand(_framework: FrontendFramework): [string, str
   return ["npm", ["run", "dev"]];
 }
 
-/** Default command the Phase-2 server-side grader runs (author test suite). Stored for later. */
-export function frameworkTestCommand(_framework: FrontendFramework): string {
-  return "npm test";
-}
-
 /** The filename pattern the grading runner uses to DISCOVER tests (see docker/frontend-runner/). */
 export function testFilePattern(framework: FrontendFramework): {
   matches: (path: string) => boolean;

@@ -1,9 +1,12 @@
 #!/bin/sh
 # Entrypoint for the Frontend Project grading images. Assembles the candidate submission + author
 # tests in the writable tmpfs /work (node_modules symlinked from the read-only image layer), runs
-# the framework's test runner with a JUnit reporter, and prints a single machine-readable line
+# the framework's test runner with a JSON reporter to /tmp/report.json, then parses it (via
+# parse-report.js) into a single machine-readable line
 #   ##RESULT##{"total":N,"passed":M}
-# that the C# DockerFrontendProjectRunner parses from stdout.
+# that the C# DockerFrontendProjectRunner reads from stdout. JSON (Jest's schema, emitted by both
+# Vitest and Jest) is used over JUnit because it distinguishes a suite that never collected any
+# tests (compile error) from one whose tests genuinely failed.
 #
 # Exit codes:  0 = tests ran (pass/fail conveyed by the counts)   2 = install/setup failure
 set -eu

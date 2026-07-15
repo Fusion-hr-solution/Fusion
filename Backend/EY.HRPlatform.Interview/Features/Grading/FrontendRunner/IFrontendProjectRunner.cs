@@ -4,11 +4,12 @@ namespace EY.HRPlatform.Interview.Features.Grading.FrontendRunner;
 public sealed record FrontendRunFile(string Path, string Content);
 
 /// <summary>A request to run a Frontend Project's test suite: the merged candidate source +
-/// author's (hidden) test files, the framework, and the test command.</summary>
+/// author's (hidden) test files, and the framework. The framework selects the image, whose
+/// entrypoint runs a fixed, JSON-reporting test command — there is intentionally no per-request
+/// command override (an arbitrary command couldn't guarantee the parseable report the grader needs).</summary>
 public sealed record FrontendRunRequest(
     string Framework,
-    IReadOnlyList<FrontendRunFile> Files,
-    string TestCommand);
+    IReadOnlyList<FrontendRunFile> Files);
 
 public enum FrontendRunStatus
 {

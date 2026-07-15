@@ -15,8 +15,12 @@ namespace EY.HRPlatform.Interview.Features.Grading.FrontendRunner;
 /// Image contract (see docker/frontend-runner/ for the reference images): the candidate submission
 /// is mounted read-only at <c>/submission</c>; the image entrypoint assembles it in the writable
 /// tmpfs <c>/work</c> (source + author tests, node_modules symlinked from the read-only image
-/// layer), runs the framework test runner with a JUnit reporter, and prints a final line
+/// layer), runs the framework test runner with a <b>JSON</b> reporter (Jest's schema, emitted by
+/// both Vitest and Jest), and parses it into a final line
 /// <c>##RESULT##{"total":N,"passed":M}</c> then exits 0. Exit 2 signals an install/setup failure.
+/// JSON — not JUnit — because it lets the image distinguish a suite that never collected any tests
+/// (a compile error → <c>{"total":0,...}</c> → this grader routes to human review) from one whose
+/// tests genuinely failed. The counts we consume here are already resolved by that in-image logic.
 /// </summary>
 public sealed class DockerFrontendProjectRunner(
     IOptions<FrontendRunnerOptions> options,
@@ -39,7 +43,7 @@ public sealed class DockerFrontendProjectRunner(
         {
             MaterializeFiles(request.Files, workDir);
 
-            var args = BuildDockerArgs(image, containerName, workDir, request.TestCommand);
+            var args = BuildDockerArgs(image, containerName, workDir);
             return await ExecuteAsync(containerName, args, cancellationToken);
         }
         catch (OperationCanceledException)
@@ -106,7 +110,9 @@ public sealed class DockerFrontendProjectRunner(
     }
 
     // ── Build the hardened `docker run` argument list ─────────────────────────────────────
-    private List<string> BuildDockerArgs(string image, string containerName, string workDir, string testCommand)
+    // The image's entrypoint runs a fixed, JSON-reporting test command chosen by the framework, so
+    // no command is passed in here — see FrontendRunRequest / docker/frontend-runner/entrypoint.sh.
+    private List<string> BuildDockerArgs(string image, string containerName, string workDir)
     {
         return
         [
@@ -121,11 +127,10 @@ public sealed class DockerFrontendProjectRunner(
             "--cap-drop", "ALL",
             "--read-only",
             // Writable scratch (RAM-backed, size-capped) — /work assembles the project, /tmp holds
-            // caches + the JUnit report. node_modules stays on the read-only image layer.
+            // caches + the JSON report. node_modules stays on the read-only image layer.
             "--tmpfs", "/work:rw,size=96m,mode=1777",
             "--tmpfs", "/tmp:rw,size=256m,mode=1777",
             "-v", $"{workDir}:/submission:ro",
-            "-e", $"TEST_COMMAND={testCommand}",
             image,
         ];
     }

@@ -15,7 +15,7 @@ The Interview service invokes an image roughly like this:
 docker run --rm --network none --cpus 1 --memory 1024m --memory-swap 1024m --pids-limit 256 \
   --security-opt no-new-privileges --cap-drop ALL --read-only \
   --tmpfs /work:rw,size=96m,mode=1777 --tmpfs /tmp:rw,size=256m,mode=1777 \
-  -v <submission>:/submission:ro -e TEST_COMMAND=npm\ test \
+  -v <submission>:/submission:ro \
   interview-frontend-react:1
 ```
 
