@@ -22,6 +22,10 @@ public record ApplyTrainingImportCommand(
 public class ApplyTrainingImportCommandHandler
     : ICommandHandler<ApplyTrainingImportCommand, Result<TrainingImportResultDto>>
 {
+    // Mirror the Upload guard — Apply is a separate stateless endpoint that re-parses an arbitrary file.
+    private const int MaxTrainings = 1000;
+    private const int MaxChildRows = 20000;
+
     private readonly TrainingDbContext _db;
 
     public ApplyTrainingImportCommandHandler(TrainingDbContext db) => _db = db;
@@ -40,6 +44,11 @@ public class ApplyTrainingImportCommandHandler
             return Result.Failure<TrainingImportResultDto>(
                 Error.Validation("Import.InvalidFile", "The file could not be read as an .xlsx workbook."));
         }
+
+        var childRowCount = parsed.Sessions.Count + parsed.Chapters.Count + parsed.Content.Count;
+        if (parsed.Trainings.Count > MaxTrainings || childRowCount > MaxChildRows)
+            return Result.Failure<TrainingImportResultDto>(Error.Validation(
+                "Import.TooLarge", $"The file is too large to import (limit {MaxTrainings} trainings / {MaxChildRows} child rows)."));
 
         // Lookups (re-derived, so apply re-validates against the current DB).
         var categoryByName = await _db.Categories.AsNoTracking()
@@ -69,6 +78,12 @@ public class ApplyTrainingImportCommandHandler
 
         var ctx = new ImportValidationContext(categoryNames, existingKeys, emailToId.Keys.ToHashSet());
         var preview = TrainingImportValidator.Validate(request.FileName, parsed, ctx);
+
+        // No training rows at all (e.g. a missing/empty Trainings sheet) is a hard failure, not a silent
+        // "imported 0" success.
+        if (parsed.Trainings.Count == 0)
+            return Result.Failure<TrainingImportResultDto>(Error.Validation(
+                "Import.NoTrainings", "The workbook has no training rows to import."));
 
         var sessionsByRef = GroupByRef(parsed.Sessions, s => s.TrainingRef);
         var chaptersByRef = GroupByRef(parsed.Chapters, c => c.TrainingRef);
@@ -133,6 +148,11 @@ public class ApplyTrainingImportCommandHandler
                 });
             }
         }
+
+        // Surface workbook-level errors (orphan child rows whose Training Ref is blank/unknown) so they
+        // aren't silently dropped — they appear in the result's error list (and the downloadable log).
+        foreach (var g in preview.GlobalIssues.Where(x => x.Severity == "error"))
+            result.Errors.Add(new TrainingImportErrorDto { Ref = "(global)", Title = null, Message = g.Message });
 
         // Audit row is best-effort — a failure here must not turn a successful import into an error.
         try

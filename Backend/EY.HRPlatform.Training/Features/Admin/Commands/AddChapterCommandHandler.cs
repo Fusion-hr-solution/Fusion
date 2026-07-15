@@ -2,6 +2,7 @@ using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
 using EY.HRPlatform.Training.Domain.Entities;
 using EY.HRPlatform.Training.Domain.Enums;
+using EY.HRPlatform.Training.Features.Admin.Content;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,8 +11,13 @@ namespace EY.HRPlatform.Training.Features.Admin.Commands;
 public class AddChapterCommandHandler : ICommandHandler<AddChapterCommand, Result<Guid>>
 {
     private readonly TrainingDbContext _db;
+    private readonly IPdfTextExtractor _pdf;
 
-    public AddChapterCommandHandler(TrainingDbContext db) => _db = db;
+    public AddChapterCommandHandler(TrainingDbContext db, IPdfTextExtractor pdf)
+    {
+        _db = db;
+        _pdf = pdf;
+    }
 
     public async Task<Result<Guid>> Handle(AddChapterCommand request, CancellationToken cancellationToken)
     {
@@ -51,7 +57,7 @@ public class AddChapterCommandHandler : ICommandHandler<AddChapterCommand, Resul
                 block.OrderIndex,
                 chapter.Id,
                 block.Title,
-                block.TextContent,
+                _pdf.ResolveTextContent(contentType, block.TextContent, block.ContentUri),
                 block.ContentUri,
                 block.VideoUrl,
                 block.EstimatedDurationMinutes));
