@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { CoursePlayerProps } from "@/types/component-props";
 import { useCoursePlayer } from "@/hooks/use-course-player";
@@ -9,6 +10,7 @@ import { ChapterSidebar } from "./chapter-sidebar";
 import { ExamLockedBanner } from "./exam-locked-banner";
 import { ExamPlayerContent } from "./exam-player-content";
 import { ChapterContent } from "./chapter-content-section";
+import { usePublishAssistantScope } from "@/components/assistant/assistant-scope";
 
 export function CoursePlayer({ learnData }: CoursePlayerProps) {
   const t = useTranslations("learn.player");
@@ -20,6 +22,29 @@ export function CoursePlayer({ learnData }: CoursePlayerProps) {
     isLoading, isLoadingContent, contentError, setActiveChapterId,
     handleMarkBlockComplete, handleNext, handlePrevious, refetchContent,
   } = useCoursePlayer(learnData);
+
+  // Scope the module-wide Academy Assistant to the chapter being read (AI-L-1).
+  usePublishAssistantScope(
+    !showExam && activeChapterId
+      ? { trainingId: learnData.training.id, chapterId: activeChapterId }
+      : null,
+  );
+
+  // ?chapter=<id> deep link (assistant citation chips, AI-L-1 A4). The mount-time
+  // initializer covers fresh mounts; this effect covers query-only soft navigations to
+  // the already-mounted player. Consume the param afterwards so a reload/bookmark falls
+  // back to the normal first-incomplete resume logic.
+  const chapterParam = useSearchParams().get("chapter");
+  const pathname = usePathname();
+  const router = useRouter();
+  useEffect(() => {
+    if (!chapterParam) return;
+    if (chapters.some((c) => c.id === chapterParam)) {
+      setShowExam(false);
+      setActiveChapterId(chapterParam);
+    }
+    router.replace(pathname, { scroll: false });
+  }, [chapterParam, chapters, pathname, router, setActiveChapterId]);
 
   const hasExam = (learnData.training.exam?.questionsCount ?? 0) > 0;
   const examAvailable = hasExam && allChaptersCompleted;
