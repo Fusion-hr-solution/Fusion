@@ -43,6 +43,14 @@ public enum PerformanceCycleAuditAction
     EmployeeObjectivePlanChangesRequested,
     EmployeeObjectivePlanApproved,
 
+    // Planning completion and lock actions (P1.6)
+    PlanningReminderRecorded,
+    PlanningReminderTriggered,
+    PlanningApproverReassigned,
+    PlanningParticipantExcluded,
+    PlanningLockRejected,
+    PlanningLocked,
+
     // Strategic objective actions (Plan 03-02)
     StrategicObjectivePublished,
     StrategicObjectiveSuperseded,

@@ -75,6 +75,15 @@ describe("PerformanceAppBreadcrumb", () => {
     expect(breadcrumb.textContent).toContain("Campaigns");
   });
 
+  it("renders planning completion under the campaign breadcrumb hierarchy", () => {
+    const breadcrumb = renderBreadcrumb("/performance/campaigns/fy26-planning/completion");
+
+    expect(breadcrumb.textContent).toContain("Performance");
+    expect(breadcrumb.textContent).toContain("Campaigns");
+    expect(breadcrumb.textContent).toContain("Fy26 planning");
+    expect(breadcrumb.textContent).toContain("Planning completion");
+  });
+
   it("renders My objectives workspace breadcrumb hierarchy", () => {
     const breadcrumb = renderBreadcrumb("/performance/my-objectives/fy26-objectives");
 

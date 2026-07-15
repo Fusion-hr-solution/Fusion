@@ -54,7 +54,7 @@ public sealed class GetMyObjectivePlanWorkspaceQueryHandler(
                 cancellationToken);
 
         var isEntryOpen = EmployeeObjectivePlanRules.IsEntryOpen(cycle, DateTime.UtcNow);
-        if (plan is null && isEntryOpen)
+        if (plan is null && isEntryOpen && !cycle.IsPlanningLocked)
         {
             try
             {
@@ -77,7 +77,9 @@ public sealed class GetMyObjectivePlanWorkspaceQueryHandler(
             await dbContext.SaveChangesAsync(cancellationToken);
         }
 
-        var state = plan?.Status switch
+        var state = cycle.IsPlanningLocked
+            ? plan?.Status == PlanStatus.Approved ? "locked-approved" : "locked-unresolved"
+            : plan?.Status switch
         {
             PlanStatus.Submitted => "submitted",
             PlanStatus.ChangesRequested => "changes-requested",
@@ -131,6 +133,8 @@ public sealed class GetMyObjectivePlanWorkspaceQueryHandler(
             cycle.EmployeeSubmissionDeadline,
             cycle.ManagerApprovalDeadline,
             cycle.LaunchedAt,
+            cycle.PlanningLockedAt,
+            cycle.PlanningLockedByName,
             cycle.PlanningRulesSnapshot?.MaxObjectiveCount ?? 0,
             EmployeeObjectivePlanRules.AllowedWeights(cycle),
             EmployeeObjectivePlanRules.EnabledMeasurementMethods(cycle),

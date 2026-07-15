@@ -30,6 +30,7 @@ export type PersonOption = {
   employeeId: string;
   displayName: string;
   jobTitle: string | null;
+  orgUnitId: string | null;
   orgUnitName: string | null;
 };
 
@@ -80,6 +81,7 @@ export function PeopleCombobox({
       employeeId: employee.employeeId,
       displayName: employee.displayName || employee.fullName,
       jobTitle: employee.jobTitle,
+      orgUnitId: employee.orgUnit?.orgUnitId ?? null,
       orgUnitName: employee.orgUnit?.name ?? null,
     }));
 

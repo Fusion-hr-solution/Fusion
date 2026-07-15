@@ -6,7 +6,10 @@ import {
   performancePaths,
   performanceQueryKeys,
 } from "@repo/api";
-import type { CascadeCoverageDto, CoverageStrategicObjectiveDto } from "@repo/api";
+import type {
+  CascadeCoverageDto,
+  CoverageStrategicObjectiveDto,
+} from "@repo/api";
 import { useApiQuery } from "@repo/api/query";
 import { PageError, StatusBadge } from "@repo/ds/shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,8 +37,11 @@ export function CascadeCoverageSection({ slug }: { slug: string }) {
   const { data, error, isLoading, refetch } = useApiQuery<CascadeCoverageDto>(
     performanceQueryKeys.cascadeCoverage(slug),
     (signal) =>
-      apiClient.get<CascadeCoverageDto>(performancePaths.cascadeCoverage(slug), { signal }),
-    { enabled: !!slug },
+      apiClient.get<CascadeCoverageDto>(
+        performancePaths.cascadeCoverage(slug),
+        { signal }
+      ),
+    { enabled: !!slug }
   );
 
   if (isLoading) {
@@ -54,7 +60,9 @@ export function CascadeCoverageSection({ slug }: { slug: string }) {
 
   return (
     <section className="space-y-4">
-      <h2 className="text-sm font-semibold text-foreground">{strategyTerms.coverageTitle}</h2>
+      <h2 className="text-sm font-semibold text-foreground">
+        {strategyTerms.coverageTitle}
+      </h2>
       <CascadeCoverageFull data={data} />
     </section>
   );
@@ -64,7 +72,9 @@ export function CascadeCoverageSection({ slug }: { slug: string }) {
 
 export function CascadeCoverageFull({ data }: { data: CascadeCoverageDto }) {
   const truncated = data.teamObjectives.length < data.teamObjectiveCount;
-  const segments = data.strategicObjectives.map((objective) => objective.teamObjectiveCount > 0);
+  const segments = data.strategicObjectives.map(
+    (objective) => objective.teamObjectiveCount > 0
+  );
 
   return (
     <div className="space-y-5">
@@ -94,13 +104,17 @@ export function CascadeCoverageFull({ data }: { data: CascadeCoverageDto }) {
               key={strategicObjective.id}
               strategicObjective={strategicObjective}
               teamObjectives={data.teamObjectives.filter(
-                (objective) => objective.strategicObjectiveId === strategicObjective.id,
+                (objective) =>
+                  objective.strategicObjectiveId === strategicObjective.id
               )}
             />
           ))}
           {truncated ? (
             <p className="pl-4 text-xs text-muted-foreground">
-              {strategyTerms.truncatedObjectives(data.teamObjectives.length, data.teamObjectiveCount)}
+              {strategyTerms.truncatedObjectives(
+                data.teamObjectives.length,
+                data.teamObjectiveCount
+              )}
             </p>
           ) : null}
         </div>
@@ -123,7 +137,11 @@ function CoverageLane({
   const covered = strategicObjective.teamObjectiveCount > 0;
   // Contributing managers on this objective, de-duplicated, for the collapsed row's face cluster.
   const contributors = Array.from(
-    new Set(teamObjectives.map((objective) => objective.ownerManagerName).filter(Boolean)),
+    new Set(
+      teamObjectives
+        .map((objective) => objective.ownerManagerName)
+        .filter(Boolean)
+    )
   );
 
   return (
@@ -136,35 +154,88 @@ function CoverageLane({
       status={
         <StatusBadge tone={covered ? "success" : "warning"} dot>
           {covered
-            ? strategyTerms.objectiveCount(strategicObjective.teamObjectiveCount)
+            ? strategyTerms.objectiveCount(
+                strategicObjective.teamObjectiveCount
+              )
             : strategyTerms.needsObjective}
         </StatusBadge>
       }
       cluster={covered ? <AvatarCluster names={contributors} /> : undefined}
     >
-      {covered ? (
-        <ul className="pb-1">
-          {teamObjectives.map((objective, index) => (
-            <Leaf key={objective.id} last={index === teamObjectives.length - 1}>
-              <LeafBody
-                title={objective.title}
-                successLabel={strategyTerms.successLabel}
-                successCriteria={objective.successCriteria}
-                measurementLabel={measurementMethodLabel(objective.measurementMethod)}
-                ownerName={objective.ownerManagerName}
-              />
-            </Leaf>
-          ))}
-        </ul>
-      ) : null}
+      {covered ? <TeamObjectiveGroups teamObjectives={teamObjectives} /> : null}
     </CascadeRow>
   );
+}
+
+function TeamObjectiveGroups({
+  teamObjectives,
+}: {
+  teamObjectives: CascadeCoverageDto["teamObjectives"];
+}) {
+  const groups = groupTeamObjectivesByManager(teamObjectives);
+
+  return (
+    <div className="pb-1">
+      {groups.map((group) => (
+        <section
+          key={group.managerName}
+          className="border-t border-border/70 first:border-t-0"
+        >
+          <div className="flex items-center justify-between gap-3 bg-background/50 px-10 py-2">
+            <p className="truncate text-sm font-medium text-foreground">
+              {group.managerName}
+            </p>
+            <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+              {strategyTerms.objectiveCount(group.objectives.length)}
+            </span>
+          </div>
+          <ul>
+            {group.objectives.map((objective, index) => (
+              <Leaf
+                key={objective.id}
+                last={index === group.objectives.length - 1}
+              >
+                <LeafBody
+                  title={objective.title}
+                  successLabel={strategyTerms.successLabel}
+                  successCriteria={objective.successCriteria}
+                  measurementLabel={measurementMethodLabel(
+                    objective.measurementMethod
+                  )}
+                />
+              </Leaf>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function groupTeamObjectivesByManager(
+  teamObjectives: CascadeCoverageDto["teamObjectives"]
+) {
+  const groups = new Map<string, CascadeCoverageDto["teamObjectives"]>();
+  for (const objective of teamObjectives) {
+    const key = objective.ownerManagerName || "Unassigned manager";
+    groups.set(key, [...(groups.get(key) ?? []), objective]);
+  }
+
+  return Array.from(groups.entries())
+    .map(([managerName, objectives]) => ({ managerName, objectives }))
+    .sort(
+      (a, b) =>
+        b.objectives.length - a.objectives.length ||
+        a.managerName.localeCompare(b.managerName)
+    );
 }
 
 function ManagersRail({ data }: { data: CascadeCoverageDto }) {
   // Contributors first, then silent managers — the people who haven't cascaded yet are the follow-up.
   const managers = [...data.managers].sort(
-    (a, b) => b.teamObjectiveCount - a.teamObjectiveCount || a.name.localeCompare(b.name),
+    (a, b) =>
+      b.teamObjectiveCount - a.teamObjectiveCount ||
+      a.name.localeCompare(b.name)
   );
   const shown = managers.slice(0, 8);
   const overflow = managers.length - shown.length;
@@ -177,7 +248,10 @@ function ManagersRail({ data }: { data: CascadeCoverageDto }) {
             {strategyTerms.managersHeading}
           </h2>
           <span className="text-xs font-medium tabular-nums text-muted-foreground">
-            {strategyTerms.contributing(data.managersWithTeamObjectivesCount, data.managerCount)}
+            {strategyTerms.contributing(
+              data.managersWithTeamObjectivesCount,
+              data.managerCount
+            )}
           </span>
         </div>
         <ul className="space-y-2.5">
@@ -193,7 +267,7 @@ function ManagersRail({ data }: { data: CascadeCoverageDto }) {
                     "shrink-0 text-sm tabular-nums",
                     manager.teamObjectiveCount > 0
                       ? "font-semibold text-foreground"
-                      : "text-muted-foreground/60",
+                      : "text-muted-foreground/60"
                   )}
                 >
                   {manager.teamObjectiveCount}

@@ -27,6 +27,10 @@ public sealed class DeleteObjectiveCommandHandler(
             .FirstOrDefaultAsync(item => item.Id == request.CycleId, cancellationToken);
         if (cycle is null)
             return Result.Failure(Error.NotFound("PerformanceCycle", request.CycleId));
+        if (cycle.IsPlanningLocked)
+            return Result.Failure(Error.Conflict(
+                "EmployeeObjectivePlan.Locked",
+                "Planning is locked for this campaign."));
 
         var plan = await dbContext.EmployeeObjectivePlans
             .Include(item => item.Objectives)

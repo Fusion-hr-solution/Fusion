@@ -3,16 +3,28 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { cloneElement, isValidElement, useEffect, useId, useMemo, useState } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   AlertTriangle,
-  CircleCheck,
-  CircleDashed,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardCheck,
   Lock,
   Pencil,
   Plus,
+  Rocket,
   Target,
   Trash2,
+  Users,
 } from "lucide-react";
 import {
   ApiError,
@@ -31,7 +43,11 @@ import type {
   UpdatePerformanceCycleRequest,
   UpsertCampaignStrategicObjectiveRequest,
 } from "@repo/api";
-import { useApiMutation, useApiQuery, useApiQueryClient } from "@repo/api/query";
+import {
+  useApiMutation,
+  useApiQuery,
+  useApiQueryClient,
+} from "@repo/api/query";
 import {
   canManagePerformanceCampaigns,
   canOperatePerformanceCycles,
@@ -49,7 +65,7 @@ import {
 } from "@repo/ds/shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
@@ -65,15 +81,23 @@ import { toast } from "sonner";
 import { CampaignCreateDialog } from "./campaign-create-dialog";
 import {
   CampaignLaunchedBaseline,
+  CampaignLaunchPad,
   CampaignPopulationSection,
-  CampaignReadinessSection,
+  type PreflightGate,
 } from "./campaign-launch-sections";
 import {
+  CampaignRunwaySpine,
+  type RunwayStep,
+  type RunwayStepKey,
+} from "./campaign-setup-stepper";
+import {
   campaignDiscard,
-  campaignReadiness,
+  campaignJourney,
+  campaignRunway,
   campaignScheduleSteps,
   campaignStatusLabel,
   campaignStatusTone,
+  campaignStrategy,
   campaignTerms,
 } from "./campaign-terminology";
 
@@ -106,11 +130,37 @@ const SCHEDULE_STEP_ORDER = [
   "expectedPlanningLockDate",
 ] as const satisfies readonly ScheduleKey[];
 
-const SCHEDULE_STEPS: { key: ScheduleKey; label: string; caption: string; short: string }[] =
-  SCHEDULE_STEP_ORDER.map((key) => ({ key, ...campaignScheduleSteps[key] }));
+const SCHEDULE_STEPS: {
+  key: ScheduleKey;
+  label: string;
+  caption: string;
+  short: string;
+}[] = SCHEDULE_STEP_ORDER.map((key) => ({
+  key,
+  ...campaignScheduleSteps[key],
+}));
 
 const currentYear = new Date().getFullYear();
-const yearOptions = Array.from({ length: 5 }, (_, index) => currentYear - 1 + index);
+const yearOptions = Array.from(
+  { length: 5 },
+  (_, index) => currentYear - 1 + index
+);
+
+const STEP_ORDER = [
+  "campaign",
+  "timeline",
+  "strategy",
+  "population",
+  "launch",
+] as const satisfies readonly RunwayStepKey[];
+
+type StepState = {
+  campaign: boolean;
+  timeline: boolean;
+  timelineError: boolean;
+  strategy: boolean;
+  population: boolean;
+};
 
 export function CampaignListPage() {
   const apiClient = useMemo(() => createPlatformApiClient(), []);
@@ -121,14 +171,19 @@ export function CampaignListPage() {
 
   // Show the tenant's campaigns across their whole lifecycle — draft setup and launched alike.
   // Filtering to Draft only made a launched campaign vanish into a false "No campaigns yet" state.
-  const { data, error, isLoading, refetch } = useApiQuery<PagedResponse<PerformanceCycleSummaryDto>>(
+  const { data, error, isLoading, refetch } = useApiQuery<
+    PagedResponse<PerformanceCycleSummaryDto>
+  >(
     performanceQueryKeys.cycleList({ page: 1, pageSize: 50 }),
     (signal) =>
-      apiClient.get<PagedResponse<PerformanceCycleSummaryDto>>(performancePaths.cycles(), {
-        signal,
-        params: { page: 1, pageSize: 50 },
-      }),
-    { enabled: canView },
+      apiClient.get<PagedResponse<PerformanceCycleSummaryDto>>(
+        performancePaths.cycles(),
+        {
+          signal,
+          params: { page: 1, pageSize: 50 },
+        }
+      ),
+    { enabled: canView }
   );
 
   if (authLoading) {
@@ -160,7 +215,11 @@ export function CampaignListPage() {
 
       {isLoading ? <PageLoading rows={5} label="Loading campaigns" /> : null}
       {!isLoading && error ? (
-        <PageError title="Could not load campaigns" description="Try again." onRetry={refetch} />
+        <PageError
+          title="Could not load campaigns"
+          description="Try again."
+          onRetry={refetch}
+        />
       ) : null}
 
       {!isLoading && !error && data ? (
@@ -191,18 +250,25 @@ export function CampaignListPage() {
                 className="grid grid-cols-[1.5fr_0.6fr_0.7fr_0.8fr] items-center gap-3 border-b border-border px-4 py-3 text-sm transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
               >
                 <span className="min-w-0">
-                  <span className="block truncate font-medium text-foreground">{campaign.name}</span>
-                  <span className="block truncate font-mono text-xs text-muted-foreground">{campaign.slug}</span>
+                  <span className="block truncate font-medium text-foreground">
+                    {campaign.name}
+                  </span>
+                  <span className="block truncate font-mono text-xs text-muted-foreground">
+                    {campaign.slug}
+                  </span>
                 </span>
                 <span className="tabular-nums">
-                  {campaign.referenceYear ?? new Date(campaign.periodStart).getUTCFullYear()}
+                  {campaign.referenceYear ??
+                    new Date(campaign.periodStart).getUTCFullYear()}
                 </span>
                 <span>
                   <StatusBadge tone={campaignStatusTone(campaign.status)}>
                     {campaignStatusLabel(campaign.status)}
                   </StatusBadge>
                 </span>
-                <span className="text-muted-foreground">{formatDate(campaign.createdAt)}</span>
+                <span className="text-muted-foreground">
+                  {formatDate(campaign.createdAt)}
+                </span>
               </Link>
             ))}
           </div>
@@ -226,10 +292,16 @@ export function CampaignDraftPage() {
   const canOperate = canOperatePerformanceCycles(user);
   const [form, setForm] = useState<DraftForm | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
-  const [objectiveForm, setObjectiveForm] = useState<ObjectiveForm>(() => emptyObjectiveForm());
-  const [editingObjectiveId, setEditingObjectiveId] = useState<string | null>(null);
+  const [objectiveForm, setObjectiveForm] = useState<ObjectiveForm>(() =>
+    emptyObjectiveForm()
+  );
+  const [editingObjectiveId, setEditingObjectiveId] = useState<string | null>(
+    null
+  );
   const [isAdding, setIsAdding] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
+  const [activeStep, setActiveStep] = useState<RunwayStepKey>("campaign");
+  const stepInitializedFor = useRef<string | null>(null);
 
   const {
     data: campaign,
@@ -238,8 +310,12 @@ export function CampaignDraftPage() {
     refetch,
   } = useApiQuery<PerformanceCycleDetailDto>(
     performanceQueryKeys.cycleBySlug(slug),
-    (signal) => apiClient.get<PerformanceCycleDetailDto>(performancePaths.cycleBySlug(slug), { signal }),
-    { enabled: canView && !!slug },
+    (signal) =>
+      apiClient.get<PerformanceCycleDetailDto>(
+        performancePaths.cycleBySlug(slug),
+        { signal }
+      ),
+    { enabled: canView && !!slug }
   );
 
   const campaignId = campaign?.id ?? "";
@@ -254,18 +330,34 @@ export function CampaignDraftPage() {
     }
   }, [campaign]);
 
-  const update = useApiMutation<PerformanceCycleDetailDto, UpdatePerformanceCycleRequest>(
+  // Land on the first unfinished gate the first time a campaign loads — but only
+  // once per campaign, so a save-triggered refetch never yanks the user's step.
+  useEffect(() => {
+    if (!campaign || campaign.status !== "Draft") return;
+    if (stepInitializedFor.current === campaign.id) return;
+    stepInitializedFor.current = campaign.id;
+    setActiveStep(firstOpenStep(fromCampaign(campaign), campaign));
+  }, [campaign]);
+
+  const update = useApiMutation<
+    PerformanceCycleDetailDto,
+    UpdatePerformanceCycleRequest
+  >(
     (request) =>
-      apiClient.put<PerformanceCycleDetailDto>(performancePaths.cycle(campaignId), request, {
-        headers: { "If-Match": `"${campaign?.version ?? 0}"` },
-      }),
+      apiClient.put<PerformanceCycleDetailDto>(
+        performancePaths.cycle(campaignId),
+        request,
+        {
+          headers: { "If-Match": `"${campaign?.version ?? 0}"` },
+        }
+      ),
     {
       onSuccess: async () => {
         toast.success("Campaign saved");
         await refetch();
       },
       onError: (error) => setErrors(errorToMessages(error)),
-    },
+    }
   );
 
   const addObjective = useApiMutation<
@@ -275,7 +367,7 @@ export function CampaignDraftPage() {
     (request) =>
       apiClient.post<CampaignStrategicObjectiveDto>(
         performancePaths.campaignStrategicObjectives(campaignId),
-        request,
+        request
       ),
     {
       onSuccess: async () => {
@@ -285,18 +377,21 @@ export function CampaignDraftPage() {
         await refetch();
       },
       onError: (error) => setErrors(errorToMessages(error)),
-    },
+    }
   );
 
   const updateObjective = useApiMutation<
     CampaignStrategicObjectiveDto,
-    { objective: CampaignStrategicObjectiveDto; request: UpsertCampaignStrategicObjectiveRequest }
+    {
+      objective: CampaignStrategicObjectiveDto;
+      request: UpsertCampaignStrategicObjectiveRequest;
+    }
   >(
     ({ objective, request }) =>
       apiClient.put<CampaignStrategicObjectiveDto>(
         performancePaths.campaignStrategicObjective(campaignId, objective.id),
         request,
-        { headers: { "If-Match": `"${objective.version}"` } },
+        { headers: { "If-Match": `"${objective.version}"` } }
       ),
     {
       onSuccess: async () => {
@@ -306,25 +401,31 @@ export function CampaignDraftPage() {
         await refetch();
       },
       onError: (error) => setErrors(errorToMessages(error)),
-    },
+    }
   );
 
   const toggleObjective = useApiMutation<
     CampaignStrategicObjectiveDto,
-    { objective: CampaignStrategicObjectiveDto; request: ToggleCampaignStrategicObjectiveRequest }
+    {
+      objective: CampaignStrategicObjectiveDto;
+      request: ToggleCampaignStrategicObjectiveRequest;
+    }
   >(
     ({ objective, request }) =>
       apiClient.put<CampaignStrategicObjectiveDto>(
-        performancePaths.campaignStrategicObjectiveActiveState(campaignId, objective.id),
+        performancePaths.campaignStrategicObjectiveActiveState(
+          campaignId,
+          objective.id
+        ),
         request,
-        { headers: { "If-Match": `"${objective.version}"` } },
+        { headers: { "If-Match": `"${objective.version}"` } }
       ),
     {
       onSuccess: async () => {
         await refetch();
       },
       onError: (error) => setErrors(errorToMessages(error)),
-    },
+    }
   );
 
   const discard = useApiMutation<void, void>(
@@ -336,7 +437,9 @@ export function CampaignDraftPage() {
       onSuccess: () => {
         // Refresh the list only — invalidating the cycles() base would also refetch the
         // still-mounted by-slug detail query for the just-deleted campaign (a stray 404).
-        queryClient.invalidateQueries({ queryKey: [...performanceQueryKeys.cycles(), "list"] });
+        queryClient.invalidateQueries({
+          queryKey: [...performanceQueryKeys.cycles(), "list"],
+        });
         toast.success(campaignDiscard.success);
         router.push("/campaigns");
       },
@@ -344,7 +447,7 @@ export function CampaignDraftPage() {
         setDiscardOpen(false);
         setErrors(errorToMessages(error));
       },
-    },
+    }
   );
 
   if (authLoading) {
@@ -370,7 +473,11 @@ export function CampaignDraftPage() {
       <PageContainer>
         <PageError
           title={notFound ? "Campaign not found" : "Could not load campaign"}
-          description={notFound ? "It may have been removed, or the link is wrong." : "Try again."}
+          description={
+            notFound
+              ? "It may have been removed, or the link is wrong."
+              : "Try again."
+          }
           onRetry={notFound ? undefined : refetch}
         />
       </PageContainer>
@@ -379,8 +486,8 @@ export function CampaignDraftPage() {
 
   const isDraft = campaign.status === "Draft";
   const localErrors = validateDraftForm(form);
-  const isDirty = serializeDraftForm(form) !== serializeDraftForm(fromCampaign(campaign));
-  const canSave = canManage && isDraft && isDirty && localErrors.length === 0 && !update.isLoading;
+  const isDirty =
+    serializeDraftForm(form) !== serializeDraftForm(fromCampaign(campaign));
   const readOnly = !canManage || !isDraft;
   const canDiscard = canManage && isDraft;
   const objectiveRequest = toObjectiveRequest(objectiveForm);
@@ -389,8 +496,115 @@ export function CampaignDraftPage() {
   // detail and invalidate its live sub-queries (population preview, readiness) without a manual refresh.
   const handleWorkspaceChange = async () => {
     await refetch();
-    await queryClient.invalidateQueries({ queryKey: performanceQueryKeys.cycle(campaignId) });
+    await queryClient.invalidateQueries({
+      queryKey: performanceQueryKeys.cycle(campaignId),
+    });
   };
+
+  const baseline = fromCampaign(campaign);
+  const campaignDirty =
+    form.name !== baseline.name ||
+    form.purpose !== baseline.purpose ||
+    form.referenceYear !== baseline.referenceYear;
+  const timelineDirty = SCHEDULE_STEP_ORDER.some(
+    (key) => form[key] !== baseline[key]
+  );
+
+  const stepState = getStepState(form, campaign);
+  const gatesCleared =
+    stepState.campaign &&
+    stepState.timeline &&
+    stepState.strategy &&
+    stepState.population;
+
+  const steps: RunwayStep[] = [
+    {
+      key: "campaign",
+      label: campaignRunway.steps.campaign.label,
+      icon: ClipboardCheck,
+      done: stepState.campaign,
+      unsaved: campaignDirty,
+    },
+    {
+      key: "timeline",
+      label: campaignRunway.steps.timeline.label,
+      icon: CalendarDays,
+      done: stepState.timeline,
+      hasError: stepState.timelineError,
+      unsaved: timelineDirty,
+    },
+    {
+      key: "strategy",
+      label: campaignRunway.steps.strategy.label,
+      icon: Target,
+      done: stepState.strategy,
+    },
+    {
+      key: "population",
+      label: campaignRunway.steps.population.label,
+      icon: Users,
+      done: stepState.population,
+    },
+    {
+      key: "launch",
+      label: campaignRunway.steps.launch.label,
+      icon: Rocket,
+      done: gatesCleared,
+    },
+  ];
+
+  const preflightGates: PreflightGate[] = [
+    {
+      key: "campaign",
+      label: campaignRunway.steps.campaign.label,
+      done: stepState.campaign,
+    },
+    {
+      key: "timeline",
+      label: campaignRunway.steps.timeline.label,
+      done: stepState.timeline,
+    },
+    {
+      key: "strategy",
+      label: campaignRunway.steps.strategy.label,
+      done: stepState.strategy,
+    },
+    {
+      key: "population",
+      label: campaignRunway.steps.population.label,
+      done: stepState.population,
+    },
+  ];
+
+  const activeIndex = STEP_ORDER.indexOf(activeStep);
+  const isFirstStep = activeIndex === 0;
+  const isLastStep = activeIndex === STEP_ORDER.length - 1;
+
+  // No explicit save: leaving a dirty, valid Campaign/Timeline step persists it
+  // in the background. Population and Strategy autosave their own changes.
+  const commitDraft = () => {
+    if (
+      canManage &&
+      isDraft &&
+      isDirty &&
+      localErrors.length === 0 &&
+      (activeStep === "campaign" || activeStep === "timeline")
+    ) {
+      setErrors([]);
+      update.mutate(toDraftRequest(form));
+    }
+  };
+  const navigateTo = (step: RunwayStepKey) => {
+    if (step !== activeStep) commitDraft();
+    setActiveStep(step);
+  };
+  const goNext = () =>
+    navigateTo(STEP_ORDER[Math.min(activeIndex + 1, STEP_ORDER.length - 1)]!);
+  const goBack = () =>
+    navigateTo(STEP_ORDER[Math.max(activeIndex - 1, 0)]!);
+
+  const activeStepMeta = steps[activeIndex]!;
+  const ActiveIcon = activeStepMeta.icon;
 
   return (
     <PageContainer>
@@ -401,13 +615,22 @@ export function CampaignDraftPage() {
             <StatusBadge tone={campaignStatusTone(campaign.status)}>
               {campaignStatusLabel(campaign.status)}
             </StatusBadge>
-            <span className="font-mono text-xs text-muted-foreground">{campaign.slug}</span>
+            <span className="font-mono text-xs text-muted-foreground">
+              {campaign.slug}
+            </span>
           </div>
         }
-        description={campaign.ownerName ? `Owned by ${campaign.ownerName}` : undefined}
+        description={
+          campaign.ownerName ? `Owned by ${campaign.ownerName}` : undefined
+        }
         actions={
-          readOnly ? (
-            <Badge variant="outline">{campaignTerms.readOnly}</Badge>
+          !isDraft ? (
+            <Button asChild size="sm">
+              <Link href={`/campaigns/${campaign.slug}/completion`}>
+                <Lock />
+                Planning completion
+              </Link>
+            </Button>
           ) : canDiscard ? (
             <Button
               type="button"
@@ -418,102 +641,146 @@ export function CampaignDraftPage() {
             >
               <Trash2 /> {campaignDiscard.action}
             </Button>
+          ) : readOnly ? (
+            <Badge variant="outline">Read only</Badge>
           ) : null
         }
       />
 
-      {errors.length > 0 ? <div className="mb-5"><CampaignErrorList errors={errors} /></div> : null}
+      {errors.length > 0 ? (
+        <div className="mb-5">
+          <CampaignErrorList errors={errors} />
+        </div>
+      ) : null}
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
-        <div className="min-w-0 space-y-5">
-          <IdentityScheduleCard form={form} onChange={setForm} disabled={readOnly || update.isLoading} />
-
-          <ObjectivesSection
-            objectives={campaign.strategicObjectives}
-            readOnly={readOnly}
-            objectiveForm={objectiveForm}
-            objectiveRequest={objectiveRequest}
-            editingObjectiveId={editingObjectiveId}
-            isAdding={isAdding}
-            isBusy={addObjective.isLoading || updateObjective.isLoading}
-            isToggling={toggleObjective.isLoading}
-            onObjectiveFormChange={setObjectiveForm}
-            onStartAdd={() => {
-              setEditingObjectiveId(null);
-              setObjectiveForm(emptyObjectiveForm());
-              setIsAdding(true);
-            }}
-            onCancelAdd={() => {
-              setIsAdding(false);
-              setObjectiveForm(emptyObjectiveForm());
-            }}
-            onSubmitAdd={() => addObjective.mutate(objectiveRequest)}
-            onStartEdit={(objective) => {
-              setIsAdding(false);
-              setEditingObjectiveId(objective.id);
-              setObjectiveForm(fromObjective(objective));
-            }}
-            onCancelEdit={() => {
-              setEditingObjectiveId(null);
-              setObjectiveForm(emptyObjectiveForm());
-            }}
-            onSubmitEdit={(objective) => updateObjective.mutate({ objective, request: objectiveRequest })}
-            onToggle={(objective, isActive) => toggleObjective.mutate({ objective, request: { isActive } })}
+      {isDraft ? (
+        <div className="flex flex-col gap-5">
+          <CampaignRunwaySpine
+            steps={steps}
+            active={activeStep}
+            cleared={gatesCleared}
+            onSelect={navigateTo}
           />
 
-          {!readOnly && isDirty ? (
-            <WorkspaceActionBar
-              sticky
-              statusLabel="Unsaved changes"
-              hint={localErrors.length > 0 ? localErrors[0] : undefined}
-              primaryLabel={update.isLoading ? "Saving…" : campaignTerms.saveAction}
-              primaryDisabled={!canSave}
-              onPrimary={() => {
-                setErrors([]);
-                update.mutate(toDraftRequest(form));
-              }}
-              secondary={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={update.isLoading}
-                  onClick={() => {
-                    setForm(fromCampaign(campaign));
-                    setErrors([]);
+          <section className="overflow-hidden rounded-2xl border border-border bg-card">
+            <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4 sm:px-6">
+              <div className="flex items-center gap-3">
+                <span className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <ActiveIcon className="size-5" />
+                </span>
+                <h2 className="font-heading text-lg font-semibold tracking-tight text-foreground">
+                  {activeStepMeta.label}
+                </h2>
+              </div>
+              <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                Step {activeIndex + 1} / {STEP_ORDER.length}
+              </span>
+            </header>
+
+            <div className="px-5 py-6 sm:px-6">
+              {activeStep === "campaign" ? (
+                <CampaignStep
+                  form={form}
+                  onChange={setForm}
+                  disabled={readOnly || update.isLoading}
+                  snapshot={campaign.planningRulesSnapshot}
+                />
+              ) : null}
+
+              {activeStep === "timeline" ? (
+                <PlanningJourney
+                  form={form}
+                  onChange={setForm}
+                  disabled={readOnly || update.isLoading}
+                />
+              ) : null}
+
+              {activeStep === "strategy" ? (
+                <ObjectivesSection
+                  objectives={campaign.strategicObjectives}
+                  readOnly={readOnly}
+                  objectiveForm={objectiveForm}
+                  objectiveRequest={objectiveRequest}
+                  editingObjectiveId={editingObjectiveId}
+                  isAdding={isAdding}
+                  isBusy={addObjective.isLoading || updateObjective.isLoading}
+                  isToggling={toggleObjective.isLoading}
+                  onObjectiveFormChange={setObjectiveForm}
+                  onStartAdd={() => {
+                    setEditingObjectiveId(null);
+                    setObjectiveForm(emptyObjectiveForm());
+                    setIsAdding(true);
                   }}
-                >
-                  Discard changes
+                  onCancelAdd={() => {
+                    setIsAdding(false);
+                    setObjectiveForm(emptyObjectiveForm());
+                  }}
+                  onSubmitAdd={() => addObjective.mutate(objectiveRequest)}
+                  onStartEdit={(objective) => {
+                    setIsAdding(false);
+                    setEditingObjectiveId(objective.id);
+                    setObjectiveForm(fromObjective(objective));
+                  }}
+                  onCancelEdit={() => {
+                    setEditingObjectiveId(null);
+                    setObjectiveForm(emptyObjectiveForm());
+                  }}
+                  onSubmitEdit={(objective) =>
+                    updateObjective.mutate({
+                      objective,
+                      request: objectiveRequest,
+                    })
+                  }
+                  onToggle={(objective, isActive) =>
+                    toggleObjective.mutate({
+                      objective,
+                      request: { isActive },
+                    })
+                  }
+                />
+              ) : null}
+
+              {activeStep === "population" ? (
+                <CampaignPopulationSection
+                  campaign={campaign}
+                  canManage={canManage}
+                  onSaved={handleWorkspaceChange}
+                />
+              ) : null}
+
+              {activeStep === "launch" ? (
+                <CampaignLaunchPad
+                  campaign={campaign}
+                  canManage={canManage}
+                  canOperate={canOperate}
+                  gates={preflightGates}
+                  onChanged={handleWorkspaceChange}
+                  onNavigate={(step) => setActiveStep(step as RunwayStepKey)}
+                />
+              ) : null}
+            </div>
+
+            <footer className="flex items-center justify-between gap-3 border-t border-border px-5 py-4 sm:px-6">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={goBack}
+                disabled={isFirstStep}
+              >
+                <ChevronLeft /> Back
+              </Button>
+              {!isLastStep ? (
+                <Button type="button" size="sm" onClick={goNext}>
+                  Next <ChevronRight />
                 </Button>
-              }
-            />
-          ) : null}
+              ) : null}
+            </footer>
+          </section>
         </div>
-
-        <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
-          {isDraft ? <SetupProgress form={form} campaign={campaign} /> : null}
-          <RulesSnapshotSection snapshot={campaign.planningRulesSnapshot} />
-        </aside>
-      </div>
-
-      <div className="mt-5 space-y-5">
-        {isDraft ? (
-          <>
-            <CampaignPopulationSection campaign={campaign} canManage={canManage} onSaved={handleWorkspaceChange} />
-            <CampaignReadinessSection
-              campaign={campaign}
-              canManage={canManage}
-              canOperate={canOperate}
-              onChanged={handleWorkspaceChange}
-            />
-          </>
-        ) : (
-          <>
-            <CascadeCoverageSection slug={campaign.slug} />
-            <CampaignLaunchedBaseline campaign={campaign} />
-          </>
-        )}
-      </div>
+      ) : (
+        <LaunchedCampaignWorkspace campaign={campaign} form={form} />
+      )}
 
       <ConfirmDialog
         open={discardOpen}
@@ -529,23 +796,256 @@ export function CampaignDraftPage() {
   );
 }
 
-function IdentityScheduleCard({
+function getStepState(
+  form: DraftForm,
+  campaign: PerformanceCycleDetailDto
+): StepState {
+  const scheduleDates = SCHEDULE_STEPS.map((step) => form[step.key]);
+  const scheduleComplete = scheduleDates.every(Boolean);
+  const scheduleOrdered =
+    scheduleComplete &&
+    scheduleDates.every(
+      (value, index) => index === 0 || (scheduleDates[index - 1] ?? "") <= value
+    );
+  const timelineError = scheduleDates.some(
+    (value, index) =>
+      index > 0 && !!value && value < (scheduleDates[index - 1] ?? "")
+  );
+  const activeObjectiveCount = campaign.strategicObjectives.filter(
+    (objective) => objective.isActive
+  ).length;
+  const hasPopulationScope = campaign.populationRules.some(
+    (rule) => rule.ruleType === "OrgUnit" || rule.ruleType === "IncludeEmployee"
+  );
+
+  return {
+    campaign: !!form.name.trim() && !!form.referenceYear,
+    timeline: scheduleComplete && scheduleOrdered,
+    timelineError,
+    strategy: activeObjectiveCount > 0,
+    population: hasPopulationScope,
+  };
+}
+
+function firstOpenStep(
+  form: DraftForm,
+  campaign: PerformanceCycleDetailDto
+): RunwayStepKey {
+  const state = getStepState(form, campaign);
+  if (!state.campaign) return "campaign";
+  if (!state.timeline) return "timeline";
+  if (!state.strategy) return "strategy";
+  if (!state.population) return "population";
+  return "launch";
+}
+
+function LaunchedCampaignWorkspace({
+  campaign,
+  form,
+}: {
+  campaign: PerformanceCycleDetailDto;
+  form: DraftForm;
+}) {
+  return (
+    <div className="space-y-5">
+      <LaunchedCampaignSummary campaign={campaign} form={form} />
+      <CascadeCoverageSection slug={campaign.slug} />
+      <CampaignLaunchedBaseline campaign={campaign} />
+    </div>
+  );
+}
+
+function LaunchedCampaignSummary({
+  campaign,
+  form,
+}: {
+  campaign: PerformanceCycleDetailDto;
+  form: DraftForm;
+}) {
+  const activeObjectives = campaign.strategicObjectives.filter(
+    (objective) => objective.isActive
+  );
+  const locked = !!campaign.planningLockedAt;
+  const stateLabel = locked ? "Planning locked" : "Baseline frozen";
+  const stateDate = locked
+    ? campaign.planningLockedAt
+      ? formatDate(campaign.planningLockedAt)
+      : "Locked"
+    : campaign.launchedAt
+      ? formatDate(campaign.launchedAt)
+      : "Launched";
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-5">
+      <div className="space-y-4">
+        <div className="min-w-0 space-y-2">
+          <StatusBadge tone={locked ? "neutral" : "success"}>
+            {stateLabel}
+          </StatusBadge>
+          <div className="space-y-1">
+            <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">
+              Campaign baseline
+            </h2>
+            {form.purpose ? (
+              <p className="max-w-3xl text-sm text-muted-foreground">
+                {form.purpose}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="grid gap-x-6 gap-y-3 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-4">
+          <LaunchFact
+            label="People"
+            value={String(campaign.participantCount)}
+            emphasis
+          />
+          <LaunchFact
+            label={locked ? "Locked" : "Launched"}
+            value={stateDate}
+          />
+          <LaunchFact label="Year" value={String(form.referenceYear)} />
+          <LaunchFact
+            label="Strategic goals"
+            value={`${activeObjectives.length}/${campaign.strategicObjectives.length}`}
+          />
+        </div>
+
+        <PlanningTimeline form={form} />
+      </div>
+    </section>
+  );
+}
+
+function LaunchFact({
+  label,
+  value,
+  emphasis,
+}: {
+  label: string;
+  value: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p
+        className={cn(
+          "mt-1 truncate font-semibold text-foreground",
+          emphasis
+            ? "font-heading text-2xl leading-none tracking-tight tabular-nums"
+            : "text-sm"
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function PlanningTimeline({ form }: { form: DraftForm }) {
+  return (
+    <section className="border-t border-border pt-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <h2 className="shrink-0 text-sm font-semibold text-foreground lg:w-36">
+          Planning timeline
+        </h2>
+        <ol className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {SCHEDULE_STEPS.map((step) => (
+            <TimelineStep
+              key={step.key}
+              label={campaignScheduleSteps[step.key].short}
+              value={formatDate(form[step.key])}
+            />
+          ))}
+        </ol>
+      </div>
+    </section>
+  );
+}
+
+function TimelineStep({ label, value }: { label: string; value: string }) {
+  return (
+    <li className="grid min-w-0 grid-cols-[0.625rem_minmax(0,1fr)] gap-2 py-1">
+      <span className="mt-1.5 size-2 rounded-full bg-primary" aria-hidden />
+      <span className="min-w-0">
+        <span className="block truncate text-xs text-muted-foreground">
+          {label}
+        </span>
+        <span className="block truncate text-sm font-semibold tabular-nums text-foreground">
+          {value}
+        </span>
+      </span>
+    </li>
+  );
+}
+
+function CampaignStep({
   form,
   onChange,
   disabled,
+  snapshot,
 }: {
   form: DraftForm;
   onChange: (form: DraftForm) => void;
   disabled: boolean;
+  snapshot: CampaignPlanningRulesSnapshotDto | null;
 }) {
   return (
-    <Card size="sm">
-      <CardContent density="compact" className="space-y-6">
-        <IdentityFields form={form} onChange={onChange} disabled={disabled} />
-        <Separator />
-        <ScheduleTimeline form={form} onChange={onChange} disabled={disabled} />
-      </CardContent>
-    </Card>
+    <div className="flex flex-col gap-6">
+      <IdentityFields form={form} onChange={onChange} disabled={disabled} />
+      <PlanningPolicyStrip snapshot={snapshot} />
+    </div>
+  );
+}
+
+function PlanningPolicyStrip({
+  snapshot,
+}: {
+  snapshot: CampaignPlanningRulesSnapshotDto | null;
+}) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-border bg-muted/20">
+      <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5">
+        <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <Lock className="size-3.5 text-muted-foreground" />
+          {campaignTerms.rules}
+        </span>
+        {snapshot ? <Badge variant="outline">Captured</Badge> : null}
+      </header>
+      {snapshot ? (
+        <dl className="grid gap-x-6 gap-y-4 px-4 py-4 sm:grid-cols-3">
+          <div>
+            <dt className="text-xs text-muted-foreground">Maximum objectives</dt>
+            <dd className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+              {snapshot.maxObjectiveCount}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">Allowed weights</dt>
+            <dd className="mt-1.5">
+              <ChipList values={parseWeights(snapshot.allowedWeightMenu)} />
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted-foreground">
+              Measurement methods
+            </dt>
+            <dd className="mt-1.5">
+              <ChipList
+                values={parseMeasurementMethods(
+                  snapshot.enabledMeasurementMethods
+                )}
+              />
+            </dd>
+          </div>
+        </dl>
+      ) : (
+        <p className="px-4 py-4 text-sm text-muted-foreground">
+          No policy captured.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -559,15 +1059,16 @@ function IdentityFields({
   disabled: boolean;
 }) {
   return (
-    <section className="space-y-4">
-      <SectionTitle>{campaignTerms.identity}</SectionTitle>
-      <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
+    <section className="min-w-0">
+      <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
         <Field label="Campaign name">
           <Input
             value={form.name}
             disabled={disabled}
             placeholder="e.g. FY26 Annual Planning"
-            onChange={(event) => onChange({ ...form, name: event.target.value })}
+            onChange={(event) =>
+              onChange({ ...form, name: event.target.value })
+            }
           />
         </Field>
         <Field label="Reference year">
@@ -575,7 +1076,9 @@ function IdentityFields({
             className="w-full [color-scheme:light] dark:[color-scheme:dark]"
             value={String(form.referenceYear)}
             disabled={disabled}
-            onChange={(event) => onChange({ ...form, referenceYear: Number(event.target.value) })}
+            onChange={(event) =>
+              onChange({ ...form, referenceYear: Number(event.target.value) })
+            }
           >
             {yearOptions.map((year) => (
               <option key={year} value={year}>
@@ -590,7 +1093,9 @@ function IdentityFields({
             disabled={disabled}
             rows={2}
             placeholder="What this campaign is for."
-            onChange={(event) => onChange({ ...form, purpose: event.target.value })}
+            onChange={(event) =>
+              onChange({ ...form, purpose: event.target.value })
+            }
           />
         </Field>
       </div>
@@ -598,7 +1103,38 @@ function IdentityFields({
   );
 }
 
-function ScheduleTimeline({
+type Milestone = {
+  step: (typeof SCHEDULE_STEPS)[number];
+  value: string;
+  outOfOrder: boolean;
+  gapFromPrev: number | null;
+  prevShort: string | null;
+  index: number;
+};
+
+function buildMilestones(form: DraftForm): Milestone[] {
+  return SCHEDULE_STEPS.map((step, index) => {
+    const value = form[step.key];
+    const prevStep = index > 0 ? SCHEDULE_STEPS[index - 1]! : null;
+    const prev = prevStep ? form[prevStep.key] : "";
+    const outOfOrder = !!value && !!prev && value < prev;
+    return {
+      step,
+      value,
+      outOfOrder,
+      gapFromPrev: value && prev && !outOfOrder ? dayGap(prev, value) : null,
+      prevShort: prevStep?.short ?? null,
+      index,
+    };
+  });
+}
+
+/**
+ * The campaign's planning dates read as a journey: four milestones with the
+ * windows (in days) that open between them. The span the whole thing covers is
+ * the lead figure; each gap tells the reader how long that phase lasts.
+ */
+function PlanningJourney({
   form,
   onChange,
   disabled,
@@ -607,66 +1143,145 @@ function ScheduleTimeline({
   onChange: (form: DraftForm) => void;
   disabled: boolean;
 }) {
-  const values = SCHEDULE_STEPS.map((step) => form[step.key]);
+  const milestones = buildMilestones(form);
+  const first = form[SCHEDULE_STEPS[0]!.key];
+  const last = form[SCHEDULE_STEPS[SCHEDULE_STEPS.length - 1]!.key];
+  const spanValid = !!first && !!last && first <= last;
+  const spanDays = spanValid ? dayGap(first, last) : null;
+
+  const dateInput = (milestone: Milestone) => (
+    <Input
+      type="date"
+      aria-label={milestone.step.label}
+      value={milestone.value}
+      disabled={disabled}
+      aria-invalid={milestone.outOfOrder}
+      className={cn(
+        "w-full [color-scheme:light] dark:[color-scheme:dark]",
+        milestone.outOfOrder && "border-destructive"
+      )}
+      onChange={(event) =>
+        onChange({ ...form, [milestone.step.key]: event.target.value })
+      }
+    />
+  );
 
   return (
-    <section className="space-y-4">
-      <SectionTitle hint="Milestones run in order — each date must fall on or after the one above.">
-        {campaignTerms.schedule}
-      </SectionTitle>
-      <ol className="space-y-0">
-        {SCHEDULE_STEPS.map((step, index) => {
-          const value = values[index] ?? "";
-          const previousStep = index > 0 ? SCHEDULE_STEPS[index - 1] : undefined;
-          const previous = index > 0 ? (values[index - 1] ?? "") : "";
-          const outOfOrder = !!value && !!previous && value < previous;
-          const isLast = index === SCHEDULE_STEPS.length - 1;
-          const gapDays = value && previous ? dayGap(previous, value) : null;
+    <section className="flex flex-col gap-6">
+      <div className="flex items-baseline gap-2">
+        <span className="font-heading text-4xl font-semibold leading-none tracking-tight tabular-nums text-foreground">
+          {spanDays ?? "—"}
+        </span>
+        <span className="text-sm text-muted-foreground">
+          {spanDays !== null
+            ? `${campaignJourney.spanUnit} · ${campaignJourney.spanLead}`
+            : campaignJourney.spanEmpty}
+        </span>
+      </div>
 
+      {/* Desktop: the journey runs left-to-right, windows sitting on the rail. */}
+      <ol className="hidden grid-cols-4 md:grid">
+        {milestones.map((milestone) => {
+          const next = milestones[milestone.index + 1];
+          const connectorFilled =
+            !!milestone.value &&
+            !!next?.value &&
+            !next.outOfOrder &&
+            !milestone.outOfOrder;
+          const nextGap = next?.gapFromPrev ?? null;
           return (
-            <li key={step.key} className="grid grid-cols-[1.25rem_1fr] gap-x-3">
+            <li
+              key={milestone.step.key}
+              className="relative flex flex-col items-center px-1.5"
+            >
+              {next ? (
+                <span
+                  aria-hidden
+                  className={cn(
+                    "absolute left-1/2 top-[0.4375rem] h-0.5 w-full",
+                    next.outOfOrder
+                      ? "bg-destructive/40"
+                      : connectorFilled
+                        ? "bg-primary"
+                        : "bg-border"
+                  )}
+                />
+              ) : null}
+              {nextGap !== null ? (
+                <span className="absolute left-full top-[0.4375rem] z-20 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full border border-border bg-card px-1.5 py-0.5 text-[0.6875rem] font-medium tabular-nums text-muted-foreground">
+                  {campaignJourney.gapDays(nextGap)}
+                </span>
+              ) : null}
+              <span
+                className={cn(
+                  "relative z-10 size-4 rounded-full ring-4 ring-card transition-colors",
+                  milestone.outOfOrder
+                    ? "bg-destructive"
+                    : milestone.value
+                      ? "bg-primary"
+                      : "border-2 border-muted-foreground/40 bg-background"
+                )}
+              />
+              <div className="mt-4 flex w-full flex-col items-center gap-2 text-center">
+                <span className="text-xs font-medium leading-tight text-balance text-foreground">
+                  {milestone.step.label}
+                </span>
+                {dateInput(milestone)}
+                {milestone.outOfOrder && milestone.prevShort ? (
+                  <span className="text-xs font-medium text-destructive">
+                    {campaignJourney.mustFollow(milestone.prevShort)}
+                  </span>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+
+      {/* Mobile: the same journey stacked, windows on the connector. */}
+      <ol className="flex flex-col md:hidden">
+        {milestones.map((milestone) => {
+          const isLast = milestone.index === milestones.length - 1;
+          return (
+            <li
+              key={milestone.step.key}
+              className="grid grid-cols-[1rem_1fr] gap-x-3"
+            >
               <div className="flex flex-col items-center">
                 <span
                   className={cn(
-                    "mt-1.5 flex size-3 items-center justify-center rounded-full border-2",
-                    outOfOrder
-                      ? "border-destructive bg-destructive/15"
-                      : value
-                        ? "border-primary bg-primary"
-                        : "border-muted-foreground/40 bg-background",
+                    "mt-1.5 size-3.5 rounded-full transition-colors",
+                    milestone.outOfOrder
+                      ? "bg-destructive"
+                      : milestone.value
+                        ? "bg-primary"
+                        : "border-2 border-muted-foreground/40 bg-background"
                   )}
                 />
                 {!isLast ? (
-                  <span className={cn("w-px flex-1", outOfOrder ? "bg-destructive/40" : "bg-border")} />
+                  <span
+                    className={cn(
+                      "w-0.5 flex-1",
+                      milestone.outOfOrder ? "bg-destructive/40" : "bg-border"
+                    )}
+                  />
                 ) : null}
               </div>
               <div className={cn("min-w-0", isLast ? "pb-0" : "pb-5")}>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                  <Label htmlFor={`schedule-${step.key}`} className="text-sm font-medium">
-                    {step.label}
-                  </Label>
-                  {gapDays !== null && !outOfOrder ? (
-                    <span className="text-xs text-muted-foreground">
-                      +{gapDays} {gapDays === 1 ? "day" : "days"}
+                  <span className="text-sm font-medium text-foreground">
+                    {milestone.step.label}
+                  </span>
+                  {milestone.gapFromPrev !== null ? (
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      +{campaignJourney.gapDays(milestone.gapFromPrev)}
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-0.5 text-xs text-muted-foreground">{step.caption}</p>
-                <Input
-                  id={`schedule-${step.key}`}
-                  type="date"
-                  value={value}
-                  disabled={disabled}
-                  aria-invalid={outOfOrder}
-                  className={cn(
-                    "mt-2 w-full sm:max-w-[13rem] [color-scheme:light] dark:[color-scheme:dark]",
-                    outOfOrder && "border-destructive",
-                  )}
-                  onChange={(event) => onChange({ ...form, [step.key]: event.target.value })}
-                />
-                {outOfOrder && previousStep ? (
+                <div className="mt-2">{dateInput(milestone)}</div>
+                {milestone.outOfOrder && milestone.prevShort ? (
                   <p className="mt-1.5 text-xs font-medium text-destructive">
-                    Must be on or after {previousStep.short}.
+                    {campaignJourney.mustFollow(milestone.prevShort)}
                   </p>
                 ) : null}
               </div>
@@ -711,121 +1326,204 @@ function ObjectivesSection({
   onStartEdit: (objective: CampaignStrategicObjectiveDto) => void;
   onCancelEdit: () => void;
   onSubmitEdit: (objective: CampaignStrategicObjectiveDto) => void;
-  onToggle: (objective: CampaignStrategicObjectiveDto, isActive: boolean) => void;
+  onToggle: (
+    objective: CampaignStrategicObjectiveDto,
+    isActive: boolean
+  ) => void;
 }) {
-  const activeCount = objectives.filter((objective) => objective.isActive).length;
+  const activeCount = objectives.filter(
+    (objective) => objective.isActive
+  ).length;
+  const isEmpty = objectives.length === 0;
 
   return (
-    <Card size="sm">
-      <CardHeader density="compact" className="flex items-center justify-between gap-2 border-b">
-        <div className="space-y-0.5">
-          <CardTitle>{campaignTerms.strategicObjectives}</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            {objectives.length === 0
-              ? "The goals this campaign is built around."
-              : `${activeCount} active of ${objectives.length}`}
-          </p>
-        </div>
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        {isEmpty ? (
+          <span className="text-sm text-muted-foreground">
+            {campaignStrategy.addFirst}
+          </span>
+        ) : (
+          <div className="flex items-baseline gap-2">
+            <span className="font-heading text-4xl font-semibold leading-none tracking-tight tabular-nums text-foreground">
+              {activeCount}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {campaignStrategy.activeUnit} ·{" "}
+              {campaignStrategy.ofTotal(objectives.length)}
+            </span>
+          </div>
+        )}
         {!readOnly && !isAdding ? (
           <Button type="button" size="sm" variant="outline" onClick={onStartAdd}>
-            <Plus /> {campaignTerms.addObjectiveAction}
+            <Plus /> {campaignStrategy.addAction}
           </Button>
         ) : null}
-      </CardHeader>
-      <CardContent density="compact" className="space-y-3">
-        {objectives.length === 0 && !isAdding ? (
-          <div className="flex flex-col items-center gap-1 rounded-lg border border-dashed border-border px-4 py-8 text-center">
-            <Target className="size-5 text-muted-foreground" />
-            <p className="text-sm font-medium text-foreground">No strategic objectives yet</p>
-            <p className="text-xs text-muted-foreground">
-              Add at least one active objective to complete setup.
-            </p>
-          </div>
-        ) : null}
+      </div>
 
-        {objectives.length > 0 ? (
-          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-            {objectives.map((objective) => {
-              const isEditing = editingObjectiveId === objective.id;
-              return (
-                <li key={objective.id} className={cn("p-3", !objective.isActive && !isEditing && "bg-muted/30")}>
-                  {isEditing ? (
-                    <div className="space-y-3">
-                      <ObjectiveEditor form={objectiveForm} onChange={onObjectiveFormChange} disabled={isBusy} />
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" size="sm" variant="ghost" onClick={onCancelEdit} disabled={isBusy}>
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => onSubmitEdit(objective)}
-                          disabled={!objectiveRequest.title || isBusy}
-                        >
-                          Save objective
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-3">
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className={cn("font-medium", !objective.isActive && "text-muted-foreground")}>
-                            {objective.title}
-                          </span>
-                          {objective.responsibleFunctionLabel ? (
-                            <Badge variant="outline">{objective.responsibleFunctionLabel}</Badge>
-                          ) : null}
-                        </div>
-                        {objective.description ? (
-                          <p className="text-sm text-muted-foreground">{objective.description}</p>
-                        ) : null}
-                      </div>
-                      <div className="flex shrink-0 items-center gap-3">
-                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="w-10 text-right">{objective.isActive ? "Active" : "Inactive"}</span>
-                          <Switch
-                            checked={objective.isActive}
-                            disabled={readOnly || isToggling}
-                            onCheckedChange={(isActive) => onToggle(objective, isActive)}
-                            aria-label={`${objective.isActive ? "Deactivate" : "Activate"} ${objective.title}`}
-                          />
-                        </label>
-                        {!readOnly ? (
-                          <Button
-                            type="button"
-                            size="icon-sm"
-                            variant="ghost"
-                            onClick={() => onStartEdit(objective)}
-                            aria-label={`Edit ${objective.title}`}
-                          >
-                            <Pencil />
-                          </Button>
-                        ) : null}
-                      </div>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        ) : null}
-
-        {isAdding ? (
-          <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
-            <ObjectiveEditor form={objectiveForm} onChange={onObjectiveFormChange} disabled={isBusy} autoFocus />
-            <div className="flex justify-end gap-2">
-              <Button type="button" size="sm" variant="ghost" onClick={onCancelAdd} disabled={isBusy}>
-                Cancel
-              </Button>
-              <Button type="button" size="sm" onClick={onSubmitAdd} disabled={!objectiveRequest.title || isBusy}>
-                <Plus /> {campaignTerms.addObjectiveAction}
-              </Button>
+      {isEmpty && !isAdding ? (
+        <button
+          type="button"
+          onClick={readOnly ? undefined : onStartAdd}
+          disabled={readOnly}
+          className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-border px-6 py-12 text-center transition-colors hover:border-primary/50 hover:bg-muted/30 disabled:cursor-default disabled:hover:border-border disabled:hover:bg-transparent"
+        >
+          <span className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Target className="size-6" />
+          </span>
+          <span className="text-sm font-medium text-foreground">
+            {campaignStrategy.addFirst}
+          </span>
+        </button>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {isAdding ? (
+            <div className="flex flex-col gap-3 rounded-2xl border border-primary/40 bg-primary/[0.03] p-4 sm:col-span-2 xl:col-span-3">
+              <ObjectiveEditor
+                form={objectiveForm}
+                onChange={onObjectiveFormChange}
+                disabled={isBusy}
+                autoFocus
+              />
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={onCancelAdd}
+                  disabled={isBusy}
+                >
+                  {campaignStrategy.cancel}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={onSubmitAdd}
+                  disabled={!objectiveRequest.title || isBusy}
+                >
+                  <Plus /> {campaignStrategy.addAction}
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
+          ) : null}
+
+          {objectives.map((objective) => {
+            const isEditing = editingObjectiveId === objective.id;
+            if (isEditing) {
+              return (
+                <div
+                  key={objective.id}
+                  className="flex flex-col gap-3 rounded-2xl border border-primary/40 bg-primary/[0.03] p-4 sm:col-span-2 xl:col-span-3"
+                >
+                  <ObjectiveEditor
+                    form={objectiveForm}
+                    onChange={onObjectiveFormChange}
+                    disabled={isBusy}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={onCancelEdit}
+                      disabled={isBusy}
+                    >
+                      {campaignStrategy.cancel}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => onSubmitEdit(objective)}
+                      disabled={!objectiveRequest.title || isBusy}
+                    >
+                      {campaignStrategy.saveObjective}
+                    </Button>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={objective.id}
+                className={cn(
+                  "flex flex-col gap-3 rounded-2xl border p-4 transition-colors",
+                  objective.isActive
+                    ? "border-border bg-card"
+                    : "border-dashed border-border bg-muted/20"
+                )}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  {objective.responsibleFunctionLabel ? (
+                    <Badge variant="outline" className="max-w-full truncate">
+                      {objective.responsibleFunctionLabel}
+                    </Badge>
+                  ) : (
+                    <span />
+                  )}
+                  <span
+                    className={cn(
+                      "flex shrink-0 items-center gap-1.5 text-xs font-medium",
+                      objective.isActive
+                        ? "text-primary"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        objective.isActive ? "bg-primary" : "bg-muted-foreground"
+                      )}
+                    />
+                    {objective.isActive
+                      ? campaignStrategy.active
+                      : campaignStrategy.paused}
+                  </span>
+                </div>
+
+                <h3
+                  className={cn(
+                    "font-heading text-base font-semibold leading-snug tracking-tight",
+                    objective.isActive
+                      ? "text-foreground"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {objective.title}
+                </h3>
+                {objective.description ? (
+                  <p className="line-clamp-3 text-sm text-muted-foreground">
+                    {objective.description}
+                  </p>
+                ) : null}
+
+                <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-3">
+                  <Switch
+                    checked={objective.isActive}
+                    disabled={readOnly || isToggling}
+                    onCheckedChange={(isActive) =>
+                      onToggle(objective, isActive)
+                    }
+                    aria-label={`${objective.isActive ? "Deactivate" : "Activate"} ${objective.title}`}
+                  />
+                  {!readOnly ? (
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      onClick={() => onStartEdit(objective)}
+                      aria-label={campaignStrategy.editLabel(objective.title)}
+                    >
+                      <Pencil />
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -856,7 +1554,9 @@ function ObjectiveEditor({
           value={form.description}
           disabled={disabled}
           rows={2}
-          onChange={(event) => onChange({ ...form, description: event.target.value })}
+          onChange={(event) =>
+            onChange({ ...form, description: event.target.value })
+          }
         />
       </Field>
       <Field label="Responsible function" optional className="sm:col-span-2">
@@ -864,156 +1564,11 @@ function ObjectiveEditor({
           value={form.responsibleFunctionLabel}
           disabled={disabled}
           placeholder="e.g. Consulting"
-          onChange={(event) => onChange({ ...form, responsibleFunctionLabel: event.target.value })}
+          onChange={(event) =>
+            onChange({ ...form, responsibleFunctionLabel: event.target.value })
+          }
         />
       </Field>
-    </div>
-  );
-}
-
-type ReadinessItem = { label: string; done: boolean };
-
-function SetupProgress({
-  form,
-  campaign,
-}: {
-  form: DraftForm;
-  campaign: PerformanceCycleDetailDto;
-}) {
-  const scheduleDates = SCHEDULE_STEPS.map((step) => form[step.key]);
-  const scheduleComplete = scheduleDates.every(Boolean);
-  const scheduleOrdered =
-    scheduleComplete &&
-    scheduleDates.every((value, index) => index === 0 || (scheduleDates[index - 1] ?? "") <= value);
-  const activeCount = campaign.strategicObjectives.filter((objective) => objective.isActive).length;
-
-  const items: ReadinessItem[] = [
-    { label: campaignReadiness.items.identity, done: !!form.name.trim() && !!form.referenceYear },
-    { label: campaignReadiness.items.schedule, done: scheduleComplete && scheduleOrdered },
-    { label: campaignReadiness.items.rules, done: !!campaign.planningRulesSnapshot },
-    { label: campaignReadiness.items.objective, done: activeCount > 0 },
-  ];
-
-  const remaining = items.filter((item) => !item.done).length;
-  const complete = remaining === 0;
-
-  const badgeLabel = complete
-    ? campaignReadiness.readyForPopulation
-    : campaignReadiness.remaining(remaining);
-
-  const footer = complete ? campaignReadiness.completeFooter : campaignReadiness.incompleteFooter;
-
-  return (
-    <Card size="sm">
-      <CardHeader density="compact" className="border-b">
-        <CardTitle className="flex items-center justify-between gap-2">
-          <span>{campaignReadiness.title}</span>
-          <StatusBadge tone={complete ? "success" : "warning"}>{badgeLabel}</StatusBadge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent density="compact">
-        <ul className="space-y-2.5">
-          {items.map((item) => (
-            <li key={item.label} className="flex items-start gap-2.5 text-sm">
-              {item.done ? (
-                <CircleCheck className="mt-px size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              ) : (
-                <CircleDashed className="mt-px size-4 shrink-0 text-muted-foreground" />
-              )}
-              <span className={cn(item.done ? "text-foreground" : "text-muted-foreground")}>{item.label}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground">{footer}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function RulesSnapshotSection({ snapshot }: { snapshot: CampaignPlanningRulesSnapshotDto | null }) {
-  return (
-    <Card size="sm">
-      <CardHeader density="compact" className="border-b">
-        <CardTitle className="flex items-center gap-2">
-          <Lock className="size-3.5 text-muted-foreground" />
-          {campaignTerms.rules}
-        </CardTitle>
-      </CardHeader>
-      <CardContent density="compact" className="space-y-4">
-        {snapshot ? (
-          <>
-            <div className="space-y-1">
-              <p className="text-xs text-muted-foreground">Maximum objectives</p>
-              <p className="text-sm font-medium tabular-nums">{snapshot.maxObjectiveCount}</p>
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground">Allowed weights</p>
-              <ChipList values={parseWeights(snapshot.allowedWeightMenu)} />
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground">Measurement methods</p>
-              <ChipList values={parseMeasurementMethods(snapshot.enabledMeasurementMethods)} />
-            </div>
-            <p className="border-t border-border pt-3 text-xs text-muted-foreground">
-              Copied from your objective planning settings on {formatDate(snapshot.capturedAt)}.
-            </p>
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">No rules snapshot.</p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function WorkspaceActionBar({
-  primaryLabel,
-  primaryDisabled,
-  onPrimary,
-  secondary,
-  hint,
-  statusLabel,
-  sticky,
-}: {
-  primaryLabel: string;
-  primaryDisabled: boolean;
-  onPrimary: () => void;
-  secondary: ReactNode;
-  hint?: string;
-  statusLabel?: string;
-  sticky?: boolean;
-}) {
-  return (
-    <div className={cn(sticky && "sticky bottom-4 z-10")}>
-      <div
-        className={cn(
-          "flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border px-4 py-3",
-          sticky
-            ? "bg-card/95 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80"
-            : "bg-card",
-        )}
-      >
-        <div className="flex min-w-0 items-center gap-2 text-sm">
-          {statusLabel ? (
-            <>
-              <span className="size-1.5 shrink-0 rounded-full bg-primary" />
-              <span className="font-medium text-foreground">{statusLabel}</span>
-            </>
-          ) : null}
-          {hint ? (
-            <span className="truncate text-muted-foreground">
-              {statusLabel ? "— " : null}
-              {hint}
-            </span>
-          ) : null}
-        </div>
-        <div className="flex items-center gap-2">
-          {secondary}
-          <Button type="button" size="sm" disabled={primaryDisabled} onClick={onPrimary}>
-            {primaryLabel}
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -1052,15 +1607,6 @@ function CampaignErrorList({ errors }: { errors: string[] }) {
   );
 }
 
-function SectionTitle({ children, hint }: { children: ReactNode; hint?: string }) {
-  return (
-    <div className="space-y-0.5">
-      <h2 className="text-sm font-medium text-foreground">{children}</h2>
-      {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-    </div>
-  );
-}
-
 function Field({
   label,
   children,
@@ -1085,7 +1631,11 @@ function Field({
     <div className={className ? `space-y-2 ${className}` : "space-y-2"}>
       <Label htmlFor={childId} className="flex items-center gap-1.5">
         {label}
-        {optional ? <span className="text-xs font-normal text-muted-foreground">Optional</span> : null}
+        {optional ? (
+          <span className="text-xs font-normal text-muted-foreground">
+            Optional
+          </span>
+        ) : null}
       </Label>
       {labeledChild}
     </div>
@@ -1125,22 +1675,29 @@ function CampaignPageSkeleton({ width }: { width?: "narrow" } = {}) {
                   <Skeleton className="h-3 w-56" />
                 </div>
                 <ol className="space-y-0">
-                  {["planning", "submission", "approval", "lock"].map((step, i) => (
-                    <li key={step} className="grid grid-cols-[1.25rem_1fr] gap-x-3">
-                      <div className="flex flex-col items-center">
-                        <Skeleton className="mt-1.5 size-3 rounded-full" />
-                        {i < 3 && <span className="w-px flex-1 bg-border" />}
-                      </div>
-                      <div className={cn("min-w-0", i === 3 ? "pb-0" : "pb-5")}>
-                        <div className="flex items-baseline justify-between">
-                          <Skeleton className="h-4 w-40" />
-                          <Skeleton className="h-3 w-12" />
+                  {["planning", "submission", "approval", "lock"].map(
+                    (step, i) => (
+                      <li
+                        key={step}
+                        className="grid grid-cols-[1.25rem_1fr] gap-x-3"
+                      >
+                        <div className="flex flex-col items-center">
+                          <Skeleton className="mt-1.5 size-3 rounded-full" />
+                          {i < 3 && <span className="w-px flex-1 bg-border" />}
                         </div>
-                        <Skeleton className="mt-1 h-3 w-52" />
-                        <Skeleton className="mt-2 h-10 w-full rounded-md sm:max-w-[13rem]" />
-                      </div>
-                    </li>
-                  ))}
+                        <div
+                          className={cn("min-w-0", i === 3 ? "pb-0" : "pb-5")}
+                        >
+                          <div className="flex items-baseline justify-between">
+                            <Skeleton className="h-4 w-40" />
+                            <Skeleton className="h-3 w-12" />
+                          </div>
+                          <Skeleton className="mt-1 h-3 w-52" />
+                          <Skeleton className="mt-2 h-10 w-full rounded-md sm:max-w-[13rem]" />
+                        </div>
+                      </li>
+                    )
+                  )}
                 </ol>
               </section>
             </CardContent>
@@ -1160,191 +1717,72 @@ function CampaignPageSkeleton({ width }: { width?: "narrow" } = {}) {
 
   return (
     <PageContainer>
-      <div className="space-y-5" aria-busy aria-label="Loading campaign">
-        {/* Header */}
+      <div
+        className="flex flex-col gap-5"
+        aria-busy
+        aria-label="Loading campaign"
+      >
+        {/* Hero */}
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Skeleton className="h-5 w-16 rounded-full" />
-            <Skeleton className="h-4 w-24 rounded-full" />
+            <Skeleton className="h-4 w-28 rounded-full" />
           </div>
           <Skeleton className="h-8 w-72" />
           <Skeleton className="h-4 w-36" />
         </div>
 
-        {/* Two-column grid */}
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
-          {/* Left column */}
-          <div className="space-y-5">
-            {/* Identity + Schedule card */}
-            <Card size="sm">
-              <CardContent density="compact" className="space-y-6">
-                <section className="space-y-4">
-                  <Skeleton className="h-4 w-16" />
-                  <div className="grid gap-4 sm:grid-cols-[1fr_9rem]">
-                    <Skeleton className="h-10 w-full rounded-md" />
-                    <Skeleton className="h-10 w-full rounded-md" />
-                    <Skeleton className="h-16 w-full rounded-md sm:col-span-2" />
-                  </div>
-                </section>
-                <Separator />
-                <section className="space-y-4">
-                  <div className="space-y-1">
-                    <Skeleton className="h-4 w-20" />
-                    <Skeleton className="h-3 w-44" />
-                  </div>
-                  <ol className="space-y-0">
-                    {["planning", "submission", "approval", "lock"].map((step, i) => (
-                      <li key={step} className="grid grid-cols-[1.25rem_1fr] gap-x-3">
-                        <div className="flex flex-col items-center">
-                          <Skeleton className="mt-1.5 size-3 rounded-full" />
-                          {i < 3 && <span className="w-px flex-1 bg-border" />}
-                        </div>
-                        <div className={cn("min-w-0", i === 3 ? "pb-0" : "pb-5")}>
-                          <Skeleton className="h-4 w-44" />
-                          <Skeleton className="mt-1 h-3 w-14" />
-                          <Skeleton className="mt-2 h-10 w-full rounded-md sm:max-w-[13rem]" />
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
-                </section>
-              </CardContent>
-            </Card>
-
-            {/* Objectives card */}
-            <Card size="sm">
-              <CardHeader density="compact" className="flex items-center justify-between border-b">
-                <div className="space-y-1">
-                  <Skeleton className="h-5 w-40" />
-                  <Skeleton className="h-3 w-32" />
-                </div>
-                <Skeleton className="h-8 w-36 rounded-md" />
-              </CardHeader>
-              <CardContent density="compact" className="space-y-3">
-                <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="p-3">
-                      <div className="flex items-start gap-3">
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          <Skeleton className="h-4 w-48" />
-                          <Skeleton className="h-3 w-64" />
-                        </div>
-                        <div className="flex shrink-0 items-center gap-3">
-                          <Skeleton className="h-4 w-10" />
-                          <Skeleton className="size-7 rounded-md" />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+        {/* Runway spine */}
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          <div className="flex items-center justify-between border-b border-border px-5 py-2.5">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-5 w-20 rounded-full" />
           </div>
-
-          {/* Right sidebar */}
-          <aside className="space-y-5 lg:sticky lg:top-4 lg:self-start">
-            {/* Setup progress card */}
-            <Card size="sm">
-              <CardHeader density="compact" className="border-b">
-                <CardTitle className="flex items-center justify-between gap-2">
-                  <Skeleton className="h-4 w-28" />
-                  <Skeleton className="h-5 w-20 rounded-full" />
-                </CardTitle>
-              </CardHeader>
-              <CardContent density="compact">
-                <ul className="space-y-2.5">
-                  {[1, 2, 3, 4].map((i) => (
-                    <li key={i} className="flex items-start gap-2.5">
-                      <Skeleton className="mt-0.5 size-4 shrink-0 rounded-full" />
-                      <Skeleton className="h-4 w-32" />
-                    </li>
-                  ))}
-                </ul>
-                <Skeleton className="mt-4 h-px w-full border-t border-border" />
-                <Skeleton className="mt-3 h-3 w-52" />
-              </CardContent>
-            </Card>
-
-            {/* Rules snapshot card */}
-            <Card size="sm">
-              <CardHeader density="compact" className="border-b">
-                <CardTitle className="flex items-center gap-2">
-                  <Skeleton className="size-3.5 rounded" />
-                  <Skeleton className="h-4 w-32" />
-                </CardTitle>
-              </CardHeader>
-              <CardContent density="compact" className="space-y-4">
-                <div className="space-y-1.5">
-                  <Skeleton className="h-3 w-32" />
-                  <Skeleton className="h-4 w-10" />
+          <div className="hidden items-start gap-4 px-5 py-5 md:flex">
+            {[0, 1, 2, 3, 4].map((item) => (
+              <div
+                key={item}
+                className="flex flex-1 flex-col items-center gap-2"
+              >
+                <Skeleton className="size-11 rounded-xl" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col gap-2 p-3 md:hidden">
+            {[0, 1, 2, 3, 4].map((item) => (
+              <div key={item} className="flex items-center gap-3 px-2 py-2">
+                <Skeleton className="size-11 shrink-0 rounded-xl" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3.5 w-24" />
+                  <Skeleton className="h-3 w-16" />
                 </div>
-                <div className="space-y-1.5">
-                  <Skeleton className="h-3 w-28" />
-                  <div className="flex gap-1.5">
-                    <Skeleton className="h-5 w-12 rounded-md" />
-                    <Skeleton className="h-5 w-12 rounded-md" />
-                    <Skeleton className="h-5 w-12 rounded-md" />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Skeleton className="h-3 w-36" />
-                  <div className="flex gap-1.5">
-                    <Skeleton className="h-5 w-16 rounded-md" />
-                    <Skeleton className="h-5 w-20 rounded-md" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </aside>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Full-width sections */}
-        <div className="mt-5 space-y-5">
-          <Card size="sm">
-            <CardHeader density="compact" className="flex items-center justify-between border-b">
-              <CardTitle className="flex items-center gap-2">
-                <Skeleton className="size-4 rounded" />
-                <Skeleton className="h-5 w-44" />
-              </CardTitle>
-              <Skeleton className="h-8 w-28 rounded-md" />
-            </CardHeader>
-            <CardContent density="compact" className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Skeleton className="h-10 w-full rounded-md" />
-                <Skeleton className="h-10 w-full rounded-md" />
-              </div>
-              <Skeleton className="h-px w-full" />
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-48" />
-                <div className="flex gap-1.5">
-                  <Skeleton className="h-5 w-20 rounded-md" />
-                  <Skeleton className="h-5 w-24 rounded-md" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card size="sm">
-            <CardHeader density="compact" className="border-b">
-              <CardTitle className="flex items-center gap-2">
-                <Skeleton className="size-4 rounded" />
-                <Skeleton className="h-5 w-36" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent density="compact" className="space-y-3">
-              <div className="divide-y divide-border overflow-hidden rounded-lg border border-border">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center justify-between p-3">
-                    <div className="flex items-center gap-3">
-                      <Skeleton className="size-4 rounded-full" />
-                      <Skeleton className="h-4 w-36" />
-                    </div>
-                    <Skeleton className="h-4 w-20" />
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        {/* Stage */}
+        <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          <div className="flex items-center justify-between border-b border-border px-5 py-4 sm:px-6">
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-9 rounded-xl" />
+              <Skeleton className="h-6 w-32" />
+            </div>
+            <Skeleton className="h-4 w-16" />
+          </div>
+          <div className="space-y-4 px-5 py-6 sm:px-6">
+            <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
+              <Skeleton className="h-10 w-full rounded-md" />
+              <Skeleton className="h-10 w-full rounded-md" />
+              <Skeleton className="h-16 w-full rounded-md sm:col-span-2" />
+            </div>
+            <Skeleton className="h-24 w-full rounded-xl" />
+          </div>
+          <div className="flex items-center justify-between border-t border-border px-5 py-4 sm:px-6">
+            <Skeleton className="h-8 w-20 rounded-md" />
+            <Skeleton className="h-8 w-24 rounded-md" />
+          </div>
         </div>
       </div>
     </PageContainer>
@@ -1363,15 +1801,30 @@ function fromCampaign(campaign: PerformanceCycleDetailDto): DraftForm {
   return {
     name: campaign.name,
     purpose: campaign.purpose ?? campaign.description ?? "",
-    referenceYear: campaign.referenceYear ?? new Date(campaign.periodStart).getUTCFullYear(),
-    planningOpeningDate: toDateInput(campaign.planningOpeningDate ?? campaign.periodStart),
-    employeeSubmissionDeadline: toDateInput(campaign.employeeSubmissionDeadline ?? campaign.objectiveSettingDeadline ?? campaign.periodStart),
-    managerApprovalDeadline: toDateInput(campaign.managerApprovalDeadline ?? campaign.objectiveSettingDeadline ?? campaign.periodStart),
-    expectedPlanningLockDate: toDateInput(campaign.expectedPlanningLockDate ?? campaign.periodEnd),
+    referenceYear:
+      campaign.referenceYear ?? new Date(campaign.periodStart).getUTCFullYear(),
+    planningOpeningDate: toDateInput(
+      campaign.planningOpeningDate ?? campaign.periodStart
+    ),
+    employeeSubmissionDeadline: toDateInput(
+      campaign.employeeSubmissionDeadline ??
+        campaign.objectiveSettingDeadline ??
+        campaign.periodStart
+    ),
+    managerApprovalDeadline: toDateInput(
+      campaign.managerApprovalDeadline ??
+        campaign.objectiveSettingDeadline ??
+        campaign.periodStart
+    ),
+    expectedPlanningLockDate: toDateInput(
+      campaign.expectedPlanningLockDate ?? campaign.periodEnd
+    ),
   };
 }
 
-function fromObjective(objective: CampaignStrategicObjectiveDto): ObjectiveForm {
+function fromObjective(
+  objective: CampaignStrategicObjectiveDto
+): ObjectiveForm {
   return {
     title: objective.title,
     description: objective.description ?? "",
@@ -1379,7 +1832,9 @@ function fromObjective(objective: CampaignStrategicObjectiveDto): ObjectiveForm 
   };
 }
 
-function toDraftRequest(form: DraftForm): CreatePerformanceCycleRequest | UpdatePerformanceCycleRequest {
+function toDraftRequest(
+  form: DraftForm
+): CreatePerformanceCycleRequest | UpdatePerformanceCycleRequest {
   return {
     name: form.name.trim(),
     purpose: nullIfBlank(form.purpose),
@@ -1391,7 +1846,9 @@ function toDraftRequest(form: DraftForm): CreatePerformanceCycleRequest | Update
   };
 }
 
-function toObjectiveRequest(form: ObjectiveForm): UpsertCampaignStrategicObjectiveRequest {
+function toObjectiveRequest(
+  form: ObjectiveForm
+): UpsertCampaignStrategicObjectiveRequest {
   return {
     title: form.title.trim(),
     description: nullIfBlank(form.description),
@@ -1437,7 +1894,9 @@ function serializeDraftForm(form: DraftForm): string {
 function errorToMessages(error: Error): string[] {
   if (error instanceof ApiError) {
     if (error.status === 409) {
-      return ["This campaign changed. Your edits are still here; review the latest values before saving again."];
+      return [
+        "This campaign changed. Your edits are still here; review the latest values before saving again.",
+      ];
     }
     if (error.status === 403) {
       return ["You do not have permission for this campaign action."];
@@ -1446,7 +1905,9 @@ function errorToMessages(error: Error): string[] {
   }
 
   if ("status" in error && (error as { status?: number }).status === 409) {
-    return ["This campaign changed. Your edits are still here; review the latest values before saving again."];
+    return [
+      "This campaign changed. Your edits are still here; review the latest values before saving again.",
+    ];
   }
   if ("status" in error && (error as { status?: number }).status === 403) {
     return ["You do not have permission for this campaign action."];
@@ -1478,7 +1939,9 @@ function nullIfBlank(value: string): string | null {
 }
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value));
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
+    new Date(value)
+  );
 }
 
 function parseWeights(value: string): string[] {

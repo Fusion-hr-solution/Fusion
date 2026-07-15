@@ -36,6 +36,9 @@ public class PerformanceCycleConfiguration : IEntityTypeConfiguration<Performanc
         builder.Property(c => c.EmployeeSubmissionDeadline);
         builder.Property(c => c.ManagerApprovalDeadline);
         builder.Property(c => c.ExpectedPlanningLockDate);
+        builder.Property(c => c.PlanningLockedAt);
+        builder.Property(c => c.PlanningLockedByUserId);
+        builder.Property(c => c.PlanningLockedByName).HasMaxLength(256);
 
         builder.OwnsOne(c => c.PlanningRulesSnapshot, snapshot =>
         {
@@ -109,6 +112,7 @@ public class PerformanceCycleConfiguration : IEntityTypeConfiguration<Performanc
             .HasDatabaseName("IX_PerformanceCycles_TenantId_ReferenceYear");
 
         builder.Ignore(c => c.IsEditable);
+        builder.Ignore(c => c.IsPlanningLocked);
         builder.Ignore(c => c.DomainEvents);
     }
 }

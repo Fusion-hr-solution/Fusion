@@ -40,13 +40,33 @@ public sealed class GetPlanApprovalWorkspaceQueryHandler(
 
         var participants = await dbContext.PerformanceCycleParticipants
             .AsNoTracking()
-            .Where(participant => participant.CycleId == cycle.Id && participant.ApproverEmployeeId == approverEmployeeId.Value)
+            .Where(participant => participant.CycleId == cycle.Id)
             .OrderBy(participant => participant.FullName)
             .ToListAsync(cancellationToken);
 
+        var latestReassignments = await dbContext.PerformanceCycleApproverReassignments
+            .AsNoTracking()
+            .Where(item => item.CycleId == cycle.Id)
+            .OrderBy(item => item.ReassignedAt)
+            .ToListAsync(cancellationToken);
+
+        var reassignmentByParticipant = latestReassignments
+            .GroupBy(item => item.ParticipantEmployeeId)
+            .ToDictionary(group => group.Key, group => group.Last());
+
+        participants = participants
+            .Where(participant =>
+            {
+                var effectiveApprover = reassignmentByParticipant.TryGetValue(participant.EmployeeId, out var reassignment)
+                    ? reassignment.NewApproverEmployeeId
+                    : participant.ApproverEmployeeId;
+                return effectiveApprover == approverEmployeeId.Value;
+            })
+            .ToList();
+
         if (participants.Count == 0)
             return Result.Failure<PlanApprovalWorkspaceDto>(Error.Forbidden(
-                "PlanApproval.NotFrozenApproverForbidden",
+                "PlanApproval.NotAssignedApproverForbidden",
                 "This campaign does not assign you any objective plans to approve."));
 
         var employeeIds = participants.Select(participant => participant.EmployeeId).ToList();
@@ -67,10 +87,13 @@ public sealed class GetPlanApprovalWorkspaceQueryHandler(
             .Select(plan =>
             {
                 var participant = participantByEmployeeId[plan.EmployeeId];
+                var effectiveApprover = reassignmentByParticipant.TryGetValue(participant.EmployeeId, out var reassignment)
+                    ? reassignment.NewApproverEmployeeId
+                    : participant.ApproverEmployeeId;
                 return PlanApprovalMapper.ToReviewDto(
                     plan,
                     participant,
-                    participant.EmployeeId == approverEmployeeId.Value);
+                    participant.EmployeeId == effectiveApprover);
             })
             .ToList();
 
@@ -83,6 +106,8 @@ public sealed class GetPlanApprovalWorkspaceQueryHandler(
             cycle.EmployeeSubmissionDeadline,
             cycle.ManagerApprovalDeadline,
             cycle.LaunchedAt,
+            cycle.PlanningLockedAt,
+            cycle.PlanningLockedByName,
             reviews.Count(plan => plan.Status == PlanStatus.Submitted && !plan.IsSelfApprovalDataIssue),
             reviews.Count(plan => plan.Status == PlanStatus.ChangesRequested),
             reviews.Count(plan => plan.Status == PlanStatus.Approved),

@@ -27,6 +27,33 @@ public sealed class GetMyPlanApprovalCampaignsQueryHandler(
             .Where(participant => participant.ApproverEmployeeId == employeeId.Value)
             .ToListAsync(cancellationToken);
 
+        var reassignedHistory = await dbContext.PerformanceCycleApproverReassignments
+            .AsNoTracking()
+            .Where(item => item.NewApproverEmployeeId == employeeId.Value)
+            .ToListAsync(cancellationToken);
+        var reassignedParticipantKeys = reassignedHistory
+            .GroupBy(item => new { item.CycleId, item.ParticipantEmployeeId })
+            .Select(group => group.OrderByDescending(item => item.ReassignedAt).First())
+            .Select(item => new { item.CycleId, EmployeeId = item.ParticipantEmployeeId })
+            .ToList();
+
+        var reassignedCycleIds = reassignedParticipantKeys.Select(item => item.CycleId).Distinct().ToList();
+        if (reassignedCycleIds.Count > 0)
+        {
+            var reassignedParticipants = await dbContext.PerformanceCycleParticipants
+                .AsNoTracking()
+                .Where(item => reassignedCycleIds.Contains(item.CycleId))
+                .ToListAsync(cancellationToken);
+            var reassignedSet = reassignedParticipantKeys.ToHashSet();
+            participants.AddRange(reassignedParticipants.Where(item =>
+                reassignedSet.Contains(new { item.CycleId, item.EmployeeId })));
+        }
+
+        participants = participants
+            .GroupBy(item => new { item.CycleId, item.EmployeeId })
+            .Select(group => group.First())
+            .ToList();
+
         if (participants.Count == 0)
             return Result.Success<IReadOnlyList<PlanApprovalCampaignDto>>([]);
 
@@ -37,8 +64,25 @@ public sealed class GetMyPlanApprovalCampaignsQueryHandler(
             .ToListAsync(cancellationToken);
 
         var launchedCycleIds = cycles.Select(cycle => cycle.Id).ToHashSet();
+        var reassignments = await dbContext.PerformanceCycleApproverReassignments
+            .AsNoTracking()
+            .Where(item => launchedCycleIds.Contains(item.CycleId))
+            .OrderBy(item => item.ReassignedAt)
+            .ToListAsync(cancellationToken);
+        var reassignmentByParticipant = reassignments
+            .GroupBy(item => new { item.CycleId, item.ParticipantEmployeeId })
+            .ToDictionary(group => group.Key, group => group.Last());
+
         var participantKeys = participants
             .Where(participant => launchedCycleIds.Contains(participant.CycleId))
+            .Where(participant =>
+            {
+                var key = new { participant.CycleId, ParticipantEmployeeId = participant.EmployeeId };
+                var effectiveApprover = reassignmentByParticipant.TryGetValue(key, out var reassignment)
+                    ? reassignment.NewApproverEmployeeId
+                    : participant.ApproverEmployeeId;
+                return effectiveApprover == employeeId.Value;
+            })
             .Select(participant => new { participant.CycleId, participant.EmployeeId })
             .ToHashSet();
 
@@ -70,6 +114,8 @@ public sealed class GetMyPlanApprovalCampaignsQueryHandler(
                     cycle.EmployeeSubmissionDeadline,
                     cycle.ManagerApprovalDeadline,
                     cycle.LaunchedAt,
+                    cycle.PlanningLockedAt,
+                    cycle.PlanningLockedByName,
                     cyclePlans.Count(plan => plan.Status == PlanStatus.Submitted && !selfIssueEmployeeIds.Contains(plan.EmployeeId)),
                     cyclePlans.Count(plan => plan.Status == PlanStatus.ChangesRequested),
                     cyclePlans.Count(plan => plan.Status == PlanStatus.Approved),

@@ -287,7 +287,8 @@ export function MyObjectiveWorkspacePage() {
   const plan = workspace.plan;
   const objectives = plan?.objectives ?? [];
   const totalWeight = plan?.totalWeight ?? 0;
-  const readOnly = workspace.state === "submitted" || workspace.state === "approved";
+  const isLocked = workspace.state === "locked-approved" || workspace.state === "locked-unresolved";
+  const readOnly = workspace.state === "submitted" || workspace.state === "approved" || isLocked;
   const atMax = objectives.length >= workspace.maxObjectiveCount;
 
   const checks = readinessChecks(objectives, totalWeight, workspace.maxObjectiveCount);
@@ -350,7 +351,14 @@ export function MyObjectiveWorkspacePage() {
             atMax={atMax}
           />
 
-          {workspace.state === "submitted" ? (
+          {workspace.state === "locked-approved" ? (
+            <div className="space-y-4">
+              <LockedNotice lockedAt={workspace.planningLockedAt} lockedBy={workspace.planningLockedByName} approved />
+              <ObjectiveList objectives={objectives} readOnly />
+            </div>
+          ) : workspace.state === "locked-unresolved" ? (
+            <LockedNotice lockedAt={workspace.planningLockedAt} lockedBy={workspace.planningLockedByName} />
+          ) : workspace.state === "submitted" ? (
             <div className="space-y-4">
               <SubmittedNotice approverName={plan?.approverName} submittedAt={plan?.submittedAt} />
               <ObjectiveList objectives={objectives} readOnly />
@@ -484,6 +492,10 @@ function AllocationSpine({
   const tone: "success" | "warning" | "info" =
     state === "submitted" || state === "approved"
       ? "success"
+      : state === "locked-approved"
+        ? "success"
+        : state === "locked-unresolved"
+          ? "info"
       : state === "changes-requested"
         ? "warning"
         : state === "entry-not-open"
@@ -496,6 +508,10 @@ function AllocationSpine({
       ? myObjectiveTerms.awaitingReview
       : state === "approved"
         ? myObjectiveTerms.approved
+        : state === "locked-approved"
+          ? "Locked baseline"
+          : state === "locked-unresolved"
+            ? "Planning locked"
         : state === "changes-requested"
           ? myObjectiveTerms.changesRequested
       : state === "entry-not-open"
@@ -943,6 +959,39 @@ function ApprovedNotice({
           </KeyValue>
           <KeyValue label={myObjectiveTerms.managerLabel}>
             {approverName ?? myObjectiveTerms.notSet}
+          </KeyValue>
+        </dl>
+      </div>
+    </div>
+  );
+}
+
+function LockedNotice({
+  lockedAt,
+  lockedBy,
+  approved,
+}: {
+  lockedAt?: string | null;
+  lockedBy?: string | null;
+  approved?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-muted/35 p-5">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="font-heading text-lg font-semibold text-foreground">
+            {approved ? "Locked planning baseline" : "Planning locked"}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {approved ? "Approved objectives are read-only." : "This plan can no longer be changed here."}
+          </p>
+        </div>
+        <dl className="grid gap-x-5 gap-y-1 text-sm sm:grid-cols-2 md:shrink-0">
+          <KeyValue label="Locked">
+            {lockedAt ? formatDate(lockedAt) : myObjectiveTerms.notSet}
+          </KeyValue>
+          <KeyValue label="By">
+            {lockedBy ?? "HR"}
           </KeyValue>
         </dl>
       </div>

@@ -197,4 +197,31 @@ public class PerformanceCycleTests
             cycle.UpdateDraftDetails("New", 2026, null, Start, Start.AddDays(1), Start.AddDays(2), Start.AddDays(3)));
         Assert.Throws<DomainRuleViolationException>(() => cycle.SetPopulation(false, []));
     }
+
+    [Fact]
+    public void LockPlanning_RecordsExplicitPlanningLockMetadata()
+    {
+        var cycle = CompleteDraft();
+        var actorId = Guid.NewGuid();
+        cycle.Launch([Participant("Alice")], Start.AddDays(2));
+
+        cycle.LockPlanning(actorId, "HR Admin", Start.AddDays(30));
+
+        Assert.True(cycle.IsPlanningLocked);
+        Assert.Equal(Start.AddDays(30), cycle.PlanningLockedAt);
+        Assert.Equal(actorId, cycle.PlanningLockedByUserId);
+        Assert.Equal("HR Admin", cycle.PlanningLockedByName);
+        Assert.Equal(PerformanceCycleStatus.Launched, cycle.Status);
+    }
+
+    [Fact]
+    public void LockPlanning_WhenAlreadyLocked_Throws()
+    {
+        var cycle = CompleteDraft();
+        cycle.Launch([Participant("Alice")], Start.AddDays(2));
+        cycle.LockPlanning(Guid.NewGuid(), "HR Admin", Start.AddDays(30));
+
+        Assert.Throws<DomainRuleViolationException>(() =>
+            cycle.LockPlanning(Guid.NewGuid(), "Other HR", Start.AddDays(31)));
+    }
 }

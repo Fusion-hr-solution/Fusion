@@ -18,6 +18,12 @@ public class GetCycleReadinessQueryTests
         => new(id, $"E-{id.ToString("N")[..6]}", name, name, $"{name}@test.local", "Engineer", true, null,
             managerId is { } m ? new CoreManagerSummary(m, $"{name}'s Manager", managerActive) : null);
 
+    private static void AddOrgScope(PerformanceCycle cycle)
+        => cycle.SetPopulation(false,
+        [
+            PerformanceCyclePopulationRule.Create(TenantId, PopulationRuleType.OrgUnit, Guid.NewGuid(), includeDescendants: true)
+        ]);
+
     private static async Task<CycleReadinessDto> RunAsync(FakeCoreWorkforceClient client, bool withStrategicObjective = true, Action<PerformanceCycle>? configure = null)
     {
         var dbName = $"readiness-{Guid.NewGuid()}";
@@ -46,6 +52,27 @@ public class GetCycleReadinessQueryTests
     {
         var client = new FakeCoreWorkforceClient
         {
+            ByScopeResult =
+            [
+                Member(Guid.NewGuid(), "Alice", Guid.NewGuid()),
+                Member(Guid.NewGuid(), "Bob", Guid.NewGuid()),
+            ]
+        };
+
+        var readiness = await RunAsync(client, configure: AddOrgScope);
+
+        Assert.True(readiness.CanLaunch);
+        Assert.False(readiness.IsAllActiveBaseline);
+        Assert.Equal(2, readiness.IncludedCount);
+        Assert.All(readiness.Participants, p => Assert.True(p.HasApprover));
+        Assert.Empty(readiness.BlockingConditions);
+    }
+
+    [Fact]
+    public async Task Readiness_NoPositivePopulationScope_IsBlocking()
+    {
+        var client = new FakeCoreWorkforceClient
+        {
             AllActiveResult =
             [
                 Member(Guid.NewGuid(), "Alice", Guid.NewGuid()),
@@ -55,11 +82,10 @@ public class GetCycleReadinessQueryTests
 
         var readiness = await RunAsync(client);
 
-        Assert.True(readiness.CanLaunch);
+        Assert.False(readiness.CanLaunch);
         Assert.True(readiness.IsAllActiveBaseline);
-        Assert.Equal(2, readiness.IncludedCount);
-        Assert.All(readiness.Participants, p => Assert.True(p.HasApprover));
-        Assert.Empty(readiness.BlockingConditions);
+        Assert.Equal(0, readiness.IncludedCount);
+        Assert.Contains(readiness.BlockingConditions, c => c.Code == "PopulationScopeRequired");
     }
 
     [Fact]
@@ -67,14 +93,14 @@ public class GetCycleReadinessQueryTests
     {
         var client = new FakeCoreWorkforceClient
         {
-            AllActiveResult =
+            ByScopeResult =
             [
                 Member(Guid.NewGuid(), "Alice", Guid.NewGuid()),
                 Member(Guid.NewGuid(), "NoManager", managerId: null),
             ]
         };
 
-        var readiness = await RunAsync(client);
+        var readiness = await RunAsync(client, configure: AddOrgScope);
 
         Assert.False(readiness.CanLaunch);
         Assert.Contains(readiness.BlockingConditions, c => c.Code == "MissingApprover");
@@ -83,7 +109,7 @@ public class GetCycleReadinessQueryTests
     [Fact]
     public async Task Readiness_EmptyPopulation_IsBlocking()
     {
-        var readiness = await RunAsync(new FakeCoreWorkforceClient { AllActiveResult = [] });
+        var readiness = await RunAsync(new FakeCoreWorkforceClient { ByScopeResult = [] }, configure: AddOrgScope);
 
         Assert.False(readiness.CanLaunch);
         Assert.Contains(readiness.BlockingConditions, c => c.Code == "NoParticipants");
@@ -94,10 +120,10 @@ public class GetCycleReadinessQueryTests
     {
         var client = new FakeCoreWorkforceClient
         {
-            AllActiveResult = [Member(Guid.NewGuid(), "Alice", Guid.NewGuid())]
+            ByScopeResult = [Member(Guid.NewGuid(), "Alice", Guid.NewGuid())]
         };
 
-        var readiness = await RunAsync(client, withStrategicObjective: false);
+        var readiness = await RunAsync(client, withStrategicObjective: false, configure: AddOrgScope);
 
         Assert.False(readiness.CanLaunch);
         Assert.Contains(readiness.BlockingConditions, c => c.Code == "NoActiveStrategicObjective");
@@ -108,10 +134,10 @@ public class GetCycleReadinessQueryTests
     {
         var client = new FakeCoreWorkforceClient
         {
-            AllActiveResult = [Member(Guid.NewGuid(), "Alice", Guid.NewGuid(), managerActive: false)]
+            ByScopeResult = [Member(Guid.NewGuid(), "Alice", Guid.NewGuid(), managerActive: false)]
         };
 
-        var readiness = await RunAsync(client);
+        var readiness = await RunAsync(client, configure: AddOrgScope);
 
         Assert.True(readiness.CanLaunch);
         Assert.Contains(readiness.InformationalConditions, c => c.Code == "ApproverInactive");

@@ -184,6 +184,7 @@ export function PlanApprovalWorkspacePage() {
     workspace?.plans.find((plan) => plan.reviewState === "waiting-for-review" && !plan.isSelfApprovalDataIssue) ??
     workspace?.plans[0] ??
     null;
+  const isLocked = !!workspace?.planningLockedAt;
 
   const approve = useApiMutation<PlanApprovalReviewDto, PlanApprovalReviewDto>(
     (plan) =>
@@ -290,6 +291,7 @@ export function PlanApprovalWorkspacePage() {
             <PlanReviewDetail
               plan={selected}
               currentUserName={user?.fullName ?? null}
+              locked={isLocked}
               approving={approve.isLoading}
               requesting={requestChanges.isLoading}
               onApprove={() => approve.mutate(selected)}
@@ -380,6 +382,7 @@ function ReviewQueue({
 function PlanReviewDetail({
   plan,
   currentUserName,
+  locked,
   approving,
   requesting,
   onApprove,
@@ -387,12 +390,13 @@ function PlanReviewDetail({
 }: {
   plan: PlanApprovalReviewDto;
   currentUserName: string | null;
+  locked: boolean;
   approving: boolean;
   requesting: boolean;
   onApprove: () => void;
   onRequestChanges: () => void;
 }) {
-  const canAct = plan.status === "Submitted" && !plan.isSelfApprovalDataIssue;
+  const canAct = !locked && plan.status === "Submitted" && !plan.isSelfApprovalDataIssue;
   const lastChangeRequest = latestChangeRequest(plan);
   const lastReferencedObjectives = lastChangeRequest
     ? referencedObjectives(plan, lastChangeRequest.referencedObjectiveIds)
@@ -430,27 +434,33 @@ function PlanReviewDetail({
           <div className="border-t border-border bg-muted/25 p-5 lg:border-l lg:border-t-0">
             <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <ClipboardCheck className="size-4" />
-              Plan decision
+              {locked ? "Locked review" : "Plan decision"}
             </p>
-            <div className="mt-3 grid gap-2">
-              <Button
-                type="button"
-                disabled={!canAct || approving || requesting}
-                onClick={onApprove}
-              >
-                <Check />
-                Approve plan
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!canAct || requesting || approving}
-                onClick={onRequestChanges}
-              >
-                <MessageSquareText />
-                Request changes
-              </Button>
-            </div>
+            {locked ? (
+              <p className="mt-2 text-sm text-muted-foreground">
+                Planning is locked.
+              </p>
+            ) : (
+              <div className="mt-3 grid gap-2">
+                <Button
+                  type="button"
+                  disabled={!canAct || approving || requesting}
+                  onClick={onApprove}
+                >
+                  <Check />
+                  Approve plan
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={!canAct || requesting || approving}
+                  onClick={onRequestChanges}
+                >
+                  <MessageSquareText />
+                  Request changes
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 

@@ -288,6 +288,8 @@ public sealed class EmployeeObjectivePlan : AggregateRoot, ITenantEntity
     {
         if (cycle.Status != PerformanceCycleStatus.Launched)
             throw new DomainRuleViolationException("Employee objectives can only be authored for a launched campaign.");
+        if (cycle.IsPlanningLocked)
+            throw new DomainRuleViolationException("Planning is locked for this campaign.");
         if (cycle.PlanningRulesSnapshot is null)
             throw new DomainRuleViolationException("Campaign planning rules are required.");
     }

@@ -52,7 +52,7 @@ public class PerformancePopulationResolverTests
     }
 
     [Fact]
-    public async Task Resolve_WithNoOrgUnitScope_UsesAllActiveBaseline()
+    public async Task Resolve_WithNoPositiveScope_ReturnsNoMembers()
     {
         var active1 = Guid.NewGuid();
         var active2 = Guid.NewGuid();
@@ -81,9 +81,7 @@ public class PerformancePopulationResolverTests
         var members = await resolver.ResolveAsync(cycle, asOf: null, CancellationToken.None);
 
         var ids = members.Select(m => m.EmployeeId).ToHashSet();
-        Assert.Equal(2, ids.Count);
-        Assert.Contains(active1, ids);
-        Assert.Contains(active2, ids);
+        Assert.Empty(ids);
         Assert.DoesNotContain(excluded, ids);
     }
 

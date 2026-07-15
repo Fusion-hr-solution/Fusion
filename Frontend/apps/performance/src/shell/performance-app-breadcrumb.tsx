@@ -29,6 +29,7 @@ const BREADCRUMB_LABELS = new Map([
   ["planning", "Objective Planning"],
   ["performance", "Performance configuration"],
   ["campaigns", "Campaigns"],
+  ["completion", "Planning completion"],
   ["new", "New campaign"],
   ["my-objectives", "My objectives"],
   ["team-objectives", "Team objectives"],

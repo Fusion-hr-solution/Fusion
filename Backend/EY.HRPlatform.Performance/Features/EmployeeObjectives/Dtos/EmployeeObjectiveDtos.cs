@@ -76,6 +76,8 @@ public sealed record EmployeeObjectivePlanWorkspaceDto(
     DateTime? EmployeeSubmissionDeadline,
     DateTime? ManagerApprovalDeadline,
     DateTime? LaunchedAt,
+    DateTime? PlanningLockedAt,
+    string? PlanningLockedByName,
     int MaxObjectiveCount,
     IReadOnlyList<int> AllowedWeights,
     IReadOnlyList<string> EnabledMeasurementMethods,

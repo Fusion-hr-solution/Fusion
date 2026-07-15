@@ -21,6 +21,16 @@ public sealed class PlanApprovalAccessGuard(
                 "PlanApproval.EmployeeContextForbidden",
                 "Your account is not linked to an employee record."));
 
+        var cycle = await dbContext.PerformanceCycles
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == cycleId, cancellationToken);
+        if (cycle is null)
+            return Result.Failure<PlanApprovalScope>(Error.NotFound("PerformanceCycle", cycleId));
+        if (cycle.IsPlanningLocked)
+            return Result.Failure<PlanApprovalScope>(Error.Conflict(
+                "PlanApproval.Locked",
+                "Planning is locked for this campaign."));
+
         var plan = await dbContext.EmployeeObjectivePlans
             .Include(item => item.Objectives)
             .Include(item => item.ReviewEvents)
@@ -38,18 +48,31 @@ public sealed class PlanApprovalAccessGuard(
         if (participant is null)
             return Result.Failure<PlanApprovalScope>(Error.NotFound("PerformanceCycleParticipant", plan.EmployeeId));
 
-        if (participant.ApproverEmployeeId != approverEmployeeId.Value)
+        var latestReassignment = await dbContext.PerformanceCycleApproverReassignments
+            .AsNoTracking()
+            .Where(item => item.CycleId == cycleId && item.ParticipantEmployeeId == participant.EmployeeId)
+            .OrderByDescending(item => item.ReassignedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var effectiveApproverEmployeeId = latestReassignment?.NewApproverEmployeeId ?? participant.ApproverEmployeeId;
+        var effectiveApproverName = latestReassignment?.NewApproverName ?? participant.ApproverName;
+
+        if (effectiveApproverEmployeeId != approverEmployeeId.Value)
             return Result.Failure<PlanApprovalScope>(Error.Forbidden(
                 "PlanApproval.NotFrozenApproverForbidden",
-                "Only the frozen plan approver can review this objective plan."));
+                "Only the assigned campaign reviewer can review this objective plan."));
 
-        if (participant.EmployeeId == approverEmployeeId.Value)
+        if (participant.EmployeeId == effectiveApproverEmployeeId)
             return Result.Failure<PlanApprovalScope>(Error.Conflict(
                 "PlanApproval.SelfApprovalDataIssue",
-                "The frozen approver is the same person as the employee, so this plan cannot be approved."));
+                "The assigned reviewer is the same person as the employee, so this plan cannot be approved."));
 
-        return Result.Success(new PlanApprovalScope(plan, participant));
+        return Result.Success(new PlanApprovalScope(plan, participant, effectiveApproverEmployeeId, effectiveApproverName));
     }
 }
 
-public sealed record PlanApprovalScope(EmployeeObjectivePlan Plan, PerformanceCycleParticipant Participant);
+public sealed record PlanApprovalScope(
+    EmployeeObjectivePlan Plan,
+    PerformanceCycleParticipant Participant,
+    Guid EffectiveApproverEmployeeId,
+    string EffectiveApproverName);

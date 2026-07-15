@@ -131,6 +131,7 @@ Frontend/.github/
 PROJECT_SUMMARY.md
 PRODUCT.md
 DESIGN.md
+.local-docs/
 .impeccable/
 *.postman_collection.json
 
