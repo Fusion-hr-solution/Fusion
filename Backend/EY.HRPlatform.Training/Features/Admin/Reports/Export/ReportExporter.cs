@@ -1,3 +1,4 @@
+using System.Globalization;
 using ClosedXML.Excel;
 using EY.HRPlatform.Training.Models.Responses;
 using QuestPDF.Fluent;
@@ -159,7 +160,7 @@ public class ReportExporter : IReportExporter
                     Body(table, r.SessionsEnrolled.ToString());
                     Body(table, r.Attended.ToString());
                     Body(table, r.Missed.ToString());
-                    Body(table, $"{r.AttendanceRate}%");
+                    Body(table, $"{Inv(r.AttendanceRate)}%");
                 }
                 Foot(table, "Total", "", "", rows.Sum(r => r.SessionsEnrolled).ToString(),
                     totalAttended.ToString(), totalMissed.ToString(), $"{overallRate}%");
@@ -192,15 +193,15 @@ public class ReportExporter : IReportExporter
                     Body(table, r.EmployeeName ?? "—");
                     Body(table, r.GradeName);
                     Body(table, r.ServiceLineName);
-                    Body(table, r.ELearningHours.ToString());
-                    Body(table, r.InPersonHours.ToString());
-                    Body(table, r.TotalHours.ToString());
+                    Body(table, Inv(r.ELearningHours));
+                    Body(table, Inv(r.InPersonHours));
+                    Body(table, Inv(r.TotalHours));
                     Body(table, r.TrainingsCompleted.ToString());
                 }
                 Foot(table, "Total", "", "",
-                    Math.Round(rows.Sum(r => r.ELearningHours), 2).ToString(),
-                    Math.Round(rows.Sum(r => r.InPersonHours), 2).ToString(),
-                    Math.Round(rows.Sum(r => r.TotalHours), 2).ToString(),
+                    Inv(Math.Round(rows.Sum(r => r.ELearningHours), 2)),
+                    Inv(Math.Round(rows.Sum(r => r.InPersonHours), 2)),
+                    Inv(Math.Round(rows.Sum(r => r.TotalHours), 2)),
                     rows.Sum(r => r.TrainingsCompleted).ToString());
             }));
     }
@@ -212,7 +213,7 @@ public class ReportExporter : IReportExporter
     {
         ArgumentNullException.ThrowIfNull(data);
 
-        string Feedback(FormatMetricsDto m) => m.AvgFeedback.HasValue ? $"{m.AvgFeedback.Value} / 5" : "—";
+        string Feedback(FormatMetricsDto m) => m.AvgFeedback.HasValue ? $"{Inv(m.AvgFeedback.Value)} / 5" : "—";
 
         return BuildReportPdf("In-person vs E-learning Comparison", filters, charts, content =>
             content.Table(table =>
@@ -231,13 +232,15 @@ public class ReportExporter : IReportExporter
                 {
                     Body(table, m.Format == "ELearning" ? "E-learning" : "On-site");
                     Body(table, m.TrainingCount.ToString());
-                    Body(table, m.HoursDelivered.ToString());
+                    Body(table, Inv(m.HoursDelivered));
                     Body(table, m.Participants.ToString());
-                    Body(table, $"{m.CompletionRate}%");
+                    Body(table, $"{Inv(m.CompletionRate)}%");
                     Body(table, Feedback(m));
                 }
             }));
     }
+
+    private static string Inv(double value) => value.ToString(CultureInfo.InvariantCulture);
 
     private static byte[] BuildReportPdf(
         string title,
@@ -247,7 +250,7 @@ public class ReportExporter : IReportExporter
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
-        var document = Document.Create(container =>
+        IDocument Build(IReadOnlyList<byte[]> chartImages) => Document.Create(container =>
         {
             container.Page(page =>
             {
@@ -268,7 +271,7 @@ public class ReportExporter : IReportExporter
 
                 page.Content().PaddingTop(10).Column(col =>
                 {
-                    foreach (var chart in charts)
+                    foreach (var chart in chartImages)
                     {
                         if (chart.Length == 0) continue;
                         col.Item().PaddingBottom(10).AlignCenter().MaxHeight(220).Image(chart);
@@ -286,7 +289,16 @@ public class ReportExporter : IReportExporter
             });
         });
 
-        return document.GeneratePdf();
+        try
+        {
+            return Build(charts).GeneratePdf();
+        }
+        catch (Exception)
+        {
+            // A chart payload passed the PNG signature check but is corrupt/truncated; QuestPDF throws at
+            // render time. Fall back to a table-only PDF rather than failing the whole export (ADR 0007).
+            return Build([]).GeneratePdf();
+        }
     }
 
     private static void TableHead(TableDescriptor table, params string[] headers)

@@ -132,6 +132,7 @@
       "catalog": "Catalog",
       "myTrainings": "My Trainings",
       "mySessions": "My Sessions",
+      "calendar": "Calendar",
       "scanQr": "Scan QR",
       "cursus": "Mon Cursus",
       "certificates": "Certificates",
@@ -145,6 +146,7 @@
       "curriculum": "Curriculum",
       "trainingBudgets": "Training Budgets",
       "sessions": "Sessions",
+      "planning": "Planning",
       "attendance": "Attendance",
       "certificateRegistry": "Certificate Registry",
       "feedback": "Feedback",
@@ -162,6 +164,40 @@
       "completedShort": "Done",
       "inProgressShort": "Active",
       "certificatesShort": "Certs"
+    }
+  },
+  "calendar": {
+    "title": "My Calendar",
+    "description": "Your enrolled sessions and training deadlines.",
+    "deadlineBadge": "Deadline",
+    "waitlistedBadge": "Waitlisted",
+    "subscribe": {
+      "action": "Subscribe to calendar",
+      "title": "Subscribe to your training calendar",
+      "description": "Add this feed to Outlook, Google or Apple Calendar to see your sessions update automatically.",
+      "generate": "Generate my calendar link",
+      "generating": "Generating…",
+      "webcal": "Subscription link (webcal)",
+      "https": "Subscription link (https)",
+      "instructions": "Outlook / Apple: open the webcal link to subscribe. Google Calendar: Other calendars → From URL → paste the https link.",
+      "warning": "Anyone with this link can see your schedule. Regenerate to revoke a shared link.",
+      "regenerate": "Regenerate link",
+      "copied": "Link copied",
+      "copyError": "Couldn't copy the link",
+      "error": "Couldn't generate your calendar link"
+    },
+    "planning": {
+      "title": "Session Planning",
+      "description": "All scheduled training sessions across the organization.",
+      "filters": {
+        "serviceLine": "Service line",
+        "grade": "Grade",
+        "status": "Status",
+        "room": "Room",
+        "all": "All",
+        "reset": "Reset"
+      },
+      "capacity": "{enrolled}/{max} enrolled"
     }
   },
   "languageSwitcher": {
@@ -699,6 +735,7 @@
       "uploadError": "Could not process the file.",
       "templateError": "Could not download the template.",
       "applied": "Import complete.",
+      "appliedWithErrors": "{failed, plural, one {Import finished — # row failed.} other {Import finished — # rows failed.}}",
       "applyError": "Could not complete the import.",
       "errorLogError": "Could not download the error log."
     },
@@ -1440,7 +1477,8 @@
     },
     "card": {
       "points": "{count, plural, one {# pt} other {# pts}}",
-      "optionsCount": "{count, plural, one {# option} other {# options}}"
+      "optionsCount": "{count, plural, one {# option} other {# options}}",
+      "explanation": "Explanation"
     },
     "preview": {
       "title": "Preview: {title}",
@@ -1491,6 +1529,8 @@
       "cancel": "Cancel",
       "updateQuestion": "Update Question",
       "addQuestion": "Add Question",
+      "explanationLabel": "Explanation (optional)",
+      "explanationPlaceholder": "Explain why the correct answer is right...",
       "unexpectedError": "An unexpected error occurred."
     },
     "options": {
@@ -1517,6 +1557,60 @@
     "toast": {
       "confirmDeleteExam": "Delete this exam and all its questions? This cannot be undone.",
       "confirmDeleteQuestion": "Delete question \"{text}\"?"
+    }
+  },
+  "adminQuiz": {
+    "title": "AI Quiz Generator",
+    "generateWithAi": "Generate with AI",
+    "description": "Generate multiple-choice questions from this training's content, review and edit them, then publish to the exam.",
+    "loading": "Loading draft...",
+    "unavailable": "AI quiz generation isn't configured for this environment.",
+    "countLabel": "Number of questions",
+    "generate": "Generate",
+    "regenerate": "Regenerate",
+    "generating": "Generating questions...",
+    "generatingHint": "This can take a minute or two for a full quiz — you can keep this open.",
+    "stageReading": "Reading the training content...",
+    "stageAnalyzing": "Analyzing the material...",
+    "stageWriting": "Writing questions...",
+    "stageFinalizing": "Finalizing the quiz...",
+    "generated": "{count, plural, one {# question generated} other {# questions generated}}",
+    "addManually": "Add manually",
+    "emptyTitle": "No questions yet",
+    "emptyDescription": "Generate with AI or add questions manually to build your quiz.",
+    "questionsCount": "{count, plural, one {# question} other {# questions}}",
+    "invalidHint": "{count, plural, one {# question needs attention} other {# questions need attention}}",
+    "untitled": "Untitled question",
+    "emptyOption": "Empty option",
+    "points": "{count, plural, one {# pt} other {# pts}}",
+    "type": {
+      "SingleChoice": "Single Choice",
+      "MultipleChoice": "Multiple Choice",
+      "TrueFalse": "True / False"
+    },
+    "sourceAi": "AI",
+    "sourceManual": "Manual",
+    "explanationLabel": "Explanation",
+    "discard": "Discard",
+    "saveDraft": "Save draft",
+    "publish": "Publish to exam",
+    "publishExisting": "Add to exam",
+    "confirmPublish": "Publish {count, plural, one {# question} other {# questions}} to the exam?",
+    "confirmDiscard": "Discard this draft? This cannot be undone.",
+    "published": "{count, plural, one {# question published to the exam} other {# questions published to the exam}}",
+    "saved": "Draft saved.",
+    "discarded": "Draft discarded.",
+    "genError": "Could not generate a quiz. Please try again.",
+    "saveError": "Could not save the draft.",
+    "publishError": "Could not publish the quiz.",
+    "discardError": "Could not discard the draft.",
+    "backfill": {
+      "title": "Extract text from existing PDFs",
+      "description": "Reads the text of already-uploaded PDF lessons into the database so the AI quiz generator can use them. Runs once; safe to repeat.",
+      "button": "Extract PDF text",
+      "running": "Extracting...",
+      "done": "Done — extracted text from {updated} of {scanned} PDF(s); {skipped} skipped.",
+      "error": "Could not run the PDF text extraction."
     }
   },
   "adminGrades": {
