@@ -10,6 +10,8 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence;
 
 public static class IdentitySeeder
 {
+    private const string DemoTenantAdminPassword = "Admin@1234";
+
     /// <summary>
     /// Seeds roles (always) and optionally demo data (controlled by seedDemoData parameter).
     /// </summary>
@@ -264,9 +266,37 @@ public static class IdentitySeeder
                 LastLoginAt = DateTime.UtcNow.AddMinutes(-30),
             };
 
-            var createRes = await userManager.CreateAsync(admin, "Admin@1234");
-            if (createRes.Succeeded)
-                await userManager.AddToRoleAsync(admin, PlatformRole.HRAdmin);
+            var createRes = await userManager.CreateAsync(admin, DemoTenantAdminPassword);
+            if (!createRes.Succeeded)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to create demo tenant admin {email}: "
+                    + string.Join(", ", createRes.Errors.Select(error => error.Description)));
+            }
+
+            await userManager.AddToRoleAsync(admin, PlatformRole.HRAdmin);
+        }
+        else
+        {
+            admin.TenantId = tenant.Id;
+            admin.EmailConfirmed = true;
+            admin.IsActive = true;
+            admin.LastLoginAt ??= DateTime.UtcNow.AddMinutes(-30);
+            await userManager.UpdateAsync(admin);
+        }
+
+        if (!await userManager.IsInRoleAsync(admin, PlatformRole.HRAdmin))
+        {
+            await userManager.AddToRoleAsync(admin, PlatformRole.HRAdmin);
+        }
+
+        var resetToken = await userManager.GeneratePasswordResetTokenAsync(admin);
+        var resetResult = await userManager.ResetPasswordAsync(admin, resetToken, DemoTenantAdminPassword);
+        if (!resetResult.Succeeded)
+        {
+            throw new InvalidOperationException(
+                $"Failed to reset demo tenant admin password for {email}: "
+                + string.Join(", ", resetResult.Errors.Select(error => error.Description)));
         }
 
         var inviteEmail = $"{firstName.ToLowerInvariant()}-firstadmin@example.com";
