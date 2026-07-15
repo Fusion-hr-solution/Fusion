@@ -9,6 +9,12 @@ namespace EY.HRPlatform.Training.Tests.Handlers.Calendar;
 
 public class CalendarEnqueueTests
 {
+    // Future-dated so EffectiveStatus is Planned (not Completed) — a completed session is
+    // locked for reschedule, so it would never enqueue SessionRescheduled.
+    private static readonly DateTime Start =
+        DateTime.SpecifyKind(DateTime.UtcNow.Date.AddDays(30).AddHours(9), DateTimeKind.Utc);
+    private static readonly DateTime End = Start.AddHours(3);
+
     private static async Task<Guid> SeedSession(TrainingDbContext ctx)
     {
         var cat = new TrainingCategory("Tech", "t");
@@ -17,9 +23,7 @@ public class CalendarEnqueueTests
         ctx.Trainings.Add(course);
         var part = new TrainingPart(course.Id, "Day 1", null, 0, 7m);
         ctx.TrainingParts.Add(part);
-        var session = new TrainingSession(part.Id,
-            new DateTime(2026, 7, 10, 9, 0, 0, DateTimeKind.Utc),
-            new DateTime(2026, 7, 10, 12, 0, 0, DateTimeKind.Utc),
+        var session = new TrainingSession(part.Id, Start, End,
             "A101", 20, null, null, null, null);
         ctx.TrainingSessions.Add(session);
         await ctx.SaveChangesAsync();
@@ -48,18 +52,18 @@ public class CalendarEnqueueTests
         var sessionId = await SeedSession(ctx);
 
         // No-op update (same start/end/room) → nothing enqueued.
-        await new UpdateSessionCommandHandler(ctx).Handle(new UpdateSessionCommand(
+        await new UpdateSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new UpdateSessionCommand(
             sessionId,
-            new DateTime(2026, 7, 10, 9, 0, 0, DateTimeKind.Utc),
-            new DateTime(2026, 7, 10, 12, 0, 0, DateTimeKind.Utc),
+            Start,
+            End,
             "A101", 20, null, null, null, null), CancellationToken.None);
         Assert.Equal(0, await ctx.CalendarSyncOutboxes.CountAsync());
 
         // Change the start → SessionRescheduled enqueued.
-        await new UpdateSessionCommandHandler(ctx).Handle(new UpdateSessionCommand(
+        await new UpdateSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier()).Handle(new UpdateSessionCommand(
             sessionId,
-            new DateTime(2026, 7, 11, 9, 0, 0, DateTimeKind.Utc),
-            new DateTime(2026, 7, 11, 12, 0, 0, DateTimeKind.Utc),
+            Start.AddDays(1),
+            End.AddDays(1),
             "A101", 20, null, null, null, null), CancellationToken.None);
 
         var row = await ctx.CalendarSyncOutboxes.SingleAsync();
