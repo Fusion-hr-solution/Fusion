@@ -99,6 +99,7 @@ import {
 import {
   campaignDiscard,
   campaignJourney,
+  campaignPlanningFlow,
   campaignRunway,
   campaignScheduleSteps,
   campaignStatusLabel,
@@ -610,8 +611,7 @@ export function CampaignDraftPage() {
   };
   const goNext = () =>
     navigateTo(STEP_ORDER[Math.min(activeIndex + 1, STEP_ORDER.length - 1)]!);
-  const goBack = () =>
-    navigateTo(STEP_ORDER[Math.max(activeIndex - 1, 0)]!);
+  const goBack = () => navigateTo(STEP_ORDER[Math.max(activeIndex - 1, 0)]!);
 
   const activeStepMeta = steps[activeIndex]!;
   const ActiveIcon = activeStepMeta.icon;
@@ -959,14 +959,11 @@ function PlanningFlowBand({
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-        <div className="min-w-0 lg:w-56 lg:shrink-0">
-          <h2 className="text-sm font-semibold text-foreground">Planning flow</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Continue this campaign in the workspace that matches your role.
-          </p>
-        </div>
+    <section className="space-y-4">
+      <h2 className="text-sm font-semibold text-foreground">
+        {campaignPlanningFlow.title}
+      </h2>
+      <div className="rounded-2xl border border-border bg-card p-5">
         <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
           {links.map((link) => {
             const Icon = link.icon;
@@ -1020,18 +1017,23 @@ function LaunchedCampaignSummary({
     <section className="rounded-xl border border-border bg-card p-5">
       <div className="space-y-4">
         <div className="min-w-0 space-y-2">
-          <StatusBadge tone={locked ? "neutral" : "success"}>
-            {stateLabel}
-          </StatusBadge>
-          <div className="space-y-1">
-            <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">
-              Campaign baseline
-            </h2>
-            {form.purpose ? (
-              <p className="max-w-3xl text-sm text-muted-foreground">
-                {form.purpose}
-              </p>
-            ) : null}
+          <div className="flex">
+            <div className="space-y-1">
+              <h2 className="font-heading text-xl font-semibold tracking-tight text-foreground">
+                Campaign baseline
+              </h2>
+              {form.purpose ? (
+                <p className="max-w-3xl text-sm text-muted-foreground">
+                  {form.purpose}
+                </p>
+              ) : null}
+            </div>
+            <StatusBadge
+              className="ml-auto"
+              tone={locked ? "neutral" : "success"}
+            >
+              {stateLabel}
+            </StatusBadge>
           </div>
         </div>
 
@@ -1157,7 +1159,9 @@ function PlanningPolicyStrip({
       {snapshot ? (
         <dl className="grid gap-x-6 gap-y-4 px-4 py-4 sm:grid-cols-3">
           <div>
-            <dt className="text-xs text-muted-foreground">Maximum objectives</dt>
+            <dt className="text-xs text-muted-foreground">
+              Maximum objectives
+            </dt>
             <dd className="mt-1 text-sm font-semibold tabular-nums text-foreground">
               {snapshot.maxObjectiveCount}
             </dd>
@@ -1496,7 +1500,12 @@ function ObjectivesSection({
           </div>
         )}
         {!readOnly && !isAdding ? (
-          <Button type="button" size="sm" variant="outline" onClick={onStartAdd}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={onStartAdd}
+          >
             <Plus /> {campaignStrategy.addAction}
           </Button>
         ) : null}
@@ -1613,7 +1622,9 @@ function ObjectivesSection({
                     <span
                       className={cn(
                         "size-1.5 rounded-full",
-                        objective.isActive ? "bg-primary" : "bg-muted-foreground"
+                        objective.isActive
+                          ? "bg-primary"
+                          : "bg-muted-foreground"
                       )}
                     />
                     {objective.isActive

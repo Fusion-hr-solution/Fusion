@@ -44,6 +44,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { initials } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -502,9 +503,7 @@ export function CampaignPopulationSection({
           ) : null}
         </div>
         {orgTree.isLoading ? (
-          <div className="rounded-2xl border border-border px-6 py-10 text-center text-sm text-muted-foreground">
-            {campaignPopulation.treeLoading}
-          </div>
+          <PopulationScopeTreeSkeleton />
         ) : (
           <PopulationScopeTree
             roots={roots}
@@ -517,6 +516,30 @@ export function CampaignPopulationSection({
           />
         )}
       </section>
+    </div>
+  );
+}
+
+/** Mirrors PopulationScopeTree's bordered container and indented row rhythm. */
+function PopulationScopeTreeSkeleton() {
+  const depths = [0, 1, 1, 2, 1, 0, 1];
+  return (
+    <div
+      className="overflow-hidden rounded-2xl border border-border"
+      aria-busy
+      aria-label={campaignPopulation.treeLoading}
+    >
+      {depths.map((depth, index) => (
+        <div
+          key={index}
+          className="flex items-center gap-3 border-b border-border/60 px-3 py-2.5 last:border-b-0"
+          style={{ paddingLeft: `${0.75 + depth * 1.25}rem` }}
+        >
+          <Skeleton className="size-4 shrink-0 rounded" />
+          <Skeleton className="h-4 flex-1" style={{ maxWidth: `${14 - depth * 2}rem` }} />
+          <Skeleton className="ml-auto h-4 w-10 shrink-0" />
+        </div>
+      ))}
     </div>
   );
 }
@@ -602,13 +625,13 @@ export function CampaignLaunchPad({
 
   if (readiness.isLoading || !readiness.data) {
     return (
-      <div className="flex flex-col gap-6" aria-busy>
+      <div className="flex flex-col gap-6" aria-busy aria-label="Loading launch readiness">
         <div className="space-y-2">
-          <div className="h-12 w-40 animate-pulse rounded-lg bg-muted" />
-          <div className="h-4 w-64 animate-pulse rounded bg-muted" />
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-4 w-64" />
         </div>
-        <div className="h-28 animate-pulse rounded-xl bg-muted" />
-        <div className="h-14 animate-pulse rounded-xl bg-muted" />
+        <Skeleton className="h-28 rounded-xl" />
+        <Skeleton className="h-14 rounded-xl" />
       </div>
     );
   }
@@ -1064,9 +1087,11 @@ export function CampaignLaunchedBaseline({
       </CardHeader>
       <CardContent density="compact" className="space-y-4">
         {baseline.isLoading ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            Loading baseline…
-          </p>
+          <div className="space-y-3 py-2" aria-busy aria-label="Loading participant baseline">
+            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-16 rounded-xl" />
+            <Skeleton className="h-16 rounded-xl" />
+          </div>
         ) : participants.length === 0 ? (
           <p className="py-6 text-center text-sm text-muted-foreground">
             {campaignLaunch.baselineEmpty}

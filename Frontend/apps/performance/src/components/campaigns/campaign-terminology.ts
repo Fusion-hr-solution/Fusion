@@ -88,6 +88,11 @@ export const campaignStrategy = {
   editLabel: (title: string) => `Edit ${title}`,
 } as const;
 
+/** Launched-campaign workspaces available to the signed-in user. */
+export const campaignPlanningFlow = {
+  title: "Planning flow",
+} as const;
+
 /** Objective-planning population scope surface. */
 export const campaignPopulation = {
   title: "Population scope",
