@@ -102,6 +102,12 @@ export function useCoursePlayer(initialData: TrainingLearnData) {
 }
 
 function getInitialChapter(data: TrainingLearnData): string {
+  // Deep link: ?chapter=<id> (e.g. from an Academy Assistant citation chip, AI-L-1 A4).
+  // Safe to read location here — the player only ever renders client-side.
+  if (typeof window !== "undefined") {
+    const wanted = new URLSearchParams(window.location.search).get("chapter");
+    if (wanted && data.chapters.some((c) => c.id === wanted)) return wanted;
+  }
   const firstIncomplete = data.chapters.find((c) => !c.isCompleted);
   return firstIncomplete?.id ?? data.chapters[0]?.id ?? "";
 }
