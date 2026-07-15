@@ -2,6 +2,7 @@ using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
 using EY.HRPlatform.Training.Domain.Entities;
 using EY.HRPlatform.Training.Domain.Enums;
+using EY.HRPlatform.Training.Features.Admin.Content;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -10,8 +11,13 @@ namespace EY.HRPlatform.Training.Features.Admin.Commands;
 public class CreateTrainingCommandHandler : ICommandHandler<CreateTrainingCommand, Result<Guid>>
 {
     private readonly TrainingDbContext _db;
+    private readonly IPdfTextExtractor _pdf;
 
-    public CreateTrainingCommandHandler(TrainingDbContext db) => _db = db;
+    public CreateTrainingCommandHandler(TrainingDbContext db, IPdfTextExtractor pdf)
+    {
+        _db = db;
+        _pdf = pdf;
+    }
 
     public async Task<Result<Guid>> Handle(CreateTrainingCommand request, CancellationToken cancellationToken)
     {
@@ -29,6 +35,24 @@ public class CreateTrainingCommandHandler : ICommandHandler<CreateTrainingComman
             return Result.Failure<Guid>(Error.Validation("Training.InvalidTrainingType",
                 $"Invalid training type '{request.TrainingType}'. Valid values: ELearning, OnSite."));
 
+        if (!Enum.TryParse<CostType>(request.CostType, true, out var costType))
+            return Result.Failure<Guid>(Error.Validation("Training.InvalidCostType",
+                $"Invalid cost type '{request.CostType}'. Valid values: Internal, External."));
+
+        if (costType == CostType.External)
+        {
+            if (trainingType != TrainingType.OnSite)
+                return Result.Failure<Guid>(Error.Validation("Training.CostTypeRequiresOnSite",
+                    "External cost type is only valid for OnSite trainings."));
+            if (request.SponsoringServiceLineId is null)
+                return Result.Failure<Guid>(Error.Validation("Training.SponsorRequired",
+                    "A sponsoring service line is required for External OnSite trainings."));
+            var sponsorExists = await _db.ServiceLines
+                .AnyAsync(s => s.Id == request.SponsoringServiceLineId.Value, cancellationToken);
+            if (!sponsorExists)
+                return Result.Failure<Guid>(Error.NotFound("ServiceLine", request.SponsoringServiceLineId.Value));
+        }
+
         var training = new TrainingCourse(
             request.Title,
             request.Description,
@@ -38,7 +62,9 @@ public class CreateTrainingCommandHandler : ICommandHandler<CreateTrainingComman
             request.CategoryId,
             request.Duration,
             trainingType,
-            request.ScheduledDate);
+            request.ScheduledDate,
+            costType,
+            costType == CostType.External ? request.SponsoringServiceLineId : null);
 
         foreach (var ch in request.Chapters)
         {
@@ -63,7 +89,7 @@ public class CreateTrainingCommandHandler : ICommandHandler<CreateTrainingComman
                     block.OrderIndex,
                     chapter.Id,
                     block.Title,
-                    block.TextContent,
+                    _pdf.ResolveTextContent(contentType, block.TextContent, block.ContentUri),
                     block.ContentUri,
                     block.VideoUrl,
                     block.EstimatedDurationMinutes));

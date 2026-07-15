@@ -20,6 +20,7 @@ import { ProgressRing } from "./progress-ring";
 import { CategoryBreakdown } from "./category-breakdown";
 import { AchievementsCard } from "./achievements-card";
 import { InPersonHoursWidget } from "./in-person-hours-widget";
+import { FeedbackPrompt } from "../feedback";
 
 export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
   const t = useTranslations("dashboard");
@@ -119,6 +120,10 @@ export function Dashboard({ trainings, enrolledTrainings }: DashboardProps) {
 
           {/* ── RIGHT COLUMN (1/3) ── */}
           <div className="space-y-6">
+            <div className="ey-animate-fade-up">
+              <FeedbackPrompt />
+            </div>
+
             <div
               className="ey-animate-fade-up"
               style={{ animationDelay: "60ms" }}

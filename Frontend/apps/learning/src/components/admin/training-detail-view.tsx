@@ -23,7 +23,9 @@ import { ChapterManagerList } from "./chapter-manager-list";
 import { AdminExamList } from "./admin-exam-list";
 import { AdminOnSiteCourseList } from "./admin-onsite-course-list";
 import { PartsManagerSection } from "./sessions/parts-manager-section";
+import { SessionCostsTab } from "./sessions/session-costs-tab";
 import { TrainingStatCard } from "./training-stat-card";
+import { TrainingFeedbackPanel } from "./feedback";
 import { PageBreadcrumb } from "../page-breadcrumb";
 
 export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
@@ -35,6 +37,8 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
   const [editingChapter, setEditingChapter] = useState<AdminChapter | null>(
     null
   );
+  const [activeTab, setActiveTab] = useState<"details" | "feedback">("details");
+  const [onSiteTab, setOnSiteTab] = useState<"sessions" | "materials" | "costs">("sessions");
 
   const fetchTrainingDetail = useCallback(
     () => getAdminTrainingDetail(trainingId),
@@ -118,6 +122,34 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
         ]}
       />
 
+      {/* Tabs */}
+      <div className="inline-flex gap-1 rounded-xl border border-border/60 bg-card p-1 shadow-sm">
+        <button
+          type="button"
+          onClick={() => setActiveTab("details")}
+          className={`rounded-lg px-3.5 py-2 text-xs font-medium transition-all ${
+            activeTab === "details"
+              ? "ey-bg-dark text-white shadow-sm"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          {t("detail.tabDetails")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("feedback")}
+          className={`rounded-lg px-3.5 py-2 text-xs font-medium transition-all ${
+            activeTab === "feedback"
+              ? "ey-bg-dark text-white shadow-sm"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          {t("detail.tabFeedback")}
+        </button>
+      </div>
+
+      {activeTab === "details" && (
+        <>
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
@@ -140,8 +172,8 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
               variant="outline"
               className={
                 training.trainingType === "OnSite"
-                  ? "border-blue-500/30 text-blue-600"
-                  : "border-green-500/30 text-green-600"
+                  ? "border-[hsl(var(--ey-blue-500))]/30 text-[hsl(var(--ey-blue-500))]"
+                  : "border-[hsl(var(--ey-green-500))]/30 text-[hsl(var(--ey-green-500))]"
               }
             >
               {training.trainingType === "OnSite"
@@ -253,22 +285,51 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
 
       {training.trainingType === "OnSite" ? (
         <>
-          {/* Parts (séances) and Sessions */}
-          <PartsManagerSection
-            trainingId={trainingId}
-            isDeleted={training.isDeleted}
-          />
+          {/* Tab bar — Costs tab only for External trainings */}
+          <div className="flex items-center gap-1 border-b border-border">
+            {[
+              { key: "sessions" as const, label: t("detail.tabs.sessions") },
+              { key: "materials" as const, label: t("detail.courseMaterials") },
+              ...(training.costType === "External"
+                ? [{ key: "costs" as const, label: t("detail.tabs.costs") }]
+                : []),
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setOnSiteTab(tab.key)}
+                className={`px-4 py-2 text-sm font-medium transition-colors ${
+                  onSiteTab === tab.key
+                    ? "border-b-2 border-foreground text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-          {/* On-Site Courses */}
-          <h2 className="text-base font-semibold text-foreground">
-            {t("detail.courseMaterials")}
-          </h2>
-          <AdminOnSiteCourseList
-            trainingId={trainingId}
-            courses={training.onSiteCourses}
-            isDeleted={training.isDeleted}
-            onRefetch={refetch}
-          />
+          {onSiteTab === "sessions" && (
+            <PartsManagerSection trainingId={trainingId} isDeleted={training.isDeleted} />
+          )}
+
+          {onSiteTab === "materials" && (
+            <>
+              <h2 className="text-base font-semibold text-foreground">
+                {t("detail.courseMaterials")}
+              </h2>
+              <AdminOnSiteCourseList
+                trainingId={trainingId}
+                courses={training.onSiteCourses}
+                isDeleted={training.isDeleted}
+                onRefetch={refetch}
+              />
+            </>
+          )}
+
+          {onSiteTab === "costs" && training.costType === "External" && (
+            <SessionCostsTab trainingId={trainingId} />
+          )}
         </>
       ) : (
         <>
@@ -319,6 +380,12 @@ export function TrainingDetailView({ trainingId }: TrainingDetailViewProps) {
             onSaved={refetch}
           />
         </>
+      )}
+        </>
+      )}
+
+      {activeTab === "feedback" && (
+        <TrainingFeedbackPanel trainingId={trainingId} />
       )}
     </div>
   );

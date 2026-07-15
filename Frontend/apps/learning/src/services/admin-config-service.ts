@@ -4,18 +4,21 @@ import type {
   AdminServiceLine,
   AdminCurriculumMatrix,
   AdminCurriculumMapping,
+  AdminTrainingBudget,
   CreateCategoryInput,
   UpdateCategoryInput,
   CreateGradeInput,
   UpdateGradeInput,
   CreateServiceLineInput,
   UpdateServiceLineInput,
+  CreateTrainingBudgetInput,
+  UpdateTrainingBudgetInput,
   AddCurriculumMappingInput,
   BulkAssignCurriculumInput,
   ReorderCurriculumCellInput,
 } from "@/types/admin";
-import type { BackendTrainingCategoryDto } from "@/types/backend-dtos";
-import { client, mapCategory } from "./admin-service-mappers";
+import type { BackendTrainingCategoryDto, BackendTrainingBudgetDto } from "@/types/backend-dtos";
+import { client, mapCategory, mapBudget } from "./admin-service-mappers";
 
 // --- Category CRUD ---
 
@@ -100,4 +103,23 @@ export async function reorderCurriculumCell(input: ReorderCurriculumCellInput): 
 
 export async function bulkAssignCurriculum(input: BulkAssignCurriculumInput): Promise<number> {
   return client.post<number>("/training/admin/curriculum/bulk", input);
+}
+
+// --- Training Budget CRUD (Feature 7.2) ---
+
+export async function getTrainingBudgets(): Promise<AdminTrainingBudget[]> {
+  const data = await client.get<BackendTrainingBudgetDto[]>("/training/admin/budgets");
+  return data.map(mapBudget);
+}
+
+export async function createTrainingBudget(input: CreateTrainingBudgetInput): Promise<string> {
+  return client.post<string>("/training/admin/budgets", input);
+}
+
+export async function updateTrainingBudget(id: string, input: UpdateTrainingBudgetInput): Promise<void> {
+  await client.put("/training/admin/budgets/" + encodeURIComponent(id), input);
+}
+
+export async function deleteTrainingBudget(id: string): Promise<void> {
+  await client.delete("/training/admin/budgets/" + encodeURIComponent(id));
 }

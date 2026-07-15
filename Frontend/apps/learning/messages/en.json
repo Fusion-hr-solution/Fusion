@@ -1,4 +1,127 @@
 {
+  "feedback": {
+    "prompt": {
+      "title": "Share your feedback",
+      "one": "You have 1 completed training awaiting your feedback.",
+      "many": "You have {count} completed trainings awaiting your feedback.",
+      "cta": "Give feedback",
+      "latest": "Most recent: {title}"
+    },
+    "form": {
+      "title": "Feedback — {title}",
+      "subtitle": "Your feedback helps us improve this training.",
+      "overall": "Overall rating",
+      "content": "Content quality",
+      "relevance": "Relevance to your role",
+      "trainer": "Trainer quality",
+      "recommend": "Would you recommend this training?",
+      "recommendYes": "Yes",
+      "recommendNo": "No",
+      "comment": "Comment",
+      "commentPlaceholder": "What did you think of this training?",
+      "suggestions": "Suggestions",
+      "suggestionsPlaceholder": "How could we improve it?",
+      "anonymous": "Submit anonymously",
+      "anonymousHint": "Your name will not be shown to administrators.",
+      "submit": "Submit feedback",
+      "submitting": "Submitting…",
+      "cancel": "Cancel"
+    },
+    "toast": {
+      "successTitle": "Thank you for your feedback!",
+      "successBody": "Your feedback has been recorded.",
+      "errorTitle": "Unable to submit feedback",
+      "errorBody": "Something went wrong. Please try again."
+    }
+  },
+  "adminFeedback": {
+    "overview": {
+      "title": "Feedback Overview",
+      "subtitle": "Learner feedback across all trainings.",
+      "kpiAvg": "Avg rating",
+      "kpiTotal": "Total feedback",
+      "kpiResponseRate": "Response rate",
+      "kpiRecommend": "Recommend rate",
+      "distribution": "Rating distribution",
+      "trend": "Rating trend",
+      "topTrainings": "Top-rated trainings",
+      "bottomTrainings": "Lowest-rated trainings",
+      "byTrainerLink": "Feedback by trainer",
+      "configureLink": "Configure form",
+      "noData": "No feedback yet.",
+      "responses": "responses"
+    },
+    "filters": {
+      "format": "Format",
+      "allFormats": "All formats",
+      "eLearning": "E-learning",
+      "onSite": "On-site",
+      "from": "From",
+      "to": "To"
+    },
+    "training": {
+      "noFeedback": "No feedback has been submitted for this training yet.",
+      "kpiAvg": "Avg rating",
+      "kpiResponses": "Responses",
+      "kpiRecommend": "Recommend rate",
+      "kpiTrainer": "Trainer rating",
+      "distribution": "Rating distribution",
+      "dimensions": "Rating dimensions",
+      "trend": "Rating trend",
+      "comments": "Comments",
+      "commentsSuppressed": "Comments are hidden until at least 3 learners respond, to protect anonymity.",
+      "noComments": "No comments were left."
+    },
+    "dimensions": {
+      "overall": "Overall",
+      "content": "Content",
+      "relevance": "Relevance",
+      "trainer": "Trainer"
+    },
+    "trainer": {
+      "listTitle": "Feedback by Trainer",
+      "listSubtitle": "Average ratings per trainer, from single-trainer trainings.",
+      "colName": "Trainer",
+      "colSessions": "Sessions",
+      "colFeedback": "Feedback",
+      "colAvg": "Avg rating",
+      "colRecommend": "Recommend",
+      "trainings": "Trainings",
+      "colTraining": "Training",
+      "comments": "Comments",
+      "noTrainers": "No trainer feedback yet.",
+      "noComments": "No comments were left."
+    },
+    "config": {
+      "title": "Feedback Configuration",
+      "subtitle": "Add custom questions to the feedback form, per training category.",
+      "category": "Category",
+      "defaultForm": "Default form (all categories)"
+    },
+    "builder": {
+      "subtitle": "These questions appear after the standard ratings.",
+      "addQuestion": "Add question",
+      "label": "Question",
+      "options": "Options (one per line)",
+      "optionsPlaceholder": "Option 1\nOption 2",
+      "editQuestion": "Edit question",
+      "newQuestion": "New question",
+      "edit": "Edit",
+      "remove": "Remove",
+      "drag": "Drag to reorder",
+      "cancel": "Cancel",
+      "save": "Save",
+      "empty": "No custom questions yet. Add one to extend the feedback form.",
+      "confirmRemove": "Remove the question {label}?"
+    },
+    "questionType": {
+      "StarRating": "Star rating (1–5)",
+      "Scale10": "Scale (1–10)",
+      "YesNo": "Yes / No",
+      "MultipleChoice": "Multiple choice",
+      "FreeText": "Free text"
+    }
+  },
   "nav": {
     "sections": {
       "learning": "Learning",
@@ -9,6 +132,7 @@
       "catalog": "Catalog",
       "myTrainings": "My Trainings",
       "mySessions": "My Sessions",
+      "calendar": "Calendar",
       "scanQr": "Scan QR",
       "cursus": "Mon Cursus",
       "certificates": "Certificates",
@@ -20,9 +144,14 @@
       "serviceLines": "Service Lines",
       "employeeProfiles": "Employee Profiles",
       "curriculum": "Curriculum",
+      "trainingBudgets": "Training Budgets",
       "sessions": "Sessions",
+      "planning": "Planning",
       "attendance": "Attendance",
       "certificateRegistry": "Certificate Registry",
+      "feedback": "Feedback",
+      "reports": "Reports",
+      "importTrainings": "Import Trainings",
       "settings": "Settings"
     },
     "comingSoon": "Coming soon",
@@ -35,6 +164,40 @@
       "completedShort": "Done",
       "inProgressShort": "Active",
       "certificatesShort": "Certs"
+    }
+  },
+  "calendar": {
+    "title": "My Calendar",
+    "description": "Your enrolled sessions and training deadlines.",
+    "deadlineBadge": "Deadline",
+    "waitlistedBadge": "Waitlisted",
+    "subscribe": {
+      "action": "Subscribe to calendar",
+      "title": "Subscribe to your training calendar",
+      "description": "Add this feed to Outlook, Google or Apple Calendar to see your sessions update automatically.",
+      "generate": "Generate my calendar link",
+      "generating": "Generating…",
+      "webcal": "Subscription link (webcal)",
+      "https": "Subscription link (https)",
+      "instructions": "Outlook / Apple: open the webcal link to subscribe. Google Calendar: Other calendars → From URL → paste the https link.",
+      "warning": "Anyone with this link can see your schedule. Regenerate to revoke a shared link.",
+      "regenerate": "Regenerate link",
+      "copied": "Link copied",
+      "copyError": "Couldn't copy the link",
+      "error": "Couldn't generate your calendar link"
+    },
+    "planning": {
+      "title": "Session Planning",
+      "description": "All scheduled training sessions across the organization.",
+      "filters": {
+        "serviceLine": "Service line",
+        "grade": "Grade",
+        "status": "Status",
+        "room": "Room",
+        "all": "All",
+        "reset": "Reset"
+      },
+      "capacity": "{enrolled}/{max} enrolled"
     }
   },
   "languageSwitcher": {
@@ -191,7 +354,8 @@
       "inProgress": "In Progress",
       "completed": "Completed",
       "totalHours": "Total Hours",
-      "enrolled": "Enrolled"
+      "enrolled": "Enrolled",
+      "avgProgress": "Avg Progress"
     },
     "searchPlaceholder": "Search trainings...",
     "searchAria": "Search enrolled trainings",
@@ -502,6 +666,61 @@
       "courseMaterials": "Course Materials ({count})",
       "open": "Open",
       "noMaterials": "No course materials available yet."
+    },
+    "ask": {
+      "title": "EY Academy Assistant",
+      "subtitle": "Answers from your course materials, with sources.",
+      "placeholder": "Ask your learning assistant…",
+      "askButton": "Send",
+      "asking": "Thinking…",
+      "sources": "Sources",
+      "error": "Something went wrong. Please try again.",
+      "open": "Open the Academy Assistant",
+      "close": "Close",
+      "empty": "Ask anything about this chapter. Answers come from its content, with sources you can jump to.",
+      "emptyGlobal": "Ask about your trainings, deadlines, certificates — or anything covered in your enrolled courses.",
+      "expand": "Expand",
+      "collapse": "Shrink",
+      "toolSearch": "Searching your course content…",
+      "toolTrainings": "Checking your trainings…",
+      "toolDue": "Checking your deadlines…",
+      "toolCursus": "Looking up your cursus…",
+      "toolCatalog": "Searching the catalog…",
+      "toolCertificates": "Fetching your certificates…",
+      "toolSessions": "Checking your sessions…",
+      "toolNavigate": "Getting the page…",
+      "toolEnrol": "Preparing your enrolment…",
+      "toolComplete": "Updating your progress…",
+      "navOpened": "Opened",
+      "confirmEnrol": "Enrol in “{title}”?",
+      "confirmEnrolMeta": "{credits, plural, one {# credit} other {# credits}}",
+      "confirmComplete": "Mark “{chapter}” as complete?",
+      "confirmCompleteMeta": "{count, plural, one {# remaining section} other {# remaining sections}}",
+      "approve": "Confirm",
+      "decline": "Decline",
+      "confirmApproved": "Confirmed",
+      "confirmDeclined": "Declined",
+      "confirmExpired": "This confirmation is no longer active — it may have been decided elsewhere or expired. Check My Trainings if you're unsure.",
+      "resumeCut": "The connection was lost while confirming — please check My Trainings to see whether it was applied.",
+      "feedbackPrompt": "Was this helpful?",
+      "thumbsUp": "Helpful",
+      "thumbsDown": "Not helpful",
+      "feedbackThanks": "Thanks for your feedback.",
+      "feedbackError": "Couldn't save your feedback — please try again.",
+      "historyButton": "History",
+      "newChat": "New conversation",
+      "historyEmpty": "No saved conversations yet.",
+      "historyUntitled": "Conversation",
+      "dest": {
+        "catalog": "Catalog",
+        "dashboard": "Dashboard",
+        "cursus": "Mon Cursus",
+        "myTrainings": "My Trainings",
+        "mySessions": "My Sessions",
+        "certificates": "Certificates",
+        "training": "Course page",
+        "learn": "Open the course"
+      }
     }
   },
   "exam": {
@@ -525,6 +744,7 @@
     "intro": {
       "questions": "Questions",
       "timeLimit": "Time Limit",
+      "suggestedTime": "Suggested time",
       "minutes": "{minutes} min",
       "alreadyPassed": "You have already passed this exam. You can retake it if you wish.",
       "retake": "Retake Exam",
@@ -554,10 +774,153 @@
       "reviewChapters": "Review Chapters"
     }
   },
+  "imports": {
+    "title": "Import Trainings",
+    "subtitle": "Bulk-import trainings from an Excel workbook with preview and validation",
+    "downloadTemplate": "Download template",
+    "upload": {
+      "choose": "Choose file",
+      "noFile": "No file selected",
+      "button": "Upload & preview",
+      "uploading": "Uploading…"
+    },
+    "toast": {
+      "uploaded": "File validated — review the preview below.",
+      "uploadError": "Could not process the file.",
+      "templateError": "Could not download the template.",
+      "applied": "Import complete.",
+      "appliedWithErrors": "{failed, plural, one {Import finished — # row failed.} other {Import finished — # rows failed.}}",
+      "applyError": "Could not complete the import.",
+      "errorLogError": "Could not download the error log."
+    },
+    "summary": {
+      "total": "{count} total",
+      "ready": "{count} ready",
+      "duplicate": "{count} duplicate",
+      "error": "{count} error"
+    },
+    "globalIssues": "Workbook issues",
+    "noRows": "No trainings found in the workbook.",
+    "previewNote": "This is a preview — nothing has been imported yet. Confirming the import is the next step.",
+    "cols": {
+      "ref": "Ref",
+      "title": "Title",
+      "category": "Category",
+      "format": "Format",
+      "structure": "Sessions / Chapters / Content",
+      "structureShort": "S / C / Ct",
+      "status": "Status",
+      "action": "On duplicate"
+    },
+    "status": {
+      "ready": "Ready",
+      "duplicate": "Duplicate",
+      "error": "Error"
+    },
+    "actions": {
+      "skip": "Skip",
+      "createNew": "Create as new",
+      "safeUpdate": "Update existing"
+    },
+    "confirm": {
+      "button": "Confirm import ({count})",
+      "applying": "Importing…"
+    },
+    "result": {
+      "title": "Import complete",
+      "imported": "{count} imported",
+      "updated": "{count} updated",
+      "skipped": "{count} skipped",
+      "failed": "{count} failed",
+      "downloadErrors": "Download error log"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "subtitle": "Attendance, training hours and in-person vs e-learning comparison",
+    "tabs": {
+      "attendance": "Attendance",
+      "hours": "Training Hours",
+      "format": "Format Comparison"
+    },
+    "filters": {
+      "grade": "Grade",
+      "serviceLine": "Service Line",
+      "from": "From",
+      "to": "To",
+      "allGrades": "All grades",
+      "allServiceLines": "All service lines",
+      "reset": "Reset"
+    },
+    "export": {
+      "excel": "Excel",
+      "pdf": "PDF",
+      "error": "Export failed. Please try again."
+    },
+    "empty": "No data for the selected filters.",
+    "total": "Total",
+    "hoursEstimatedNote": "Hours are estimated: in-person from attended-session times, e-learning from authored content duration.",
+    "completionByFormat": "Completion rate by format",
+    "attendanceByGrade": "Attendance rate by grade",
+    "format": {
+      "eLearning": "E-learning",
+      "onSite": "On-site"
+    },
+    "cols": {
+      "employee": "Employee",
+      "grade": "Grade",
+      "serviceLine": "Service Line",
+      "enrolled": "Enrolled",
+      "attended": "Attended",
+      "missed": "Missed",
+      "rate": "Attendance Rate",
+      "eLearningHours": "E-learning Hours",
+      "inPersonHours": "In-person Hours",
+      "totalHours": "Total Hours",
+      "completed": "Completed",
+      "trainings": "Trainings",
+      "hoursDelivered": "Hours Delivered",
+      "participants": "Participants",
+      "avgFeedback": "Avg Feedback"
+    }
+  },
+  "trainerFeedback": {
+    "noSessions": "You have no sessions to review yet. Group feedback becomes available once a session you lead has been held.",
+    "giveFeedback": "Give feedback",
+    "submitted": "Feedback submitted",
+    "notYetHeld": "Not yet held",
+    "form": {
+      "title": "Feedback on your group",
+      "engagement": "Group engagement",
+      "knowledge": "Knowledge level",
+      "comments": "Comments",
+      "prerequisites": "Prerequisite suggestions",
+      "prerequisitesPlaceholder": "What should attendees know before this session?",
+      "cancel": "Cancel",
+      "submit": "Submit feedback",
+      "submitting": "Submitting…"
+    },
+    "toast": {
+      "successTitle": "Feedback submitted",
+      "successBody": "Thank you — your feedback on the group has been recorded.",
+      "errorTitle": "Could not submit feedback",
+      "errorBody": "Something went wrong. Please try again."
+    },
+    "adminCard": {
+      "title": "Trainer feedback on group",
+      "none": "The trainer has not submitted feedback for this session.",
+      "by": "by {name}"
+    }
+  },
   "mySessions": {
     "title": "My Sessions",
     "subtitle": "Manage your in-person training sessions and attendance",
     "backToMySessions": "Back to My Sessions",
+    "tabs": {
+      "attending": "Attending",
+      "leading": "Leading",
+      "leadingDisabled": "You aren't assigned as a trainer on any sessions yet"
+    },
     "trainingCount": "{count, plural, one {# training} other {# trainings}}",
     "partTitle": "Part {number}: {title}",
     "stats": {
@@ -703,6 +1066,8 @@
     },
     "detail": {
       "loading": "Loading training details...",
+      "tabDetails": "Details",
+      "tabFeedback": "Feedback",
       "manageTrainings": "Manage Trainings",
       "deleted": "Deleted",
       "mandatory": "Mandatory",
@@ -726,6 +1091,10 @@
         "exams": "Exams"
       },
       "courseMaterials": "Course Materials",
+      "tabs": {
+        "sessions": "Sessions",
+        "costs": "Costs"
+      },
       "chaptersHeading": "Chapters",
       "addChapter": "Add Chapter"
     },
@@ -789,6 +1158,7 @@
         "titleMinLength": "Title must be at least 2 characters.",
         "categoryRequired": "Please select a category.",
         "creditsNegative": "Credits cannot be negative.",
+        "sponsoringServiceLineRequired": "Sponsoring service line is required for external trainings.",
         "scheduledDateFuture": "Scheduled date must be in the future."
       }
     },
@@ -1019,13 +1389,29 @@
   },
   "adminDashboard": {
     "moduleTitle": "Administration",
-    "title": "Programme Matrix & Progress",
-    "description": "Click any cell to see detailed employee stats. Grade x Service Line completion matrix and advancement rates.",
+    "title": "Learning analytics",
+    "description": "Curriculum completion by grade and service line, and in-person attendance across sessions.",
+    "tabs": {
+      "programme": "Programme Matrix",
+      "attendance": "Attendance",
+      "ariaLabel": "Admin dashboards"
+    },
     "kpi": {
       "profiledEmployees": "Profiled Employees",
       "activeCells": "Active Cells",
+      "activeGroups": "Active Groups",
       "avgCompletion": "Avg. Completion",
-      "greenCells": "Cells over 80%"
+      "greenCells": "Cells over 80%",
+      "groupsAbove80": "Groups ≥ 80%"
+    },
+    "section": {
+      "completionByGroup": "Completion by group",
+      "completionByGroupHint": "Each grade × service line group, sorted by lowest completion first. Click a group for per-employee progress."
+    },
+    "attention": {
+      "empty": "No groups with enrolled employees yet.",
+      "tileAria": "{grade}, {sl}: {rate}% complete, {count, plural, one {# person} other {# people}}",
+      "people": "{count, plural, one {# person} other {# people}}"
     },
     "matrix": {
       "heading": "Programme Matrix",
@@ -1145,7 +1531,8 @@
     },
     "card": {
       "points": "{count, plural, one {# pt} other {# pts}}",
-      "optionsCount": "{count, plural, one {# option} other {# options}}"
+      "optionsCount": "{count, plural, one {# option} other {# options}}",
+      "explanation": "Explanation"
     },
     "preview": {
       "title": "Preview: {title}",
@@ -1196,6 +1583,8 @@
       "cancel": "Cancel",
       "updateQuestion": "Update Question",
       "addQuestion": "Add Question",
+      "explanationLabel": "Explanation (optional)",
+      "explanationPlaceholder": "Explain why the correct answer is right...",
       "unexpectedError": "An unexpected error occurred."
     },
     "options": {
@@ -1222,6 +1611,60 @@
     "toast": {
       "confirmDeleteExam": "Delete this exam and all its questions? This cannot be undone.",
       "confirmDeleteQuestion": "Delete question \"{text}\"?"
+    }
+  },
+  "adminQuiz": {
+    "title": "AI Quiz Generator",
+    "generateWithAi": "Generate with AI",
+    "description": "Generate multiple-choice questions from this training's content, review and edit them, then publish to the exam.",
+    "loading": "Loading draft...",
+    "unavailable": "AI quiz generation isn't configured for this environment.",
+    "countLabel": "Number of questions",
+    "generate": "Generate",
+    "regenerate": "Regenerate",
+    "generating": "Generating questions...",
+    "generatingHint": "This can take a minute or two for a full quiz — you can keep this open.",
+    "stageReading": "Reading the training content...",
+    "stageAnalyzing": "Analyzing the material...",
+    "stageWriting": "Writing questions...",
+    "stageFinalizing": "Finalizing the quiz...",
+    "generated": "{count, plural, one {# question generated} other {# questions generated}}",
+    "addManually": "Add manually",
+    "emptyTitle": "No questions yet",
+    "emptyDescription": "Generate with AI or add questions manually to build your quiz.",
+    "questionsCount": "{count, plural, one {# question} other {# questions}}",
+    "invalidHint": "{count, plural, one {# question needs attention} other {# questions need attention}}",
+    "untitled": "Untitled question",
+    "emptyOption": "Empty option",
+    "points": "{count, plural, one {# pt} other {# pts}}",
+    "type": {
+      "SingleChoice": "Single Choice",
+      "MultipleChoice": "Multiple Choice",
+      "TrueFalse": "True / False"
+    },
+    "sourceAi": "AI",
+    "sourceManual": "Manual",
+    "explanationLabel": "Explanation",
+    "discard": "Discard",
+    "saveDraft": "Save draft",
+    "publish": "Publish to exam",
+    "publishExisting": "Add to exam",
+    "confirmPublish": "Publish {count, plural, one {# question} other {# questions}} to the exam?",
+    "confirmDiscard": "Discard this draft? This cannot be undone.",
+    "published": "{count, plural, one {# question published to the exam} other {# questions published to the exam}}",
+    "saved": "Draft saved.",
+    "discarded": "Draft discarded.",
+    "genError": "Could not generate a quiz. Please try again.",
+    "saveError": "Could not save the draft.",
+    "publishError": "Could not publish the quiz.",
+    "discardError": "Could not discard the draft.",
+    "backfill": {
+      "title": "Extract text from existing PDFs",
+      "description": "Reads the text of already-uploaded PDF lessons into the database so the AI quiz generator can use them. Runs once; safe to repeat.",
+      "button": "Extract PDF text",
+      "running": "Extracting...",
+      "done": "Done — extracted text from {updated} of {scanned} PDF(s); {skipped} skipped.",
+      "error": "Could not run the PDF text extraction."
     }
   },
   "adminGrades": {

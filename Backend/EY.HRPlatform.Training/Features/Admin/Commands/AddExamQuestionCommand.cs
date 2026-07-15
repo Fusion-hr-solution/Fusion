@@ -9,6 +9,7 @@ public record AddExamQuestionCommand(
     string QuestionText,
     string Type,
     int Points,
-    List<AddExamQuestionOptionItem> Options) : ICommand<Result<Guid>>;
+    List<AddExamQuestionOptionItem> Options,
+    string? Explanation = null) : ICommand<Result<Guid>>;
 
 public record AddExamQuestionOptionItem(string OptionText, bool IsCorrect);

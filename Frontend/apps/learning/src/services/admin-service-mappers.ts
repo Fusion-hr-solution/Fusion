@@ -8,9 +8,13 @@ import type {
   AdminCategory,
   AdminOnSiteCourse,
   AdminExamDetail,
+  QuizDraft,
+  QuestionType,
+  AdminTrainingBudget,
 } from "@/types/admin";
 import type { ChapterLayout, TrainingType } from "@/types";
 import type {
+  BackendTrainingBudgetDto,
   BackendAdminTrainingDto,
   BackendAdminChapterDto,
   BackendAdminContentBlockDto,
@@ -19,6 +23,7 @@ import type {
   BackendOnSiteCourseDto,
   BackendAssignmentDto,
   BackendTrainingCategoryDto,
+  BackendQuizDraftDto,
 } from "@/types/backend-dtos";
 import type { CreateChapterInput, UpdateChapterInput } from "@/types/admin";
 
@@ -38,6 +43,8 @@ export function mapTraining(dto: BackendAdminTrainingDto): AdminTraining {
     chapterCount: dto.chapterCount,
     enrollmentCount: dto.enrollmentCount,
     trainingType: (dto.trainingType ?? "ELearning") as TrainingType,
+    costType: (dto.costType ?? undefined) as AdminTraining["costType"],
+    sponsoringServiceLineId: dto.sponsoringServiceLineId ?? undefined,
     scheduledDate: dto.scheduledDate ?? undefined,
     isDeleted: dto.isDeleted,
     createdAt: dto.createdAt,
@@ -118,6 +125,20 @@ export function mapAssignment(dto: BackendAssignmentDto): AdminAssignment {
   };
 }
 
+export function mapBudget(dto: BackendTrainingBudgetDto): AdminTrainingBudget {
+  return {
+    id: dto.id,
+    serviceLineId: dto.serviceLineId,
+    periodType: dto.periodType as AdminTrainingBudget["periodType"],
+    periodStart: dto.periodStart,
+    periodEnd: dto.periodEnd,
+    allocatedAmount: dto.allocatedAmount,
+    spend: dto.spend,
+    remaining: dto.remaining,
+    percentage: dto.percentage,
+  };
+}
+
 export function mapCategory(dto: BackendTrainingCategoryDto): AdminCategory {
   return {
     id: dto.id,
@@ -146,6 +167,7 @@ export function mapExamDetail(dto: BackendAdminExamDetailDto): AdminExamDetail {
         type: q.type as AdminExamDetail["questions"][number]["type"],
         orderIndex: q.orderIndex,
         points: q.points,
+        explanation: q.explanation ?? undefined,
         options: q.options
           .slice()
           .sort((a, b) => a.orderIndex - b.orderIndex)
@@ -155,6 +177,28 @@ export function mapExamDetail(dto: BackendAdminExamDetailDto): AdminExamDetail {
             isCorrect: o.isCorrect,
             orderIndex: o.orderIndex,
           })),
+      })),
+  };
+}
+
+export function mapQuizDraft(dto: BackendQuizDraftDto): QuizDraft {
+  return {
+    trainingId: dto.trainingId,
+    aiAvailable: dto.aiAvailable,
+    questions: (dto.questions ?? [])
+      .slice()
+      .sort((a, b) => a.order - b.order)
+      .map((q) => ({
+        text: q.text,
+        type: q.type as QuestionType,
+        points: q.points,
+        explanation: q.explanation ?? undefined,
+        order: q.order,
+        source: q.source ?? "ai",
+        options: (q.options ?? []).map((o) => ({
+          text: o.text,
+          isCorrect: o.isCorrect,
+        })),
       })),
   };
 }

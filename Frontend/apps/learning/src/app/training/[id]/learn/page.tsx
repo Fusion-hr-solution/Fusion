@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo } from "react";
+import { Suspense, use, useCallback, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useApiQuery } from "@repo/api/react";
 import { ApiError } from "@repo/api";
@@ -124,5 +124,11 @@ export default function LearnPage({ params }: LearnPageProps) {
     );
   }
 
-  return <CoursePlayer learnData={enrichedLearnData} />;
+  // Suspense: CoursePlayer reads useSearchParams (?chapter deep link) — keep the
+  // prerender bailout happy.
+  return (
+    <Suspense fallback={null}>
+      <CoursePlayer learnData={enrichedLearnData} />
+    </Suspense>
+  );
 }

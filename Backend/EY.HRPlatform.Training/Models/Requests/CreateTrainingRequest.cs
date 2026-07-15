@@ -28,6 +28,10 @@ public class CreateTrainingRequest
 
     public DateTime? ScheduledDate { get; set; }
 
+    public string CostType { get; set; } = "Internal";
+
+    public Guid? SponsoringServiceLineId { get; set; }
+
     public List<CreateChapterRequest> Chapters { get; set; } = [];
 
     public List<CreateOnSiteCourseRequest> OnSiteCourses { get; set; } = [];

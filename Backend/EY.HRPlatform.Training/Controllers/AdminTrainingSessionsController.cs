@@ -149,7 +149,8 @@ public class AdminTrainingSessionsController : ControllerBase
         {
             var result = await _sender.Send(new AddSessionCommand(
                 trainingId, partId, request.StartUtc, request.EndUtc, request.Room, request.MaxCapacity,
-                request.Notes, request.TrainerEmployeeId, request.TrainerName, request.TrainerEmail),
+                request.Notes, request.TrainerEmployeeId, request.TrainerName, request.TrainerEmail,
+                request.ExternalTrainerCost, request.VenueCost, request.MaterialsCost, request.OtherCost),
                 cancellationToken);
 
             if (result.IsFailure)
@@ -179,7 +180,8 @@ public class AdminTrainingSessionsController : ControllerBase
         {
             var result = await _sender.Send(new UpdateSessionCommand(
                 sessionId, request.StartUtc, request.EndUtc, request.Room, request.MaxCapacity,
-                request.Notes, request.TrainerEmployeeId, request.TrainerName, request.TrainerEmail),
+                request.Notes, request.TrainerEmployeeId, request.TrainerName, request.TrainerEmail,
+                request.ExternalTrainerCost, request.VenueCost, request.MaterialsCost, request.OtherCost),
                 cancellationToken);
 
             if (result.IsFailure)
@@ -194,6 +196,34 @@ public class AdminTrainingSessionsController : ControllerBase
             _logger.LogError(ex, "Failed to update session {SessionId}", sessionId);
             return StatusCode(StatusCodes.Status500InternalServerError,
                 ApiResponse.Failure("An error occurred while updating the session."));
+        }
+    }
+
+    /// <summary>Reschedule a session (Start/End only) — the drag/drop entry point on the planning calendar.</summary>
+    [HttpPatch("sessions/{sessionId:guid}/schedule")]
+    [ProducesResponseType(typeof(ApiResponse<UpdateSessionResult>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RescheduleSession(
+        Guid sessionId, [FromBody] RescheduleSessionRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _sender.Send(
+                new RescheduleSessionCommand(sessionId, request.StartUtc, request.EndUtc), cancellationToken);
+
+            if (result.IsFailure)
+                return result.Error.Code.EndsWith("NotFound")
+                    ? NotFound(ApiResponse.Failure(result.Error.Message))
+                    : BadRequest(ApiResponse.Failure(result.Error.Message));
+
+            return Ok(ApiResponse<UpdateSessionResult>.Success(result.Value!));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to reschedule session {SessionId}", sessionId);
+            return StatusCode(StatusCodes.Status500InternalServerError,
+                ApiResponse.Failure("An error occurred while rescheduling the session."));
         }
     }
 

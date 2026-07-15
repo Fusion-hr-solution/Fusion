@@ -18,6 +18,12 @@ public class TrainingCourse : AggregateRoot
     public TrainingType TrainingType { get; private set; } = TrainingType.ELearning;
     public DateTime? ScheduledDate { get; private set; }
 
+    /// <summary>Cost origin. Meaningful only when TrainingType = OnSite. Defaults to Internal (free).</summary>
+    public CostType CostType { get; private set; } = CostType.Internal;
+
+    /// <summary>Soft reference (no FK). Required iff CostType = External and TrainingType = OnSite.</summary>
+    public Guid? SponsoringServiceLineId { get; private set; }
+
     public bool IsDeleted { get; private set; } = false;
     public DateTime? DeletedAt { get; private set; }
 
@@ -53,7 +59,9 @@ public class TrainingCourse : AggregateRoot
         Guid categoryId,
         string? duration = null,
         TrainingType trainingType = TrainingType.ELearning,
-        DateTime? scheduledDate = null)
+        DateTime? scheduledDate = null,
+        CostType costType = CostType.Internal,
+        Guid? sponsoringServiceLineId = null)
     {
         Title = title;
         Description = description;
@@ -64,10 +72,13 @@ public class TrainingCourse : AggregateRoot
         Duration = duration;
         TrainingType = trainingType;
         ScheduledDate = scheduledDate;
+        CostType = costType;
+        SponsoringServiceLineId = sponsoringServiceLineId;
     }
 
     public void Update(string title, string? description, int credits, bool isMandatory, BadgeLevel badgeLevel, string? duration,
-        TrainingType? trainingType = null, DateTime? scheduledDate = null)
+        TrainingType? trainingType = null, DateTime? scheduledDate = null,
+        CostType? costType = null, Guid? sponsoringServiceLineId = null)
     {
         Title = title;
         Description = description;
@@ -77,6 +88,8 @@ public class TrainingCourse : AggregateRoot
         Duration = duration;
         if (trainingType.HasValue) TrainingType = trainingType.Value;
         ScheduledDate = scheduledDate;
+        if (costType.HasValue) CostType = costType.Value;
+        SponsoringServiceLineId = sponsoringServiceLineId;
         UpdatedAt = DateTime.UtcNow;
     }
 

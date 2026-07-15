@@ -17,7 +17,13 @@ import {
   CalendarClock,
   CalendarCheck2,
   ScanLine,
+  Wallet,
   BadgeCheck,
+  CalendarDays,
+  CalendarRange,
+  MessageSquare,
+  FileBarChart,
+  Upload,
 } from "lucide-react";
 import type { NavSection } from "@repo/ui";
 
@@ -33,6 +39,7 @@ export const EMPLOYEE_NAV: NavSection = {
     { label: "catalog", href: "/", icon: BookOpen },
     { label: "myTrainings", href: "/my-trainings", icon: GraduationCap },
     { label: "mySessions", href: "/my-sessions", icon: CalendarCheck2 },
+    { label: "calendar", href: "/calendar", icon: CalendarDays },
     { label: "scanQr", href: "/my-sessions/scan", icon: ScanLine },
     { label: "cursus", href: "/cursus", icon: Route },
     { label: "certificates", href: "/certificates", icon: Award },
@@ -65,8 +72,13 @@ export const ADMIN_NAV: NavSection = {
       icon: UserCog,
     },
     { label: "curriculum", href: "/admin/curriculum", icon: Grid3X3 },
+    { label: "trainingBudgets", href: "/admin/budgets", icon: Wallet },
     { label: "sessions", href: "/admin/sessions", icon: CalendarClock },
+    { label: "planning", href: "/admin/planning", icon: CalendarRange },
     { label: "attendance", href: "/admin/attendance", icon: BarChart2 },
+    { label: "feedback", href: "/admin/feedback", icon: MessageSquare },
+    { label: "reports", href: "/admin/reports", icon: FileBarChart },
+    { label: "importTrainings", href: "/admin/imports/trainings", icon: Upload },
     {
       label: "certificateRegistry",
       href: "/admin/certificates",

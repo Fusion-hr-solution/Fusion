@@ -13,6 +13,7 @@ public class TrainingDto
     public string CategoryName { get; set; } = string.Empty;
     public int ChapterCount { get; set; }
     public string TrainingType { get; set; } = "ELearning";
+    public string CostType { get; set; } = "Internal";
     public DateTime? ScheduledDate { get; set; }
     public DateTime CreatedAt { get; set; }
 }

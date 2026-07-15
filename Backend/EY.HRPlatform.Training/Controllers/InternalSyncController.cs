@@ -1,4 +1,5 @@
 using EY.HRPlatform.Training.Features.Internal.Commands;
+using EY.HRPlatform.Training.Features.Internal.Queries;
 using EY.HRPlatform.Training.Models.Requests;
 using EY.HRPlatform.Training.Models.Responses;
 using MediatR;
@@ -60,6 +61,34 @@ public class InternalSyncController : ControllerBase
         }
 
         return Ok(ApiResponse.Success());
+    }
+
+    /// <summary>
+    /// Returns the full text content of a training (chapters + content blocks) for
+    /// internal AI ingestion. Same X-Service-Key shared-secret gate; no enrollment.
+    /// </summary>
+    [HttpGet("trainings/{id:guid}/content")]
+    [ProducesResponseType(typeof(ApiResponse<InternalTrainingContentDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetTrainingContent(
+        Guid id,
+        [FromHeader(Name = "X-Service-Key")] string? serviceKey,
+        CancellationToken cancellationToken)
+    {
+        var expectedKey = _configuration["ServiceIntegration:ApiKey"];
+        if (string.IsNullOrWhiteSpace(expectedKey) || serviceKey != expectedKey)
+        {
+            _logger.LogWarning("Rejected internal /trainings/{TrainingId}/content call — invalid or missing X-Service-Key", id);
+            return Unauthorized();
+        }
+
+        var result = await _sender.Send(new GetTrainingContentForInternalQuery(id), cancellationToken);
+
+        if (result.IsFailure)
+            return NotFound(ApiResponse.Failure(result.Error.Message));
+
+        return Ok(ApiResponse<InternalTrainingContentDto>.Success(result.Value!));
     }
 }
 

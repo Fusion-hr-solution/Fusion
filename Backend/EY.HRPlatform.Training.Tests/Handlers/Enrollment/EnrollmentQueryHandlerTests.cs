@@ -32,7 +32,7 @@ public class EnrollmentQueryHandlerTests
         var part2Result = await addPartHandler.Handle(
             new AddPartCommand(training.Id, "Part 2", null, 3m), CancellationToken.None);
 
-        var addSessionHandler = new AddSessionCommandHandler(ctx);
+        var addSessionHandler = new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier());
         var start1 = DateTime.UtcNow.Date.AddDays(14).AddHours(9);
         var session1Result = await addSessionHandler.Handle(new AddSessionCommand(
             training.Id, part1Result.Value, start1, start1.AddHours(3),
@@ -164,7 +164,7 @@ public class EnrollmentQueryHandlerTests
             ]), CancellationToken.None);
 
         // Mark attendance for part 1
-        var markHandler = new MarkAttendanceCommandHandler(ctx);
+        var markHandler = new MarkAttendanceCommandHandler(ctx, new FakeAttendanceCompletionService());
         await markHandler.Handle(new MarkAttendanceCommand(session1Id, employeeId), CancellationToken.None);
 
         var handler = new GetMySessionEnrollmentsQueryHandler(ctx);
@@ -193,7 +193,7 @@ public class EnrollmentQueryHandlerTests
             ]), CancellationToken.None);
 
         // Mark attendance for both parts
-        var markHandler = new MarkAttendanceCommandHandler(ctx);
+        var markHandler = new MarkAttendanceCommandHandler(ctx, new FakeAttendanceCompletionService());
         await markHandler.Handle(new MarkAttendanceCommand(session1Id, employeeId), CancellationToken.None);
         await markHandler.Handle(new MarkAttendanceCommand(session2Id, employeeId), CancellationToken.None);
 

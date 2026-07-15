@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Award, Download, Loader2 } from "lucide-react";
+import { Award, CheckCircle2, Download, Loader2, XCircle } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { Badge, Button, Card, CardContent } from "@repo/ui";
 import { toast } from "sonner";
@@ -47,9 +47,20 @@ export function CertificateCard({
               <h3 className="truncate text-sm font-semibold text-foreground">
                 {certificate.trainingTitle}
               </h3>
-              <Badge variant={isRevoked ? "destructive" : "secondary"}>
-                {isRevoked ? t("revoked") : t("valid")}
-              </Badge>
+              {isRevoked ? (
+                <Badge variant="destructive">
+                  <XCircle className="mr-1 h-3 w-3" aria-hidden="true" />
+                  {t("revoked")}
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="border-[hsl(var(--ey-green-500))]/20 bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]"
+                >
+                  <CheckCircle2 className="mr-1 h-3 w-3" aria-hidden="true" />
+                  {t("valid")}
+                </Badge>
+              )}
             </div>
             {subtitle ? (
               <p className="mt-0.5 truncate text-xs text-muted-foreground">

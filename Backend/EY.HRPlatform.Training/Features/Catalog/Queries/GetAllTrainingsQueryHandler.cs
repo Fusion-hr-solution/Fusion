@@ -29,9 +29,13 @@ public class GetAllTrainingsQueryHandler : IQueryHandler<GetAllTrainingsQuery, R
             query = query.Where(t => t.TrainingType == request.TrainingType.Value);
 
         if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            // Case-insensitive, like the admin catalog search (Postgres LIKE is case-sensitive).
+            var search = request.Search.ToLower();
             query = query.Where(t =>
-                t.Title.Contains(request.Search) ||
-                (t.Description != null && t.Description.Contains(request.Search)));
+                t.Title.ToLower().Contains(search) ||
+                (t.Description != null && t.Description.ToLower().Contains(search)));
+        }
 
         var totalCount = await query.CountAsync(cancellationToken);
 
@@ -55,6 +59,7 @@ public class GetAllTrainingsQueryHandler : IQueryHandler<GetAllTrainingsQuery, R
                 CategoryName = t.Category.Name,
                 ChapterCount = t.TrainingType == TrainingType.OnSite ? t.OnSiteCourses.Count : t.Chapters.Count,
                 TrainingType = t.TrainingType.ToString(),
+                CostType = t.CostType.ToString(),
                 ScheduledDate = t.ScheduledDate,
                 CreatedAt = t.CreatedAt
             })
