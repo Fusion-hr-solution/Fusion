@@ -73,6 +73,12 @@ vi.mock("@repo/auth", () => ({
         grant.scope === "Tenant" &&
         grant.permissionKey === "performance.strategic.view",
     ) ?? false,
+  canSeeOwnCoreProfileNavigation: (user: TestUser | null) =>
+    !!user?.employeeId &&
+    (user?.permissions?.some(
+      (grant) => grant.permissionKey === "core.profile.self.view",
+    ) ??
+      false),
   useAuth: () => ({
     user: authState.user,
     logout: vi.fn(),
@@ -81,7 +87,13 @@ vi.mock("@repo/auth", () => ({
 
 vi.mock("@repo/ds/shell", () => ({
   FUSION_MODULES: [],
-  ModuleSidebar: ({ sections }: { sections: Array<{ title?: string; items: Array<{ label: string; href: string }> }> }) => (
+  ModuleSidebar: ({
+    sections,
+    userPanel,
+  }: {
+    sections: Array<{ title?: string; items: Array<{ label: string; href: string }> }>;
+    userPanel?: (collapsed: boolean) => React.ReactNode;
+  }) => (
     <nav aria-label="Performance navigation">
       {sections.map((section, index) => (
         <section key={section.title ?? index}>
@@ -93,9 +105,22 @@ vi.mock("@repo/ds/shell", () => ({
           ))}
         </section>
       ))}
+      {userPanel ? userPanel(false) : null}
     </nav>
   ),
-  ShellUserPanel: () => null,
+  ShellUserPanel: ({
+    links,
+  }: {
+    links: Array<{ label: string; href: string }>;
+  }) => (
+    <nav aria-label="User panel">
+      {links.map((link) => (
+        <a key={link.href} href={link.href}>
+          {link.label}
+        </a>
+      ))}
+    </nav>
+  ),
 }));
 
 let root: Root | null = null;
@@ -292,6 +317,34 @@ describe("PerformanceSidebar", () => {
     ).toBeTruthy();
     expect(sidebar.textContent).not.toContain("Objective Planning");
     expect(sidebar.textContent).not.toContain("Platform setup");
+  });
+
+  it("links My profile to the Core-owned profile route for an employee-linked user", () => {
+    // Performance owns no profile route — the link must point at Core's, not a
+    // /performance/profile dead end.
+    const sidebar = renderSidebar({
+      fullName: "Employee",
+      roles: ["Employee"],
+      employeeId: "emp-1",
+      permissions: [
+        { permissionKey: "core.profile.self.view", scope: "Self" },
+      ],
+    });
+
+    expect(sidebar.querySelector('a[href="/core/profile"]')).toBeTruthy();
+    expect(sidebar.querySelector('a[href="/performance/profile"]')).toBeNull();
+  });
+
+  it("hides My profile from a user with no employee link", () => {
+    const sidebar = renderSidebar({
+      fullName: "Platform Admin",
+      roles: ["PlatformAdmin"],
+      employeeId: null,
+      permissions: [],
+    });
+
+    expect(sidebar.textContent).not.toContain("My profile");
+    expect(sidebar.querySelector('a[href="/core/profile"]')).toBeNull();
   });
 
   it("shows both tenant and platform sections only when both authorities exist", () => {
