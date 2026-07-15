@@ -194,7 +194,12 @@ function Sandbox({ framework, initial }: { framework: FrontendFramework; initial
       const next = value ?? "";
       project.updateActive(next);
       const instance = containerRef.current;
-      if (instance) void instance.fs.writeFile(project.activePath, next).catch(() => {});
+      if (!instance) return;
+      // Never swallow this: if the write fails, the editor keeps showing the candidate's code while
+      // the preview silently runs the OLD file — which looks like "my edits do nothing".
+      void instance.fs.writeFile(project.activePath, next).catch((err) => {
+        console.error(`[sandbox] failed to write ${project.activePath} to the container`, err);
+      });
     },
     [project],
   );

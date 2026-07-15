@@ -40,6 +40,11 @@ describe("routing", () => {
     expect(title()).toBe("Not found");
   });
 
+  it("shows not-found for a valid route shape but unknown product id", () => {
+    at("/products/zzz");
+    expect(title()).toBe("Not found");
+  });
+
   it("navigates from the list to a detail page by clicking a link", () => {
     at("/products");
     fireEvent.click(screen.getByTestId("link-p1")); // Keyboard

@@ -205,12 +205,15 @@ const ANGULAR_TEMPLATE: Project = {
           name: "angular-challenge",
           private: true,
           scripts: { dev: "ng serve", build: "ng build", test: "ng test" },
+          // Keep in lockstep with docker/frontend-runner/angular/Dockerfile — the grader has no
+          // network and the IDE has no terminal, so a dep missing from either side is unusable.
           dependencies: {
             "@angular/core": "^18.2.0",
             "@angular/common": "^18.2.0",
             "@angular/compiler": "^18.2.0",
             "@angular/platform-browser": "^18.2.0",
             "@angular/platform-browser-dynamic": "^18.2.0",
+            "@angular/router": "^18.2.0",
             rxjs: "^7.8.1",
             "zone.js": "^0.14.10",
           },

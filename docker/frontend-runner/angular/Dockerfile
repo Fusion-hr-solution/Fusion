@@ -19,6 +19,7 @@ RUN cat > package.json <<'JSON'
     "@angular/compiler": "^18.2.0",
     "@angular/platform-browser": "^18.2.0",
     "@angular/platform-browser-dynamic": "^18.2.0",
+    "@angular/router": "^18.2.0",
     "rxjs": "^7.8.1",
     "tslib": "^2.7.0",
     "zone.js": "^0.14.10"
