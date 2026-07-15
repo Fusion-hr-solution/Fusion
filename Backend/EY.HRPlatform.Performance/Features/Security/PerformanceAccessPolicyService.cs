@@ -55,32 +55,26 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
     public bool CanViewCycles(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.CycleView, PermissionScopes.Tenant)
             || user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant);
 
     public bool CanManageCycles(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant);
 
     public bool CanOperateCycles(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant);
 
     // ─── Strategic objective permissions (D-05) ───────────────────────────────
 
     public bool CanViewStrategicObjectives(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)
             || user.HasCorePermission(PerformancePermissions.StrategicManage, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant);
 
     public bool CanManageStrategicObjectives(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.StrategicManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.StrategicManage, PermissionScopes.Tenant);
 
     public bool CanPublishStrategicObjectives(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant);
 
     // ─── Team objectives + cascade coverage (P1.3) ────────────────────────────
 

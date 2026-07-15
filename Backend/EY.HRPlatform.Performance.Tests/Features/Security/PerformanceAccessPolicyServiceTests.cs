@@ -61,18 +61,22 @@ public class PerformanceAccessPolicyServiceTests
     }
 
     [Fact]
-    public void PlatformAdmin_IsAllowedCycleOperations_ButNotTenantPlanningConfiguration()
+    public void PlatformAdmin_IsDeniedTenantCycleOperations_ButAllowedPlatformConfiguration()
     {
         var user = new ClaimsPrincipalBuilder()
             .WithRole(PlatformRole.PlatformAdmin)
             .Build();
 
-        Assert.True(_policy.CanViewCycles(user));
-        Assert.True(_policy.CanManageCycles(user));
-        Assert.True(_policy.CanOperateCycles(user));
+        Assert.False(_policy.CanViewCycles(user));
+        Assert.False(_policy.CanManageCycles(user));
+        Assert.False(_policy.CanOperateCycles(user));
+        Assert.False(_policy.CanViewStrategicObjectives(user));
+        Assert.False(_policy.CanManageStrategicObjectives(user));
+        Assert.False(_policy.CanPublishStrategicObjectives(user));
         Assert.True(_policy.CanActOnOwnedException(user));
         Assert.True(_policy.CanOverrideException(user));
         Assert.True(_policy.CanViewExceptionAudit(user));
+        Assert.True(_policy.CanManagePlatformDefaults(user));
 
         Assert.False(_policy.CanViewObjectivePlanningConfiguration(user));
         Assert.False(_policy.CanManageObjectivePlanningConfiguration(user));
