@@ -48,8 +48,11 @@ export function ReportsView() {
     () => ({
       gradeId: gradeId === ALL ? undefined : gradeId,
       serviceLineId: serviceLineId === ALL ? undefined : serviceLineId,
-      from: from ? new Date(from).toISOString() : undefined,
-      to: to ? new Date(to).toISOString() : undefined,
+      // Build the bounds in LOCAL time and make `to` the inclusive end-of-day, so the selected end
+      // day isn't dropped (date-only -> UTC-midnight would exclude everything after 00:00 UTC, and a
+      // single-day range would return nothing).
+      from: from ? new Date(`${from}T00:00:00`).toISOString() : undefined,
+      to: to ? new Date(`${to}T23:59:59.999`).toISOString() : undefined,
     }),
     [gradeId, serviceLineId, from, to],
   );

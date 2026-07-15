@@ -17,6 +17,7 @@ public class TrainingDbContext : DbContext
     public DbSet<TrainingSession> TrainingSessions => Set<TrainingSession>();
     public DbSet<SessionEnrollment> SessionEnrollments => Set<SessionEnrollment>();
     public DbSet<SessionAttendanceToken> SessionAttendanceTokens => Set<SessionAttendanceToken>();
+    public DbSet<CalendarFeedToken> CalendarFeedTokens => Set<CalendarFeedToken>();
     public DbSet<ChapterProgress> ChapterProgress => Set<ChapterProgress>();
     public DbSet<ContentBlockProgress> ContentBlockProgress => Set<ContentBlockProgress>();
     public DbSet<Exam> Exams => Set<Exam>();
@@ -38,6 +39,7 @@ public class TrainingDbContext : DbContext
     public DbSet<EmployeeProfile> EmployeeProfiles => Set<EmployeeProfile>();
     public DbSet<TrainingImportSession> TrainingImportSessions => Set<TrainingImportSession>();
     public DbSet<TrainingImportHistory> TrainingImportHistories => Set<TrainingImportHistory>();
+    public DbSet<QuizDraft> QuizDrafts => Set<QuizDraft>();
     public DbSet<TrainingBudget> TrainingBudgets => Set<TrainingBudget>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -199,6 +201,15 @@ public class TrainingDbContext : DbContext
                 .HasForeignKey(t => t.SessionId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(t => t.SessionId).IsUnique();
+        });
+
+        // --- CalendarFeedToken (per-learner opaque feed credential; only the hash is stored) ---
+        modelBuilder.Entity<CalendarFeedToken>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.TokenHash).HasMaxLength(128).IsRequired();
+            e.HasIndex(t => t.TokenHash).IsUnique();
+            e.HasIndex(t => t.EmployeeId).IsUnique().HasFilter("\"RevokedAt\" IS NULL");
         });
 
         // --- ChapterProgress ---
@@ -485,6 +496,14 @@ public class TrainingDbContext : DbContext
             e.HasKey(h => h.Id);
             e.Property(h => h.FileName).HasMaxLength(260);
             e.HasIndex(h => h.CreatedByEmployeeId);
+        });
+
+        // --- QuizDraft (US-8.2.5 per-training AI quiz draft, ADR 0009) ---
+        modelBuilder.Entity<QuizDraft>(e =>
+        {
+            e.HasKey(d => d.Id);
+            e.Property(d => d.QuestionsJson).HasColumnType("jsonb");
+            e.HasIndex(d => d.TrainingId).IsUnique();
         });
 
         // --- TrainingBudget ---

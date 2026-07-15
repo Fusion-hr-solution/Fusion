@@ -88,6 +88,14 @@ export function QuestionCard({
                 </div>
               ))}
             </div>
+            {question.explanation && (
+              <p className="pt-1 text-[11px] italic text-muted-foreground">
+                <span className="font-semibold not-italic">
+                  {t("card.explanation")}:
+                </span>{" "}
+                {question.explanation}
+              </p>
+            )}
           </div>
         </div>
       </CardContent>

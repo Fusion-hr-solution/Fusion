@@ -55,6 +55,8 @@ internal static class TrainingImportValidator
 
             if (string.IsNullOrWhiteSpace(t.Title))
                 Err(issues, "Title", "Title is required.");
+            MaxLen(issues, "Title", t.Title, 300, "Title");
+            MaxLen(issues, "Description", t.Description, 2000, "Description");
 
             if (string.IsNullOrWhiteSpace(t.Category))
                 Err(issues, "Category", "Category is required.");
@@ -130,6 +132,11 @@ internal static class TrainingImportValidator
             if (string.IsNullOrWhiteSpace(s.Capacity) || !int.TryParse(s.Capacity, out var cap) || cap <= 0)
                 Err(issues, null, $"{p}: Capacity must be a positive whole number.");
 
+            MaxLen(issues, null, s.PartTitle, 300, $"{p}: Part Title");
+            MaxLen(issues, null, s.Room, 200, $"{p}: Room");
+            MaxLen(issues, null, s.TrainerName, 200, $"{p}: Trainer Name");
+            MaxLen(issues, null, s.TrainerEmail, 320, $"{p}: Trainer Email");
+
             if (!string.IsNullOrWhiteSpace(s.TrainerEmail)
                 && !ctx.TrainerEmails.Contains(s.TrainerEmail.Trim().ToLowerInvariant()))
                 Warn(issues, null, $"{p}: trainer '{s.TrainerEmail.Trim()}' is not a known employee — will be kept as an external trainer.");
@@ -142,6 +149,7 @@ internal static class TrainingImportValidator
         {
             var p = $"Chapter row {c.RowNumber}";
             if (string.IsNullOrWhiteSpace(c.Title)) Err(issues, null, $"{p}: Chapter Title is required.");
+            MaxLen(issues, null, c.Title, 300, $"{p}: Chapter Title");
             if (string.IsNullOrWhiteSpace(c.Order) || !int.TryParse(c.Order, out _)) Err(issues, null, $"{p}: Order must be a whole number.");
             if (!string.IsNullOrWhiteSpace(c.Layout) && !ImportColumns.Layouts.Contains(c.Layout.Trim(), StringComparer.OrdinalIgnoreCase))
                 Warn(issues, null, $"{p}: unknown Layout '{c.Layout.Trim()}' — the default will be used.");
@@ -165,6 +173,9 @@ internal static class TrainingImportValidator
                 Err(issues, null, $"{p}: Article content needs Text.");
             else if ((type is "Video" or "Pdf" or "Exercise") && string.IsNullOrWhiteSpace(c.Url))
                 Err(issues, null, $"{p}: {type} content needs a URL.");
+
+            MaxLen(issues, null, c.Title, 300, $"{p}: Title");
+            MaxLen(issues, null, c.Url, 500, $"{p}: URL");
 
             if (!string.IsNullOrWhiteSpace(c.ChapterTitle) && chapterTitles.Count > 0
                 && !chapterTitles.Contains(c.ChapterTitle.Trim().ToLowerInvariant()))
@@ -215,6 +226,12 @@ internal static class TrainingImportValidator
 
     private static string Key(string title, string category) =>
         $"{title.Trim().ToLowerInvariant()}|{category.Trim().ToLowerInvariant()}";
+
+    private static void MaxLen(List<TrainingImportIssueDto> issues, string? field, string? value, int max, string label)
+    {
+        if (!string.IsNullOrEmpty(value) && value.Trim().Length > max)
+            Err(issues, field, $"{label} must be {max} characters or fewer.");
+    }
 
     private static void Err(List<TrainingImportIssueDto> issues, string? field, string message) =>
         issues.Add(new TrainingImportIssueDto { Field = field, Message = message, Severity = "error" });

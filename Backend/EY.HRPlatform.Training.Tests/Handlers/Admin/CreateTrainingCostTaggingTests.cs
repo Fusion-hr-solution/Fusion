@@ -26,7 +26,7 @@ public class CreateTrainingCostTaggingTests
         var (ctx, categoryId, slId) = await SeedAsync();
         await using var _ = ctx;
 
-        var result = await new CreateTrainingCommandHandler(ctx).Handle(new CreateTrainingCommand(
+        var result = await new CreateTrainingCommandHandler(ctx, new FakePdfTextExtractor()).Handle(new CreateTrainingCommand(
             "Ext", null, 0, false, "Bronze", null, categoryId, "OnSite", null, NoChapters, NoOnSite,
             CostType: "External", SponsoringServiceLineId: slId), CancellationToken.None);
 
@@ -42,7 +42,7 @@ public class CreateTrainingCostTaggingTests
         var (ctx, categoryId, slId) = await SeedAsync();
         await using var _ = ctx;
 
-        var result = await new CreateTrainingCommandHandler(ctx).Handle(new CreateTrainingCommand(
+        var result = await new CreateTrainingCommandHandler(ctx, new FakePdfTextExtractor()).Handle(new CreateTrainingCommand(
             "Ext", null, 0, false, "Bronze", null, categoryId, "ELearning", null, NoChapters, NoOnSite,
             CostType: "External", SponsoringServiceLineId: slId), CancellationToken.None);
 
@@ -56,7 +56,7 @@ public class CreateTrainingCostTaggingTests
         var (ctx, categoryId, _slId) = await SeedAsync();
         await using var _ = ctx;
 
-        var result = await new CreateTrainingCommandHandler(ctx).Handle(new CreateTrainingCommand(
+        var result = await new CreateTrainingCommandHandler(ctx, new FakePdfTextExtractor()).Handle(new CreateTrainingCommand(
             "Ext", null, 0, false, "Bronze", null, categoryId, "OnSite", null, NoChapters, NoOnSite,
             CostType: "External", SponsoringServiceLineId: null), CancellationToken.None);
 
@@ -70,7 +70,7 @@ public class CreateTrainingCostTaggingTests
         var (ctx, categoryId, _slId) = await SeedAsync();
         await using var _ = ctx;
 
-        var result = await new CreateTrainingCommandHandler(ctx).Handle(new CreateTrainingCommand(
+        var result = await new CreateTrainingCommandHandler(ctx, new FakePdfTextExtractor()).Handle(new CreateTrainingCommand(
             "Ext", null, 0, false, "Bronze", null, categoryId, "OnSite", null, NoChapters, NoOnSite,
             CostType: "External", SponsoringServiceLineId: Guid.NewGuid()), CancellationToken.None);
 
@@ -85,7 +85,7 @@ public class CreateTrainingCostTaggingTests
         await using var _ = ctx;
 
         // Internal tagging must ignore any sponsor passed in.
-        var result = await new CreateTrainingCommandHandler(ctx).Handle(new CreateTrainingCommand(
+        var result = await new CreateTrainingCommandHandler(ctx, new FakePdfTextExtractor()).Handle(new CreateTrainingCommand(
             "Internal", null, 0, false, "Bronze", null, categoryId, "OnSite", null, NoChapters, NoOnSite,
             CostType: "Internal", SponsoringServiceLineId: slId), CancellationToken.None);
 
