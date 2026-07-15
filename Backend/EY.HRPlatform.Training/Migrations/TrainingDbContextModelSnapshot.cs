@@ -63,6 +63,104 @@ namespace EY.HRPlatform.Training.Migrations
                     b.ToTable("Badges", "training");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.CalendarFeedToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EmployeeId")
+                        .IsUnique()
+                        .HasFilter("\"RevokedAt\" IS NULL");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("CalendarFeedTokens", "training");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.CalendarSyncOutbox", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("AppliedSequence")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LockedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LockedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("NextAttemptUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProcessedAt", "NextAttemptUtc");
+
+                    b.ToTable("CalendarSyncOutboxes", "training");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.Certification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -603,6 +701,9 @@ namespace EY.HRPlatform.Training.Migrations
                     b.Property<Guid>("ExamId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Explanation")
+                        .HasColumnType("text");
+
                     b.Property<int>("OrderIndex")
                         .HasColumnType("integer");
 
@@ -631,6 +732,68 @@ namespace EY.HRPlatform.Training.Migrations
                         .IsUnique();
 
                     b.ToTable("ExamQuestions", "training");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.ExternalCalendarSync", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ChangeKey")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("GraphEventId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ICalUid")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OutlookWebLink")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("TeamsJoinUrl")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionId")
+                        .IsUnique();
+
+                    b.ToTable("ExternalCalendarSyncs", "training");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.FeedbackAnswer", b =>
@@ -816,6 +979,116 @@ namespace EY.HRPlatform.Training.Migrations
                     b.ToTable("OnSiteCourses", "training");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.QuizDraft", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CreatedByEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("QuestionsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<Guid>("TrainingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TrainingId")
+                        .IsUnique();
+
+                    b.ToTable("QuizDrafts", "training");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.ReminderDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("OffsetMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("SentAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionId", "EmployeeId", "OffsetMinutes", "Channel")
+                        .IsUnique();
+
+                    b.ToTable("ReminderDeliveries", "training");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.ReminderPolicy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("OffsetsMinutes")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ReminderPolicies", "training");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.ServiceLine", b =>
                 {
                     b.Property<Guid>("Id")
@@ -971,6 +1244,54 @@ namespace EY.HRPlatform.Training.Migrations
                         .HasFilter("\"Status\" != 'Cancelled'");
 
                     b.ToTable("SessionEnrollments", "training");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.SessionInviteDelivery", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmployeeEmail")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("EmployeeName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LastSentMethod")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("LastSentSequence")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("SentAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SessionId", "EmployeeId")
+                        .IsUnique();
+
+                    b.ToTable("SessionInviteDeliveries", "training");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Training.Domain.Entities.TrainerGroupFeedback", b =>
@@ -1556,6 +1877,10 @@ namespace EY.HRPlatform.Training.Migrations
 
                     b.Property<int>("MaxCapacity")
                         .HasColumnType("integer");
+
+                    b.Property<string>("MeetingUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(2000)

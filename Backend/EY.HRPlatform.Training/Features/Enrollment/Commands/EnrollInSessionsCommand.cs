@@ -203,6 +203,11 @@ public class EnrollInSessionsCommandHandler : ICommandHandler<EnrollInSessionsCo
             var enrollment = new SessionEnrollment(selection.SessionId, request.EmployeeId, status, waitlistPosition, request.EmployeeName, request.EmployeeEmail);
             enrollments.Add(enrollment);
 
+            // Confirmed attendees get a calendar invite; waitlisted learners do not (until promoted).
+            if (status == EnrollmentStatus.Enrolled)
+                _db.CalendarSyncOutboxes.Add(
+                    new CalendarSyncOutbox(CalendarSyncType.AttendeeAdded, selection.SessionId, request.EmployeeId));
+
             resultItems.Add(new EnrollmentResultItemDto
             {
                 PartId = selection.PartId,

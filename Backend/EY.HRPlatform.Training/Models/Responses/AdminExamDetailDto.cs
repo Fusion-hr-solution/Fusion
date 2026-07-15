@@ -20,6 +20,8 @@ public class AdminExamQuestionDto
     public string Type { get; set; } = string.Empty;
     public int OrderIndex { get; set; }
     public int Points { get; set; }
+    /// <summary>Optional rationale for the correct answer (US-8.2.5).</summary>
+    public string? Explanation { get; set; }
     public List<AdminExamOptionDto> Options { get; set; } = [];
 }
 

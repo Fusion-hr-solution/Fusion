@@ -17,6 +17,12 @@ public class TrainingDbContext : DbContext
     public DbSet<TrainingSession> TrainingSessions => Set<TrainingSession>();
     public DbSet<SessionEnrollment> SessionEnrollments => Set<SessionEnrollment>();
     public DbSet<SessionAttendanceToken> SessionAttendanceTokens => Set<SessionAttendanceToken>();
+    public DbSet<CalendarFeedToken> CalendarFeedTokens => Set<CalendarFeedToken>();
+    public DbSet<ExternalCalendarSync> ExternalCalendarSyncs => Set<ExternalCalendarSync>();
+    public DbSet<SessionInviteDelivery> SessionInviteDeliveries => Set<SessionInviteDelivery>();
+    public DbSet<CalendarSyncOutbox> CalendarSyncOutboxes => Set<CalendarSyncOutbox>();
+    public DbSet<ReminderPolicy> ReminderPolicies => Set<ReminderPolicy>();
+    public DbSet<ReminderDelivery> ReminderDeliveries => Set<ReminderDelivery>();
     public DbSet<ChapterProgress> ChapterProgress => Set<ChapterProgress>();
     public DbSet<ContentBlockProgress> ContentBlockProgress => Set<ContentBlockProgress>();
     public DbSet<Exam> Exams => Set<Exam>();
@@ -38,6 +44,7 @@ public class TrainingDbContext : DbContext
     public DbSet<EmployeeProfile> EmployeeProfiles => Set<EmployeeProfile>();
     public DbSet<TrainingImportSession> TrainingImportSessions => Set<TrainingImportSession>();
     public DbSet<TrainingImportHistory> TrainingImportHistories => Set<TrainingImportHistory>();
+    public DbSet<QuizDraft> QuizDrafts => Set<QuizDraft>();
     public DbSet<TrainingBudget> TrainingBudgets => Set<TrainingBudget>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -199,6 +206,54 @@ public class TrainingDbContext : DbContext
                 .HasForeignKey(t => t.SessionId)
                 .OnDelete(DeleteBehavior.Cascade);
             e.HasIndex(t => t.SessionId).IsUnique();
+        });
+
+        // --- CalendarFeedToken (per-learner opaque feed credential; only the hash is stored) ---
+        modelBuilder.Entity<CalendarFeedToken>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Property(t => t.TokenHash).HasMaxLength(128).IsRequired();
+            e.HasIndex(t => t.TokenHash).IsUnique();
+            e.HasIndex(t => t.EmployeeId).IsUnique().HasFilter("\"RevokedAt\" IS NULL");
+        });
+
+        // --- Calendar session-sync (Feature 6.1.2) ---
+        modelBuilder.Entity<TrainingSession>().Property(s => s.MeetingUrl).HasMaxLength(500);
+
+        modelBuilder.Entity<ExternalCalendarSync>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ICalUid).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Provider).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(x => x.SessionId).IsUnique();
+        });
+
+        modelBuilder.Entity<SessionInviteDelivery>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.LastSentMethod).HasConversion<string>().HasMaxLength(20);
+            e.HasIndex(x => new { x.SessionId, x.EmployeeId }).IsUnique();
+        });
+
+        modelBuilder.Entity<CalendarSyncOutbox>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(30);
+            e.HasIndex(x => new { x.ProcessedAt, x.NextAttemptUtc });
+        });
+
+        modelBuilder.Entity<ReminderPolicy>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.OffsetsMinutes).HasMaxLength(200).IsRequired();
+        });
+
+        modelBuilder.Entity<ReminderDelivery>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Channel).HasMaxLength(20);
+            e.HasIndex(x => new { x.SessionId, x.EmployeeId, x.OffsetMinutes, x.Channel }).IsUnique();
         });
 
         // --- ChapterProgress ---
@@ -485,6 +540,14 @@ public class TrainingDbContext : DbContext
             e.HasKey(h => h.Id);
             e.Property(h => h.FileName).HasMaxLength(260);
             e.HasIndex(h => h.CreatedByEmployeeId);
+        });
+
+        // --- QuizDraft (US-8.2.5 per-training AI quiz draft, ADR 0009) ---
+        modelBuilder.Entity<QuizDraft>(e =>
+        {
+            e.HasKey(d => d.Id);
+            e.Property(d => d.QuestionsJson).HasColumnType("jsonb");
+            e.HasIndex(d => d.TrainingId).IsUnique();
         });
 
         // --- TrainingBudget ---

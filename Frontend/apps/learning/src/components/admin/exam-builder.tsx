@@ -10,6 +10,7 @@ import {
   Pencil,
   ClipboardList,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { Button, Card, CardContent, Badge } from "@repo/ui";
 import { useExamBuilder } from "@/hooks/use-exam-builder";
@@ -19,16 +20,19 @@ import { ExamPreviewDialog } from "./exam-preview-dialog";
 import { ExamSettingsForm } from "./exam-settings-form";
 import { QuestionCard } from "./question-card";
 import { ExamSettingsDialog } from "./exam-settings-dialog";
+import { AiQuizPanel } from "./quiz/ai-quiz-panel";
 
 export function ExamBuilder({ trainingId }: { trainingId: string }) {
   const router = useRouter();
   const t = useTranslations("adminExam");
+  const tQuiz = useTranslations("adminQuiz");
   const builder = useExamBuilder(trainingId);
   const {
     exam,
     questions,
     isLoading,
     isCreating,
+    refetch,
     editingQuestion,
     questionDialogOpen,
     openQuestionDialog,
@@ -43,6 +47,20 @@ export function ExamBuilder({ trainingId }: { trainingId: string }) {
 
   const [showPreview, setShowPreview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAi, setShowAi] = useState(false);
+
+  const aiPanel = (
+    <AiQuizPanel
+      open={showAi}
+      onOpenChange={setShowAi}
+      trainingId={trainingId}
+      examExists={Boolean(exam)}
+      onPublished={() => {
+        setShowAi(false);
+        refetch();
+      }}
+    />
+  );
 
   if (isLoading) {
     return (
@@ -67,12 +85,23 @@ export function ExamBuilder({ trainingId }: { trainingId: string }) {
             { label: t("builder.createExam") },
           ]}
         />
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowAi(true)}
+            className="border-[var(--ey-yellow,#ffe600)]/60"
+          >
+            <Sparkles className="mr-1.5 h-4 w-4" /> {tQuiz("generateWithAi")}
+          </Button>
+        </div>
         <ExamSettingsForm
           mode="create"
           isLoading={isCreating}
           onSubmit={handleCreateExam}
           onCancel={() => router.push(`/admin/trainings/${trainingId}`)}
         />
+        {showAi && aiPanel}
       </div>
     );
   }
@@ -149,13 +178,23 @@ export function ExamBuilder({ trainingId }: { trainingId: string }) {
           <h2 className="text-base font-semibold text-foreground">
             {t("builder.questionsHeading")}
           </h2>
-          <Button
-            size="sm"
-            onClick={() => openQuestionDialog(null)}
-            className="ey-bg-dark hover:opacity-90"
-          >
-            <Plus className="mr-1.5 h-4 w-4" /> {t("builder.addQuestion")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAi(true)}
+              className="border-[var(--ey-yellow,#ffe600)]/60"
+            >
+              <Sparkles className="mr-1.5 h-4 w-4" /> {tQuiz("generateWithAi")}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => openQuestionDialog(null)}
+              className="ey-bg-dark hover:opacity-90"
+            >
+              <Plus className="mr-1.5 h-4 w-4" /> {t("builder.addQuestion")}
+            </Button>
+          </div>
         </div>
 
         {questions.length === 0 ? (
@@ -224,6 +263,7 @@ export function ExamBuilder({ trainingId }: { trainingId: string }) {
           }}
         />
       )}
+      {showAi && aiPanel}
     </div>
   );
 }

@@ -312,6 +312,87 @@
   }
 }
 
+/* ── FullCalendar (Feature 6.1) → Quiet Workbench tokens ── */
+.fc {
+  --fc-border-color: hsl(var(--border));
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: hsl(var(--muted));
+  --fc-today-bg-color: hsl(var(--ey-yellow) / 0.08);
+  --fc-now-indicator-color: hsl(var(--ey-red-500));
+  --fc-button-bg-color: hsl(var(--secondary));
+  --fc-button-border-color: hsl(var(--border));
+  --fc-button-text-color: hsl(var(--secondary-foreground));
+  --fc-button-hover-bg-color: hsl(var(--accent));
+  --fc-button-hover-border-color: hsl(var(--border));
+  --fc-button-active-bg-color: hsl(var(--primary));
+  --fc-button-active-border-color: hsl(var(--primary));
+  --fc-list-event-hover-bg-color: hsl(var(--accent));
+  font-size: 0.85rem;
+}
+.fc .fc-toolbar-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: hsl(var(--foreground));
+}
+.fc .fc-button {
+  text-transform: capitalize;
+  box-shadow: none;
+  font-weight: 500;
+}
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+  color: hsl(var(--primary-foreground));
+}
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number,
+.fc .fc-list-day-text,
+.fc .fc-timegrid-axis-cushion,
+.fc .fc-timegrid-slot-label-cushion {
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+}
+.fc-theme-standard .fc-list-day-cushion {
+  background: hsl(var(--muted));
+}
+.fc-event {
+  border-radius: 0.375rem;
+  padding: 0 2px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.fc-event.ey-ev-planned {
+  background-color: hsl(var(--ey-blue-500)) !important;
+  border-color: hsl(var(--ey-blue-500)) !important;
+}
+.fc-event.ey-ev-inprogress {
+  background-color: hsl(var(--ey-orange-500)) !important;
+  border-color: hsl(var(--ey-orange-500)) !important;
+}
+.fc-event.ey-ev-completed {
+  background-color: hsl(var(--ey-green-500)) !important;
+  border-color: hsl(var(--ey-green-500)) !important;
+}
+.fc-event.ey-ev-deadline {
+  background-color: hsl(var(--ey-orange-500)) !important;
+  border-color: hsl(var(--ey-orange-500)) !important;
+}
+.fc-event.ey-ev-cancelled {
+  background-color: hsl(var(--muted-foreground)) !important;
+  border-color: hsl(var(--muted-foreground)) !important;
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+.fc-event.ey-ev-waitlisted {
+  opacity: 0.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc *,
+  .fc *::before,
+  .fc *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
 /* ── Accessibility: honor prefers-reduced-motion (WCAG 2.3.3) ──
    Users who request reduced motion get the final, visible state with no
    entrance/decorative movement. Functional loading spinners (animate-spin)

@@ -141,7 +141,7 @@ public class AdminExamsController : ControllerBase
                 .ToList();
 
             var result = await _sender.Send(
-                new AddExamQuestionCommand(trainingId, examId, request.QuestionText, request.Type, request.Points, options),
+                new AddExamQuestionCommand(trainingId, examId, request.QuestionText, request.Type, request.Points, options, request.Explanation),
                 cancellationToken);
 
             if (result.IsFailure)
@@ -176,7 +176,7 @@ public class AdminExamsController : ControllerBase
                 .ToList();
 
             var result = await _sender.Send(
-                new UpdateExamQuestionCommand(trainingId, examId, questionId, request.QuestionText, request.Type, request.Points, options),
+                new UpdateExamQuestionCommand(trainingId, examId, questionId, request.QuestionText, request.Type, request.Points, options, request.Explanation),
                 cancellationToken);
 
             if (result.IsFailure)
