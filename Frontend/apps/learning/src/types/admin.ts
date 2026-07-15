@@ -1,4 +1,9 @@
-import type { ChapterLayout, TrainingType } from "./index";
+import type {
+  ChapterLayout,
+  TrainingType,
+  FeedbackQuestionType,
+  CostType,
+} from "./index";
 
 /** Chapter being built in the training creation wizard (client-side only) */
 export interface WizardChapter {
@@ -21,6 +26,8 @@ export interface AdminTraining {
   chapterCount: number;
   enrollmentCount: number;
   trainingType: TrainingType;
+  costType?: CostType;
+  sponsoringServiceLineId?: string;
   scheduledDate?: string;
   isDeleted: boolean;
   createdAt: string;
@@ -88,6 +95,8 @@ export interface AdminExamQuestion {
   type: QuestionType;
   orderIndex: number;
   points: number;
+  /** Optional rationale for the correct answer (US-8.2.5). */
+  explanation?: string;
   options: AdminExamOption[];
 }
 
@@ -119,6 +128,7 @@ export interface CreateExamQuestionInput {
   questionText: string;
   type: QuestionType;
   points: number;
+  explanation?: string;
   options: { optionText: string; isCorrect: boolean }[];
 }
 
@@ -126,7 +136,55 @@ export interface UpdateExamQuestionInput {
   questionText: string;
   type: QuestionType;
   points: number;
+  explanation?: string;
   options: { optionText: string; isCorrect: boolean }[];
+}
+
+/* ── AI quiz generation (US-8.2.5) ── */
+
+export interface QuizDraftOption {
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface QuizDraftQuestion {
+  text: string;
+  type: QuestionType;
+  points: number;
+  explanation?: string;
+  order: number;
+  /** "ai" | "manual". */
+  source: string;
+  options: QuizDraftOption[];
+}
+
+export interface QuizDraft {
+  trainingId: string;
+  /** Whether the AI quiz generator is configured (drives the "Generate with AI" button). */
+  aiAvailable: boolean;
+  questions: QuizDraftQuestion[];
+}
+
+/** A question carried in a save-draft / publish request. */
+export interface QuizDraftQuestionInput {
+  text: string;
+  type: QuestionType;
+  points: number;
+  explanation?: string;
+  source?: string;
+  options: { text: string; isCorrect: boolean }[];
+}
+
+export interface QuizPublishResult {
+  examId: string;
+  publishedCount: number;
+}
+
+/** Result of the one-time PDF text backfill (US-8.2.5). */
+export interface BackfillPdfTextResult {
+  scanned: number;
+  updated: number;
+  skipped: number;
 }
 
 /** Admin On-Site Course */
@@ -200,6 +258,8 @@ export interface CreateTrainingInput {
   categoryId: string;
   trainingType?: string;
   scheduledDate?: string;
+  costType?: CostType;
+  sponsoringServiceLineId?: string;
   chapters?: CreateChapterInput[];
   onSiteCourses?: CreateOnSiteCourseInput[];
 }
@@ -220,6 +280,8 @@ export interface UpdateTrainingInput {
   categoryId: string;
   trainingType?: string;
   scheduledDate?: string;
+  costType?: CostType;
+  sponsoringServiceLineId?: string;
 }
 
 export interface UpdateChapterInput {
@@ -359,6 +421,99 @@ export interface UpdateServiceLineInput {
   isSharedAcrossAllServiceLines?: boolean;
 }
 
+/* ── Training Budget (Feature 7.2) ── */
+
+export type BudgetPeriodType = "Annual" | "Quarterly" | "Custom";
+
+export interface AdminTrainingBudget {
+  id: string;
+  serviceLineId: string;
+  periodType: BudgetPeriodType;
+  periodStart: string;
+  periodEnd: string;
+  allocatedAmount: number;
+  /** Derived server-side from external-session costs. */
+  spend: number;
+  remaining: number;
+  percentage: number;
+}
+
+export interface CreateTrainingBudgetInput {
+  serviceLineId: string;
+  periodType: BudgetPeriodType;
+  periodStart: string;
+  periodEnd: string;
+  allocatedAmount: number;
+}
+
+/** Service line is immutable on update — re-key by deleting and recreating. */
+export interface UpdateTrainingBudgetInput {
+  periodType: BudgetPeriodType;
+  periodStart: string;
+  periodEnd: string;
+  allocatedAmount: number;
+}
+
+/* ── Budget dashboard (US-7.2.2) ── */
+
+export interface BudgetFilters {
+  serviceLineId?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface BudgetByServiceLine {
+  serviceLineId: string;
+  serviceLineName: string;
+  color: string;
+  allocated: number;
+  spent: number;
+  remaining: number;
+  percentConsumed: number;
+}
+
+export interface BudgetServiceLineAlert {
+  serviceLineId: string;
+  serviceLineName: string;
+  percentConsumed: number;
+  thresholdBand: number; // 80 | 90 | 100
+}
+
+export interface BudgetDashboardSummary {
+  totalAllocated: number;
+  totalSpent: number;
+  totalRemaining: number;
+  percentConsumed: number;
+  byServiceLine: BudgetByServiceLine[];
+  alerts: BudgetServiceLineAlert[];
+}
+
+export interface BudgetTrendPoint {
+  year: number;
+  month: number;
+  label: string;
+  spend: number;
+}
+
+export interface BudgetTrend {
+  points: BudgetTrendPoint[];
+}
+
+export interface BudgetSpendDetailRow {
+  sessionId: string;
+  trainingId: string;
+  trainingTitle: string;
+  startUtc: string;
+  amount: number;
+  trainerName?: string | null;
+}
+
+export interface BudgetSpendDetail {
+  serviceLineId: string;
+  serviceLineName: string;
+  rows: BudgetSpendDetailRow[];
+}
+
 export interface AddCurriculumMappingInput {
   gradeId: string;
   serviceLineId: string;
@@ -404,6 +559,11 @@ export interface AdminTrainingSession {
   status: SessionStatus;
   cancelReason?: string | null;
   cancelledAt?: string | null;
+  externalTrainerCost?: number | null;
+  venueCost?: number | null;
+  materialsCost?: number | null;
+  otherCost?: number | null;
+  totalCost?: number | null;
   createdAt: string;
   updatedAt?: string | null;
 }
@@ -485,6 +645,10 @@ export interface CreateSessionInput {
   trainerEmployeeId?: string;
   trainerName?: string;
   trainerEmail?: string;
+  externalTrainerCost?: number;
+  venueCost?: number;
+  materialsCost?: number;
+  otherCost?: number;
 }
 
 export interface UpdateSessionInput extends CreateSessionInput {}
@@ -696,4 +860,213 @@ export interface AttendanceFilters {
   trainingId?: string;
   from?: string;
   to?: string;
+}
+
+/* ── Reports (US-8.2.1 / US-8.2.2) ── */
+
+export interface AttendanceByEmployeeRow {
+  employeeId: string;
+  employeeName?: string | null;
+  email?: string | null;
+  gradeName: string;
+  serviceLineName: string;
+  sessionsEnrolled: number;
+  attended: number;
+  missed: number;
+  attendanceRate: number;
+}
+
+export interface TrainingHoursRow {
+  employeeId: string;
+  employeeName?: string | null;
+  gradeName: string;
+  serviceLineName: string;
+  eLearningHours: number;
+  inPersonHours: number;
+  totalHours: number;
+  trainingsCompleted: number;
+}
+
+export interface FormatMetrics {
+  format: string;
+  trainingCount: number;
+  hoursDelivered: number;
+  participants: number;
+  completionRate: number;
+  avgFeedback?: number | null;
+}
+
+export interface FormatComparison {
+  eLearning: FormatMetrics;
+  onSite: FormatMetrics;
+}
+
+/** Display labels for the active filters, passed to export endpoints for the file header. */
+export interface ReportFilterLabels {
+  gradeLabel?: string;
+  serviceLineLabel?: string;
+  trainingLabel?: string;
+}
+
+/** A chart rasterised to PNG (base64, no data: prefix) sent to the PDF export to be embedded. */
+export interface ReportChartImage {
+  key: string;
+  pngBase64: string;
+}
+
+/* ── Training import (US-8.2.3 / US-8.2.4) ── */
+
+export interface TrainingImportIssue {
+  field?: string | null;
+  message: string;
+  /** "error" | "warning". */
+  severity: string;
+}
+
+export interface TrainingImportRow {
+  ref: string;
+  title?: string | null;
+  category?: string | null;
+  format?: string | null;
+  sessionCount: number;
+  chapterCount: number;
+  contentCount: number;
+  /** "ready" | "duplicate" | "error". */
+  status: string;
+  issues: TrainingImportIssue[];
+}
+
+export interface TrainingImportSummary {
+  total: number;
+  ready: number;
+  duplicate: number;
+  error: number;
+}
+
+export interface TrainingImportPreview {
+  sessionId?: string | null;
+  fileName: string;
+  rows: TrainingImportRow[];
+  globalIssues: TrainingImportIssue[];
+  summary: TrainingImportSummary;
+}
+
+export interface TrainingImportError {
+  ref: string;
+  title?: string | null;
+  message: string;
+}
+
+export interface TrainingImportResult {
+  imported: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  errors: TrainingImportError[];
+}
+
+/** Per-duplicate action: "skip" | "createNew" | "safeUpdate". */
+export type DuplicateAction = "skip" | "createNew" | "safeUpdate";
+
+/* ── Feedback dashboards (US-8.1.2) ── */
+
+export interface FeedbackTrendPoint {
+  year: number;
+  month: number;
+  label: string;
+  avgOverallRating: number;
+  responseCount: number;
+}
+
+export interface FeedbackComment {
+  author: string;
+  comment: string;
+  overallRating: number;
+  submittedAt: string;
+  /** Set only in the per-trainer view. */
+  trainingTitle?: string;
+}
+
+export interface TrainingFeedbackSummary {
+  trainingId: string;
+  trainingTitle: string;
+  totalResponses: number;
+  avgOverallRating: number;
+  avgContentRating: number;
+  avgRelevanceRating: number;
+  avgTrainerRating?: number;
+  recommendationRate: number;
+  /** Overall-rating counts, index 0 = 1★ … 4 = 5★. */
+  ratingDistribution: number[];
+  monthlyTrend: FeedbackTrendPoint[];
+  commentsSuppressed: boolean;
+  comments: FeedbackComment[];
+}
+
+export interface TrainerFeedbackListItem {
+  trainerKey: string;
+  trainerName: string;
+  sessionsCount: number;
+  feedbackCount: number;
+  avgTrainerRating: number;
+  recommendationRate: number;
+}
+
+export interface TrainerTrainingBreakdown {
+  trainingId: string;
+  trainingTitle: string;
+  feedbackCount: number;
+  avgTrainerRating: number;
+}
+
+export interface TrainerFeedbackDetail {
+  trainerKey: string;
+  trainerName: string;
+  sessionsCount: number;
+  feedbackCount: number;
+  avgTrainerRating: number;
+  recommendationRate: number;
+  trainings: TrainerTrainingBreakdown[];
+  commentsSuppressed: boolean;
+  comments: FeedbackComment[];
+}
+
+export interface FeedbackTrainingRating {
+  trainingId: string;
+  trainingTitle: string;
+  avgOverallRating: number;
+  responseCount: number;
+}
+
+export interface FeedbackOverview {
+  totalFeedbacks: number;
+  avgOverallRating: number;
+  recommendationRate: number;
+  responseRate: number;
+  ratingDistribution: number[];
+  monthlyTrend: FeedbackTrendPoint[];
+  topTrainings: FeedbackTrainingRating[];
+  bottomTrainings: FeedbackTrainingRating[];
+}
+
+export interface FeedbackOverviewFilters {
+  categoryId?: string;
+  /** "ELearning" | "OnSite" */
+  format?: string;
+  from?: string;
+  to?: string;
+}
+
+/* ── Custom feedback form builder (US-8.1.3) ── */
+
+export interface CreateFeedbackQuestionInput {
+  categoryId?: string;
+  type: FeedbackQuestionType;
+  label: string;
+  options?: string;
+}
+
+export interface UpdateFeedbackQuestionInput {
+  label: string;
+  options?: string;
 }

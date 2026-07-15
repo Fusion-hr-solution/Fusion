@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, GraduationCap, Clock, CheckCircle2 } from "lucide-react";
+import { BookOpen, GraduationCap, TrendingUp, CheckCircle2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent } from "@repo/ui";
 import type { TrainingStatus, EnrolledTraining } from "@/types";
@@ -46,23 +46,25 @@ export function MyTrainingsList({ trainings }: MyTrainingsListProps) {
 
   const inProgress = counts["in-progress"];
   const completed = counts["completed"];
-  const totalHours = trainings.reduce((sum, t) => {
-    return sum + parseInt(t.duration.replace(/\D/g, ""));
-  }, 0);
+  const avgProgress = trainings.length
+    ? Math.round(
+        trainings.reduce((sum, t) => sum + t.progress, 0) / trainings.length,
+      )
+    : 0;
 
   const handleContinue = (training: EnrolledTraining) => {
     router.push(`/training/${encodeURIComponent(training.id)}/learn`);
   };
 
   const stats = [
-    { icon: BookOpen, value: inProgress, label: t("stats.inProgress") },
-    { icon: CheckCircle2, value: completed, label: t("stats.completed") },
-    { icon: Clock, value: `${totalHours}h`, label: t("stats.totalHours") },
     {
       icon: GraduationCap,
       value: trainings.length,
       label: t("stats.enrolled"),
     },
+    { icon: BookOpen, value: inProgress, label: t("stats.inProgress") },
+    { icon: CheckCircle2, value: completed, label: t("stats.completed") },
+    { icon: TrendingUp, value: `${avgProgress}%`, label: t("stats.avgProgress") },
   ];
 
   return (

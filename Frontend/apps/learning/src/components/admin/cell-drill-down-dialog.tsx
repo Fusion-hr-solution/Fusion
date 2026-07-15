@@ -17,6 +17,7 @@ import {
 } from "@repo/ui";
 import { ArrowUpDown } from "lucide-react";
 import { useState, useMemo } from "react";
+import { useTranslations, useFormatter } from "next-intl";
 import type { CellEmployee } from "@/types/admin";
 
 interface CellDrillDownDialogProps {
@@ -28,12 +29,15 @@ interface CellDrillDownDialogProps {
   isLoading: boolean;
 }
 
-type SortField = "completionPercentage" | "completedFormations" | "lastActivityAt";
+type SortField =
+  | "completionPercentage"
+  | "completedFormations"
+  | "lastActivityAt";
 
 function completionBadge(pct: number) {
-  if (pct >= 80) return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">{pct}%</Badge>;
-  if (pct >= 50) return <Badge className="bg-amber-100 text-amber-800 border-amber-200">{pct}%</Badge>;
-  return <Badge className="bg-red-100 text-red-800 border-red-200">{pct}%</Badge>;
+  if (pct >= 80) return <Badge className="bg-[hsl(var(--ey-green-500))]/15 text-[hsl(var(--ey-green-500))] border-[hsl(var(--ey-green-500))]/25">{pct}%</Badge>;
+  if (pct >= 50) return <Badge className="bg-[hsl(var(--ey-orange-500))]/15 text-[hsl(var(--ey-orange-500))] border-[hsl(var(--ey-orange-500))]/25">{pct}%</Badge>;
+  return <Badge className="bg-[hsl(var(--ey-red-500))]/15 text-[hsl(var(--ey-red-500))] border-[hsl(var(--ey-red-500))]/25">{pct}%</Badge>;
 }
 
 export function CellDrillDownDialog({
@@ -44,25 +48,34 @@ export function CellDrillDownDialog({
   employees,
   isLoading,
 }: CellDrillDownDialogProps) {
+  const t = useTranslations("adminCells");
+  const format = useFormatter();
   const [sortField, setSortField] = useState<SortField>("completionPercentage");
   const [sortAsc, setSortAsc] = useState(false);
 
   const sorted = useMemo(() => {
     if (!employees) return [];
     return [...employees].sort((a, b) => {
-      const aVal = sortField === "lastActivityAt"
-        ? new Date(a.lastActivityAt ?? 0).getTime()
-        : a[sortField];
-      const bVal = sortField === "lastActivityAt"
-        ? new Date(b.lastActivityAt ?? 0).getTime()
-        : b[sortField];
-      return sortAsc ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
+      const aVal =
+        sortField === "lastActivityAt"
+          ? new Date(a.lastActivityAt ?? 0).getTime()
+          : a[sortField];
+      const bVal =
+        sortField === "lastActivityAt"
+          ? new Date(b.lastActivityAt ?? 0).getTime()
+          : b[sortField];
+      return sortAsc
+        ? (aVal as number) - (bVal as number)
+        : (bVal as number) - (aVal as number);
     });
   }, [employees, sortField, sortAsc]);
 
   function toggleSort(field: SortField) {
     if (sortField === field) setSortAsc(!sortAsc);
-    else { setSortField(field); setSortAsc(false); }
+    else {
+      setSortField(field);
+      setSortAsc(false);
+    }
   }
 
   return (
@@ -73,7 +86,7 @@ export function CellDrillDownDialog({
             {gradeName} × {serviceLineName}
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
-            Employee progress for this grade and service line combination.
+            {t("dialog.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -86,22 +99,29 @@ export function CellDrillDownDialog({
             </div>
           ) : sorted.length === 0 ? (
             <p className="p-8 text-center text-sm text-muted-foreground">
-              No employees found in this cell.
+              {t("dialog.empty")}
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/30">
-                  <TableHead className="text-xs">Employee ID</TableHead>
-                  <TableHead className="text-xs">Grade</TableHead>
-                  <TableHead className="text-xs">Service Line</TableHead>
+                  <TableHead className="text-xs">
+                    {t("dialog.table.employeeId")}
+                  </TableHead>
+                  <TableHead className="text-xs">
+                    {t("dialog.table.grade")}
+                  </TableHead>
+                  <TableHead className="text-xs">
+                    {t("dialog.table.serviceLine")}
+                  </TableHead>
                   <TableHead className="text-xs">
                     <button
                       type="button"
                       onClick={() => toggleSort("completedFormations")}
                       className="inline-flex items-center gap-1 hover:text-foreground"
                     >
-                      Progress <ArrowUpDown className="h-3 w-3" />
+                      {t("dialog.table.progress")}{" "}
+                      <ArrowUpDown className="h-3 w-3" />
                     </button>
                   </TableHead>
                   <TableHead className="text-xs">
@@ -110,7 +130,8 @@ export function CellDrillDownDialog({
                       onClick={() => toggleSort("completionPercentage")}
                       className="inline-flex items-center gap-1 hover:text-foreground"
                     >
-                      % Completion <ArrowUpDown className="h-3 w-3" />
+                      {t("dialog.table.completion")}{" "}
+                      <ArrowUpDown className="h-3 w-3" />
                     </button>
                   </TableHead>
                   <TableHead className="text-xs">
@@ -119,7 +140,8 @@ export function CellDrillDownDialog({
                       onClick={() => toggleSort("lastActivityAt")}
                       className="inline-flex items-center gap-1 hover:text-foreground"
                     >
-                      Last Activity <ArrowUpDown className="h-3 w-3" />
+                      {t("dialog.table.lastActivity")}{" "}
+                      <ArrowUpDown className="h-3 w-3" />
                     </button>
                   </TableHead>
                 </TableRow>
@@ -131,15 +153,23 @@ export function CellDrillDownDialog({
                       {emp.employeeId.slice(0, 8)}…
                     </TableCell>
                     <TableCell className="text-xs">{emp.gradeName}</TableCell>
-                    <TableCell className="text-xs">{emp.serviceLineName}</TableCell>
+                    <TableCell className="text-xs">
+                      {emp.serviceLineName}
+                    </TableCell>
                     <TableCell className="text-xs tabular-nums">
                       {emp.completedFormations}/{emp.totalFormations}
                     </TableCell>
-                    <TableCell>{completionBadge(emp.completionPercentage)}</TableCell>
+                    <TableCell>
+                      {completionBadge(emp.completionPercentage)}
+                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {emp.lastActivityAt
-                        ? new Date(emp.lastActivityAt).toLocaleDateString()
-                        : "—"}
+                        ? format.dateTime(new Date(emp.lastActivityAt), {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                          })
+                        : t("dialog.noActivity")}
                     </TableCell>
                   </TableRow>
                 ))}

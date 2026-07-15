@@ -16,6 +16,11 @@ public class TrainingSessionDto
     public string Status { get; set; } = "Planned";
     public string? CancelReason { get; set; }
     public DateTime? CancelledAt { get; set; }
+    public decimal? ExternalTrainerCost { get; set; }
+    public decimal? VenueCost { get; set; }
+    public decimal? MaterialsCost { get; set; }
+    public decimal? OtherCost { get; set; }
+    public decimal? TotalCost { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }

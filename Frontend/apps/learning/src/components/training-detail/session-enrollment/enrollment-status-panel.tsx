@@ -31,7 +31,7 @@ export function EnrollmentStatusPanel({
             <h3 className="text-sm font-semibold text-foreground">{t("progress.title")}</h3>
           </div>
           {enrollments.isTrainingCompleted && (
-            <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+            <span className="flex items-center gap-1.5 text-xs font-semibold text-[hsl(var(--ey-green-500))]">
               <CheckCircle2 className="h-4 w-4" />
               {tCommon("status.completed")}
             </span>

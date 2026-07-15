@@ -49,16 +49,18 @@ export function QuestionCard({
                   size="sm"
                   className="h-7 w-7 p-0"
                   onClick={onEdit}
+                  aria-label={`Edit question ${index + 1}`}
                 >
-                  <Pencil className="h-3.5 w-3.5" />
+                  <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                   onClick={onDelete}
+                  aria-label={`Delete question ${index + 1}`}
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                 </Button>
               </div>
             </div>
@@ -77,15 +79,23 @@ export function QuestionCard({
               {question.options.map((opt) => (
                 <div
                   key={opt.id}
-                  className={`flex items-center gap-2 rounded px-2 py-1 text-xs ${opt.isCorrect ? "bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400" : "bg-muted/50 text-muted-foreground"}`}
+                  className={`flex items-center gap-2 rounded px-2 py-1 text-xs ${opt.isCorrect ? "bg-[hsl(var(--ey-green-500))]/10 text-[hsl(var(--ey-green-500))]" : "bg-muted/50 text-muted-foreground"}`}
                 >
                   <span
-                    className={`inline-block h-3 w-3 shrink-0 rounded-full border ${opt.isCorrect ? "border-green-500 bg-green-500" : "border-border"}`}
+                    className={`inline-block h-3 w-3 shrink-0 rounded-full border ${opt.isCorrect ? "border-[hsl(var(--ey-green-500))] bg-[hsl(var(--ey-green-500))]" : "border-border"}`}
                   />
                   {opt.optionText}
                 </div>
               ))}
             </div>
+            {question.explanation && (
+              <p className="pt-1 text-[11px] italic text-muted-foreground">
+                <span className="font-semibold not-italic">
+                  {t("card.explanation")}:
+                </span>{" "}
+                {question.explanation}
+              </p>
+            )}
           </div>
         </div>
       </CardContent>

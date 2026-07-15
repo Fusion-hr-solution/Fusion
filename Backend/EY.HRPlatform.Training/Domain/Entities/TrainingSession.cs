@@ -25,6 +25,18 @@ public class TrainingSession : BaseEntity
     public string? CancelReason { get; private set; }
     public DateTime? CancelledAt { get; private set; }
 
+    // External-trainer costs (Feature 7.2). Set only on external-trainer sessions; null = free/internal.
+    public decimal? ExternalTrainerCost { get; private set; }
+    public decimal? VenueCost { get; private set; }
+    public decimal? MaterialsCost { get; private set; }
+    public decimal? OtherCost { get; private set; }
+
+    /// <summary>Computed, never stored. Null when all four parts are null; otherwise the sum of the non-null parts.</summary>
+    public decimal? TotalCost =>
+        (ExternalTrainerCost is null && VenueCost is null && MaterialsCost is null && OtherCost is null)
+            ? null
+            : (ExternalTrainerCost ?? 0m) + (VenueCost ?? 0m) + (MaterialsCost ?? 0m) + (OtherCost ?? 0m);
+
     private TrainingSession() { }
 
     public TrainingSession(
@@ -36,7 +48,11 @@ public class TrainingSession : BaseEntity
         string? notes,
         Guid? trainerEmployeeId,
         string? trainerName,
-        string? trainerEmail)
+        string? trainerEmail,
+        decimal? externalTrainerCost = null,
+        decimal? venueCost = null,
+        decimal? materialsCost = null,
+        decimal? otherCost = null)
     {
         PartId = partId;
         StartUtc = startUtc;
@@ -48,6 +64,10 @@ public class TrainingSession : BaseEntity
         TrainerName = trainerName;
         TrainerEmail = trainerEmail;
         Status = SessionStatus.Planned;
+        ExternalTrainerCost = externalTrainerCost;
+        VenueCost = venueCost;
+        MaterialsCost = materialsCost;
+        OtherCost = otherCost;
     }
 
     public void Update(
@@ -58,7 +78,11 @@ public class TrainingSession : BaseEntity
         string? notes,
         Guid? trainerEmployeeId,
         string? trainerName,
-        string? trainerEmail)
+        string? trainerEmail,
+        decimal? externalTrainerCost = null,
+        decimal? venueCost = null,
+        decimal? materialsCost = null,
+        decimal? otherCost = null)
     {
         StartUtc = startUtc;
         EndUtc = endUtc;
@@ -68,6 +92,10 @@ public class TrainingSession : BaseEntity
         TrainerEmployeeId = trainerEmployeeId;
         TrainerName = trainerName;
         TrainerEmail = trainerEmail;
+        ExternalTrainerCost = externalTrainerCost;
+        VenueCost = venueCost;
+        MaterialsCost = materialsCost;
+        OtherCost = otherCost;
         UpdatedAt = DateTime.UtcNow;
     }
 

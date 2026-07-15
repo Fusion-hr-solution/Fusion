@@ -36,7 +36,7 @@ public class EnrollmentCommandHandlerTests
             new AddPartCommand(training.Id, "Part 2 - Practice", null, 3m), CancellationToken.None);
 
         // Add sessions
-        var addSessionHandler = new AddSessionCommandHandler(ctx);
+        var addSessionHandler = new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier());
         var start1 = DateTime.UtcNow.Date.AddDays(14).AddHours(9);
         var session1Result = await addSessionHandler.Handle(new AddSessionCommand(
             training.Id, part1Result.Value, start1, start1.AddHours(3),
@@ -165,7 +165,7 @@ public class EnrollmentCommandHandlerTests
         var partResult = await addPartHandler.Handle(
             new AddPartCommand(training.Id, "Only Part", null, 2m), CancellationToken.None);
 
-        var addSessionHandler = new AddSessionCommandHandler(ctx);
+        var addSessionHandler = new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier());
         var start = DateTime.UtcNow.Date.AddDays(14).AddHours(9);
         var sessionResult = await addSessionHandler.Handle(new AddSessionCommand(
             training.Id, partResult.Value, start, start.AddHours(2),
@@ -217,7 +217,7 @@ public class EnrollmentCommandHandlerTests
         var (ctx, trainingId, part1Id, part2Id, session1Id, session2Id) = await SeedAsync();
 
         // Add a second session to part1 so the part remains enrollable
-        var addSessionHandler = new AddSessionCommandHandler(ctx);
+        var addSessionHandler = new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier());
         var altStart = DateTime.UtcNow.Date.AddDays(15).AddHours(9);
         await addSessionHandler.Handle(new AddSessionCommand(
             trainingId, part1Id, altStart, altStart.AddHours(3),
@@ -299,7 +299,7 @@ public class EnrollmentCommandHandlerTests
         var partResult = await addPartHandler.Handle(
             new AddPartCommand(training.Id, "Only Part", null, 2m), CancellationToken.None);
 
-        var addSessionHandler = new AddSessionCommandHandler(ctx);
+        var addSessionHandler = new AddSessionCommandHandler(ctx, new NoOpBudgetAlertNotifier());
         var start = DateTime.UtcNow.Date.AddDays(14).AddHours(9);
         var sessionResult = await addSessionHandler.Handle(new AddSessionCommand(
             training.Id, partResult.Value, start, start.AddHours(2),
@@ -358,7 +358,7 @@ public class EnrollmentCommandHandlerTests
                 new SessionSelectionItem(part2Id, session2Id)
             ]), CancellationToken.None);
 
-        var markHandler = new MarkAttendanceCommandHandler(ctx);
+        var markHandler = new MarkAttendanceCommandHandler(ctx, new FakeAttendanceCompletionService());
         var result = await markHandler.Handle(
             new MarkAttendanceCommand(session1Id, employeeId), CancellationToken.None);
 
@@ -373,7 +373,7 @@ public class EnrollmentCommandHandlerTests
     public async Task MarkAttendance_Fails_WhenNotEnrolled()
     {
         var (ctx, _, _, _, session1Id, _) = await SeedAsync();
-        var markHandler = new MarkAttendanceCommandHandler(ctx);
+        var markHandler = new MarkAttendanceCommandHandler(ctx, new FakeAttendanceCompletionService());
 
         var result = await markHandler.Handle(
             new MarkAttendanceCommand(session1Id, Guid.NewGuid()), CancellationToken.None);

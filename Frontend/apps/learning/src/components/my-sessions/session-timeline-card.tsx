@@ -88,7 +88,7 @@ export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProp
             {/* Details grid */}
             <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Calendar className="h-3 w-3 shrink-0" />
+                <Calendar className="h-3 w-3 shrink-0" aria-hidden="true" />
                 <span>
                   {format.dateTime(startDate, {
                     weekday: "short",
@@ -99,7 +99,7 @@ export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProp
                 </span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="h-3 w-3 shrink-0" />
+                <Clock className="h-3 w-3 shrink-0" aria-hidden="true" />
                 <span>
                   {t("timeline.timeRange", {
                     start: format.dateTime(startDate, { hour: "2-digit", minute: "2-digit" }),
@@ -108,19 +108,19 @@ export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProp
                 </span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <MapPin className="h-3 w-3 shrink-0" />
+                <MapPin className="h-3 w-3 shrink-0" aria-hidden="true" />
                 <span>{session.room}</span>
               </div>
               {session.trainerName && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <User className="h-3 w-3 shrink-0" />
+                  <User className="h-3 w-3 shrink-0" aria-hidden="true" />
                   <span>{session.trainerName}</span>
                 </div>
               )}
             </div>
 
             {session.status === "Waitlisted" && session.waitlistPosition > 0 && (
-              <p className="mt-2 text-xs text-amber-600">
+              <p className="mt-2 text-xs text-[hsl(var(--ey-orange-500))]">
                 {t("timeline.waitlistPosition", { position: session.waitlistPosition })}
               </p>
             )}
@@ -129,7 +129,7 @@ export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProp
               href={`/my-sessions/${session.sessionId}`}
               className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
             >
-              {t("timeline.viewDetails")} <ExternalLink className="h-3 w-3" />
+              {t("timeline.viewDetails")} <ExternalLink className="h-3 w-3" aria-hidden="true" />
             </Link>
           </div>
 
@@ -141,12 +141,13 @@ export function SessionTimelineCard({ session, isLast }: SessionTimelineCardProp
               className="h-8 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10"
               onClick={() => doCancel()}
               disabled={cancelling}
+              aria-label={tCommon("actions.cancel")}
             >
               {cancelling ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
               ) : (
                 <>
-                  <XCircle className="mr-1 h-3.5 w-3.5" />
+                  <XCircle className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
                   {tCommon("actions.cancel")}
                 </>
               )}
@@ -170,24 +171,24 @@ function getStatusConfig(
 } {
   if (status === "Attended") {
     return {
-      dotClass: "border-emerald-500 bg-emerald-500",
-      cardClass: "border-emerald-200 bg-emerald-50/50",
+      dotClass: "border-[hsl(var(--ey-green-500))] bg-[hsl(var(--ey-green-500))]",
+      cardClass: "border-[hsl(var(--ey-green-500))]/20 bg-[hsl(var(--ey-green-500))]/10",
       badgeVariant: "default",
       labelKey: "attended",
     };
   }
   if (status === "Waitlisted") {
     return {
-      dotClass: "border-amber-400 bg-amber-400",
-      cardClass: "border-amber-200 bg-amber-50/50",
+      dotClass: "border-[hsl(var(--ey-orange-500))] bg-[hsl(var(--ey-orange-500))]",
+      cardClass: "border-[hsl(var(--ey-orange-500))]/20 bg-[hsl(var(--ey-orange-500))]/10",
       badgeVariant: "secondary",
       labelKey: "waitlisted",
     };
   }
   if (isOngoing) {
     return {
-      dotClass: "border-blue-500 bg-blue-500 animate-pulse",
-      cardClass: "border-blue-200 bg-blue-50/50",
+      dotClass: "border-[hsl(var(--ey-blue-500))] bg-[hsl(var(--ey-blue-500))] animate-pulse",
+      cardClass: "border-[hsl(var(--ey-blue-500))]/20 bg-[hsl(var(--ey-blue-500))]/10",
       badgeVariant: "default",
       labelKey: "inProgress",
     };

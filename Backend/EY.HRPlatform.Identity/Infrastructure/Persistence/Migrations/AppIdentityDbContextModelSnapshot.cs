@@ -505,6 +505,32 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                     b.ToTable("UserAccessProfiles", "identity");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.UserAccessProfileOrgUnitScope", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AccessProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrgUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UserId", "AccessProfileId", "OrgUnitId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "OrgUnitId");
+
+                    b.ToTable("UserAccessProfileOrgUnitScopes", "identity");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
                 {
                     b.Property<Guid>("Id")
@@ -704,6 +730,15 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                     b.Navigation("AccessProfile");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.UserAccessProfileOrgUnitScope", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Identity.Domain.Entities.UserAccessProfile", null)
+                        .WithMany()
+                        .HasForeignKey("UserId", "AccessProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

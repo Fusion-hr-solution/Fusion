@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   ...(useStandaloneOutput ? { output: "standalone" as const } : {}),
   outputFileTracingRoot: frontendWorkspaceRoot,
   basePath: "/core",
-  transpilePackages: ["@repo/api", "@repo/ui", "@repo/auth"],
+  transpilePackages: ["@repo/api", "@repo/ui", "@repo/auth", "@repo/ds"],
   async rewrites() {
     const gateway = process.env.CORE_GATEWAY_URL ?? "http://localhost:5000";
     return [

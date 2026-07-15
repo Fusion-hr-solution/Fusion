@@ -13,6 +13,8 @@ export function TrainingFormReviewStep({
   isMandatory,
   trainingType,
   scheduledDate,
+  costType,
+  sponsoringServiceLineName,
 }: TrainingFormReviewStepProps) {
   const t = useTranslations("adminTrainings");
   const tCommon = useTranslations("common");
@@ -62,6 +64,14 @@ export function TrainingFormReviewStep({
                 timeStyle: "short",
               })}
             />
+          )}
+          {trainingType === "OnSite" && <Row label="Cost Type" value={costType} />}
+          {trainingType === "OnSite" && costType === "External" && (
+            <Row label="Sponsoring Service Line" value={sponsoringServiceLineName} />
+          )}
+          {trainingType === "OnSite" && <Row label="Cost Type" value={costType} />}
+          {trainingType === "OnSite" && costType === "External" && (
+            <Row label="Sponsoring Service Line" value={sponsoringServiceLineName} />
           )}
           <Row
             label={t("form.review.mandatory")}

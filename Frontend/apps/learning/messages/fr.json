@@ -1,4 +1,127 @@
 {
+  "feedback": {
+    "prompt": {
+      "title": "Partagez votre avis",
+      "one": "Vous avez 1 formation terminée en attente de votre avis.",
+      "many": "Vous avez {count} formations terminées en attente de votre avis.",
+      "cta": "Donner mon avis",
+      "latest": "Plus récente : {title}"
+    },
+    "form": {
+      "title": "Avis — {title}",
+      "subtitle": "Votre avis nous aide à améliorer cette formation.",
+      "overall": "Note globale",
+      "content": "Qualité du contenu",
+      "relevance": "Pertinence pour votre poste",
+      "trainer": "Qualité du formateur",
+      "recommend": "Recommanderiez-vous cette formation ?",
+      "recommendYes": "Oui",
+      "recommendNo": "Non",
+      "comment": "Commentaire",
+      "commentPlaceholder": "Qu'avez-vous pensé de cette formation ?",
+      "suggestions": "Suggestions",
+      "suggestionsPlaceholder": "Comment pourrions-nous l'améliorer ?",
+      "anonymous": "Envoyer de façon anonyme",
+      "anonymousHint": "Votre nom ne sera pas affiché aux administrateurs.",
+      "submit": "Envoyer mon avis",
+      "submitting": "Envoi…",
+      "cancel": "Annuler"
+    },
+    "toast": {
+      "successTitle": "Merci pour votre avis !",
+      "successBody": "Votre avis a été enregistré.",
+      "errorTitle": "Impossible d'envoyer l'avis",
+      "errorBody": "Une erreur est survenue. Veuillez réessayer."
+    }
+  },
+  "adminFeedback": {
+    "overview": {
+      "title": "Aperçu des avis",
+      "subtitle": "Avis des apprenants sur toutes les formations.",
+      "kpiAvg": "Note moyenne",
+      "kpiTotal": "Total des avis",
+      "kpiResponseRate": "Taux de réponse",
+      "kpiRecommend": "Taux de recommandation",
+      "distribution": "Répartition des notes",
+      "trend": "Tendance des notes",
+      "topTrainings": "Formations les mieux notées",
+      "bottomTrainings": "Formations les moins bien notées",
+      "byTrainerLink": "Avis par formateur",
+      "configureLink": "Configurer le formulaire",
+      "noData": "Aucun avis pour le moment.",
+      "responses": "réponses"
+    },
+    "filters": {
+      "format": "Format",
+      "allFormats": "Tous les formats",
+      "eLearning": "E-learning",
+      "onSite": "Présentiel",
+      "from": "Du",
+      "to": "Au"
+    },
+    "training": {
+      "noFeedback": "Aucun avis n'a encore été soumis pour cette formation.",
+      "kpiAvg": "Note moyenne",
+      "kpiResponses": "Réponses",
+      "kpiRecommend": "Taux de recommandation",
+      "kpiTrainer": "Note du formateur",
+      "distribution": "Répartition des notes",
+      "dimensions": "Dimensions des notes",
+      "trend": "Tendance des notes",
+      "comments": "Commentaires",
+      "commentsSuppressed": "Les commentaires sont masqués tant que moins de 3 apprenants ont répondu, pour préserver l'anonymat.",
+      "noComments": "Aucun commentaire laissé."
+    },
+    "dimensions": {
+      "overall": "Global",
+      "content": "Contenu",
+      "relevance": "Pertinence",
+      "trainer": "Formateur"
+    },
+    "trainer": {
+      "listTitle": "Avis par formateur",
+      "listSubtitle": "Notes moyennes par formateur, pour les formations à formateur unique.",
+      "colName": "Formateur",
+      "colSessions": "Séances",
+      "colFeedback": "Avis",
+      "colAvg": "Note moyenne",
+      "colRecommend": "Recommandation",
+      "trainings": "Formations",
+      "colTraining": "Formation",
+      "comments": "Commentaires",
+      "noTrainers": "Aucun avis de formateur pour le moment.",
+      "noComments": "Aucun commentaire laissé."
+    },
+    "config": {
+      "title": "Configuration des avis",
+      "subtitle": "Ajoutez des questions personnalisées au formulaire d'avis, par catégorie de formation.",
+      "category": "Catégorie",
+      "defaultForm": "Formulaire par défaut (toutes catégories)"
+    },
+    "builder": {
+      "subtitle": "Ces questions apparaissent après les notes standard.",
+      "addQuestion": "Ajouter une question",
+      "label": "Question",
+      "options": "Options (une par ligne)",
+      "optionsPlaceholder": "Option 1\nOption 2",
+      "editQuestion": "Modifier la question",
+      "newQuestion": "Nouvelle question",
+      "edit": "Modifier",
+      "remove": "Supprimer",
+      "drag": "Glisser pour réordonner",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "empty": "Aucune question personnalisée. Ajoutez-en une pour enrichir le formulaire.",
+      "confirmRemove": "Supprimer la question {label} ?"
+    },
+    "questionType": {
+      "StarRating": "Notation par étoiles (1–5)",
+      "Scale10": "Échelle (1–10)",
+      "YesNo": "Oui / Non",
+      "MultipleChoice": "Choix multiple",
+      "FreeText": "Texte libre"
+    }
+  },
   "nav": {
     "sections": {
       "learning": "Formation",
@@ -21,10 +144,14 @@
       "serviceLines": "Service Lines",
       "employeeProfiles": "Profils des employés",
       "curriculum": "Curriculum",
+      "trainingBudgets": "Budgets de formation",
       "sessions": "Séances",
       "planning": "Planification",
       "attendance": "Présences",
       "certificateRegistry": "Registre des certificats",
+      "feedback": "Avis",
+      "reports": "Rapports",
+      "importTrainings": "Importer des formations",
       "settings": "Paramètres"
     },
     "comingSoon": "Bientôt disponible",
@@ -227,7 +354,8 @@
       "inProgress": "En cours",
       "completed": "Terminées",
       "totalHours": "Heures totales",
-      "enrolled": "Inscriptions"
+      "enrolled": "Inscriptions",
+      "avgProgress": "Progression moy."
     },
     "searchPlaceholder": "Rechercher des formations...",
     "searchAria": "Rechercher dans vos formations",
@@ -561,6 +689,7 @@
     "intro": {
       "questions": "Questions",
       "timeLimit": "Temps imparti",
+      "suggestedTime": "Temps suggéré",
       "minutes": "{minutes} min",
       "alreadyPassed": "Vous avez déjà réussi cet examen. Vous pouvez le repasser si vous le souhaitez.",
       "retake": "Repasser l'examen",
@@ -590,10 +719,153 @@
       "reviewChapters": "Revoir les chapitres"
     }
   },
+  "imports": {
+    "title": "Importer des formations",
+    "subtitle": "Importez des formations en masse depuis un classeur Excel, avec aperçu et validation",
+    "downloadTemplate": "Télécharger le modèle",
+    "upload": {
+      "choose": "Choisir un fichier",
+      "noFile": "Aucun fichier sélectionné",
+      "button": "Importer & prévisualiser",
+      "uploading": "Import en cours…"
+    },
+    "toast": {
+      "uploaded": "Fichier validé — vérifiez l'aperçu ci-dessous.",
+      "uploadError": "Impossible de traiter le fichier.",
+      "templateError": "Impossible de télécharger le modèle.",
+      "applied": "Import terminé.",
+      "appliedWithErrors": "{failed, plural, one {Import terminé — # ligne en échec.} other {Import terminé — # lignes en échec.}}",
+      "applyError": "Impossible de terminer l'import.",
+      "errorLogError": "Impossible de télécharger le journal d'erreurs."
+    },
+    "summary": {
+      "total": "{count} au total",
+      "ready": "{count} prêtes",
+      "duplicate": "{count} en double",
+      "error": "{count} en erreur"
+    },
+    "globalIssues": "Problèmes du classeur",
+    "noRows": "Aucune formation trouvée dans le classeur.",
+    "previewNote": "Ceci est un aperçu — rien n'a encore été importé. La confirmation de l'import est l'étape suivante.",
+    "cols": {
+      "ref": "Réf",
+      "title": "Titre",
+      "category": "Catégorie",
+      "format": "Format",
+      "structure": "Séances / Chapitres / Contenu",
+      "structureShort": "S / C / Ct",
+      "status": "Statut",
+      "action": "Si doublon"
+    },
+    "status": {
+      "ready": "Prête",
+      "duplicate": "Doublon",
+      "error": "Erreur"
+    },
+    "actions": {
+      "skip": "Ignorer",
+      "createNew": "Créer en double",
+      "safeUpdate": "Mettre à jour"
+    },
+    "confirm": {
+      "button": "Confirmer l'import ({count})",
+      "applying": "Import en cours…"
+    },
+    "result": {
+      "title": "Import terminé",
+      "imported": "{count} importées",
+      "updated": "{count} mises à jour",
+      "skipped": "{count} ignorées",
+      "failed": "{count} en échec",
+      "downloadErrors": "Télécharger le journal d'erreurs"
+    }
+  },
+  "reports": {
+    "title": "Rapports",
+    "subtitle": "Présences, heures de formation et comparaison présentiel vs e-learning",
+    "tabs": {
+      "attendance": "Présences",
+      "hours": "Heures de formation",
+      "format": "Comparaison des formats"
+    },
+    "filters": {
+      "grade": "Grade",
+      "serviceLine": "Service Line",
+      "from": "Du",
+      "to": "Au",
+      "allGrades": "Tous les grades",
+      "allServiceLines": "Toutes les service lines",
+      "reset": "Réinitialiser"
+    },
+    "export": {
+      "excel": "Excel",
+      "pdf": "PDF",
+      "error": "Échec de l'export. Veuillez réessayer."
+    },
+    "empty": "Aucune donnée pour les filtres sélectionnés.",
+    "total": "Total",
+    "hoursEstimatedNote": "Les heures sont estimées : présentiel d'après les horaires des séances suivies, e-learning d'après la durée du contenu.",
+    "completionByFormat": "Taux d'achèvement par format",
+    "attendanceByGrade": "Taux de présence par grade",
+    "format": {
+      "eLearning": "E-learning",
+      "onSite": "Présentiel"
+    },
+    "cols": {
+      "employee": "Employé",
+      "grade": "Grade",
+      "serviceLine": "Service Line",
+      "enrolled": "Inscrit",
+      "attended": "Présent",
+      "missed": "Manqué",
+      "rate": "Taux de présence",
+      "eLearningHours": "Heures e-learning",
+      "inPersonHours": "Heures présentiel",
+      "totalHours": "Heures totales",
+      "completed": "Terminées",
+      "trainings": "Formations",
+      "hoursDelivered": "Heures dispensées",
+      "participants": "Participants",
+      "avgFeedback": "Avis moyen"
+    }
+  },
+  "trainerFeedback": {
+    "noSessions": "Vous n'avez pas encore de séances à évaluer. Le retour sur le groupe devient disponible une fois qu'une séance que vous animez a eu lieu.",
+    "giveFeedback": "Donner un retour",
+    "submitted": "Retour envoyé",
+    "notYetHeld": "Pas encore tenue",
+    "form": {
+      "title": "Retour sur votre groupe",
+      "engagement": "Engagement du groupe",
+      "knowledge": "Niveau de connaissances",
+      "comments": "Commentaires",
+      "prerequisites": "Suggestions de prérequis",
+      "prerequisitesPlaceholder": "Que devraient savoir les participants avant cette séance ?",
+      "cancel": "Annuler",
+      "submit": "Envoyer le retour",
+      "submitting": "Envoi en cours…"
+    },
+    "toast": {
+      "successTitle": "Retour envoyé",
+      "successBody": "Merci — votre retour sur le groupe a été enregistré.",
+      "errorTitle": "Impossible d'envoyer le retour",
+      "errorBody": "Une erreur s'est produite. Veuillez réessayer."
+    },
+    "adminCard": {
+      "title": "Retour du formateur sur le groupe",
+      "none": "Le formateur n'a pas soumis de retour pour cette séance.",
+      "by": "par {name}"
+    }
+  },
   "mySessions": {
     "title": "Mes Séances",
     "subtitle": "Gérez vos séances de formation en présentiel et votre présence",
     "backToMySessions": "Retour à Mes Séances",
+    "tabs": {
+      "attending": "Participation",
+      "leading": "Animation",
+      "leadingDisabled": "Vous n'êtes encore assigné comme formateur sur aucune séance"
+    },
     "trainingCount": "{count, plural, one {# formation} other {# formations}}",
     "partTitle": "Partie {number} : {title}",
     "stats": {
@@ -739,6 +1011,8 @@
     },
     "detail": {
       "loading": "Chargement des détails de la formation...",
+      "tabDetails": "Détails",
+      "tabFeedback": "Avis",
       "manageTrainings": "Gérer les formations",
       "deleted": "Supprimée",
       "mandatory": "Obligatoire",
@@ -762,6 +1036,10 @@
         "exams": "Examens"
       },
       "courseMaterials": "Supports de cours",
+      "tabs": {
+        "sessions": "Sessions",
+        "costs": "Coûts"
+      },
       "chaptersHeading": "Chapitres",
       "addChapter": "Ajouter un chapitre"
     },
@@ -825,6 +1103,7 @@
         "titleMinLength": "Le titre doit comporter au moins 2 caractères.",
         "categoryRequired": "Veuillez sélectionner une catégorie.",
         "creditsNegative": "Les crédits ne peuvent pas être négatifs.",
+        "sponsoringServiceLineRequired": "La ligne de service sponsor est requise pour les formations externes.",
         "scheduledDateFuture": "La date planifiée doit être dans le futur."
       }
     },
@@ -1055,13 +1334,29 @@
   },
   "adminDashboard": {
     "moduleTitle": "Administration",
-    "title": "Matrice du programme et progression",
-    "description": "Cliquez sur une cellule pour afficher les statistiques détaillées des employés. Matrice de complétion grade x Service Line et taux de progression.",
+    "title": "Analyses d'apprentissage",
+    "description": "Complétion du cursus par grade et Service Line, et présence aux sessions présentielles.",
+    "tabs": {
+      "programme": "Matrice du programme",
+      "attendance": "Présence",
+      "ariaLabel": "Tableaux de bord d'administration"
+    },
     "kpi": {
       "profiledEmployees": "Employés profilés",
       "activeCells": "Cellules actives",
+      "activeGroups": "Groupes actifs",
       "avgCompletion": "Complétion moyenne",
-      "greenCells": "Cellules supérieures à 80%"
+      "greenCells": "Cellules supérieures à 80%",
+      "groupsAbove80": "Groupes ≥ 80%"
+    },
+    "section": {
+      "completionByGroup": "Complétion par groupe",
+      "completionByGroupHint": "Chaque groupe grade × Service Line, trié par complétion la plus faible en premier. Cliquez sur un groupe pour la progression par employé."
+    },
+    "attention": {
+      "empty": "Aucun groupe avec des employés inscrits pour l'instant.",
+      "tileAria": "{grade}, {sl} : {rate}% terminé, {count, plural, one {# personne} other {# personnes}}",
+      "people": "{count, plural, one {# personne} other {# personnes}}"
     },
     "matrix": {
       "heading": "Matrice du programme",
@@ -1181,7 +1476,8 @@
     },
     "card": {
       "points": "{count, plural, one {# pt} other {# pts}}",
-      "optionsCount": "{count, plural, one {# option} other {# options}}"
+      "optionsCount": "{count, plural, one {# option} other {# options}}",
+      "explanation": "Explication"
     },
     "preview": {
       "title": "Aperçu : {title}",
@@ -1232,6 +1528,8 @@
       "cancel": "Annuler",
       "updateQuestion": "Mettre à jour la question",
       "addQuestion": "Ajouter une question",
+      "explanationLabel": "Explication (facultatif)",
+      "explanationPlaceholder": "Expliquez pourquoi la bonne réponse est correcte...",
       "unexpectedError": "Une erreur inattendue s'est produite."
     },
     "options": {
@@ -1258,6 +1556,60 @@
     "toast": {
       "confirmDeleteExam": "Supprimer cet examen et toutes ses questions ? Cette action est irréversible.",
       "confirmDeleteQuestion": "Supprimer la question « {text} » ?"
+    }
+  },
+  "adminQuiz": {
+    "title": "Générateur de quiz IA",
+    "generateWithAi": "Générer avec l'IA",
+    "description": "Générez des questions à choix multiples à partir du contenu de cette formation, vérifiez-les et modifiez-les, puis publiez-les dans l'examen.",
+    "loading": "Chargement du brouillon...",
+    "unavailable": "La génération de quiz par IA n'est pas configurée pour cet environnement.",
+    "countLabel": "Nombre de questions",
+    "generate": "Générer",
+    "regenerate": "Régénérer",
+    "generating": "Génération des questions...",
+    "generatingHint": "Cela peut prendre une à deux minutes pour un quiz complet — vous pouvez laisser cette fenêtre ouverte.",
+    "stageReading": "Lecture du contenu de la formation...",
+    "stageAnalyzing": "Analyse du contenu...",
+    "stageWriting": "Rédaction des questions...",
+    "stageFinalizing": "Finalisation du quiz...",
+    "generated": "{count, plural, one {# question générée} other {# questions générées}}",
+    "addManually": "Ajouter manuellement",
+    "emptyTitle": "Aucune question",
+    "emptyDescription": "Générez avec l'IA ou ajoutez des questions manuellement pour créer votre quiz.",
+    "questionsCount": "{count, plural, one {# question} other {# questions}}",
+    "invalidHint": "{count, plural, one {# question à corriger} other {# questions à corriger}}",
+    "untitled": "Question sans titre",
+    "emptyOption": "Option vide",
+    "points": "{count, plural, one {# pt} other {# pts}}",
+    "type": {
+      "SingleChoice": "Choix unique",
+      "MultipleChoice": "Choix multiple",
+      "TrueFalse": "Vrai / Faux"
+    },
+    "sourceAi": "IA",
+    "sourceManual": "Manuel",
+    "explanationLabel": "Explication",
+    "discard": "Supprimer",
+    "saveDraft": "Enregistrer le brouillon",
+    "publish": "Publier dans l'examen",
+    "publishExisting": "Ajouter à l'examen",
+    "confirmPublish": "Publier {count, plural, one {# question} other {# questions}} dans l'examen ?",
+    "confirmDiscard": "Supprimer ce brouillon ? Cette action est irréversible.",
+    "published": "{count, plural, one {# question publiée dans l'examen} other {# questions publiées dans l'examen}}",
+    "saved": "Brouillon enregistré.",
+    "discarded": "Brouillon supprimé.",
+    "genError": "Impossible de générer un quiz. Veuillez réessayer.",
+    "saveError": "Impossible d'enregistrer le brouillon.",
+    "publishError": "Impossible de publier le quiz.",
+    "discardError": "Impossible de supprimer le brouillon.",
+    "backfill": {
+      "title": "Extraire le texte des PDF existants",
+      "description": "Lit le texte des PDF déjà téléversés dans la base de données pour que le générateur de quiz IA puisse les utiliser. À exécuter une fois ; peut être relancé.",
+      "button": "Extraire le texte des PDF",
+      "running": "Extraction...",
+      "done": "Terminé — texte extrait de {updated} PDF sur {scanned} ; {skipped} ignoré(s).",
+      "error": "Impossible d'exécuter l'extraction du texte des PDF."
     }
   },
   "adminGrades": {

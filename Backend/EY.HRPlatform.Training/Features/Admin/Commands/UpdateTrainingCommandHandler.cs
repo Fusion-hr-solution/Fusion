@@ -39,8 +39,36 @@ public class UpdateTrainingCommandHandler : ICommandHandler<UpdateTrainingComman
             parsedType = tt;
         }
 
+        CostType? parsedCostType = null;
+        if (!string.IsNullOrEmpty(request.CostType))
+        {
+            if (!Enum.TryParse<CostType>(request.CostType, true, out var ct))
+                return Result.Failure(Error.Validation("Training.InvalidCostType",
+                    $"Invalid cost type '{request.CostType}'. Valid values: Internal, External."));
+            parsedCostType = ct;
+        }
+
+        // Validate against the effective (post-update) cost type + training type.
+        var effectiveCostType = parsedCostType ?? training.CostType;
+        var effectiveType = parsedType ?? training.TrainingType;
+        if (effectiveCostType == CostType.External)
+        {
+            if (effectiveType != TrainingType.OnSite)
+                return Result.Failure(Error.Validation("Training.CostTypeRequiresOnSite",
+                    "External cost type is only valid for OnSite trainings."));
+            if (request.SponsoringServiceLineId is null)
+                return Result.Failure(Error.Validation("Training.SponsorRequired",
+                    "A sponsoring service line is required for External OnSite trainings."));
+            var sponsorExists = await _db.ServiceLines
+                .AnyAsync(s => s.Id == request.SponsoringServiceLineId.Value, cancellationToken);
+            if (!sponsorExists)
+                return Result.Failure(Error.NotFound("ServiceLine", request.SponsoringServiceLineId.Value));
+        }
+
         training.Update(request.Title, request.Description, request.Credits,
-            request.IsMandatory, badgeLevel, request.Duration, parsedType, request.ScheduledDate);
+            request.IsMandatory, badgeLevel, request.Duration, parsedType, request.ScheduledDate,
+            parsedCostType,
+            effectiveCostType == CostType.External ? request.SponsoringServiceLineId : null);
 
         if (training.CategoryId != request.CategoryId)
             training.UpdateCategory(request.CategoryId);

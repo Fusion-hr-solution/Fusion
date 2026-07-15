@@ -11,7 +11,7 @@ public class AddChapterCommandHandlerTests
     public async Task Handle_AddsChapter_WhenValidData()
     {
         await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
-        var handler = new AddChapterCommandHandler(context);
+        var handler = new AddChapterCommandHandler(context, new FakePdfTextExtractor());
         var training = context.Trainings.First();
 
         var blocks = new List<AddChapterContentBlockItem>
@@ -35,7 +35,7 @@ public class AddChapterCommandHandlerTests
     public async Task Handle_AddsChapterWithVideoBlock()
     {
         await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
-        var handler = new AddChapterCommandHandler(context);
+        var handler = new AddChapterCommandHandler(context, new FakePdfTextExtractor());
         var training = context.Trainings.First();
 
         var blocks = new List<AddChapterContentBlockItem>
@@ -57,7 +57,7 @@ public class AddChapterCommandHandlerTests
     public async Task Handle_ReturnsFailure_WhenTrainingNotFound()
     {
         await using var context = TestDbContextFactory.Create();
-        var handler = new AddChapterCommandHandler(context);
+        var handler = new AddChapterCommandHandler(context, new FakePdfTextExtractor());
         var command = new AddChapterCommand(
             Guid.NewGuid(), "Chapter", "SingleContent", 0, []);
 
@@ -71,7 +71,7 @@ public class AddChapterCommandHandlerTests
     public async Task Handle_ReturnsFailure_WhenInvalidLayout()
     {
         await using var context = await TestDbContextFactory.CreateWithSeedDataAsync();
-        var handler = new AddChapterCommandHandler(context);
+        var handler = new AddChapterCommandHandler(context, new FakePdfTextExtractor());
         var training = context.Trainings.First();
 
         var command = new AddChapterCommand(

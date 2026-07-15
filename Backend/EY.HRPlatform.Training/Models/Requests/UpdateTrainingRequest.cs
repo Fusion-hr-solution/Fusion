@@ -27,4 +27,8 @@ public class UpdateTrainingRequest
     public string? TrainingType { get; set; }
 
     public DateTime? ScheduledDate { get; set; }
+
+    public string? CostType { get; set; }
+
+    public Guid? SponsoringServiceLineId { get; set; }
 }

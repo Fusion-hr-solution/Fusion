@@ -10,4 +10,5 @@ public record UpdateExamQuestionCommand(
     string QuestionText,
     string Type,
     int Points,
-    List<AddExamQuestionOptionItem> Options) : ICommand<Result>;
+    List<AddExamQuestionOptionItem> Options,
+    string? Explanation = null) : ICommand<Result>;
