@@ -18,6 +18,13 @@ public interface IPerformanceAccessPolicyService
     // and ownership are enforced per operation in the handlers.
     bool CanManageTeamObjectives(ClaimsPrincipal user) => false;
 
+    // Employee objective plans (P1.4): self-authoring only; ownership is enforced per operation.
+    bool CanManageOwnObjectives(ClaimsPrincipal user) => false;
+
+    // Employee objective plan approval (P1.5): permission opens the door; frozen
+    // approver assignment is enforced per plan in the approval handlers.
+    bool CanApproveEmployeePlans(ClaimsPrincipal user) => false;
+
     // Cascade coverage read (P1.3): Direction door (strategic view) or HR door (cycle view/manage).
     bool CanViewCascadeCoverage(ClaimsPrincipal user) => false;
 
@@ -48,32 +55,26 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
     public bool CanViewCycles(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.CycleView, PermissionScopes.Tenant)
             || user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant);
 
     public bool CanManageCycles(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant);
 
     public bool CanOperateCycles(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant);
 
     // ─── Strategic objective permissions (D-05) ───────────────────────────────
 
     public bool CanViewStrategicObjectives(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)
             || user.HasCorePermission(PerformancePermissions.StrategicManage, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant);
 
     public bool CanManageStrategicObjectives(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.StrategicManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.StrategicManage, PermissionScopes.Tenant);
 
     public bool CanPublishStrategicObjectives(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant);
 
     // ─── Team objectives + cascade coverage (P1.3) ────────────────────────────
 
@@ -84,6 +85,16 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
     /// </summary>
     public bool CanManageTeamObjectives(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.ObjectiveTeamManage);
+
+    /// <summary>
+    /// Employee objective authoring is strictly self-scoped. No Tenant/PlatformAdmin bypass:
+    /// resource ownership still comes from the frozen participant baseline in handlers.
+    /// </summary>
+    public bool CanManageOwnObjectives(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self);
+
+    public bool CanApproveEmployeePlans(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveTeamApprove);
 
     public bool CanViewCascadeCoverage(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)

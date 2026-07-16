@@ -24,6 +24,8 @@ public static class CycleMapper
             participantCount,
             cycle.LaunchedAt,
             cycle.ClosedAt,
+            cycle.PlanningLockedAt,
+            cycle.PlanningLockedByName,
             cycle.CreatedAt,
             cycle.Version);
 
@@ -55,6 +57,8 @@ public static class CycleMapper
             participantCount,
             cycle.LaunchedAt,
             cycle.ClosedAt,
+            cycle.PlanningLockedAt,
+            cycle.PlanningLockedByName,
             cycle.CreatedAt,
             cycle.UpdatedAt,
             cycle.Version,

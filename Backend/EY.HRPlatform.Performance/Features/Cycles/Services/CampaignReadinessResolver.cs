@@ -55,6 +55,8 @@ public sealed class CampaignReadinessResolver(
 
     public async Task<CampaignReadinessResult> ResolveAsync(PerformanceCycle cycle, CancellationToken cancellationToken)
     {
+        var hasPositiveScope = cycle.PopulationRules.Any(rule =>
+            rule.RuleType is PopulationRuleType.OrgUnit or PopulationRuleType.IncludeEmployee);
         var members = await populationResolver.ResolveAsync(cycle, asOf: null, cancellationToken);
 
         var overridesByEmployee = cycle.ApproverOverrides
@@ -91,6 +93,13 @@ public sealed class CampaignReadinessResolver(
         var blocking = new List<CampaignReadinessConditionDto>();
         var informational = new List<CampaignReadinessConditionDto>();
 
+        if (!hasPositiveScope)
+        {
+            blocking.Add(new CampaignReadinessConditionDto(
+                "PopulationScopeRequired", SeverityBlocking,
+                "Choose at least one org unit before launch.", null));
+        }
+
         if (participants.Count == 0)
         {
             blocking.Add(new CampaignReadinessConditionDto(
@@ -121,7 +130,7 @@ public sealed class CampaignReadinessResolver(
         }
 
         return new CampaignReadinessResult(
-            IsAllActiveBaseline: !cycle.PopulationRules.Any(rule => rule.RuleType == PopulationRuleType.OrgUnit),
+            IsAllActiveBaseline: !hasPositiveScope,
             participants,
             exclusions,
             blocking,

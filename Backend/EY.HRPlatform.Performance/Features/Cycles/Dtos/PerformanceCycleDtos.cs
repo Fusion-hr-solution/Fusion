@@ -16,6 +16,8 @@ public sealed record PerformanceCycleSummaryDto(
     int ParticipantCount,
     DateTime? LaunchedAt,
     DateTime? ClosedAt,
+    DateTime? PlanningLockedAt,
+    string? PlanningLockedByName,
     DateTime CreatedAt,
     uint Version);
 
@@ -48,6 +50,8 @@ public sealed record PerformanceCycleDetailDto(
     int ParticipantCount,
     DateTime? LaunchedAt,
     DateTime? ClosedAt,
+    DateTime? PlanningLockedAt,
+    string? PlanningLockedByName,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     uint Version,
@@ -110,7 +114,8 @@ public sealed record CampaignPopulationExclusionDto(
 
 /// <summary>
 /// Live preview of the resolved objective-planning population. When no org-unit scope is set,
-/// <see cref="IsAllActiveBaseline"/> is true and the resolved set is every active tenant employee.
+/// <see cref="IsAllActiveBaseline"/> is true only for legacy/no-scope drafts; launch readiness treats
+/// that as an incomplete population decision instead of silently selecting every active employee.
 /// </summary>
 public sealed record CyclePopulationPreviewDto(
     bool IsAllActiveBaseline,

@@ -16,7 +16,7 @@ public class PerformanceCycleAuditEventConfiguration : IEntityTypeConfiguration<
 
         builder.Property(a => a.Action)
             .HasConversion<string>()
-            .HasMaxLength(30)
+            .HasMaxLength(80)
             .IsRequired();
 
         builder.Property(a => a.ActorName).HasMaxLength(256);

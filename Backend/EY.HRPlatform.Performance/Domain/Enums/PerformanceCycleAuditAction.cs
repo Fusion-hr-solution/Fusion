@@ -33,11 +33,29 @@ public enum PerformanceCycleAuditAction
     TeamObjectiveUpdated,
     TeamObjectiveDeleted,
 
+    // Employee objective plan actions (P1.4)
+    EmployeeObjectivePlanCreated,
+    EmployeeObjectiveCreated,
+    EmployeeObjectiveUpdated,
+    EmployeeObjectiveDeleted,
+    EmployeeObjectivePlanSubmitted,
+    EmployeeObjectivePlanResubmitted,
+    EmployeeObjectivePlanChangesRequested,
+    EmployeeObjectivePlanApproved,
+
+    // Planning completion and lock actions (P1.6)
+    PlanningReminderRecorded,
+    PlanningReminderTriggered,
+    PlanningApproverReassigned,
+    PlanningParticipantExcluded,
+    PlanningLockRejected,
+    PlanningLocked,
+
     // Strategic objective actions (Plan 03-02)
     StrategicObjectivePublished,
     StrategicObjectiveSuperseded,
 
-    // Collective objective actions (Plan 03-03)
+    // Employee objective actions (Plan 03-03)
     CollectiveObjectiveApprovalRouted,
     CollectiveObjectiveAutoApproved,
 
