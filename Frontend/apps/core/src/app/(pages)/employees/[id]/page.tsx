@@ -14,12 +14,11 @@ import {
 } from "@repo/auth";
 import {
   PageContainer,
-  PageHeader,
   PageEmpty,
   PageError,
-  PageLoading,
   PagePermissionNotice,
 } from "@repo/ds/shell";
+import { EmployeeProfilePageSkeleton } from "@/shell/route-skeletons";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
 import { canAccessEmployeeProfile } from "@/lib/employee-roster-access";
@@ -91,15 +90,7 @@ export default function EmployeeProfilePage() {
     !error;
 
   if (isInitialLoading) {
-    return (
-      <PageContainer width="wide" className="space-y-6">
-        <PageHeader
-          title="Employee Profile"
-          description="Loading employee profile."
-        />
-        <PageLoading rows={6} label="Loading employee profile..." />
-      </PageContainer>
-    );
+    return <EmployeeProfilePageSkeleton />;
   }
 
   const isViewable = canViewProfile || isTenantContextReadOnly;

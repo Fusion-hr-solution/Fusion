@@ -1,13 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
@@ -31,6 +25,7 @@ import {
   useAuth,
 } from "@repo/auth";
 import { type PageSize } from "@repo/ui";
+import { AccessPageSkeleton } from "@/shell/route-skeletons";
 import { toast } from "sonner";
 import {
   PageContainer,
@@ -632,8 +627,6 @@ export default function AccessPeopleWorkspace() {
   );
 
   const searchParam = searchParams.get("search") ?? "";
-  const [searchText, setSearchText] = useState(searchParam);
-  const deferredSearchText = useDeferredValue(searchText);
   const accessFilter = parseAccessFilter(searchParams.get("access"));
   const employeeStatusFilter = parseEmployeeStatusFilter(
     searchParams.get("employeeStatus")
@@ -648,7 +641,7 @@ export default function AccessPeopleWorkspace() {
 
   const queryParams = useMemo<AccessSubjectQueryParams>(
     () => ({
-      search: deferredSearchText.trim() || null,
+      search: searchParam.trim() || null,
       access: accessFilter === "all" ? null : accessFilter,
       profileId: profileId || null,
       employeeStatus:
@@ -659,7 +652,7 @@ export default function AccessPeopleWorkspace() {
     }),
     [
       accessFilter,
-      deferredSearchText,
+      searchParam,
       employeeKey,
       employeeStatusFilter,
       page,
@@ -777,23 +770,6 @@ export default function AccessPeopleWorkspace() {
       router.replace(profilesHref);
     }
   }, [canManageProfiles, canViewAccess, profilesHref, router]);
-
-  useEffect(() => {
-    if (searchText !== searchParam) {
-      setSearchText(searchParam);
-    }
-  }, [searchParam, searchText]);
-
-  useEffect(() => {
-    if (deferredSearchText === searchParam) {
-      return;
-    }
-
-    updateSearchParam({
-      search: deferredSearchText.trim() || null,
-      page: "1",
-    });
-  }, [deferredSearchText, searchParam, updateSearchParam]);
 
   useEffect(() => {
     setRowSelection((current) => {
@@ -1335,15 +1311,7 @@ export default function AccessPeopleWorkspace() {
   ]);
 
   if (isLoading) {
-    return (
-      <PageContainer width="wide" className="space-y-6">
-        <PageHeader
-          title="Access"
-          description="Activate accounts and manage access for workforce users."
-        />
-        <PageLoading rows={8} label="Loading access workspace" />
-      </PageContainer>
-    );
+    return <AccessPageSkeleton />;
   }
 
   if (!canViewAccess && canManageProfiles) {
@@ -1455,9 +1423,8 @@ export default function AccessPeopleWorkspace() {
 
         <section className="space-y-4 rounded-xl border bg-card p-4">
           <AccessToolbar
-            search={searchText}
+            search={searchParam}
             onSearchChange={(value) => {
-              setSearchText(value);
               updateSearchParam({
                 search: value.trim() || null,
                 page: "1",

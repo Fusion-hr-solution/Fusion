@@ -8,11 +8,11 @@ import {
   PageHeader,
   PageEmpty,
   PageError,
-  PageLoading,
   PagePermissionNotice,
   StatusBadge,
 } from "@repo/ds/shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { TeamPageSkeleton } from "@/shell/route-skeletons";
 import { canAccessTeamWorkspace } from "@/lib/employee-roster-access";
 import { useEmployeeReportingLines } from "@/app/(pages)/employees/use-employees";
 
@@ -25,12 +25,7 @@ export default function TeamWorkspace() {
   const directReports = data?.directReports ?? [];
 
   if (isAuthLoading || (canAccess && isLoading && !data && !error)) {
-    return (
-      <PageContainer className="space-y-6">
-        <PageHeader title="My Team" description="Loading team." />
-        <PageLoading rows={6} label="Loading your team..." />
-      </PageContainer>
-    );
+    return <TeamPageSkeleton />;
   }
 
   if (!canAccess || !employeeId) {

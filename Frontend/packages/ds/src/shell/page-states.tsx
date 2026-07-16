@@ -3,6 +3,7 @@ import { AlertTriangle, Inbox, Lock } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
+import { PageContainer, type PageContainerProps } from "./page";
 
 interface BaseStateProps {
   icon?: ComponentType<{ className?: string }>;
@@ -83,5 +84,31 @@ export function PageLoading({ rows = 5, className, label }: PageLoadingProps) {
         <Skeleton key={i} className="h-12 w-full" />
       ))}
     </div>
+  );
+}
+
+export interface PageSkeletonProps {
+  /** Number of content skeleton rows below the header placeholder. */
+  rows?: number;
+  width?: PageContainerProps["width"];
+  label?: string;
+}
+
+/**
+ * Neutral in-frame page fallback: header-shaped placeholder + content rows.
+ * Title-less by design — never fakes a page name. Use for route-level
+ * loading boundaries and access-resolution holds inside the app shell.
+ */
+export function PageSkeleton({ rows = 6, width = "default", label }: PageSkeletonProps) {
+  return (
+    <PageContainer width={width}>
+      <div aria-busy aria-label={label ?? "Loading page"}>
+        <div className="mb-6 space-y-2">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+        <PageLoading rows={rows} label={label} />
+      </div>
+    </PageContainer>
   );
 }

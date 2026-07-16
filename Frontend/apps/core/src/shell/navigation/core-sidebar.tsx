@@ -52,13 +52,27 @@ function applySetupLock(section: ShellNavSection, disabledReason: string): Shell
   };
 }
 
+// Setup-lock state still resolving: lockable items look enabled but are inert,
+// so they never flash interactive→locked. Setup itself is always navigable.
+function applyPendingLock(section: ShellNavSection): ShellNavSection {
+  return {
+    ...section,
+    items: section.items.map((item) =>
+      item.href === "/setup" ? item : { ...item, pending: true }
+    ),
+  };
+}
+
 export function CoreSidebar() {
   const pathname = usePathname();
   const activePath = pathname.replace(/^\/core/, "") || "/";
-  const { user, logout } = useAuth();
-  const { isNavigationLocked, lockedNavigationReason } = useCoreSetupAccess();
+  const { user, logout, isLoading: isAuthLoading } = useAuth();
+  const { isNavigationLocked, lockedNavigationReason, isAccessResolving } =
+    useCoreSetupAccess();
   const { tenantId, tenantSlug, tenantName } = useTenantContext();
   const isInTenantContext = !!tenantId;
+  // Auth known but the setup-state query is still in flight: lock state unknown.
+  const isLockStateResolving = !isAuthLoading && isAccessResolving;
 
   const canSeeSetup = canSeeCoreSetupNavigation(user) || isInTenantContext;
   const canSeeAccess = canSeeCoreAccessNavigation(user) || isInTenantContext;
@@ -94,7 +108,9 @@ export function CoreSidebar() {
   const sections = (
     isNavigationLocked && lockedNavigationReason
       ? visibleSections.map((section) => applySetupLock(section, lockedNavigationReason))
-      : visibleSections
+      : isLockStateResolving
+        ? visibleSections.map(applyPendingLock)
+        : visibleSections
   ).map((section) => applyTenantContextHref(section, tenantId, tenantSlug));
 
   const roleLabel = user?.roles.includes(PLATFORM_ADMIN_ROLE)
@@ -108,12 +124,14 @@ export function CoreSidebar() {
       brandIcon={BrainCircuit}
       activePath={activePath}
       sections={sections}
+      pending={isAuthLoading}
       modules={FUSION_MODULES}
       currentModuleKey="core"
       contextLabel={isInTenantContext ? `Tenant · ${tenantName ?? "Viewing"}` : undefined}
       userPanel={(collapsed) => (
         <ShellUserPanel
           collapsed={collapsed}
+          pending={isAuthLoading}
           name={user?.fullName}
           secondaryLabel={roleLabel}
           links={[

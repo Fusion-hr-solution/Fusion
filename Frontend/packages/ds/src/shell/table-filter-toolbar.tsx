@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { ListFilter } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button } from "../components/ui/button";
 
 interface TableFilterToolbarProps {
   search: ReactNode;

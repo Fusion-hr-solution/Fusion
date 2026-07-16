@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ListFilter, Search, X } from "lucide-react";
 import { SEARCH_DEBOUNCE_MS } from "@repo/ui";
 import type { AccessProfileSummaryDto } from "@repo/api";
+import { TableFilterToolbar } from "@repo/ds/shell";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,7 +16,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { TableFilterToolbar } from "@/components/table-filter-toolbar";
 
 const ACCESS_FILTER_OPTIONS = [
   { value: "all", label: "All access states" },

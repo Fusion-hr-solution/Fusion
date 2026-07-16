@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
+  ChevronLeft,
+  ChevronRight,
   ChevronsUpDown,
   Lock,
-  PanelLeftClose,
-  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import {
@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
+import { Skeleton } from "../components/ui/skeleton";
 import {
   Tooltip,
   TooltipContent,
@@ -50,10 +51,23 @@ export function ModuleSidebar({
   contextLabel,
   userPanel,
   collapsible = true,
+  pending = false,
 }: ModuleSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const switchable = (modules?.length ?? 0) > 1;
   const currentModule = modules?.find((m) => m.key === currentModuleKey);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 767px)");
+    if (query.matches) setCollapsed(true);
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      if (event.matches) setCollapsed(true);
+    };
+
+    query.addEventListener("change", handleChange);
+    return () => query.removeEventListener("change", handleChange);
+  }, []);
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -157,7 +171,34 @@ export function ModuleSidebar({
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-3 pb-3">
-          {sections.map((section, si) => (
+          {pending ? (
+            // Nav content unknown (auth hydrating): skeleton rows matching real
+            // item geometry so resolution swaps in place without layout shift.
+            <div aria-busy aria-label="Loading navigation">
+              {Array.from({ length: 2 }).map((_, gi) => (
+                <div key={gi} className="mb-4">
+                  {!collapsed ? (
+                    <Skeleton className="mx-2 mb-2.5 h-2.5 w-16" />
+                  ) : null}
+                  <div className="flex flex-col gap-0.5">
+                    {Array.from({ length: 4 }).map((__, i) => (
+                      <div
+                        key={i}
+                        className={cn(
+                          "flex items-center gap-3 px-2.5 py-2",
+                          collapsed && "justify-center"
+                        )}
+                      >
+                        <Skeleton className="h-4 w-4 shrink-0 rounded" />
+                        {!collapsed ? <Skeleton className="h-4 flex-1" /> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+          sections.map((section, si) => (
             <div key={section.title ?? si} className="mb-4">
               {!collapsed && section.title ? (
                 <p className="px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">
@@ -202,6 +243,12 @@ export function ModuleSidebar({
                   const target = item.navigateHref ?? item.href;
                   const node = item.disabled ? (
                     <div aria-disabled>{content}</div>
+                  ) : item.pending ? (
+                    // Access state resolving: looks enabled, navigates nowhere.
+                    // Resolves to a Link (no visual change) or gains a lock icon.
+                    <div aria-disabled className="cursor-default">
+                      {content}
+                    </div>
                   ) : (
                     <Link href={target}>{content}</Link>
                   );
@@ -224,7 +271,8 @@ export function ModuleSidebar({
                 })}
               </ul>
             </div>
-          ))}
+          ))
+          )}
         </nav>
 
         {/* Footer: user panel */}
@@ -240,12 +288,12 @@ export function ModuleSidebar({
             type="button"
             onClick={() => setCollapsed((v) => !v)}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="absolute -right-3 top-6 flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/70 shadow-sm transition-colors hover:text-sidebar-foreground z-50"
+            className="absolute -right-5 top-7 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/70 shadow-sm transition-colors hover:text-sidebar-foreground md:-right-3 md:top-9 md:h-6 md:w-6"
           >
             {collapsed ? (
-              <PanelLeftOpen className="h-3.5 w-3.5" />
+              <ChevronRight className="h-3.5 w-3.5" />
             ) : (
-              <PanelLeftClose className="h-3.5 w-3.5" />
+              <ChevronLeft className="h-3.5 w-3.5" />
             )}
           </button>
         ) : null}
