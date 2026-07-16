@@ -30,17 +30,12 @@ public sealed class ExceptionCaseWorkflowService(
     public async Task<ExceptionCase> OpenOrReuseAsync(OpenExceptionCaseRequest request, CancellationToken cancellationToken)
     {
         var cycle = await dbContext.PerformanceCycles
-            .Include(item => item.ExceptionOwners)
             .FirstOrDefaultAsync(item => item.Id == request.CycleId, cancellationToken)
             ?? throw new InvalidOperationException($"Performance cycle {request.CycleId} was not found.");
 
-        var owner = cycle.ExceptionOwners
-            .OrderBy(item => item.Priority)
-            .FirstOrDefault()
-            ?? throw new InvalidOperationException($"Performance cycle {request.CycleId} has no configured exception owner.");
-
         var workflowContextJson = JsonSerializer.Serialize(request.FrozenWorkflowContext);
-        var actorEmployeeId = currentUser.EmployeeId ?? owner.EmployeeId;
+        var actorEmployeeId = currentUser.EmployeeId
+            ?? throw new InvalidOperationException($"Performance cycle {request.CycleId} has no acting employee for exception ownership.");
         var now = DateTime.UtcNow;
 
         var existingCase = await dbContext.ExceptionCases
@@ -99,7 +94,7 @@ public sealed class ExceptionCaseWorkflowService(
             request.SourceWorkItemId,
             request.SourceWorkItemType,
             request.SourceObjectId,
-            owner.EmployeeId,
+            actorEmployeeId,
             request.FrozenReason,
             request.FailureCode,
             workflowContextJson,
@@ -131,7 +126,7 @@ public sealed class ExceptionCaseWorkflowService(
             currentUser.FullName,
             $"Opened exception case {exceptionCase.Id} for source work item {request.SourceWorkItemId}."));
 
-        var recipients = cycle.ExceptionOwners.Select(item => item.EmployeeId).Append(owner.EmployeeId);
+        var recipients = new[] { actorEmployeeId };
         dbContext.PerformanceNotifications.AddRange(
             CycleNotificationFactory.ForExceptionCase(
                 cycle,

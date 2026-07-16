@@ -1,3 +1,5 @@
+using EY.HRPlatform.Performance.Features.ConfigurationAudit;
+using EY.HRPlatform.Performance.Features.ObjectivePolicy;
 using EY.HRPlatform.Performance.Features.Cycles.Services;
 using EY.HRPlatform.Performance.Features.Exceptions.Services;
 using EY.HRPlatform.Performance.Features.Security;
@@ -6,6 +8,7 @@ using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Infrastructure.Persistence.Interceptors;
 using EY.HRPlatform.Performance.Infrastructure.Workforce;
 using EY.HRPlatform.SharedKernel.Multitenancy;
+using EY.HRPlatform.SharedKernel.Security;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Performance.Extensions;
@@ -19,12 +22,24 @@ public static class ServiceCollectionExtensions
         // Register MediatR - scans this assembly for all command/query handlers.
         services.AddMediatR(cfg => cfg.RegisterServicesFromAssemblyContaining<Program>());
         services.AddHttpContextAccessor();
+        services.AddMemoryCache();
 
         services.Configure<ReminderOptions>(configuration.GetSection(ReminderOptions.SectionName));
+        var internalServiceAuthentication = configuration
+            .GetSection(InternalServiceAuthenticationOptions.SectionName)
+            .Get<InternalServiceAuthenticationOptions>() ?? new InternalServiceAuthenticationOptions();
+        services.AddSingleton<IInternalServiceRequestSigner>(_ => new InternalServiceRequestSigner(
+            internalServiceAuthentication));
+        services.AddSingleton<IInternalServiceRequestAuthorizer>(sp => new InternalServiceRequestAuthorizer(
+            sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>(),
+            internalServiceAuthentication));
 
         services.AddScoped<IPerformanceAccessPolicyService, PerformanceAccessPolicyService>();
+        services.AddScoped<IConfigurationAuditWriter, ConfigurationAuditWriter>();
+        services.AddScoped<PerformanceConfigurationValidator>();
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         services.AddScoped<IPerformancePopulationResolver, PerformancePopulationResolver>();
+        services.AddScoped<ICampaignReadinessResolver, CampaignReadinessResolver>();
         services.AddScoped<IExceptionCaseWorkflowService, ExceptionCaseWorkflowService>();
 
         services.AddTransient<BearerTokenForwardingHandler>();

@@ -14,12 +14,12 @@ public interface IPerformanceAccessPolicyService
     bool CanManageStrategicObjectives(ClaimsPrincipal user);
     bool CanPublishStrategicObjectives(ClaimsPrincipal user);
 
-    // Collective objective access (D-15 collective level)
-    bool CanViewCollectiveObjectives(ClaimsPrincipal user);
-    bool CanApproveCollectiveObjectives(ClaimsPrincipal user);
+    // Team objectives (P1.3): capability permission only — frozen-baseline responsibility
+    // and ownership are enforced per operation in the handlers.
+    bool CanManageTeamObjectives(ClaimsPrincipal user) => false;
 
-    // Progress correction (D-13: manager must have explicit permission)
-    bool CanCorrectObjectiveProgress(ClaimsPrincipal user);
+    // Cascade coverage read (P1.3): Direction door (strategic view) or HR door (cycle view/manage).
+    bool CanViewCascadeCoverage(ClaimsPrincipal user) => false;
 
     // Feedback identity access (D-07/D-10: exceptional identity resolution)
     bool CanAccessConfidentialFeedbackIdentity(ClaimsPrincipal user);
@@ -75,23 +75,19 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
         => user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant)
             || user.IsInRole(PlatformRole.PlatformAdmin);
 
-    // ─── Collective objective permissions (D-15) ──────────────────────────────
+    // ─── Team objectives + cascade coverage (P1.3) ────────────────────────────
 
-    public bool CanViewCollectiveObjectives(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ObjectiveTeamApprove, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+    /// <summary>
+    /// Any catalog scope of the team-objective permission qualifies: the effective scope is the
+    /// frozen approver baseline, which is stricter than permission scope. No PlatformAdmin bypass —
+    /// team objectives are owned business content, not administration.
+    /// </summary>
+    public bool CanManageTeamObjectives(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveTeamManage);
 
-    public bool CanApproveCollectiveObjectives(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ObjectiveTeamApprove, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
-
-    // ─── Progress correction (D-13) ───────────────────────────────────────────
-
-    public bool CanCorrectObjectiveProgress(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ObjectiveProgressCorrect, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+    public bool CanViewCascadeCoverage(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)
+            || CanViewCycles(user);
 
     // ─── Feedback identity access (D-07/D-10) ─────────────────────────────────
 

@@ -21,6 +21,9 @@ public class PerformanceCycleParticipantConfiguration : IEntityTypeConfiguration
         builder.Property(p => p.OrgUnitName).HasMaxLength(200);
         builder.Property(p => p.JobTitle).HasMaxLength(150);
         builder.Property(p => p.ManagerName).HasMaxLength(256);
+        builder.Property(p => p.ApproverEmployeeId).IsRequired();
+        builder.Property(p => p.ApproverName).HasMaxLength(256).IsRequired();
+        builder.Property(p => p.ApproverOverrideReason).HasMaxLength(500);
         builder.Property(p => p.SnapshotAt).IsRequired();
         builder.Property(p => p.CreatedBy).HasMaxLength(256);
         builder.Property(p => p.UpdatedBy).HasMaxLength(256);

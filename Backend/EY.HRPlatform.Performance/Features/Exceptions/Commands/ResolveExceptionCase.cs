@@ -29,7 +29,6 @@ public sealed class ResolveExceptionCaseCommandHandler(
             return Result.Failure<ExceptionCaseDto>(Error.Forbidden("Exception.EmployeeContextRequired", "An employee context is required."));
 
         var cycle = await dbContext.PerformanceCycles
-            .Include(item => item.ExceptionOwners)
             .FirstOrDefaultAsync(item => item.Id == request.CycleId, cancellationToken);
         if (cycle is null)
             return Result.Failure<ExceptionCaseDto>(Error.NotFound("PerformanceCycle", request.CycleId));
@@ -53,8 +52,6 @@ public sealed class ResolveExceptionCaseCommandHandler(
         var action = request.Action;
         if (action == ExceptionResolutionAction.Transfer)
             return Result.Failure<ExceptionCaseDto>(Error.Validation("Exception.InvalidAction", "Transfer must use the ownership-transfer command."));
-
-        await ApplySourceOutcomeAsync(exceptionCase, request, cancellationToken);
 
         if (action == ExceptionResolutionAction.Reassign)
         {
@@ -98,7 +95,7 @@ public sealed class ResolveExceptionCaseCommandHandler(
             currentUser.FullName,
             $"Resolved exception case {exceptionCase.Id} via {action}."));
 
-        var recipients = cycle.ExceptionOwners.Select(item => item.EmployeeId).Append(exceptionCase.CurrentOwnerEmployeeId);
+        var recipients = new[] { exceptionCase.CurrentOwnerEmployeeId };
         dbContext.PerformanceNotifications.AddRange(
             CycleNotificationFactory.ForExceptionCase(
                 cycle,
@@ -109,30 +106,6 @@ public sealed class ResolveExceptionCaseCommandHandler(
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return Result.Success(ToDto(exceptionCase));
-    }
-
-    private async Task ApplySourceOutcomeAsync(ExceptionCase exceptionCase, ResolveExceptionCaseCommand request, CancellationToken cancellationToken)
-    {
-        switch (exceptionCase.SourceWorkItemType)
-        {
-            case CampaignWorkItemType.TeamObjectiveApproval:
-            case CampaignWorkItemType.ObjectiveApproval:
-            {
-                var objective = await dbContext.PerformanceObjectives
-                    .FirstOrDefaultAsync(item => item.Id == exceptionCase.SourceObjectId, cancellationToken);
-                if (objective is null)
-                    return;
-
-                if (request.Action == ExceptionResolutionAction.Override)
-                    objective.Approve(DateTime.UtcNow);
-                else if (request.Action == ExceptionResolutionAction.Return)
-                    objective.Return(DateTime.UtcNow);
-                else if (request.Action == ExceptionResolutionAction.Cancel)
-                    objective.Reject(DateTime.UtcNow);
-
-                break;
-            }
-        }
     }
 
     private static ExceptionCaseDto ToDto(ExceptionCase item)

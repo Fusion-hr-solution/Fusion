@@ -26,10 +26,8 @@ public sealed class FinalizeFeedbackWindowCommandHandler(
         if (cycle is null)
             return Result.Failure(Error.NotFound("PerformanceCycle", request.CycleId));
 
-        // 2. Validate FeedbackDeadline has passed
-        if (!cycle.FeedbackDeadline.HasValue || DateTime.UtcNow < cycle.FeedbackDeadline.Value)
-            return Result.Failure(Error.Validation("Feedback.WindowNotClosed",
-                "The feedback window has not yet closed."));
+        // 2. Feedback-window governance was part of the removed governed launch path; there is
+        // no persisted feedback deadline to gate on.
 
         // Parse feedback type
         if (!Enum.TryParse<CampaignWorkItemType>(request.FeedbackType, ignoreCase: true, out var feedbackType) ||
@@ -61,8 +59,8 @@ public sealed class FinalizeFeedbackWindowCommandHandler(
         // 5. Count valid submitted responses (non-withdrawn, non-invalidated)
         var validCount = responses.Count(r => !r.IsInvalidated);
 
-        // 6. Evaluate threshold
-        var frozenThreshold = cycle.FrozenMinimumAnonymousFeedbackResponses ?? cycle.MinimumAnonymousFeedbackResponses;
+        // 6. Evaluate threshold (governance removed; default minimum)
+        const int frozenThreshold = 3;
 
         if (validCount < frozenThreshold)
         {

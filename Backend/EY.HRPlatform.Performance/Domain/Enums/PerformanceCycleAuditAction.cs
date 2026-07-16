@@ -8,6 +8,8 @@ public enum PerformanceCycleAuditAction
     Created,
     Updated,
     PopulationUpdated,
+    ApproverOverridden,
+    CampaignLaunched,
     GovernanceConfigured,
     GovernanceFrozen,
     ReviewDefinitionConfigured,
@@ -21,6 +23,15 @@ public enum PerformanceCycleAuditAction
     Closed,
     WorkforceDeltaApplied,
     WorkforceDeltaRejected,
+    PlanningRulesSnapshotCaptured,
+    StrategicObjectiveAdded,
+    StrategicObjectiveUpdated,
+    StrategicObjectiveToggled,
+
+    // Team objective actions (P1.3)
+    TeamObjectiveCreated,
+    TeamObjectiveUpdated,
+    TeamObjectiveDeleted,
 
     // Strategic objective actions (Plan 03-02)
     StrategicObjectivePublished,

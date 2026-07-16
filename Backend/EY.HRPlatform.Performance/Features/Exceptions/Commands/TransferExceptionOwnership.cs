@@ -28,7 +28,6 @@ public sealed class TransferExceptionOwnershipCommandHandler(
             return Result.Failure<ExceptionCaseDto>(Error.Forbidden("Exception.EmployeeContextRequired", "An employee context is required."));
 
         var cycle = await dbContext.PerformanceCycles
-            .Include(item => item.ExceptionOwners)
             .FirstOrDefaultAsync(item => item.Id == request.CycleId, cancellationToken);
         if (cycle is null)
             return Result.Failure<ExceptionCaseDto>(Error.NotFound("PerformanceCycle", request.CycleId));
@@ -82,9 +81,7 @@ public sealed class TransferExceptionOwnershipCommandHandler(
             currentUser.FullName,
             $"Transferred exception case {exceptionCase.Id} from {previousOwnerId} to {request.NewOwnerEmployeeId}."));
 
-        var recipients = cycle.ExceptionOwners.Select(item => item.EmployeeId)
-            .Append(previousOwnerId)
-            .Append(request.NewOwnerEmployeeId);
+        var recipients = new[] { previousOwnerId, request.NewOwnerEmployeeId };
         dbContext.PerformanceNotifications.AddRange(
             CycleNotificationFactory.ForExceptionCase(
                 cycle,
