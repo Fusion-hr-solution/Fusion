@@ -26,7 +26,7 @@ import {
   type EmployeeProfileWorkspaceProps,
 } from "@/features/employees/profile/employee-profile-workspace";
 import {
-  useEmployeeProfile,
+  useEmployeeDetailsById,
   useEmployeeReportingLines,
 } from "../employees/use-employees";
 
@@ -49,13 +49,13 @@ export default function MyProfilePage() {
   const { data: settings } = useTenantSettings(canViewProfile);
 
   const {
-    data: profile,
+    data: details,
     error,
     isLoading,
-  } = useEmployeeProfile(canViewProfile ? employeeId : null);
+  } = useEmployeeDetailsById(canViewProfile ? employeeId : null);
 
   const { data: reportingLines } = useEmployeeReportingLines(
-    canViewProfile ? employeeId : null
+    details?.stableEmployeeKey ?? null
   );
 
   if (authLoading) {
@@ -80,7 +80,7 @@ export default function MyProfilePage() {
     );
   }
 
-  if (isLoading && !profile && !error) {
+  if (isLoading && !details && !error) {
     return (
       <PageContainer className="space-y-6">
         <PageHeader title="My Profile" description="Loading profile." />
@@ -101,7 +101,7 @@ export default function MyProfilePage() {
     );
   }
 
-  if (!profile) {
+  if (!details) {
     return (
       <PageContainer className="space-y-6">
         <PageHeader title="My Profile" description="Profile unavailable." />
@@ -115,14 +115,14 @@ export default function MyProfilePage() {
   }
 
   const canEditOwnPreferredName =
-    user?.employeeId === profile.id &&
+    user?.employeeId === details.id &&
     settings?.selfService.canEditPreferredName !== false;
   const canEditOwnPhone =
-    user?.employeeId === profile.id &&
+    user?.employeeId === details.id &&
     settings?.selfService.canEditPhone !== false;
 
   const workspaceProps: EmployeeProfileWorkspaceProps = {
-    profile,
+    details,
     reportingLines,
     fieldPolicy,
     user,

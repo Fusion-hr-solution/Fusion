@@ -4,6 +4,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, RefreshCcw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { canImportCoreEmployees, useAuth } from "@repo/auth";
 import { type PageSize } from "@repo/ui";
 import { toast } from "sonner";
@@ -22,7 +31,9 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import type {
+  EmployeeImportApplyOperationDto,
   EmployeeImportApplyResultDto,
+  EmployeeImportMode,
   EmployeeImportPreviewFilter,
 } from "@/app/(pages)/employees/import/employee-import.types";
 import {
@@ -30,7 +41,6 @@ import {
   type EmployeeImportIssueGroup,
 } from "@/app/(pages)/employees/import/employee-import-validation";
 import {
-  AppliedResultPanel,
   BatchActionPanel,
   EmptyImportState,
   ImportHistoryPanel,
@@ -47,6 +57,7 @@ import {
 import { DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE } from "@/app/(pages)/employees/employee-query-keys";
 import {
   useApplyEmployeeImport,
+  useEmployeeImportApplyOperation,
   useDownloadEmployeeImportTemplate,
   useEmployeeImportHistory,
   useEmployeeImportSchema,
@@ -56,6 +67,42 @@ import {
 } from "@/app/(pages)/employees/import/use-employee-import";
 
 const HISTORY_PAGE_SIZE = 5;
+// Poll fast while the import is actively running so the progress bar tracks the server in near
+// real time; back off while it's only queued and waiting for the worker to pick it up.
+const APPLY_STATUS_POLL_RUNNING_MS = 500;
+const APPLY_STATUS_POLL_QUEUED_MS = 1000;
+
+function toApplyResult(
+  session: {
+    id: string;
+    sourceFileName: string;
+  },
+  operation: EmployeeImportApplyOperationDto
+): EmployeeImportApplyResultDto | null {
+  if (
+    operation.status !== "Succeeded" ||
+    !operation.historyId ||
+    !operation.completedAt ||
+    operation.sourceRowCount === null ||
+    operation.validatedRowCount === null ||
+    operation.createdCount === null ||
+    operation.publishedRowCount === null
+  ) {
+    return null;
+  }
+
+  return {
+    sessionId: session.id,
+    historyId: operation.historyId,
+    sourceFileName: session.sourceFileName,
+    sourceRowCount: operation.sourceRowCount,
+    validatedRowCount: operation.validatedRowCount,
+    createdCount: operation.createdCount,
+    publishedRowCount: operation.publishedRowCount,
+    appliedAt: operation.completedAt,
+    stage: "Applied",
+  };
+}
 
 export default function EmployeeImportWorkspace() {
   const { user } = useAuth();
@@ -63,6 +110,7 @@ export default function EmployeeImportWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const handledApplyOperationRef = useRef<string | null>(null);
   const sessionId = searchParams.get("session");
   const [previewFilter, setPreviewFilter] =
     useState<EmployeeImportPreviewFilter>("all");
@@ -74,9 +122,15 @@ export default function EmployeeImportWorkspace() {
     DEFAULT_EMPLOYEE_IMPORT_PREVIEW_PAGE_SIZE
   );
   const [historyPageNumber, setHistoryPageNumber] = useState(1);
+  const [batchEffectiveDate, setBatchEffectiveDate] = useState<string>(
+    () => new Date().toISOString().slice(0, 10)
+  );
+  const [importMode, setImportMode] = useState<EmployeeImportMode>("BusinessChange");
   const [applyError, setApplyError] = useState<string | null>(null);
   const [lastApplyResult, setLastApplyResult] =
     useState<EmployeeImportApplyResultDto | null>(null);
+  const [pendingApplyOperation, setPendingApplyOperation] =
+    useState<EmployeeImportApplyOperationDto | null>(null);
   const [isAppliedPreviewOpen, setIsAppliedPreviewOpen] = useState(false);
   const [pendingScrollRowNumber, setPendingScrollRowNumber] = useState<
     number | null
@@ -101,6 +155,19 @@ export default function EmployeeImportWorkspace() {
   const uploadImport = useUploadEmployeeImport();
   const validateImport = useValidateEmployeeImport();
   const applyImport = useApplyEmployeeImport();
+  const activeApplySessionId =
+    sessionId &&
+    (session?.stage === "Applying" ||
+      pendingApplyOperation?.status === "Queued" ||
+      pendingApplyOperation?.status === "Running" ||
+      session?.lastApplyOperation?.status === "Queued" ||
+      session?.lastApplyOperation?.status === "Running")
+      ? sessionId
+      : null;
+  const {
+    data: applyOperation,
+    refetch: refetchApplyOperation,
+  } = useEmployeeImportApplyOperation(activeApplySessionId);
   const downloadTemplate = useDownloadEmployeeImportTemplate();
   const {
     data: historyPage,
@@ -133,6 +200,13 @@ export default function EmployeeImportWorkspace() {
   );
   const displayedPreviewRows = session?.previewRows ?? [];
   const isAppliedSession = session?.stage === "Applied";
+  const currentApplyOperation =
+    applyOperation ?? pendingApplyOperation ?? session?.lastApplyOperation ?? null;
+  const isApplying =
+    applyImport.isLoading ||
+    currentApplyOperation?.status === "Queued" ||
+    currentApplyOperation?.status === "Running" ||
+    session?.stage === "Applying";
   const isPreviewExpanded = !isAppliedSession || isAppliedPreviewOpen;
   const isInitialSessionLoading =
     !!sessionId && isSessionLoading && !session && !sessionError;
@@ -144,11 +218,94 @@ export default function EmployeeImportWorkspace() {
   useEffect(() => {
     setApplyError(null);
     setLastApplyResult(null);
+    setPendingApplyOperation(null);
   }, [session?.id]);
 
   useEffect(() => {
     setIsAppliedPreviewOpen(!isAppliedSession);
   }, [isAppliedSession, session?.id]);
+
+  useEffect(() => {
+    if (!session || !currentApplyOperation) {
+      return;
+    }
+
+    if (currentApplyOperation.status === "Succeeded") {
+      const result = toApplyResult(session, currentApplyOperation);
+      if (result) {
+        setLastApplyResult(result);
+      }
+      setPendingApplyOperation(null);
+      setApplyError(null);
+      return;
+    }
+
+    if (currentApplyOperation.status === "Failed") {
+      setPendingApplyOperation(null);
+      setApplyError(
+        currentApplyOperation.failureReason ?? "Employee import failed."
+      );
+    }
+  }, [currentApplyOperation, session]);
+
+  const applyOperationStatus = currentApplyOperation?.status;
+  useEffect(() => {
+    if (!activeApplySessionId) {
+      return;
+    }
+
+    if (applyOperationStatus !== "Queued" && applyOperationStatus !== "Running") {
+      return;
+    }
+
+    // Poll only the lightweight apply-status endpoint. The heavy session payload is refetched once
+    // on the terminal transition by the effect below — no need to re-pull it every tick.
+    const intervalMs =
+      applyOperationStatus === "Running"
+        ? APPLY_STATUS_POLL_RUNNING_MS
+        : APPLY_STATUS_POLL_QUEUED_MS;
+    const intervalId = window.setInterval(() => {
+      void refetchApplyOperation();
+    }, intervalMs);
+
+    return () => window.clearInterval(intervalId);
+  }, [activeApplySessionId, applyOperationStatus, refetchApplyOperation]);
+
+  useEffect(() => {
+    if (!session || !currentApplyOperation) {
+      return;
+    }
+
+    const terminalOperationKey = `${currentApplyOperation.id}:${currentApplyOperation.status}:${currentApplyOperation.completedAt ?? currentApplyOperation.failedAt ?? ""}`;
+    if (handledApplyOperationRef.current === terminalOperationKey) {
+      return;
+    }
+
+    if (currentApplyOperation.status === "Succeeded") {
+      handledApplyOperationRef.current = terminalOperationKey;
+      const shouldRefetchCurrentHistoryPage = historyPageNumber === 1;
+      void refetchSession();
+      if (shouldRefetchCurrentHistoryPage) {
+        void refetchHistoryPage();
+      } else {
+        setHistoryPageNumber(1);
+      }
+      toast.success("Employee import applied.");
+    } else if (currentApplyOperation.status === "Failed") {
+      handledApplyOperationRef.current = terminalOperationKey;
+      void refetchSession();
+      toast.error(currentApplyOperation.failureReason ?? "Employee import failed.");
+    }
+  }, [
+    currentApplyOperation?.completedAt,
+    currentApplyOperation?.failedAt,
+    currentApplyOperation?.status,
+    currentApplyOperation?.failureReason,
+    historyPageNumber,
+    refetchHistoryPage,
+    refetchSession,
+    session,
+  ]);
 
   useEffect(() => {
     if (!sessionViewResetKey) {
@@ -217,14 +374,18 @@ export default function EmployeeImportWorkspace() {
       }
 
       try {
-        const nextSession = await uploadImport.mutateAsync(file);
+        const nextSession = await uploadImport.mutateAsync({
+          file,
+          batchEffectiveDate: `${batchEffectiveDate}T00:00:00.000Z`,
+          importMode,
+        });
         replaceImportRoute(nextSession.id, null);
         toast.success("Employee import preview created.");
       } catch (error) {
         toast.error(getErrorMessage(error));
       }
     },
-    [replaceImportRoute, uploadImport]
+    [batchEffectiveDate, importMode, replaceImportRoute, uploadImport]
   );
 
   const handleValidateSession = useCallback(async () => {
@@ -269,18 +430,11 @@ export default function EmployeeImportWorkspace() {
     try {
       setApplyError(null);
       const result = await applyImport.mutateAsync({ sessionId: session.id });
-      setLastApplyResult(result);
+      setPendingApplyOperation(result);
+      setLastApplyResult(null);
       replaceImportRoute(session.id, null);
-      const shouldRefetchCurrentHistoryPage = historyPageNumber === 1;
-      setHistoryPageNumber(1);
-
       await refetchSession();
-
-      if (shouldRefetchCurrentHistoryPage) {
-        await refetchHistoryPage();
-      }
-
-      toast.success("Employee import applied.");
+      toast.success("Employee import queued.");
       return true;
     } catch (error) {
       const message = getErrorMessage(error);
@@ -290,9 +444,7 @@ export default function EmployeeImportWorkspace() {
     }
   }, [
     applyImport,
-    historyPageNumber,
     replaceImportRoute,
-    refetchHistoryPage,
     refetchSession,
     session,
   ]);
@@ -507,37 +659,81 @@ export default function EmployeeImportWorkspace() {
         </Alert>
       )}
 
+      {!isAppliedSession ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Batch settings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="batch-effective-date">Effective date</Label>
+                <Input
+                  id="batch-effective-date"
+                  type="date"
+                  value={
+                    session?.batchEffectiveDate
+                      ? session.batchEffectiveDate.slice(0, 10)
+                      : batchEffectiveDate
+                  }
+                  onChange={(e) => setBatchEffectiveDate(e.target.value)}
+                  disabled={!!session || uploadImport.isLoading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Applied to all rows without a row-level effective date.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="import-mode">Import mode</Label>
+                <Select
+                  value={session?.importMode ?? importMode}
+                  onValueChange={(v) => setImportMode(v as EmployeeImportMode)}
+                  disabled={!!session || uploadImport.isLoading}
+                >
+                  <SelectTrigger id="import-mode">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="BusinessChange">
+                      Business change — adds new records
+                    </SelectItem>
+                    <SelectItem value="Correction">
+                      Correction — updates existing records only
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Correction mode rejects new employee rows.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {session ? (
         <>
-          {isAppliedSession ? (
-            <AppliedResultPanel
-              session={session}
-              applyResult={lastApplyResult}
-              onUpload={handleBrowse}
-            />
-          ) : (
-            <BatchActionPanel
-              session={session}
-              isValidating={validateImport.isLoading}
-              isUploading={uploadImport.isLoading}
-              isDownloadingTemplate={downloadTemplate.isLoading}
-              isApplying={applyImport.isLoading}
-              applyError={applyError}
-              onValidate={handleValidateSession}
-              onUpload={handleBrowse}
-              onDownloadTemplate={handleDownloadTemplate}
-              onApply={handleApplySession}
-            />
-          )}
+          <BatchActionPanel
+            session={session}
+            applyOperation={currentApplyOperation}
+            applyResult={lastApplyResult}
+            isValidating={validateImport.isLoading}
+            isUploading={uploadImport.isLoading}
+            isDownloadingTemplate={downloadTemplate.isLoading}
+            isApplying={isApplying}
+            applyError={applyError}
+            onValidate={handleValidateSession}
+            onUpload={handleBrowse}
+            onDownloadTemplate={handleDownloadTemplate}
+            onApply={handleApplySession}
+          />
 
-          {isAppliedSession ? (
-            <ImportHistoryPanel
-              historyPage={historyPage}
-              isHistoryLoading={isHistoryLoading}
-              historyError={historyError}
-              onPageChange={handleHistoryPageChange}
-            />
-          ) : null}
+          <ImportHistoryPanel
+            historyPage={historyPage}
+            isHistoryLoading={isHistoryLoading}
+            historyError={historyError}
+            onPageChange={handleHistoryPageChange}
+          />
 
           <div
             className={
@@ -628,15 +824,6 @@ export default function EmployeeImportWorkspace() {
 
             </Card>
           </div>
-
-          {!isAppliedSession ? (
-            <ImportHistoryPanel
-              historyPage={historyPage}
-              isHistoryLoading={isHistoryLoading}
-              historyError={historyError}
-              onPageChange={handleHistoryPageChange}
-            />
-          ) : null}
 
           <SecondaryDetailsPanel
             key={session ? `${session.id}:${session.stage}` : "empty-session"}

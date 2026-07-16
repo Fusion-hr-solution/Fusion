@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   AlertCircle,
   CheckCircle2,
@@ -63,8 +63,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type {
+  EmployeeImportApplyOperationDto,
   EmployeeImportApplyResultDto,
-  EmployeeImportHistoryDetailDto,
   EmployeeImportHistoryPageDto,
   EmployeeImportSessionDto,
   ImportHistoryEventType,
@@ -88,6 +88,12 @@ type BatchMetaItem = {
   value: string | number;
 };
 
+type BatchHealthItem = {
+  label: string;
+  value: string | number;
+  tone?: "default" | "success" | "warning" | "danger";
+};
+
 type ImportWorkflowStepState = "complete" | "current" | "upcoming" | "blocked";
 
 type ImportWorkflowStep = {
@@ -99,12 +105,132 @@ type ImportWorkflowStep = {
   isLoading?: boolean;
 };
 
+type WorkflowProgressModel = {
+  value: number;
+  title: string;
+  valueText: string;
+  toneClassName: string;
+  trackClassName: string;
+  indicatorClassName: string;
+  pulse: boolean;
+};
+
 function getBatchMetaItems(session: EmployeeImportSessionDto): BatchMetaItem[] {
   return [
     { label: "Rows", value: session.sourceRowCount },
     { label: "Size", value: formatBytes(session.sourceFileSizeBytes) },
     { label: "Expires", value: formatTimestamp(session.expiresAt) },
   ];
+}
+
+function getImportModeLabel(mode: EmployeeImportSessionDto["importMode"]): string {
+  if (mode === "Correction") {
+    return "Correction";
+  }
+
+  if (mode === "BusinessChange") {
+    return "Business change";
+  }
+
+  return "Not set";
+}
+
+function getBatchHealthItems(session: EmployeeImportSessionDto): BatchHealthItem[] {
+  if (session.stage === "Applied") {
+    return [
+      {
+        label: "Ready rows",
+        value: session.lastApplyOperation?.processedRowCount ?? session.sourceRowCount,
+        tone: "success",
+      },
+      {
+        label: "Issues",
+        value: 0,
+        tone: "default",
+      },
+      {
+        label: "Warnings",
+        value: 0,
+        tone: "default",
+      },
+      {
+        label: "Mode",
+        value: getImportModeLabel(session.importMode),
+        tone: "default",
+      },
+    ];
+  }
+  return [
+    {
+      label: "Ready rows",
+      value: session.validationSummary.validRows,
+      tone:
+        session.validationSummary.validRows > 0
+          ? "success"
+          : session.validationSummary.errorCount > 0
+            ? "danger"
+            : "default",
+    },
+    {
+      label: "Issues",
+      value: session.validationSummary.errorCount,
+      tone: session.validationSummary.errorCount > 0 ? "danger" : "default",
+    },
+    {
+      label: "Warnings",
+      value: session.validationSummary.warningCount,
+      tone:
+        session.validationSummary.warningCount > 0 ? "warning" : "default",
+    },
+    {
+      label: "Mode",
+      value: getImportModeLabel(session.importMode),
+    },
+  ];
+}
+
+function getApplyProgressValue(
+  applyOperation: EmployeeImportApplyOperationDto | null
+): number {
+  if (!applyOperation) {
+    return 0;
+  }
+
+  if (applyOperation.status === "Succeeded") {
+    return 100;
+  }
+
+  const total = applyOperation.validatedRowCount ?? 0;
+  if (total <= 0) {
+    return 0;
+  }
+
+  return Math.max(
+    0,
+    Math.min(100, Math.round((applyOperation.processedRowCount / total) * 100))
+  );
+}
+
+function getApplyProgressSummary(
+  applyOperation: EmployeeImportApplyOperationDto | null,
+  percent: number
+): string {
+  if (!applyOperation) {
+    return "0%";
+  }
+
+  const total = applyOperation.validatedRowCount ?? 0;
+  if (applyOperation.status === "Queued") {
+    return total > 0 ? `${total} rows ready` : "Waiting";
+  }
+
+  if (applyOperation.status === "Running") {
+    return total > 0
+      ? `${Math.min(applyOperation.processedRowCount, total)} / ${total}`
+      : `${percent}%`;
+  }
+
+  return `${percent}%`;
 }
 
 function getWorkflowStatusLabel({
@@ -120,18 +246,25 @@ function getWorkflowStatusLabel({
   variant: "default" | "secondary" | "outline" | "destructive";
   cardClassName: string;
 } {
+  if (session.stage === "Applied") {
+    return {
+      label: "Imported",
+      variant: "secondary",
+      cardClassName: "border-emerald-200/60 bg-card dark:border-emerald-500/25",
+    };
+  }
   if (session.stage === "Expired") {
     return {
       label: "Expired",
       variant: "destructive",
-      cardClassName: "border-destructive/30 bg-destructive/5",
+      cardClassName: "border-destructive/20 bg-card",
     };
   }
   if (isApplying) {
     return {
       label: "Importing",
       variant: "default",
-      cardClassName: "border-amber-200 bg-amber-50/70",
+      cardClassName: "border-primary/20 bg-card",
     };
   }
   if (
@@ -141,27 +274,100 @@ function getWorkflowStatusLabel({
     return {
       label: "Blocked",
       variant: "destructive",
-      cardClassName: "border-destructive/30 bg-destructive/5",
+      cardClassName: "border-destructive/20 bg-card",
     };
   }
   if (session.stage === "Validated") {
     return {
       label: "Ready to import",
       variant: "secondary",
-      cardClassName: "border-emerald-200 bg-emerald-50/70",
+      cardClassName: "border-emerald-200/60 bg-card dark:border-emerald-500/25",
     };
   }
   if (isValidating) {
     return {
       label: "Validating",
       variant: "outline",
-      cardClassName: "border-primary/20 bg-primary/5",
+      cardClassName: "border-primary/20 bg-card",
     };
   }
   return {
     label: "Preview ready",
     variant: "outline",
-    cardClassName: "border-border bg-card",
+    cardClassName: "border-border/60 bg-card",
+  };
+}
+
+function getWorkflowHeadline({
+  session,
+  isValidating,
+  isApplying,
+  applyOperation,
+}: {
+  session: EmployeeImportSessionDto;
+  isValidating: boolean;
+  isApplying: boolean;
+  applyOperation: EmployeeImportApplyOperationDto | null;
+}) {
+  if (session.stage === "Applied") {
+    const createdCount =
+      applyOperation?.createdCount ?? session.validationSummary.validRows;
+    return {
+      title: `${createdCount} employee${
+        createdCount === 1 ? "" : "s"
+      } imported`,
+    };
+  }
+
+  if (session.stage === "Expired") {
+    return {
+      title: "Session expired",
+    };
+  }
+
+  if (applyOperation?.status === "Queued") {
+    return {
+      title: "Import queued",
+    };
+  }
+
+  if (applyOperation?.status === "Running" || session.stage === "Applying") {
+    return {
+      title: "Import in progress",
+    };
+  }
+
+  if (
+    session.stage === "Validated" &&
+    session.validationSummary.errorCount > 0
+  ) {
+    return {
+      title: "Resolve issues before import",
+    };
+  }
+
+  if (session.stage === "Validated") {
+    return {
+      title: `${session.validationSummary.validRows} employee${
+        session.validationSummary.validRows === 1 ? "" : "s"
+      } ready to import`,
+    };
+  }
+
+  if (isValidating) {
+    return {
+      title: "Validating batch",
+    };
+  }
+
+  if (isApplying) {
+    return {
+      title: "Importing employees",
+    };
+  }
+
+  return {
+    title: "Preview ready",
   };
 }
 
@@ -174,6 +380,10 @@ function getWorkflowSteps({
   isValidating: boolean;
   isApplying: boolean;
 }): ImportWorkflowStep[] {
+  if (session.stage === "Applied") {
+    return getCompletedSteps();
+  }
+
   if (session.stage === "Expired") {
     return [
       {
@@ -312,30 +522,161 @@ function getCompletedSteps(): ImportWorkflowStep[] {
   ];
 }
 
+function getWorkflowProgressModel({
+  session,
+  isValidating,
+  isApplying,
+  applyOperation,
+}: {
+  session: EmployeeImportSessionDto;
+  isValidating: boolean;
+  isApplying: boolean;
+  applyOperation: EmployeeImportApplyOperationDto | null;
+}): WorkflowProgressModel {
+  if (session.stage === "Applied") {
+    return {
+      value: 100,
+      title: "Import complete",
+      valueText: "Done",
+      toneClassName: "text-emerald-700 dark:text-emerald-300",
+      trackClassName: "bg-emerald-100 dark:bg-emerald-500/15",
+      indicatorClassName: "bg-emerald-500 dark:bg-emerald-400",
+      pulse: false,
+    };
+  }
+
+  if (session.stage === "Expired") {
+    return {
+      value: 18,
+      title: "Session expired",
+      valueText: "Restart",
+      toneClassName: "text-destructive",
+      trackClassName: "bg-destructive/10 dark:bg-destructive/15",
+      indicatorClassName: "bg-destructive/80",
+      pulse: false,
+    };
+  }
+
+  if (applyOperation?.status === "Queued") {
+    const percent = getApplyProgressValue(applyOperation);
+    return {
+      value: percent,
+      title: "Waiting to start",
+      valueText: getApplyProgressSummary(applyOperation, percent),
+      toneClassName: "text-primary",
+      trackClassName: "bg-primary/10 dark:bg-primary/15",
+      indicatorClassName: "bg-primary",
+      pulse: true,
+    };
+  }
+
+  if (applyOperation?.status === "Running" || session.stage === "Applying") {
+    const percent = getApplyProgressValue(applyOperation);
+    // Once every row has been processed the server is committing the batch — surface that as a
+    // distinct "Finalizing" step instead of parking the bar at 100% while it looks stalled.
+    const isFinalizing =
+      applyOperation?.status === "Running" &&
+      (applyOperation?.validatedRowCount ?? 0) > 0 &&
+      (applyOperation?.processedRowCount ?? 0) >= (applyOperation?.validatedRowCount ?? 0);
+    return {
+      value: percent,
+      title: isFinalizing ? "Finalizing" : "Importing",
+      valueText: isFinalizing
+        ? "Committing"
+        : getApplyProgressSummary(applyOperation, percent),
+      toneClassName: "text-primary",
+      trackClassName: "bg-primary/10 dark:bg-primary/15",
+      indicatorClassName: "bg-primary",
+      pulse: true,
+    };
+  }
+
+  if (
+    session.stage === "Validated" &&
+    session.validationSummary.errorCount > 0
+  ) {
+    return {
+      value: 67,
+      title: "Blocked",
+      valueText: "Step 2",
+      toneClassName: "text-destructive",
+      trackClassName: "bg-destructive/10 dark:bg-destructive/15",
+      indicatorClassName: "bg-destructive/80",
+      pulse: false,
+    };
+  }
+
+  if (session.stage === "Validated") {
+    return {
+      value: 67,
+      title: "Ready",
+      valueText: "Step 2",
+      toneClassName: "text-emerald-700 dark:text-emerald-300",
+      trackClassName: "bg-emerald-100 dark:bg-emerald-500/15",
+      indicatorClassName: "bg-emerald-500 dark:bg-emerald-400",
+      pulse: false,
+    };
+  }
+
+  if (isValidating) {
+    return {
+      value: 49,
+      title: "Validating",
+      valueText: "Step 2",
+      toneClassName: "text-primary",
+      trackClassName: "bg-primary/10 dark:bg-primary/15",
+      indicatorClassName: "bg-primary",
+      pulse: true,
+    };
+  }
+
+  if (isApplying) {
+    return {
+      value: 92,
+      title: "Importing",
+      valueText: "Step 3",
+      toneClassName: "text-primary",
+      trackClassName: "bg-primary/10 dark:bg-primary/15",
+      indicatorClassName: "bg-primary",
+      pulse: true,
+    };
+  }
+
+  return {
+    value: 33,
+    title: "Uploaded",
+    valueText: "Step 1",
+    toneClassName: "text-foreground",
+    trackClassName: "bg-muted/60 dark:bg-muted/40",
+    indicatorClassName: "bg-foreground/80 dark:bg-foreground/70",
+    pulse: false,
+  };
+}
+
 function getStepStyle(state: ImportWorkflowStepState) {
   switch (state) {
     case "complete":
       return {
-        cell: "bg-emerald-50/70 dark:bg-emerald-950/20",
-        node: "border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-300",
+        cell: "border-emerald-200/60 bg-emerald-50/50 dark:border-emerald-500/20 dark:bg-emerald-500/10",
+        node: "border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300",
         status: "text-emerald-700 dark:text-emerald-300",
       };
     case "current":
       return {
-        cell: "bg-primary/5",
-        node: "border-primary/20 bg-primary/10 text-primary",
+        cell: "border-primary/20 bg-primary/5 dark:border-primary/25 dark:bg-primary/10",
+        node: "border-primary/25 bg-primary/10 text-primary",
         status: "text-primary",
       };
     case "blocked":
       return {
-        cell: "bg-destructive/5",
-        node: "border-destructive/20 bg-destructive/10 text-destructive",
+        cell: "border-destructive/20 bg-destructive/5 dark:border-destructive/25 dark:bg-destructive/10",
+        node: "border-destructive/25 bg-destructive/10 text-destructive",
         status: "text-destructive",
       };
     default:
       return {
-        cell: "bg-background",
-        node: "border-border bg-muted/60 text-muted-foreground",
+        cell: "border-border/50 bg-background dark:bg-muted/20",
+        node: "border-border/60 bg-muted/50 text-muted-foreground dark:bg-muted/40",
         status: "text-muted-foreground",
       };
   }
@@ -343,33 +684,52 @@ function getStepStyle(state: ImportWorkflowStepState) {
 
 function BatchMetaPill({ label, value }: BatchMetaItem) {
   return (
-    <div className="rounded-full border bg-background/80 px-3 py-1 text-xs">
-      <span className="text-muted-foreground">{label}</span>{" "}
-      <span className="font-medium text-foreground">{value}</span>
+    <div className="rounded-xl border border-border/60 bg-muted/40 px-3 py-2.5 text-sm dark:bg-muted/30">
+      <p className="text-[0.7rem] font-medium text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-medium text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function BatchHealthPill({
+  label,
+  value,
+  tone = "default",
+}: BatchHealthItem) {
+  const toneClassName =
+    tone === "success"
+      ? "text-emerald-700 dark:text-emerald-300"
+      : tone === "warning"
+        ? "text-amber-700 dark:text-amber-300"
+        : tone === "danger"
+          ? "text-destructive"
+          : "text-foreground";
+
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <span className={cn("text-sm font-semibold tabular-nums", toneClassName)}>{value}</span>
     </div>
   );
 }
 
 function ImportWorkflowSteps({ steps }: { steps: ImportWorkflowStep[] }) {
   return (
-    <div className="overflow-hidden rounded-xl border bg-background/85">
-      <div className="grid md:grid-cols-3">
-        {steps.map((step, index) => {
-          const Icon = step.state === "complete" ? CheckCircle2 : step.icon;
-          const style = getStepStyle(step.state);
+    <div className="grid gap-2 sm:grid-cols-3">
+      {steps.map((step) => {
+        const Icon = step.state === "complete" ? CheckCircle2 : step.icon;
+        const style = getStepStyle(step.state);
 
-          return (
-            <div
-              key={step.key}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3",
-                style.cell,
-                index < steps.length - 1
-                  ? "border-b md:border-r md:border-b-0"
-                  : undefined
-              )}
-              aria-current={step.state === "current" ? "step" : undefined}
-            >
+        return (
+          <div
+            key={step.key}
+            className={cn(
+              "relative overflow-hidden rounded-xl border px-3 py-2.5",
+              style.cell
+            )}
+            aria-current={step.state === "current" ? "step" : undefined}
+          >
+            <div className="flex items-center gap-2.5">
               <div
                 className={cn(
                   "flex size-8 shrink-0 items-center justify-center rounded-full border",
@@ -377,12 +737,12 @@ function ImportWorkflowSteps({ steps }: { steps: ImportWorkflowStep[] }) {
                 )}
               >
                 {step.isLoading ? (
-                  <Spinner className="size-3.5" />
+                  <Spinner className="size-3" />
                 ) : (
-                  <Icon className="size-4" />
+                  <Icon className="size-3.5" />
                 )}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 space-y-0.5">
                 <p className="text-sm font-medium text-foreground">
                   {step.title}
                 </p>
@@ -391,15 +751,204 @@ function ImportWorkflowSteps({ steps }: { steps: ImportWorkflowStep[] }) {
                 </p>
               </div>
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function WorkflowProgressBar({
+  value,
+  trackClassName,
+  indicatorClassName,
+  pulse,
+}: Pick<
+  WorkflowProgressModel,
+  "value" | "trackClassName" | "indicatorClassName" | "pulse"
+>) {
+  return (
+    <div
+      role="progressbar"
+      aria-label="Employee import workflow progress"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(value)}
+      className={cn(
+        "relative h-2 overflow-hidden rounded-full",
+        trackClassName
+      )}
+    >
+      <div
+        className={cn(
+          "h-full rounded-full transition-[width] duration-500 ease-out",
+          indicatorClassName,
+          pulse ? "animate-pulse motion-reduce:animate-none" : undefined
+        )}
+        style={{ width: `${value}%` }}
+      />
+      <div className="pointer-events-none absolute inset-0 grid grid-cols-3">
+        <div className="border-r border-background/60" />
+        <div className="border-r border-background/60" />
+        <div />
       </div>
+    </div>
+  );
+}
+
+function ActionCluster({
+  session,
+  isReadyToImport,
+  isExpired,
+  hasErrors,
+  isValidating,
+  isUploading,
+  isApplying,
+  onValidate,
+  onUpload,
+  onApply,
+  isConfirmOpen,
+  setIsConfirmOpen,
+  applyError,
+}: {
+  session: EmployeeImportSessionDto;
+  isReadyToImport: boolean;
+  isExpired: boolean;
+  hasErrors: boolean;
+  isValidating: boolean;
+  isUploading: boolean;
+  isApplying: boolean;
+  onValidate: () => void;
+  onUpload: () => void;
+  onApply: () => Promise<boolean>;
+  isConfirmOpen: boolean;
+  setIsConfirmOpen: (open: boolean) => void;
+  applyError: string | null;
+}) {
+  const handleConfirm = async () => {
+    const didApply = await onApply();
+    if (didApply) {
+      setIsConfirmOpen(false);
+    }
+  };
+
+  if (isReadyToImport) {
+    return (
+      <AlertDialog
+        open={isConfirmOpen}
+        onOpenChange={(open) => {
+          if (!isApplying) {
+            setIsConfirmOpen(open);
+          }
+        }}
+      >
+        <AlertDialogTrigger asChild>
+          <Button
+            type="button"
+            size="lg"
+            className="w-full justify-center"
+            disabled={!session.canApply || isApplying}
+          >
+            {isApplying ? <Spinner /> : <ClipboardCheck />}
+            {isApplying ? "Importing employees" : "Import employees"}
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia>
+              <ShieldCheck className="size-5 text-amber-700" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Import these employees?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Creates {session.validationSummary.validRows} employee
+              {session.validationSummary.validRows === 1 ? "" : "s"} from{" "}
+              {session.sourceFileName}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {applyError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Import failed</AlertTitle>
+              <AlertDescription>
+                <div className="space-y-1">
+                  <p>{applyError}</p>
+                  <p>Revalidate or upload a corrected file before retrying.</p>
+                </div>
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isApplying}>Cancel</AlertDialogCancel>
+            <Button type="button" disabled={isApplying} onClick={handleConfirm}>
+              {isApplying ? <Spinner /> : <ClipboardCheck />}
+              {isApplying ? "Importing employees" : "Import employees"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    );
+  }
+
+  if (hasErrors || isExpired) {
+    return (
+      <Button
+        type="button"
+        size="lg"
+        className="w-full justify-center"
+        onClick={onUpload}
+        disabled={isUploading || isValidating || isApplying}
+      >
+        {isUploading ? <Spinner /> : <Upload />}
+        {hasErrors ? "Upload corrected file" : "Upload file again"}
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      type="button"
+      size="lg"
+      className="w-full justify-center"
+      onClick={onValidate}
+      disabled={!session.canValidate || isUploading || isValidating || isApplying}
+    >
+      {isValidating ? <Spinner /> : <Eye />}
+      {isValidating ? "Validating file" : "Validate file"}
+    </Button>
+  );
+}
+
+function AppliedCtaCluster() {
+  const { user } = useAuth();
+  const canOpenAccessWorkspace =
+    canAccessCoreAccess(user) || canManageCoreAccessProfiles(user);
+  const canOpenEmployeeDirectory = canAccessEmployeeRoster(user);
+
+  return (
+    <div className="grid grid-cols-2 gap-1.5">
+      {canOpenAccessWorkspace ? (
+        <Button asChild size="sm" className="w-full justify-center">
+          <Link href="/access">
+            <Unlock />
+            Activate access
+          </Link>
+        </Button>
+      ) : null}
+      {canOpenEmployeeDirectory ? (
+        <Button asChild type="button" variant="outline" size="sm" className="w-full justify-center">
+          <Link href="/employees">
+            <Users />
+            See employees
+          </Link>
+        </Button>
+      ) : null}
     </div>
   );
 }
 
 export function BatchActionPanel({
   session,
+  applyOperation,
+  applyResult,
   isValidating,
   isUploading,
   isDownloadingTemplate,
@@ -411,6 +960,8 @@ export function BatchActionPanel({
   onApply,
 }: {
   session: EmployeeImportSessionDto;
+  applyOperation: EmployeeImportApplyOperationDto | null;
+  applyResult: EmployeeImportApplyResultDto | null;
   isValidating: boolean;
   isUploading: boolean;
   isDownloadingTemplate: boolean;
@@ -433,163 +984,161 @@ export function BatchActionPanel({
   const isReadyToImport = isValidated && !hasErrors;
   const isActionLocked = isValidating || isApplying || isUploading;
   const metaItems = getBatchMetaItems(session);
+  const healthItems = getBatchHealthItems(session);
   const steps = getWorkflowSteps({ session, isValidating, isApplying });
-  const statusIcon = isApplying ? (
-    <Users className="size-4 text-amber-700" />
+  const headline = getWorkflowHeadline({
+    session,
+    isValidating,
+    isApplying,
+    applyOperation,
+  });
+  const progress = getWorkflowProgressModel({
+    session,
+    isValidating,
+    isApplying,
+    applyOperation,
+  });
+  const isApplied = session.stage === "Applied";
+  const statusIcon = isApplied ? (
+    <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+  ) : isApplying ? (
+    <Spinner className="size-4 text-primary" />
   ) : isValidated && !hasErrors ? (
-    <CheckCircle2 className="size-4 text-emerald-600" />
+    <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
   ) : !isValidated && !isExpired ? (
     <Eye className="size-4 text-muted-foreground" />
   ) : (
     <AlertCircle className="size-4 text-destructive" />
   );
 
-  const handleConfirm = async () => {
-    const didApply = await onApply();
-    if (didApply) {
-      setIsConfirmOpen(false);
-    }
-  };
-
   return (
-    <Card className={statusMeta.cardClassName}>
-      <CardHeader className="gap-3 ">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0 flex-1">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-background/90">
-              {statusIcon}
-            </div>
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={statusMeta.variant}>{statusMeta.label}</Badge>
+    <Card className={cn("overflow-hidden shadow-sm pb-1", statusMeta.cardClassName)}>
+      <CardHeader className="gap-4">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(280px,0.85fr)]">
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-muted/50 dark:bg-muted/40">
+                {statusIcon}
               </div>
-              <CardTitle className="break-all text-base sm:text-lg">
-                {session.sourceFileName}
-              </CardTitle>
-              <div className="flex flex-wrap gap-2">
+              <div className="min-w-0 space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={statusMeta.variant}>{statusMeta.label}</Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {session.sourceFileName}
+                  </span>
+                </div>
+                <CardTitle className="text-balance text-lg sm:text-xl">
+                  {headline.title}
+                </CardTitle>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border/50 bg-muted/30 p-3.5 sm:p-4 dark:bg-muted/20">
+              <div className="flex items-center justify-between gap-3">
+                <p className={cn("text-sm font-medium", progress.toneClassName)}>
+                  {progress.title}
+                </p>
+                <p className={cn("text-sm font-semibold tabular-nums", progress.toneClassName)}>
+                  {progress.valueText}
+                </p>
+              </div>
+
+              <div className="mt-3">
+                <WorkflowProgressBar
+                  value={progress.value}
+                  trackClassName={progress.trackClassName}
+                  indicatorClassName={progress.indicatorClassName}
+                  pulse={progress.pulse}
+                />
+              </div>
+
+              <div className="mt-3">
+                <ImportWorkflowSteps steps={steps} />
+              </div>
+
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-t border-border/40 pt-3">
+                {healthItems.map((item, index) => (
+                  <Fragment key={item.label}>
+                    {index > 0 && <div className="hidden sm:block text-border/60">·</div>}
+                    <BatchHealthPill {...item} />
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <aside className="flex flex-col gap-3 self-start rounded-xl border border-border/50 bg-muted/30 p-3.5 sm:p-4 xl:sticky xl:top-4 dark:bg-muted/20">
+            <div className="space-y-2.5">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Batch controls</p>
+              {isApplied ? (
+                <AppliedCtaCluster />
+              ) : (
+                <ActionCluster
+                  session={session}
+                  isReadyToImport={isReadyToImport}
+                  isExpired={isExpired}
+                  hasErrors={hasErrors}
+                  isValidating={isValidating}
+                  isUploading={isUploading}
+                  isApplying={isApplying}
+                  onValidate={onValidate}
+                  onUpload={onUpload}
+                  onApply={onApply}
+                  isConfirmOpen={isConfirmOpen}
+                  setIsConfirmOpen={setIsConfirmOpen}
+                  applyError={applyError}
+                />
+              )}
+
+              <div className="grid gap-1.5 sm:grid-cols-2">
+                {!isExpired && !hasErrors ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-center"
+                    onClick={onUpload}
+                    disabled={isActionLocked}
+                  >
+                    {isUploading ? <Spinner /> : <Upload />}
+                    Upload another file
+                  </Button>
+                ) : null}
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-center"
+                  onClick={onDownloadTemplate}
+                  disabled={
+                    isDownloadingTemplate ||
+                    isValidating ||
+                    isApplying ||
+                    isUploading
+                  }
+                >
+                  {isDownloadingTemplate ? <Spinner /> : <Download />}
+                  Download template
+                </Button>
+              </div>
+            </div>
+
+            <div className="border-t border-border/40" />
+
+            <div className="space-y-2.5">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Batch metadata</p>
+              <div className="grid grid-cols-3 gap-1.5">
                 {metaItems.map((item) => (
                   <BatchMetaPill key={item.label} {...item} />
                 ))}
               </div>
             </div>
-          </div>
-          <div className="flex flex-wrap gap-2 shrink-0">
-            {isReadyToImport ? (
-              <AlertDialog
-                open={isConfirmOpen}
-                onOpenChange={(open) => {
-                  if (!isApplying) {
-                    setIsConfirmOpen(open);
-                  }
-                }}
-              >
-                <AlertDialogTrigger asChild>
-                  <Button
-                    type="button"
-                    disabled={!session.canApply || isApplying}
-                  >
-                    {isApplying ? <Spinner /> : <ClipboardCheck />}
-                    {isApplying ? "Importing employees" : "Import employees"}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogMedia>
-                      <ShieldCheck className="size-5 text-amber-700" />
-                    </AlertDialogMedia>
-                    <AlertDialogTitle>Import these employees?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Creates {session.validationSummary.validRows} employee
-                      {session.validationSummary.validRows === 1
-                        ? ""
-                        : "s"}{" "}
-                      from {session.sourceFileName}.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  {applyError ? (
-                    <Alert variant="destructive">
-                      <AlertTitle>Import failed</AlertTitle>
-                      <AlertDescription>
-                        <div className="space-y-1">
-                          <p>{applyError}</p>
-                          <p>
-                            Revalidate or upload a corrected file before
-                            retrying.
-                          </p>
-                        </div>
-                      </AlertDescription>
-                    </Alert>
-                  ) : null}
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isApplying}>
-                      Cancel
-                    </AlertDialogCancel>
-                    <Button
-                      type="button"
-                      disabled={isApplying}
-                      onClick={handleConfirm}
-                    >
-                      {isApplying ? <Spinner /> : <ClipboardCheck />}
-                      {isApplying ? "Importing employees" : "Import employees"}
-                    </Button>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            ) : hasErrors || isExpired ? (
-              <Button
-                type="button"
-                onClick={onUpload}
-                disabled={isActionLocked}
-              >
-                {isUploading ? <Spinner /> : <Upload />}
-                {hasErrors ? "Upload corrected file" : "Upload file again"}
-              </Button>
-            ) : (
-              <Button
-                type="button"
-                onClick={onValidate}
-                disabled={!session.canValidate || isActionLocked}
-              >
-                {isValidating ? <Spinner /> : <Eye />}
-                {isValidating ? "Validating file" : "Validate file"}
-              </Button>
-            )}
-
-            {!isExpired && !hasErrors ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onUpload}
-                disabled={isActionLocked}
-              >
-                {isUploading ? <Spinner /> : <Upload />}
-                Upload another file
-              </Button>
-            ) : null}
-
-            {!isReadyToImport ? (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={onDownloadTemplate}
-                disabled={
-                  isDownloadingTemplate ||
-                  isValidating ||
-                  isApplying ||
-                  isUploading
-                }
-              >
-                {isDownloadingTemplate ? <Spinner /> : <Download />}
-                Download template
-              </Button>
-            ) : null}
-          </div>
+          </aside>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3 pt-0">
-        <ImportWorkflowSteps steps={steps} />
-
+      <CardContent className="pt-0">
         {applyError && !isConfirmOpen ? (
           <Alert variant="destructive">
             <AlertTitle>Import failed</AlertTitle>
@@ -606,6 +1155,8 @@ export function BatchActionPanel({
   );
 }
 
+// TODO(deletion): AppliedResultPanel is dead code — replaced by BatchActionPanel handling the Applied state inline.
+// Remove AppliedResultPanel, formatCreatedEmployeesSummary, and formatNeedsAccessSummary.
 export function AppliedResultPanel({
   session,
   applyResult,
@@ -758,6 +1309,7 @@ function ImportHistoryListSkeleton() {
   );
 }
 
+// TODO(deletion): These three formatters are dead code — only used by the removed AppliedResultPanel.
 function formatCreatedEmployeesSummary(count: number): string {
   return `${count} employee${count === 1 ? " was" : "s were"} created.`;
 }
@@ -803,9 +1355,10 @@ function getHistoryActorLabel(item: {
 function getHistoryRowSummary(item: {
   eventType: ImportHistoryEventType;
   sourceRowCount: number;
-  validRowCount: number;
+  validatedRowCount: number;
   createdCount: number;
-  skippedCount: number;
+  unchangedRowCount: number;
+  publishedRowCount: number;
   errorCount?: number;
   warningCount?: number;
 }) {
@@ -817,9 +1370,9 @@ function getHistoryRowSummary(item: {
         return `${item.errorCount} error${item.errorCount === 1 ? "" : "s"}${(item.warningCount ?? 0) > 0 ? ` · ${item.warningCount} warning${item.warningCount === 1 ? "" : "s"}` : ""}`;
       }
 
-      return `${item.validRowCount} valid · ${item.sourceRowCount} rows`;
+      return `${item.validatedRowCount} validated · ${item.sourceRowCount} rows`;
     case "Import":
-      return `${item.createdCount} created${item.skippedCount > 0 ? ` · ${item.skippedCount} skipped` : ""} · ${item.sourceRowCount} rows`;
+      return `${item.publishedRowCount} published${item.unchangedRowCount > 0 ? ` · ${item.unchangedRowCount} unchanged` : ""} · ${item.sourceRowCount} rows`;
     default:
       return `${item.sourceRowCount} rows`;
   }

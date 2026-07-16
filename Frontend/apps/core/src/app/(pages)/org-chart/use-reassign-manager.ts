@@ -10,6 +10,10 @@ import { orgChartQueryKeys } from "./org-chart-query-keys";
 const EMPLOYEE_ROSTER_PATH = "/corehr/employees";
 const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 
+function getImmediateEffectiveDateIso() {
+  return new Date().toISOString();
+}
+
 export interface ReassignManagerInput {
   employeeId: string;
   newManagerId: string | null;
@@ -22,9 +26,12 @@ export function useReassignManagerFromChart() {
 
   return useApiMutation<unknown, ReassignManagerInput>(
     ({ employeeId, newManagerId, expectedVersion }) =>
-      client.put(
-        `${EMPLOYEE_ROSTER_PATH}/${employeeId}`,
-        { managerId: newManagerId ?? EMPTY_GUID },
+      client.post(
+        `${EMPLOYEE_ROSTER_PATH}/${employeeId}/change-manager`,
+        {
+          managerId: newManagerId ?? EMPTY_GUID,
+          effectiveDate: getImmediateEffectiveDateIso(),
+        },
         { headers: { "If-Match": `"${expectedVersion}"` } }
       ),
     {
@@ -35,7 +42,7 @@ export function useReassignManagerFromChart() {
           exact: true,
         },
         {
-          queryKey: employeeRosterQueryKeys.profile(args.employeeId),
+          queryKey: employeeRosterQueryKeys.detailsById(args.employeeId),
           exact: true,
         },
         ...(args.newManagerId
@@ -45,7 +52,7 @@ export function useReassignManagerFromChart() {
                 exact: true,
               },
               {
-                queryKey: employeeRosterQueryKeys.profile(args.newManagerId),
+                queryKey: employeeRosterQueryKeys.detailsById(args.newManagerId),
                 exact: true,
               },
             ]

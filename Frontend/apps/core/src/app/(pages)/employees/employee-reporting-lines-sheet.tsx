@@ -5,9 +5,9 @@ import { AlertTriangle, CheckCircle2, Search, X } from "lucide-react";
 import type { ApiError } from "@repo/api";
 import { toast } from "sonner";
 import {
+  useChangeEmployeeManager,
   useEmployeeManagerOptions,
   useEmployeeReportingLines,
-  useUpdateEmployeeManager,
 } from "./use-employees";
 import type {
   EmployeeReportingLinesDto,
@@ -15,17 +15,6 @@ import type {
   EmployeeHierarchyStatus,
 } from "./employee-roster.types";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogMedia,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -179,8 +168,7 @@ export function ManagerChangeSection({
   const [selectedManager, setSelectedManager] =
     useState<EmployeeRosterItem | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
-  const updateManager = useUpdateEmployeeManager();
+  const changeManager = useChangeEmployeeManager();
 
   const managerOptionsQuery = useEmployeeManagerOptions({
     employeeId: emp.id,
@@ -206,7 +194,7 @@ export function ManagerChangeSection({
     emp.managerId !== null && status !== "ManagerMissing" && status !== "Root";
   const canSave =
     selectedManager !== null && selectedManager.id !== emp.managerId;
-  const isSaving = updateManager.isLoading;
+  const isSaving = changeManager.isLoading;
   const hasDirectReports = data.directReportCount > 0;
 
   const currentManagerNode = data.managerChain[0] ?? null;
@@ -216,7 +204,6 @@ export function ManagerChangeSection({
     setSearch("");
     setSelectedManager(null);
     setActionError(null);
-    setShowRemoveConfirm(false);
   }, [emp.id, emp.version]);
 
   function getMutationError(error: unknown) {
@@ -248,27 +235,15 @@ export function ManagerChangeSection({
     if (!selectedManager) return;
     setActionError(null);
     try {
-      await updateManager.mutateAsync({
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      await changeManager.mutateAsync({
         employeeId: emp.id,
         expectedVersion: emp.version,
         managerId: selectedManager.id,
+        effectiveDate: today.toISOString(),
       });
       toast.success("Manager updated.");
-      onDone?.();
-    } catch (error) {
-      setActionError(getMutationError(error));
-    }
-  }
-
-  async function handleRemove() {
-    setActionError(null);
-    try {
-      await updateManager.mutateAsync({
-        employeeId: emp.id,
-        expectedVersion: emp.version,
-        managerId: null,
-      });
-      toast.success("Manager removed.");
       onDone?.();
     } catch (error) {
       setActionError(getMutationError(error));
@@ -298,7 +273,7 @@ export function ManagerChangeSection({
     if (controllerRef) {
       controllerRef.current = {
         save: () => void handleSave(),
-        remove: () => void handleRemove(),
+        remove: () => void handleSave(),
       };
     }
   });
@@ -326,16 +301,6 @@ export function ManagerChangeSection({
               currentManager={currentManager}
               showJobTitle={showJobTitle}
             />
-            {!isTopLevel(status) && hasActiveManager ? (
-              <button
-                type="button"
-                className="text-xs text-muted-foreground hover:text-destructive mt-1.5"
-                onClick={() => setShowRemoveConfirm(true)}
-                disabled={updateManager.isLoading}
-              >
-                Remove manager
-              </button>
-            ) : null}
             {hasDirectReports ? (
               <p className="text-sm text-muted-foreground mt-2">
                 {data.directReportCount} person
@@ -359,7 +324,7 @@ export function ManagerChangeSection({
                   }}
                   placeholder="Search by name or email..."
                   className="pl-8 pr-8"
-                  disabled={updateManager.isLoading}
+                  disabled={changeManager.isLoading}
                 />
                 {search ? (
                   <button
@@ -441,18 +406,18 @@ export function ManagerChangeSection({
               type="button"
               variant="outline"
               onClick={() => {
-                if (!updateManager.isLoading) onDone?.();
+                if (!changeManager.isLoading) onDone?.();
               }}
-              disabled={updateManager.isLoading}
+              disabled={changeManager.isLoading}
             >
               Cancel
             </Button>
             <Button
               type="button"
               onClick={() => void handleSave()}
-              disabled={!canSave || updateManager.isLoading}
+              disabled={!canSave || changeManager.isLoading}
             >
-              {updateManager.isLoading ? (
+              {changeManager.isLoading ? (
                 <>
                   <Spinner className="mr-1.5 size-4" />
                   Saving...
@@ -467,47 +432,6 @@ export function ManagerChangeSection({
         </>
       )}
 
-      {/* ── Remove confirmation ── */}
-      <AlertDialog
-        open={showRemoveConfirm}
-        onOpenChange={(open) => {
-          if (!open) setShowRemoveConfirm(false);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogMedia>
-              <AlertTriangle className="size-5 text-amber-700" />
-            </AlertDialogMedia>
-            <AlertDialogTitle>Remove manager?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {firstName} will report to no one
-              {hasDirectReports
-                ? `. ${data.directReportCount} direct report${data.directReportCount === 1 ? "" : "s"} still report to ${firstName}.`
-                : "."}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={updateManager.isLoading}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={updateManager.isLoading}
-              onClick={() => void handleRemove()}
-            >
-              {updateManager.isLoading ? (
-                <>
-                  <Spinner className="mr-1.5 size-4" />
-                  Removing...
-                </>
-              ) : (
-                "Remove manager"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

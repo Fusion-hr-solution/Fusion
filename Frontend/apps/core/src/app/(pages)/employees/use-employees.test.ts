@@ -75,16 +75,17 @@ vi.mock("@/lib/employee-roster-access", () => ({
 import { ApiQueryProvider, createApiQueryClient } from "@repo/api/query";
 import {
   useCreateEmployeeRecord,
-  useDeactivateEmployee,
+  useTerminateEmployee,
+  useRehireEmployee,
+  useEmployeeDetails,
   useEmployeeOrgUnitOptions,
   useEmployeeManagerOptions,
-  useEmployeeProfile,
   useEmployeeReportingLines,
   useEmployeeRoster,
   useUpdateMyProfile,
   useWorkforceReadinessSummary,
   useUpdateEmployeeRecord,
-  useUpdateEmployeeManager,
+  useChangeEmployeeManager,
 } from "./use-employees";
 
 function createWrapper() {
@@ -550,25 +551,24 @@ describe("useCreateEmployeeRecord", () => {
   });
 });
 
-describe("useUpdateEmployeeManager", () => {
-  it("sends the manager update with If-Match and clear semantics", async () => {
-    mockPut.mockResolvedValue({});
+describe("useChangeEmployeeManager", () => {
+  it("posts to the canonical change-manager endpoint with effectiveDate and If-Match", async () => {
+    mockPost.mockResolvedValue({ id: "emp-1" });
 
-    const { result } = renderHook(() => useUpdateEmployeeManager(), {
+    const { result } = renderHook(() => useChangeEmployeeManager(), {
       wrapper: createWrapper(),
     });
 
     await result.current.mutateAsync({
       employeeId: "emp-1",
       expectedVersion: 11,
-      managerId: null,
+      managerId: "mgr-2",
+      effectiveDate: "2025-01-01T00:00:00.000Z",
     });
 
-    expect(mockPut).toHaveBeenCalledWith(
-      "/corehr/employees/emp-1",
-      {
-        managerId: "00000000-0000-0000-0000-000000000000",
-      },
+    expect(mockPost).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1/change-manager",
+      { managerId: "mgr-2", effectiveDate: "2025-01-01T00:00:00.000Z" },
       {
         headers: {
           "If-Match": '"11"',
@@ -594,7 +594,6 @@ describe("useUpdateEmployeeRecord", () => {
       email: "alice@example.com",
       jobTitle: "Principal Engineer",
       orgUnitId: null,
-      hireDate: "2024-05-01T00:00:00.000Z",
     });
 
     expect(mockPut).toHaveBeenCalledWith(
@@ -605,7 +604,6 @@ describe("useUpdateEmployeeRecord", () => {
         email: "alice@example.com",
         jobTitle: "Principal Engineer",
         orgUnitId: "00000000-0000-0000-0000-000000000000",
-        hireDate: "2024-05-01T00:00:00.000Z",
       },
       {
         headers: {
@@ -700,74 +698,156 @@ describe("useUpdateMyProfile", () => {
   });
 });
 
-describe("useDeactivateEmployee", () => {
-  it("sends the deactivate request with optimistic concurrency headers", async () => {
-    mockDelete.mockResolvedValue(undefined);
+describe("useTerminateEmployee", () => {
+  it("posts to the terminate endpoint with effectiveDate and If-Match", async () => {
+    mockPost.mockResolvedValue({ id: "emp-1" });
 
-    const { result } = renderHook(() => useDeactivateEmployee(), {
+    const { result } = renderHook(() => useTerminateEmployee(), {
       wrapper: createWrapper(),
     });
 
     await result.current.mutateAsync({
       employeeId: "emp-1",
       expectedVersion: 11,
+      effectiveDate: "2025-12-31T00:00:00.000Z",
+      note: "Voluntary resignation",
     });
 
-    expect(mockDelete).toHaveBeenCalledWith("/corehr/employees/emp-1", {
-      headers: {
-        "If-Match": '"11"',
-      },
-    });
+    expect(mockPost).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1/terminate",
+      { effectiveDate: "2025-12-31T00:00:00.000Z", note: "Voluntary resignation" },
+      {
+        headers: {
+          "If-Match": '"11"',
+        },
+      }
+    );
   });
 });
 
-describe("useEmployeeProfile", () => {
-  it("calls the profile endpoint for the given employee", async () => {
-    const mockProfile = {
+describe("useRehireEmployee", () => {
+  it("posts to the rehire endpoint with required fields and If-Match", async () => {
+    mockPost.mockResolvedValue({ id: "emp-1" });
+
+    const { result } = renderHook(() => useRehireEmployee(), {
+      wrapper: createWrapper(),
+    });
+
+    await result.current.mutateAsync({
+      employeeId: "emp-1",
+      expectedVersion: 5,
+      effectiveDate: "2026-01-06T00:00:00.000Z",
+      orgUnitId: "ou-1",
+      jobTitle: "Senior Engineer",
+    });
+
+    expect(mockPost).toHaveBeenCalledWith(
+      "/corehr/employees/emp-1/rehire",
+      {
+        effectiveDate: "2026-01-06T00:00:00.000Z",
+        orgUnitId: "ou-1",
+        jobTitle: "Senior Engineer",
+        workLocation: null,
+        managerId: null,
+        employmentType: null,
+      },
+      {
+        headers: {
+          "If-Match": '"5"',
+        },
+      }
+    );
+  });
+});
+
+describe("useEmployeeDetails", () => {
+  it("calls the composed employee details endpoint for the given employee", async () => {
+    const mockDetails = {
       id: "emp-1",
+      tenantId: "tenant-1",
       stableEmployeeKey: "E-EMP1",
+      employeeNumber: "E-001",
       firstName: "Alice",
       lastName: "Smith",
       preferredName: "Ali",
+      displayName: "Ali Smith",
       fullName: "Alice Smith",
       email: "alice@example.com",
-      jobTitle: "Senior Engineer",
-      hireDate: "2021-06-01T00:00:00Z",
-      status: "Active",
-      orgUnitId: "org-1",
-      orgUnitName: "Engineering",
-      managerId: "mgr-1",
-      managerFirstName: "Bob",
-      managerLastName: "Jones",
-      managerEmail: "bob@example.com",
-      managerFullName: "Bob Jones",
-      hierarchyStatus: "Healthy",
-      directReportCount: 3,
-      version: 7,
+      phone: "+216 20 000 000",
+      currentEmployment: {
+        employmentId: "employment-1",
+        effectiveFrom: "2021-06-01T00:00:00Z",
+        effectiveTo: null,
+        status: "Active",
+        employmentType: "Full-time",
+      },
+      currentWorkAssignment: {
+        workAssignmentId: "assignment-1",
+        employmentId: "employment-1",
+        orgUnitId: "org-1",
+        orgUnitName: "Engineering",
+        orgUnitType: "Department",
+        jobTitle: "Senior Engineer",
+        workLocation: "Tunis",
+        isPrimary: true,
+        effectiveFrom: "2021-06-01T00:00:00Z",
+        effectiveTo: null,
+      },
+      currentManager: {
+        relationshipId: "manager-1",
+        managerEmployeeId: "mgr-1",
+        managerWorkAssignmentId: "assignment-2",
+        managerFirstName: "Bob",
+        managerLastName: "Jones",
+        managerEmail: "bob@example.com",
+        effectiveFrom: "2021-06-01T00:00:00Z",
+        effectiveTo: null,
+        managerFullName: "Bob Jones",
+      },
+      historySummary: {
+        employmentCount: 1,
+        workAssignmentCount: 1,
+        managerRelationshipCount: 1,
+      },
+      readiness: {
+        employeeStateIssueCount: 0,
+        blockingIssueCount: 0,
+        employeeStateIssues: [],
+        blockingIssues: [],
+        hasEmployeeStateIssues: false,
+        hasBlockingIssues: false,
+      },
+      createdAt: "2021-06-01T00:00:00Z",
+      updatedAt: "2024-06-01T00:00:00Z",
+      version: 9,
     };
 
-    mockGet.mockResolvedValue(mockProfile);
+    mockGet.mockResolvedValue(mockDetails);
 
-    const { result } = renderHook(() => useEmployeeProfile("E-EMP1"), {
+    const { result } = renderHook(() => useEmployeeDetails("E-EMP1"), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
 
     expect(mockGet).toHaveBeenCalledWith(
-      "/corehr/employees/by-key/E-EMP1/profile",
+      "/corehr/employees/by-key/E-EMP1",
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
     expect(result.current.data).toMatchObject({
       id: "emp-1",
       fullName: "Alice Smith",
-      hierarchyStatus: "Healthy",
-      directReportCount: 3,
+      currentEmployment: {
+        status: "Active",
+      },
+      currentWorkAssignment: {
+        orgUnitName: "Engineering",
+      },
     });
   });
 
   it("does not fetch when employeeId is null", async () => {
-    const { result } = renderHook(() => useEmployeeProfile(null), {
+    const { result } = renderHook(() => useEmployeeDetails(null), {
       wrapper: createWrapper(),
     });
 

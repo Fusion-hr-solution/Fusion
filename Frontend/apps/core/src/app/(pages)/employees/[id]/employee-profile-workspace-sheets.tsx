@@ -19,8 +19,8 @@ import {
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Spinner } from "@/components/ui/spinner";
 import type {
+  EmployeeDetailsDto,
   EmployeeOrgUnitOption,
-  EmployeeProfileDto,
 } from "../employee-roster.types";
 import {
   useEmployeeOrgUnitOptions,
@@ -31,7 +31,7 @@ import { EmployeeConfirmDialog } from "../employee-confirm-dialog";
 import { ManagerChangeSection } from "../employee-reporting-lines-sheet";
 
 interface EmployeeProfileSheetProps {
-  profile: EmployeeProfileDto;
+  details: EmployeeDetailsDto;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -95,10 +95,6 @@ function getDateInputValue(value: string) {
   return `${year}-${month}-${day}`;
 }
 
-function toApiHireDate(value: string) {
-  return `${value}T00:00:00.000Z`;
-}
-
 function getOrgUnitDisplayLabel(option: EmployeeOrgUnitOption) {
   return `${option.name} · ${option.code}`;
 }
@@ -145,7 +141,7 @@ function EmployeeEditTabLayout({
 // ── EmployeeEditDialog (unified) ──────────────────────────────────────────
 
 export function EmployeeEditDialog({
-  profile,
+  details,
   employeeKey,
   open,
   onOpenChange,
@@ -229,7 +225,7 @@ export function EmployeeEditDialog({
 
             <TabsContent value="personal" className="min-h-0 flex flex-col">
               <PersonalTab
-                profile={profile}
+                details={details}
                 open={open}
                 showPhone={showPhone}
                 requirePhone={requirePhone}
@@ -239,7 +235,7 @@ export function EmployeeEditDialog({
 
             <TabsContent value="work" className="min-h-0 flex flex-col">
               <WorkTab
-                profile={profile}
+                details={details}
                 open={open}
                 showJobTitle={showJobTitle}
                 showHireDate={showHireDate}
@@ -263,7 +259,7 @@ export function EmployeeEditDialog({
 
             <TabsContent value="organization" className="min-h-0 flex flex-col">
               <OrganizationTab
-                profile={profile}
+                details={details}
                 open={open}
                 onDirtyChange={(isDirty) =>
                   setDirtyTab("organization", isDirty)
@@ -293,13 +289,13 @@ export function EmployeeEditDialog({
 // ── PersonalTab ─────────────────────────────────────────────────────────────
 
 function PersonalTab({
-  profile,
+  details,
   showPhone,
   requirePhone,
   open,
   onDirtyChange,
 }: {
-  profile: EmployeeProfileDto;
+  details: EmployeeDetailsDto;
   showPhone: boolean;
   requirePhone: boolean;
   open: boolean;
@@ -310,12 +306,12 @@ function PersonalTab({
   const wasOpenRef = useRef(false);
   const form = useForm<IdentityFormValues>({
     defaultValues: {
-      employeeNumber: profile.employeeNumber ?? "",
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      preferredName: profile.preferredName ?? "",
-      email: profile.email,
-      phone: profile.phone ?? "",
+      employeeNumber: details.employeeNumber ?? "",
+      firstName: details.firstName,
+      lastName: details.lastName,
+      preferredName: details.preferredName ?? "",
+      email: details.email,
+      phone: details.phone ?? "",
       jobTitle: "",
       hireDate: "",
       workLocation: "",
@@ -330,12 +326,12 @@ function PersonalTab({
     if (!justOpened) return;
 
     form.reset({
-      employeeNumber: profile.employeeNumber ?? "",
-      firstName: profile.firstName,
-      lastName: profile.lastName,
-      preferredName: profile.preferredName ?? "",
-      email: profile.email,
-      phone: profile.phone ?? "",
+      employeeNumber: details.employeeNumber ?? "",
+      firstName: details.firstName,
+      lastName: details.lastName,
+      preferredName: details.preferredName ?? "",
+      email: details.email,
+      phone: details.phone ?? "",
       jobTitle: "",
       hireDate: "",
       workLocation: "",
@@ -345,12 +341,12 @@ function PersonalTab({
   }, [
     form,
     open,
-    profile.employeeNumber,
-    profile.firstName,
-    profile.lastName,
-    profile.preferredName,
-    profile.email,
-    profile.phone,
+    details.employeeNumber,
+    details.firstName,
+    details.lastName,
+    details.preferredName,
+    details.email,
+    details.phone,
   ]);
 
   useEffect(() => {
@@ -361,8 +357,8 @@ function PersonalTab({
     setSubmitError(null);
     try {
       await updateEmployeeRecord.mutateAsync({
-        employeeId: profile.id,
-        expectedVersion: profile.version,
+        employeeId: details.id,
+        expectedVersion: details.version,
         employeeNumber: values.employeeNumber.trim() || null,
         firstName: values.firstName.trim(),
         lastName: values.lastName.trim(),
@@ -519,7 +515,7 @@ function PersonalTab({
 // ── WorkTab ─────────────────────────────────────────────────────────────────
 
 function WorkTab({
-  profile,
+  details,
   open,
   showJobTitle,
   showHireDate,
@@ -531,7 +527,7 @@ function WorkTab({
   requireEmploymentType,
   onDirtyChange,
 }: {
-  profile: EmployeeProfileDto;
+  details: EmployeeDetailsDto;
   open: boolean;
   showJobTitle: boolean;
   showHireDate: boolean;
@@ -554,10 +550,12 @@ function WorkTab({
       preferredName: "",
       email: "",
       phone: "",
-      jobTitle: profile.jobTitle ?? "",
-      hireDate: getDateInputValue(profile.hireDate),
-      workLocation: profile.workLocation ?? "",
-      employmentType: profile.employmentType ?? "",
+      jobTitle: details.currentWorkAssignment?.jobTitle ?? "",
+      hireDate: getDateInputValue(
+        details.currentEmployment?.effectiveFrom ?? details.createdAt
+      ),
+      workLocation: details.currentWorkAssignment?.workLocation ?? "",
+      employmentType: details.currentEmployment?.employmentType ?? "",
     },
   });
 
@@ -576,19 +574,22 @@ function WorkTab({
       preferredName: "",
       email: "",
       phone: "",
-      jobTitle: profile.jobTitle ?? "",
-      hireDate: getDateInputValue(profile.hireDate),
-      workLocation: profile.workLocation ?? "",
-      employmentType: profile.employmentType ?? "",
+      jobTitle: details.currentWorkAssignment?.jobTitle ?? "",
+      hireDate: getDateInputValue(
+        details.currentEmployment?.effectiveFrom ?? details.createdAt
+      ),
+      workLocation: details.currentWorkAssignment?.workLocation ?? "",
+      employmentType: details.currentEmployment?.employmentType ?? "",
     });
     setSubmitError(null);
   }, [
     form,
     open,
-    profile.jobTitle,
-    profile.hireDate,
-    profile.workLocation,
-    profile.employmentType,
+    details.createdAt,
+    details.currentEmployment?.effectiveFrom,
+    details.currentEmployment?.employmentType,
+    details.currentWorkAssignment?.jobTitle,
+    details.currentWorkAssignment?.workLocation,
   ]);
 
   useEffect(() => {
@@ -599,10 +600,9 @@ function WorkTab({
     setSubmitError(null);
     try {
       await updateEmployeeRecord.mutateAsync({
-        employeeId: profile.id,
-        expectedVersion: profile.version,
+        employeeId: details.id,
+        expectedVersion: details.version,
         ...(showJobTitle ? { jobTitle: values.jobTitle.trim() } : {}),
-        ...(showHireDate ? { hireDate: toApiHireDate(values.hireDate) } : {}),
         ...(showWorkLocation
           ? { workLocation: values.workLocation.trim() || null }
           : {}),
@@ -618,7 +618,7 @@ function WorkTab({
         email: "",
         phone: "",
         jobTitle: values.jobTitle.trim(),
-        hireDate: values.hireDate,
+        hireDate: "",
         workLocation: values.workLocation.trim(),
         employmentType: values.employmentType.trim(),
       });
@@ -677,26 +677,6 @@ function WorkTab({
               {form.formState.errors.jobTitle ? (
                 <p className="text-sm text-destructive">
                   {form.formState.errors.jobTitle.message}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-          {showHireDate ? (
-            <div className="space-y-2">
-              <Label htmlFor="work-hire-date">Hire date</Label>
-              <Input
-                id="work-hire-date"
-                type="date"
-                {...form.register(
-                  "hireDate",
-                  requireHireDate
-                    ? { required: "Hire date is required." }
-                    : undefined
-                )}
-              />
-              {form.formState.errors.hireDate ? (
-                <p className="text-sm text-destructive">
-                  {form.formState.errors.hireDate.message}
                 </p>
               ) : null}
             </div>
@@ -841,11 +821,11 @@ function ManagerTab({
 // ── OrganizationTab ────────────────────────────────────────────────────────
 
 function OrganizationTab({
-  profile,
+  details,
   open,
   onDirtyChange,
 }: {
-  profile: EmployeeProfileDto;
+  details: EmployeeDetailsDto;
   open: boolean;
   onDirtyChange: (isDirty: boolean) => void;
 }) {
@@ -862,13 +842,13 @@ function OrganizationTab({
     ? orgUnits
     : orgUnits.slice(0, DEFAULT_ORG_UNIT_SUGGESTION_COUNT);
   const [selectedOrgUnitId, setSelectedOrgUnitId] = useState(
-    profile.orgUnitId ?? ""
+    details.currentWorkAssignment?.orgUnitId ?? ""
   );
   const [selectedOrgUnitName, setSelectedOrgUnitName] = useState<string | null>(
-    profile.orgUnitName ?? null
+    details.currentWorkAssignment?.orgUnitName ?? null
   );
   const [initialOrgUnitId, setInitialOrgUnitId] = useState(
-    profile.orgUnitId ?? ""
+    details.currentWorkAssignment?.orgUnitId ?? ""
   );
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const wasOpenRef = useRef(false);
@@ -883,13 +863,13 @@ function OrganizationTab({
       return;
     }
 
-    setSelectedOrgUnitId(profile.orgUnitId ?? "");
-    setSelectedOrgUnitName(profile.orgUnitName ?? null);
-    setInitialOrgUnitId(profile.orgUnitId ?? "");
+    setSelectedOrgUnitId(details.currentWorkAssignment?.orgUnitId ?? "");
+    setSelectedOrgUnitName(details.currentWorkAssignment?.orgUnitName ?? null);
+    setInitialOrgUnitId(details.currentWorkAssignment?.orgUnitId ?? "");
     setSearch("");
     setSubmitError(null);
     setShowClearConfirm(false);
-  }, [open, profile.orgUnitId, profile.orgUnitName]);
+  }, [open, details.currentWorkAssignment?.orgUnitId, details.currentWorkAssignment?.orgUnitName]);
 
   useEffect(() => {
     onDirtyChange(hasChanges);
@@ -900,8 +880,8 @@ function OrganizationTab({
 
     try {
       await updateEmployeeRecord.mutateAsync({
-        employeeId: profile.id,
-        expectedVersion: profile.version,
+        employeeId: details.id,
+        expectedVersion: details.version,
         orgUnitId: selectedOrgUnitId || null,
       });
       setInitialOrgUnitId(selectedOrgUnitId);
