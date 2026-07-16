@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 using EY.HRPlatform.CoreHR.Features.OrgUnits.Commands.CreateOrgUnit;
@@ -16,6 +17,14 @@ public class OrgUnitHandlerTests
 {
     private static readonly Guid TenantId = Guid.NewGuid();
 
+    private static EY.HRPlatform.CoreHR.Features.OrgUnits.Services.ResponsibleManagerService Rms(
+        EY.HRPlatform.CoreHR.Infrastructure.Persistence.CoreHRDbContext context)
+        => new(
+            context,
+            TestTenantContext.WithTenant(TenantId),
+            new EY.HRPlatform.CoreHR.Features.Workforce.Services.WorkforceCanonicalResolver(context),
+            new Microsoft.AspNetCore.Http.HttpContextAccessor());
+
     #region CreateOrgUnitCommandHandler Tests
 
     [Fact]
@@ -30,7 +39,7 @@ public class OrgUnitHandlerTests
         context.TenantSettings.Add(settings);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrgUnitCommandHandler(context, tenantContext);
+        var handler = new CreateOrgUnitCommandHandler(context, tenantContext, Rms(context));
         var command = new CreateOrgUnitCommand("ENG", "Engineering", "Department", null);
 
         // Act
@@ -61,7 +70,7 @@ public class OrgUnitHandlerTests
         context.TenantSettings.Add(settings);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrgUnitCommandHandler(context, tenantContext);
+        var handler = new CreateOrgUnitCommandHandler(context, tenantContext, Rms(context));
         var command = new CreateOrgUnitCommand("eng-001", "Engineering", "Department", null);
 
         // Act
@@ -88,7 +97,7 @@ public class OrgUnitHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new CreateOrgUnitCommandHandler(context, tenantContext);
+        var handler = new CreateOrgUnitCommandHandler(context, tenantContext, Rms(context));
         var command = new CreateOrgUnitCommand("ENG-TEAM1", "Platform Team", "Team", parent.Id);
 
         // Act
@@ -111,7 +120,7 @@ public class OrgUnitHandlerTests
         context.TenantSettings.Add(settings);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrgUnitCommandHandler(context, tenantContext);
+        var handler = new CreateOrgUnitCommandHandler(context, tenantContext, Rms(context));
         var command = new CreateOrgUnitCommand("DIV", "Division", "Division", null); // Invalid type
 
         // Act & Assert
@@ -136,7 +145,7 @@ public class OrgUnitHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new CreateOrgUnitCommandHandler(context, tenantContext);
+        var handler = new CreateOrgUnitCommandHandler(context, tenantContext, Rms(context));
         var command = new CreateOrgUnitCommand("ENG", "Engineering 2", "Department", null);
 
         // Act & Assert
@@ -160,7 +169,7 @@ public class OrgUnitHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new CreateOrgUnitCommandHandler(context, tenantContext);
+        var handler = new CreateOrgUnitCommandHandler(context, tenantContext, Rms(context));
         var command = new CreateOrgUnitCommand("ENG2", "Engineering", "Department", null); // Same name
 
         // Act & Assert
@@ -180,7 +189,7 @@ public class OrgUnitHandlerTests
         context.TenantSettings.Add(settings);
         await context.SaveChangesAsync();
 
-        var handler = new CreateOrgUnitCommandHandler(context, tenantContext);
+        var handler = new CreateOrgUnitCommandHandler(context, tenantContext, Rms(context));
         var command = new CreateOrgUnitCommand("TEAM", "Team", "Team", Guid.NewGuid());
 
         // Act & Assert
@@ -205,7 +214,7 @@ public class OrgUnitHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new CreateOrgUnitCommandHandler(context, tenantContext);
+        var handler = new CreateOrgUnitCommandHandler(context, tenantContext, Rms(context));
         var command = new CreateOrgUnitCommand("TEAM", "Team", "Team", parent.Id);
 
         // Act & Assert
@@ -338,12 +347,18 @@ public class OrgUnitHandlerTests
             var childA = Employee.Create(TenantId, "Child", "Alpha", "ca@example.com", DateTime.UtcNow, employeeNumber: "T-2");
             var childB = Employee.Create(TenantId, "Child", "Beta", "cb@example.com", DateTime.UtcNow, employeeNumber: "T-3");
             var childGone = Employee.Create(TenantId, "Child", "Gone", "cg@example.com", DateTime.UtcNow, employeeNumber: "T-4");
-            rootMember.AssignOrgUnit(root.Id);
-            childA.AssignOrgUnit(child.Id);
-            childB.AssignOrgUnit(child.Id);
-            childGone.AssignOrgUnit(child.Id);
-            childGone.Deactivate();
+            var rootEmployment = Employment.Start(TenantId, rootMember.Id, DateTime.UtcNow.AddMonths(-6), "FullTime", WorkforceSourceType.Manual);
+            var childAEmployment = Employment.Start(TenantId, childA.Id, DateTime.UtcNow.AddMonths(-6), "FullTime", WorkforceSourceType.Manual);
+            var childBEmployment = Employment.Start(TenantId, childB.Id, DateTime.UtcNow.AddMonths(-6), "FullTime", WorkforceSourceType.Manual);
+            var childGoneEmployment = Employment.Start(TenantId, childGone.Id, DateTime.UtcNow.AddMonths(-6), "FullTime", WorkforceSourceType.Manual);
+            childGoneEmployment.End(DateTime.UtcNow.AddDays(-1));
+            var rootAssignment = WorkAssignment.Create(TenantId, rootEmployment.Id, rootMember.Id, root.Id, "Lead", null, true, rootEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+            var childAAssignment = WorkAssignment.Create(TenantId, childAEmployment.Id, childA.Id, child.Id, "Engineer", null, true, childAEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+            var childBAssignment = WorkAssignment.Create(TenantId, childBEmployment.Id, childB.Id, child.Id, "Engineer", null, true, childBEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
+            var childGoneAssignment = WorkAssignment.Create(TenantId, childGoneEmployment.Id, childGone.Id, child.Id, "Engineer", null, true, childGoneEmployment.EffectiveFrom, childGoneEmployment.EffectiveTo, WorkforceSourceType.Manual);
             seed.Employees.AddRange(rootMember, childA, childB, childGone);
+            seed.Employments.AddRange(rootEmployment, childAEmployment, childBEmployment, childGoneEmployment);
+            seed.WorkAssignments.AddRange(rootAssignment, childAAssignment, childBAssignment, childGoneAssignment);
             await seed.SaveChangesAsync();
         }
 
@@ -532,7 +547,7 @@ public class OrgUnitHandlerTests
         var version = orgUnit.Version;
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new UpdateOrgUnitCommandHandler(context);
+        var handler = new UpdateOrgUnitCommandHandler(context, Rms(context));
         // Use a valid default type (Team is in defaults along with Department)
         var command = new UpdateOrgUnitCommand(orgUnit.Id, "Engineering Team", "Team", null, version);
 
@@ -559,7 +574,7 @@ public class OrgUnitHandlerTests
         await seedContext.SaveChangesAsync();
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new UpdateOrgUnitCommandHandler(context);
+        var handler = new UpdateOrgUnitCommandHandler(context, Rms(context));
         var command = new UpdateOrgUnitCommand(orgUnit.Id, "Updated Name", "Department", null, 999);
 
         // Act & Assert
@@ -590,7 +605,7 @@ public class OrgUnitHandlerTests
         var aVersion = a.Version;
 
         await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var handler = new UpdateOrgUnitCommandHandler(context);
+        var handler = new UpdateOrgUnitCommandHandler(context, Rms(context));
         
         // Try to set A's parent to C (creates cycle: C -> B -> A -> C)
         var command = new UpdateOrgUnitCommand(a.Id, "A", "Department", c.Id, aVersion);
@@ -608,7 +623,7 @@ public class OrgUnitHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         await using var context = TestDbContextFactory.Create(tenantContext);
 
-        var handler = new UpdateOrgUnitCommandHandler(context);
+        var handler = new UpdateOrgUnitCommandHandler(context, Rms(context));
         var command = new UpdateOrgUnitCommand(Guid.NewGuid(), "Name", "Department", null, 0);
 
         // Act & Assert
@@ -690,8 +705,11 @@ public class OrgUnitHandlerTests
         await seedContext.SaveChangesAsync();
 
         var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
-        employee.AssignOrgUnit(orgUnit.Id);
+        var employment = Employment.Start(TenantId, employee.Id, DateTime.UtcNow.AddMonths(-1), "FullTime", WorkforceSourceType.Manual);
+        var assignment = WorkAssignment.Create(TenantId, employment.Id, employee.Id, orgUnit.Id, "Engineer", null, true, employment.EffectiveFrom, null, WorkforceSourceType.Manual);
         seedContext.Employees.Add(employee);
+        seedContext.Employments.Add(employment);
+        seedContext.WorkAssignments.Add(assignment);
         await seedContext.SaveChangesAsync();
 
         var version = orgUnit.Version;

@@ -1,7 +1,5 @@
-using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
-using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
@@ -20,110 +18,293 @@ public sealed class GetWorkforceReadinessSummaryQueryHandler(
         CancellationToken cancellationToken)
     {
         var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
-        var activeEmployees = await dbContext.Employees
+        var now = DateTime.UtcNow;
+
+        var activeEmployeeIds = await dbContext.Employments
             .AsNoTracking()
-            .Include(employee => employee.Manager)
-            .Include(employee => employee.OrgUnit)
-            .Where(employee => employee.Status == EmployeeStatus.Active)
+            .Where(e => e.EffectiveFrom <= now && (e.EffectiveTo == null || now < e.EffectiveTo))
+            .Select(e => e.EmployeeId)
+            .Distinct()
             .ToListAsync(cancellationToken);
 
-        var activeEmployeeIds = activeEmployees
-            .Select(employee => employee.Id)
-            .ToList();
+        var activeEmployeeCount = activeEmployeeIds.Count;
 
-        var activeDirectReportCounts = activeEmployeeIds.Count == 0
-            ? new Dictionary<Guid, int>()
-            : await dbContext.Employees
-                .AsNoTracking()
-                .Where(employee => employee.ManagerId.HasValue
-                    && employee.Status == EmployeeStatus.Active
-                    && activeEmployeeIds.Contains(employee.ManagerId.Value))
-                .GroupBy(employee => employee.ManagerId!.Value)
-                .Select(group => new { ManagerId = group.Key, Count = group.Count() })
-                .ToDictionaryAsync(group => group.ManagerId, group => group.Count, cancellationToken);
+        if (activeEmployeeCount == 0)
+        {
+            var emptyImportIssues = await CountUnresolvedImportIssuesAsync([], now, cancellationToken);
+            return Result.Success(new WorkforceReadinessSummaryDto(
+                0, 0, 0, 100m,
+                new WorkforceReadinessIssueCountsDto(0, 0, 0, 0, 0, 0, emptyImportIssues)));
+        }
 
-        var readinessByEmployeeId = BuildReadinessSummaries(activeEmployees, activeDirectReportCounts, settings);
-        var readinessSummaries = readinessByEmployeeId.Values.ToList();
-        var activeEmployeeCount = activeEmployees.Count;
-        var readyEmployeeCount = readinessSummaries.Count(summary => summary.EmployeeStateIssueCount == 0);
-        var employeesNeedingAttention = readinessSummaries.Count(summary => summary.EmployeeStateIssueCount > 0);
-        var unresolvedImportIssueCount = await CountUnresolvedImportIssuesAsync(settings, cancellationToken);
+        var (readyCounts, issueCounts) = await ComputeReadinessAsync(activeEmployeeIds, settings, now, cancellationToken);
+        var unresolvedImportIssueCount = await CountUnresolvedImportIssuesAsync(activeEmployeeIds, now, cancellationToken);
+
+        var readyEmployeeCount = readyCounts;
+        var employeesNeedingAttention = activeEmployeeCount - readyEmployeeCount;
+        var readinessScore = activeEmployeeCount == 0
+            ? 100m
+            : Math.Round(readyEmployeeCount * 100m / activeEmployeeCount, 1, MidpointRounding.AwayFromZero);
 
         return Result.Success(new WorkforceReadinessSummaryDto(
             activeEmployeeCount,
             readyEmployeeCount,
             employeesNeedingAttention,
-            activeEmployeeCount == 0
-                ? 100m
-                : Math.Round(readyEmployeeCount * 100m / activeEmployeeCount, 1, MidpointRounding.AwayFromZero),
+            readinessScore,
             new WorkforceReadinessIssueCountsDto(
-                readinessSummaries.Count(summary => summary.EmployeeStateIssues.Any(issue => issue.Code == EmployeeReadinessIssueCodes.MissingRequiredField)),
-                readinessSummaries.Count(summary => summary.EmployeeStateIssues.Any(issue => issue.Code == EmployeeReadinessIssueCodes.MissingOrgUnit)),
-                readinessSummaries.Count(summary => summary.EmployeeStateIssues.Any(issue => issue.Code == EmployeeReadinessIssueCodes.NoManagerAssigned)),
-                readinessSummaries.Count(summary => summary.EmployeeStateIssues.Any(issue => issue.Code == EmployeeReadinessIssueCodes.ManagerInactive)),
-                readinessSummaries.Count(summary => summary.EmployeeStateIssues.Any(issue => issue.Code == EmployeeReadinessIssueCodes.ManagerMissing)),
-                readinessSummaries.Count(summary => summary.BlockingIssues.Any(issue => issue.Code == EmployeeReadinessIssueCodes.DeactivationBlocked)),
+                issueCounts.MissingRequiredFields,
+                issueCounts.MissingOrgUnit,
+                issueCounts.NoManagerAssigned,
+                issueCounts.ManagerInactive,
+                issueCounts.ManagerMissing,
+                issueCounts.DeactivationBlocked,
                 unresolvedImportIssueCount)));
     }
 
-    private async Task<int> CountUnresolvedImportIssuesAsync(
+    private async Task<(int ReadyCount, CanonicalIssueCounts Issues)> ComputeReadinessAsync(
+        IReadOnlyList<Guid> employeeIds,
         TenantSettingsDto settings,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        // Employee identity facts
+        var employees = await dbContext.Employees
+            .AsNoTracking()
+            .Where(e => employeeIds.Contains(e.Id))
+            .Select(e => new { e.Id, e.FirstName, e.LastName, e.Email, e.Phone })
+            .ToListAsync(cancellationToken);
+
+        // Active Employment facts (employment type)
+        var employmentFacts = await dbContext.Employments
+            .AsNoTracking()
+            .Where(e => employeeIds.Contains(e.EmployeeId)
+                && e.EffectiveFrom <= now && (e.EffectiveTo == null || now < e.EffectiveTo))
+            .Select(e => new { e.EmployeeId, e.EmploymentType })
+            .ToListAsync(cancellationToken);
+        var employmentByEmployee = employmentFacts
+            .GroupBy(e => e.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.First().EmploymentType);
+
+        // Primary WorkAssignment facts (org unit, job title, work location)
+        var primaryAssignments = await dbContext.WorkAssignments
+            .AsNoTracking()
+            .Where(wa => employeeIds.Contains(wa.EmployeeId)
+                && wa.IsPrimary
+                && wa.EffectiveFrom <= now && (wa.EffectiveTo == null || now < wa.EffectiveTo))
+            .Select(wa => new { wa.EmployeeId, wa.JobTitle, wa.WorkLocation })
+            .ToListAsync(cancellationToken);
+        var assignmentByEmployee = primaryAssignments
+            .GroupBy(wa => wa.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        // Primary manager relationships (subject → manager)
+        var primaryManagerLinks = await dbContext.ManagerRelationships
+            .AsNoTracking()
+            .Where(mr => employeeIds.Contains(mr.SubjectEmployeeId)
+                && mr.Type == ReportingRelationshipType.PrimaryManager
+                && mr.EffectiveFrom <= now && (mr.EffectiveTo == null || now < mr.EffectiveTo))
+            .Select(mr => new { mr.SubjectEmployeeId, mr.ManagerEmployeeId })
+            .ToListAsync(cancellationToken);
+        var managerByEmployee = primaryManagerLinks
+            .GroupBy(m => m.SubjectEmployeeId)
+            .ToDictionary(g => g.Key, g => g.First().ManagerEmployeeId);
+
+        // Verify manager existence and active status
+        var managerEmployeeIds = managerByEmployee.Values.Distinct().ToList();
+        HashSet<Guid> existingManagerIds;
+        HashSet<Guid> activeManagerIds;
+        if (managerEmployeeIds.Count == 0)
+        {
+            existingManagerIds = [];
+            activeManagerIds = [];
+        }
+        else
+        {
+            existingManagerIds = (await dbContext.Employees
+                .AsNoTracking()
+                .Where(e => managerEmployeeIds.Contains(e.Id))
+                .Select(e => e.Id)
+                .ToListAsync(cancellationToken)).ToHashSet();
+
+            activeManagerIds = (await dbContext.Employments
+                .AsNoTracking()
+                .Where(e => managerEmployeeIds.Contains(e.EmployeeId)
+                    && e.EffectiveFrom <= now && (e.EffectiveTo == null || now < e.EffectiveTo))
+                .Select(e => e.EmployeeId)
+                .Distinct()
+                .ToListAsync(cancellationToken)).ToHashSet();
+        }
+
+        // Direct report counts per manager (for root detection and termination-block counting)
+        var directReportCounts = await dbContext.ManagerRelationships
+            .AsNoTracking()
+            .Where(mr => employeeIds.Contains(mr.ManagerEmployeeId)
+                && mr.Type == ReportingRelationshipType.PrimaryManager
+                && mr.EffectiveFrom <= now && (mr.EffectiveTo == null || now < mr.EffectiveTo))
+            .GroupBy(mr => mr.ManagerEmployeeId)
+            .Select(g => new { ManagerId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.ManagerId, g => g.Count, cancellationToken);
+
+        int readyCount = 0, missingRequired = 0, missingOrgUnit = 0, noManager = 0,
+            managerInactive = 0, managerMissing = 0, deactivationBlocked = 0;
+
+        foreach (var employee in employees)
+        {
+            var hasStateIssue = false;
+
+            // Profile identity required fields
+            if (IsRequired(settings, "firstName") && string.IsNullOrWhiteSpace(employee.FirstName)) hasStateIssue = true;
+            if (IsRequired(settings, "lastName") && string.IsNullOrWhiteSpace(employee.LastName)) hasStateIssue = true;
+            if (IsRequired(settings, "email") && string.IsNullOrWhiteSpace(employee.Email)) hasStateIssue = true;
+
+            var hasMissingRequired = false;
+            if (IsRequired(settings, "phone") && string.IsNullOrWhiteSpace(employee.Phone)) hasMissingRequired = true;
+
+            // Employment type
+            if (IsRequired(settings, "employmentType"))
+            {
+                var empType = employmentByEmployee.GetValueOrDefault(employee.Id);
+                if (string.IsNullOrWhiteSpace(empType)) hasMissingRequired = true;
+            }
+
+            // hireDate: satisfied whenever an active Employment exists (already ensured by employeeIds filtering)
+
+            // WorkAssignment-based fields and org unit
+            if (!assignmentByEmployee.TryGetValue(employee.Id, out var assignment))
+            {
+                missingOrgUnit++;
+                hasStateIssue = true;
+                if (IsRequired(settings, "jobTitle")) hasMissingRequired = true;
+                if (IsRequired(settings, "workLocation")) hasMissingRequired = true;
+            }
+            else
+            {
+                if (IsRequired(settings, "jobTitle") && string.IsNullOrWhiteSpace(assignment.JobTitle)) hasMissingRequired = true;
+                if (IsRequired(settings, "workLocation") && string.IsNullOrWhiteSpace(assignment.WorkLocation)) hasMissingRequired = true;
+            }
+
+            if (hasMissingRequired) { missingRequired++; hasStateIssue = true; }
+
+            // Manager relationship
+            if (!managerByEmployee.TryGetValue(employee.Id, out var mgr))
+            {
+                var reportCount = directReportCounts.GetValueOrDefault(employee.Id);
+                if (reportCount == 0) { noManager++; hasStateIssue = true; }
+                // Root employees (have reports but no manager) are considered healthy
+            }
+            else if (!existingManagerIds.Contains(mgr))
+            {
+                managerMissing++;
+                hasStateIssue = true;
+            }
+            else if (!activeManagerIds.Contains(mgr))
+            {
+                managerInactive++;
+                hasStateIssue = true;
+            }
+
+            // Termination-blocked: employee has active canonical direct reports
+            if (directReportCounts.GetValueOrDefault(employee.Id) > 0) deactivationBlocked++;
+
+            if (!hasStateIssue) readyCount++;
+        }
+
+        return (readyCount, new CanonicalIssueCounts(
+            missingRequired, missingOrgUnit, noManager, managerInactive, managerMissing, deactivationBlocked));
+    }
+
+    private async Task<int> CountUnresolvedImportIssuesAsync(
+        IReadOnlyList<Guid> activeEmployeeIds,
+        DateTime now,
         CancellationToken cancellationToken)
     {
         var storedIssues = await dbContext.EmployeeImportFollowUpIssues
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
-        if (storedIssues.Count == 0)
-        {
-            return 0;
-        }
+        if (storedIssues.Count == 0) return 0;
 
-        var employeeIds = storedIssues
-            .Select(issue => issue.EmployeeId)
+        var issueEmployeeIds = storedIssues
+            .Select(i => i.EmployeeId)
             .Distinct()
             .ToList();
 
-        var employees = await dbContext.Employees
+        // Gather canonical resolution data for employees with stored issues
+        var activeAssignmentEmployeeIds = (await dbContext.WorkAssignments
             .AsNoTracking()
-            .Include(employee => employee.Manager)
-            .Include(employee => employee.OrgUnit)
-            .Where(employee => employeeIds.Contains(employee.Id))
-            .ToListAsync(cancellationToken);
+            .Where(wa => issueEmployeeIds.Contains(wa.EmployeeId)
+                && wa.IsPrimary
+                && wa.EffectiveFrom <= now && (wa.EffectiveTo == null || now < wa.EffectiveTo))
+            .Select(wa => new { wa.EmployeeId, wa.OrgUnitId, wa.JobTitle, wa.WorkLocation })
+            .ToListAsync(cancellationToken))
+            .GroupBy(wa => wa.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.First());
 
-        if (employees.Count == 0)
+        var activeManagerEmployeeIds = (await dbContext.ManagerRelationships
+            .AsNoTracking()
+            .Where(mr => issueEmployeeIds.Contains(mr.SubjectEmployeeId)
+                && mr.Type == ReportingRelationshipType.PrimaryManager
+                && mr.EffectiveFrom <= now && (mr.EffectiveTo == null || now < mr.EffectiveTo))
+            .Select(mr => mr.SubjectEmployeeId)
+            .Distinct()
+            .ToListAsync(cancellationToken))
+            .ToHashSet();
+
+        var employeeFacts = (await dbContext.Employees
+            .AsNoTracking()
+            .Where(e => issueEmployeeIds.Contains(e.Id))
+            .Select(e => new { e.Id, e.FirstName, e.LastName, e.Email, e.Phone })
+            .ToListAsync(cancellationToken))
+            .ToDictionary(e => e.Id);
+
+        var employmentFacts = (await dbContext.Employments
+            .AsNoTracking()
+            .Where(e => issueEmployeeIds.Contains(e.EmployeeId)
+                && e.EffectiveFrom <= now && (e.EffectiveTo == null || now < e.EffectiveTo))
+            .Select(e => new { e.EmployeeId, e.EmploymentType })
+            .ToListAsync(cancellationToken))
+            .GroupBy(e => e.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.First().EmploymentType);
+
+        var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
+
+        return storedIssues.Count(issue =>
         {
-            return 0;
-        }
+            if (!employeeFacts.TryGetValue(issue.EmployeeId, out var emp)) return false;
 
-        var activeDirectReportCounts = await dbContext.Employees
-            .AsNoTracking()
-            .Where(employee => employee.ManagerId.HasValue
-                && employee.Status == EmployeeStatus.Active
-                && employeeIds.Contains(employee.ManagerId.Value))
-            .GroupBy(employee => employee.ManagerId!.Value)
-            .Select(group => new { ManagerId = group.Key, Count = group.Count() })
-            .ToDictionaryAsync(group => group.ManagerId, group => group.Count, cancellationToken);
-
-        var readinessByEmployeeId = BuildReadinessSummaries(employees, activeDirectReportCounts, settings);
-
-        return storedIssues.Count(storedIssue =>
-            readinessByEmployeeId.TryGetValue(storedIssue.EmployeeId, out var summary)
-            && summary.EmployeeStateIssues.Any(issue =>
-                issue.Code == storedIssue.IssueCode
-                && string.Equals(issue.FieldKey, storedIssue.FieldKey, StringComparison.Ordinal)));
+            return issue.IssueCode switch
+            {
+                EmployeeReadinessIssueCodes.MissingOrgUnit =>
+                    !activeAssignmentEmployeeIds.ContainsKey(issue.EmployeeId),
+                EmployeeReadinessIssueCodes.NoManagerAssigned or
+                EmployeeReadinessIssueCodes.ManagerInactive or
+                EmployeeReadinessIssueCodes.ManagerMissing =>
+                    !activeManagerEmployeeIds.Contains(issue.EmployeeId),
+                EmployeeReadinessIssueCodes.MissingRequiredField => issue.FieldKey switch
+                {
+                    "firstName" => string.IsNullOrWhiteSpace(emp.FirstName),
+                    "lastName" => string.IsNullOrWhiteSpace(emp.LastName),
+                    "email" => string.IsNullOrWhiteSpace(emp.Email),
+                    "phone" => string.IsNullOrWhiteSpace(emp.Phone),
+                    "jobTitle" => !activeAssignmentEmployeeIds.TryGetValue(issue.EmployeeId, out var wa) || string.IsNullOrWhiteSpace(wa.JobTitle),
+                    "workLocation" => !activeAssignmentEmployeeIds.TryGetValue(issue.EmployeeId, out var wa2) || string.IsNullOrWhiteSpace(wa2.WorkLocation),
+                    "employmentType" => string.IsNullOrWhiteSpace(employmentFacts.GetValueOrDefault(issue.EmployeeId)),
+                    "hireDate" => !employmentFacts.ContainsKey(issue.EmployeeId),
+                    _ => false
+                },
+                _ => false
+            };
+        });
     }
 
-    private static Dictionary<Guid, EmployeeReadinessSummaryDto> BuildReadinessSummaries(
-        IReadOnlyCollection<Employee> employees,
-        IReadOnlyDictionary<Guid, int> directReportCounts,
-        TenantSettingsDto settings)
-        => employees.ToDictionary(
-            employee => employee.Id,
-            employee =>
-            {
-                var directReportCount = directReportCounts.GetValueOrDefault(employee.Id);
-                var hierarchyStatus = EmployeeReadModelPolicy.ResolveHierarchyStatus(employee, directReportCount);
-                return EmployeeReadinessPolicy.BuildSummary(employee, settings, hierarchyStatus, directReportCount);
-            });
+    private static bool IsRequired(TenantSettingsDto settings, string fieldKey)
+        => settings.EmployeeFieldConfig.TryGetValue(fieldKey, out var config) && config.Required;
+
+    private sealed record CanonicalIssueCounts(
+        int MissingRequiredFields,
+        int MissingOrgUnit,
+        int NoManagerAssigned,
+        int ManagerInactive,
+        int ManagerMissing,
+        int DeactivationBlocked);
 }

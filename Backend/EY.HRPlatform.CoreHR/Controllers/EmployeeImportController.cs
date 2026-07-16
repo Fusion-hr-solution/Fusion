@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 using EY.HRPlatform.CoreHR.Features.Security;
@@ -47,14 +48,16 @@ public class EmployeeImportController(
     [ProducesResponseType(typeof(ApiResponse<EmployeeImportSessionDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> Upload(
         [FromForm] IFormFile file,
-        CancellationToken cancellationToken)
+        [FromForm] DateTime batchEffectiveDate,
+        [FromForm] EmployeeImportMode importMode = EmployeeImportMode.BusinessChange,
+        CancellationToken cancellationToken = default)
     {
         if (!accessPolicy.CanImportEmployees(User))
         {
             return Forbid();
         }
 
-        var session = await workflowService.UploadAsync(file, cancellationToken);
+        var session = await workflowService.UploadAsync(file, batchEffectiveDate, importMode, cancellationToken);
         return Ok(ApiResponse<EmployeeImportSessionDto>.Success(session));
     }
 
@@ -84,7 +87,7 @@ public class EmployeeImportController(
     }
 
     [HttpPost("{sessionId:guid}/apply")]
-    [ProducesResponseType(typeof(ApiResponse<EmployeeImportApplyResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<EmployeeImportApplyOperationDto>), StatusCodes.Status202Accepted)]
     public async Task<IActionResult> Apply(
         Guid sessionId,
         CancellationToken cancellationToken)
@@ -101,7 +104,22 @@ public class EmployeeImportController(
                 User.GetFullName(),
                 GetActorRole()),
             cancellationToken);
-        return Ok(ApiResponse<EmployeeImportApplyResultDto>.Success(result));
+        return Accepted(ApiResponse<EmployeeImportApplyOperationDto>.Success(result));
+    }
+
+    [HttpGet("{sessionId:guid}/apply")]
+    [ProducesResponseType(typeof(ApiResponse<EmployeeImportApplyOperationDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetApplyOperation(
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanImportEmployees(User))
+        {
+            return Forbid();
+        }
+
+        var result = await workflowService.GetApplyOperationAsync(sessionId, cancellationToken);
+        return Ok(ApiResponse<EmployeeImportApplyOperationDto>.Success(result));
     }
 
     [HttpGet("history")]

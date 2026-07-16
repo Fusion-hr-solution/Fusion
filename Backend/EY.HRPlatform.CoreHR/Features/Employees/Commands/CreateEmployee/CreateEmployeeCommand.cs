@@ -18,4 +18,4 @@ public sealed record CreateEmployeeCommand(
     string? EmployeeNumber = null,
     string? Phone = null,
     string? WorkLocation = null,
-    string? EmploymentType = null) : ICommand<Result<EmployeeDto>>;
+    string? EmploymentType = null) : ICommand<Result<EmployeeDetailsDto>>;

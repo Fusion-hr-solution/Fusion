@@ -1,9 +1,9 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetWorkforceReadinessSummary;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
-using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 
 namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
@@ -17,47 +17,52 @@ public class GetWorkforceReadinessSummaryQueryHandlerTests
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
+        var now = DateTime.UtcNow;
 
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             var orgUnit = OrgUnit.Create(TenantId, "EXEC", "Executive", "Department", null);
-            var leader = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow, null, "Chief People Officer");
-            leader.AssignOrgUnit(orgUnit.Id);
 
-            var report = Employee.Create(TenantId, "Casey", "Report", "casey.report@example.com", DateTime.UtcNow, null, "People Partner");
-            report.AssignManager(leader.Id);
-            report.AssignOrgUnit(orgUnit.Id);
+            // leader: has Employment + primary WorkAssignment, no manager, has 1 direct report
+            var leader = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", now);
+            var leaderEmployment = Employment.Start(TenantId, leader.Id, now.AddMonths(-6), "FullTime", WorkforceSourceType.Manual);
+            var leaderAssignment = WorkAssignment.Create(
+                TenantId, leaderEmployment.Id, leader.Id, orgUnit.Id,
+                "Chief People Officer", null, true,
+                now.AddMonths(-6), null, WorkforceSourceType.Manual);
 
-            var missingOrgUnit = Employee.Create(TenantId, "Jordan", "Solo", "jordan.solo@example.com", DateTime.UtcNow, null, "Analyst");
+            // report: has Employment + primary WorkAssignment + ManagerRelationship → leader
+            var report = Employee.Create(TenantId, "Casey", "Report", "casey.report@example.com", now);
+            var reportEmployment = Employment.Start(TenantId, report.Id, now.AddMonths(-3), "FullTime", WorkforceSourceType.Manual);
+            var reportAssignment = WorkAssignment.Create(
+                TenantId, reportEmployment.Id, report.Id, orgUnit.Id,
+                "People Partner", null, true,
+                now.AddMonths(-3), null, WorkforceSourceType.Manual);
+            var reportManagerLink = ManagerRelationship.Create(
+                TenantId, report.Id, leader.Id,
+                reportAssignment.Id, leaderAssignment.Id,
+                ReportingRelationshipType.PrimaryManager,
+                now.AddMonths(-3), WorkforceSourceType.Manual);
 
-            var inactive = Employee.Create(TenantId, "Inactive", "Person", "inactive.person@example.com", DateTime.UtcNow, null, "Analyst");
-            inactive.AssignOrgUnit(orgUnit.Id);
-            inactive.Deactivate();
+            // missingOrgUnit: has Employment only — no WorkAssignment, no manager → MissingOrgUnit + NoManagerAssigned
+            var missingOrgUnit = Employee.Create(TenantId, "Jordan", "Solo", "jordan.solo@example.com", now);
+            var missingOrgUnitEmployment = Employment.Start(TenantId, missingOrgUnit.Id, now.AddMonths(-1), null, WorkforceSourceType.Manual);
 
             var history = EmployeeImportHistory.CreateApplied(
-                TenantId,
-                Guid.NewGuid(),
-                "employees.csv",
-                100,
-                1,
-                1,
-                1,
-                0,
-                DateTime.UtcNow,
-                Guid.NewGuid(),
-                "HR Admin",
-                "HRAdmin");
+                TenantId, Guid.NewGuid(), "employees.csv",
+                100, 1, 1, 1, 0, 1,
+                now, Guid.NewGuid(), "HR Admin", "HRAdmin");
 
             seedContext.OrgUnits.Add(orgUnit);
-            seedContext.Employees.AddRange(leader, report, missingOrgUnit, inactive);
+            seedContext.Employees.AddRange(leader, report, missingOrgUnit);
+            seedContext.Employments.AddRange(leaderEmployment, reportEmployment, missingOrgUnitEmployment);
+            seedContext.WorkAssignments.AddRange(leaderAssignment, reportAssignment);
+            seedContext.ManagerRelationships.Add(reportManagerLink);
             seedContext.EmployeeImportHistories.Add(history);
             seedContext.EmployeeImportFollowUpIssues.Add(EmployeeImportFollowUpIssue.Create(
-                TenantId,
-                history.Id,
-                missingOrgUnit.Id,
-                1,
-                EmployeeReadinessIssueCodes.MissingOrgUnit,
-                "orgUnitId"));
+                TenantId, history.Id, missingOrgUnit.Id, 1,
+                EmployeeReadinessIssueCodes.MissingOrgUnit, "orgUnitId"));
+
             await seedContext.SaveChangesAsync();
         }
 

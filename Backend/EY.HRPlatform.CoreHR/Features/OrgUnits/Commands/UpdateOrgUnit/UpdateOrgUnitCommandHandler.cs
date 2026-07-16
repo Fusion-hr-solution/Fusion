@@ -1,6 +1,7 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.OrgUnits.Dtos;
+using EY.HRPlatform.CoreHR.Features.OrgUnits.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
@@ -10,7 +11,8 @@ using Microsoft.EntityFrameworkCore;
 namespace EY.HRPlatform.CoreHR.Features.OrgUnits.Commands.UpdateOrgUnit;
 
 public sealed class UpdateOrgUnitCommandHandler(
-    CoreHRDbContext dbContext) : ICommandHandler<UpdateOrgUnitCommand, Result<OrgUnitDto>>
+    CoreHRDbContext dbContext,
+    IResponsibleManagerService responsibleManagerService) : ICommandHandler<UpdateOrgUnitCommand, Result<OrgUnitDto>>
 {
     public async Task<Result<OrgUnitDto>> Handle(
         UpdateOrgUnitCommand request,
@@ -76,8 +78,16 @@ public sealed class UpdateOrgUnitCommandHandler(
             }
         }
 
+        // Validate the optional responsible manager (same-tenant, active employment).
+        await responsibleManagerService.ValidateAsync(request.ResponsibleManagerEmployeeId, cancellationToken);
+
         // Apply updates via domain method
+        var previousResponsibleManager = orgUnit.ResponsibleManagerEmployeeId;
         orgUnit.Update(request.Name, request.Type, request.ParentId, request.ResponsibleManagerEmployeeId);
+
+        // Audit a responsible-manager change in the same transaction as the update.
+        responsibleManagerService.StageChangeAudit(
+            orgUnit.Id, previousResponsibleManager, orgUnit.ResponsibleManagerEmployeeId);
 
         try
         {

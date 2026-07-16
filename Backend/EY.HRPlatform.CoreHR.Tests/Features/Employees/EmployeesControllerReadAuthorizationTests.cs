@@ -7,7 +7,6 @@ namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
 public class EmployeesControllerReadAuthorizationTests
 {
     [Theory]
-    [InlineData(nameof(EmployeesController.GetProfile))]
     [InlineData(nameof(EmployeesController.GetReportingLines))]
     public void LinkedEmployeeReadEndpoints_DoNotUseMethodRoleAttributes(string methodName)
     {

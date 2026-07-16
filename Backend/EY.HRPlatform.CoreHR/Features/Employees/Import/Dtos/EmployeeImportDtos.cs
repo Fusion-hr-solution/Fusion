@@ -17,6 +17,23 @@ public sealed record EmployeeImportSourceRowDto(
     int RowNumber,
     IReadOnlyDictionary<string, string?> Values);
 
+/// <summary>
+/// How a validated import row maps onto canonical workforce facts. The label is the row's primary
+/// (most operationally significant) classification; the full set of detected changes is carried by
+/// the row's change flags and published atomically regardless of the headline label.
+/// </summary>
+public enum EmployeeImportRowClassification
+{
+    Create,
+    Unchanged,
+    ProfileCorrection,
+    EmploymentChange,
+    WorkAssignmentChange,
+    ManagerChange,
+    Invalid,
+    Conflicting
+}
+
 public sealed record EmployeeImportValidationIssueDto(
     int RowNumber,
     string? Field,
@@ -46,21 +63,45 @@ public sealed record EmployeeImportPreviewRowDto(
     string? WorkLocation,
     string? EmploymentType,
     string? OrgUnitCode,
-    string? ManagerEmail);
+    string? ManagerEmail,
+    string? EffectiveDate = null,
+    EmployeeImportRowClassification? Classification = null,
+    string? ResolvedEffectiveDate = null,
+    Guid? MatchedEmployeeId = null,
+    IReadOnlyList<string>? ChangedFacts = null);
 
 public sealed record EmployeeImportActorDto(
     Guid UserId,
     string FullName,
     string Role);
 
+public sealed record EmployeeImportApplyOperationDto(
+    Guid Id,
+    Guid SessionId,
+    EmployeeImportApplyOperationStatus Status,
+    Guid ActorUserId,
+    string ActorFullName,
+    string ActorRole,
+    DateTime QueuedAt,
+    DateTime? StartedAt,
+    DateTime? CompletedAt,
+    DateTime? FailedAt,
+    string? FailureReason,
+    Guid? HistoryId,
+    int? SourceRowCount,
+    int? ValidatedRowCount,
+    int ProcessedRowCount,
+    int? CreatedCount,
+    int? PublishedRowCount);
+
 public sealed record EmployeeImportApplyResultDto(
     Guid SessionId,
     Guid HistoryId,
     string SourceFileName,
     int SourceRowCount,
-    int ValidRowCount,
+    int ValidatedRowCount,
     int CreatedCount,
-    int SkippedCount,
+    int PublishedRowCount,
     DateTime AppliedAt,
     EmployeeImportStage Stage);
 
@@ -70,9 +111,10 @@ public sealed record EmployeeImportHistoryListItemDto(
     string SourceFileName,
     long SourceFileSizeBytes,
     int SourceRowCount,
-    int ValidRowCount,
+    int ValidatedRowCount,
     int CreatedCount,
-    int SkippedCount,
+    int UnchangedRowCount,
+    int PublishedRowCount,
     string Status,
     DateTime AppliedAt,
     Guid ActorUserId,
@@ -89,9 +131,10 @@ public sealed record EmployeeImportHistoryDetailDto(
     string SourceFileName,
     long SourceFileSizeBytes,
     int SourceRowCount,
-    int ValidRowCount,
+    int ValidatedRowCount,
     int CreatedCount,
-    int SkippedCount,
+    int UnchangedRowCount,
+    int PublishedRowCount,
     string Status,
     DateTime AppliedAt,
     Guid ActorUserId,
@@ -127,6 +170,8 @@ public sealed record EmployeeImportSessionDto(
     Guid Id,
     EmployeeImportStage Stage,
     uint Version,
+    DateTime BatchEffectiveDate,
+    EmployeeImportMode ImportMode,
     string SourceFileName,
     long SourceFileSizeBytes,
     int SourceRowCount,
@@ -140,6 +185,7 @@ public sealed record EmployeeImportSessionDto(
     bool HasMorePreviewRows,
     EmployeeImportValidationSummaryDto ValidationSummary,
     IReadOnlyList<EmployeeImportValidationIssueDto> ValidationIssues,
+    EmployeeImportApplyOperationDto? LastApplyOperation,
     DateTime? AppliedAt,
     DateTime ExpiresAt,
     EmployeeImportSchemaDto EmployeeImportSchema,

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Features.Workforce.Dtos;
@@ -22,6 +23,7 @@ public class WorkforceContractServiceTests
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
+        var now = new DateTime(2026, 6, 27, 0, 0, 0, DateTimeKind.Utc);
         Guid managerId;
         Guid directReportId;
         Guid peerId;
@@ -29,17 +31,24 @@ public class WorkforceContractServiceTests
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+            var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            seedContext.OrgUnits.Add(orgUnit);
+            await seedContext.SaveChangesAsync();
 
-            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow, jobTitle: "Manager", employeeNumber: "E-100");
-            var otherManager = Employee.Create(TenantId, "Jamie", "Leader", "jamie.leader@example.com", DateTime.UtcNow, jobTitle: "Manager", employeeNumber: "E-101");
-            var directReport = Employee.Create(TenantId, "Casey", "Report", "casey.report@example.com", DateTime.UtcNow, jobTitle: "Analyst", employeeNumber: "E-102");
-            var peer = Employee.Create(TenantId, "Morgan", "Peer", "morgan.peer@example.com", DateTime.UtcNow, jobTitle: "Analyst", employeeNumber: "E-103");
-
-            directReport.AssignManager(manager.Id);
-            peer.AssignManager(otherManager.Id);
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", now, jobTitle: "Manager", employeeNumber: "E-100");
+            var otherManager = Employee.Create(TenantId, "Jamie", "Leader", "jamie.leader@example.com", now, jobTitle: "Manager", employeeNumber: "E-101");
+            var directReport = Employee.Create(TenantId, "Casey", "Report", "casey.report@example.com", now, jobTitle: "Analyst", employeeNumber: "E-102");
+            var peer = Employee.Create(TenantId, "Morgan", "Peer", "morgan.peer@example.com", now, jobTitle: "Analyst", employeeNumber: "E-103");
 
             seedContext.Employees.AddRange(manager, otherManager, directReport, peer);
             await seedContext.SaveChangesAsync();
+
+            var (_, managerAssignment) = await AddActiveEmploymentWithAssignmentAsync(seedContext, manager.Id, orgUnit.Id, "Manager", now);
+            var (_, otherManagerAssignment) = await AddActiveEmploymentWithAssignmentAsync(seedContext, otherManager.Id, orgUnit.Id, "Manager", now);
+            var (_, directReportAssignment) = await AddActiveEmploymentWithAssignmentAsync(seedContext, directReport.Id, orgUnit.Id, "Analyst", now);
+            var (_, peerAssignment) = await AddActiveEmploymentWithAssignmentAsync(seedContext, peer.Id, orgUnit.Id, "Analyst", now);
+            await AddPrimaryManagerRelationshipAsync(seedContext, directReport.Id, manager.Id, directReportAssignment.Id, managerAssignment.Id, now);
+            await AddPrimaryManagerRelationshipAsync(seedContext, peer.Id, otherManager.Id, peerAssignment.Id, otherManagerAssignment.Id, now);
 
             managerId = manager.Id;
             directReportId = directReport.Id;
@@ -104,6 +113,9 @@ public class WorkforceContractServiceTests
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
+            var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            seedContext.OrgUnits.Add(orgUnit);
+            await seedContext.SaveChangesAsync();
 
             var activeEmployee = Employee.Create(
                 TenantId,
@@ -121,9 +133,14 @@ public class WorkforceContractServiceTests
                 DateTime.UtcNow,
                 jobTitle: "Analyst",
                 employeeNumber: "E-201");
-            inactiveEmployee.Deactivate();
 
             seedContext.Employees.AddRange(activeEmployee, inactiveEmployee);
+            await seedContext.SaveChangesAsync();
+
+            await AddActiveEmploymentWithAssignmentAsync(seedContext, activeEmployee.Id, orgUnit.Id, "Analyst", DateTime.UtcNow.AddMonths(-1));
+            var (inactiveEmployment, inactiveAssignment) = await AddActiveEmploymentWithAssignmentAsync(seedContext, inactiveEmployee.Id, orgUnit.Id, "Analyst", DateTime.UtcNow.AddMonths(-1));
+            inactiveAssignment.End(DateTime.UtcNow.AddDays(-1));
+            inactiveEmployment.End(DateTime.UtcNow.AddDays(-1));
             await seedContext.SaveChangesAsync();
         }
 
@@ -495,19 +512,30 @@ public class WorkforceContractServiceTests
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
+        var now = new DateTime(2026, 6, 27, 0, 0, 0, DateTimeKind.Utc);
         Guid topId, midId, leafId, outsiderId;
 
         await using (var seed = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             seed.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
-            var top = Employee.Create(TenantId, "Top", "Boss", "top@example.com", DateTime.UtcNow, employeeNumber: "D-1");
-            var mid = Employee.Create(TenantId, "Mid", "Lead", "mid@example.com", DateTime.UtcNow, employeeNumber: "D-2");
-            var leaf = Employee.Create(TenantId, "Leaf", "Analyst", "leaf@example.com", DateTime.UtcNow, employeeNumber: "D-3");
-            var outsider = Employee.Create(TenantId, "Out", "Sider", "out@example.com", DateTime.UtcNow, employeeNumber: "D-4");
-            mid.AssignManager(top.Id);
-            leaf.AssignManager(mid.Id);
+            var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            seed.OrgUnits.Add(orgUnit);
+            await seed.SaveChangesAsync();
+
+            var top = Employee.Create(TenantId, "Top", "Boss", "top@example.com", now, employeeNumber: "D-1");
+            var mid = Employee.Create(TenantId, "Mid", "Lead", "mid@example.com", now, employeeNumber: "D-2");
+            var leaf = Employee.Create(TenantId, "Leaf", "Analyst", "leaf@example.com", now, employeeNumber: "D-3");
+            var outsider = Employee.Create(TenantId, "Out", "Sider", "out@example.com", now, employeeNumber: "D-4");
             seed.Employees.AddRange(top, mid, leaf, outsider);
             await seed.SaveChangesAsync();
+
+            var (_, topAssignment) = await AddActiveEmploymentWithAssignmentAsync(seed, top.Id, orgUnit.Id, "Boss", now);
+            var (_, midAssignment) = await AddActiveEmploymentWithAssignmentAsync(seed, mid.Id, orgUnit.Id, "Lead", now);
+            var (_, leafAssignment) = await AddActiveEmploymentWithAssignmentAsync(seed, leaf.Id, orgUnit.Id, "Analyst", now);
+            await AddActiveEmploymentWithAssignmentAsync(seed, outsider.Id, orgUnit.Id, "Analyst", now);
+            await AddPrimaryManagerRelationshipAsync(seed, mid.Id, top.Id, midAssignment.Id, topAssignment.Id, now);
+            await AddPrimaryManagerRelationshipAsync(seed, leaf.Id, mid.Id, leafAssignment.Id, midAssignment.Id, now);
+
             topId = top.Id; midId = mid.Id; leafId = leaf.Id; outsiderId = outsider.Id;
         }
 
@@ -530,18 +558,28 @@ public class WorkforceContractServiceTests
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
+        var now = new DateTime(2026, 6, 27, 0, 0, 0, DateTimeKind.Utc);
         Guid topId, midId, leafId;
 
         await using (var seed = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             seed.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
-            var top = Employee.Create(TenantId, "Top", "Boss", "top@example.com", DateTime.UtcNow, employeeNumber: "D-1");
-            var mid = Employee.Create(TenantId, "Mid", "Lead", "mid@example.com", DateTime.UtcNow, employeeNumber: "D-2");
-            var leaf = Employee.Create(TenantId, "Leaf", "Analyst", "leaf@example.com", DateTime.UtcNow, employeeNumber: "D-3");
-            mid.AssignManager(top.Id);
-            leaf.AssignManager(mid.Id);
+            var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            seed.OrgUnits.Add(orgUnit);
+            await seed.SaveChangesAsync();
+
+            var top = Employee.Create(TenantId, "Top", "Boss", "top@example.com", now, employeeNumber: "D-1");
+            var mid = Employee.Create(TenantId, "Mid", "Lead", "mid@example.com", now, employeeNumber: "D-2");
+            var leaf = Employee.Create(TenantId, "Leaf", "Analyst", "leaf@example.com", now, employeeNumber: "D-3");
             seed.Employees.AddRange(top, mid, leaf);
             await seed.SaveChangesAsync();
+
+            var (_, topAssignment) = await AddActiveEmploymentWithAssignmentAsync(seed, top.Id, orgUnit.Id, "Boss", now);
+            var (_, midAssignment) = await AddActiveEmploymentWithAssignmentAsync(seed, mid.Id, orgUnit.Id, "Lead", now);
+            var (_, leafAssignment) = await AddActiveEmploymentWithAssignmentAsync(seed, leaf.Id, orgUnit.Id, "Analyst", now);
+            await AddPrimaryManagerRelationshipAsync(seed, mid.Id, top.Id, midAssignment.Id, topAssignment.Id, now);
+            await AddPrimaryManagerRelationshipAsync(seed, leaf.Id, mid.Id, leafAssignment.Id, midAssignment.Id, now);
+
             topId = top.Id; midId = mid.Id; leafId = leaf.Id;
         }
 
@@ -561,19 +599,31 @@ public class WorkforceContractServiceTests
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
+        var now = new DateTime(2026, 6, 27, 0, 0, 0, DateTimeKind.Utc);
         Guid topId, activeId, inactiveId;
 
         await using (var seed = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             seed.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
-            var top = Employee.Create(TenantId, "Top", "Boss", "top@example.com", DateTime.UtcNow, employeeNumber: "D-1");
-            var active = Employee.Create(TenantId, "Act", "Report", "act@example.com", DateTime.UtcNow, employeeNumber: "D-2");
-            var inactive = Employee.Create(TenantId, "Gone", "Report", "gone@example.com", DateTime.UtcNow, employeeNumber: "D-3");
-            active.AssignManager(top.Id);
-            inactive.AssignManager(top.Id);
-            inactive.Deactivate();
+            var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            seed.OrgUnits.Add(orgUnit);
+            await seed.SaveChangesAsync();
+
+            var top = Employee.Create(TenantId, "Top", "Boss", "top@example.com", now, employeeNumber: "D-1");
+            var active = Employee.Create(TenantId, "Act", "Report", "act@example.com", now, employeeNumber: "D-2");
+            var inactive = Employee.Create(TenantId, "Gone", "Report", "gone@example.com", now, employeeNumber: "D-3");
             seed.Employees.AddRange(top, active, inactive);
             await seed.SaveChangesAsync();
+
+            var (_, topAssignment) = await AddActiveEmploymentWithAssignmentAsync(seed, top.Id, orgUnit.Id, "Boss", now);
+            var (_, activeAssignment) = await AddActiveEmploymentWithAssignmentAsync(seed, active.Id, orgUnit.Id, "Analyst", now);
+            var inactiveStart = now.AddDays(-2);
+            var (inactiveEmployment, inactiveAssignment) = await AddActiveEmploymentWithAssignmentAsync(seed, inactive.Id, orgUnit.Id, "Analyst", inactiveStart);
+            inactiveAssignment.End(now.AddDays(-1));
+            inactiveEmployment.End(now.AddDays(-1));
+            await AddPrimaryManagerRelationshipAsync(seed, active.Id, top.Id, activeAssignment.Id, topAssignment.Id, now);
+            await seed.SaveChangesAsync();
+
             topId = top.Id; activeId = active.Id; inactiveId = inactive.Id;
         }
 
@@ -593,17 +643,27 @@ public class WorkforceContractServiceTests
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
+        var now = new DateTime(2026, 6, 27, 0, 0, 0, DateTimeKind.Utc);
         Guid managerId, reportId, otherManagerId;
 
         await using (var seed = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             seed.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
-            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex@example.com", DateTime.UtcNow, employeeNumber: "D-1");
-            var report = Employee.Create(TenantId, "Casey", "Report", "casey@example.com", DateTime.UtcNow, employeeNumber: "D-2");
-            var otherManager = Employee.Create(TenantId, "Jamie", "Other", "jamie@example.com", DateTime.UtcNow, employeeNumber: "D-3");
-            report.AssignManager(manager.Id);
+            var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
+            seed.OrgUnits.Add(orgUnit);
+            await seed.SaveChangesAsync();
+
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex@example.com", now, employeeNumber: "D-1");
+            var report = Employee.Create(TenantId, "Casey", "Report", "casey@example.com", now, employeeNumber: "D-2");
+            var otherManager = Employee.Create(TenantId, "Jamie", "Other", "jamie@example.com", now, employeeNumber: "D-3");
             seed.Employees.AddRange(manager, report, otherManager);
             await seed.SaveChangesAsync();
+
+            var (_, managerAssignment) = await AddActiveEmploymentWithAssignmentAsync(seed, manager.Id, orgUnit.Id, "Manager", now);
+            var (_, reportAssignment) = await AddActiveEmploymentWithAssignmentAsync(seed, report.Id, orgUnit.Id, "Analyst", now);
+            await AddActiveEmploymentWithAssignmentAsync(seed, otherManager.Id, orgUnit.Id, "Manager", now);
+            await AddPrimaryManagerRelationshipAsync(seed, report.Id, manager.Id, reportAssignment.Id, managerAssignment.Id, now);
+
             managerId = manager.Id; reportId = report.Id; otherManagerId = otherManager.Id;
         }
 
@@ -624,6 +684,7 @@ public class WorkforceContractServiceTests
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
+        var now = new DateTime(2026, 6, 27, 0, 0, 0, DateTimeKind.Utc);
 
         await using (var seed = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
@@ -642,16 +703,20 @@ public class WorkforceContractServiceTests
             seed.OrgUnits.Add(child);
             await seed.SaveChangesAsync();
 
-            var rootMember = Employee.Create(TenantId, "Root", "Member", "rootm@example.com", DateTime.UtcNow, employeeNumber: "M-1");
-            var childA = Employee.Create(TenantId, "Child", "Alpha", "ca@example.com", DateTime.UtcNow, employeeNumber: "M-2");
-            var childB = Employee.Create(TenantId, "Child", "Beta", "cb@example.com", DateTime.UtcNow, employeeNumber: "M-3");
-            var childInactive = Employee.Create(TenantId, "Child", "Gone", "cg@example.com", DateTime.UtcNow, employeeNumber: "M-4");
-            rootMember.AssignOrgUnit(root.Id);
-            childA.AssignOrgUnit(child.Id);
-            childB.AssignOrgUnit(child.Id);
-            childInactive.AssignOrgUnit(child.Id);
-            childInactive.Deactivate();
+            var rootMember = Employee.Create(TenantId, "Root", "Member", "rootm@example.com", now, employeeNumber: "M-1");
+            var childA = Employee.Create(TenantId, "Child", "Alpha", "ca@example.com", now, employeeNumber: "M-2");
+            var childB = Employee.Create(TenantId, "Child", "Beta", "cb@example.com", now, employeeNumber: "M-3");
+            var childInactive = Employee.Create(TenantId, "Child", "Gone", "cg@example.com", now, employeeNumber: "M-4");
             seed.Employees.AddRange(rootMember, childA, childB, childInactive);
+            await seed.SaveChangesAsync();
+
+            await AddActiveEmploymentWithAssignmentAsync(seed, rootMember.Id, root.Id, "Member", now);
+            await AddActiveEmploymentWithAssignmentAsync(seed, childA.Id, child.Id, "Engineer", now);
+            await AddActiveEmploymentWithAssignmentAsync(seed, childB.Id, child.Id, "Engineer", now);
+            var inactiveStart = now.AddDays(-2);
+            var (inactiveEmployment, inactiveAssignment) = await AddActiveEmploymentWithAssignmentAsync(seed, childInactive.Id, child.Id, "Engineer", inactiveStart);
+            inactiveAssignment.End(now.AddDays(-1));
+            inactiveEmployment.End(now.AddDays(-1));
             await seed.SaveChangesAsync();
         }
 
@@ -679,9 +744,58 @@ public class WorkforceContractServiceTests
             context,
             tenantContext,
             new TenantSettingsReadService(context),
-            new EmployeeReadModelPolicy(),
             workforceAccountStatusReader ?? new StaticWorkforceAccountStatusReader(new Dictionary<Guid, WorkforceAccountStatusDto>()),
-            workforceBulkProvisioner ?? new StaticWorkforceBulkProvisioner());
+            workforceBulkProvisioner ?? new StaticWorkforceBulkProvisioner(),
+            new WorkforceCanonicalResolver(context));
+
+    private static async Task<(Employment Employment, WorkAssignment Assignment)> AddActiveEmploymentWithAssignmentAsync(
+        CoreHRDbContext context,
+        Guid employeeId,
+        Guid orgUnitId,
+        string jobTitle,
+        DateTime effectiveFrom)
+    {
+        var employment = Employment.Start(TenantId, employeeId, effectiveFrom, null, WorkforceSourceType.Manual);
+        context.Employments.Add(employment);
+        await context.SaveChangesAsync();
+
+        var assignment = WorkAssignment.Create(
+            TenantId,
+            employment.Id,
+            employeeId,
+            orgUnitId,
+            jobTitle,
+            null,
+            true,
+            effectiveFrom,
+            null,
+            WorkforceSourceType.Manual);
+        context.WorkAssignments.Add(assignment);
+        await context.SaveChangesAsync();
+
+        return (employment, assignment);
+    }
+
+    private static async Task AddPrimaryManagerRelationshipAsync(
+        CoreHRDbContext context,
+        Guid subjectEmployeeId,
+        Guid managerEmployeeId,
+        Guid subjectWorkAssignmentId,
+        Guid managerWorkAssignmentId,
+        DateTime effectiveFrom)
+    {
+        var relationship = ManagerRelationship.Create(
+            TenantId,
+            subjectEmployeeId,
+            managerEmployeeId,
+            subjectWorkAssignmentId,
+            managerWorkAssignmentId,
+            ReportingRelationshipType.PrimaryManager,
+            effectiveFrom,
+            WorkforceSourceType.Manual);
+        context.ManagerRelationships.Add(relationship);
+        await context.SaveChangesAsync();
+    }
 
     private static ClaimsPrincipal CreatePrincipal(Guid userId, string role, Guid? employeeId = null)
     {

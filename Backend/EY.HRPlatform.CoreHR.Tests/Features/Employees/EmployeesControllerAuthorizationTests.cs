@@ -24,7 +24,9 @@ public class EmployeesControllerAuthorizationTests
     [InlineData(nameof(EmployeesController.GetById))]
     [InlineData(nameof(EmployeesController.Update))]
     [InlineData(nameof(EmployeesController.UpdateSelfProfile))]
-    [InlineData(nameof(EmployeesController.Deactivate))]
+    [InlineData(nameof(EmployeesController.Terminate))]
+    [InlineData(nameof(EmployeesController.Rehire))]
+    [InlineData(nameof(EmployeesController.ChangeManager))]
     public void PermissionControlledEndpoints_DoNotDeclareMethodRoleAttributes(string methodName)
     {
         var method = GetControllerMethod(methodName);

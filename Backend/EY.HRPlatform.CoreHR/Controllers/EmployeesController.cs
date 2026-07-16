@@ -1,8 +1,9 @@
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Domain.Enums;
+using EY.HRPlatform.CoreHR.Features.Employees.Commands.ChangeEmployeeManager;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
-using EY.HRPlatform.CoreHR.Features.Employees.Commands.DeactivateEmployee;
-using EY.HRPlatform.CoreHR.Features.Employees.Commands.ReactivateEmployee;
+using EY.HRPlatform.CoreHR.Features.Employees.Commands.RehireEmployee;
+using EY.HRPlatform.CoreHR.Features.Employees.Commands.TerminateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateOwnEmployeeProfile;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.UpdateEmployee;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
@@ -11,8 +12,6 @@ using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeById;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeOrgChart;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployees;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeReportingLines;
-using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeProfile;
-using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeProfileByKey;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetEmployeeReportingLinesByKey;
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetWorkforceReadinessSummary;
 using EY.HRPlatform.CoreHR.Features.Security;
@@ -20,11 +19,10 @@ using EY.HRPlatform.CoreHR.Models.Requests;
 using EY.HRPlatform.CoreHR.Models.Responses;
 using EY.HRPlatform.SharedKernel.Auth;
 using ApiResponse = EY.HRPlatform.SharedKernel.Api.ApiResponse;
-using ApiResponseOfEmployeeDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeDto>;
+using ApiResponseOfEmployeeDetailsDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeDetailsDto>;
 using ApiResponseOfEmployeeOrgChartDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeOrgChartDto>;
 using ApiResponseOfPagedEmployeeList = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Models.Responses.PagedResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeListItemDto>>;
 using ApiResponseOfEmployeeReportingLinesDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeReportingLinesDto>;
-using ApiResponseOfEmployeeProfileDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeProfileDto>;
 using ApiResponseOfWorkforceReadinessSummaryDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.WorkforceReadinessSummaryDto>;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -126,8 +124,9 @@ public class EmployeesController(
     /// Create a new employee within the current tenant.
     /// </summary>
     [HttpPost]
-    [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeDetailsDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
     public async Task<IActionResult> Create(
         [FromBody] CreateEmployeeRequest request,
@@ -152,20 +151,24 @@ public class EmployeesController(
             request.EmploymentType);
 
         var result = await sender.Send(command, cancellationToken);
+        if (result.IsFailure)
+        {
+            return MapEmployeeMutationFailure(result.Error);
+        }
 
         Response.Headers.ETag = $"\"{result.Value.Version}\"";
 
         return CreatedAtAction(
             nameof(GetById),
             new { id = result.Value.Id },
-            ApiResponseOfEmployeeDto.Success(result.Value));
+            ApiResponseOfEmployeeDetailsDto.Success(result.Value));
     }
 
     /// <summary>
     /// Get an employee by stable public key (visible URLs use this).
     /// </summary>
     [HttpGet("by-key/{employeeKey}")]
-    [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeDetailsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetByKey(string employeeKey, CancellationToken cancellationToken)
     {
@@ -183,14 +186,14 @@ public class EmployeesController(
 
         Response.Headers.ETag = $"\"{result.Value.Version}\"";
 
-        return Ok(ApiResponseOfEmployeeDto.Success(result.Value));
+        return Ok(ApiResponseOfEmployeeDetailsDto.Success(result.Value));
     }
 
     /// <summary>
     /// Get an employee by ID.
     /// </summary>
     [HttpGet("{id:guid}")]
-    [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeDetailsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
@@ -208,72 +211,7 @@ public class EmployeesController(
 
         Response.Headers.ETag = $"\"{result.Value.Version}\"";
 
-        return Ok(ApiResponseOfEmployeeDto.Success(result.Value));
-    }
-
-    /// <summary>
-    /// Get the profile read model by stable public key (visible URLs use this).
-    /// </summary>
-    [HttpGet("by-key/{employeeKey}/profile")]
-    [ProducesResponseType(typeof(ApiResponseOfEmployeeProfileDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> GetProfileByKey(string employeeKey, CancellationToken cancellationToken)
-    {
-        if (accessPolicy.GetEmployeeViewScope(User) is null && !accessPolicy.CanViewOwnProfile(User))
-        {
-            return Forbid();
-        }
-
-        var audience = GetCurrentReadAudience();
-        var result = await sender.Send(new GetEmployeeProfileByKeyQuery(employeeKey, audience), cancellationToken);
-
-        if (result.IsFailure)
-        {
-            return NotFound(ApiResponse.Failure(result.Error.Message));
-        }
-
-        if (!CanReadProfile(result.Value))
-        {
-            return Forbid();
-        }
-
-        Response.Headers.ETag = $"\"{result.Value.Version}\"";
-
-        return Ok(ApiResponseOfEmployeeProfileDto.Success(result.Value));
-    }
-
-    /// <summary>
-    /// Get the profile read model for an employee, combining identity, employment, org context,
-    /// direct-report count, and hierarchy status in a single response.
-    /// </summary>
-    [HttpGet("{id:guid}/profile")]
-    [ProducesResponseType(typeof(ApiResponseOfEmployeeProfileDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
-    public async Task<IActionResult> GetProfile(Guid id, CancellationToken cancellationToken)
-    {
-        if (accessPolicy.GetEmployeeViewScope(User) is null && !accessPolicy.CanViewOwnProfile(User))
-        {
-            return Forbid();
-        }
-
-        var audience = GetCurrentReadAudience();
-        var result = await sender.Send(new GetEmployeeProfileQuery(id, audience), cancellationToken);
-
-        if (result.IsFailure)
-        {
-            return NotFound(ApiResponse.Failure(result.Error.Message));
-        }
-
-        if (!CanReadProfile(result.Value))
-        {
-            return Forbid();
-        }
-
-        Response.Headers.ETag = $"\"{result.Value.Version}\"";
-
-        return Ok(ApiResponseOfEmployeeProfileDto.Success(result.Value));
+        return Ok(ApiResponseOfEmployeeDetailsDto.Success(result.Value));
     }
 
     /// <summary>
@@ -341,7 +279,7 @@ public class EmployeesController(
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
     [HttpPut("{id:guid}")]
-    [ProducesResponseType(typeof(ApiResponseOfEmployeeDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeDetailsDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
@@ -381,10 +319,14 @@ public class EmployeesController(
             request.EmploymentType);
 
         var result = await sender.Send(command, cancellationToken);
+        if (result.IsFailure)
+        {
+            return MapEmployeeMutationFailure(result.Error);
+        }
 
         Response.Headers.ETag = $"\"{result.Value.Version}\"";
 
-        return Ok(ApiResponseOfEmployeeDto.Success(result.Value));
+        return Ok(ApiResponseOfEmployeeDetailsDto.Success(result.Value));
     }
 
     [HttpPut("{id:guid}/self-profile")]
@@ -417,16 +359,18 @@ public class EmployeesController(
     }
 
     /// <summary>
-    /// Deactivate an employee (soft delete).
+    /// Terminate an employee's active canonical employment chain.
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
-    [HttpDelete("{id:guid}")]
+    [HttpPost("{id:guid}/terminate")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
-    public async Task<IActionResult> Deactivate(
+    public async Task<IActionResult> Terminate(
         Guid id,
+        [FromBody] TerminateEmployeeRequest request,
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
@@ -439,25 +383,34 @@ public class EmployeesController(
         {
             return StatusCode(
                 StatusCodes.Status412PreconditionFailed,
-                ApiResponse.Failure("If-Match header with valid version is required for deactivation."));
+                ApiResponse.Failure("If-Match header with valid version is required for termination."));
         }
 
-        await sender.Send(new DeactivateEmployeeCommand(id, expectedVersion), cancellationToken);
+        var result = await sender.Send(
+            new TerminateEmployeeCommand(id, expectedVersion, request.EffectiveDate, request.Note),
+            cancellationToken);
+        if (result.IsFailure)
+        {
+            return MapEmployeeMutationFailure(result.Error);
+        }
 
         return NoContent();
     }
 
     /// <summary>
-    /// Reactivate an employee.
+    /// Rehire a previously employed worker: creates a new employment, primary work assignment, and
+    /// optional manager relationship without reopening prior employment.
     /// Requires If-Match header with current version for optimistic concurrency.
     /// </summary>
-    [HttpPost("{id:guid}/reactivate")]
-    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [HttpPost("{id:guid}/rehire")]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeDetailsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
-    public async Task<IActionResult> Reactivate(
+    public async Task<IActionResult> Rehire(
         Guid id,
+        [FromBody] RehireEmployeeRequest request,
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
@@ -470,12 +423,70 @@ public class EmployeesController(
         {
             return StatusCode(
                 StatusCodes.Status412PreconditionFailed,
-                ApiResponse.Failure("If-Match header with valid version is required for reactivation."));
+                ApiResponse.Failure("If-Match header with valid version is required for rehire."));
         }
 
-        await sender.Send(new ReactivateEmployeeCommand(id, expectedVersion), cancellationToken);
+        var result = await sender.Send(
+            new RehireEmployeeCommand(
+                id,
+                expectedVersion,
+                request.EffectiveDate,
+                request.OrgUnitId,
+                request.JobTitle,
+                request.WorkLocation,
+                request.ManagerId,
+                request.EmploymentType),
+            cancellationToken);
+        if (result.IsFailure)
+        {
+            return MapEmployeeMutationFailure(result.Error);
+        }
 
-        return NoContent();
+        Response.Headers.ETag = $"\"{result.Value.Version}\"";
+
+        return Ok(ApiResponseOfEmployeeDetailsDto.Success(result.Value));
+    }
+
+    /// <summary>
+    /// Change an employee's primary manager effective a given date. Atomically ends the current
+    /// primary manager relationship and creates the new one.
+    /// Requires If-Match header with current version for optimistic concurrency.
+    /// </summary>
+    [HttpPost("{id:guid}/change-manager")]
+    [ProducesResponseType(typeof(ApiResponseOfEmployeeDetailsDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
+    public async Task<IActionResult> ChangeManager(
+        Guid id,
+        [FromBody] ChangeEmployeeManagerRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User) && !accessPolicy.CanManageReporting(User))
+        {
+            return Forbid();
+        }
+
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+        {
+            return StatusCode(
+                StatusCodes.Status412PreconditionFailed,
+                ApiResponse.Failure("If-Match header with valid version is required for a manager change."));
+        }
+
+        var result = await sender.Send(
+            new ChangeEmployeeManagerCommand(id, expectedVersion, request.ManagerId, request.EffectiveDate),
+            cancellationToken);
+        if (result.IsFailure)
+        {
+            return MapEmployeeMutationFailure(result.Error);
+        }
+
+        Response.Headers.ETag = $"\"{result.Value.Version}\"";
+
+        return Ok(ApiResponseOfEmployeeDetailsDto.Success(result.Value));
     }
 
     private static bool TryParseVersion(string? ifMatch, out uint version)
@@ -514,28 +525,6 @@ public class EmployeesController(
     private EmployeeReadAudience GetCurrentReadAudience()
         => accessPolicy.GetEmployeeReadAudience(User);
 
-    private bool CanReadProfile(EmployeeProfileDto profile)
-    {
-        var scope = accessPolicy.GetEmployeeViewScope(User);
-        if (scope == PermissionScopes.Tenant)
-        {
-            return true;
-        }
-
-        var linkedEmployeeId = User.GetEmployeeId();
-        if (!linkedEmployeeId.HasValue)
-        {
-            return false;
-        }
-
-        if (profile.Id == linkedEmployeeId.Value)
-        {
-            return scope == PermissionScopes.Self || scope == PermissionScopes.DirectReports || accessPolicy.CanViewOwnProfile(User);
-        }
-
-        return scope == PermissionScopes.DirectReports && profile.ManagerId == linkedEmployeeId.Value;
-    }
-
     private bool CanReadReportingLines(EmployeeListItemDto employee)
     {
         var scope = accessPolicy.GetEmployeeViewScope(User);
@@ -562,6 +551,23 @@ public class EmployeesController(
     {
         var linkedEmployeeId = User.GetEmployeeId();
         return linkedEmployeeId.HasValue && linkedEmployeeId.Value == employeeId;
+    }
+
+    private IActionResult MapEmployeeMutationFailure(EY.HRPlatform.SharedKernel.Results.Error error)
+    {
+        if (error.Code.EndsWith(".NotFound", StringComparison.Ordinal))
+        {
+            return NotFound(ApiResponse.Failure(error.Message));
+        }
+
+        if (error.Code.Contains("Duplicate", StringComparison.OrdinalIgnoreCase)
+            || error.Code.Contains("Conflict", StringComparison.OrdinalIgnoreCase)
+            || error.Code.Contains("AlreadyActive", StringComparison.OrdinalIgnoreCase))
+        {
+            return Conflict(ApiResponse.Failure(error.Message));
+        }
+
+        return BadRequest(ApiResponse.Failure(error.Message));
     }
 
     private EmployeeReportingLinesDto ApplyReportingScope(EmployeeReportingLinesDto reportingLines)

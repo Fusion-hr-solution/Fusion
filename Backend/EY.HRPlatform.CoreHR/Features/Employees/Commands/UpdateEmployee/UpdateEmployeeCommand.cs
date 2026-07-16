@@ -31,7 +31,7 @@ public sealed record UpdateEmployeeCommand(
     string? EmployeeNumber = null,
     string? Phone = null,
     string? WorkLocation = null,
-    string? EmploymentType = null) : ICommand<Result<EmployeeDto>>
+    string? EmploymentType = null) : ICommand<Result<EmployeeDetailsDto>>
 {
     public UpdateEmployeeCommand(
         Guid employeeId,

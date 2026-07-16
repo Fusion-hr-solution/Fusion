@@ -3,6 +3,7 @@ using EY.HRPlatform.CoreHR.Infrastructure.Persistence.Interceptors;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
+using EY.HRPlatform.CoreHR.Features.OrgUnits.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Services;
 using EY.HRPlatform.CoreHR.Features.Security;
@@ -55,28 +56,22 @@ public static class ServiceCollectionExtensions
         });
 
         services.AddScoped<IDraftStructureImportWorkflowService, DraftStructureImportWorkflowService>();
-        services.AddScoped<IEmployeeHierarchyService, EmployeeHierarchyService>();
-        services.AddScoped<IEmployeeReadModelPolicy, EmployeeReadModelPolicy>();
+        services.AddScoped<IEmployeeDetailsReadModelService, EmployeeDetailsReadModelService>();
         services.AddScoped<ICoreAccessPolicyService, CoreAccessPolicyService>();
         services.AddScoped<ITenantSettingsReadService, TenantSettingsReadService>();
         services.AddScoped<ISettingsSectionRegistry, SettingsSectionRegistry>();
         services.AddScoped<ISettingsAuditService, SettingsAuditService>();
         services.AddScoped<IEmployeeImportWorkflowService, EmployeeImportWorkflowService>();
+        services.AddSingleton<IEmployeeImportApplyQueueProcessor, EmployeeImportApplyQueueProcessor>();
         services.AddScoped<IWorkforceContractService, WorkforceContractService>();
         services.AddScoped<ICampaignWorkforceContextService, CampaignWorkforceContextService>();
-        services.AddScoped<IReportingRelationshipService, ReportingRelationshipService>();
-
-        services.AddHttpClient<IWorkforceBulkProvisioner, WorkforceBulkProvisioner>(client =>
-        {
-            var baseUrl = configuration["ServiceUrls:IdentityApiBaseUrl"];
-            if (string.IsNullOrWhiteSpace(baseUrl))
-            {
-                throw new InvalidOperationException(
-                    "ServiceUrls:IdentityApiBaseUrl is not configured. Set it via environment variable or appsettings.");
-            }
-
-            client.BaseAddress = new Uri(EnsureTrailingSlash(baseUrl));
-        });
+        services.AddScoped<IInternalWorkforceSnapshotService, InternalWorkforceSnapshotService>();
+        services.AddScoped<IApplicabilityOptionsService, ApplicabilityOptionsService>();
+        services.AddScoped<WorkforceResolutionScope>();
+        services.AddScoped<IWorkforceCanonicalResolver, WorkforceCanonicalResolver>();
+        services.AddScoped<IWorkforceMutationService, WorkforceMutationService>();
+        services.AddScoped<IResponsibleManagerService, ResponsibleManagerService>();
+        services.AddHostedService<EmployeeImportApplyBackgroundService>();
 
         services.AddHttpClient<IWorkforceBulkProvisioner, WorkforceBulkProvisioner>(client =>
         {
