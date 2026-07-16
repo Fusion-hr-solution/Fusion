@@ -5,7 +5,9 @@ import { AppBreadcrumb } from "@repo/ds/shell";
 import {
   OVERVIEW_NAV,
   CAMPAIGNS_NAV,
+  MY_OBJECTIVES_NAV,
   PLATFORM_ADMIN_NAV,
+  PLAN_APPROVALS_NAV,
   STRATEGY_NAV,
   TEAM_OBJECTIVES_NAV,
   TENANT_CONFIGURATION_NAV,
@@ -13,7 +15,9 @@ import {
 
 const NAV_ITEMS = [
   ...OVERVIEW_NAV.items,
+  ...MY_OBJECTIVES_NAV.items,
   ...TEAM_OBJECTIVES_NAV.items,
+  ...PLAN_APPROVALS_NAV.items,
   ...STRATEGY_NAV.items,
   ...CAMPAIGNS_NAV.items,
   ...TENANT_CONFIGURATION_NAV.items,
@@ -25,8 +29,11 @@ const BREADCRUMB_LABELS = new Map([
   ["planning", "Objective Planning"],
   ["performance", "Performance configuration"],
   ["campaigns", "Campaigns"],
+  ["completion", "Planning completion"],
   ["new", "New campaign"],
+  ["my-objectives", "My objectives"],
   ["team-objectives", "Team objectives"],
+  ["plan-approvals", "Plan approvals"],
   ["strategy", "Strategy"],
 ]);
 

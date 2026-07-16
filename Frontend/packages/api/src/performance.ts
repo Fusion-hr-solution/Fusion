@@ -38,6 +38,8 @@ export interface PerformanceCycleSummaryDto {
   participantCount: number;
   launchedAt: string | null;
   closedAt: string | null;
+  planningLockedAt: string | null;
+  planningLockedByName: string | null;
   createdAt: string;
   version: number;
 }
@@ -72,6 +74,8 @@ export interface PerformanceCycleDetailDto {
   participantCount: number;
   launchedAt: string | null;
   closedAt: string | null;
+  planningLockedAt: string | null;
+  planningLockedByName: string | null;
   createdAt: string;
   updatedAt: string | null;
   version: number;
@@ -437,6 +441,212 @@ export interface UpsertTeamObjectiveRequest {
   description: string | null;
 }
 
+// ── Employee objectives (P1.4) ──────────────────────────────────────
+
+export type EmployeeObjectivePlanStatus = "Draft" | "Submitted" | "ChangesRequested" | "Approved";
+export type ObjectiveAlignmentType = "TeamObjective" | "StrategicObjective";
+export type PlanReviewEventType = "Submitted" | "ChangesRequested" | "Resubmitted" | "Approved";
+
+export interface MyObjectivePlanCampaignDto {
+  id: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  planningOpeningDate: string | null;
+  employeeSubmissionDeadline: string | null;
+  managerApprovalDeadline: string | null;
+  launchedAt: string | null;
+  planStatus: EmployeeObjectivePlanStatus | null;
+  objectiveCount: number;
+  totalWeight: number;
+}
+
+export interface EmployeeObjectiveDto {
+  id: string;
+  title: string;
+  description: string | null;
+  alignmentType: ObjectiveAlignmentType | null;
+  alignmentTargetId: string | null;
+  alignmentTitle: string | null;
+  weight: number | null;
+  deadline: string | null;
+  measurementMethod: string | null;
+  measurementIndicator: string | null;
+  targetValue: string | null;
+  targetUnit: string | null;
+  successCriteria: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export interface EmployeeObjectivePlanDto {
+  id: string;
+  cycleId: string;
+  employeeId: string;
+  status: EmployeeObjectivePlanStatus;
+  submittedAt: string | null;
+  approverEmployeeId: string | null;
+  approverName: string | null;
+  approvedAt: string | null;
+  approvingManagerEmployeeId: string | null;
+  approvingManagerName: string | null;
+  lastChangeRequestComment: string | null;
+  objectiveCount: number;
+  totalWeight: number;
+  version: number;
+  objectives: EmployeeObjectiveDto[];
+  reviewHistory: EmployeeObjectivePlanReviewHistoryEventDto[];
+}
+
+export interface EmployeeObjectivePlanReviewHistoryEventDto {
+  id: string;
+  type: PlanReviewEventType;
+  actorEmployeeId: string;
+  actorName: string;
+  comment: string | null;
+  referencedObjectiveIds: string[];
+  occurredAt: string;
+}
+
+export interface EmployeeObjectiveAlignmentOptionDto {
+  type: ObjectiveAlignmentType;
+  targetId: string;
+  title: string;
+  strategicObjectiveId: string | null;
+  strategicObjectiveTitle: string | null;
+}
+
+export type EmployeeObjectiveWorkspaceState =
+  | "entry-not-open"
+  | "draft"
+  | "submitted"
+  | "changes-requested"
+  | "approved"
+  | "locked-approved"
+  | "locked-unresolved"
+  | "empty";
+
+export interface EmployeeObjectivePlanWorkspaceDto {
+  state: EmployeeObjectiveWorkspaceState;
+  cycleId: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  planningOpeningDate: string | null;
+  employeeSubmissionDeadline: string | null;
+  managerApprovalDeadline: string | null;
+  launchedAt: string | null;
+  planningLockedAt: string | null;
+  planningLockedByName: string | null;
+  maxObjectiveCount: number;
+  allowedWeights: number[];
+  enabledMeasurementMethods: string[];
+  plan: EmployeeObjectivePlanDto | null;
+  alignmentOptions: EmployeeObjectiveAlignmentOptionDto[];
+}
+
+export interface SaveEmployeeObjectiveRequest {
+  title: string;
+  description: string | null;
+  alignmentType: ObjectiveAlignmentType | null;
+  alignmentTargetId: string | null;
+  weight: number | null;
+  deadline: string | null;
+  measurementMethod: string | null;
+  measurementIndicator: string | null;
+  targetValue: string | null;
+  targetUnit: string | null;
+  successCriteria: string | null;
+}
+
+export interface ObjectivePlanBlockingReasonDto {
+  code: string;
+  message: string;
+  objectiveId: string | null;
+}
+
+export interface SubmitObjectivePlanResponseDto {
+  submitted: boolean;
+  plan: EmployeeObjectivePlanDto;
+  blockingReasons: ObjectivePlanBlockingReasonDto[];
+}
+
+// ── Plan approvals (P1.5) ───────────────────────────────────────────
+
+export interface PlanApprovalCampaignDto {
+  id: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  planningOpeningDate: string | null;
+  employeeSubmissionDeadline: string | null;
+  managerApprovalDeadline: string | null;
+  launchedAt: string | null;
+  planningLockedAt: string | null;
+  planningLockedByName: string | null;
+  waitingForReviewCount: number;
+  changesRequestedCount: number;
+  approvedCount: number;
+  dataIssueCount: number;
+}
+
+export interface PlanApprovalWorkspaceDto {
+  cycleId: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  planningOpeningDate: string | null;
+  employeeSubmissionDeadline: string | null;
+  managerApprovalDeadline: string | null;
+  launchedAt: string | null;
+  planningLockedAt: string | null;
+  planningLockedByName: string | null;
+  waitingForReviewCount: number;
+  changesRequestedCount: number;
+  approvedCount: number;
+  dataIssueCount: number;
+  plans: PlanApprovalReviewDto[];
+}
+
+export interface PlanApprovalReviewDto {
+  planId: string;
+  cycleId: string;
+  employeeId: string;
+  employeeName: string;
+  jobTitle: string | null;
+  orgUnitName: string | null;
+  status: EmployeeObjectivePlanStatus;
+  reviewState: "waiting-for-review" | "changes-requested" | "approved" | "not-ready";
+  objectiveCount: number;
+  totalWeight: number;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  approvingManagerEmployeeId: string | null;
+  approvingManagerName: string | null;
+  lastReviewEventAt: string | null;
+  lastChangeRequestComment: string | null;
+  isSelfApprovalDataIssue: boolean;
+  dataIssueMessage: string | null;
+  version: number;
+  objectives: EmployeeObjectiveDto[];
+  reviewHistory: PlanReviewHistoryEventDto[];
+}
+
+export interface PlanReviewHistoryEventDto {
+  id: string;
+  type: PlanReviewEventType;
+  actorEmployeeId: string;
+  actorName: string;
+  comment: string | null;
+  referencedObjectiveIds: string[];
+  occurredAt: string;
+}
+
+export interface RequestObjectivePlanChangesRequest {
+  comment: string;
+  referencedObjectiveIds?: string[];
+}
+
 // ── Cascade coverage (P1.3) ──────────────────────────────────────────
 
 export interface CascadeCoverageCampaignDto {
@@ -481,6 +691,180 @@ export interface CascadeCoverageDto {
   teamObjectives: TeamObjectiveDto[];
 }
 
+// ── Planning completion and lock (P1.6) ─────────────────────────────
+
+export type PlanningCompletionState =
+  | "not-launched"
+  | "actionable"
+  | "blocked"
+  | "ready-to-lock"
+  | "locked";
+
+export type PlanningCompletionParticipantStatus =
+  | "not-started"
+  | "draft"
+  | "submitted"
+  | "changes-requested"
+  | "approved"
+  | "excluded"
+  | "blocked";
+
+export interface PlanningCompletionWorkspaceDto {
+  state: PlanningCompletionState;
+  cycleId: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  planningOpeningDate: string | null;
+  employeeSubmissionDeadline: string | null;
+  managerApprovalDeadline: string | null;
+  expectedPlanningLockDate: string | null;
+  launchedAt: string | null;
+  planningLockedAt: string | null;
+  planningLockedByName: string | null;
+  version: number;
+  summary: PlanningCompletionSummaryDto;
+  remainingGroups: PlanningCompletionRemainingGroupDto[];
+  participants: PlanningCompletionParticipantPageDto;
+}
+
+export interface PlanningCompletionSummaryDto {
+  totalParticipants: number;
+  approvedCount: number;
+  excludedCount: number;
+  remainingCount: number;
+  notStartedCount: number;
+  draftCount: number;
+  submittedCount: number;
+  changesRequestedCount: number;
+  blockedCount: number;
+  overdueCount: number;
+  reminderNeededCount: number;
+  isReadyToLock: boolean;
+}
+
+export interface PlanningCompletionRemainingGroupDto {
+  code: string;
+  label: string;
+  count: number;
+}
+
+export interface PlanningCompletionParticipantPageDto {
+  items: PlanningCompletionParticipantDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface PlanningCompletionParticipantDto {
+  participantEmployeeId: string;
+  employeeName: string;
+  employeeKey: string | null;
+  email: string | null;
+  jobTitle: string | null;
+  orgUnitName: string | null;
+  status: PlanningCompletionParticipantStatus;
+  statusLabel: string;
+  isApproved: boolean;
+  isExcluded: boolean;
+  isBlocked: boolean;
+  isOverdue: boolean;
+  reminderNeeded: boolean;
+  lastActivityAt: string | null;
+  plan: PlanningCompletionPlanDto | null;
+  frozenReviewer: PlanningCompletionReviewerDto;
+  effectiveReviewer: PlanningCompletionReviewerDto;
+  reviewerWasReassigned: boolean;
+  exclusion: PlanningCompletionExclusionDto | null;
+  blockers: PlanningCompletionBlockerDto[];
+  overdueIndicators: PlanningCompletionOverdueDto[];
+  lastReminder: PlanningCompletionReminderDto | null;
+}
+
+export interface PlanningCompletionParticipantDetailDto {
+  participant: PlanningCompletionParticipantDto;
+  reminderHistory: PlanningCompletionReminderDto[];
+  reassignmentHistory: PlanningCompletionReassignmentDto[];
+}
+
+export interface PlanningCompletionPlanDto {
+  planId: string;
+  status: string;
+  statusLabel: string;
+  objectiveCount: number;
+  totalWeight: number;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  version: number;
+}
+
+export interface PlanningCompletionReviewerDto {
+  employeeId: string | null;
+  name: string | null;
+  isActive: boolean | null;
+}
+
+export interface PlanningCompletionBlockerDto {
+  code: string;
+  label: string;
+}
+
+export interface PlanningCompletionOverdueDto {
+  code: string;
+  label: string;
+  deadline: string;
+}
+
+export interface PlanningCompletionExclusionDto {
+  reason: string;
+  excludedByName: string | null;
+  excludedAt: string;
+}
+
+export interface PlanningCompletionReminderDto {
+  id: string;
+  targetEmployeeId: string;
+  targetName: string;
+  targetType: string;
+  reason: string;
+  recordedByName: string | null;
+  recordedAt: string;
+  notificationTriggered: boolean;
+}
+
+export interface PlanningCompletionReassignmentDto {
+  id: string;
+  previousApproverEmployeeId: string | null;
+  previousApproverName: string | null;
+  newApproverEmployeeId: string;
+  newApproverName: string;
+  reason: string;
+  reassignedByName: string | null;
+  reassignedAt: string;
+}
+
+export interface RecordPlanningReminderRequest {
+  targetEmployeeId: string;
+  targetType: string;
+  reason: string;
+  participantEmployeeId?: string | null;
+  planId?: string | null;
+  triggerNotification?: boolean;
+}
+
+export interface ReassignPlanningReviewerRequest {
+  newApproverEmployeeId: string;
+  reason: string;
+}
+
+export interface ExcludePlanningParticipantRequest {
+  reason: string;
+}
+
+export interface LockPlanningRequest {
+  confirmation: string;
+}
+
 // ── Paths ────────────────────────────────────────────────────────────
 
 export const performancePaths = {
@@ -521,9 +905,37 @@ export const performancePaths = {
     `/performance/team-objectives/campaigns/${cycleId}/objectives`,
   teamObjective: (cycleId: string, objectiveId: string) =>
     `/performance/team-objectives/campaigns/${cycleId}/objectives/${objectiveId}`,
+  myObjectivePlanCampaigns: () => "/performance/employee-objectives/my-campaigns",
+  employeeObjectiveWorkspace: (slug: string) =>
+    `/performance/employee-objectives/campaigns/${slug}`,
+  employeeObjectives: (cycleId: string) =>
+    `/performance/employee-objectives/campaigns/${cycleId}/objectives`,
+  employeeObjective: (cycleId: string, objectiveId: string) =>
+    `/performance/employee-objectives/campaigns/${cycleId}/objectives/${objectiveId}`,
+  employeeObjectivePlanSubmit: (cycleId: string) =>
+    `/performance/employee-objectives/campaigns/${cycleId}/submit`,
+  myPlanApprovalCampaigns: () => "/performance/plan-approvals/my-campaigns",
+  planApprovalWorkspace: (slug: string) =>
+    `/performance/plan-approvals/campaigns/${slug}`,
+  planApprovalApprove: (cycleId: string, planId: string) =>
+    `/performance/plan-approvals/campaigns/${cycleId}/plans/${planId}/approve`,
+  planApprovalRequestChanges: (cycleId: string, planId: string) =>
+    `/performance/plan-approvals/campaigns/${cycleId}/plans/${planId}/request-changes`,
   cascadeCoverageCampaigns: () => "/performance/cascade-coverage/campaigns",
   cascadeCoverage: (slug: string) =>
     `/performance/cascade-coverage/campaigns/${slug}`,
+  planningCompletionWorkspace: (slug: string) =>
+    `/performance/planning-completion/campaigns/${slug}`,
+  planningCompletionParticipant: (cycleId: string, participantEmployeeId: string) =>
+    `/performance/planning-completion/campaigns/${cycleId}/participants/${participantEmployeeId}`,
+  planningCompletionReminder: (cycleId: string) =>
+    `/performance/planning-completion/campaigns/${cycleId}/reminders`,
+  planningCompletionReassignReviewer: (cycleId: string, participantEmployeeId: string) =>
+    `/performance/planning-completion/campaigns/${cycleId}/participants/${participantEmployeeId}/reassign-reviewer`,
+  planningCompletionExcludeParticipant: (cycleId: string, participantEmployeeId: string) =>
+    `/performance/planning-completion/campaigns/${cycleId}/participants/${participantEmployeeId}/exclude`,
+  planningCompletionLock: (cycleId: string) =>
+    `/performance/planning-completion/campaigns/${cycleId}/lock`,
 } as const;
 
 // ── Query keys ───────────────────────────────────────────────────────
@@ -582,10 +994,57 @@ export const performanceQueryKeys = {
     [...performanceQueryKeys.teamObjectives(), "my-campaigns"] as const,
   teamObjectiveWorkspace: (slug: string) =>
     [...performanceQueryKeys.teamObjectives(), "workspace", slug] as const,
+  myObjectives: () => [...performanceQueryKeys.all(), "my-objectives"] as const,
+  myObjectivePlanCampaigns: () =>
+    [...performanceQueryKeys.myObjectives(), "campaigns"] as const,
+  employeeObjectiveWorkspace: (slug: string) =>
+    [...performanceQueryKeys.myObjectives(), "workspace", slug] as const,
+  planApprovals: () => [...performanceQueryKeys.all(), "plan-approvals"] as const,
+  myPlanApprovalCampaigns: () =>
+    [...performanceQueryKeys.planApprovals(), "campaigns"] as const,
+  planApprovalWorkspace: (slug: string) =>
+    [...performanceQueryKeys.planApprovals(), "workspace", slug] as const,
   cascadeCoverageAll: () =>
     [...performanceQueryKeys.all(), "cascade-coverage"] as const,
   cascadeCoverageCampaigns: () =>
     [...performanceQueryKeys.cascadeCoverageAll(), "campaigns"] as const,
   cascadeCoverage: (slug: string) =>
     [...performanceQueryKeys.cascadeCoverageAll(), slug] as const,
+  planningCompletion: () =>
+    [...performanceQueryKeys.all(), "planning-completion"] as const,
+  planningCompletionWorkspace: (
+    slug: string,
+    params?: {
+      status?: string | null;
+      blocker?: string | null;
+      overdue?: boolean | null;
+      reminderNeeded?: boolean | null;
+      approverEmployeeId?: string | null;
+      search?: string | null;
+      page?: number;
+      pageSize?: number;
+    },
+  ) =>
+    [
+      ...performanceQueryKeys.planningCompletion(),
+      "workspace",
+      slug,
+      {
+        status: params?.status ?? null,
+        blocker: params?.blocker ?? null,
+        overdue: params?.overdue ?? null,
+        reminderNeeded: params?.reminderNeeded ?? null,
+        approverEmployeeId: params?.approverEmployeeId ?? null,
+        search: params?.search?.trim() || null,
+        page: params?.page ?? 1,
+        pageSize: params?.pageSize ?? 50,
+      },
+    ] as const,
+  planningCompletionParticipant: (cycleId: string, participantEmployeeId: string) =>
+    [
+      ...performanceQueryKeys.planningCompletion(),
+      "participant",
+      cycleId,
+      participantEmployeeId,
+    ] as const,
 } as const;

@@ -8,7 +8,10 @@ import {
   ShellUserPanel,
 } from "@repo/ds/shell";
 import {
+  canAccessMyObjectives,
+  canAccessPlanApprovals,
   canAccessTeamObjectives,
+  canSeeOwnCoreProfileNavigation,
   canViewObjectivePlanningConfiguration,
   canViewPerformanceCampaigns,
   canViewPerformanceStrategy,
@@ -19,7 +22,9 @@ import {
 import {
   OVERVIEW_NAV,
   CAMPAIGNS_NAV,
+  MY_OBJECTIVES_NAV,
   PLATFORM_ADMIN_NAV,
+  PLAN_APPROVALS_NAV,
   STRATEGY_NAV,
   TEAM_OBJECTIVES_NAV,
   TENANT_CONFIGURATION_NAV,
@@ -28,12 +33,15 @@ import {
 export function PerformanceSidebar() {
   const pathname = usePathname();
   const activePath = pathname.replace(/^\/performance/, "") || "/";
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading: isAuthLoading } = useAuth();
   const isPlatformAdmin = hasAnyRole(user, [PLATFORM_ADMIN_ROLE]);
   const canViewPlanningConfiguration = canViewObjectivePlanningConfiguration(user);
   const canViewCampaigns = canViewPerformanceCampaigns(user);
+  const canAccessMine = canAccessMyObjectives(user);
   const canAccessTeam = canAccessTeamObjectives(user);
+  const canAccessApprovals = canAccessPlanApprovals(user);
   const canViewStrategy = canViewPerformanceStrategy(user);
+  const canSeeOwnProfile = canSeeOwnCoreProfileNavigation(user);
 
   return (
     <ModuleSidebar
@@ -41,9 +49,12 @@ export function PerformanceSidebar() {
       brandSubtitle="Performance workspace"
       brandIcon={BarChart3}
       activePath={activePath}
+      pending={isAuthLoading}
       sections={[
         OVERVIEW_NAV,
+        ...(canAccessMine ? [MY_OBJECTIVES_NAV] : []),
         ...(canAccessTeam ? [TEAM_OBJECTIVES_NAV] : []),
+        ...(canAccessApprovals ? [PLAN_APPROVALS_NAV] : []),
         ...(canViewStrategy ? [STRATEGY_NAV] : []),
         ...(canViewCampaigns ? [CAMPAIGNS_NAV] : []),
         ...(canViewPlanningConfiguration ? [TENANT_CONFIGURATION_NAV] : []),
@@ -54,10 +65,15 @@ export function PerformanceSidebar() {
       userPanel={(collapsed) => (
         <ShellUserPanel
           collapsed={collapsed}
+          pending={isAuthLoading}
           name={user?.fullName}
           secondaryLabel={user?.roles?.[0]}
           links={[
-            { label: "My profile", href: "/performance/profile", icon: User },
+            // Raw anchors → include basePath explicitly. Core owns the employee
+            // profile surface; Performance has no profile route of its own.
+            ...(canSeeOwnProfile
+              ? [{ label: "My profile", href: "/core/profile", icon: User }]
+              : []),
             { label: "Platform home", href: "/", icon: Home },
           ]}
           onSignOut={async () => {
