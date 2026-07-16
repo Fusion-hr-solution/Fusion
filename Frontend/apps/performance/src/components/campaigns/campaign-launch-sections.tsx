@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CircleAlert,
+  LoaderCircle,
   Rocket,
   Search,
   ShieldCheck,
@@ -46,7 +47,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { initials } from "@/lib/labels";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { PeopleCombobox, type PersonOption } from "./people-combobox";
 import {
@@ -122,14 +122,7 @@ export function CampaignPopulationSection({
   const [pendingSearchExclusion, setPendingSearchExclusion] =
     useState<PersonOption | null>(null);
   const [pendingSearchReason, setPendingSearchReason] = useState("");
-
-  useEffect(() => {
-    setScopes(fromRulesScopes(campaign));
-    setExclusions(fromRulesExclusions(campaign));
-    setError(null);
-    setPendingSearchExclusion(null);
-    setPendingSearchReason("");
-  }, [campaign]);
+  const suppressCampaignSyncRef = useRef(false);
 
   // Enrich excluded display names from the live preview (source of truth stays local state).
   // Also re-runs when `campaign` changes: a refetch resets exclusions to name-less rules, and
@@ -165,13 +158,33 @@ export function CampaignPopulationSection({
       ),
     {
       onSuccess: async () => {
-        toast.success("Participants updated");
-        await onSaved();
-        await preview.refetch();
+        try {
+          toast.success("Participants updated");
+          await onSaved();
+          await preview.refetch();
+        } finally {
+          suppressCampaignSyncRef.current = false;
+        }
       },
-      onError: (err) => setError(messageFor(err)),
+      onError: (err) => {
+        suppressCampaignSyncRef.current = false;
+        setError(messageFor(err));
+      },
     }
   );
+
+  // Keep the user's local selection visible while the parent campaign query
+  // refreshes after autosave. A refetch can briefly return the previous detail
+  // snapshot; applying it here causes the reach meter to jump backwards before
+  // the saved preview catches up.
+  useEffect(() => {
+    if (suppressCampaignSyncRef.current || save.isLoading) return;
+    setScopes(fromRulesScopes(campaign));
+    setExclusions(fromRulesExclusions(campaign));
+    setError(null);
+    setPendingSearchExclusion(null);
+    setPendingSearchReason("");
+  }, [campaign, save.isLoading]);
 
   const hasExplicitScope = scopes.length > 0;
   const dirty =
@@ -189,6 +202,7 @@ export function CampaignPopulationSection({
     }
     const id = setTimeout(() => {
       setError(null);
+      suppressCampaignSyncRef.current = true;
       save.mutate(toPopulationRequest(scopes, exclusions));
     }, 600);
     return () => clearTimeout(id);
@@ -205,14 +219,31 @@ export function CampaignPopulationSection({
     () => estimateReach(roots, scopeById, exclusions.length),
     [roots, scopeById, exclusions.length]
   );
-  // Authoritative count comes from the saved preview; while dirty we show the
-  // instant client estimate so the number moves the moment a unit is toggled.
+  // Authoritative count comes from the saved preview once it is current. During
+  // autosave, the campaign detail and preview refresh independently; using the
+  // cached preview while it is loading would briefly replace the new estimate
+  // with the previous count before the server catches up.
   const resolvedCount =
-    !dirty && hasExplicitScope && preview.data ? preview.data.totalCount : null;
+    !dirty &&
+    !preview.isLoading &&
+    hasExplicitScope &&
+    preview.data
+      ? preview.data.totalCount
+      : null;
   const displayCount = resolvedCount ?? reachEstimate;
+  const reachLoading =
+    hasExplicitScope && (dirty || save.isLoading || preview.isLoading);
+  const authoritativeCount = preview.data?.totalCount ?? 0;
   const coveragePct =
     workforceTotal > 0
-      ? Math.min(100, Math.round((displayCount / workforceTotal) * 100))
+      ? Math.min(
+          100,
+          Math.round(
+            ((reachLoading ? authoritativeCount : displayCount) /
+              workforceTotal) *
+              100
+          )
+        )
       : 0;
   const pendingLabel = save.isLoading
     ? campaignPopulation.saving
@@ -393,30 +424,36 @@ export function CampaignPopulationSection({
       <section className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-5">
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-1">
           <div className="flex items-baseline gap-2">
-            {hasExplicitScope ? (
-              <>
-                <span className="font-heading text-4xl font-semibold leading-none tracking-tight tabular-nums text-foreground sm:text-5xl">
-                  {displayCount.toLocaleString()}
+            <span className="flex h-10 items-center font-heading text-4xl font-semibold leading-none tracking-tight tabular-nums text-foreground sm:h-12 sm:text-5xl">
+              {reachLoading ? (
+                <span
+                  role="status"
+                  aria-label="Updating population count"
+                  className="inline-flex size-10 items-center justify-center rounded-full bg-primary/[0.08] ring-1 ring-inset ring-primary/20 sm:size-12"
+                >
+                  <LoaderCircle
+                    className="size-6 animate-spin text-primary sm:size-7"
+                    strokeWidth={2.25}
+                    aria-hidden="true"
+                  />
                 </span>
-                <span className="text-sm text-muted-foreground">
-                  {campaignPopulation.reachLabel}
-                </span>
-              </>
-            ) : (
-              <span className="text-base font-medium text-muted-foreground">
-                {campaignPopulation.reachEmpty}
-              </span>
-            )}
+              ) : (
+                displayCount.toLocaleString()
+              )}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {campaignPopulation.reachLabel}
+            </span>
           </div>
-          {hasExplicitScope && workforceTotal > 0 ? (
+          {workforceTotal > 0 ? (
             <span className="text-xs tabular-nums text-muted-foreground">
               {campaignPopulation.ofWorkforce(workforceTotal)}{" "}
               {campaignPopulation.workforceUnit}
-              {resolvedCount === null ? ` · ${pendingLabel}` : ""}
+              {dirty ? ` · ${pendingLabel}` : ""}
             </span>
           ) : null}
         </div>
-        {hasExplicitScope && workforceTotal > 0 ? (
+        {workforceTotal > 0 ? (
           <div className="h-2 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full bg-primary transition-[width] duration-300"
@@ -733,18 +770,15 @@ export function CampaignLaunchPad({
               ) : (
                 <CircleAlert className="size-4 text-destructive" />
               )}
-              {campaignLaunchPad.coverageTitle}
-            </span>
-            <span
-              className={cn(
-                "text-sm font-medium",
-                coverageOk ? "text-foreground" : "text-destructive"
-              )}
-            >
               {coverageOk
                 ? campaignLaunchPad.coverageReady
-                : campaignLaunchPad.coverageGap(missingApproverCount)}
+                : campaignLaunchPad.coverageTitle}
             </span>
+            {!coverageOk ? (
+              <span className="text-sm font-medium text-destructive">
+                {campaignLaunchPad.coverageGap(missingApproverCount)}
+              </span>
+            ) : null}
           </div>
 
           <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">

@@ -551,7 +551,8 @@ describe("Campaign population, readiness and launch", () => {
       />
     );
     expect(page.textContent).toContain("Choose the campaign population");
-    expect(page.textContent).toContain("No population yet");
+    expect(page.textContent).toContain("0in scope");
+    expect(page.textContent).toContain("of 12 employees");
     expect(page.textContent).not.toContain("All active employees");
   });
 
