@@ -3,6 +3,7 @@ using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.PlatformOrganizations.Dtos;
 using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
+using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -221,6 +222,31 @@ public class PlatformOrganizationServiceTests
         Assert.Equal("invited", created.Organization.OperationalStatus);
         Assert.NotNull(created.InviteLink);
         Assert.Contains("/invite/accept", created.InviteLink);
+    }
+
+    [Fact]
+    public async Task CreateAsync_ProvisionsPerformanceForCreatedTenant()
+    {
+        // Arrange
+        var db = CreateDbContext();
+        var configuration = CreateConfiguration();
+        var provisioning = new RecordingPerformanceProvisioningClient();
+        var service = new PlatformOrganizationService(db, configuration, provisioning);
+
+        var request = new CreatePlatformOrganizationRequest
+        {
+            Name = "Performance Provisioned Org",
+            FirstAdminEmail = "first.admin@provisioned.com",
+            FirstAdminFirstName = "First",
+            FirstAdminLastName = "Admin",
+        };
+
+        // Act
+        var created = await service.CreateAsync(request, Guid.NewGuid());
+
+        // Assert
+        Assert.Equal(created.Organization.Id, provisioning.ProvisionedTenantId);
+        Assert.Equal(1, provisioning.CallCount);
     }
 
     [Fact]
@@ -1334,6 +1360,19 @@ public class PlatformOrganizationServiceTests
             throw new InvalidOperationException($"No setter for '{propertyName}'.");
 
         setter.Invoke(instance, new[] { value });
+    }
+
+    private sealed class RecordingPerformanceProvisioningClient : IPerformanceProvisioningClient
+    {
+        public Guid? ProvisionedTenantId { get; private set; }
+        public int CallCount { get; private set; }
+
+        public Task ProvisionAsync(Guid tenantId, CancellationToken cancellationToken = default)
+        {
+            ProvisionedTenantId = tenantId;
+            CallCount++;
+            return Task.CompletedTask;
+        }
     }
 }
 

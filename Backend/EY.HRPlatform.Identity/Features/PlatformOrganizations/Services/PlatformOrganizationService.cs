@@ -34,8 +34,14 @@ public interface IPlatformOrganizationService
 
 public sealed class PlatformOrganizationService(
     AppIdentityDbContext db,
-    IConfiguration configuration) : IPlatformOrganizationService
+    IConfiguration configuration,
+    IPerformanceProvisioningClient performanceProvisioningClient) : IPlatformOrganizationService
 {
+    public PlatformOrganizationService(AppIdentityDbContext db, IConfiguration configuration)
+        : this(db, configuration, new NoOpPerformanceProvisioningClient())
+    {
+    }
+
     public async Task<PlatformOrganizationPagedListDto> ListAsync(
         PlatformOrganizationListQueryDto query,
         CancellationToken cancellationToken = default)
@@ -228,6 +234,8 @@ public sealed class PlatformOrganizationService(
 
             if (tx is not null)
                 await tx.CommitAsync(cancellationToken);
+
+            await performanceProvisioningClient.ProvisionAsync(tenant.Id, cancellationToken);
 
             var detail = await GetAsync(tenant.Id, cancellationToken)
                          ?? throw new InvalidOperationException("Failed to load created organization.");

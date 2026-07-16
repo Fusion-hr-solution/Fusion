@@ -118,8 +118,6 @@ public static class PerformancePermissions
     public const string CycleView = "performance.cycle.view";
     public const string CycleManage = "performance.cycle.manage";
     public const string CyclePublish = "performance.cycle.publish";
-    public const string ObjectiveLibraryView = "performance.objective.library.view";
-    public const string ObjectiveLibraryManage = "performance.objective.library.manage";
     public const string ObjectiveSelfManage = "performance.objective.self.manage";
     public const string ObjectiveTeamManage = "performance.objective.team.manage";
     public const string ReviewSelfManage = "performance.review.self.manage";
@@ -142,13 +140,15 @@ public static class PerformancePermissions
     public const string ObjectiveProgressCorrect = "performance.objective.progress.correct";
     public const string ObjectiveTeamApprove = "performance.objective.team.approve";
 
+    // Objective planning configuration permissions.
+    public const string ObjectivePolicyView = "performance.objective.policy.view";
+    public const string ObjectivePolicyManage = "performance.objective.policy.manage";
+
     public static readonly ReadOnlyCollection<string> All =
         Array.AsReadOnly([
             CycleView,
             CycleManage,
             CyclePublish,
-            ObjectiveLibraryView,
-            ObjectiveLibraryManage,
             ObjectiveSelfManage,
             ObjectiveTeamManage,
             ReviewSelfManage,
@@ -166,6 +166,8 @@ public static class PerformancePermissions
             StrategicPublish,
             ObjectiveProgressCorrect,
             ObjectiveTeamApprove,
+            ObjectivePolicyView,
+            ObjectivePolicyManage,
         ]);
 }
 
@@ -221,8 +223,6 @@ public static class CorePermissionCatalog
             new(PerformancePermissions.CycleView, "View performance cycles", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Controls access to performance cycles and their participation."),
             new(PerformancePermissions.CycleManage, "Manage performance cycles", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Create and edit draft cycles and their population."),
             new(PerformancePermissions.CyclePublish, "Operate performance cycles", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Publish, activate, and close cycles (governance-gated transitions)."),
-            new(PerformancePermissions.ObjectiveLibraryView, "View objective library", "Performance", [PermissionScopes.Tenant]),
-            new(PerformancePermissions.ObjectiveLibraryManage, "Manage objective library", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.ObjectiveSelfManage, "Manage own objectives", "Performance", [PermissionScopes.Self]),
             new(PerformancePermissions.ObjectiveTeamManage, "Manage team objectives", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
             new(PerformancePermissions.ReviewSelfManage, "Complete own reviews", "Performance", [PermissionScopes.Self]),
@@ -241,9 +241,13 @@ public static class CorePermissionCatalog
             new(PerformancePermissions.StrategicManage, "Manage strategic objectives", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.StrategicPublish, "Publish strategic objectives", "Performance", [PermissionScopes.Tenant], "Explicit deny-by-default publish grant; never auto-granted by top-management position."),
 
-            // Progress correction and collective approval permissions
+            // Progress correction and employee objective plan approval permissions
             new(PerformancePermissions.ObjectiveProgressCorrect, "Correct objective progress (manager override)", "Performance", [PermissionScopes.Tenant]),
-            new(PerformancePermissions.ObjectiveTeamApprove, "Approve collective objectives", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
+            new(PerformancePermissions.ObjectiveTeamApprove, "Approve employee objective plans", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
+
+            // Objective planning configuration permissions.
+            new(PerformancePermissions.ObjectivePolicyView, "View objective planning configuration", "Performance", [PermissionScopes.Tenant]),
+            new(PerformancePermissions.ObjectivePolicyManage, "Manage objective planning configuration", "Performance", [PermissionScopes.Tenant]),
         ]);
 
     private static readonly IReadOnlyDictionary<string, CorePermissionDefinition> ByKey =
