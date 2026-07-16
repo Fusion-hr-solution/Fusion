@@ -26,13 +26,16 @@ public class EmployeeImportHistoryConfiguration : IEntityTypeConfiguration<Emplo
         builder.Property(history => history.SourceRowCount)
             .IsRequired();
 
-        builder.Property(history => history.ValidRowCount)
+        builder.Property(history => history.ValidatedRowCount)
             .IsRequired();
 
         builder.Property(history => history.CreatedCount)
             .IsRequired();
 
-        builder.Property(history => history.SkippedCount)
+        builder.Property(history => history.UnchangedRowCount)
+            .IsRequired();
+
+        builder.Property(history => history.PublishedRowCount)
             .IsRequired();
 
         builder.Property(history => history.Status)

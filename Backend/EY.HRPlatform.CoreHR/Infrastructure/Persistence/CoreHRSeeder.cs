@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.EntityFrameworkCore;
 
@@ -71,120 +72,6 @@ public static class CoreHRSeeder
         // Idempotent: skip if employees already exist for this tenant
         if (await db.Employees.IgnoreQueryFilters().AnyAsync(e => e.TenantId == tenantId))
             return;
-
-        // Create employees without managers first
-        var vpEng = Employee.Create(
-            tenantId,
-            "Robert", "Taylor",
-            "robert.taylor@ey-hr.com",
-            new DateTime(2018, 3, 1, 0, 0, 0, DateTimeKind.Utc),
-            "Engineering", "VP of Engineering");
-
-        var hrDirector = Employee.Create(
-            tenantId,
-            "Maria", "Garcia",
-            "maria.garcia@ey-hr.com",
-            new DateTime(2021, 3, 10, 0, 0, 0, DateTimeKind.Utc),
-            "Human Resources", "HR Director");
-
-        var financeDirector = Employee.Create(
-            tenantId,
-            "Lisa", "Brown",
-            "lisa.brown@ey-hr.com",
-            new DateTime(2020, 11, 1, 0, 0, 0, DateTimeKind.Utc),
-            "Finance", "Finance Director");
-
-        var marketingDirector = Employee.Create(
-            tenantId,
-            "Michael", "Lee",
-            "michael.lee@ey-hr.com",
-            new DateTime(2019, 7, 15, 0, 0, 0, DateTimeKind.Utc),
-            "Marketing", "Marketing Director");
-
-        // Save directors first to get IDs
-        await db.Employees.AddRangeAsync(vpEng, hrDirector, financeDirector, marketingDirector);
-        await db.SaveChangesAsync();
-
-        // Create tech lead reporting to VP
-        var techLead = Employee.Create(
-            tenantId,
-            "James", "Wilson",
-            "james.wilson@ey-hr.com",
-            new DateTime(2022, 6, 1, 0, 0, 0, DateTimeKind.Utc),
-            "Engineering", "Tech Lead");
-        techLead.AssignManager(vpEng.Id);
-
-        // Create employees with managers
-        var seniorDev = Employee.Create(
-            tenantId,
-            "Sarah", "Chen",
-            "sarah.chen@ey-hr.com",
-            new DateTime(2023, 1, 15, 0, 0, 0, DateTimeKind.Utc),
-            "Engineering", "Senior Software Engineer");
-        
-        var juniorDev = Employee.Create(
-            tenantId,
-            "Alex", "Kumar",
-            "alex.kumar@ey-hr.com",
-            new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc),
-            "Engineering", "Junior Software Engineer");
-
-        var hrSpecialist = Employee.Create(
-            tenantId,
-            "Emma", "Rodriguez",
-            "emma.rodriguez@ey-hr.com",
-            new DateTime(2023, 5, 20, 0, 0, 0, DateTimeKind.Utc),
-            "Human Resources", "HR Specialist");
-        hrSpecialist.AssignManager(hrDirector.Id);
-
-        var financialAnalyst = Employee.Create(
-            tenantId,
-            "David", "Kim",
-            "david.kim@ey-hr.com",
-            new DateTime(2023, 8, 20, 0, 0, 0, DateTimeKind.Utc),
-            "Finance", "Financial Analyst");
-        financialAnalyst.AssignManager(financeDirector.Id);
-
-        var marketingSpecialist = Employee.Create(
-            tenantId,
-            "Emily", "Johnson",
-            "emily.johnson@ey-hr.com",
-            new DateTime(2022, 2, 14, 0, 0, 0, DateTimeKind.Utc),
-            "Marketing", "Marketing Specialist");
-        marketingSpecialist.AssignManager(marketingDirector.Id);
-
-        // Add tech lead
-        await db.Employees.AddAsync(techLead);
-        await db.SaveChangesAsync();
-
-        // Assign managers to engineers
-        seniorDev.AssignManager(techLead.Id);
-        juniorDev.AssignManager(techLead.Id);
-
-        // Add remaining employees
-        await db.Employees.AddRangeAsync(
-            seniorDev,
-            juniorDev,
-            hrSpecialist,
-            financialAnalyst,
-            marketingSpecialist);
-
-        // Add one inactive employee for filter testing
-        var formerEmployee = Employee.Create(
-            tenantId,
-            "John", "Smith",
-            "john.smith@ey-hr.com",
-            new DateTime(2020, 1, 10, 0, 0, 0, DateTimeKind.Utc),
-            "Engineering", "Software Engineer");
-        formerEmployee.AssignManager(techLead.Id);
-        formerEmployee.Deactivate();
-
-        await db.Employees.AddAsync(formerEmployee);
-        await db.SaveChangesAsync();
-
-        // Assign org units to employees that map to the seeded structure.
-        // Finance/Marketing employees are intentionally left unlinked — their departments
-        // have no matching org unit in the seeded structure, so they render with em-dash.
         var orgUnits = await db.OrgUnits.IgnoreQueryFilters()
             .Where(o => o.TenantId == tenantId && new[]
             {
@@ -192,27 +79,106 @@ public static class CoreHRSeeder
             }.Contains(o.Code))
             .ToDictionaryAsync(o => o.Code);
 
-        if (orgUnits.TryGetValue("ENG", out var engUnit))
-            vpEng.AssignOrgUnit(engUnit.Id);
-
-        if (orgUnits.TryGetValue("HR", out var hrUnit))
-            hrDirector.AssignOrgUnit(hrUnit.Id);
-
-        if (orgUnits.TryGetValue("ENG-PLATFORM", out var platformUnit))
-            techLead.AssignOrgUnit(platformUnit.Id);
-
-        if (orgUnits.TryGetValue("ENG-BACKEND", out var backendUnit))
+        var seedEmployees = new[]
         {
-            seniorDev.AssignOrgUnit(backendUnit.Id);
-            formerEmployee.AssignOrgUnit(backendUnit.Id);
+            new SeedEmployee("Robert", "Taylor", "robert.taylor@ey-hr.com", "Engineering", "VP of Engineering", "ENG", null, new DateTime(2018, 3, 1, 0, 0, 0, DateTimeKind.Utc), true),
+            new SeedEmployee("Maria", "Garcia", "maria.garcia@ey-hr.com", "Human Resources", "HR Director", "HR", null, new DateTime(2021, 3, 10, 0, 0, 0, DateTimeKind.Utc), true),
+            new SeedEmployee("Lisa", "Brown", "lisa.brown@ey-hr.com", "Finance", "Finance Director", null, null, new DateTime(2020, 11, 1, 0, 0, 0, DateTimeKind.Utc), true),
+            new SeedEmployee("Michael", "Lee", "michael.lee@ey-hr.com", "Marketing", "Marketing Director", null, null, new DateTime(2019, 7, 15, 0, 0, 0, DateTimeKind.Utc), true),
+            new SeedEmployee("James", "Wilson", "james.wilson@ey-hr.com", "Engineering", "Tech Lead", "ENG-PLATFORM", "robert.taylor@ey-hr.com", new DateTime(2022, 6, 1, 0, 0, 0, DateTimeKind.Utc), true),
+            new SeedEmployee("Sarah", "Chen", "sarah.chen@ey-hr.com", "Engineering", "Senior Software Engineer", "ENG-BACKEND", "james.wilson@ey-hr.com", new DateTime(2023, 1, 15, 0, 0, 0, DateTimeKind.Utc), true),
+            new SeedEmployee("Alex", "Kumar", "alex.kumar@ey-hr.com", "Engineering", "Junior Software Engineer", "ENG-FRONTEND", "james.wilson@ey-hr.com", new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), true),
+            new SeedEmployee("Emma", "Rodriguez", "emma.rodriguez@ey-hr.com", "Human Resources", "HR Specialist", "HR-OPS", "maria.garcia@ey-hr.com", new DateTime(2023, 5, 20, 0, 0, 0, DateTimeKind.Utc), true),
+            new SeedEmployee("David", "Kim", "david.kim@ey-hr.com", "Finance", "Financial Analyst", null, "lisa.brown@ey-hr.com", new DateTime(2023, 8, 20, 0, 0, 0, DateTimeKind.Utc), true),
+            new SeedEmployee("Emily", "Johnson", "emily.johnson@ey-hr.com", "Marketing", "Marketing Specialist", null, "michael.lee@ey-hr.com", new DateTime(2022, 2, 14, 0, 0, 0, DateTimeKind.Utc), true),
+            new SeedEmployee("John", "Smith", "john.smith@ey-hr.com", "Engineering", "Software Engineer", "ENG-BACKEND", "james.wilson@ey-hr.com", new DateTime(2020, 1, 10, 0, 0, 0, DateTimeKind.Utc), false),
+        };
+
+        var employees = seedEmployees
+            .Select(seed => Employee.Create(tenantId, seed.FirstName, seed.LastName, seed.Email, seed.Department))
+            .ToList();
+
+        await db.Employees.AddRangeAsync(employees);
+        await db.SaveChangesAsync();
+
+        var employeesByEmail = employees.ToDictionary(employee => employee.Email, StringComparer.OrdinalIgnoreCase);
+
+        var employments = new List<Employment>();
+        var assignmentsByEmail = new Dictionary<string, WorkAssignment>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var seed in seedEmployees)
+        {
+            var employee = employeesByEmail[seed.Email];
+            var employment = Employment.Start(
+                tenantId,
+                employee.Id,
+                seed.HireDate,
+                "FullTime",
+                WorkforceSourceType.Manual,
+                sourceReference: "CoreHRSeeder");
+
+            if (!seed.IsActive)
+            {
+                employment.End(new DateTime(2024, 1, 10, 0, 0, 0, DateTimeKind.Utc));
+            }
+
+            employments.Add(employment);
+
+            if (seed.OrgUnitCode is not null && orgUnits.TryGetValue(seed.OrgUnitCode, out var orgUnit))
+            {
+                assignmentsByEmail[seed.Email] = WorkAssignment.Create(
+                    tenantId,
+                    employment.Id,
+                    employee.Id,
+                    orgUnit.Id,
+                    seed.JobTitle,
+                    null,
+                    isPrimary: true,
+                    effectiveFrom: seed.HireDate,
+                    effectiveTo: employment.EffectiveTo,
+                    source: WorkforceSourceType.Manual,
+                    sourceReference: "CoreHRSeeder");
+            }
         }
 
-        if (orgUnits.TryGetValue("ENG-FRONTEND", out var frontendUnit))
-            juniorDev.AssignOrgUnit(frontendUnit.Id);
+        await db.Employments.AddRangeAsync(employments);
+        await db.WorkAssignments.AddRangeAsync(assignmentsByEmail.Values);
 
-        if (orgUnits.TryGetValue("HR-OPS", out var peopleOpsUnit))
-            hrSpecialist.AssignOrgUnit(peopleOpsUnit.Id);
+        var relationships = new List<ManagerRelationship>();
+        foreach (var seed in seedEmployees.Where(seed => seed.ManagerEmail is not null))
+        {
+            if (!assignmentsByEmail.TryGetValue(seed.Email, out var subjectAssignment)
+                || !assignmentsByEmail.TryGetValue(seed.ManagerEmail!, out var managerAssignment))
+            {
+                continue;
+            }
+
+            relationships.Add(ManagerRelationship.Create(
+                tenantId,
+                subjectAssignment.EmployeeId,
+                managerAssignment.EmployeeId,
+                subjectAssignment.Id,
+                managerAssignment.Id,
+                ReportingRelationshipType.PrimaryManager,
+                seed.HireDate,
+                WorkforceSourceType.Manual,
+                effectiveTo: employments.First(current => current.EmployeeId == subjectAssignment.EmployeeId).EffectiveTo,
+                sourceReference: "CoreHRSeeder"));
+        }
+
+        await db.ManagerRelationships.AddRangeAsync(relationships);
 
         await db.SaveChangesAsync();
     }
+
+    private sealed record SeedEmployee(
+        string FirstName,
+        string LastName,
+        string Email,
+        string? Department,
+        string JobTitle,
+        string? OrgUnitCode,
+        string? ManagerEmail,
+        DateTime HireDate,
+        bool IsActive);
 }

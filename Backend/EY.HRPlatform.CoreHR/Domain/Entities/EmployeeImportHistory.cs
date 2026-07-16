@@ -21,11 +21,17 @@ public class EmployeeImportHistory : BaseEntity, ITenantEntity
 
     public int SourceRowCount { get; private set; }
 
-    public int ValidRowCount { get; private set; }
+    public int ValidatedRowCount { get; private set; }
 
     public int CreatedCount { get; private set; }
 
-    public int SkippedCount { get; private set; }
+    public int UnchangedRowCount { get; private set; }
+
+    /// <summary>
+    /// Rows whose canonical changes were actually committed by this publication
+    /// (creates plus controlled-update changes). Unchanged rows are never counted as published.
+    /// </summary>
+    public int PublishedRowCount { get; private set; }
 
     public string Status { get; private set; } = string.Empty;
 
@@ -51,9 +57,10 @@ public class EmployeeImportHistory : BaseEntity, ITenantEntity
         string sourceFileName,
         long sourceFileSizeBytes,
         int sourceRowCount,
-        int validRowCount,
+        int validatedRowCount,
         int createdCount,
-        int skippedCount,
+        int unchangedRowCount,
+        int publishedRowCount,
         DateTime appliedAtUtc,
         Guid actorUserId,
         string actorFullName,
@@ -71,20 +78,26 @@ public class EmployeeImportHistory : BaseEntity, ITenantEntity
         if (sourceRowCount < 0)
             throw new ArgumentOutOfRangeException(nameof(sourceRowCount));
 
-        if (validRowCount < 0)
-            throw new ArgumentOutOfRangeException(nameof(validRowCount));
+        if (validatedRowCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(validatedRowCount));
 
         if (createdCount < 0)
             throw new ArgumentOutOfRangeException(nameof(createdCount));
 
-        if (skippedCount < 0)
-            throw new ArgumentOutOfRangeException(nameof(skippedCount));
+        if (unchangedRowCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(unchangedRowCount));
 
-        if (validRowCount > sourceRowCount)
-            throw new ArgumentException("ValidRowCount cannot exceed SourceRowCount.", nameof(validRowCount));
+        if (publishedRowCount < 0)
+            throw new ArgumentOutOfRangeException(nameof(publishedRowCount));
 
-        if (createdCount + skippedCount > validRowCount)
-            throw new ArgumentException("CreatedCount and SkippedCount cannot exceed ValidRowCount.");
+        if (validatedRowCount > sourceRowCount)
+            throw new ArgumentException("ValidatedRowCount cannot exceed SourceRowCount.", nameof(validatedRowCount));
+
+        if (createdCount > publishedRowCount)
+            throw new ArgumentException("CreatedCount cannot exceed PublishedRowCount.", nameof(createdCount));
+
+        if (publishedRowCount + unchangedRowCount > validatedRowCount)
+            throw new ArgumentException("PublishedRowCount and UnchangedRowCount cannot exceed ValidatedRowCount.");
 
         if (actorUserId == Guid.Empty)
             throw new ArgumentException("ActorUserId cannot be empty.", nameof(actorUserId));
@@ -111,9 +124,10 @@ public class EmployeeImportHistory : BaseEntity, ITenantEntity
             SourceFileName = sourceFileName.Trim(),
             SourceFileSizeBytes = sourceFileSizeBytes,
             SourceRowCount = sourceRowCount,
-            ValidRowCount = validRowCount,
+            ValidatedRowCount = validatedRowCount,
             CreatedCount = createdCount,
-            SkippedCount = skippedCount,
+            UnchangedRowCount = unchangedRowCount,
+            PublishedRowCount = publishedRowCount,
             Status = AppliedStatus,
             AppliedAt = normalizedAppliedAt,
             ActorUserId = actorUserId,

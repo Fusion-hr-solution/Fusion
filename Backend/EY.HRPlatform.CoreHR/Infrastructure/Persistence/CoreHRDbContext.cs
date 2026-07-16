@@ -34,15 +34,19 @@ public class CoreHRDbContext : DbContext
     private Guid CurrentTenantId => _tenantContext?.TenantIdOrDefault ?? Guid.Empty;
 
     public DbSet<Employee> Employees => Set<Employee>();
-    public DbSet<Position> Positions => Set<Position>();
-    public DbSet<EmployeePositionAssignment> EmployeePositionAssignments => Set<EmployeePositionAssignment>();
-    public DbSet<EmployeeOrgMembership> EmployeeOrgMemberships => Set<EmployeeOrgMembership>();
-    public DbSet<EmployeeReportingRelationship> EmployeeReportingRelationships => Set<EmployeeReportingRelationship>();
+
+    // Canonical workforce model (Employee -> Employment -> WorkAssignment -> ManagerRelationship).
+    public DbSet<Employment> Employments => Set<Employment>();
+    public DbSet<WorkAssignment> WorkAssignments => Set<WorkAssignment>();
+    public DbSet<ManagerRelationship> ManagerRelationships => Set<ManagerRelationship>();
+    public DbSet<WorkforceAuditEntry> WorkforceAuditEntries => Set<WorkforceAuditEntry>();
+
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
     public DbSet<OrgUnit> OrgUnits => Set<OrgUnit>();
     public DbSet<DraftOrgUnit> DraftOrgUnits => Set<DraftOrgUnit>();
     public DbSet<DraftStructureImportSession> DraftStructureImportSessions => Set<DraftStructureImportSession>();
     public DbSet<EmployeeImportSession> EmployeeImportSessions => Set<EmployeeImportSession>();
+    public DbSet<EmployeeImportApplyOperation> EmployeeImportApplyOperations => Set<EmployeeImportApplyOperation>();
     public DbSet<EmployeeImportHistory> EmployeeImportHistories => Set<EmployeeImportHistory>();
     public DbSet<EmployeeImportFollowUpIssue> EmployeeImportFollowUpIssues => Set<EmployeeImportFollowUpIssue>();
     public DbSet<TenantSetupState> TenantSetupStates => Set<TenantSetupState>();
@@ -70,16 +74,16 @@ public class CoreHRDbContext : DbContext
         modelBuilder.Entity<Employee>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
 
-        modelBuilder.Entity<Position>()
+        modelBuilder.Entity<Employment>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
-        modelBuilder.Entity<EmployeePositionAssignment>()
+        modelBuilder.Entity<WorkAssignment>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
-        modelBuilder.Entity<EmployeeOrgMembership>()
+        modelBuilder.Entity<ManagerRelationship>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
-        modelBuilder.Entity<EmployeeReportingRelationship>()
+        modelBuilder.Entity<WorkforceAuditEntry>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<TenantSettings>()
@@ -96,6 +100,9 @@ public class CoreHRDbContext : DbContext
 
         modelBuilder.Entity<EmployeeImportSession>()
             .HasQueryFilter(session => CurrentTenantId != Guid.Empty && session.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<EmployeeImportApplyOperation>()
+            .HasQueryFilter(operation => CurrentTenantId != Guid.Empty && operation.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<EmployeeImportHistory>()
             .HasQueryFilter(history => CurrentTenantId != Guid.Empty && history.TenantId == CurrentTenantId);
