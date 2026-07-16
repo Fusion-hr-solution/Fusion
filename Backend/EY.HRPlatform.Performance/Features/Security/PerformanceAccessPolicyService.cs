@@ -103,30 +103,25 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
     // ─── Feedback identity access (D-07/D-10) ─────────────────────────────────
 
     public bool CanAccessConfidentialFeedbackIdentity(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ConfidentialIdentityView, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.ConfidentialIdentityView, PermissionScopes.Tenant);
 
     // ─── Feedback threshold details ───────────────────────────────────────────
 
     public bool CanViewFeedbackThresholdDetails(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant);
 
     public bool CanActOnOwnedException(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.ExceptionAction, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant);
 
     public bool CanOverrideException(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.ExceptionOverride, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant);
 
     public bool CanViewExceptionAudit(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.ExceptionAuditView, PermissionScopes.Tenant)
             || user.HasCorePermission(PerformancePermissions.ExceptionOverride, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant);
 
     // ─── Objective planning configuration ────────────────────────────────────
 
