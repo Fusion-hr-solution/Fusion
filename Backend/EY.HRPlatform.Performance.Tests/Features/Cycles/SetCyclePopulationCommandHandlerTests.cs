@@ -1,9 +1,9 @@
-using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.Cycles.Commands;
 using EY.HRPlatform.Performance.Features.Cycles.Dtos;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Tests.TestSupport;
+using EY.HRPlatform.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -13,67 +13,54 @@ public class SetCyclePopulationCommandHandlerTests
 {
     private static readonly Guid TenantId = Guid.NewGuid();
 
-    [Fact]
-    public async Task SetPopulation_WithOnlyExclusions_ReturnsValidationFailure()
+    private static async Task<Result<PerformanceCycleDetailDto>> RunAsync(string name, params PopulationRuleInput[] rules)
     {
-        await using var db = PerformanceTestContext.Create(TenantId, out var tenantContext);
-        var cycle = PerformanceCycle.Create(
-            TenantId,
-            "FY26 Population",
-            PerformanceCycleType.Annual,
-            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            new DateTime(2026, 12, 31, 0, 0, 0, DateTimeKind.Utc));
-        db.PerformanceCycles.Add(cycle);
-        await db.SaveChangesAsync();
-        var expectedVersion = (await db.PerformanceCycles.AsNoTracking().SingleAsync()).Version;
+        var dbName = $"set-population-{Guid.NewGuid()}";
+        Guid cycleId;
+        uint version;
 
+        // Seed with one context; execute with a separate context sharing the DB (request-per-context).
+        await using (var seedDb = PerformanceTestContext.Create(TenantId, out _, dbName))
+        {
+            var cycle = TestCycles.Create(
+                TenantId, name, PerformanceCycleType.Annual,
+                new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                new DateTime(2026, 12, 31, 0, 0, 0, DateTimeKind.Utc));
+            seedDb.PerformanceCycles.Add(cycle);
+            await seedDb.SaveChangesAsync();
+            cycleId = cycle.Id;
+            version = cycle.Version;
+        }
+
+        await using var db = PerformanceTestContext.Create(TenantId, out var tenantContext, dbName);
         var handler = new SetCyclePopulationCommandHandler(
-            db,
-            tenantContext,
-            new StubCurrentUserContext(),
-            Options.Create(new ReminderOptions()));
+            db, tenantContext, new StubCurrentUserContext(), Options.Create(new ReminderOptions()));
 
-        var result = await handler.Handle(new SetCyclePopulationCommand(
-            cycle.Id,
-            expectedVersion,
-            false,
-            [new PopulationRuleInput(PopulationRuleType.ExcludeEmployee.ToString(), Guid.NewGuid(), false)]),
-            CancellationToken.None);
+        return await handler.Handle(
+            new SetCyclePopulationCommand(cycleId, version, false, rules), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task SetPopulation_WithNoScope_IsAllActiveBaseline_Succeeds()
+        => Assert.True((await RunAsync("FY26 All active")).IsSuccess);
+
+    [Fact]
+    public async Task SetPopulation_ExclusionWithoutReason_ReturnsValidationFailure()
+    {
+        var result = await RunAsync("FY26 Exclusion no reason",
+            new PopulationRuleInput(PopulationRuleType.ExcludeEmployee.ToString(), Guid.NewGuid(), false, null));
 
         Assert.True(result.IsFailure);
-        Assert.Equal("Cycle.EmptyPopulationRuleSet", result.Error.Code);
+        Assert.Equal("Cycle.ExclusionReasonRequired", result.Error.Code);
     }
 
     [Fact]
     public async Task SetPopulation_WithConflictingExplicitRules_ReturnsValidationFailure()
     {
-        await using var db = PerformanceTestContext.Create(TenantId, out var tenantContext);
-        var cycle = PerformanceCycle.Create(
-            TenantId,
-            "FY26 Conflicting population",
-            PerformanceCycleType.Annual,
-            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-            new DateTime(2026, 12, 31, 0, 0, 0, DateTimeKind.Utc));
-        db.PerformanceCycles.Add(cycle);
-        await db.SaveChangesAsync();
-        var expectedVersion = (await db.PerformanceCycles.AsNoTracking().SingleAsync()).Version;
-
         var employeeId = Guid.NewGuid();
-        var handler = new SetCyclePopulationCommandHandler(
-            db,
-            tenantContext,
-            new StubCurrentUserContext(),
-            Options.Create(new ReminderOptions()));
-
-        var result = await handler.Handle(new SetCyclePopulationCommand(
-            cycle.Id,
-            expectedVersion,
-            false,
-            [
-                new PopulationRuleInput(PopulationRuleType.IncludeEmployee.ToString(), employeeId, false),
-                new PopulationRuleInput(PopulationRuleType.ExcludeEmployee.ToString(), employeeId, false),
-            ]),
-            CancellationToken.None);
+        var result = await RunAsync("FY26 Conflicting population",
+            new PopulationRuleInput(PopulationRuleType.IncludeEmployee.ToString(), employeeId, false),
+            new PopulationRuleInput(PopulationRuleType.ExcludeEmployee.ToString(), employeeId, false, "Duplicate"));
 
         Assert.True(result.IsFailure);
         Assert.Equal("Cycle.ConflictingPopulationRule", result.Error.Code);

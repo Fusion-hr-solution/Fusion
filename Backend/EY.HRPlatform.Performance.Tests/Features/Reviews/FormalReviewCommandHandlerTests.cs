@@ -35,7 +35,7 @@ public sealed class FormalReviewCommandHandlerTests
         var tenantId = Guid.NewGuid();
         var db = PerformanceTestContext.Create(tenantId, out _);
         var now = DateTime.UtcNow;
-        var cycle = PerformanceCycle.Create(tenantId, "FY review", PerformanceCycleType.Annual, now, now.AddDays(10));
+        var cycle = TestCycles.Create(tenantId, "FY review", PerformanceCycleType.Annual, now, now.AddDays(10));
         db.PerformanceCycles.Add(cycle);
         await db.SaveChangesAsync();
         var handler = new ConfigureFormalReviewDefinitionCommandHandler(db, new StubCurrentUserContext());
@@ -123,7 +123,7 @@ public sealed class FormalReviewCommandHandlerTests
     private static PerformanceCycle NewActiveCycle(Guid tenantId)
     {
         var now = DateTime.UtcNow;
-        var cycle = PerformanceCycle.Create(tenantId, "FY review", PerformanceCycleType.Annual, now.AddDays(-2), now.AddDays(10));
+        var cycle = TestCycles.Create(tenantId, "FY review", PerformanceCycleType.Annual, now.AddDays(-2), now.AddDays(10));
         cycle.ConfigureGovernance(Guid.NewGuid(), false, 3, CampaignFeedbackVisibility.AnonymousToSubject, [Guid.NewGuid()]);
         cycle.BeginAssignmentPreparation(1, now.AddDays(-1));
         cycle.MarkReadyToLaunch(1, 0, true, now.AddHours(-12));

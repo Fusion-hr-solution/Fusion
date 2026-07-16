@@ -14,7 +14,7 @@ public sealed class ConfigureFeedbackTemplateCommandHandlerTests
         var tenantId = Guid.NewGuid();
         var db = PerformanceTestContext.Create(tenantId, out _);
         var now = DateTime.UtcNow;
-        var cycle = PerformanceCycle.Create(tenantId, "FY review", PerformanceCycleType.Annual, now.AddDays(-2), now.AddDays(10));
+        var cycle = TestCycles.Create(tenantId, "FY review", PerformanceCycleType.Annual, now.AddDays(-2), now.AddDays(10));
         db.PerformanceCycles.Add(cycle);
         await db.SaveChangesAsync();
         var handler = new ConfigureFeedbackTemplateCommandHandler(db, new StubCurrentUserContext());
@@ -52,7 +52,7 @@ public sealed class ConfigureFeedbackTemplateCommandHandlerTests
         var tenantId = Guid.NewGuid();
         var db = PerformanceTestContext.Create(tenantId, out _);
         var now = DateTime.UtcNow;
-        var cycle = PerformanceCycle.Create(tenantId, "FY review", PerformanceCycleType.Annual, now.AddDays(-2), now.AddDays(10));
+        var cycle = TestCycles.Create(tenantId, "FY review", PerformanceCycleType.Annual, now.AddDays(-2), now.AddDays(10));
         cycle.ConfigureGovernance(Guid.NewGuid(), false, 3, CampaignFeedbackVisibility.AnonymousToSubject, [Guid.NewGuid()]);
         cycle.BeginAssignmentPreparation(1, now.AddDays(-1));
         cycle.MarkReadyToLaunch(1, 0, true, now.AddHours(-12));
@@ -75,7 +75,7 @@ public sealed class ConfigureFeedbackTemplateCommandHandlerTests
         var tenantId = Guid.NewGuid();
         var db = PerformanceTestContext.Create(tenantId, out _);
         var now = DateTime.UtcNow;
-        var cycle = PerformanceCycle.Create(tenantId, "FY review", PerformanceCycleType.Annual, now.AddDays(-2), now.AddDays(10));
+        var cycle = TestCycles.Create(tenantId, "FY review", PerformanceCycleType.Annual, now.AddDays(-2), now.AddDays(10));
         var template = FeedbackTemplateSnapshot.Create(tenantId, cycle.Id, FeedbackResponseType.Peer, "Existing",
             [new FeedbackPromptDefinition("Q1", null, true, 1)], now);
         db.AddRange(cycle, template);
@@ -96,7 +96,7 @@ public sealed class ConfigureFeedbackTemplateCommandHandlerTests
         var tenantId = Guid.NewGuid();
         var db = PerformanceTestContext.Create(tenantId, out _);
         var now = DateTime.UtcNow;
-        var cycle = PerformanceCycle.Create(tenantId, "FY review", PerformanceCycleType.Annual, now.AddDays(-2), now.AddDays(10));
+        var cycle = TestCycles.Create(tenantId, "FY review", PerformanceCycleType.Annual, now.AddDays(-2), now.AddDays(10));
         db.PerformanceCycles.Add(cycle);
         await db.SaveChangesAsync();
         var handler = new ConfigureFeedbackTemplateCommandHandler(db, new StubCurrentUserContext());

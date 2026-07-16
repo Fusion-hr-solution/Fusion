@@ -24,6 +24,8 @@ public class PerformanceCycleParticipantTests
             Guid.NewGuid(),
             Guid.NewGuid(),
             "Employee One",
+            approverEmployeeId: Guid.NewGuid(),
+            approverName: "Manager One",
             managerId: Guid.NewGuid(),
             managerName: "Manager One");
 

@@ -151,14 +151,9 @@ public sealed class ResolveFeedbackIdentityCommandHandlerTests
         public bool CanViewCycles(System.Security.Claims.ClaimsPrincipal user) => false;
         public bool CanManageCycles(System.Security.Claims.ClaimsPrincipal user) => false;
         public bool CanOperateCycles(System.Security.Claims.ClaimsPrincipal user) => false;
-        public bool CanViewObjectiveLibrary(System.Security.Claims.ClaimsPrincipal user) => false;
-        public bool CanManageObjectiveLibrary(System.Security.Claims.ClaimsPrincipal user) => false;
         public bool CanViewStrategicObjectives(System.Security.Claims.ClaimsPrincipal user) => false;
         public bool CanManageStrategicObjectives(System.Security.Claims.ClaimsPrincipal user) => false;
         public bool CanPublishStrategicObjectives(System.Security.Claims.ClaimsPrincipal user) => false;
-        public bool CanViewCollectiveObjectives(System.Security.Claims.ClaimsPrincipal user) => false;
-        public bool CanApproveCollectiveObjectives(System.Security.Claims.ClaimsPrincipal user) => false;
-        public bool CanCorrectObjectiveProgress(System.Security.Claims.ClaimsPrincipal user) => false;
         public bool CanAccessConfidentialFeedbackIdentity(System.Security.Claims.ClaimsPrincipal user) => canAccessConfidential;
         public bool CanViewFeedbackThresholdDetails(System.Security.Claims.ClaimsPrincipal user) => false;
     }
