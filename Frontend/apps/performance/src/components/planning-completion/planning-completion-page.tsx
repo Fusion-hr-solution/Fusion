@@ -373,6 +373,7 @@ function CompletionOverview({
   onSelectStatus: (status: string) => void;
 }) {
   const { summary } = workspace;
+  const isLocked = !!workspace.planningLockedAt;
   const denominator = Math.max(1, summary.totalParticipants);
   const approvedWidth = (summary.approvedCount / denominator) * 100;
   const excludedWidth = (summary.excludedCount / denominator) * 100;
@@ -383,8 +384,23 @@ function CompletionOverview({
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tone={summary.isReadyToLock ? "success" : summary.blockedCount > 0 ? "warning" : "info"} dot>
-              {summary.isReadyToLock ? "Ready to lock" : `${summary.remainingCount} remaining`}
+            <StatusBadge
+              tone={
+                isLocked
+                  ? "neutral"
+                  : summary.isReadyToLock
+                    ? "success"
+                    : summary.blockedCount > 0
+                      ? "warning"
+                      : "info"
+              }
+              dot
+            >
+              {isLocked
+                ? "Locked"
+                : summary.isReadyToLock
+                  ? "Ready to lock"
+                  : `${summary.remainingCount} remaining`}
             </StatusBadge>
             {workspace.planningLockedAt ? (
               <span className="text-sm text-muted-foreground">
