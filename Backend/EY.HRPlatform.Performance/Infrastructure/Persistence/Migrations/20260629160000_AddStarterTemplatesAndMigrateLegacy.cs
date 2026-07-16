@@ -207,6 +207,33 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     table.PrimaryKey("PK_ObjectiveTemplates", x => x.Id);
                 });
 
+            // Restore every index created by the earlier ObjectiveTemplates migrations
+            // so their Down methods can unwind the schema in reverse order.
+            migrationBuilder.CreateIndex(
+                name: "IX_ObjectiveTemplates_TenantId",
+                schema: "performance",
+                table: "ObjectiveTemplates",
+                column: "TenantId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ObjectiveTemplates_TenantId_Name",
+                schema: "performance",
+                table: "ObjectiveTemplates",
+                columns: new[] { "TenantId", "Name" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ObjectiveTemplates_Tenant_Parent",
+                schema: "performance",
+                table: "ObjectiveTemplates",
+                columns: new[] { "TenantId", "ParentTemplateId" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ObjectiveTemplates_TenantId_Status",
+                schema: "performance",
+                table: "ObjectiveTemplates",
+                columns: new[] { "TenantId", "Status" });
+
             migrationBuilder.DropTable(
                 name: "PlatformStarterTemplates",
                 schema: "performance");
