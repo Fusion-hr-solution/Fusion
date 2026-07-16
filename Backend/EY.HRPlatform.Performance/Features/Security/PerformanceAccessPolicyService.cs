@@ -8,8 +8,6 @@ public interface IPerformanceAccessPolicyService
     bool CanViewCycles(ClaimsPrincipal user);
     bool CanManageCycles(ClaimsPrincipal user);
     bool CanOperateCycles(ClaimsPrincipal user);
-    bool CanViewObjectiveLibrary(ClaimsPrincipal user);
-    bool CanManageObjectiveLibrary(ClaimsPrincipal user);
 
     // Strategic objective access (D-05: deny-by-default; no position auto-grant)
     bool CanViewStrategicObjectives(ClaimsPrincipal user);
@@ -32,6 +30,13 @@ public interface IPerformanceAccessPolicyService
     bool CanActOnOwnedException(ClaimsPrincipal user) => false;
     bool CanOverrideException(ClaimsPrincipal user) => false;
     bool CanViewExceptionAudit(ClaimsPrincipal user) => false;
+
+    // Objective planning configuration
+    bool CanViewObjectivePlanningConfiguration(ClaimsPrincipal user) => false;
+    bool CanManageObjectivePlanningConfiguration(ClaimsPrincipal user) => false;
+
+    // Platform configuration — gated by PlatformRole.PlatformAdmin only (D1)
+    bool CanManagePlatformDefaults(ClaimsPrincipal user) => false;
 }
 
 /// <summary>
@@ -52,15 +57,6 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
 
     public bool CanOperateCycles(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
-
-    public bool CanViewObjectiveLibrary(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ObjectiveLibraryView, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ObjectiveLibraryManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
-
-    public bool CanManageObjectiveLibrary(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ObjectiveLibraryManage, PermissionScopes.Tenant)
             || user.IsInRole(PlatformRole.PlatformAdmin);
 
     // ─── Strategic objective permissions (D-05) ───────────────────────────────
@@ -124,4 +120,18 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
             || user.HasCorePermission(PerformancePermissions.ExceptionOverride, PermissionScopes.Tenant)
             || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant)
             || user.IsInRole(PlatformRole.PlatformAdmin);
+
+    // ─── Objective planning configuration ────────────────────────────────────
+
+    public bool CanViewObjectivePlanningConfiguration(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectivePolicyView, PermissionScopes.Tenant)
+            || user.HasCorePermission(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant);
+
+    public bool CanManageObjectivePlanningConfiguration(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant);
+
+    // ─── Platform performance configuration (D1: PlatformAdmin only) ─────────
+
+    public bool CanManagePlatformDefaults(ClaimsPrincipal user)
+        => user.IsInRole(PlatformRole.PlatformAdmin);
 }

@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Entities;
+using EY.HRPlatform.Performance.Domain.Entities.Platform;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -45,9 +46,19 @@ public class PerformanceDbContext : DbContext
     public DbSet<PerformanceObjectiveMilestone> PerformanceObjectiveMilestones => Set<PerformanceObjectiveMilestone>();
     public DbSet<CampaignWorkItem> CampaignWorkItems => Set<CampaignWorkItem>();
     public DbSet<CampaignAssignmentResponsibility> CampaignAssignmentResponsibilities => Set<CampaignAssignmentResponsibility>();
-    public DbSet<ObjectiveTemplate> ObjectiveTemplates => Set<ObjectiveTemplate>();
     public DbSet<PerformanceNotification> PerformanceNotifications => Set<PerformanceNotification>();
     public DbSet<PerformanceCycleAuditEvent> PerformanceCycleAuditEvents => Set<PerformanceCycleAuditEvent>();
+    public DbSet<PerformanceConfigurationAuditEntry> PerformanceConfigurationAuditEntries => Set<PerformanceConfigurationAuditEntry>();
+
+    // Platform-scoped entities (D1: no tenant filter, no ITenantEntity, PlatformAdmin gated)
+    public DbSet<PlatformPerformanceGuardrails> PlatformPerformanceGuardrails => Set<PlatformPerformanceGuardrails>();
+    public DbSet<PlatformObjectiveBaseline> PlatformObjectiveBaselines => Set<PlatformObjectiveBaseline>();
+    public DbSet<PlatformObjectiveBaselineVersion> PlatformObjectiveBaselineVersions => Set<PlatformObjectiveBaselineVersion>();
+
+
+    // Tenant objective policy
+    public DbSet<TenantObjectivePolicy> TenantObjectivePolicies => Set<TenantObjectivePolicy>();
+    public DbSet<TenantObjectivePolicyVersion> TenantObjectivePolicyVersions => Set<TenantObjectivePolicyVersion>();
 
     // Strategic objective + phase shared entities (Plan 03-02)
     public DbSet<StrategicPeriod> StrategicPeriods => Set<StrategicPeriod>();
@@ -61,6 +72,32 @@ public class PerformanceDbContext : DbContext
     public DbSet<FeedbackResponseContent> FeedbackResponseContents => Set<FeedbackResponseContent>();
     public DbSet<FeedbackResponseVersion> FeedbackResponseVersions => Set<FeedbackResponseVersion>();
     public DbSet<FeedbackIdentityMapping> FeedbackIdentityMappings => Set<FeedbackIdentityMapping>();
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        RejectAuditEntryMutations();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        RejectAuditEntryMutations();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    /// <summary>
+    /// Configuration lifecycle records are append-only (P1.1 §15): any tracked update or delete
+    /// of an existing entry is rejected before it reaches the database.
+    /// </summary>
+    private void RejectAuditEntryMutations()
+    {
+        var mutated = ChangeTracker.Entries<PerformanceConfigurationAuditEntry>()
+            .Any(e => e.State is EntityState.Modified or EntityState.Deleted);
+
+        if (mutated)
+            throw new InvalidOperationException(
+                "Configuration audit entries are append-only and cannot be modified or deleted.");
+    }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -128,14 +165,17 @@ public class PerformanceDbContext : DbContext
         modelBuilder.Entity<CampaignAssignmentResponsibility>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
-        modelBuilder.Entity<ObjectiveTemplate>()
-            .HasQueryFilter(t => CurrentTenantId != Guid.Empty && t.TenantId == CurrentTenantId);
-
         modelBuilder.Entity<PerformanceNotification>()
             .HasQueryFilter(n => CurrentTenantId != Guid.Empty && n.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<PerformanceCycleAuditEvent>()
             .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<TenantObjectivePolicy>()
+            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<TenantObjectivePolicyVersion>()
+            .HasQueryFilter(v => CurrentTenantId != Guid.Empty && v.TenantId == CurrentTenantId);
 
         // Strategic + phase shared entity tenant filters (Plan 03-02)
         modelBuilder.Entity<StrategicPeriod>()

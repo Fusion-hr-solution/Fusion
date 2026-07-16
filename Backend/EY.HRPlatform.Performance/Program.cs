@@ -63,6 +63,7 @@ if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<PerformanceDbContext>();
     await dbContext.Database.MigrateAsync();
+    await PlatformDefaultsSeeder.SeedAsync(dbContext);
 }
 
 if (app.Environment.IsDevelopment())

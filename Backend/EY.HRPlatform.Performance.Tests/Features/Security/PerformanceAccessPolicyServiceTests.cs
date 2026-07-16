@@ -16,8 +16,9 @@ public class PerformanceAccessPolicyServiceTests
         Assert.False(_policy.CanViewCycles(user));
         Assert.False(_policy.CanManageCycles(user));
         Assert.False(_policy.CanOperateCycles(user));
-        Assert.False(_policy.CanViewObjectiveLibrary(user));
-        Assert.False(_policy.CanManageObjectiveLibrary(user));
+        Assert.False(_policy.CanViewObjectivePlanningConfiguration(user));
+        Assert.False(_policy.CanManageObjectivePlanningConfiguration(user));
+        Assert.False(_policy.CanManagePlatformDefaults(user));
         Assert.False(_policy.CanActOnOwnedException(user));
         Assert.False(_policy.CanOverrideException(user));
         Assert.False(_policy.CanViewExceptionAudit(user));
@@ -59,14 +60,14 @@ public class PerformanceAccessPolicyServiceTests
     }
 
     [Fact]
-    public void ObjectiveLibraryManageGrant_AllowsManageAndView()
+    public void ObjectivePolicyManageGrant_AllowsPlanningConfigurationManageAndView()
     {
         var user = new ClaimsPrincipalBuilder()
-            .WithPermission(PerformancePermissions.ObjectiveLibraryManage, PermissionScopes.Tenant)
+            .WithPermission(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant)
             .Build();
 
-        Assert.True(_policy.CanViewObjectiveLibrary(user));
-        Assert.True(_policy.CanManageObjectiveLibrary(user));
+        Assert.True(_policy.CanViewObjectivePlanningConfiguration(user));
+        Assert.True(_policy.CanManageObjectivePlanningConfiguration(user));
     }
 
     [Fact]
@@ -79,8 +80,7 @@ public class PerformanceAccessPolicyServiceTests
         Assert.True(_policy.CanViewCycles(user));
         Assert.True(_policy.CanManageCycles(user));
         Assert.True(_policy.CanOperateCycles(user));
-        Assert.True(_policy.CanViewObjectiveLibrary(user));
-        Assert.True(_policy.CanManageObjectiveLibrary(user));
+        Assert.True(_policy.CanManagePlatformDefaults(user));
         Assert.True(_policy.CanActOnOwnedException(user));
         Assert.True(_policy.CanOverrideException(user));
         Assert.True(_policy.CanViewExceptionAudit(user));
