@@ -60,9 +60,16 @@ export {
   canAccessTenantSurfaces,
   canViewPerformanceCycles,
   canManagePerformanceCycles,
+  canViewPerformanceCampaigns,
+  canManagePerformanceCampaigns,
   canOperatePerformanceCycles,
-  canViewObjectiveLibrary,
-  canManageObjectiveLibrary,
+  canViewObjectivePlanningConfiguration,
+  canManageObjectivePlanningConfiguration,
+  canManageTeamObjectives,
+  canAccessTeamObjectives,
+  canAccessPlanApprovals,
+  canAccessMyObjectives,
+  canViewPerformanceStrategy,
   canAccessPerformance,
 } from "./roles";
 
