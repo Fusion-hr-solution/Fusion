@@ -1,4 +1,4 @@
-import { ClipboardCheck, ClipboardList, Compass, Megaphone, ScrollText, Settings2, Target, UserRoundCheck } from "lucide-react";
+import { ClipboardList, Compass, Megaphone, ScrollText, Settings2, Target } from "lucide-react";
 import type { ShellNavSection } from "@repo/ds/shell";
 
 export const OVERVIEW_NAV: ShellNavSection = {
@@ -28,17 +28,6 @@ export const CAMPAIGNS_NAV: ShellNavSection = {
   ],
 };
 
-/** Employee door: personal objective plans inside launched campaigns. */
-export const MY_OBJECTIVES_NAV: ShellNavSection = {
-  items: [
-    {
-      label: "My objectives",
-      href: "/my-objectives",
-      icon: UserRoundCheck,
-    },
-  ],
-};
-
 /** Manager door: team objectives inside launched campaigns (frozen responsibility). */
 export const TEAM_OBJECTIVES_NAV: ShellNavSection = {
   items: [
@@ -46,17 +35,6 @@ export const TEAM_OBJECTIVES_NAV: ShellNavSection = {
       label: "Team objectives",
       href: "/team-objectives",
       icon: Target,
-    },
-  ],
-};
-
-/** Manager review door: plan-level employee objective approvals. */
-export const PLAN_APPROVALS_NAV: ShellNavSection = {
-  items: [
-    {
-      label: "Plan approvals",
-      href: "/plan-approvals",
-      icon: ClipboardCheck,
     },
   ],
 };
