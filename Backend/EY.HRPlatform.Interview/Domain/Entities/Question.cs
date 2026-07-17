@@ -19,6 +19,13 @@ public class Question : AggregateRoot
     /// <summary>For multi-file coding questions: JSON { entry, files: [{ path, content }] }.
     /// Null/empty means the question is single-file (uses <see cref="StarterCode"/>).</summary>
     public string? ProjectFiles { get; set; }
+    /// <summary>FrontendProject questions only: the framework the candidate builds in
+    /// ("react" | "angular" | "next"). Selects the in-browser runtime + starter template.</summary>
+    public string? Framework { get; set; }
+    /// <summary>FrontendProject questions only: the author's grading test suite as JSON
+    /// { files: [{ path, content }] }. **Candidate-hidden** — never mapped into the candidate
+    /// DTO; injected server-side only at grade time (like Judge0's hidden expectedOutput).</summary>
+    public string? FrontendTestFiles { get; set; }
     public string? EvaluationCriteria { get; set; }
     public string? TestCases { get; set; }
     //public DateTime CreatedAt { get; protected set; }

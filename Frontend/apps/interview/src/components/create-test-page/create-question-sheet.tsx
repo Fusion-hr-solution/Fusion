@@ -3,12 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Plus, CheckCircle2, Sparkles, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { QUESTION_TYPES, CODING_LANGUAGES, GRADING_METHODS } from "@/config/constants";
+import { QUESTION_TYPES, CODING_LANGUAGES, GRADING_METHODS, FRONTEND_FRAMEWORKS } from "@/config/constants";
 import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import { TestCasesEditor } from "@/components/create-test-page/test-cases-editor";
 import { ProjectEditor } from "@/components/create-test-page/project-editor";
 import { generateQuestions } from "@/services/test-service";
 import { defaultFileName, serializeProject } from "@/lib/project";
+import {
+  frameworkStarterProject,
+  normalizeFramework,
+  testFilePattern,
+  validateFrontendQuestion,
+} from "@/lib/frontend-templates";
 import type { NewQuestionForm, QuestionType, Difficulty, GradingMethod } from "@/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -41,6 +47,17 @@ function getValidationError(form: NewQuestionForm): string | null {
 
   if ((form.type === "Coding" || form.type === "SQL") && !form.language.trim()) {
     return "Language is required for Coding and SQL questions.";
+  }
+
+  if (form.type === "Frontend Project") {
+    // Blocks the two ways a Frontend question can be silently ungradeable: a grading test that
+    // overwrites a starter file, or test files the runner will never discover.
+    const frontendError = validateFrontendQuestion({
+      framework: form.framework,
+      projectFiles: form.projectFiles,
+      frontendTestFiles: form.frontendTestFiles,
+    });
+    if (frontendError) return frontendError;
   }
 
   if (form.type === "Multiple Choice" || form.type === "True/False") {
@@ -156,7 +173,17 @@ export function CreateQuestionSheet({
   const showOptions = form.type === "Multiple Choice" || form.type === "True/False";
   const showCoding  = form.type === "Coding" || form.type === "SQL";
   const showEval    = form.type === "Essay" || form.type === "Case Study";
+  const showFrontend = form.type === "Frontend Project";
   const multiFile = Boolean(form.projectFiles && form.projectFiles.trim().length > 0);
+
+  // Picking (or switching) a framework seeds the candidate-visible starter tree from that
+  // framework's template — the framework defines the whole project shape, so a switch replaces it.
+  // Bumping seedKey remounts the ProjectEditor so it re-reads the new starter (it seeds once).
+  function setFramework(value: string) {
+    update("framework", value);
+    update("projectFiles", serializeProject(frameworkStarterProject(normalizeFramework(value))));
+    setSeedKey((k) => k + 1);
+  }
 
   function toggleMultiFile(on: boolean) {
     if (on) {
@@ -669,6 +696,64 @@ export function CreateQuestionSheet({
                       onChange={(testCases) => update("testCases", testCases)}
                     />
                   </div>
+                </div>
+              )}
+
+              {/* Frontend Project */}
+              {showFrontend && (
+                <div className="flex flex-col gap-4 border-t border-zinc-100 pt-5">
+                  <div>
+                    <FieldLabel>Framework</FieldLabel>
+                    <DropdownSelect
+                      id="question-framework"
+                      ariaLabel="Frontend framework"
+                      value={form.framework ?? ""}
+                      placeholder="Select framework"
+                      options={FRONTEND_FRAMEWORKS}
+                      onChange={setFramework}
+                    />
+                    <p className="mt-1.5 text-[11px] text-zinc-400">
+                      Candidates build a live {form.framework || "framework"} app in the browser. Standard library
+                      + the framework only — no extra npm installs.
+                    </p>
+                  </div>
+
+                  {form.framework ? (
+                    <>
+                      <div>
+                        <FieldLabel>Starter Project</FieldLabel>
+                        <p className="mb-2 text-[11px] text-zinc-400">The files the candidate starts from.</p>
+                        <ProjectEditor
+                          key={`starter-${seedKey}`}
+                          value={form.projectFiles ?? ""}
+                          onChange={(json) => update("projectFiles", json)}
+                        />
+                      </div>
+
+                      <div className="border-t border-zinc-100 pt-4">
+                        <FieldLabel>Grading Tests (hidden from candidate)</FieldLabel>
+                        <p className="mb-2 text-[11px] text-zinc-400">
+                          Optional. Test files run server-side against the submission to auto-score it. Leave empty
+                          to grade this question by human review.
+                        </p>
+                        <p className="mb-2 text-[11px] text-zinc-400">
+                          Name them{" "}
+                          <code className="rounded bg-zinc-100 px-1 py-0.5 text-zinc-600">
+                            {testFilePattern(normalizeFramework(form.framework)).hint}
+                          </code>{" "}
+                          — and never reuse a starter file&apos;s path: tests are overlaid on top of the candidate&apos;s
+                          code, so a shared path would overwrite it.
+                        </p>
+                        <ProjectEditor
+                          key={`tests-${seedKey}`}
+                          value={form.frontendTestFiles ?? ""}
+                          onChange={(json) => update("frontendTestFiles", json)}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-[12px] text-zinc-400">Select a framework to define the starter project.</p>
+                  )}
                 </div>
               )}
 

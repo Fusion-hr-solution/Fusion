@@ -9,8 +9,12 @@ using System.Net.Sockets;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Never load the developer's .env under Testing: Env.Load stamps its values into process env vars,
+// which (a) leaks real dev secrets into the test host and (b) makes tests non-deterministic — they'd
+// silently pick up whatever key/issuer a given machine has, overriding the config the test harness
+// supplies. Integration tests configure themselves explicitly instead.
 var envPath = Path.Combine(builder.Environment.ContentRootPath, ".env");
-if (File.Exists(envPath))
+if (File.Exists(envPath) && !builder.Environment.IsEnvironment("Testing"))
 {
     Env.Load(envPath);
     builder.Configuration.AddEnvironmentVariables();

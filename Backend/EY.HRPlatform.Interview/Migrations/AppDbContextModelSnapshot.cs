@@ -638,6 +638,13 @@ namespace EY.HRPlatform.Interview.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("character varying(4000)");
 
+                    b.Property<string>("Framework")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("FrontendTestFiles")
+                        .HasColumnType("text");
+
                     b.Property<string>("GradingMethod")
                         .IsRequired()
                         .HasMaxLength(20)
