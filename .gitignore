@@ -109,6 +109,7 @@ tmp/
 temp/
 .tmp/
 .worktrees/
+openspec/
 *.tsbuildinfo
 .eslintcache
 .sass-cache/
