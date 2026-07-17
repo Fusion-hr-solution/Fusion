@@ -16,7 +16,14 @@ export const DIFFICULTY_LEVELS: DifficultyLevel[] = [
 
 export const QUESTION_TYPES: QuestionType[] = [
   "Coding", "SQL", "Multiple Choice", "Essay",
-  "Case Study", "Excel", "True/False", "Design",
+  "Case Study", "Excel", "True/False", "Design", "Frontend Project",
+];
+
+// Frameworks a "Frontend Project" question can be built/assessed in.
+export const FRONTEND_FRAMEWORKS: { label: string; value: string }[] = [
+  { label: "React",   value: "react"   },
+  { label: "Angular", value: "angular" },
+  { label: "Next.js", value: "next"    },
 ];
 
 export const DIFFICULTIES: Difficulty[] = ["Easy", "Medium", "Hard", "Expert"];

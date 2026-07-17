@@ -17,7 +17,7 @@ public class CandidateInvitationRoutesIntegrationTests
     {
         await using var factory = new InterviewApiFactory();
         var testId = await SeedTestAsync(factory.Services);
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });

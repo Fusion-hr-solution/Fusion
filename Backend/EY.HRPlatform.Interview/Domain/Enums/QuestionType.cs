@@ -9,5 +9,6 @@ public enum QuestionType
     CaseStudy,
     Excel,
     TrueFalse,
-    Design
+    Design,
+    FrontendProject
 }
