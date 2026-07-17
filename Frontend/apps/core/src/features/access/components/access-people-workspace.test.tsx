@@ -235,6 +235,9 @@ const accessProfiles: AccessProfileSummaryDto[] = [
 const ALL_RESULTS_SELECTION_TIMEOUT_MS = 15_000;
 const ACCESS_WORKSPACE_RENDER_TIMEOUT_MS = 30_000;
 
+// Access workspace renders a large table and can exceed Vitest's default under CI contention.
+vi.setConfig({ testTimeout: ACCESS_WORKSPACE_RENDER_TIMEOUT_MS });
+
 function resetSearchParams() {
   Array.from(mockSearchParams.keys()).forEach((key) =>
     mockSearchParams.delete(key)
