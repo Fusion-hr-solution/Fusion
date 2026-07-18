@@ -88,9 +88,40 @@ export const campaignStrategy = {
   editLabel: (title: string) => `Edit ${title}`,
 } as const;
 
-/** Launched-campaign workspaces available to the signed-in user. */
+/**
+ * Launched-campaign planning funnel — HR's end-to-end command center on the
+ * campaign detail. Each stage carries live state (a meter or numeral), never an
+ * explanatory caption. Point-of-action wording keeps a launched-but-not-open
+ * campaign from reading as "employees can plan now".
+ */
 export const campaignPlanningFlow = {
   title: "Planning flow",
+  stages: {
+    strategy: "Strategy coverage",
+    team: "Team objectives",
+    employeePlans: "Employee plans",
+    approvals: "Plan approvals",
+    completion: "Completion & lock",
+  },
+  covered: (covered: number, total: number) => `${covered}/${total} covered`,
+  managersWithObjectives: (withObjectives: number, total: number) =>
+    `${withObjectives}/${total} managers`,
+  submitted: (submitted: number, total: number) => `${submitted}/${total} in`,
+  awaitingReview: (count: number) =>
+    `${count} awaiting ${count === 1 ? "review" : "reviews"}`,
+  approved: (count: number) => `${count} approved`,
+  remaining: (count: number) =>
+    `${count} ${count === 1 ? "person" : "people"} left`,
+  blocked: (count: number) => `${count} blocked`,
+  readyToLock: "Ready to lock",
+  locked: "Planning locked",
+  /** Launched but the planning window has not opened yet. */
+  opensOn: (date: string) => `Opens ${date}`,
+  allCovered: "Fully covered",
+  none: "—",
+  /** Shared reviewer terms so the funnel and completion detail read the same. */
+  effectiveReviewer: "Reviewer",
+  frozenApprover: "Frozen approver",
 } as const;
 
 /** Objective-planning population scope surface. */
