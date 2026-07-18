@@ -26,6 +26,7 @@ import {
   PageEmpty,
   PageError,
   PageHeader,
+  PageListSkeleton,
   PagePermissionNotice,
   StatusBadge,
 } from "@repo/ds/shell";
@@ -56,7 +57,17 @@ export function MyObjectiveCampaignsPage() {
     { enabled: canManage },
   );
 
-  if (authLoading || (isLoading && canManage)) return <MyObjectiveListSkeleton />;
+  if (authLoading || (isLoading && canManage)) {
+    return (
+      <PageContainer>
+        <PageHeader
+          title={myObjectiveTerms.listTitle}
+          description={myObjectiveTerms.listDescription}
+        />
+        <PageListSkeleton label="Loading my objectives" />
+      </PageContainer>
+    );
+  }
 
   if (!canManage) {
     return (
@@ -1064,17 +1075,6 @@ function Metric({ value, label, muted = false }: { value: string; label: string;
 }
 
 // ── Skeletons ────────────────────────────────────────────────────────────────
-
-function MyObjectiveListSkeleton() {
-  return (
-    <PageContainer>
-      <div className="space-y-5" aria-busy aria-label="Loading my objectives">
-        <Skeleton className="h-8 w-44" />
-        <Skeleton className="h-32 rounded-2xl" />
-      </div>
-    </PageContainer>
-  );
-}
 
 function MyObjectiveWorkspaceSkeleton() {
   return (

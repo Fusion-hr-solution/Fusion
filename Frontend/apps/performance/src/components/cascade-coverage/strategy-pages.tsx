@@ -18,6 +18,7 @@ import {
   PageEmpty,
   PageError,
   PageHeader,
+  PageListSkeleton,
   PagePermissionNotice,
   StatusBadge,
 } from "@repo/ds/shell";
@@ -45,8 +46,16 @@ export function StrategyCampaignsPage() {
     { enabled: canView }
   );
 
-  if (authLoading) {
-    return <StrategyListSkeleton />;
+  if (authLoading || isLoading) {
+    return (
+      <PageContainer>
+        <PageHeader
+          title={strategyTerms.listTitle}
+          description={strategyTerms.listDescription}
+        />
+        <PageListSkeleton label="Loading strategy campaigns" />
+      </PageContainer>
+    );
   }
 
   if (!canView) {
@@ -60,9 +69,12 @@ export function StrategyCampaignsPage() {
 
   return (
     <PageContainer>
-      <PageHeader title={strategyTerms.listTitle} />
+      <PageHeader
+        title={strategyTerms.listTitle}
+        description={strategyTerms.listDescription}
+      />
 
-      {isLoading ? <StrategyListSkeleton /> : null}
+
       {!isLoading && error ? (
         <PageError
           title="Could not load campaigns"
@@ -313,37 +325,6 @@ export function StrategyCoveragePage() {
 }
 
 // ── Skeletons ─────────────────────────────────────────────────────────────────
-
-function StrategyListSkeleton() {
-  return (
-    <PageContainer>
-      <div
-        className="space-y-5"
-        aria-busy
-        aria-label="Loading strategy campaigns"
-      >
-        <Skeleton className="h-8 w-40" />
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-5 w-28 rounded-full" />
-              <Skeleton className="h-7 w-64" />
-              <Skeleton className="h-4 w-40" />
-            </div>
-            <div className="flex items-center gap-5 lg:w-[24rem]">
-              <div className="flex-1 space-y-2.5">
-                <Skeleton className="h-8 w-24" />
-                <Skeleton className="h-2.5 w-full rounded-full" />
-                <Skeleton className="h-3 w-40" />
-              </div>
-              <Skeleton className="size-5 shrink-0 rounded" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </PageContainer>
-  );
-}
 
 function StrategyCoverageSkeleton() {
   return (

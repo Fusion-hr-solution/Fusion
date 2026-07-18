@@ -305,6 +305,8 @@ export const campaignLaunch = {
 export const teamObjectiveTerms = {
   navLabel: "Team objectives",
   listTitle: "Team objectives",
+  listDescription:
+    "Turn strategy into team objectives for each campaign your team is part of.",
   teamTitle: "Your team",
   addAction: "Add",
   addFirstAction: "Add a team objective",
@@ -366,6 +368,8 @@ export const teamObjectiveEditor = {
 export const strategyTerms = {
   navLabel: "Strategy",
   listTitle: "Strategy",
+  listDescription:
+    "See how each launched campaign's strategic objectives are covered by team objectives.",
   emptyList: {
     title: "No launched campaigns",
     description: "Campaign strategy appears here once a campaign is launched.",

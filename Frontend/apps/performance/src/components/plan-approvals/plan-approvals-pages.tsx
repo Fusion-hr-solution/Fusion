@@ -32,6 +32,7 @@ import {
   PageEmpty,
   PageError,
   PageHeader,
+  PageListSkeleton,
   PagePermissionNotice,
   StatusBadge,
 } from "@repo/ds/shell";
@@ -57,6 +58,9 @@ const reviewGroups = [
   { key: "approved", title: "Approved" },
 ] as const;
 
+const PLAN_APPROVALS_DESCRIPTION =
+  "Review and approve the objective plans your team submits for each campaign.";
+
 export function PlanApprovalCampaignsPage() {
   const apiClient = useMemo(() => createPlatformApiClient(), []);
   const { user, isLoading: authLoading } = useAuth();
@@ -72,7 +76,14 @@ export function PlanApprovalCampaignsPage() {
     { enabled: canReview },
   );
 
-  if (authLoading || (isLoading && canReview)) return <PlanApprovalListSkeleton />;
+  if (authLoading || (isLoading && canReview)) {
+    return (
+      <PageContainer>
+        <PageHeader title="Plan approvals" description={PLAN_APPROVALS_DESCRIPTION} />
+        <PageListSkeleton label="Loading plan approvals" />
+      </PageContainer>
+    );
+  }
 
   if (!canReview) {
     return (
@@ -85,7 +96,7 @@ export function PlanApprovalCampaignsPage() {
 
   return (
     <PageContainer>
-      <PageHeader title="Plan approvals" />
+      <PageHeader title="Plan approvals" description={PLAN_APPROVALS_DESCRIPTION} />
 
       {error ? (
         <PageError title="Could not load approvals" description="Try again." onRetry={refetch} />
@@ -874,17 +885,6 @@ function errorMessage(error: Error): string {
     return error.errors[0] ?? error.message;
   }
   return error.message;
-}
-
-function PlanApprovalListSkeleton() {
-  return (
-    <PageContainer>
-      <div className="space-y-5" aria-busy aria-label="Loading plan approvals">
-        <Skeleton className="h-8 w-44" />
-        <Skeleton className="h-32 rounded-2xl" />
-      </div>
-    </PageContainer>
-  );
 }
 
 function PlanApprovalWorkspaceSkeleton() {
