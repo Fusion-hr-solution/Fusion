@@ -38,6 +38,7 @@ import type {
   CreatePerformanceCycleRequest,
   PerformanceCycleDetailDto,
   PerformanceCycleSummaryDto,
+  PerformanceCycleType,
   PagedResponse,
   ToggleCampaignStrategicObjectiveRequest,
   UpdatePerformanceCycleRequest,
@@ -63,7 +64,6 @@ import {
   PageEmpty,
   PageError,
   PageHeader,
-  PageLoading,
   PagePermissionNotice,
   StatusBadge,
 } from "@repo/ds/shell";
@@ -192,7 +192,7 @@ export function CampaignListPage() {
   );
 
   if (authLoading) {
-    return <CampaignPageSkeleton />;
+    return <CampaignListLoading />;
   }
 
   if (!canView) {
@@ -218,7 +218,7 @@ export function CampaignListPage() {
         }
       />
 
-      {isLoading ? <PageLoading rows={5} label="Loading campaigns" /> : null}
+      {isLoading ? <CampaignGridSkeleton /> : null}
       {!isLoading && error ? (
         <PageError
           title="Could not load campaigns"
@@ -241,47 +241,182 @@ export function CampaignListPage() {
             }
           />
         ) : (
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
-            <div className="grid grid-cols-[1.5fr_0.6fr_0.7fr_0.8fr] gap-3 border-b border-border bg-muted/40 px-4 py-2.5 text-xs font-medium text-muted-foreground">
-              <span>Campaign</span>
-              <span>Year</span>
-              <span>Status</span>
-              <span>Created</span>
-            </div>
-            {data.items.map((campaign) => (
-              <Link
-                key={campaign.id}
-                href={`/campaigns/${campaign.slug}`}
-                className="grid grid-cols-[1.5fr_0.6fr_0.7fr_0.8fr] items-center gap-3 border-b border-border px-4 py-3 text-sm transition-colors last:border-b-0 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate font-medium text-foreground">
-                    {campaign.name}
-                  </span>
-                  <span className="block truncate font-mono text-xs text-muted-foreground">
-                    {campaign.slug}
-                  </span>
-                </span>
-                <span className="tabular-nums">
-                  {campaign.referenceYear ??
-                    new Date(campaign.periodStart).getUTCFullYear()}
-                </span>
-                <span>
-                  <StatusBadge tone={campaignStatusTone(campaign.status)}>
-                    {campaignStatusLabel(campaign.status)}
-                  </StatusBadge>
-                </span>
-                <span className="text-muted-foreground">
-                  {formatDate(campaign.createdAt)}
-                </span>
-              </Link>
-            ))}
-          </div>
+          <CampaignGrid campaigns={data.items} />
         )
       ) : null}
 
       <CampaignCreateDialog open={createOpen} onOpenChange={setCreateOpen} />
     </PageContainer>
+  );
+}
+
+// ── Campaign list: lifecycle-grouped work-item cards ─────────────────────────
+
+const CAMPAIGN_TYPE_LABEL: Record<PerformanceCycleType, string> = {
+  Annual: "Annual planning",
+  MidYear: "Mid-year planning",
+  Specific: "Specific period",
+};
+
+function CampaignGrid({
+  campaigns,
+}: {
+  campaigns: readonly PerformanceCycleSummaryDto[];
+}) {
+  const groups = useMemo(() => {
+    // Draft is the actionable "finish me" bucket, so it leads; closed sinks last.
+    const setup: PerformanceCycleSummaryDto[] = [];
+    const active: PerformanceCycleSummaryDto[] = [];
+    const closed: PerformanceCycleSummaryDto[] = [];
+    for (const campaign of campaigns) {
+      const target =
+        campaign.status === "Draft"
+          ? setup
+          : campaign.status === "Closed"
+            ? closed
+            : active;
+      target.push(campaign);
+    }
+    const byRecency = (a: PerformanceCycleSummaryDto, b: PerformanceCycleSummaryDto) =>
+      (b.referenceYear ?? 0) - (a.referenceYear ?? 0) ||
+      b.createdAt.localeCompare(a.createdAt);
+    for (const items of [setup, active, closed]) items.sort(byRecency);
+    return [
+      { key: "setup", label: "In setup", items: setup },
+      { key: "active", label: "Active", items: active },
+      { key: "closed", label: "Closed", items: closed },
+    ].filter((bucket) => bucket.items.length > 0);
+  }, [campaigns]);
+
+  const showHeaders = groups.length > 1;
+
+  return (
+    <div className="space-y-8">
+      {groups.map((group) => (
+        <section key={group.key} className="space-y-3">
+          {showHeaders ? (
+            <div className="flex items-baseline gap-2">
+              <h2 className="text-sm font-semibold text-foreground">{group.label}</h2>
+              <span className="text-xs font-medium tabular-nums text-muted-foreground">
+                {group.items.length}
+              </span>
+            </div>
+          ) : null}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {group.items.map((campaign) => (
+              <CampaignCard key={campaign.id} campaign={campaign} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function CampaignCard({ campaign }: { campaign: PerformanceCycleSummaryDto }) {
+  const locked = !!campaign.planningLockedAt;
+  const isDraft = campaign.status === "Draft";
+  const year =
+    campaign.referenceYear ?? new Date(campaign.periodStart).getUTCFullYear();
+  const urgent =
+    !locked && !isDraft && campaign.status !== "Closed"
+      ? campaign.deadlineState
+      : "None";
+
+  return (
+    <Link
+      href={`/campaigns/${campaign.slug}`}
+      className="group flex flex-col rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <div className="flex items-center justify-between gap-2">
+        {locked ? (
+          <StatusBadge tone="neutral">
+            <Lock className="size-3" /> Planning locked
+          </StatusBadge>
+        ) : (
+          <StatusBadge tone={campaignStatusTone(campaign.status)} dot>
+            {campaignStatusLabel(campaign.status)}
+          </StatusBadge>
+        )}
+        <span className="text-sm font-medium tabular-nums text-muted-foreground">
+          {year}
+        </span>
+      </div>
+
+      <h3 className="mt-3 text-balance font-heading text-xl font-semibold leading-snug tracking-tight text-foreground">
+        {campaign.name}
+      </h3>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {CAMPAIGN_TYPE_LABEL[campaign.type]}
+      </p>
+
+      <div className="mt-4 flex items-end justify-between gap-3 border-t border-border pt-4">
+        {isDraft ? (
+          <span className="text-sm font-medium text-primary">Continue setup</span>
+        ) : (
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <Users className="size-3.5" />
+              <span className="font-semibold tabular-nums text-foreground">
+                {campaign.participantCount}
+              </span>
+              participants
+            </span>
+            {urgent === "Overdue" ? (
+              <StatusBadge tone="danger">Overdue</StatusBadge>
+            ) : urgent === "DueSoon" ? (
+              <StatusBadge tone="warning">Due soon</StatusBadge>
+            ) : null}
+          </span>
+        )}
+        <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      </div>
+    </Link>
+  );
+}
+
+/**
+ * Full list-loading frame: header placeholder + the card-grid skeleton. Shared by
+ * the route-level `loading.tsx` and the page's own auth/data loading states so a
+ * navigation shows ONE skeleton shape end to end — no flat-rows flash before the grid.
+ */
+export function CampaignListLoading() {
+  return (
+    <PageContainer>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 space-y-2">
+          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+        <Skeleton className="h-9 w-32 rounded-md" />
+      </div>
+      <CampaignGridSkeleton />
+    </PageContainer>
+  );
+}
+
+export function CampaignGridSkeleton() {
+  return (
+    <div
+      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+      aria-busy
+      aria-label="Loading campaigns"
+    >
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="rounded-2xl border border-border bg-card p-5">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-5 w-24 rounded-full" />
+            <Skeleton className="h-4 w-10" />
+          </div>
+          <Skeleton className="mt-3 h-6 w-3/4" />
+          <Skeleton className="mt-2 h-4 w-32" />
+          <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="size-5 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -1699,7 +1834,7 @@ function Field({
   );
 }
 
-function CampaignPageSkeleton({ width }: { width?: "narrow" } = {}) {
+export function CampaignPageSkeleton({ width }: { width?: "narrow" } = {}) {
   if (width === "narrow") {
     return (
       <PageContainer width="narrow">

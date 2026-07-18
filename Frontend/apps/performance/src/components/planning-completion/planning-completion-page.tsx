@@ -917,7 +917,7 @@ function KeyValue({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function CompletionSkeleton() {
+export function CompletionSkeleton() {
   return (
     <PageContainer>
       <PageLoading rows={5} label="Loading planning completion" />
