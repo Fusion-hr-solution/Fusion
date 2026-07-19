@@ -13,5 +13,8 @@ public enum PerformanceNotificationType
     PlanningReminder,
     ExceptionOpened,
     ExceptionTransferred,
-    ExceptionResolved
+    ExceptionResolved,
+    PlanSubmitted,
+    PlanApproved,
+    PlanChangesRequested
 }

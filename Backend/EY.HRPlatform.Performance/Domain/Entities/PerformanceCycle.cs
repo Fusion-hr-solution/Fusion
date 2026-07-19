@@ -277,6 +277,7 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
         Status = PerformanceCycleStatus.Closed;
         ClosedAt = now;
         Touch();
+        AddDomainEvent(new Events.PerformanceCycleClosedEvent(TenantId, Id, Name));
     }
 
     public void LockPlanning(Guid? actorUserId, string? actorName, DateTime occurredAt)

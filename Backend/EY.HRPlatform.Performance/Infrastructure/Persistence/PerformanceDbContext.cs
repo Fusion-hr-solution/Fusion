@@ -51,6 +51,9 @@ public class PerformanceDbContext : DbContext
     public DbSet<PerformanceNotification> PerformanceNotifications => Set<PerformanceNotification>();
     public DbSet<PerformanceCycleAuditEvent> PerformanceCycleAuditEvents => Set<PerformanceCycleAuditEvent>();
     public DbSet<PerformanceConfigurationAuditEntry> PerformanceConfigurationAuditEntries => Set<PerformanceConfigurationAuditEntry>();
+    public DbSet<ActivityLogEntry> ActivityLogEntries => Set<ActivityLogEntry>();
+    public DbSet<ScheduledJobRun> ScheduledJobRuns => Set<ScheduledJobRun>();
+    public DbSet<Attachment> Attachments => Set<Attachment>();
 
     // Platform-scoped entities (D1: no tenant filter, no ITenantEntity, PlatformAdmin gated)
     public DbSet<PlatformPerformanceGuardrails> PlatformPerformanceGuardrails => Set<PlatformPerformanceGuardrails>();
@@ -98,6 +101,13 @@ public class PerformanceDbContext : DbContext
         if (mutated)
             throw new InvalidOperationException(
                 "Configuration audit entries are append-only and cannot be modified or deleted.");
+
+        var activityMutated = ChangeTracker.Entries<ActivityLogEntry>()
+            .Any(e => e.State is EntityState.Modified or EntityState.Deleted);
+
+        if (activityMutated)
+            throw new InvalidOperationException(
+                "Activity-log entries are append-only and cannot be modified or deleted.");
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -176,6 +186,12 @@ public class PerformanceDbContext : DbContext
             .HasQueryFilter(n => CurrentTenantId != Guid.Empty && n.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<PerformanceCycleAuditEvent>()
+            .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<ActivityLogEntry>()
+            .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<Attachment>()
             .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<TenantObjectivePolicy>()

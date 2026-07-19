@@ -22,6 +22,8 @@ public class PerformanceNotificationConfiguration : IEntityTypeConfiguration<Per
         builder.Property(n => n.Title).HasMaxLength(200).IsRequired();
         builder.Property(n => n.Message).HasMaxLength(2000);
         builder.Property(n => n.DedupKey).HasMaxLength(200);
+        builder.Property(n => n.SubjectType).HasMaxLength(120);
+        builder.Property(n => n.NavigationRoute).HasMaxLength(400);
         builder.Property(n => n.CreatedBy).HasMaxLength(256);
         builder.Property(n => n.UpdatedBy).HasMaxLength(256);
 

@@ -164,6 +164,14 @@ public sealed class EmployeeObjectivePlan : AggregateRoot, ITenantEntity
             eventType,
             submittedAt);
         UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new Events.EmployeeObjectivePlanSubmittedEvent(
+            TenantId,
+            Id,
+            CycleId,
+            EmployeeId,
+            participant.FullName,
+            participant.ApproverEmployeeId,
+            eventType == ReviewEventType.Resubmitted));
         return ObjectivePlanSubmissionResult.Success();
     }
 
@@ -206,6 +214,13 @@ public sealed class EmployeeObjectivePlan : AggregateRoot, ITenantEntity
         ApprovedAt = approvedAt;
         _reviewEvents.Add(reviewEvent);
         UpdatedAt = DateTime.UtcNow;
+        AddDomainEvent(new Events.EmployeeObjectivePlanApprovedEvent(
+            TenantId,
+            Id,
+            CycleId,
+            EmployeeId,
+            actor.EmployeeId,
+            actor.Name.Trim()));
     }
 
     private List<ObjectivePlanBlockingReason> ValidateForSubmission(PerformanceCycle cycle)
