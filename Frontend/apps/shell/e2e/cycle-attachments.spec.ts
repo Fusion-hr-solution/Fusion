@@ -1,14 +1,14 @@
 // spec: e2e/specs/performance-operations-spine.plan.md
 // seed: e2e/seed.spec.ts
-import { loginForToken, test, expect } from "./fixtures";
+import { e2eEnv, loginForToken, test, expect } from "./fixtures";
 
 test.describe("Cycle attachments", () => {
   test("should upload and download an authorized cycle attachment", async ({ page }) => {
     // 1. Sign in through the shell as a tenant cycle manager and select an existing cycle.
     const accessToken = await loginForToken(
       page.request,
-      process.env.FUSION_E2E_EMAIL ?? "flit@gmail.com",
-      process.env.FUSION_E2E_PASSWORD ?? "Admin@123456",
+      e2eEnv.email(),
+      e2eEnv.password(),
     );
     const headers = { Authorization: `Bearer ${accessToken}` };
     const cyclesResponse = await page.request.get("/api/performance/cycles?page=1&pageSize=1", {
