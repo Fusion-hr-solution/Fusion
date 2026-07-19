@@ -66,6 +66,13 @@ public sealed class AttachmentService(
                 Error.Forbidden("Attachment.Disabled", "Attachment uploads are disabled."));
         }
 
+        var uploaderId = currentUser.UserId;
+        if (uploaderId is null || uploaderId == Guid.Empty)
+        {
+            return Result.Failure<AttachmentDto>(
+                Error.Forbidden("Attachment.Unauthenticated", "An authenticated uploader is required."));
+        }
+
         if (string.IsNullOrWhiteSpace(ownerType))
         {
             return Result.Failure<AttachmentDto>(
@@ -115,7 +122,7 @@ public sealed class AttachmentService(
 
         var attachment = Attachment.CreatePending(
             tenantContext.TenantId, ownerType, ownerId,
-            currentUser.UserId ?? Guid.Empty, fileName, normalizedContentType, size);
+            uploaderId.Value, fileName, normalizedContentType, size);
 
         buffer.Position = 0;
         await storage.PutAsync(attachment.StorageKey, buffer, cancellationToken);
@@ -129,7 +136,16 @@ public sealed class AttachmentService(
             subjectId: attachment.Id,
             metadata: new { attachment.OwnerType, attachment.OwnerId, attachment.FileName, attachment.SizeBytes });
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            // A failed metadata write must not leave orphaned bytes on disk.
+            await storage.DeleteAsync(attachment.StorageKey, CancellationToken.None);
+            throw;
+        }
 
         return Result.Success(ToDto(attachment));
     }

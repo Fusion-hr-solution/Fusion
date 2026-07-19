@@ -1,5 +1,6 @@
 using EY.HRPlatform.Performance.Features.Attachments;
 using EY.HRPlatform.SharedKernel.Api;
+using EY.HRPlatform.SharedKernel.Results;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -38,9 +39,14 @@ public class PerformanceAttachmentsController(
         var result = await attachments.UploadAsync(
             ownerType, ownerId, file.FileName, file.ContentType, stream, cancellationToken);
 
-        return result.IsFailure
-            ? BadRequest(ApiResponse.Failure(result.Error.Message))
-            : Ok(ApiResponse<AttachmentDto>.Success(result.Value));
+        if (result.IsFailure)
+        {
+            return IsForbidden(result.Error)
+                ? Forbid()
+                : BadRequest(ApiResponse.Failure(result.Error.Message));
+        }
+
+        return Ok(ApiResponse<AttachmentDto>.Success(result.Value));
     }
 
     /// <summary>
@@ -59,7 +65,7 @@ public class PerformanceAttachmentsController(
             cancellationToken);
         if (result.IsFailure)
         {
-            return result.Error.Code == "Attachment.Forbidden"
+            return IsForbidden(result.Error)
                 ? Forbid()
                 : NotFound(ApiResponse.Failure(result.Error.Message));
         }
@@ -67,4 +73,8 @@ public class PerformanceAttachmentsController(
         var download = result.Value;
         return File(download.Content, download.ContentType, download.FileName);
     }
+
+    // The Error record carries no type discriminator, so forbidden outcomes are matched by their codes.
+    private static bool IsForbidden(Error error) =>
+        error.Code is "Attachment.Disabled" or "Attachment.Unauthenticated" or "Attachment.Forbidden";
 }

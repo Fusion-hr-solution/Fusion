@@ -77,6 +77,24 @@ public sealed class AttachmentServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task Upload_WithoutAuthenticatedUploader_Rejected()
+    {
+        await using var db = PerformanceTestContext.Create(TenantId, out var tenant);
+        var options = Options.Create(new AttachmentOptions { StorageRoot = _root });
+        var storage = new FileSystemAttachmentStorage(options);
+        var activity = new ActivityLogWriter(db, tenant, new StubCurrentUserContext());
+        var service = new AttachmentService(db, storage, activity, tenant,
+            new StubCurrentUserContext { UserId = null }, options);
+
+        var result = await service.UploadAsync("FeedbackResponse", null, "n.txt", "text/plain",
+            Bytes("hello"), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Attachment.Unauthenticated", result.Error.Code);
+        Assert.Equal(0, await db.Attachments.CountAsync());
+    }
+
+    [Fact]
     public async Task Download_Authorized_StreamsBytes()
     {
         var dbName = $"attach-dl-{Guid.NewGuid()}";
