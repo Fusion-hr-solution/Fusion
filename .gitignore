@@ -4,6 +4,11 @@
 .artifacts/
 
 # ========================
+# Runtime attachment storage (local blob root, never shared)
+# ========================
+Backend/EY.HRPlatform.Performance/App_Data/
+
+# ========================
 # Project docs (local only)
 # ========================
 EY_ACADEMY_MODULE.md
