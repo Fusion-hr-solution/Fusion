@@ -34,9 +34,10 @@ export function activateNotification(
 }
 
 /**
- * Notification data hooks for the header bell. The unread count and list poll on an interval aligned
- * with the app's 30s staleTime; polling pauses while the tab is hidden (refetchIntervalInBackground
- * false). Opening the list is a read — it never marks anything read.
+ * Notification data hooks for the header bell. The unread count and list poll every
+ * POLL_INTERVAL_MS (30s) with staleTime 0, so each poll refetches fresh state; polling pauses while
+ * the tab is hidden (refetchIntervalInBackground false). Reading these hooks never mutates — nothing
+ * is marked read until the user activates a notification.
  */
 export function useNotifications(enabled: boolean) {
   const apiClient = useMemo(() => createPlatformApiClient(), []);
