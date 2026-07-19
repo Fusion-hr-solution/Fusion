@@ -204,6 +204,9 @@ export interface PerformanceNotificationDto {
   title: string;
   message: string;
   cycleId: string | null;
+  subjectType: string | null;
+  subjectId: string | null;
+  navigationRoute: string | null;
   createdAt: string;
   readAt: string | null;
   isRead: boolean;
