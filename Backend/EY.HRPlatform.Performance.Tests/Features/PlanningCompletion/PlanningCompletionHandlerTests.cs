@@ -108,6 +108,34 @@ public sealed class PlanningCompletionHandlerTests
     }
 
     [Fact]
+    public async Task Reminder_WithNotification_RecordsContextualDeepLink()
+    {
+        var seeded = await SeedAsync(approvedFirstParticipant: false);
+        await using var db = PerformanceTestContext.Create(seeded.TenantId, out _, seeded.DbName);
+        var handler = new RecordPlanningReminderCommandHandler(
+            db,
+            new PlanningCompletionReadService(db, Workforce(seeded)),
+            new StubCurrentUserContext { FullName = "HR Admin" });
+
+        var result = await handler.Handle(
+            new RecordPlanningReminderCommand(
+                seeded.CycleId,
+                new RecordPlanningReminderRequest(
+                    seeded.ApprovedEmployeeId,
+                    "Participant",
+                    "Please finish objective planning.",
+                    seeded.ApprovedEmployeeId,
+                    TriggerNotification: true)),
+            CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        var notification = await db.PerformanceNotifications.SingleAsync();
+        Assert.Equal("PerformanceCycle", notification.SubjectType);
+        Assert.Equal(seeded.CycleId, notification.SubjectId);
+        Assert.Equal($"/campaigns/{seeded.Slug}/completion", notification.NavigationRoute);
+    }
+
+    [Fact]
     public async Task Reassignment_ChangesEffectiveReviewerWithoutChangingFrozenApprover()
     {
         var seeded = await SeedAsync(approvedFirstParticipant: false);

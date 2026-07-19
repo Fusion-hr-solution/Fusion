@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Entities.Platform;
+using EY.HRPlatform.Performance.Features.ActivityLog;
 using EY.HRPlatform.Performance.Features.ConfigurationAudit;
 using EY.HRPlatform.Performance.Features.ObjectivePolicy;
 using EY.HRPlatform.Performance.Features.ObjectivePolicy.Commands;
@@ -50,6 +51,7 @@ public class ObjectivePlanningConfigurationTests
             db,
             tenantContext,
             new ConfigurationAuditWriter(db),
+            new ActivityLogWriter(db, tenantContext, new StubCurrentUserContext()),
             new PerformanceConfigurationValidator());
 
         var result = await handler.Handle(
@@ -80,6 +82,7 @@ public class ObjectivePlanningConfigurationTests
             db,
             tenantContext,
             new ConfigurationAuditWriter(db),
+            new ActivityLogWriter(db, tenantContext, new StubCurrentUserContext()),
             new PerformanceConfigurationValidator());
 
         var result = await handler.Handle(
@@ -108,6 +111,7 @@ public class ObjectivePlanningConfigurationTests
             db,
             tenantContext,
             new ConfigurationAuditWriter(db),
+            new ActivityLogWriter(db, tenantContext, new StubCurrentUserContext()),
             new PerformanceConfigurationValidator());
 
         var result = await handler.Handle(
@@ -138,6 +142,7 @@ public class ObjectivePlanningConfigurationTests
             db,
             tenantContext,
             new ConfigurationAuditWriter(db),
+            new ActivityLogWriter(db, tenantContext, new StubCurrentUserContext()),
             new PerformanceConfigurationValidator());
 
         var result = await handler.Handle(
