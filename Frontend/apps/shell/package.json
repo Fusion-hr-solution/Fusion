@@ -20,7 +20,6 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@playwright/cli": "^0.1.17",
     "@playwright/test": "^1.61.1",
     "@repo/eslint-config": "workspace:*",
     "@repo/tsconfig": "workspace:*",
