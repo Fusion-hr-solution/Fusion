@@ -3,70 +3,37 @@ using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.Cycles;
 using EY.HRPlatform.Performance.Features.Notifications;
+using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace EY.HRPlatform.Performance.Infrastructure.Notifications;
+namespace EY.HRPlatform.Performance.Infrastructure.Jobs;
 
 /// <summary>
-/// Periodically materialises in-app deadline reminders (due-soon / overdue) for participants of
-/// in-flight cycles. Runs outside any HTTP request, so it iterates tenants deliberately: it sets a
-/// per-tenant context in a fresh DI scope so the global query filter and tenant interceptor apply,
-/// and is idempotent via per-recipient dedup keys.
+/// Materialises due-soon and overdue objective-setting reminders for participants of in-flight
+/// cycles. Extracted from the former <c>DeadlineReminderWorker</c> and hosted under
+/// <see cref="ScheduledJobRunner"/>; idempotent via per-recipient dedup keys.
 /// </summary>
-public sealed class DeadlineReminderWorker(
+public sealed class DeadlineReminderJob(
     IServiceProvider services,
     IOptions<ReminderOptions> options,
-    ILogger<DeadlineReminderWorker> logger) : BackgroundService
+    ILogger<DeadlineReminderJob> logger) : IScheduledJob
 {
     private static readonly Expression<Func<PerformanceCycle, bool>> InFlightWithDeadline =
         cycle => cycle.Status == PerformanceCycleStatus.Active
             && cycle.ObjectiveSettingDeadline != null;
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    public string Name => "deadline-reminders";
+
+    public TimeSpan Interval => options.Value.Enabled
+        ? TimeSpan.FromMinutes(Math.Max(1, options.Value.SweepIntervalMinutes))
+        : TimeSpan.Zero;
+
+    public async Task<int> ExecuteAsync(CancellationToken cancellationToken)
     {
         var settings = options.Value;
-        if (!settings.Enabled)
-        {
-            logger.LogInformation("Deadline reminder worker disabled by configuration.");
-            return;
-        }
-
-        // Small startup delay so migrations/seeding settle before the first sweep.
-        try
-        {
-            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
-        }
-        catch (OperationCanceledException)
-        {
-            return;
-        }
-
-        var interval = TimeSpan.FromMinutes(Math.Max(1, settings.SweepIntervalMinutes));
-        using var timer = new PeriodicTimer(interval);
-
-        do
-        {
-            try
-            {
-                await SweepAsync(settings, stoppingToken);
-            }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Deadline reminder sweep failed.");
-            }
-        }
-        while (await timer.WaitForNextTickAsync(stoppingToken));
-    }
-
-    private async Task SweepAsync(ReminderOptions settings, CancellationToken cancellationToken)
-    {
         List<Guid> tenantIds;
         using (var scope = services.CreateScope())
         {
@@ -79,13 +46,16 @@ public sealed class DeadlineReminderWorker(
                 .ToListAsync(cancellationToken);
         }
 
+        var total = 0;
         foreach (var tenantId in tenantIds)
         {
-            await ProcessTenantAsync(tenantId, settings, cancellationToken);
+            total += await ProcessTenantAsync(tenantId, settings, cancellationToken);
         }
+
+        return total;
     }
 
-    private async Task ProcessTenantAsync(Guid tenantId, ReminderOptions settings, CancellationToken cancellationToken)
+    private async Task<int> ProcessTenantAsync(Guid tenantId, ReminderOptions settings, CancellationToken cancellationToken)
     {
         using var scope = services.CreateScope();
         var tenantContext = scope.ServiceProvider.GetRequiredService<TenantContext>();
@@ -137,12 +107,13 @@ public sealed class DeadlineReminderWorker(
 
         if (newNotifications.Count == 0)
         {
-            return;
+            return 0;
         }
 
         dbContext.PerformanceNotifications.AddRange(newNotifications);
         await dbContext.SaveChangesAsync(cancellationToken);
         logger.LogInformation(
             "Generated {Count} deadline reminder(s) for tenant {TenantId}.", newNotifications.Count, tenantId);
+        return newNotifications.Count;
     }
 }

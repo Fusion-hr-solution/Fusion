@@ -56,6 +56,9 @@ public sealed class CloseCycleCommandHandler(
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
             tenantContext.TenantId, cycle.Id, PerformanceCycleAuditAction.Closed, currentUser.UserId, currentUser.FullName));
 
+        // Shared activity + fan-out are written by the PerformanceCycleClosed domain-event handler
+        // (raised inside cycle.Close()), keeping the close command free of that coupling.
+
         var workItemAssignees = await dbContext.CampaignWorkItems
             .Where(wi => wi.CycleId == request.CycleId && wi.Type != CampaignWorkItemType.ObjectivePlanning)
             .Select(wi => wi.AssigneeEmployeeId)
