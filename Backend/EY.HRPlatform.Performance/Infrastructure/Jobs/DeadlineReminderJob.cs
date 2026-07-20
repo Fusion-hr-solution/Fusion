@@ -22,7 +22,7 @@ public sealed class DeadlineReminderJob(
     ILogger<DeadlineReminderJob> logger) : IScheduledJob
 {
     private static readonly Expression<Func<PerformanceCycle, bool>> InFlightWithDeadline =
-        cycle => cycle.Status == PerformanceCycleStatus.Active
+        cycle => cycle.Status == PerformanceCycleStatus.Launched
             && cycle.ObjectiveSettingDeadline != null;
 
     public string Name => "deadline-reminders";

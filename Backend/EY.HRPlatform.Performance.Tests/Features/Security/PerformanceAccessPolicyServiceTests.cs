@@ -19,9 +19,6 @@ public class PerformanceAccessPolicyServiceTests
         Assert.False(_policy.CanViewObjectivePlanningConfiguration(user));
         Assert.False(_policy.CanManageObjectivePlanningConfiguration(user));
         Assert.False(_policy.CanManagePlatformDefaults(user));
-        Assert.False(_policy.CanActOnOwnedException(user));
-        Assert.False(_policy.CanOverrideException(user));
-        Assert.False(_policy.CanViewExceptionAudit(user));
     }
 
     [Fact]
@@ -69,27 +66,10 @@ public class PerformanceAccessPolicyServiceTests
         Assert.False(_policy.CanViewCycles(user));
         Assert.False(_policy.CanManageCycles(user));
         Assert.False(_policy.CanOperateCycles(user));
-        Assert.False(_policy.CanActOnOwnedException(user));
-        Assert.False(_policy.CanOverrideException(user));
-        Assert.False(_policy.CanViewExceptionAudit(user));
-        Assert.False(_policy.CanAccessConfidentialFeedbackIdentity(user));
-        Assert.False(_policy.CanViewFeedbackThresholdDetails(user));
 
         Assert.False(_policy.CanViewObjectivePlanningConfiguration(user));
         Assert.False(_policy.CanManageObjectivePlanningConfiguration(user));
         Assert.True(_policy.CanManagePlatformDefaults(user));
-    }
-
-    [Fact]
-    public void ExceptionActionGrant_AllowsOwnerActionOnly()
-    {
-        var user = new ClaimsPrincipalBuilder()
-            .WithPermission(PerformancePermissions.ExceptionAction, PermissionScopes.Tenant)
-            .Build();
-
-        Assert.True(_policy.CanActOnOwnedException(user));
-        Assert.False(_policy.CanOverrideException(user));
-        Assert.False(_policy.CanViewExceptionAudit(user));
     }
 
     // ─── P1.1 configuration checks ───────────────────────────────────────────

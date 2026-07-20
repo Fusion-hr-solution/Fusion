@@ -4,7 +4,6 @@ using EY.HRPlatform.Performance.Infrastructure.Attachments;
 using EY.HRPlatform.Performance.Features.ObjectivePolicy;
 using EY.HRPlatform.Performance.Features.Cycles.Services;
 using EY.HRPlatform.Performance.Features.EmployeeObjectives;
-using EY.HRPlatform.Performance.Features.Exceptions.Services;
 using EY.HRPlatform.Performance.Features.PlanApprovals;
 using EY.HRPlatform.Performance.Features.PlanningCompletion;
 using EY.HRPlatform.Performance.Features.Security;
@@ -44,6 +43,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<EmployeeObjectivePlanAccessGuard>();
         services.AddScoped<PlanApprovalAccessGuard>();
         services.AddScoped<PlanningCompletionReadService>();
+        services.AddScoped<Features.Progress.EffectiveReviewerResolver>();
+        services.AddScoped<Features.Progress.Queries.ObjectiveProgressHistoryReader>();
         services.AddScoped<IConfigurationAuditWriter, ConfigurationAuditWriter>();
         services.AddScoped<IActivityLog, ActivityLogWriter>();
         services.AddScoped<IActivityLogReader, ActivityLogReader>();
@@ -58,7 +59,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         services.AddScoped<IPerformancePopulationResolver, PerformancePopulationResolver>();
         services.AddScoped<ICampaignReadinessResolver, CampaignReadinessResolver>();
-        services.AddScoped<IExceptionCaseWorkflowService, ExceptionCaseWorkflowService>();
 
         services.AddTransient<BearerTokenForwardingHandler>();
         services.AddHttpClient<ICoreWorkforceClient, CoreWorkforceClient>(client =>
@@ -79,6 +79,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IScheduledJob, DeadlineReminderJob>();
         services.AddSingleton<IScheduledJob, InactivitySweepJob>();
         services.AddSingleton<IScheduledJob, AttachmentCleanupJob>();
+        services.AddSingleton<IScheduledJob, StaleProgressReminderJob>();
         services.AddHostedService<ScheduledJobRunner>();
 
         return services;

@@ -3,26 +3,10 @@
 import { usePathname } from "next/navigation";
 import { AppBreadcrumb } from "@repo/ds/shell";
 import {
-  OVERVIEW_NAV,
-  CAMPAIGNS_NAV,
-  MY_OBJECTIVES_NAV,
-  PLATFORM_ADMIN_NAV,
-  PLAN_APPROVALS_NAV,
-  STRATEGY_NAV,
-  TEAM_OBJECTIVES_NAV,
-  TENANT_CONFIGURATION_NAV,
+  PERFORMANCE_NAV_SECTIONS,
 } from "@/data/sidebar-nav";
 
-const NAV_ITEMS = [
-  ...OVERVIEW_NAV.items,
-  ...MY_OBJECTIVES_NAV.items,
-  ...TEAM_OBJECTIVES_NAV.items,
-  ...PLAN_APPROVALS_NAV.items,
-  ...STRATEGY_NAV.items,
-  ...CAMPAIGNS_NAV.items,
-  ...TENANT_CONFIGURATION_NAV.items,
-  ...PLATFORM_ADMIN_NAV.items,
-];
+const NAV_ITEMS = PERFORMANCE_NAV_SECTIONS.flatMap((section) => section.items);
 
 const BREADCRUMB_LABELS = new Map([
   ["platform", "Platform administration"],
@@ -34,6 +18,7 @@ const BREADCRUMB_LABELS = new Map([
   ["my-objectives", "My objectives"],
   ["team-objectives", "Team objectives"],
   ["plan-approvals", "Plan approvals"],
+  ["team-progress", "Team progress"],
   ["strategy", "Strategy"],
 ]);
 

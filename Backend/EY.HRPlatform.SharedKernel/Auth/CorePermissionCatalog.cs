@@ -120,13 +120,6 @@ public static class PerformancePermissions
     public const string CyclePublish = "performance.cycle.publish";
     public const string ObjectiveSelfManage = "performance.objective.self.manage";
     public const string ObjectiveTeamManage = "performance.objective.team.manage";
-    public const string ReviewSelfManage = "performance.review.self.manage";
-    public const string ReviewTeamManage = "performance.review.team.manage";
-    public const string FeedbackSubmit = "performance.feedback.submit";
-    public const string ExceptionManage = "performance.exception.manage";
-    public const string ExceptionAction = "performance.exception.action";
-    public const string ExceptionOverride = "performance.exception.override";
-    public const string ExceptionAuditView = "performance.exception.audit.view";
     public const string RetentionManage = "performance.retention.manage";
     public const string AuditView = "performance.audit.view";
     public const string ConfidentialIdentityView = "performance.feedback.identity.view";
@@ -140,6 +133,9 @@ public static class PerformancePermissions
     public const string ObjectiveProgressCorrect = "performance.objective.progress.correct";
     public const string ObjectiveTeamApprove = "performance.objective.team.approve";
 
+    // Team-progress visibility for effective reviewers (distinct from plan approval).
+    public const string ObjectiveProgressTeamView = "performance.objective.progress.team.view";
+
     // Objective planning configuration permissions.
     public const string ObjectivePolicyView = "performance.objective.policy.view";
     public const string ObjectivePolicyManage = "performance.objective.policy.manage";
@@ -151,13 +147,6 @@ public static class PerformancePermissions
             CyclePublish,
             ObjectiveSelfManage,
             ObjectiveTeamManage,
-            ReviewSelfManage,
-            ReviewTeamManage,
-            FeedbackSubmit,
-            ExceptionManage,
-            ExceptionAction,
-            ExceptionOverride,
-            ExceptionAuditView,
             RetentionManage,
             AuditView,
             ConfidentialIdentityView,
@@ -166,8 +155,25 @@ public static class PerformancePermissions
             StrategicPublish,
             ObjectiveProgressCorrect,
             ObjectiveTeamApprove,
+            ObjectiveProgressTeamView,
             ObjectivePolicyView,
             ObjectivePolicyManage,
+        ]);
+}
+
+public static class ModuleSettingsPermissions
+{
+    public const string LearningView = "settings.modules.view:learning";
+    public const string LearningManage = "settings.modules.manage:learning";
+    public const string InterviewView = "settings.modules.view:interview";
+    public const string InterviewManage = "settings.modules.manage:interview";
+
+    public static readonly ReadOnlyCollection<string> All =
+        Array.AsReadOnly([
+            LearningView,
+            LearningManage,
+            InterviewView,
+            InterviewManage,
         ]);
 }
 
@@ -216,22 +222,15 @@ public static class CorePermissionCatalog
             new(CorePermissions.ProfileSelfView, "View own profile", "Self & Team", [PermissionScopes.Self]),
             new(CorePermissions.ProfileSelfUpdate, "Update own profile", "Self & Team", [PermissionScopes.Self]),
             new(CorePermissions.TeamView, "View direct team", "Self & Team", [PermissionScopes.DirectReports]),
-            new("settings.modules.view:learning", "View Learning module settings", "Module settings", [PermissionScopes.Module]),
-            new("settings.modules.manage:learning", "Manage Learning module settings", "Module settings", [PermissionScopes.Module]),
-            new("settings.modules.view:interview", "View Interview module settings", "Module settings", [PermissionScopes.Module]),
-            new("settings.modules.manage:interview", "Manage Interview module settings", "Module settings", [PermissionScopes.Module]),
+            new(ModuleSettingsPermissions.LearningView, "View Learning module settings", "Module settings", [PermissionScopes.Module]),
+            new(ModuleSettingsPermissions.LearningManage, "Manage Learning module settings", "Module settings", [PermissionScopes.Module]),
+            new(ModuleSettingsPermissions.InterviewView, "View Interview module settings", "Module settings", [PermissionScopes.Module]),
+            new(ModuleSettingsPermissions.InterviewManage, "Manage Interview module settings", "Module settings", [PermissionScopes.Module]),
             new(PerformancePermissions.CycleView, "View performance cycles", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Controls access to performance cycles and their participation."),
             new(PerformancePermissions.CycleManage, "Manage performance cycles", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Create and edit draft cycles and their population."),
             new(PerformancePermissions.CyclePublish, "Operate performance cycles", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Publish, activate, and close cycles (governance-gated transitions)."),
             new(PerformancePermissions.ObjectiveSelfManage, "Manage own objectives", "Performance", [PermissionScopes.Self]),
             new(PerformancePermissions.ObjectiveTeamManage, "Manage team objectives", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
-            new(PerformancePermissions.ReviewSelfManage, "Complete own reviews", "Performance", [PermissionScopes.Self]),
-            new(PerformancePermissions.ReviewTeamManage, "Manage team reviews", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
-            new(PerformancePermissions.FeedbackSubmit, "Submit requested feedback", "Performance", [PermissionScopes.Self]),
-            new(PerformancePermissions.ExceptionManage, "Manage performance exceptions", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
-            new(PerformancePermissions.ExceptionAction, "Resolve assigned performance exceptions", "Performance", [PermissionScopes.Tenant], "Lets the current accountable exception owner act on an open case."),
-            new(PerformancePermissions.ExceptionOverride, "Override or force-close performance exceptions", "Performance", [PermissionScopes.Tenant], "Elevated non-owner authority for governed exception outcomes."),
-            new(PerformancePermissions.ExceptionAuditView, "View performance exception audit", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.RetentionManage, "Manage performance retention", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.AuditView, "View performance audit", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
             new(PerformancePermissions.ConfidentialIdentityView, "View confidential feedback identities", "Performance", [PermissionScopes.Tenant]),
@@ -244,6 +243,7 @@ public static class CorePermissionCatalog
             // Progress correction and employee objective plan approval permissions
             new(PerformancePermissions.ObjectiveProgressCorrect, "Correct objective progress (manager override)", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.ObjectiveTeamApprove, "Approve employee objective plans", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
+            new(PerformancePermissions.ObjectiveProgressTeamView, "View team objective progress", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
 
             // Objective planning configuration permissions.
             new(PerformancePermissions.ObjectivePolicyView, "View objective planning configuration", "Performance", [PermissionScopes.Tenant]),

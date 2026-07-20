@@ -1,6 +1,7 @@
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Domain.Events;
 using EY.HRPlatform.Performance.Features.ActivityLog;
+using EY.HRPlatform.Performance.Features.Progress;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using MediatR;
 
@@ -84,17 +85,82 @@ public sealed class PlanApprovedNotificationHandler(IPerformanceNotifier notifie
             cancellationToken: cancellationToken);
 }
 
-/// <summary>Records the shared activity entry when a cycle is closed.</summary>
-public sealed class PerformanceCycleClosedActivityHandler(IActivityLog activityLog, PerformanceDbContext db)
-    : INotificationHandler<PerformanceCycleClosedEvent>
+/// <summary>Records the shared activity entry for every recorded progress update.</summary>
+public sealed class ObjectiveProgressRecordedActivityHandler(IActivityLog activityLog, PerformanceDbContext db)
+    : INotificationHandler<ObjectiveProgressRecordedEvent>
 {
-    public async Task Handle(PerformanceCycleClosedEvent notification, CancellationToken cancellationToken)
+    public async Task Handle(ObjectiveProgressRecordedEvent notification, CancellationToken cancellationToken)
     {
         activityLog.Record(
-            action: "CycleClosed",
-            subjectType: "PerformanceCycle",
-            subjectId: notification.CycleId,
-            metadata: new { notification.CycleName });
+            action: "ObjectiveProgressRecorded",
+            subjectType: "EmployeeObjectivePlan",
+            subjectId: notification.PlanId,
+            metadata: new
+            {
+                notification.CycleId,
+                notification.ObjectiveId,
+                notification.EmployeeId,
+                notification.ObjectiveTitle,
+                notification.PreviousPercent,
+                notification.NewPercent,
+                notification.IsRegression,
+            },
+            actorUserId: notification.ActorUserId,
+            actorName: notification.EmployeeName);
         await db.SaveChangesAsync(cancellationToken);
+    }
+}
+
+/// <summary>Notifies the participant's effective reviewer when an objective is completed.</summary>
+public sealed class ObjectiveProgressCompletedNotificationHandler(
+    IPerformanceNotifier notifier,
+    EffectiveReviewerResolver reviewerResolver)
+    : INotificationHandler<ObjectiveProgressCompletedEvent>
+{
+    public async Task Handle(ObjectiveProgressCompletedEvent notification, CancellationToken cancellationToken)
+    {
+        var reviewer = await reviewerResolver.ResolveForParticipantAsync(
+            notification.CycleId, notification.EmployeeId, cancellationToken);
+        if (reviewer is not { } reviewerId)
+            return;
+
+        await notifier.NotifyAsync(
+            reviewerId,
+            PerformanceNotificationType.ObjectiveCompleted,
+            title: "An objective was completed",
+            message: $"{notification.EmployeeName} marked \"{notification.ObjectiveTitle}\" as complete.",
+            cycleId: notification.CycleId,
+            subjectType: "EmployeeObjectivePlan",
+            subjectId: notification.PlanId,
+            navigationRoute: "/team-progress",
+            dedupKey: $"objective-completed:{notification.ObjectiveId}:{notification.EventId}",
+            cancellationToken: cancellationToken);
+    }
+}
+
+/// <summary>Notifies the participant's effective reviewer when a completed objective is reopened.</summary>
+public sealed class ObjectiveProgressReopenedNotificationHandler(
+    IPerformanceNotifier notifier,
+    EffectiveReviewerResolver reviewerResolver)
+    : INotificationHandler<ObjectiveProgressReopenedEvent>
+{
+    public async Task Handle(ObjectiveProgressReopenedEvent notification, CancellationToken cancellationToken)
+    {
+        var reviewer = await reviewerResolver.ResolveForParticipantAsync(
+            notification.CycleId, notification.EmployeeId, cancellationToken);
+        if (reviewer is not { } reviewerId)
+            return;
+
+        await notifier.NotifyAsync(
+            reviewerId,
+            PerformanceNotificationType.ObjectiveReopened,
+            title: "A completed objective was reopened",
+            message: $"{notification.EmployeeName} moved \"{notification.ObjectiveTitle}\" back to {notification.NewPercent}%.",
+            cycleId: notification.CycleId,
+            subjectType: "EmployeeObjectivePlan",
+            subjectId: notification.PlanId,
+            navigationRoute: "/team-progress",
+            dedupKey: $"objective-reopened:{notification.ObjectiveId}:{notification.EventId}",
+            cancellationToken: cancellationToken);
     }
 }

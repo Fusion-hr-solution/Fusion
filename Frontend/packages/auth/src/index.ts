@@ -69,6 +69,7 @@ export {
   canAccessTeamObjectives,
   canAccessPlanApprovals,
   canAccessMyObjectives,
+  canAccessTeamProgress,
   canViewPerformanceStrategy,
   canAccessPerformance,
 } from "./roles";

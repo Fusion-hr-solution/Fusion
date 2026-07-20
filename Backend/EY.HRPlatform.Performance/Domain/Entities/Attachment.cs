@@ -23,7 +23,7 @@ public class Attachment : BaseEntity, ITenantEntity
 
     public Guid TenantId { get; private set; }
 
-    /// <summary>Opaque owning-resource type (e.g. FeedbackResponse, ExceptionCase).</summary>
+    /// <summary>Opaque owning-resource type (e.g. EmployeeObjectivePlan, ObjectiveProgressUpdate).</summary>
     public string OwnerType { get; private set; } = string.Empty;
 
     /// <summary>Owning-resource id; may be null when the attachment is uploaded before its owner exists.</summary>
@@ -69,6 +69,21 @@ public class Attachment : BaseEntity, ITenantEntity
             StorageKey = $"{tenantId}/{id}",
             Status = AttachmentStatus.Pending,
         };
+    }
+
+    /// <summary>
+    /// Claims an attachment that was uploaded before its owner existed. Only an unowned
+    /// attachment can be claimed; ownership never moves between resources.
+    /// </summary>
+    public void AssignOwner(Guid ownerId)
+    {
+        if (ownerId == Guid.Empty)
+            throw new ArgumentException("OwnerId cannot be empty.", nameof(ownerId));
+        if (OwnerId.HasValue)
+            throw new InvalidOperationException("This attachment already belongs to a resource.");
+
+        OwnerId = ownerId;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void Commit(DateTime committedAt)

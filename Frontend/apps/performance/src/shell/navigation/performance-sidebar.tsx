@@ -8,40 +8,20 @@ import {
   ShellUserPanel,
 } from "@repo/ds/shell";
 import {
-  canAccessMyObjectives,
-  canAccessPlanApprovals,
-  canAccessTeamObjectives,
   canSeeOwnCoreProfileNavigation,
-  canViewObjectivePlanningConfiguration,
-  canViewPerformanceCampaigns,
-  canViewPerformanceStrategy,
-  hasAnyRole,
-  PLATFORM_ADMIN_ROLE,
   useAuth,
 } from "@repo/auth";
 import {
   OVERVIEW_NAV,
-  CAMPAIGNS_NAV,
-  MY_OBJECTIVES_NAV,
-  PLATFORM_ADMIN_NAV,
-  PLAN_APPROVALS_NAV,
-  STRATEGY_NAV,
-  TEAM_OBJECTIVES_NAV,
-  TENANT_CONFIGURATION_NAV,
+  getPerformanceDoors,
 } from "@/data/sidebar-nav";
 
 export function PerformanceSidebar() {
   const pathname = usePathname();
   const activePath = pathname.replace(/^\/performance/, "") || "/";
   const { user, logout, isLoading: isAuthLoading } = useAuth();
-  const isPlatformAdmin = hasAnyRole(user, [PLATFORM_ADMIN_ROLE]);
-  const canViewPlanningConfiguration = canViewObjectivePlanningConfiguration(user);
-  const canViewCampaigns = canViewPerformanceCampaigns(user);
-  const canAccessMine = canAccessMyObjectives(user);
-  const canAccessTeam = canAccessTeamObjectives(user);
-  const canAccessApprovals = canAccessPlanApprovals(user);
-  const canViewStrategy = canViewPerformanceStrategy(user);
   const canSeeOwnProfile = canSeeOwnCoreProfileNavigation(user);
+  const doors = getPerformanceDoors(user);
 
   return (
     <ModuleSidebar
@@ -52,13 +32,7 @@ export function PerformanceSidebar() {
       pending={isAuthLoading}
       sections={[
         OVERVIEW_NAV,
-        ...(canAccessMine ? [MY_OBJECTIVES_NAV] : []),
-        ...(canAccessTeam ? [TEAM_OBJECTIVES_NAV] : []),
-        ...(canAccessApprovals ? [PLAN_APPROVALS_NAV] : []),
-        ...(canViewStrategy ? [STRATEGY_NAV] : []),
-        ...(canViewCampaigns ? [CAMPAIGNS_NAV] : []),
-        ...(canViewPlanningConfiguration ? [TENANT_CONFIGURATION_NAV] : []),
-        ...(isPlatformAdmin ? [PLATFORM_ADMIN_NAV] : []),
+        ...doors.map((door) => door.section),
       ]}
       modules={FUSION_MODULES}
       currentModuleKey="performance"

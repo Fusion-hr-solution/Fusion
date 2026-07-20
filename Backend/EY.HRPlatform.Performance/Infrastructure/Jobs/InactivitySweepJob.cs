@@ -32,7 +32,7 @@ public sealed class InactivitySweepJob(
             var db = scope.ServiceProvider.GetRequiredService<PerformanceDbContext>();
             tenantIds = await db.PerformanceCycles
                 .IgnoreQueryFilters()
-                .Where(c => (c.Status == PerformanceCycleStatus.Launched || c.Status == PerformanceCycleStatus.Active)
+                .Where(c => c.Status == PerformanceCycleStatus.Launched
                     && c.PlanningOpeningDate != null)
                 .Select(c => c.TenantId)
                 .Distinct()
@@ -58,7 +58,7 @@ public sealed class InactivitySweepJob(
 
         var cycles = await db.PerformanceCycles
             .Include(c => c.Participants)
-            .Where(c => (c.Status == PerformanceCycleStatus.Launched || c.Status == PerformanceCycleStatus.Active)
+            .Where(c => c.Status == PerformanceCycleStatus.Launched
                 && c.PlanningOpeningDate != null)
             .ToListAsync(cancellationToken);
 

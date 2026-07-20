@@ -13,9 +13,7 @@ export interface PagedResponse<T> {
 
 export type PerformanceCycleStatus =
   | "Draft"
-  | "Launched"
-  | "Active"
-  | "Closed";
+  | "Launched";
 export type PerformanceCycleType = "Annual" | "MidYear" | "Specific";
 export type CycleDeadlineState =
   | "None"
@@ -546,6 +544,71 @@ export interface EmployeeObjectivePlanWorkspaceDto {
   enabledMeasurementMethods: string[];
   plan: EmployeeObjectivePlanDto | null;
   alignmentOptions: EmployeeObjectiveAlignmentOptionDto[];
+  progress: PlanProgressDto | null;
+  progressHistory: ObjectiveProgressUpdateDto[];
+}
+
+// ── Objective progress (Performance Record, partition 1) ─────────────
+
+export type ObjectiveProgressState = "not-started" | "in-progress" | "completed";
+
+export interface ObjectiveProgressAttachmentDto {
+  id: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+export interface ObjectiveProgressUpdateDto {
+  id: string;
+  objectiveId: string;
+  progressPercent: number;
+  previousPercent: number | null;
+  actualValue: string | null;
+  comment: string | null;
+  isRegression: boolean;
+  regressionReason: string | null;
+  actorName: string;
+  recordedAt: string;
+  evidence: ObjectiveProgressAttachmentDto[];
+}
+
+export interface ObjectiveProgressStateDto {
+  objectiveId: string;
+  currentPercent: number;
+  state: ObjectiveProgressState;
+  isStale: boolean;
+  lastUpdateAt: string | null;
+  updateCount: number;
+  lastActualValue: string | null;
+}
+
+export interface PlanProgressDto {
+  weightedProgressPercent: number;
+  objectiveCount: number;
+  completedObjectiveCount: number;
+  staleObjectiveCount: number;
+  staleAfterDays: number;
+  objectives: ObjectiveProgressStateDto[];
+}
+
+export interface RecordObjectiveProgressRequest {
+  progressPercent: number;
+  actualValue: string | null;
+  comment: string | null;
+  regressionConfirmed: boolean;
+  regressionReason: string | null;
+  attachmentIds: string[] | null;
+}
+
+export interface RecordObjectiveProgressResponseDto {
+  recorded: boolean;
+  outcome: "recorded" | "blocked" | "conflict";
+  retryable: boolean;
+  update: ObjectiveProgressUpdateDto | null;
+  progress: PlanProgressDto | null;
+  planVersion: number;
+  blockingReasons: ObjectivePlanBlockingReasonDto[];
 }
 
 export interface SaveEmployeeObjectiveRequest {
@@ -648,6 +711,60 @@ export interface PlanReviewHistoryEventDto {
 export interface RequestObjectivePlanChangesRequest {
   comment: string;
   referencedObjectiveIds?: string[];
+}
+
+// ── Team progress (Performance Record, partition 1) ─────────────────
+
+export interface TeamProgressCampaignDto {
+  id: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  launchedAt: string | null;
+  planningLockedAt: string | null;
+  participantCount: number;
+  needsAttentionCount: number;
+}
+
+export interface TeamProgressParticipantDto {
+  employeeId: string;
+  employeeName: string;
+  weightedProgressPercent: number;
+  objectiveCount: number;
+  completedObjectiveCount: number;
+  staleObjectiveCount: number;
+  hasRecentRegression: boolean;
+  notStartedObjectiveCount: number;
+  needsAttention: boolean;
+  lastActivityAt: string | null;
+  objectives: ObjectiveProgressStateDto[];
+}
+
+export interface TeamProgressWorkspaceDto {
+  cycleId: string;
+  slug: string;
+  name: string;
+  referenceYear: number | null;
+  launchedAt: string | null;
+  planningLockedAt: string | null;
+  staleAfterDays: number;
+  participants: TeamProgressParticipantDto[];
+}
+
+export interface TeamProgressObjectiveDetailDto {
+  objective: EmployeeObjectiveDto;
+  state: ObjectiveProgressStateDto;
+  history: ObjectiveProgressUpdateDto[];
+}
+
+export interface TeamProgressParticipantDetailDto {
+  cycleId: string;
+  slug: string;
+  name: string;
+  employeeId: string;
+  employeeName: string;
+  progress: PlanProgressDto;
+  objectives: TeamProgressObjectiveDetailDto[];
 }
 
 // ── Cascade coverage (P1.3) ──────────────────────────────────────────
@@ -917,6 +1034,15 @@ export const performancePaths = {
     `/performance/employee-objectives/campaigns/${cycleId}/objectives/${objectiveId}`,
   employeeObjectivePlanSubmit: (cycleId: string) =>
     `/performance/employee-objectives/campaigns/${cycleId}/submit`,
+  employeeObjectiveProgress: (cycleId: string, objectiveId: string) =>
+    `/performance/employee-objectives/campaigns/${cycleId}/objectives/${objectiveId}/progress`,
+  attachments: () => "/performance/attachments",
+  attachment: (attachmentId: string) => `/performance/attachments/${attachmentId}`,
+  myTeamProgressCampaigns: () => "/performance/team-progress/my-campaigns",
+  teamProgressWorkspace: (slug: string) =>
+    `/performance/team-progress/campaigns/${slug}`,
+  teamProgressParticipant: (slug: string, employeeId: string) =>
+    `/performance/team-progress/campaigns/${slug}/participants/${employeeId}`,
   myPlanApprovalCampaigns: () => "/performance/plan-approvals/my-campaigns",
   planApprovalWorkspace: (slug: string) =>
     `/performance/plan-approvals/campaigns/${slug}`,
@@ -1002,6 +1128,13 @@ export const performanceQueryKeys = {
     [...performanceQueryKeys.myObjectives(), "campaigns"] as const,
   employeeObjectiveWorkspace: (slug: string) =>
     [...performanceQueryKeys.myObjectives(), "workspace", slug] as const,
+  teamProgress: () => [...performanceQueryKeys.all(), "team-progress"] as const,
+  myTeamProgressCampaigns: () =>
+    [...performanceQueryKeys.teamProgress(), "campaigns"] as const,
+  teamProgressWorkspace: (slug: string) =>
+    [...performanceQueryKeys.teamProgress(), "workspace", slug] as const,
+  teamProgressParticipant: (slug: string, employeeId: string) =>
+    [...performanceQueryKeys.teamProgress(), "participant", slug, employeeId] as const,
   planApprovals: () => [...performanceQueryKeys.all(), "plan-approvals"] as const,
   myPlanApprovalCampaigns: () =>
     [...performanceQueryKeys.planApprovals(), "campaigns"] as const,

@@ -82,7 +82,9 @@ public sealed record EmployeeObjectivePlanWorkspaceDto(
     IReadOnlyList<int> AllowedWeights,
     IReadOnlyList<string> EnabledMeasurementMethods,
     EmployeeObjectivePlanDto? Plan,
-    IReadOnlyList<EmployeeObjectiveAlignmentOptionDto> AlignmentOptions);
+    IReadOnlyList<EmployeeObjectiveAlignmentOptionDto> AlignmentOptions,
+    Progress.Dtos.PlanProgressDto? Progress,
+    IReadOnlyList<Progress.Dtos.ObjectiveProgressUpdateDto> ProgressHistory);
 
 public sealed record SaveEmployeeObjectiveRequest(
     string Title,

@@ -40,18 +40,11 @@ public class PerformanceDbContext : DbContext
     public DbSet<CampaignStrategicObjective> CampaignStrategicObjectives => Set<CampaignStrategicObjective>();
     public DbSet<CampaignTeamObjective> CampaignTeamObjectives => Set<CampaignTeamObjective>();
     public DbSet<EmployeeObjectivePlan> EmployeeObjectivePlans => Set<EmployeeObjectivePlan>();
-    public DbSet<ExceptionCase> ExceptionCases => Set<ExceptionCase>();
-    public DbSet<ExceptionCaseHistoryEntry> ExceptionCaseHistoryEntries => Set<ExceptionCaseHistoryEntry>();
-    public DbSet<FormalReviewDefinitionSnapshot> FormalReviewDefinitionSnapshots => Set<FormalReviewDefinitionSnapshot>();
-    public DbSet<FormalReviewCriterionSnapshot> FormalReviewCriterionSnapshots => Set<FormalReviewCriterionSnapshot>();
-    public DbSet<FormalRatingScaleLevelSnapshot> FormalRatingScaleLevelSnapshots => Set<FormalRatingScaleLevelSnapshot>();
-    public DbSet<PerformanceReview> PerformanceReviews => Set<PerformanceReview>();
-    public DbSet<PerformanceReviewCriterionResponse> PerformanceReviewCriterionResponses => Set<PerformanceReviewCriterionResponse>();
-    public DbSet<CampaignWorkItem> CampaignWorkItems => Set<CampaignWorkItem>();
     public DbSet<PerformanceNotification> PerformanceNotifications => Set<PerformanceNotification>();
     public DbSet<PerformanceCycleAuditEvent> PerformanceCycleAuditEvents => Set<PerformanceCycleAuditEvent>();
     public DbSet<PerformanceConfigurationAuditEntry> PerformanceConfigurationAuditEntries => Set<PerformanceConfigurationAuditEntry>();
     public DbSet<ActivityLogEntry> ActivityLogEntries => Set<ActivityLogEntry>();
+    public DbSet<ObjectiveProgressUpdate> ObjectiveProgressUpdates => Set<ObjectiveProgressUpdate>();
     public DbSet<ScheduledJobRun> ScheduledJobRuns => Set<ScheduledJobRun>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
 
@@ -70,12 +63,6 @@ public class PerformanceDbContext : DbContext
     public DbSet<StrategicObjective> StrategicObjectives => Set<StrategicObjective>();
     public DbSet<ApprovalDelegate> ApprovalDelegates => Set<ApprovalDelegate>();
 
-    // Feedback response model entities (Plan 04-01)
-    public DbSet<FeedbackTemplateSnapshot> FeedbackTemplateSnapshots => Set<FeedbackTemplateSnapshot>();
-    public DbSet<FeedbackPromptSnapshot> FeedbackPromptSnapshots => Set<FeedbackPromptSnapshot>();
-    public DbSet<FeedbackResponseContent> FeedbackResponseContents => Set<FeedbackResponseContent>();
-    public DbSet<FeedbackResponseVersion> FeedbackResponseVersions => Set<FeedbackResponseVersion>();
-    public DbSet<FeedbackIdentityMapping> FeedbackIdentityMappings => Set<FeedbackIdentityMapping>();
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
@@ -108,6 +95,13 @@ public class PerformanceDbContext : DbContext
         if (activityMutated)
             throw new InvalidOperationException(
                 "Activity-log entries are append-only and cannot be modified or deleted.");
+
+        var progressMutated = ChangeTracker.Entries<ObjectiveProgressUpdate>()
+            .Any(e => e.State is EntityState.Modified or EntityState.Deleted);
+
+        if (progressMutated)
+            throw new InvalidOperationException(
+                "Objective progress updates are append-only and cannot be modified or deleted.");
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -158,30 +152,6 @@ public class PerformanceDbContext : DbContext
         modelBuilder.Entity<EmployeeObjectivePlan>()
             .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
 
-        modelBuilder.Entity<ExceptionCase>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<ExceptionCaseHistoryEntry>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<FormalReviewDefinitionSnapshot>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<FormalReviewCriterionSnapshot>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<FormalRatingScaleLevelSnapshot>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<PerformanceReview>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<PerformanceReviewCriterionResponse>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<CampaignWorkItem>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-
         modelBuilder.Entity<PerformanceNotification>()
             .HasQueryFilter(n => CurrentTenantId != Guid.Empty && n.TenantId == CurrentTenantId);
 
@@ -190,6 +160,9 @@ public class PerformanceDbContext : DbContext
 
         modelBuilder.Entity<ActivityLogEntry>()
             .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<ObjectiveProgressUpdate>()
+            .HasQueryFilter(u => CurrentTenantId != Guid.Empty && u.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<Attachment>()
             .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
@@ -209,21 +182,5 @@ public class PerformanceDbContext : DbContext
 
         modelBuilder.Entity<ApprovalDelegate>()
             .HasQueryFilter(d => CurrentTenantId != Guid.Empty && d.TenantId == CurrentTenantId);
-
-        // Feedback response model tenant filters (Plan 04-01)
-        modelBuilder.Entity<FeedbackTemplateSnapshot>()
-            .HasQueryFilter(t => CurrentTenantId != Guid.Empty && t.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<FeedbackPromptSnapshot>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<FeedbackResponseContent>()
-            .HasQueryFilter(r => CurrentTenantId != Guid.Empty && r.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<FeedbackResponseVersion>()
-            .HasQueryFilter(v => CurrentTenantId != Guid.Empty && v.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<FeedbackIdentityMapping>()
-            .HasQueryFilter(m => CurrentTenantId != Guid.Empty && m.TenantId == CurrentTenantId);
     }
 }

@@ -25,18 +25,12 @@ public interface IPerformanceAccessPolicyService
     // approver assignment is enforced per plan in the approval handlers.
     bool CanApproveEmployeePlans(ClaimsPrincipal user) => false;
 
+    // Team progress visibility (progress record): permission opens the door; effective-reviewer
+    // scope is enforced per participant in the team-progress handlers.
+    bool CanViewTeamProgress(ClaimsPrincipal user) => false;
+
     // Cascade coverage read (P1.3): Direction door (strategic view) or HR door (cycle view/manage).
     bool CanViewCascadeCoverage(ClaimsPrincipal user) => false;
-
-    // Feedback identity access (D-07/D-10: exceptional identity resolution)
-    bool CanAccessConfidentialFeedbackIdentity(ClaimsPrincipal user);
-
-    // Feedback threshold details (admin/HR only)
-    bool CanViewFeedbackThresholdDetails(ClaimsPrincipal user);
-
-    bool CanActOnOwnedException(ClaimsPrincipal user) => false;
-    bool CanOverrideException(ClaimsPrincipal user) => false;
-    bool CanViewExceptionAudit(ClaimsPrincipal user) => false;
 
     // Objective planning configuration
     bool CanViewObjectivePlanningConfiguration(ClaimsPrincipal user) => false;
@@ -96,32 +90,17 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
     public bool CanApproveEmployeePlans(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.ObjectiveTeamApprove);
 
+    /// <summary>
+    /// Team progress is a distinct managerial job from plan approval, so it has its own permission.
+    /// The door opens on the permission; per-participant effective-reviewer scope is enforced in
+    /// the handlers (hide-don't-deny when the scope is empty).
+    /// </summary>
+    public bool CanViewTeamProgress(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveProgressTeamView);
+
     public bool CanViewCascadeCoverage(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)
             || CanViewCycles(user);
-
-    // ─── Feedback identity access (D-07/D-10) ─────────────────────────────────
-
-    public bool CanAccessConfidentialFeedbackIdentity(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ConfidentialIdentityView, PermissionScopes.Tenant);
-
-    // ─── Feedback threshold details ───────────────────────────────────────────
-
-    public bool CanViewFeedbackThresholdDetails(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant);
-
-    public bool CanActOnOwnedException(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ExceptionAction, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant);
-
-    public bool CanOverrideException(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ExceptionOverride, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant);
-
-    public bool CanViewExceptionAudit(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ExceptionAuditView, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ExceptionOverride, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant);
 
     // ─── Objective planning configuration ────────────────────────────────────
 

@@ -59,6 +59,7 @@ const PERFORMANCE_PERMISSION = {
   objectiveSelfManage: "performance.objective.self.manage",
   objectiveTeamManage: "performance.objective.team.manage",
   objectiveTeamApprove: "performance.objective.team.approve",
+  objectiveProgressTeamView: "performance.objective.progress.team.view",
   strategicView: "performance.strategic.view",
 } as const;
 
@@ -440,6 +441,19 @@ export function canAccessMyObjectives(user: AuthUser | null): boolean {
   );
 }
 
+/**
+ * Team-progress door: the permission opens ongoing progress follow-up, distinct from plan
+ * approval. The account must be linked to an employee because visibility is scoped to the
+ * participants the account actually reviews (enforced server-side; the door hides when empty).
+ */
+export function canAccessTeamProgress(user: AuthUser | null): boolean {
+  if (!user?.employeeId) {
+    return false;
+  }
+
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.objectiveProgressTeamView);
+}
+
 /** Direction door: strategy and cascade coverage without HR campaign permissions. */
 export function canViewPerformanceStrategy(user: AuthUser | null): boolean {
   return hasCorePermission(user, PERFORMANCE_PERMISSION.strategicView, "Tenant");
@@ -451,6 +465,7 @@ export function canAccessPerformance(user: AuthUser | null): boolean {
     canViewObjectivePlanningConfiguration(user) ||
     canAccessMyObjectives(user) ||
     canAccessPlanApprovals(user) ||
+    canAccessTeamProgress(user) ||
     canManageTeamObjectives(user) ||
     canViewPerformanceStrategy(user)
   );

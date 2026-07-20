@@ -1,5 +1,6 @@
 using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Features.Attachments;
+using EY.HRPlatform.Performance.Features.Progress;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Tests.TestSupport;
@@ -110,8 +111,13 @@ public sealed class AttachmentOwnerAuthorizationTests
     }
 
     private static AttachmentOwnerAuthorization CreateSut(
-        PerformanceDbContext db)
-        => new(db, new PerformanceAccessPolicyService());
+        PerformanceDbContext db,
+        ICurrentUserContext? currentUser = null)
+        => new(
+            db,
+            new PerformanceAccessPolicyService(),
+            currentUser ?? new StubCurrentUserContext(),
+            new EffectiveReviewerResolver(db));
 
     private static PerformanceCycle CreateCycle(Guid tenantId)
         => PerformanceCycle.CreateDraft(

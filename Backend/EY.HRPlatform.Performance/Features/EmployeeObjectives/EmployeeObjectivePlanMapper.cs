@@ -37,7 +37,7 @@ internal static class EmployeeObjectivePlanMapper
                     item.OccurredAt))
                 .ToList());
 
-    private static EmployeeObjectiveDto ToObjectiveDto(EmployeeObjective objective)
+    public static EmployeeObjectiveDto ToObjectiveDto(EmployeeObjective objective)
         => new(
             objective.Id,
             objective.Title,

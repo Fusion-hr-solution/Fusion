@@ -264,27 +264,20 @@ function CampaignGrid({
   campaigns: readonly PerformanceCycleSummaryDto[];
 }) {
   const groups = useMemo(() => {
-    // Draft is the actionable "finish me" bucket, so it leads; closed sinks last.
+    // Draft is the actionable "finish me" bucket, so it leads.
     const setup: PerformanceCycleSummaryDto[] = [];
     const active: PerformanceCycleSummaryDto[] = [];
-    const closed: PerformanceCycleSummaryDto[] = [];
     for (const campaign of campaigns) {
-      const target =
-        campaign.status === "Draft"
-          ? setup
-          : campaign.status === "Closed"
-            ? closed
-            : active;
+      const target = campaign.status === "Draft" ? setup : active;
       target.push(campaign);
     }
     const byRecency = (a: PerformanceCycleSummaryDto, b: PerformanceCycleSummaryDto) =>
       (b.referenceYear ?? 0) - (a.referenceYear ?? 0) ||
       b.createdAt.localeCompare(a.createdAt);
-    for (const items of [setup, active, closed]) items.sort(byRecency);
+    for (const items of [setup, active]) items.sort(byRecency);
     return [
       { key: "setup", label: "In setup", items: setup },
       { key: "active", label: "Active", items: active },
-      { key: "closed", label: "Closed", items: closed },
     ].filter((bucket) => bucket.items.length > 0);
   }, [campaigns]);
 
@@ -318,10 +311,7 @@ function CampaignCard({ campaign }: { campaign: PerformanceCycleSummaryDto }) {
   const isDraft = campaign.status === "Draft";
   const year =
     campaign.referenceYear ?? new Date(campaign.periodStart).getUTCFullYear();
-  const urgent =
-    !locked && !isDraft && campaign.status !== "Closed"
-      ? campaign.deadlineState
-      : "None";
+  const urgent = !locked && !isDraft ? campaign.deadlineState : "None";
 
   return (
     <Link

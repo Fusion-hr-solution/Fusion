@@ -223,6 +223,111 @@ public sealed class EmployeeObjectivePlan : AggregateRoot, ITenantEntity
             actor.Name.Trim()));
     }
 
+    /// <summary>
+    /// Records an append-only progress update against a locked objective of this Approved plan.
+    /// <paramref name="previousPercent"/> is the latest recorded percent supplied by the caller,
+    /// which serializes concurrent writes through this aggregate's row version. Field-level rule
+    /// failures return a blocked result; structural violations (not locked, not approved, foreign
+    /// objective) throw.
+    /// </summary>
+    public ObjectiveProgressRecordResult RecordProgress(
+        PerformanceCycle cycle,
+        Guid objectiveId,
+        int progressPercent,
+        int? previousPercent,
+        string? actualValue,
+        string? comment,
+        bool regressionConfirmed,
+        string? regressionReason,
+        ObjectiveProgressActor actor,
+        DateTime now)
+    {
+        ArgumentNullException.ThrowIfNull(cycle);
+        ArgumentNullException.ThrowIfNull(actor);
+        EnsureProgressOpen(cycle);
+        var objective = FindObjective(objectiveId);
+
+        var isQuantitative = string.Equals(objective.MeasurementMethod, "Quantitative", StringComparison.OrdinalIgnoreCase);
+        var isRegression = previousPercent.HasValue && progressPercent < previousPercent.Value;
+        var reasons = new List<ObjectivePlanBlockingReason>();
+
+        if (progressPercent is < 0 or > 100)
+            reasons.Add(new ObjectivePlanBlockingReason("Progress.PercentOutOfRange", "Progress must be between 0% and 100%.", objectiveId));
+        if (!string.IsNullOrWhiteSpace(actualValue) && !isQuantitative)
+            reasons.Add(new ObjectivePlanBlockingReason("Progress.ActualValueNotApplicable", "Only quantitative objectives capture an actual result.", objectiveId));
+        if (actualValue is not null && actualValue.Trim().Length > ObjectiveProgressUpdate.ActualValueMaxLength)
+            reasons.Add(new ObjectivePlanBlockingReason("Progress.ActualValueTooLong", $"The actual result cannot exceed {ObjectiveProgressUpdate.ActualValueMaxLength} characters.", objectiveId));
+        if (comment is not null && comment.Trim().Length > ObjectiveProgressUpdate.CommentMaxLength)
+            reasons.Add(new ObjectivePlanBlockingReason("Progress.CommentTooLong", $"The comment cannot exceed {ObjectiveProgressUpdate.CommentMaxLength} characters.", objectiveId));
+
+        if (isRegression)
+        {
+            if (!regressionConfirmed)
+                reasons.Add(new ObjectivePlanBlockingReason("Progress.RegressionConfirmationRequired", $"Confirm that progress is moving back from {previousPercent!.Value}%.", objectiveId));
+            if (string.IsNullOrWhiteSpace(regressionReason))
+                reasons.Add(new ObjectivePlanBlockingReason("Progress.RegressionReasonRequired", "A short reason is required when progress moves backwards.", objectiveId));
+            else if (regressionReason.Trim().Length > ObjectiveProgressUpdate.RegressionReasonMaxLength)
+                reasons.Add(new ObjectivePlanBlockingReason("Progress.RegressionReasonTooLong", $"The reason cannot exceed {ObjectiveProgressUpdate.RegressionReasonMaxLength} characters.", objectiveId));
+        }
+
+        if (reasons.Count > 0)
+            return ObjectiveProgressRecordResult.Blocked(reasons);
+
+        var recordedAt = NormalizeUtc(now, nameof(now));
+        var update = ObjectiveProgressUpdate.Create(
+            TenantId,
+            CycleId,
+            Id,
+            objectiveId,
+            EmployeeId,
+            progressPercent,
+            previousPercent,
+            isQuantitative ? actualValue : null,
+            comment,
+            isRegression,
+            isRegression ? regressionReason : null,
+            actor.UserId,
+            actor.Name,
+            recordedAt);
+
+        UpdatedAt = DateTime.UtcNow;
+
+        AddDomainEvent(new Events.ObjectiveProgressRecordedEvent(
+            TenantId,
+            CycleId,
+            Id,
+            objectiveId,
+            update.Id,
+            EmployeeId,
+            actor.Name.Trim(),
+            objective.Title,
+            actor.UserId,
+            previousPercent,
+            progressPercent,
+            isRegression));
+
+        if (progressPercent == 100 && previousPercent != 100)
+            AddDomainEvent(new Events.ObjectiveProgressCompletedEvent(
+                TenantId, CycleId, Id, objectiveId, EmployeeId, actor.Name.Trim(), objective.Title));
+
+        if (previousPercent == 100 && progressPercent < 100)
+            AddDomainEvent(new Events.ObjectiveProgressReopenedEvent(
+                TenantId, CycleId, Id, objectiveId, EmployeeId, actor.Name.Trim(), objective.Title,
+                progressPercent, update.RegressionReason!));
+
+        return ObjectiveProgressRecordResult.Success(update);
+    }
+
+    private void EnsureProgressOpen(PerformanceCycle cycle)
+    {
+        if (cycle.Id != CycleId || cycle.TenantId != TenantId)
+            throw new DomainRuleViolationException("Progress must be recorded against the objective plan's own campaign.");
+        if (cycle.Status != PerformanceCycleStatus.Launched || !cycle.IsPlanningLocked)
+            throw new DomainRuleViolationException("Progress recording opens when campaign planning is locked.");
+        if (Status != PlanStatus.Approved)
+            throw new DomainRuleViolationException("Progress can only be recorded on an approved objective plan.");
+    }
+
     private List<ObjectivePlanBlockingReason> ValidateForSubmission(PerformanceCycle cycle)
     {
         var reasons = new List<ObjectivePlanBlockingReason>();
@@ -395,6 +500,20 @@ public sealed class EmployeeObjectivePlan : AggregateRoot, ITenantEntity
 }
 
 public sealed record ObjectivePlanBlockingReason(string Code, string Message, Guid? ObjectiveId = null);
+
+/// <summary>The employee recording progress: their user account and display name.</summary>
+public sealed record ObjectiveProgressActor(Guid UserId, string Name);
+
+public sealed record ObjectiveProgressRecordResult(
+    bool Succeeded,
+    IReadOnlyList<ObjectivePlanBlockingReason> BlockingReasons,
+    ObjectiveProgressUpdate? Update)
+{
+    public static ObjectiveProgressRecordResult Success(ObjectiveProgressUpdate update) => new(true, [], update);
+
+    public static ObjectiveProgressRecordResult Blocked(IReadOnlyList<ObjectivePlanBlockingReason> reasons)
+        => new(false, reasons, null);
+}
 
 public sealed record ObjectivePlanSubmissionResult(bool Succeeded, IReadOnlyList<ObjectivePlanBlockingReason> BlockingReasons)
 {

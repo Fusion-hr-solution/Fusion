@@ -7,14 +7,13 @@ public enum PerformanceNotificationType
 {
     CyclePublished,
     CycleActivated,
-    CycleClosed,
     DeadlineDueSoon,
     DeadlineOverdue,
     PlanningReminder,
-    ExceptionOpened,
-    ExceptionTransferred,
-    ExceptionResolved,
     PlanSubmitted,
     PlanApproved,
-    PlanChangesRequested
+    PlanChangesRequested,
+    ObjectiveCompleted,
+    ObjectiveReopened,
+    ObjectiveProgressStale
 }

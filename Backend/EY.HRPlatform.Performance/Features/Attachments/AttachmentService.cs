@@ -127,14 +127,26 @@ public sealed class AttachmentService(
         buffer.Position = 0;
         await storage.PutAsync(attachment.StorageKey, buffer, cancellationToken);
 
-        attachment.Commit(DateTime.UtcNow);
+        // An upload with a known owner commits immediately. An upload made before its owner exists
+        // (ownerId null) stays pending until the owning feature claims and commits it; unclaimed
+        // pendings are reaped by the cleanup sweep.
+        if (ownerId.HasValue)
+        {
+            attachment.Commit(DateTime.UtcNow);
+        }
+
         db.Attachments.Add(attachment);
 
-        activityLog.Record(
-            action: "AttachmentUploaded",
-            subjectType: "Attachment",
-            subjectId: attachment.Id,
-            metadata: new { attachment.OwnerType, attachment.OwnerId, attachment.FileName, attachment.SizeBytes });
+        // Commits are audited; a pending (not-yet-claimed) upload is audited by the owning feature
+        // when it claims and commits the attachment.
+        if (attachment.Status == AttachmentStatus.Committed)
+        {
+            activityLog.Record(
+                action: "AttachmentUploaded",
+                subjectType: "Attachment",
+                subjectId: attachment.Id,
+                metadata: new { attachment.OwnerType, attachment.OwnerId, attachment.FileName, attachment.SizeBytes });
+        }
 
         try
         {

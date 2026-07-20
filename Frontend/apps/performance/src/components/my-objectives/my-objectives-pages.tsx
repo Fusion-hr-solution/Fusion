@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { CalendarClock, CheckCircle2, ChevronRight, CircleAlert, MessageSquareText, Pencil, Plus, Send, Trash2 } from "lucide-react";
+import { CalendarClock, CheckCircle2, ChevronRight, CircleAlert, Lock, MessageSquareText, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import {
   ApiError,
   createPlatformApiClient,
@@ -39,6 +39,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { myObjectiveTerms } from "./my-objectives-terms";
 import { ObjectiveEditorDialog, type ObjectiveEditorState } from "./objective-editor-dialog";
+import { ProgressWorkspace } from "./progress/progress-workspace";
 
 // ── Employee door: my objective-plan campaigns ───────────────────────────────
 
@@ -351,24 +352,25 @@ export function MyObjectiveWorkspacePage() {
         />
       ) : (
         <div className="space-y-4">
-          <AllocationSpine
-            objectives={objectives}
-            totalWeight={totalWeight}
-            maxObjectiveCount={workspace.maxObjectiveCount}
-            state={workspace.state}
-            canEdit={!readOnly}
-            onSegment={openEdit}
-            onAdd={openCreate}
-            atMax={atMax}
-          />
+          {workspace.state !== "locked-approved" ? (
+            <AllocationSpine
+              objectives={objectives}
+              totalWeight={totalWeight}
+              maxObjectiveCount={workspace.maxObjectiveCount}
+              state={workspace.state}
+              canEdit={!readOnly}
+              onSegment={openEdit}
+              onAdd={openCreate}
+              atMax={atMax}
+              lockedAt={workspace.planningLockedAt}
+              lockedBy={workspace.planningLockedByName}
+            />
+          ) : null}
 
           {workspace.state === "locked-approved" ? (
-            <div className="space-y-4">
-              <LockedNotice lockedAt={workspace.planningLockedAt} lockedBy={workspace.planningLockedByName} approved />
-              <ObjectiveList objectives={objectives} readOnly />
-            </div>
+            <ProgressWorkspace workspace={workspace} onRecorded={refetch} />
           ) : workspace.state === "locked-unresolved" ? (
-            <LockedNotice lockedAt={workspace.planningLockedAt} lockedBy={workspace.planningLockedByName} />
+            <ObjectiveList objectives={objectives} readOnly />
           ) : workspace.state === "submitted" ? (
             <div className="space-y-4">
               <SubmittedNotice approverName={plan?.approverName} submittedAt={plan?.submittedAt} />
@@ -484,6 +486,8 @@ function AllocationSpine({
   onSegment,
   onAdd,
   atMax,
+  lockedAt,
+  lockedBy,
 }: {
   objectives: EmployeeObjectiveDto[];
   totalWeight: number;
@@ -493,7 +497,10 @@ function AllocationSpine({
   onSegment: (objective: EmployeeObjectiveDto) => void;
   onAdd: () => void;
   atMax: boolean;
+  lockedAt?: string | null;
+  lockedBy?: string | null;
 }) {
+  const isLocked = state === "locked-unresolved" || state === "locked-approved";
   const over = Math.max(0, totalWeight - 100);
   const remaining = Math.max(0, 100 - totalWeight);
   const denominator = Math.max(100, totalWeight);
@@ -542,6 +549,13 @@ function AllocationSpine({
             <span className="text-sm text-muted-foreground tabular-nums">
               {myObjectiveTerms.count(objectives.length, maxObjectiveCount)}
             </span>
+            {isLocked ? (
+              <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Lock className="size-3.5" />
+                Locked {lockedAt ? formatDate(lockedAt) : myObjectiveTerms.notSet}
+                {lockedBy ? ` · ${lockedBy}` : ""}
+              </span>
+            ) : null}
           </div>
           <div className="mt-3 flex items-end gap-3">
             <p
@@ -713,15 +727,19 @@ function ObjectiveRow({
         className={cn("w-1 shrink-0 rounded-full", !complete && "bg-amber-500/70")}
       />
       <div className={cn("min-w-0 flex-1", !readOnly && "pr-14")}>
-        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-          <p className="font-heading text-2xl font-semibold leading-none tabular-nums text-foreground">
-            {objective.weight ?? 0}
-            <span className="text-base text-muted-foreground">%</span>
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <p className="min-w-0 text-wrap font-semibold text-foreground">
+            <span className="font-heading text-2xl leading-none tabular-nums align-baseline mr-1.5">
+              {objective.weight ?? 0}
+              <span className="text-base text-muted-foreground">%</span>
+            </span>
+            {objective.title}
           </p>
-          <h3 className="min-w-0 text-wrap font-semibold text-foreground">{objective.title}</h3>
-          <StatusBadge tone={complete ? "success" : "warning"} dot>
-            {complete ? myObjectiveTerms.complete : myObjectiveTerms.needsDetail}
-          </StatusBadge>
+          <span className="shrink-0">
+            <StatusBadge tone={complete ? "success" : "warning"} dot>
+              {complete ? myObjectiveTerms.complete : myObjectiveTerms.needsDetail}
+            </StatusBadge>
+          </span>
         </div>
         {!complete ? (
           <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-amber-700 dark:text-primary">
@@ -977,39 +995,6 @@ function ApprovedNotice({
   );
 }
 
-function LockedNotice({
-  lockedAt,
-  lockedBy,
-  approved,
-}: {
-  lockedAt?: string | null;
-  lockedBy?: string | null;
-  approved?: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border border-border bg-muted/35 p-5">
-      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p className="font-heading text-lg font-semibold text-foreground">
-            {approved ? "Locked planning baseline" : "Planning locked"}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {approved ? "Approved objectives are read-only." : "This plan can no longer be changed here."}
-          </p>
-        </div>
-        <dl className="grid gap-x-5 gap-y-1 text-sm sm:grid-cols-2 md:shrink-0">
-          <KeyValue label="Locked">
-            {lockedAt ? formatDate(lockedAt) : myObjectiveTerms.notSet}
-          </KeyValue>
-          <KeyValue label="By">
-            {lockedBy ?? "HR"}
-          </KeyValue>
-        </dl>
-      </div>
-    </div>
-  );
-}
-
 function ObjectiveMetadata({
   label,
   children,
@@ -1080,17 +1065,21 @@ function MyObjectiveWorkspaceSkeleton() {
   return (
     <PageContainer>
       <div className="space-y-5" aria-busy aria-label="Loading objective plan">
-        <Skeleton className="h-8 w-72" />
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-72" />
+          <Skeleton className="h-4 w-48" />
+        </div>
         <div className="space-y-4 rounded-2xl border border-border bg-card p-5">
-          <Skeleton className="h-12 w-40" />
+          <Skeleton className="h-10 w-40" />
           <Skeleton className="h-12 w-full rounded-xl" />
         </div>
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
-          <div className="space-y-3">
-            <Skeleton className="h-24 rounded-xl" />
-            <Skeleton className="h-24 rounded-xl" />
-          </div>
-          <Skeleton className="h-44 rounded-2xl" />
+        <div
+          className="grid gap-3"
+          style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 20rem), 1fr))" }}
+        >
+          <Skeleton className="h-36 rounded-xl" />
+          <Skeleton className="h-36 rounded-xl" />
+          <Skeleton className="h-36 rounded-xl" />
         </div>
       </div>
     </PageContainer>

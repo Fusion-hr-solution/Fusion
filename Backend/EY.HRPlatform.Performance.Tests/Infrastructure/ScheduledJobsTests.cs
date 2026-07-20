@@ -67,7 +67,7 @@ public class ScheduledJobsTests
         var start = DateTime.UtcNow.AddDays(-30);
         var end = DateTime.UtcNow.AddDays(30);
         var cycle = TestCycles.Create(tenantId, "FY", PerformanceCycleType.Annual, start, end,
-            objectiveSettingDeadline: DateTime.UtcNow.AddDays(-2)).ForceActive();
+            objectiveSettingDeadline: DateTime.UtcNow.AddDays(-2)).ForceLaunched();
         db.PerformanceCycles.Add(cycle);
         db.PerformanceCycleParticipants.Add(PerformanceCycleParticipant.Create(
             tenantId, cycle.Id, Guid.NewGuid(), "Emp One", Guid.NewGuid(), "Mgr"));

@@ -64,6 +64,16 @@ if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
     var dbContext = scope.ServiceProvider.GetRequiredService<PerformanceDbContext>();
     await dbContext.Database.MigrateAsync();
     await PlatformDefaultsSeeder.SeedAsync(dbContext);
+
+    if (app.Environment.IsDevelopment() &&
+        builder.Configuration.GetValue<bool>("DemoSeed:AtlasPerformance:Enabled"))
+    {
+        var tenantValue = builder.Configuration["DemoSeed:AtlasPerformance:TenantId"];
+        if (!Guid.TryParse(tenantValue, out var atlasTenantId) || atlasTenantId == Guid.Empty)
+            throw new InvalidOperationException(
+                "DemoSeed:AtlasPerformance:TenantId must be a non-empty GUID when the Atlas seed is enabled.");
+        await AtlasPerformanceDemoSeeder.SeedAsync(dbContext, atlasTenantId, DateTime.UtcNow);
+    }
 }
 
 if (app.Environment.IsDevelopment())
