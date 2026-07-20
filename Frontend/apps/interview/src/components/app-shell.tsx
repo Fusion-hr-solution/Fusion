@@ -10,9 +10,15 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
-  const hideSidebar = pathname === "/candidate/start";
 
-  if (hideSidebar) {
+  // The frontend-project sandbox is embedded as a bare iframe (its own full-screen chrome) —
+  // render it with no admin shell at all.
+  if (pathname === "/candidate/frontend-sandbox") {
+    return <>{children}</>;
+  }
+
+  // The candidate exam takes over the viewport without the admin sidebar.
+  if (pathname === "/candidate/start") {
     return <main className="min-h-screen bg-zinc-50">{children}</main>;
   }
 

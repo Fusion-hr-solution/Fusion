@@ -178,4 +178,86 @@ public class QuestionServiceTests
         Assert.Single(result.Items);
         Assert.Equal("Advanced SQL joins", result.Items[0].Title);
     }
+
+    private static CreateQuestionDto FrontendRequest(string? framework) => new()
+    {
+        Type = "Frontend Project",
+        Title = "Build a widget",
+        Description = "Desc",
+        Difficulty = "Medium",
+        Points = 10,
+        DurationMinutes = 20,
+        GradingMethod = "Hybrid",
+        Framework = framework,
+    };
+
+    [Fact]
+    public async Task CreateAsync_FrontendProject_WithUnsupportedFramework_ThrowsValidation400()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var service = new QuestionService(db);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(
+            () => service.CreateAsync(FrontendRequest("svelte"), CancellationToken.None));
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ex.StatusCode);
+        Assert.Contains(ex.Errors, e => e.Contains("Unsupported framework"));
+    }
+
+    [Fact]
+    public async Task CreateAsync_FrontendProject_WithoutFramework_ThrowsValidation400()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var service = new QuestionService(db);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(
+            () => service.CreateAsync(FrontendRequest(""), CancellationToken.None));
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ex.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("react", "react")]
+    [InlineData("Angular", "angular")]
+    [InlineData("Next.js", "next")]
+    [InlineData("NEXTJS", "next")]
+    public async Task CreateAsync_FrontendProject_NormalizesFrameworkToCanonicalValue(string input, string stored)
+    {
+        await using var db = TestDbContextFactory.Create();
+        var service = new QuestionService(db);
+
+        var created = await service.CreateAsync(FrontendRequest(input), CancellationToken.None);
+
+        Assert.Equal(stored, created.Framework);
+    }
+
+    [Fact]
+    public async Task CreateAsync_FrontendProject_OversizedGradingTests_ThrowsValidation400()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var service = new QuestionService(db);
+        var request = FrontendRequest("react");
+        request.FrontendTestFiles = new string('x', (512 * 1024) + 1);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(
+            () => service.CreateAsync(request, CancellationToken.None));
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ex.StatusCode);
+        Assert.Contains(ex.Errors, e => e.Contains("Grading tests are too large"));
+    }
+
+    [Fact]
+    public async Task CreateAsync_FrontendProject_OversizedStarterProject_ThrowsValidation400()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var service = new QuestionService(db);
+        var request = FrontendRequest("react");
+        request.ProjectFiles = new string('x', (512 * 1024) + 1);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(
+            () => service.CreateAsync(request, CancellationToken.None));
+
+        Assert.Equal(StatusCodes.Status400BadRequest, ex.StatusCode);
+        Assert.Contains(ex.Errors, e => e.Contains("Starter project is too large"));
+    }
 }

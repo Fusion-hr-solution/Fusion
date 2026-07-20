@@ -1,3 +1,4 @@
+using EY.HRPlatform.Interview.Domain;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Infrastructure;
@@ -9,6 +10,10 @@ namespace EY.HRPlatform.Interview.Features.Questions;
 
 public class QuestionService(AppDbContext dbContext) : IQuestionService
 {
+    // Upper bound for a Frontend Project's starter/test JSON. Generous for source trees (the Docker
+    // grader separately caps the MERGED project at 512 KB) but stops multi-MB blobs at authoring.
+    private const int MaxProjectJsonChars = 512 * 1024;
+
     public async Task<PagedResultDto<QuestionDto>> GetAsync(QuestionFilterDto filter, CancellationToken cancellationToken)
     {
         ValidatePaging(filter.Page, filter.PageSize);
@@ -99,6 +104,8 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             Language = string.IsNullOrWhiteSpace(request.Language) ? null : request.Language.Trim(),
             StarterCode = string.IsNullOrWhiteSpace(request.StarterCode) ? null : request.StarterCode,
             ProjectFiles = string.IsNullOrWhiteSpace(request.ProjectFiles) ? null : request.ProjectFiles,
+            Framework = FrontendFrameworks.Resolve(request.Framework),
+            FrontendTestFiles = string.IsNullOrWhiteSpace(request.FrontendTestFiles) ? null : request.FrontendTestFiles,
             EvaluationCriteria = string.IsNullOrWhiteSpace(request.EvaluationCriteria) ? null : request.EvaluationCriteria.Trim(),
             TestCases = string.IsNullOrWhiteSpace(request.TestCases) ? null : request.TestCases,
             Options = options.Select(o => new QuestionOption
@@ -138,6 +145,8 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         question.Language = string.IsNullOrWhiteSpace(request.Language) ? null : request.Language.Trim();
         question.StarterCode = string.IsNullOrWhiteSpace(request.StarterCode) ? null : request.StarterCode;
         question.ProjectFiles = string.IsNullOrWhiteSpace(request.ProjectFiles) ? null : request.ProjectFiles;
+        question.Framework = FrontendFrameworks.Resolve(request.Framework);
+        question.FrontendTestFiles = string.IsNullOrWhiteSpace(request.FrontendTestFiles) ? null : request.FrontendTestFiles;
         question.EvaluationCriteria = string.IsNullOrWhiteSpace(request.EvaluationCriteria) ? null : request.EvaluationCriteria.Trim();
         question.TestCases = string.IsNullOrWhiteSpace(request.TestCases) ? null : request.TestCases;
 
@@ -201,6 +210,8 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             Language = question.Language ?? string.Empty,
             StarterCode = question.StarterCode ?? string.Empty,
             ProjectFiles = question.ProjectFiles,
+            Framework = question.Framework,
+            FrontendTestFiles = question.FrontendTestFiles,
             EvaluationCriteria = question.EvaluationCriteria ?? string.Empty,
             TestCases = question.TestCases
         };
@@ -239,6 +250,20 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         if ((type is QuestionType.Coding or QuestionType.Sql) && string.IsNullOrWhiteSpace(request.Language))
             errors.Add("Coding and SQL questions require language.");
 
+        if (type is QuestionType.FrontendProject && FrontendFrameworks.Resolve(request.Framework) is null)
+        {
+            errors.Add(string.IsNullOrWhiteSpace(request.Framework)
+                ? "Frontend Project questions require a framework (react, angular, or next)."
+                : $"Unsupported framework '{request.Framework}'. Supported: react, angular, next.");
+        }
+
+        // These are unbounded `text` columns served to candidates and materialized to disk by the
+        // grader — cap them so a huge author-supplied blob can't bloat the DB / candidate payload.
+        if ((request.ProjectFiles?.Length ?? 0) > MaxProjectJsonChars)
+            errors.Add($"Starter project is too large (max {MaxProjectJsonChars / 1024} KB).");
+        if ((request.FrontendTestFiles?.Length ?? 0) > MaxProjectJsonChars)
+            errors.Add($"Grading tests are too large (max {MaxProjectJsonChars / 1024} KB).");
+
         if (options.Any(o => string.IsNullOrWhiteSpace(o.Text)))
             errors.Add("option text is required.");
 
@@ -261,6 +286,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             "Excel" => QuestionType.Excel,
             "True/False" => QuestionType.TrueFalse,
             "Design" => QuestionType.Design,
+            "Frontend Project" => QuestionType.FrontendProject,
             _ => throw new ApiException($"Invalid QuestionType value '{value}'.", StatusCodes.Status400BadRequest)
         };
     }
@@ -302,6 +328,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             QuestionType.MultipleChoice => "Multiple Choice",
             QuestionType.CaseStudy => "Case Study",
             QuestionType.TrueFalse => "True/False",
+            QuestionType.FrontendProject => "Frontend Project",
             _ => type.ToString()
         };
     }

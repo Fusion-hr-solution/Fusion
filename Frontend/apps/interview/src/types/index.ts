@@ -6,7 +6,8 @@ export type QuestionType =
   | "Case Study"
   | "Excel"
   | "True/False"
-  | "Design";
+  | "Design"
+  | "Frontend Project";
 
 export type Difficulty = "Easy" | "Medium" | "Hard" | "Expert";
 
@@ -66,6 +67,10 @@ export interface Question {
   language?: string;
   starterCode?: string;
   projectFiles?: string;
+  /** Frontend Project questions: framework ("react" | "angular" | "next"). */
+  framework?: string;
+  /** Frontend Project questions: author grading tests (JSON). Author-facing only. */
+  frontendTestFiles?: string;
   evaluationCriteria?: string;
   testCases?: TestCase[];
 }
@@ -84,6 +89,10 @@ export interface NewQuestionForm {
   starterCode: string;
   /** Multi-file coding question starter: JSON { entry, files: [{ path, content }] }. */
   projectFiles?: string;
+  /** Frontend Project questions: framework ("react" | "angular" | "next"). */
+  framework?: string;
+  /** Frontend Project questions: author grading tests (JSON). Author-facing only. */
+  frontendTestFiles?: string;
   evaluationCriteria: string;
   testCases: TestCase[];
 }

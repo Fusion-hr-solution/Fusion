@@ -19,7 +19,7 @@ public class CandidateManagementRoutesIntegrationTests
     {
         await using var factory = new InterviewApiFactory();
         var testId = await SeedTestAsync(factory.Services);
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -61,7 +61,7 @@ public class CandidateManagementRoutesIntegrationTests
     {
         await using var factory = new InterviewApiFactory();
         var testId = await SeedTestAsync(factory.Services);
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -158,7 +158,7 @@ public class CandidateManagementRoutesIntegrationTests
     {
         await using var factory = new InterviewApiFactory();
         var testId = await SeedTestAsync(factory.Services);
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -181,7 +181,7 @@ public class CandidateManagementRoutesIntegrationTests
     {
         await using var factory = new InterviewApiFactory();
         var testId = await SeedTestAsync(factory.Services);
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -203,7 +203,7 @@ public class CandidateManagementRoutesIntegrationTests
     public async Task GetAttemptSettings_WhenUnset_ReturnsDefault()
     {
         await using var factory = new InterviewApiFactory();
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -221,7 +221,7 @@ public class CandidateManagementRoutesIntegrationTests
     public async Task SaveAttemptSettings_WhenValid_PersistsAndCanBeRetrieved()
     {
         await using var factory = new InterviewApiFactory();
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -249,7 +249,7 @@ public class CandidateManagementRoutesIntegrationTests
     public async Task SaveAttemptSettings_WhenNegative_ReturnsBadRequest()
     {
         await using var factory = new InterviewApiFactory();
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -271,7 +271,7 @@ public class CandidateManagementRoutesIntegrationTests
     {
         await using var factory = new InterviewApiFactory();
         var testId = await SeedTestAsync(factory.Services);
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -360,7 +360,7 @@ public class CandidateManagementRoutesIntegrationTests
     {
         await using var factory = new InterviewApiFactory();
         var testId = await SeedTestAsync(factory.Services);
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -435,7 +435,7 @@ public class CandidateManagementRoutesIntegrationTests
         var testId = await SeedTestAsync(factory.Services);
         await SetGlobalMaxAttemptsAsync(factory.Services, 1);
 
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -473,7 +473,7 @@ public class CandidateManagementRoutesIntegrationTests
         var testId = await SeedTestAsync(factory.Services);
         await SetGlobalMaxAttemptsAsync(factory.Services, 1);
 
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });

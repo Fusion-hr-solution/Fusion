@@ -26,6 +26,7 @@
     "@repo/auth": "workspace:*",
     "@repo/ui": "workspace:*",
     "@tanstack/react-query": "^5.99.2",
+    "@webcontainer/api": "^1.6.4",
     "monaco-editor": "^0.55.1",
     "next": "^15.1.0",
     "react": "^19.0.0",
