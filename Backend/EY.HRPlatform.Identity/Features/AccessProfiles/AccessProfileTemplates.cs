@@ -20,6 +20,7 @@ public static class AccessProfileTemplates
             new(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
             new(CorePermissions.EmployeeView, PermissionScopes.Self),
             new(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self),
+            new(PerformancePermissions.CheckInSelfView, PermissionScopes.Self),
         ]);
 
     public static readonly SeededAccessProfileTemplate Manager = new(
@@ -35,6 +36,8 @@ public static class AccessProfileTemplates
             new(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.DirectReports),
             new(PerformancePermissions.ObjectiveTeamApprove, PermissionScopes.DirectReports),
             new(PerformancePermissions.ObjectiveProgressTeamView, PermissionScopes.DirectReports),
+            new(PerformancePermissions.CheckInConduct, PermissionScopes.DirectReports),
+            new(PerformancePermissions.CheckInSelfView, PermissionScopes.Self),
         ]);
 
     public static readonly SeededAccessProfileTemplate Direction = new(

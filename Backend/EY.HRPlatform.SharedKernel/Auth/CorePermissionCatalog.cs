@@ -136,6 +136,10 @@ public static class PerformancePermissions
     // Team-progress visibility for effective reviewers (distinct from plan approval).
     public const string ObjectiveProgressTeamView = "performance.objective.progress.team.view";
 
+    // Check-ins and follow-up (performance record step 2): reviewer conducts, employee views own.
+    public const string CheckInConduct = "performance.checkin.conduct";
+    public const string CheckInSelfView = "performance.checkin.self.view";
+
     // Objective planning configuration permissions.
     public const string ObjectivePolicyView = "performance.objective.policy.view";
     public const string ObjectivePolicyManage = "performance.objective.policy.manage";
@@ -156,6 +160,8 @@ public static class PerformancePermissions
             ObjectiveProgressCorrect,
             ObjectiveTeamApprove,
             ObjectiveProgressTeamView,
+            CheckInConduct,
+            CheckInSelfView,
             ObjectivePolicyView,
             ObjectivePolicyManage,
         ]);
@@ -244,6 +250,10 @@ public static class CorePermissionCatalog
             new(PerformancePermissions.ObjectiveProgressCorrect, "Correct objective progress (manager override)", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.ObjectiveTeamApprove, "Approve employee objective plans", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
             new(PerformancePermissions.ObjectiveProgressTeamView, "View team objective progress", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
+
+            // Check-in and follow-up permissions (performance record step 2).
+            new(PerformancePermissions.CheckInConduct, "Conduct performance check-ins", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Plan, reschedule, cancel, and complete check-ins for participants you review; effective-reviewer scope is enforced per participant."),
+            new(PerformancePermissions.CheckInSelfView, "View own check-ins", "Performance", [PermissionScopes.Self]),
 
             // Objective planning configuration permissions.
             new(PerformancePermissions.ObjectivePolicyView, "View objective planning configuration", "Performance", [PermissionScopes.Tenant]),

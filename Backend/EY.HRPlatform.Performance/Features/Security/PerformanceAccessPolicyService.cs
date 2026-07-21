@@ -29,6 +29,12 @@ public interface IPerformanceAccessPolicyService
     // scope is enforced per participant in the team-progress handlers.
     bool CanViewTeamProgress(ClaimsPrincipal user) => false;
 
+    // Check-ins (performance record step 2): the reviewer door opens on the conduct permission;
+    // per-participant effective-reviewer scope is enforced in the check-in access guard. The
+    // employee door is strictly self-scoped.
+    bool CanConductCheckIns(ClaimsPrincipal user) => false;
+    bool CanViewOwnCheckIns(ClaimsPrincipal user) => false;
+
     // Cascade coverage read (P1.3): Direction door (strategic view) or HR door (cycle view/manage).
     bool CanViewCascadeCoverage(ClaimsPrincipal user) => false;
 
@@ -97,6 +103,21 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
     /// </summary>
     public bool CanViewTeamProgress(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.ObjectiveProgressTeamView);
+
+    /// <summary>
+    /// The check-in reviewer door opens on the conduct permission at any catalog scope; the
+    /// effective-reviewer rule (stricter than permission scope) is enforced per participant in the
+    /// <c>CheckInAccessGuard</c>. No PlatformAdmin bypass — check-ins are owned business content.
+    /// </summary>
+    public bool CanConductCheckIns(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.CheckInConduct);
+
+    /// <summary>
+    /// The employee check-in surface is strictly self-scoped. No Tenant/PlatformAdmin bypass:
+    /// record ownership still comes from the participant identity in handlers.
+    /// </summary>
+    public bool CanViewOwnCheckIns(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.CheckInSelfView, PermissionScopes.Self);
 
     public bool CanViewCascadeCoverage(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)
