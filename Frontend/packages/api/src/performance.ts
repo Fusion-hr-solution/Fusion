@@ -985,6 +985,215 @@ export interface LockPlanningRequest {
   confirmation: string;
 }
 
+// ── Check-ins & follow-up (Performance Record step 2) ─────────────────
+
+export type CheckInStatus = "Planned" | "Completed" | "Cancelled";
+export type FollowUpActionStatus = "Open" | "Completed" | "Cancelled";
+export type DiscussionSignalStatus = "Open" | "ResolvedByCheckIn" | "Closed";
+export type FollowUpActionOwnerKind = "Employee" | "Reviewer";
+
+export interface CheckInLinkedObjectiveDto {
+  objectiveId: string;
+  objectiveTitle: string;
+  wasDiscussed: boolean;
+}
+
+export interface CheckInRescheduleEntryDto {
+  previousDate: string;
+  previousTime: string | null;
+  newDate: string;
+  newTime: string | null;
+  actorName: string;
+  occurredAt: string;
+}
+
+export interface CheckInAddendumDto {
+  id: string;
+  authorName: string;
+  text: string;
+  createdAtUtc: string;
+}
+
+export interface CheckInResponseDto {
+  text: string;
+  createdAtUtc: string;
+}
+
+export interface FollowUpActionStatusEventDto {
+  fromStatus: FollowUpActionStatus;
+  toStatus: FollowUpActionStatus;
+  actorName: string;
+  note: string | null;
+  occurredAt: string;
+}
+
+export interface FollowUpActionDto {
+  id: string;
+  checkInId: string;
+  description: string;
+  ownerKind: FollowUpActionOwnerKind;
+  ownerEmployeeId: string;
+  ownerName: string;
+  dueDate: string;
+  linkedObjectiveId: string | null;
+  status: FollowUpActionStatus;
+  isOverdue: boolean;
+  resolutionNote: string | null;
+  resolvedAt: string | null;
+  version: number;
+  statusEvents: FollowUpActionStatusEventDto[];
+}
+
+export interface DiscussionSignalDto {
+  id: string;
+  objectiveId: string;
+  objectiveTitle: string;
+  note: string | null;
+  status: DiscussionSignalStatus;
+  linkedCheckInId: string | null;
+  resolvedByCheckInId: string | null;
+  closeReason: string | null;
+  raisedAt: string;
+  resolvedAt: string | null;
+}
+
+export interface CheckInSummaryDto {
+  id: string;
+  cycleId: string;
+  status: CheckInStatus;
+  plannedDate: string;
+  plannedTime: string | null;
+  reason: string;
+  isOverdue: boolean;
+  linkedObjectiveCount: number;
+  createdByReviewerName: string;
+  completedAt: string | null;
+  hasResponse: boolean;
+  version: number;
+}
+
+export interface CheckInDetailDto {
+  id: string;
+  cycleId: string;
+  employeeId: string;
+  employeeName: string;
+  createdByReviewerName: string;
+  status: CheckInStatus;
+  plannedDate: string;
+  plannedTime: string | null;
+  reason: string;
+  agenda: string | null;
+  isOverdue: boolean;
+  version: number;
+  completionSummary: string | null;
+  completedByReviewerName: string | null;
+  completedAt: string | null;
+  cancellationReason: string | null;
+  cancelledAt: string | null;
+  linkedObjectives: CheckInLinkedObjectiveDto[];
+  rescheduleHistory: CheckInRescheduleEntryDto[];
+  addenda: CheckInAddendumDto[];
+  response: CheckInResponseDto | null;
+  actions: FollowUpActionDto[];
+}
+
+export interface CheckInParticipantPanelDto {
+  employeeId: string;
+  employeeName: string;
+  openDiscussionSignals: DiscussionSignalDto[];
+  upcoming: CheckInSummaryDto[];
+  overdue: CheckInSummaryDto[];
+  unresolvedActions: FollowUpActionDto[];
+  completedHistory: CheckInSummaryDto[];
+}
+
+export interface EmployeeCheckInsDto {
+  upcoming: CheckInSummaryDto[];
+  completed: CheckInDetailDto[];
+  assignedActions: FollowUpActionDto[];
+  completedActions: FollowUpActionDto[];
+  openDiscussionSignals: DiscussionSignalDto[];
+}
+
+export interface PlanCheckInRequest {
+  employeeId: string;
+  plannedDate: string;
+  plannedTime: string | null;
+  reason: string;
+  agenda: string | null;
+  linkedObjectiveIds: string[] | null;
+  discussionSignalIds: string[] | null;
+}
+
+export interface RescheduleCheckInRequest {
+  expectedVersion: number;
+  newDate: string;
+  newTime: string | null;
+}
+
+export interface CancelCheckInRequest {
+  expectedVersion: number;
+  reason: string;
+}
+
+export interface AgreedActionInput {
+  description: string;
+  ownerKind: FollowUpActionOwnerKind;
+  dueDate: string;
+  linkedObjectiveId: string | null;
+}
+
+export interface CompleteCheckInRequest {
+  expectedVersion: number;
+  summary: string;
+  discussedObjectiveIds: string[] | null;
+  actions: AgreedActionInput[] | null;
+}
+
+export interface AddCheckInAddendumRequest {
+  text: string;
+}
+
+export interface CompleteFollowUpActionRequest {
+  expectedVersion: number;
+  note: string | null;
+}
+
+export interface CancelFollowUpActionRequest {
+  expectedVersion: number;
+  reason: string;
+}
+
+export interface RaiseDiscussionSignalRequest {
+  objectiveId: string;
+  note: string | null;
+}
+
+export interface CloseDiscussionSignalRequest {
+  reason: string;
+}
+
+export interface AddCheckInEmployeeResponseRequest {
+  text: string;
+}
+
+export interface CheckInMutationResult {
+  checkInId: string;
+  status: CheckInStatus;
+  version: number;
+}
+
+export interface FollowUpActionMutationResult {
+  actionId: string;
+  status: FollowUpActionStatus;
+  version: number;
+}
+
+export interface DiscussionSignalMutationResult {
+  signalId: string;
+  status: DiscussionSignalStatus;
+}
+
 // ── Paths ────────────────────────────────────────────────────────────
 
 export const performancePaths = {
@@ -1065,6 +1274,28 @@ export const performancePaths = {
     `/performance/planning-completion/campaigns/${cycleId}/participants/${participantEmployeeId}/exclude`,
   planningCompletionLock: (cycleId: string) =>
     `/performance/planning-completion/campaigns/${cycleId}/lock`,
+  checkInParticipantPanel: (cycleId: string, employeeId: string) =>
+    `/performance/check-ins/campaigns/${cycleId}/participants/${employeeId}`,
+  checkInDetail: (checkInId: string) => `/performance/check-ins/${checkInId}`,
+  myCheckIns: (cycleId: string) => `/performance/check-ins/mine?cycleId=${cycleId}`,
+  planCheckIn: (cycleId: string) => `/performance/check-ins/campaigns/${cycleId}`,
+  rescheduleCheckIn: (checkInId: string) =>
+    `/performance/check-ins/${checkInId}/reschedule`,
+  cancelCheckIn: (checkInId: string) => `/performance/check-ins/${checkInId}/cancel`,
+  completeCheckIn: (checkInId: string) =>
+    `/performance/check-ins/${checkInId}/complete`,
+  addCheckInAddendum: (checkInId: string) =>
+    `/performance/check-ins/${checkInId}/addendum`,
+  completeFollowUpAction: (actionId: string) =>
+    `/performance/check-ins/actions/${actionId}/complete`,
+  cancelFollowUpAction: (actionId: string) =>
+    `/performance/check-ins/actions/${actionId}/cancel`,
+  addCheckInResponse: (checkInId: string) =>
+    `/performance/check-ins/${checkInId}/response`,
+  raiseDiscussionSignal: (cycleId: string) =>
+    `/performance/check-ins/campaigns/${cycleId}/discussion-signals`,
+  closeDiscussionSignal: (signalId: string) =>
+    `/performance/check-ins/discussion-signals/${signalId}/close`,
 } as const;
 
 // ── Query keys ───────────────────────────────────────────────────────
@@ -1183,4 +1414,11 @@ export const performanceQueryKeys = {
       cycleId,
       participantEmployeeId,
     ] as const,
+  checkIns: () => [...performanceQueryKeys.all(), "check-ins"] as const,
+  checkInParticipantPanel: (cycleId: string, employeeId: string) =>
+    [...performanceQueryKeys.checkIns(), "panel", cycleId, employeeId] as const,
+  checkInDetail: (checkInId: string) =>
+    [...performanceQueryKeys.checkIns(), "detail", checkInId] as const,
+  myCheckIns: (cycleId: string) =>
+    [...performanceQueryKeys.checkIns(), "mine", cycleId] as const,
 } as const;
