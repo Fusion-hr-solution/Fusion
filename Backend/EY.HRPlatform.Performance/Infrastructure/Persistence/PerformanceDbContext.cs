@@ -45,6 +45,9 @@ public class PerformanceDbContext : DbContext
     public DbSet<PerformanceConfigurationAuditEntry> PerformanceConfigurationAuditEntries => Set<PerformanceConfigurationAuditEntry>();
     public DbSet<ActivityLogEntry> ActivityLogEntries => Set<ActivityLogEntry>();
     public DbSet<ObjectiveProgressUpdate> ObjectiveProgressUpdates => Set<ObjectiveProgressUpdate>();
+    public DbSet<PerformanceCheckIn> PerformanceCheckIns => Set<PerformanceCheckIn>();
+    public DbSet<CheckInFollowUpAction> CheckInFollowUpActions => Set<CheckInFollowUpAction>();
+    public DbSet<ObjectiveDiscussionSignal> ObjectiveDiscussionSignals => Set<ObjectiveDiscussionSignal>();
     public DbSet<ScheduledJobRun> ScheduledJobRuns => Set<ScheduledJobRun>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
 
@@ -102,6 +105,34 @@ public class PerformanceDbContext : DbContext
         if (progressMutated)
             throw new InvalidOperationException(
                 "Objective progress updates are append-only and cannot be modified or deleted.");
+
+        var addendumMutated = ChangeTracker.Entries<PerformanceCheckInAddendum>()
+            .Any(e => e.State is EntityState.Modified or EntityState.Deleted);
+
+        if (addendumMutated)
+            throw new InvalidOperationException(
+                "Check-in addenda are append-only and cannot be modified or deleted.");
+
+        var responseMutated = ChangeTracker.Entries<PerformanceCheckInResponse>()
+            .Any(e => e.State is EntityState.Modified or EntityState.Deleted);
+
+        if (responseMutated)
+            throw new InvalidOperationException(
+                "Check-in employee responses are immutable and cannot be modified or deleted.");
+
+        var rescheduleMutated = ChangeTracker.Entries<PerformanceCheckInRescheduleEntry>()
+            .Any(e => e.State is EntityState.Modified or EntityState.Deleted);
+
+        if (rescheduleMutated)
+            throw new InvalidOperationException(
+                "Check-in reschedule entries are append-only and cannot be modified or deleted.");
+
+        var actionStatusMutated = ChangeTracker.Entries<CheckInFollowUpActionStatusEvent>()
+            .Any(e => e.State is EntityState.Modified or EntityState.Deleted);
+
+        if (actionStatusMutated)
+            throw new InvalidOperationException(
+                "Follow-up action status events are append-only and cannot be modified or deleted.");
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -163,6 +194,15 @@ public class PerformanceDbContext : DbContext
 
         modelBuilder.Entity<ObjectiveProgressUpdate>()
             .HasQueryFilter(u => CurrentTenantId != Guid.Empty && u.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<PerformanceCheckIn>()
+            .HasQueryFilter(c => CurrentTenantId != Guid.Empty && c.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<CheckInFollowUpAction>()
+            .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<ObjectiveDiscussionSignal>()
+            .HasQueryFilter(s => CurrentTenantId != Guid.Empty && s.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<Attachment>()
             .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
