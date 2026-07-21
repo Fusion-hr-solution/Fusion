@@ -79,6 +79,37 @@ public sealed class CheckInAccessGuard(
     }
 
     /// <summary>
+    /// Resolves reviewer scope for reading a participant's check-in panel: the caller must be the
+    /// participant's current effective reviewer. Unlike the plan path, this does not require the plan
+    /// to be Approved, so a reviewer can always monitor a participant they review.
+    /// </summary>
+    public async Task<Result<CheckInReviewerParticipantScope>> RequireReviewerParticipantAsync(
+        Guid cycleId,
+        Guid employeeId,
+        CancellationToken cancellationToken)
+    {
+        var reviewerEmployeeId = currentUser.EmployeeId;
+        if (!reviewerEmployeeId.HasValue)
+            return Result.Failure<CheckInReviewerParticipantScope>(Error.Forbidden(
+                "CheckIn.EmployeeContextForbidden",
+                "Your account is not linked to an employee record."));
+
+        var participant = await dbContext.PerformanceCycleParticipants
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.CycleId == cycleId && item.EmployeeId == employeeId, cancellationToken);
+        if (participant is null)
+            return Result.Failure<CheckInReviewerParticipantScope>(Error.NotFound("PerformanceCycleParticipant", employeeId));
+
+        var reviewer = await ResolveEffectiveReviewerAsync(cycleId, participant, cancellationToken);
+        if (reviewer.ReviewerId != reviewerEmployeeId.Value)
+            return Result.Failure<CheckInReviewerParticipantScope>(Error.Forbidden(
+                "CheckIn.NotReviewerForbidden",
+                "Only the participant's assigned reviewer can view their check-ins."));
+
+        return Result.Success(new CheckInReviewerParticipantScope(participant, reviewer.ReviewerId, reviewer.ReviewerName));
+    }
+
+    /// <summary>
     /// Loads a tracked check-in for a reviewer mutation (reschedule/cancel/complete/addendum),
     /// enforcing that the caller is the participant's current effective reviewer.
     /// </summary>
@@ -275,5 +306,10 @@ public sealed record CheckInReviewerActionContext(
 
 public sealed record CheckInReviewerSignalContext(
     ObjectiveDiscussionSignal Signal,
+    Guid ReviewerId,
+    string ReviewerName);
+
+public sealed record CheckInReviewerParticipantScope(
+    PerformanceCycleParticipant Participant,
     Guid ReviewerId,
     string ReviewerName);
