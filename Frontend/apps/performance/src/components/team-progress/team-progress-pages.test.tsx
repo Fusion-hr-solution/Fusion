@@ -42,6 +42,7 @@ vi.mock("@repo/api", async () => {
 });
 
 vi.mock("@repo/api/query", () => ({
+  useApiMutation: () => ({ mutate: vi.fn(), isLoading: false }),
   useApiQuery: (queryKey: unknown) => {
     const key = JSON.stringify(queryKey ?? []);
     return {
