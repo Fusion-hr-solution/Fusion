@@ -44,5 +44,29 @@ public sealed class AtlasPerformanceDemoSeederTests
         Assert.Contains(updates, item => item.ProgressPercent == 50 && item.IsRegression);
         Assert.Contains(updates, item => item.ProgressPercent == 25);
         Assert.Equal(3, updates.Select(item => item.ObjectiveId).Distinct().Count());
+
+        // End-to-end check-in walkthrough: a completed check-in on the setback objective, with a
+        // resolved discussion signal, one completed employee action, one open reviewer action, and
+        // the employee's single response.
+        var checkIn = await db.PerformanceCheckIns
+            .Include(item => item.LinkedObjectives)
+            .SingleAsync(item => item.CycleId == cycle.Id);
+        Assert.Equal(CheckInStatus.Completed, checkIn.Status);
+        Assert.NotNull(checkIn.CompletionSummary);
+        Assert.NotNull(checkIn.Response);
+        Assert.Contains(checkIn.LinkedObjectives, item => item.WasDiscussed);
+
+        var signal = await db.ObjectiveDiscussionSignals.SingleAsync(item => item.CycleId == cycle.Id);
+        Assert.Equal(DiscussionSignalStatus.ResolvedByCheckIn, signal.Status);
+        Assert.Equal(checkIn.Id, signal.ResolvedByCheckInId);
+
+        var actions = await db.CheckInFollowUpActions
+            .Where(item => item.CheckInId == checkIn.Id)
+            .ToListAsync();
+        Assert.Equal(2, actions.Count);
+        Assert.Contains(actions, item => item.OwnerKind == FollowUpActionOwnerKind.Employee
+            && item.Status == FollowUpActionStatus.Completed);
+        Assert.Contains(actions, item => item.OwnerKind == FollowUpActionOwnerKind.Reviewer
+            && item.Status == FollowUpActionStatus.Open);
     }
 }

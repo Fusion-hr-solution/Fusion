@@ -115,9 +115,73 @@ public static class AtlasPerformanceDemoSeeder
         AddProgress(db, plan.RecordProgress(cycle, objectives[2].Id, 25, null, null, "Monthly coaching started.",
             false, null, new ObjectiveProgressActor(EmployeeUserId, "Sami Analyst"), lockDate.AddDays(65)));
 
+        SeedCheckInScenario(db, cycle, plan, objectives[1], lockDate);
+
         db.PerformanceCycles.Add(cycle);
         db.EmployeeObjectivePlans.Add(plan);
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Builds the end-to-end check-in walkthrough on top of the setback objective: the employee raises a
+    /// `Needs discussion` signal, the reviewer plans a check-in linking that objective and signal,
+    /// completes it with a shared summary and two agreed follow-up actions, the completion resolves the
+    /// signal, the employee posts their one-time response, and then completes their own follow-up action.
+    /// Every step runs through domain methods so the demo state is exactly what production would produce.
+    /// </summary>
+    private static void SeedCheckInScenario(
+        PerformanceDbContext db,
+        PerformanceCycle cycle,
+        EmployeeObjectivePlan plan,
+        EmployeeObjective setbackObjective,
+        DateTime lockDate)
+    {
+        // 1. The employee flags the objective that regressed after the audit.
+        var signal = ObjectiveDiscussionSignal.Raise(
+            cycle.TenantId, cycle.Id, plan.Id, setbackObjective.Id, EmployeeId,
+            setbackObjective.Title, "Sami Analyst",
+            "The reopened reviews put this at risk — I'd like to align on scope.",
+            lockDate.AddDays(86));
+
+        // 2. The reviewer plans a check-in that links the objective and picks up the open signal.
+        var checkIn = PerformanceCheckIn.Plan(
+            cycle.TenantId, cycle.Id, EmployeeId, ManagerId, "Flit Manager", "Approver",
+            lockDate.AddDays(90), "10:30", "Realign on the control-review setback",
+            "Review reopened items and agree on a recovery plan.", lockDate.AddDays(87));
+        checkIn.AddLinkedObjective(setbackObjective.Id, setbackObjective.Title);
+        signal.LinkToCheckIn(checkIn.Id);
+
+        // 3. The reviewer completes it with a shared summary and two agreed follow-up actions.
+        checkIn.Complete(
+            "We agreed the two reopened reviews slipped due to audit findings, not delivery. "
+            + "Sami will re-plan the remaining reviews; I will secure an extra reviewer for two weeks.",
+            [new CheckInDiscussedObjective(setbackObjective.Id, setbackObjective.Title)],
+            ManagerId, "Flit Manager", lockDate.AddDays(92));
+
+        var employeeAction = CheckInFollowUpAction.Create(
+            cycle.TenantId, cycle.Id, checkIn.Id, EmployeeId,
+            "Re-sequence the remaining control reviews and share the updated plan.",
+            FollowUpActionOwnerKind.Employee, EmployeeId, "Sami Analyst",
+            lockDate.AddDays(100), setbackObjective.Id, lockDate.AddDays(92));
+        var reviewerAction = CheckInFollowUpAction.Create(
+            cycle.TenantId, cycle.Id, checkIn.Id, EmployeeId,
+            "Secure an additional reviewer for two weeks.",
+            FollowUpActionOwnerKind.Reviewer, ManagerId, "Flit Manager",
+            lockDate.AddDays(105), setbackObjective.Id, lockDate.AddDays(92));
+
+        // 4. Completing the check-in resolves the linked discussion signal.
+        signal.ResolveByCheckIn(checkIn.Id, lockDate.AddDays(92));
+
+        // 5. The employee posts their single, immutable response, then completes their own action.
+        checkIn.AddEmployeeResponse(EmployeeId, "Sami Analyst",
+            "Thanks — recovery plan makes sense. I'll have the re-sequenced schedule out this week.",
+            lockDate.AddDays(93));
+        employeeAction.Complete(EmployeeId, "Sami Analyst",
+            "Updated schedule shared with the team.", lockDate.AddDays(98));
+
+        db.ObjectiveDiscussionSignals.Add(signal);
+        db.PerformanceCheckIns.Add(checkIn);
+        db.CheckInFollowUpActions.AddRange(employeeAction, reviewerAction);
     }
 
     private static void AddProgress(PerformanceDbContext db, ObjectiveProgressRecordResult result)
