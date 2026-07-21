@@ -42,6 +42,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPerformanceAccessPolicyService, PerformanceAccessPolicyService>();
         services.AddScoped<EmployeeObjectivePlanAccessGuard>();
         services.AddScoped<PlanApprovalAccessGuard>();
+        services.AddScoped<Features.CheckIns.CheckInAccessGuard>();
         services.AddScoped<PlanningCompletionReadService>();
         services.AddScoped<Features.Progress.EffectiveReviewerResolver>();
         services.AddScoped<Features.Progress.Queries.ObjectiveProgressHistoryReader>();
@@ -80,6 +81,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IScheduledJob, InactivitySweepJob>();
         services.AddSingleton<IScheduledJob, AttachmentCleanupJob>();
         services.AddSingleton<IScheduledJob, StaleProgressReminderJob>();
+        services.AddSingleton<IScheduledJob, UpcomingCheckInReminderJob>();
+        services.AddSingleton<IScheduledJob, OverdueCheckInReminderJob>();
+        services.AddSingleton<IScheduledJob, FollowUpActionDueReminderJob>();
         services.AddHostedService<ScheduledJobRunner>();
 
         return services;
