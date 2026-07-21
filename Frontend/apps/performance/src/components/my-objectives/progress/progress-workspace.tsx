@@ -1,19 +1,23 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendarClock, Lock } from "lucide-react";
+import { CalendarClock, Lock, MessageCircleWarning } from "lucide-react";
 import {
   ApiError,
   createPlatformApiClient,
   performancePaths,
+  performanceQueryKeys,
+  type EmployeeCheckInsDto,
   type EmployeeObjectiveDto,
   type EmployeeObjectivePlanWorkspaceDto,
   type ObjectiveProgressStateDto,
   type ObjectiveProgressUpdateDto,
+  type RaiseDiscussionSignalRequest,
   type RecordObjectiveProgressRequest,
   type RecordObjectiveProgressResponseDto,
+  type DiscussionSignalMutationResult,
 } from "@repo/api";
-import { useApiMutation } from "@repo/api/query";
+import { useApiMutation, useApiQuery } from "@repo/api/query";
 import { toast } from "sonner";
 import { formatDate, measurementMethodLabel } from "@/lib/labels";
 import { cn } from "@/lib/utils";
@@ -23,6 +27,9 @@ import { ProgressHistoryTimeline } from "./progress-history-timeline";
 import { ObjectiveStateBadge, ProgressMeter, toneForObjective } from "./progress-visuals";
 import { progressTerms } from "./progress-terms";
 import { useEvidence } from "./use-evidence";
+import { EmployeeCheckIns } from "@/components/check-ins/employee-check-ins";
+import { NeedsDiscussionDialog } from "@/components/check-ins/needs-discussion-dialog";
+import { checkInTerms } from "@/components/check-ins/check-in-terms";
 
 /**
  * The living progress record: after planning lock, the employee's approved plan is shown as a
@@ -41,12 +48,48 @@ export function ProgressWorkspace({
   const { download } = useEvidence();
   const [target, setTarget] = useState<RecordProgressTarget | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
+  const [discussTarget, setDiscussTarget] = useState<EmployeeObjectiveDto | null>(null);
+  const [discussError, setDiscussError] = useState<string | null>(null);
 
   const plan = workspace.plan;
   const objectives = plan?.objectives ?? [];
   const progress = workspace.progress;
   const planVersion = plan?.version ?? 0;
   const cycleId = workspace.cycleId;
+
+  // Shared cache with the employee check-in surface below — one fetch feeds both the flagged badges
+  // and the check-in list, so raising a flag reflects everywhere at once.
+  const checkInsKey = performanceQueryKeys.myCheckIns(cycleId);
+  const { data: checkIns } = useApiQuery<EmployeeCheckInsDto>(checkInsKey, (signal) =>
+    apiClient.get<EmployeeCheckInsDto>(performancePaths.myCheckIns(cycleId), { signal }),
+  );
+  const flaggedObjectiveIds = useMemo(
+    () => new Set((checkIns?.openDiscussionSignals ?? []).map((signal) => signal.objectiveId)),
+    [checkIns],
+  );
+
+  const raiseSignal = useApiMutation<DiscussionSignalMutationResult, RaiseDiscussionSignalRequest>(
+    (request) =>
+      apiClient.post<DiscussionSignalMutationResult>(
+        performancePaths.raiseDiscussionSignal(cycleId),
+        request,
+      ),
+    {
+      invalidateQueries: [{ queryKey: checkInsKey }],
+      onSuccess: () => {
+        toast.success(checkInTerms.raised);
+        setDiscussTarget(null);
+        setDiscussError(null);
+      },
+      onError: (mutationError) => {
+        setDiscussError(
+          mutationError instanceof ApiError && mutationError.errors.length > 0
+            ? mutationError.errors[0]!
+            : checkInTerms.genericError,
+        );
+      },
+    },
+  );
 
   const historyByObjective = useMemo(() => {
     const map = new Map<string, ObjectiveProgressUpdateDto[]>();
@@ -114,15 +157,24 @@ export function ProgressWorkspace({
               objective={objective}
               state={state}
               history={history}
+              isFlagged={flaggedObjectiveIds.has(objective.id)}
               onRecord={() => {
                 if (!state) return;
                 setErrors([]);
                 setTarget({ objective, state });
               }}
+              onDiscuss={() => {
+                setDiscussError(null);
+                setDiscussTarget(objective);
+              }}
               onDownloadEvidence={(id, name) => void download(id, name)}
             />
           );
         })}
+      </div>
+
+      <div className="border-t pt-4">
+        <EmployeeCheckIns cycleId={cycleId} />
       </div>
 
       <RecordProgressDialog
@@ -137,6 +189,19 @@ export function ProgressWorkspace({
         onClose={() => {
           setTarget(null);
           setErrors([]);
+        }}
+      />
+
+      <NeedsDiscussionDialog
+        open={discussTarget !== null}
+        objectiveTitle={discussTarget?.title ?? ""}
+        objectiveId={discussTarget?.id ?? ""}
+        isSaving={raiseSignal.isLoading}
+        error={discussError}
+        onSubmit={(request) => raiseSignal.mutate(request)}
+        onClose={() => {
+          setDiscussTarget(null);
+          setDiscussError(null);
         }}
       />
     </div>
@@ -197,13 +262,17 @@ function ObjectiveProgressCard({
   objective,
   state,
   history,
+  isFlagged,
   onRecord,
+  onDiscuss,
   onDownloadEvidence,
 }: {
   objective: EmployeeObjectiveDto;
   state: ObjectiveProgressStateDto | undefined;
   history: ObjectiveProgressUpdateDto[];
+  isFlagged: boolean;
   onRecord: () => void;
+  onDiscuss: () => void;
   onDownloadEvidence: (attachmentId: string, fileName: string) => void;
 }) {
   const [showHistory, setShowHistory] = useState(false);
@@ -256,6 +325,17 @@ function ObjectiveProgressCard({
           <Button type="button" size="sm" onClick={onRecord}>
             {recordLabel}
           </Button>
+          {isFlagged ? (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/12 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+              <MessageCircleWarning className="size-3.5" />
+              {checkInTerms.flaggedBadge}
+            </span>
+          ) : (
+            <Button type="button" size="sm" variant="ghost" onClick={onDiscuss}>
+              <MessageCircleWarning className="size-4" />
+              {checkInTerms.needsDiscussionShort}
+            </Button>
+          )}
           {history.length > 0 ? (
             <Button
               type="button"
