@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CodeRunner } from "@/components/candidate/code-runner";
 import { FrontendSessionSandbox } from "@/components/candidate/frontend-runner";
+import { useBrowserIntegrity } from "@/hooks/use-browser-integrity";
 import {
   startCandidateAttempt,
   submitCandidateAttempt,
@@ -278,6 +279,16 @@ export default function CandidateStartPage() {
     return orderQuestions(session.questions, seed, randomizeOrder);
   }, [session, randomizeOrder, token]);
 
+  // Layer B proctoring (browser integrity) — active only during an in-progress, unsubmitted
+  // attempt, and only for the layers the author enabled. Camera-free; the server re-gates by flag.
+  const proctoring = useBrowserIntegrity({
+    token,
+    browserFingerprint: browserFingerprint || undefined,
+    active: Boolean(session) && !submission,
+    activityMonitoring: session?.enableActivityMonitoring ?? false,
+    restrictCopyPaste: session?.restrictCopyPaste ?? false,
+  });
+
   async function resolveBrowserFingerprint(): Promise<string> {
     if (browserFingerprint.trim().length > 0) {
       return browserFingerprint;
@@ -339,6 +350,9 @@ export default function CandidateStartPage() {
           allowBacktracking: false,
           showProgressBar: false,
           randomizeOrder: false,
+          enableProctoring: false,
+          enableActivityMonitoring: false,
+          restrictCopyPaste: false,
           status: "Invalid",
           message: "A valid invitation token is required.",
         });
@@ -374,6 +388,9 @@ export default function CandidateStartPage() {
           allowBacktracking: false,
           showProgressBar: false,
           randomizeOrder: false,
+          enableProctoring: false,
+          enableActivityMonitoring: false,
+          restrictCopyPaste: false,
           status: "Invalid",
           message: err instanceof Error ? err.message : "Invitation validation failed.",
         });
@@ -531,6 +548,10 @@ export default function CandidateStartPage() {
 
     setSubmitting(true);
     setError(null);
+
+    // Deliver the final proctoring batch before the attempt flips to Submitted (after which the
+    // ingestion endpoint rejects it). Best-effort via sendBeacon.
+    proctoring.flushNow();
 
     try {
       const resolvedFingerprint = await resolveBrowserFingerprint();
@@ -721,6 +742,7 @@ export default function CandidateStartPage() {
 
     return (
       <textarea
+        data-proctor-answer
         value={draft?.answerText ?? ""}
         onChange={(event) => updateTextAnswer(question.id, event.target.value)}
         placeholder="Type your answer here..."
@@ -868,6 +890,17 @@ export default function CandidateStartPage() {
               <div className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-3 py-1.5 text-[12px] font-medium text-white/90">
                 <span className="h-2 w-2 rounded-full bg-sky-300 shadow-[0_0_14px_rgba(125,211,252,0.8)]" />
                 Question {currentIndex + 1} of {totalQuestions}
+              </div>
+            ) : null}
+
+            {session &&
+            (session.enableActivityMonitoring || session.restrictCopyPaste || session.enableProctoring) ? (
+              <div
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1.5 text-[12px] font-medium text-amber-100"
+                title="This assessment is monitored for integrity (activity and clipboard). Detection runs in your browser."
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Monitored session
               </div>
             ) : null}
 

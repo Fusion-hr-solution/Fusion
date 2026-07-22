@@ -20,6 +20,7 @@ const INITIAL_CONFIG: WizardFormState["config"] = {
   showProgressBar: true,
   restrictCopyPaste: false,
   enableProctoring: false,
+  enableActivityMonitoring: false,
   enableTimeLimit: false,
   timeLimitMinutes: 60,
   maxAttempts: 1,

@@ -42,6 +42,9 @@ export interface Test {
   allowBacktracking: boolean;
   showProgressBar: boolean;
   randomizeOrder: boolean;
+  enableProctoring: boolean;
+  enableActivityMonitoring: boolean;
+  restrictCopyPaste: boolean;
   candidateCount: number;
   questionCount: number;
   createdAt: string;
@@ -115,6 +118,7 @@ export interface WizardFormState {
     showProgressBar: boolean;
     restrictCopyPaste: boolean;
     enableProctoring: boolean;
+    enableActivityMonitoring: boolean;
     enableTimeLimit: boolean;
     timeLimitMinutes: number;
     maxAttempts: number;
