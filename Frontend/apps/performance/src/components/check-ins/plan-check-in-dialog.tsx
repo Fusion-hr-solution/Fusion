@@ -76,7 +76,7 @@ export function PlanCheckInDialog({
   const submit = () => {
     onSubmit({
       employeeId,
-      plannedDate: new Date(`${date}T00:00:00`).toISOString(),
+      plannedDate: new Date(`${date}T00:00:00Z`).toISOString(),
       plannedTime: time.trim() ? time.trim() : null,
       reason: reason.trim(),
       agenda: agenda.trim() ? agenda.trim() : null,

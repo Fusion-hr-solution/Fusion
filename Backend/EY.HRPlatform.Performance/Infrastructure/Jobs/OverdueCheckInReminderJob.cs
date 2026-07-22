@@ -58,7 +58,18 @@ public sealed class OverdueCheckInReminderJob(
         var overdue = await dbContext.PerformanceCheckIns
             .AsNoTracking()
             .Where(checkIn => checkIn.Status == CheckInStatus.Planned && checkIn.PlannedDate < now.Date)
-            .Select(checkIn => new { checkIn.Id, checkIn.EmployeeId, checkIn.CycleId, checkIn.PlannedDate })
+            .Join(
+                dbContext.PerformanceCycles,
+                checkIn => checkIn.CycleId,
+                cycle => cycle.Id,
+                (checkIn, cycle) => new
+                {
+                    checkIn.Id,
+                    checkIn.EmployeeId,
+                    checkIn.CycleId,
+                    checkIn.PlannedDate,
+                    cycle.Slug,
+                })
             .ToListAsync(cancellationToken);
         if (overdue.Count == 0)
             return 0;
@@ -98,7 +109,7 @@ public sealed class OverdueCheckInReminderJob(
                 dedupKey: dedupKey,
                 subjectType: "PerformanceCheckIn",
                 subjectId: item.Id,
-                navigationRoute: $"/team-progress/{item.CycleId}/check-ins/{item.Id}"));
+                navigationRoute: $"/team-progress/{item.Slug}/check-ins/{item.Id}"));
         }
 
         if (newNotifications.Count == 0)

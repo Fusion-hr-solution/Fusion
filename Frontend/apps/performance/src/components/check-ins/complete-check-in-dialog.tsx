@@ -102,7 +102,7 @@ export function CompleteCheckInDialog({
     const mapped: AgreedActionInput[] = actions.map((action) => ({
       description: action.description.trim(),
       ownerKind: action.ownerKind,
-      dueDate: new Date(`${action.dueDate}T00:00:00`).toISOString(),
+      dueDate: new Date(`${action.dueDate}T00:00:00Z`).toISOString(),
       linkedObjectiveId: action.linkedObjectiveId,
     }));
     onSubmit({

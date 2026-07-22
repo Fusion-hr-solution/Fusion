@@ -4,6 +4,7 @@ using EY.HRPlatform.Performance.Features.ActivityLog;
 using EY.HRPlatform.Performance.Features.Progress;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Performance.Features.Notifications.Handlers;
 
@@ -17,8 +18,8 @@ internal static class CheckInRoutes
     public const string EmployeeSurface = "/my-objectives";
     public const string TeamProgress = "/team-progress";
 
-    public static string CheckInDetail(Guid cycleId, Guid checkInId)
-        => $"/team-progress/{cycleId}/check-ins/{checkInId}";
+    public static string CheckInDetail(string cycleSlug, Guid checkInId)
+        => $"/team-progress/{cycleSlug}/check-ins/{checkInId}";
 }
 
 // ─── Check-in lifecycle ─────────────────────────────────────────────────────
@@ -191,16 +192,23 @@ public sealed class FollowUpActionCreatedActivityHandler(IActivityLog activityLo
     }
 }
 
-public sealed class FollowUpActionAssignedNotificationHandler(IPerformanceNotifier notifier)
+public sealed class FollowUpActionAssignedNotificationHandler(
+    IPerformanceNotifier notifier,
+    PerformanceDbContext db)
     : INotificationHandler<FollowUpActionCreatedEvent>
 {
-    public Task Handle(FollowUpActionCreatedEvent notification, CancellationToken cancellationToken)
+    public async Task Handle(FollowUpActionCreatedEvent notification, CancellationToken cancellationToken)
     {
+        var cycleSlug = await db.PerformanceCycles
+            .Where(cycle => cycle.Id == notification.CycleId)
+            .Select(cycle => cycle.Slug)
+            .SingleAsync(cancellationToken);
+
         var route = notification.OwnerKind == FollowUpActionOwnerKind.Employee
             ? CheckInRoutes.EmployeeSurface
-            : CheckInRoutes.CheckInDetail(notification.CycleId, notification.CheckInId);
+            : CheckInRoutes.CheckInDetail(cycleSlug, notification.CheckInId);
 
-        return notifier.NotifyAsync(
+        await notifier.NotifyAsync(
             notification.OwnerEmployeeId,
             PerformanceNotificationType.FollowUpActionAssigned,
             title: "A follow-up action was assigned to you",
