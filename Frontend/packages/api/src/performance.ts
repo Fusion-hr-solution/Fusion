@@ -1194,9 +1194,126 @@ export interface DiscussionSignalMutationResult {
   status: DiscussionSignalStatus;
 }
 
+// ── Evaluation configuration, rounds, and frozen work-entry context ──
+
+export type EvaluationConfigStatus = "Draft" | "Active" | "Archived";
+export type EvaluationSectionType = "Objectives" | "CustomQuestions" | "OverallComments" | "Skills";
+export type EvaluationQuestionType = "Text" | "Rating";
+export type EvaluationTargetRater = "Self" | "Manager" | "Both";
+export type EvaluationRoundType = "MidCycle" | "YearEnd" | "SpecificReview";
+export type EvaluationAssessmentModel = "SelfAndManager" | "ManagerOnly";
+export type EvaluationDeadlineKind = "SelfAssessment" | "ManagerAssessment" | "Finalization";
+
+export interface EvaluationRatingScaleLevelDto {
+  id: string; ordinal: number; value: number; label: string;
+  description: string | null; behavioralGuidance: string | null;
+}
+export interface EvaluationRatingScaleDto {
+  id: string; name: string; description: string | null; status: EvaluationConfigStatus;
+  isInUse: boolean; version: number; levels: EvaluationRatingScaleLevelDto[];
+}
+export interface EvaluationRatingScaleLevelInput {
+  id?: string | null; label: string; description?: string | null; behavioralGuidance?: string | null;
+}
+export interface EvaluationRatingScaleWriteRequest {
+  name: string; description?: string | null; levels: EvaluationRatingScaleLevelInput[];
+}
+export interface EvaluationTemplateQuestionInput {
+  id?: string | null; prompt: string; type: EvaluationQuestionType; isRequired: boolean;
+  targetRater: EvaluationTargetRater; allowNotApplicable: boolean;
+}
+export interface EvaluationTemplateSectionInput {
+  id?: string | null; type: EvaluationSectionType; title: string; guidance?: string | null;
+  questions: EvaluationTemplateQuestionInput[];
+}
+export interface EvaluationTemplateQuestionDto extends Omit<EvaluationTemplateQuestionInput, "id"> {
+  id: string; ordinal: number;
+}
+export interface EvaluationTemplateSectionDto {
+  id: string; ordinal: number; type: EvaluationSectionType; title: string;
+  guidance: string | null; questions: EvaluationTemplateQuestionDto[];
+}
+export interface EvaluationTemplateDto {
+  id: string; name: string; purpose: string | null; participantInstructions: string | null;
+  status: EvaluationConfigStatus; isInUse: boolean; version: number; sections: EvaluationTemplateSectionDto[];
+}
+export interface EvaluationTemplateWriteRequest {
+  name: string; purpose?: string | null; participantInstructions?: string | null;
+  sections: EvaluationTemplateSectionInput[];
+}
+export interface EvaluationRoundSummaryDto {
+  id: string; campaignId: string; name: string; purpose: string | null; type: EvaluationRoundType;
+  assessmentModel: EvaluationAssessmentModel; status: "Draft" | "Launched" | "Closed";
+  operationalState: "Draft" | "ReadyToLaunch" | "InProgress" | "Overdue" | "Completed";
+  selfAssessmentDeadline: string | null; managerAssessmentDeadline: string | null;
+  finalizationDeadline: string | null; launchedAt: string | null; version: number;
+}
+export type EvaluationRoundScaleLevelDto = EvaluationRatingScaleLevelDto;
+export interface EvaluationRoundTemplateQuestionDto extends EvaluationTemplateQuestionDto { sectionId: string }
+export interface EvaluationRoundTemplateSectionDto extends Omit<EvaluationTemplateSectionDto, "questions"> {
+  questions: EvaluationRoundTemplateQuestionDto[];
+}
+export interface EvaluationRoundDetailDto {
+  round: EvaluationRoundSummaryDto; sourceRatingScaleId: string | null; ratingScaleName: string | null;
+  ratingScaleLevels: EvaluationRoundScaleLevelDto[]; sourceTemplateId: string | null;
+  templateName: string | null; templatePurpose: string | null; templateInstructions: string | null;
+  templateSections: EvaluationRoundTemplateSectionDto[];
+  exclusions: { employeeId: string; employeeName: string; reason: string }[];
+  reviewerCorrections: { employeeId: string; reviewerEmployeeId: string; reviewerName: string; reason: string }[];
+  participantCount: number; assignmentCount: number;
+}
+export interface EvaluationReadinessIssueDto { code: string; message: string; employeeId: string | null }
+export interface EvaluationRoundAssignmentPreviewDto {
+  employeeId: string; employeeName: string; reviewerEmployeeId: string | null; reviewerName: string | null;
+  included: boolean; hasEligibleObjectivePlan: boolean; omissionReason: string | null;
+}
+export interface EvaluationRoundReadinessDto {
+  roundId: string; canLaunch: boolean; campaignParticipantCount: number; includedParticipantCount: number;
+  omittedParticipantCount: number; managerAssignmentCount: number; selfAssignmentCount: number;
+  blockers: EvaluationReadinessIssueDto[]; warnings: EvaluationReadinessIssueDto[];
+  assignmentPreview: EvaluationRoundAssignmentPreviewDto[];
+}
+export interface EvaluationAssignmentRosterItemDto {
+  id: string; participantEmployeeId: string; participantName: string; kind: "SelfAssessment" | "ManagerAssessment";
+  assigneeEmployeeId: string; assigneeName: string; status: string;
+}
+export interface EvaluationAssignmentRosterDto {
+  roundId: string; page: number; pageSize: number; totalCount: number; items: EvaluationAssignmentRosterItemDto[];
+}
+export interface EvaluationObjectiveSnapshotDto {
+  id: string; title: string; description: string | null; weight: number | null; deadline: string | null;
+  measurementIndicator: string | null; targetValue: string | null; targetUnit: string | null; successCriteria: string | null;
+}
+export interface EvaluationWorkEntryDto {
+  round: EvaluationRoundDetailDto; assignment: EvaluationAssignmentRosterItemDto;
+  objectiveBaseline: EvaluationObjectiveSnapshotDto[];
+}
+
 // ── Paths ────────────────────────────────────────────────────────────
 
 export const performancePaths = {
+  evaluationScales: () => "/performance/evaluation-config/scales",
+  evaluationScale: (id: string) => `/performance/evaluation-config/scales/${id}`,
+  evaluationScaleStatus: (id: string) => `/performance/evaluation-config/scales/${id}/status`,
+  evaluationScaleDuplicate: (id: string) => `/performance/evaluation-config/scales/${id}/duplicate`,
+  evaluationTemplates: () => "/performance/evaluation-config/templates",
+  evaluationTemplate: (id: string) => `/performance/evaluation-config/templates/${id}`,
+  evaluationTemplateStatus: (id: string) => `/performance/evaluation-config/templates/${id}/status`,
+  evaluationTemplateDuplicate: (id: string) => `/performance/evaluation-config/templates/${id}/duplicate`,
+  evaluationTemplatePreview: (id: string, rater: EvaluationTargetRater) =>
+    `/performance/evaluation-config/templates/${id}/preview?rater=${rater}`,
+  evaluationRounds: () => "/performance/evaluations",
+  evaluationRound: (id: string) => `/performance/evaluations/${id}`,
+  evaluationRoundConfiguration: (id: string) => `/performance/evaluations/${id}/configuration`,
+  evaluationRoundDeadlines: (id: string) => `/performance/evaluations/${id}/deadlines`,
+  evaluationRoundReadiness: (id: string) => `/performance/evaluations/${id}/readiness`,
+  evaluationRoundExclusion: (id: string, employeeId: string) => `/performance/evaluations/${id}/participants/${employeeId}/exclusion`,
+  evaluationRoundReviewer: (id: string, employeeId: string) => `/performance/evaluations/${id}/participants/${employeeId}/reviewer`,
+  evaluationRoundLaunch: (id: string) => `/performance/evaluations/${id}/launch`,
+  evaluationRoundDeadlineExtensions: (id: string) => `/performance/evaluations/${id}/deadline-extensions`,
+  evaluationRoundAssignments: (id: string) => `/performance/evaluations/${id}/assignments`,
+  myEvaluationAssignments: () => "/performance/evaluations/mine",
+  teamEvaluationAssignments: () => "/performance/evaluations/team",
   cycles: () => "/performance/cycles",
   cycle: (id: string) => `/performance/cycles/${id}`,
   cycleBySlug: (slug: string) => `/performance/cycles/by-slug/${slug}`,
@@ -1303,6 +1420,24 @@ export const performancePaths = {
 export const performanceQueryKeys = {
   all: () => ["performance"] as const,
   cycles: () => [...performanceQueryKeys.all(), "cycles"] as const,
+  evaluationConfiguration: () => [...performanceQueryKeys.all(), "evaluation-configuration"] as const,
+  evaluationScales: (status?: EvaluationConfigStatus | null) =>
+    [...performanceQueryKeys.evaluationConfiguration(), "scales", status ?? null] as const,
+  evaluationScale: (id: string) => [...performanceQueryKeys.evaluationConfiguration(), "scale", id] as const,
+  evaluationTemplates: (status?: EvaluationConfigStatus | null) =>
+    [...performanceQueryKeys.evaluationConfiguration(), "templates", status ?? null] as const,
+  evaluationTemplate: (id: string) => [...performanceQueryKeys.evaluationConfiguration(), "template", id] as const,
+  evaluationTemplatePreview: (id: string, rater: EvaluationTargetRater) =>
+    [...performanceQueryKeys.evaluationTemplate(id), "preview", rater] as const,
+  evaluationRounds: () => [...performanceQueryKeys.all(), "evaluations"] as const,
+  evaluationRoundList: (campaignId?: string | null) =>
+    [...performanceQueryKeys.evaluationRounds(), "list", campaignId ?? null] as const,
+  evaluationRound: (id: string) => [...performanceQueryKeys.evaluationRounds(), id] as const,
+  evaluationRoundReadiness: (id: string) => [...performanceQueryKeys.evaluationRound(id), "readiness"] as const,
+  evaluationRoundAssignments: (id: string, page: number, pageSize: number) =>
+    [...performanceQueryKeys.evaluationRound(id), "assignments", { page, pageSize }] as const,
+  myEvaluationAssignments: () => [...performanceQueryKeys.evaluationRounds(), "mine"] as const,
+  teamEvaluationAssignments: () => [...performanceQueryKeys.evaluationRounds(), "team"] as const,
   cycleList: (params: {
     search?: string | null;
     status?: string | null;

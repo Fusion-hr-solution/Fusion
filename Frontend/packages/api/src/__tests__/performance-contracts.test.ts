@@ -56,3 +56,32 @@ describe("performance P1.6 planning completion contracts", () => {
     ]);
   });
 });
+
+describe("performance evaluation foundation contracts", () => {
+  it("builds configuration and round paths", () => {
+    expect(performancePaths.evaluationScaleStatus("scale-1")).toBe(
+      "/performance/evaluation-config/scales/scale-1/status",
+    );
+    expect(performancePaths.evaluationTemplatePreview("template-1", "Manager")).toBe(
+      "/performance/evaluation-config/templates/template-1/preview?rater=Manager",
+    );
+    expect(performancePaths.evaluationRoundReadiness("round-1")).toBe(
+      "/performance/evaluations/round-1/readiness",
+    );
+    expect(performancePaths.evaluationRoundExclusion("round-1", "employee-1")).toBe(
+      "/performance/evaluations/round-1/participants/employee-1/exclusion",
+    );
+  });
+
+  it("keeps admin, employee, and reviewer caches distinct", () => {
+    expect(performanceQueryKeys.evaluationRoundReadiness("round-1")).toEqual([
+      "performance", "evaluations", "round-1", "readiness",
+    ]);
+    expect(performanceQueryKeys.myEvaluationAssignments()).toEqual([
+      "performance", "evaluations", "mine",
+    ]);
+    expect(performanceQueryKeys.teamEvaluationAssignments()).toEqual([
+      "performance", "evaluations", "team",
+    ]);
+  });
+});
