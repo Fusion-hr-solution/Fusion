@@ -96,7 +96,9 @@ public sealed class EvaluationRoundReadinessResolver(
             var effectiveId = correction?.ReviewerEmployeeId ?? reviewerId;
             var effectiveName = correction?.ReviewerName ?? reviewerName;
             planByEmployee.TryGetValue(participant.EmployeeId, out var plan);
-            candidates.Add(new EvaluationRoundLaunchCandidate(participant, reviewerId, reviewerName, plan));
+            // Carry the correction-applied reviewer so the launch candidate matches the readiness
+            // preview. Launch also re-applies corrections defensively, so this stays consistent.
+            candidates.Add(new EvaluationRoundLaunchCandidate(participant, effectiveId, effectiveName, plan));
 
             var excluded = round.Exclusions.Any(x => x.ParticipantEmployeeId == participant.EmployeeId);
             var eligiblePlan = !round.IncludesObjectives || plan is not null;
