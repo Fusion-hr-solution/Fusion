@@ -10,6 +10,8 @@ const NAV_ITEMS = PERFORMANCE_NAV_SECTIONS.flatMap((section) => section.items);
 
 const BREADCRUMB_LABELS = new Map([
   ["platform", "Platform administration"],
+  ["configuration", "Configuration"],
+  ["evaluation", "Evaluation setup"],
   ["planning", "Objective Planning"],
   ["performance", "Performance configuration"],
   ["campaigns", "Campaigns"],

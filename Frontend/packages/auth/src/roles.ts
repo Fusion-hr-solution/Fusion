@@ -61,6 +61,10 @@ const PERFORMANCE_PERMISSION = {
   objectiveTeamApprove: "performance.objective.team.approve",
   objectiveProgressTeamView: "performance.objective.progress.team.view",
   strategicView: "performance.strategic.view",
+  evaluationManage: "performance.evaluation.manage",
+  evaluationOperate: "performance.evaluation.operate",
+  evaluationSelfView: "performance.evaluation.self.view",
+  evaluationTeamView: "performance.evaluation.team.view",
 } as const;
 
 export function hasAnyRole(
@@ -459,6 +463,22 @@ export function canViewPerformanceStrategy(user: AuthUser | null): boolean {
   return hasCorePermission(user, PERFORMANCE_PERMISSION.strategicView, "Tenant");
 }
 
+export function canManageEvaluations(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.evaluationManage, "Tenant");
+}
+
+export function canOperateEvaluations(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.evaluationOperate, "Tenant");
+}
+
+export function canAccessMyEvaluations(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.evaluationSelfView, "Self");
+}
+
+export function canAccessTeamEvaluations(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.evaluationTeamView);
+}
+
 export function canAccessPerformance(user: AuthUser | null): boolean {
   return (
     canViewPerformanceCycles(user) ||
@@ -467,6 +487,10 @@ export function canAccessPerformance(user: AuthUser | null): boolean {
     canAccessPlanApprovals(user) ||
     canAccessTeamProgress(user) ||
     canManageTeamObjectives(user) ||
+    canManageEvaluations(user) ||
+    canOperateEvaluations(user) ||
+    canAccessMyEvaluations(user) ||
+    canAccessTeamEvaluations(user) ||
     canViewPerformanceStrategy(user)
   );
 }

@@ -128,7 +128,7 @@ export function ObjectivePlanningConfigurationPage() {
   if (!canView) {
     return (
       <PageContainer width="narrow">
-        <PageHeader title="Objective planning configuration" />
+        <PageHeader title="Objective planning" />
         <PagePermissionNotice title="Tenant admin access required" />
       </PageContainer>
     );
@@ -136,10 +136,7 @@ export function ObjectivePlanningConfigurationPage() {
 
   return (
     <PageContainer width="narrow">
-      <PageHeader
-        title="Objective planning configuration"
-        description="Reusable rules for objective count, objective importance choices, and measurement methods."
-      />
+      <PageHeader title="Objective planning" />
 
       {isLoading ? <PlanningConfigurationSkeleton /> : null}
 

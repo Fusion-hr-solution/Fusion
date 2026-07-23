@@ -32,6 +32,10 @@ vi.mock("next/link", () => ({
   ),
 }));
 
+vi.mock("@repo/api/query", () => ({
+  useApiQuery: () => ({ data: [], isLoading: false, isFetching: false, error: null, refetch: vi.fn(), invalidate: vi.fn() }),
+}));
+
 vi.mock("@repo/auth", () => ({
   PLATFORM_ADMIN_ROLE: "PlatformAdmin",
   hasAnyRole: (user: TestUser | null, roles: string[]) =>
@@ -80,6 +84,26 @@ vi.mock("@repo/auth", () => ({
       (grant) => grant.permissionKey === "performance.objective.progress.team.view",
     ) ??
       false),
+  canAccessMyEvaluations: (user: TestUser | null) =>
+    !!user?.employeeId &&
+    (user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.evaluation.self.view",
+    ) ??
+      false),
+  canAccessTeamEvaluations: (user: TestUser | null) =>
+    !!user?.employeeId &&
+    (user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.evaluation.team.view",
+    ) ??
+      false),
+  canManageEvaluations: (user: TestUser | null) =>
+    user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.evaluation.manage" && grant.scope === "Tenant",
+    ) ?? false,
+  canOperateEvaluations: (user: TestUser | null) =>
+    user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.evaluation.operate" && grant.scope === "Tenant",
+    ) ?? false,
   canViewPerformanceStrategy: (user: TestUser | null) =>
     user?.permissions?.some(
       (grant) =>
@@ -392,6 +416,28 @@ describe("PerformanceSidebar", () => {
     expect(sidebar.querySelector('a[href="/performance/configuration/planning"]')).toBeTruthy();
     expect(sidebar.textContent).not.toContain("Objective planning configuration");
     expect(sidebar.textContent).not.toContain("Performance setup");
+  });
+
+  it("merges evaluation and planning configuration into a single Configuration section", () => {
+    const sidebar = renderSidebar({
+      fullName: "HR Admin",
+      roles: ["HRAdmin"],
+      permissions: [
+        { permissionKey: "performance.evaluation.manage", scope: "Tenant" },
+        { permissionKey: "performance.objective.policy.manage", scope: "Tenant" },
+      ],
+    });
+
+    const configHeaders = Array.from(sidebar.querySelectorAll("h2")).filter(
+      (heading) => heading.textContent === "Configuration",
+    );
+    expect(configHeaders).toHaveLength(1);
+    expect(sidebar.textContent).toContain("Evaluation setup");
+    expect(sidebar.textContent).toContain("Objective Planning");
+    expect(sidebar.querySelector('a[href="/performance/configuration/evaluation"]')).toBeTruthy();
+    expect(sidebar.querySelector('a[href="/performance/configuration/planning"]')).toBeTruthy();
+    expect(sidebar.textContent).not.toContain("Rating scales");
+    expect(sidebar.textContent).not.toContain("Evaluation templates");
   });
 
   it("keeps Platform Admin navigation separate from tenant configuration", () => {
