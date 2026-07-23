@@ -42,6 +42,13 @@ public interface IPerformanceAccessPolicyService
     bool CanViewObjectivePlanningConfiguration(ClaimsPrincipal user) => false;
     bool CanManageObjectivePlanningConfiguration(ClaimsPrincipal user) => false;
 
+    // Evaluation configuration and rounds. Permissions open the relevant door; tenant ownership,
+    // participant ownership, and frozen effective-reviewer scope are enforced in handlers.
+    bool CanManageEvaluations(ClaimsPrincipal user) => false;
+    bool CanOperateEvaluations(ClaimsPrincipal user) => false;
+    bool CanViewOwnEvaluations(ClaimsPrincipal user) => false;
+    bool CanViewTeamEvaluations(ClaimsPrincipal user) => false;
+
     // Platform configuration — gated by PlatformRole.PlatformAdmin only (D1)
     bool CanManagePlatformDefaults(ClaimsPrincipal user) => false;
 }
@@ -131,6 +138,20 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
 
     public bool CanManageObjectivePlanningConfiguration(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant);
+
+    // ─── Evaluation configuration, operations, and work-entry doors ─────────
+
+    public bool CanManageEvaluations(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.EvaluationManage, PermissionScopes.Tenant);
+
+    public bool CanOperateEvaluations(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.EvaluationOperate, PermissionScopes.Tenant);
+
+    public bool CanViewOwnEvaluations(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.EvaluationSelfView, PermissionScopes.Self);
+
+    public bool CanViewTeamEvaluations(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.EvaluationTeamView);
 
     // ─── Platform performance configuration (D1: PlatformAdmin only) ─────────
 

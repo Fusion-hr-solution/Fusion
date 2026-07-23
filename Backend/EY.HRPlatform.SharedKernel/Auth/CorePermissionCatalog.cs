@@ -144,6 +144,12 @@ public static class PerformancePermissions
     public const string ObjectivePolicyView = "performance.objective.policy.view";
     public const string ObjectivePolicyManage = "performance.objective.policy.manage";
 
+    // Evaluation configuration, governed round operations, and assignment work-entry doors.
+    public const string EvaluationManage = "performance.evaluation.manage";
+    public const string EvaluationOperate = "performance.evaluation.operate";
+    public const string EvaluationSelfView = "performance.evaluation.self.view";
+    public const string EvaluationTeamView = "performance.evaluation.team.view";
+
     public static readonly ReadOnlyCollection<string> All =
         Array.AsReadOnly([
             CycleView,
@@ -164,6 +170,10 @@ public static class PerformancePermissions
             CheckInSelfView,
             ObjectivePolicyView,
             ObjectivePolicyManage,
+            EvaluationManage,
+            EvaluationOperate,
+            EvaluationSelfView,
+            EvaluationTeamView,
         ]);
 }
 
@@ -258,6 +268,12 @@ public static class CorePermissionCatalog
             // Objective planning configuration permissions.
             new(PerformancePermissions.ObjectivePolicyView, "View objective planning configuration", "Performance", [PermissionScopes.Tenant]),
             new(PerformancePermissions.ObjectivePolicyManage, "Manage objective planning configuration", "Performance", [PermissionScopes.Tenant]),
+
+            // Evaluation configuration and work-entry permissions.
+            new(PerformancePermissions.EvaluationManage, "Manage evaluation configuration and rounds", "Performance", [PermissionScopes.Tenant], "Create and maintain rating scales, templates, and draft evaluation rounds."),
+            new(PerformancePermissions.EvaluationOperate, "Operate evaluation rounds", "Performance", [PermissionScopes.Tenant], "Launch rounds and extend deadlines through audited governance transitions."),
+            new(PerformancePermissions.EvaluationSelfView, "View own evaluations", "Performance", [PermissionScopes.Self], "Access evaluation assignments where the signed-in employee is the participant."),
+            new(PerformancePermissions.EvaluationTeamView, "View team evaluations", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Access manager assignments only where the signed-in employee is the frozen effective reviewer."),
         ]);
 
     private static readonly IReadOnlyDictionary<string, CorePermissionDefinition> ByKey =
