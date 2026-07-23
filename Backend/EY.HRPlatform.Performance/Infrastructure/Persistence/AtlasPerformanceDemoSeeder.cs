@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Defaults;
 using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -12,6 +13,9 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence;
 public static class AtlasPerformanceDemoSeeder
 {
     public const string CycleSlug = "atlas-progress-demo";
+    public const string IsolationCycleSlug = "atlas-evaluation-isolation-demo";
+    public const string EvaluationRoundName = "FY2026 annual evaluation";
+    public const string IsolationEvaluationRoundName = "FY2026 manager evaluation";
 
     private static readonly Guid EmployeeId = Guid.Parse("20000000-0000-0000-0000-000000000003");
     private static readonly Guid ManagerId = Guid.Parse("20000000-0000-0000-0000-000000000001");
@@ -27,9 +31,24 @@ public static class AtlasPerformanceDemoSeeder
         if (tenantId == Guid.Empty)
             throw new ArgumentException("The Atlas tenant id is required.", nameof(tenantId));
 
-        if (await db.PerformanceCycles.IgnoreQueryFilters()
-                .AnyAsync(cycle => cycle.TenantId == tenantId && cycle.Slug == CycleSlug, cancellationToken))
+        var existingCycle = await db.PerformanceCycles
+            .IgnoreQueryFilters()
+            .Include(cycle => cycle.Participants)
+            .SingleOrDefaultAsync(
+                cycle => cycle.TenantId == tenantId && cycle.Slug == CycleSlug,
+                cancellationToken);
+        if (existingCycle is not null)
+        {
+            var existingPlan = await db.EmployeeObjectivePlans
+                .IgnoreQueryFilters()
+                .Include(plan => plan.Objectives)
+                .SingleAsync(
+                    plan => plan.TenantId == tenantId && plan.CycleId == existingCycle.Id,
+                    cancellationToken);
+            await EnsureTenantAEvaluationAsync(
+                db, tenantId, existingCycle, existingPlan, asOfUtc, cancellationToken);
             return;
+        }
 
         var year = asOfUtc.ToUniversalTime().Year;
         var opening = new DateTime(year, 1, 5, 9, 0, 0, DateTimeKind.Utc);
@@ -119,6 +138,208 @@ public static class AtlasPerformanceDemoSeeder
 
         db.PerformanceCycles.Add(cycle);
         db.EmployeeObjectivePlans.Add(plan);
+        await db.SaveChangesAsync(cancellationToken);
+
+        await EnsureTenantAEvaluationAsync(db, tenantId, cycle, plan, asOfUtc, cancellationToken);
+    }
+
+    /// <summary>
+    /// Seeds a deliberately different tenant-owned evaluation scenario used to prove that
+    /// configuration, rounds, snapshots, participants, and assignments never bleed across tenants.
+    /// </summary>
+    public static async Task SeedIsolationTenantAsync(
+        PerformanceDbContext db,
+        Guid tenantId,
+        DateTime asOfUtc,
+        CancellationToken cancellationToken = default)
+    {
+        if (tenantId == Guid.Empty)
+            throw new ArgumentException("The isolation tenant id is required.", nameof(tenantId));
+
+        if (await db.EvaluationRounds.IgnoreQueryFilters().AnyAsync(
+                round => round.TenantId == tenantId && round.Name == IsolationEvaluationRoundName,
+                cancellationToken))
+            return;
+
+        var year = asOfUtc.ToUniversalTime().Year;
+        var opening = new DateTime(year, 1, 5, 9, 0, 0, DateTimeKind.Utc);
+        var managerEmployeeId = Guid.Parse("30000000-0000-0000-0000-000000000001");
+        var employeeId = Guid.Parse("30000000-0000-0000-0000-000000000003");
+        var managerUserId = Guid.Parse("11000000-0000-0000-0000-000000000001");
+
+        var cycle = PerformanceCycle.CreateDraft(
+            tenantId,
+            $"FY{year} isolation evaluation demo",
+            IsolationCycleSlug,
+            year,
+            "A contrasting manager-only evaluation used for tenant-isolation verification.",
+            managerUserId,
+            "Nadia Manager",
+            opening,
+            opening.AddDays(25),
+            opening.AddDays(40),
+            opening.AddDays(41),
+            CampaignPlanningRulesSnapshot.Capture(
+                1, "1.00", "Quantitative", managerUserId, opening));
+        var strategic = cycle.AddStrategicObjective(
+            "Deliver the annual client portfolio",
+            "The single objective represents the complete evaluation baseline.",
+            "Consulting");
+        cycle.Launch(
+            [new ResolvedLaunchParticipant(
+                employeeId,
+                "Leila Consultant",
+                managerEmployeeId,
+                "Nadia Manager",
+                false,
+                null,
+                "LEILA-001",
+                "leila.consultant@isolation.example",
+                null,
+                "Consulting",
+                "Consultant",
+                managerEmployeeId,
+                "Nadia Manager")],
+            opening.AddDays(1));
+
+        var participant = cycle.Participants.Single();
+        var plan = EmployeeObjectivePlan.CreateDraft(cycle, participant, opening.AddDays(2));
+        plan.AddObjective(
+            cycle,
+            "Deliver the annual client portfolio",
+            ObjectiveAlignmentType.StrategicObjective,
+            strategic.Id,
+            strategic.Title,
+            100,
+            new DateTime(year, 12, 15, 0, 0, 0, DateTimeKind.Utc),
+            "Quantitative",
+            "Portfolio delivery",
+            "100",
+            "%",
+            opening.AddDays(2));
+        var submission = plan.Submit(cycle, participant, opening.AddDays(10));
+        if (!submission.Succeeded)
+            throw new InvalidOperationException("The isolation objective plan is invalid: " +
+                string.Join("; ", submission.BlockingReasons.Select(reason => reason.Message)));
+        plan.Approve(new EmployeeObjectivePlanReviewActor(managerEmployeeId, "Nadia Manager"), opening.AddDays(11));
+        cycle.LockPlanning(managerUserId, "Nadia Manager", opening.AddDays(41));
+
+        var scale = EvaluationRatingScale.CreateDraft(
+            tenantId,
+            "Four-level delivery scale",
+            "A compact scale that remains visibly different from the Atlas tenant configuration.",
+            [
+                new("Needs improvement", "Delivery is below the agreed standard.", "Name the recovery action."),
+                new("Developing", "Delivery is progressing but inconsistent.", "Describe the material gap."),
+                new("Achieves", "Delivery consistently meets the agreed standard.", "Anchor the rating in evidence."),
+                new("Excels", "Delivery creates sustained impact beyond the agreed standard.", "Describe the wider impact.")
+            ]);
+        scale.Activate();
+        var template = EvaluationTemplate.CreateDraft(
+            tenantId,
+            "Objectives-only manager evaluation",
+            "A manager-only evaluation grounded entirely in the approved objective baseline.",
+            "Assess the objective outcome against the frozen baseline and supporting evidence.");
+        template.AddSection(new EvaluationTemplateSectionDraft(
+            EvaluationSectionType.Objectives,
+            "Objectives — 100%",
+            "The approved objective plan is the complete evaluation baseline."));
+        template.Activate();
+
+        var round = EvaluationRound.CreateDraft(
+            tenantId,
+            cycle,
+            IsolationEvaluationRoundName,
+            "Manager-only contrast for tenant-isolation verification.",
+            EvaluationRoundType.YearEnd,
+            EvaluationAssessmentModel.ManagerOnly);
+        round.SelectRatingScale(scale);
+        round.SelectTemplate(template);
+        var launchAt = asOfUtc.ToUniversalTime();
+        round.SetDeadlines(null, launchAt.AddDays(21), launchAt.AddDays(28));
+        var launch = round.Launch(
+            cycle,
+            scale,
+            template,
+            [new EvaluationRoundLaunchCandidate(participant, managerEmployeeId, "Nadia Manager", plan)],
+            launchAt);
+
+        db.PerformanceCycles.Add(cycle);
+        db.EmployeeObjectivePlans.Add(plan);
+        db.EvaluationRatingScales.Add(scale);
+        db.EvaluationTemplates.Add(template);
+        db.EvaluationRounds.Add(round);
+        db.EvaluationAssignments.AddRange(launch.Assignments);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task EnsureTenantAEvaluationAsync(
+        PerformanceDbContext db,
+        Guid tenantId,
+        PerformanceCycle cycle,
+        EmployeeObjectivePlan plan,
+        DateTime asOfUtc,
+        CancellationToken cancellationToken)
+    {
+        if (await db.EvaluationRounds.IgnoreQueryFilters().AnyAsync(
+                round => round.TenantId == tenantId && round.Name == EvaluationRoundName,
+                cancellationToken))
+            return;
+
+        var scale = await db.EvaluationRatingScales
+            .IgnoreQueryFilters()
+            .Include(item => item.Levels)
+            .SingleOrDefaultAsync(
+                item => item.TenantId == tenantId && item.Name == EvaluationConfigurationDefaults.DefaultScaleName,
+                cancellationToken);
+        var template = await db.EvaluationTemplates
+            .IgnoreQueryFilters()
+            .AsSplitQuery()
+            .Include(item => item.Sections)
+            .Include(item => item.Questions)
+            .SingleOrDefaultAsync(
+                item => item.TenantId == tenantId && item.Name == EvaluationConfigurationDefaults.DefaultTemplateName,
+                cancellationToken);
+        if (scale is null || template is null)
+        {
+            var defaults = EvaluationConfigurationDefaults.InstantiateForTenant(tenantId);
+            if (scale is null)
+            {
+                scale = defaults.RatingScale;
+                db.EvaluationRatingScales.Add(scale);
+            }
+            if (template is null)
+            {
+                template = defaults.Template;
+                db.EvaluationTemplates.Add(template);
+            }
+        }
+
+        var participant = cycle.Participants.Single();
+        var round = EvaluationRound.CreateDraft(
+            tenantId,
+            cycle,
+            EvaluationRoundName,
+            "A complete annual self and manager evaluation walkthrough.",
+            EvaluationRoundType.YearEnd,
+            EvaluationAssessmentModel.SelfAndManager);
+        round.SelectRatingScale(scale);
+        round.SelectTemplate(template);
+        var launchAt = asOfUtc.ToUniversalTime();
+        round.SetDeadlines(launchAt.AddDays(14), launchAt.AddDays(28), launchAt.AddDays(35));
+        var launch = round.Launch(
+            cycle,
+            scale,
+            template,
+            [new EvaluationRoundLaunchCandidate(
+                participant,
+                participant.ApproverEmployeeId,
+                participant.ApproverName,
+                plan)],
+            launchAt);
+
+        db.EvaluationRounds.Add(round);
+        db.EvaluationAssignments.AddRange(launch.Assignments);
         await db.SaveChangesAsync(cancellationToken);
     }
 
