@@ -51,6 +51,30 @@ public class PerformanceDbContext : DbContext
     public DbSet<ScheduledJobRun> ScheduledJobRuns => Set<ScheduledJobRun>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
 
+    // Evaluation configuration, rounds, immutable launch snapshots, and assignments
+    public DbSet<EvaluationRatingScale> EvaluationRatingScales => Set<EvaluationRatingScale>();
+    public DbSet<EvaluationRatingScaleLevel> EvaluationRatingScaleLevels => Set<EvaluationRatingScaleLevel>();
+    public DbSet<EvaluationTemplate> EvaluationTemplates => Set<EvaluationTemplate>();
+    public DbSet<EvaluationTemplateSection> EvaluationTemplateSections => Set<EvaluationTemplateSection>();
+    public DbSet<EvaluationTemplateQuestion> EvaluationTemplateQuestions => Set<EvaluationTemplateQuestion>();
+    public DbSet<EvaluationRound> EvaluationRounds => Set<EvaluationRound>();
+    public DbSet<EvaluationRoundScaleDraftLevel> EvaluationRoundScaleDraftLevels => Set<EvaluationRoundScaleDraftLevel>();
+    public DbSet<EvaluationRoundTemplateDraftSection> EvaluationRoundTemplateDraftSections => Set<EvaluationRoundTemplateDraftSection>();
+    public DbSet<EvaluationRoundTemplateDraftQuestion> EvaluationRoundTemplateDraftQuestions => Set<EvaluationRoundTemplateDraftQuestion>();
+    public DbSet<EvaluationRoundExclusion> EvaluationRoundExclusions => Set<EvaluationRoundExclusion>();
+    public DbSet<EvaluationRoundReviewerCorrection> EvaluationRoundReviewerCorrections => Set<EvaluationRoundReviewerCorrection>();
+    public DbSet<EvaluationRoundScaleSnapshot> EvaluationRoundScaleSnapshots => Set<EvaluationRoundScaleSnapshot>();
+    public DbSet<EvaluationRoundScaleSnapshotLevel> EvaluationRoundScaleSnapshotLevels => Set<EvaluationRoundScaleSnapshotLevel>();
+    public DbSet<EvaluationRoundTemplateSnapshot> EvaluationRoundTemplateSnapshots => Set<EvaluationRoundTemplateSnapshot>();
+    public DbSet<EvaluationRoundTemplateSnapshotSection> EvaluationRoundTemplateSnapshotSections => Set<EvaluationRoundTemplateSnapshotSection>();
+    public DbSet<EvaluationRoundTemplateSnapshotQuestion> EvaluationRoundTemplateSnapshotQuestions => Set<EvaluationRoundTemplateSnapshotQuestion>();
+    public DbSet<EvaluationRoundPolicySnapshot> EvaluationRoundPolicySnapshots => Set<EvaluationRoundPolicySnapshot>();
+    public DbSet<EvaluationRoundParticipant> EvaluationRoundParticipants => Set<EvaluationRoundParticipant>();
+    public DbSet<EvaluationObjectivePlanSnapshot> EvaluationObjectivePlanSnapshots => Set<EvaluationObjectivePlanSnapshot>();
+    public DbSet<EvaluationObjectiveSnapshot> EvaluationObjectiveSnapshots => Set<EvaluationObjectiveSnapshot>();
+    public DbSet<EvaluationRoundDeadlineExtension> EvaluationRoundDeadlineExtensions => Set<EvaluationRoundDeadlineExtension>();
+    public DbSet<EvaluationAssignment> EvaluationAssignments => Set<EvaluationAssignment>();
+
     // Platform-scoped entities (D1: no tenant filter, no ITenantEntity, PlatformAdmin gated)
     public DbSet<PlatformPerformanceGuardrails> PlatformPerformanceGuardrails => Set<PlatformPerformanceGuardrails>();
     public DbSet<PlatformObjectiveBaseline> PlatformObjectiveBaselines => Set<PlatformObjectiveBaseline>();
@@ -206,6 +230,51 @@ public class PerformanceDbContext : DbContext
 
         modelBuilder.Entity<Attachment>()
             .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<EvaluationRatingScale>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRatingScaleLevel>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationTemplate>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationTemplateSection>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationTemplateQuestion>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRound>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRoundScaleDraftLevel>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRoundTemplateDraftSection>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRoundTemplateDraftQuestion>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRoundExclusion>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRoundReviewerCorrection>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRoundScaleSnapshot>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRoundScaleSnapshotLevel>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRoundTemplateSnapshot>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRoundTemplateSnapshotSection>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRoundTemplateSnapshotQuestion>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRoundPolicySnapshot>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRoundParticipant>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationObjectivePlanSnapshot>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationObjectiveSnapshot>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationRoundDeadlineExtension>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvaluationAssignment>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<TenantObjectivePolicy>()
             .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
