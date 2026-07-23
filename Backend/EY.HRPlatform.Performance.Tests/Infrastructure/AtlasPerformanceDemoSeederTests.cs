@@ -2,6 +2,7 @@ using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace EY.HRPlatform.Performance.Tests.Infrastructure;
 
@@ -68,5 +69,80 @@ public sealed class AtlasPerformanceDemoSeederTests
             && item.Status == FollowUpActionStatus.Completed);
         Assert.Contains(actions, item => item.OwnerKind == FollowUpActionOwnerKind.Reviewer
             && item.Status == FollowUpActionStatus.Open);
+
+        var scale = await db.EvaluationRatingScales
+            .Include(item => item.Levels)
+            .SingleAsync(item => item.Name == "Five-level performance scale");
+        Assert.Equal(EvaluationConfigStatus.Active, scale.Status);
+        Assert.Equal(5, scale.Levels.Count);
+
+        var template = await db.EvaluationTemplates
+            .Include(item => item.Sections)
+            .SingleAsync(item => item.Name == "Starter annual evaluation");
+        Assert.Equal(EvaluationConfigStatus.Active, template.Status);
+        Assert.Equal(
+            [EvaluationSectionType.Objectives, EvaluationSectionType.CustomQuestions, EvaluationSectionType.OverallComments],
+            template.Sections.OrderBy(item => item.Ordinal).Select(item => item.Type));
+
+        var round = await db.EvaluationRounds
+            .Include(item => item.Participants)
+            .SingleAsync(item => item.Name == AtlasPerformanceDemoSeeder.EvaluationRoundName);
+        Assert.Equal(EvaluationRoundStatus.Launched, round.Status);
+        Assert.Equal(EvaluationAssessmentModel.SelfAndManager, round.AssessmentModel);
+        Assert.Single(round.Participants);
+        var assignments = await db.EvaluationAssignments
+            .Where(item => item.RoundId == round.Id)
+            .ToListAsync();
+        Assert.Equal(2, assignments.Count);
+        Assert.Contains(assignments, item => item.Kind == EvaluationAssignmentKind.SelfAssessment);
+        Assert.Contains(assignments, item => item.Kind == EvaluationAssignmentKind.ManagerAssessment);
+    }
+
+    [Fact]
+    public async Task SeedIsolationTenantAsync_CreatesContrastingManagerOnlyScenario_AndIsIdempotent()
+    {
+        var tenantAId = Guid.NewGuid();
+        var tenantBId = Guid.NewGuid();
+        var databaseRoot = new InMemoryDatabaseRoot();
+        var databaseName = $"atlas-evaluation-isolation-{Guid.NewGuid():N}";
+        var asOf = new DateTime(2026, 7, 20, 12, 0, 0, DateTimeKind.Utc);
+
+        var tenantA = new TenantContext();
+        tenantA.SetTenant(tenantAId);
+        var tenantAOptions = new DbContextOptionsBuilder<PerformanceDbContext>()
+            .UseInMemoryDatabase(databaseName, databaseRoot)
+            .Options;
+        await using (var db = new PerformanceDbContext(tenantAOptions, tenantA))
+            await AtlasPerformanceDemoSeeder.SeedAsync(db, tenantAId, asOf);
+
+        var tenantB = new TenantContext();
+        tenantB.SetTenant(tenantBId);
+        var tenantBOptions = new DbContextOptionsBuilder<PerformanceDbContext>()
+            .UseInMemoryDatabase(databaseName, databaseRoot)
+            .Options;
+        await using var isolationDb = new PerformanceDbContext(tenantBOptions, tenantB);
+        await AtlasPerformanceDemoSeeder.SeedIsolationTenantAsync(isolationDb, tenantBId, asOf);
+        await AtlasPerformanceDemoSeeder.SeedIsolationTenantAsync(isolationDb, tenantBId, asOf);
+
+        var scale = await isolationDb.EvaluationRatingScales
+            .Include(item => item.Levels)
+            .SingleAsync();
+        Assert.Equal(tenantBId, scale.TenantId);
+        Assert.Equal(4, scale.Levels.Count);
+
+        var round = await isolationDb.EvaluationRounds.SingleAsync();
+        Assert.Equal(EvaluationRoundStatus.Launched, round.Status);
+        Assert.Equal(EvaluationAssessmentModel.ManagerOnly, round.AssessmentModel);
+        Assert.Null(round.SelfAssessmentDeadline);
+
+        var assignments = await isolationDb.EvaluationAssignments.ToListAsync();
+        Assert.Single(assignments);
+        Assert.Equal(EvaluationAssignmentKind.ManagerAssessment, assignments[0].Kind);
+
+        var plan = await isolationDb.EmployeeObjectivePlans
+            .Include(item => item.Objectives)
+            .SingleAsync();
+        Assert.Single(plan.Objectives);
+        Assert.Equal(100, plan.Objectives.Single().Weight);
     }
 }
