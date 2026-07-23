@@ -49,6 +49,13 @@ public sealed class EvaluationDeadlineReminderJob(
         var assignments = await db.EvaluationAssignments.AsNoTracking()
             .Where(x => roundIds.Contains(x.RoundId) && x.Status != EvaluationAssignmentStatus.Finalized)
             .ToListAsync(ct);
+        // Preload existing reminder dedup keys once per sweep instead of probing the database per
+        // assignment; the unique (TenantId, DedupKey) index remains the concurrency safety net.
+        var existingKeys = (await db.PerformanceNotifications.AsNoTracking()
+                .Where(x => x.DedupKey != null && x.DedupKey.StartsWith("evaluation-deadline:"))
+                .Select(x => x.DedupKey!)
+                .ToListAsync(ct))
+            .ToHashSet(StringComparer.Ordinal);
         var notifications = new List<PerformanceNotification>();
 
         foreach (var round in rounds)
@@ -65,7 +72,7 @@ public sealed class EvaluationDeadlineReminderJob(
                 foreach (var assignment in assignments.Where(x => x.RoundId == round.Id && x.Kind == item.Kind))
                 {
                     var key = $"evaluation-deadline:{round.Id}:{item.Kind}:{type}:{item.Deadline.Value.Ticks}:{assignment.Id}";
-                    if (await db.PerformanceNotifications.AnyAsync(x => x.DedupKey == key, ct)) continue;
+                    if (!existingKeys.Add(key)) continue;
                     notifications.Add(PerformanceNotification.Create(
                         tenantId, assignment.AssigneeEmployeeId, type,
                         overdue ? "Evaluation deadline overdue" : "Evaluation deadline approaching",
