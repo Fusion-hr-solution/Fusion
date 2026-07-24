@@ -105,6 +105,8 @@ public sealed class EvaluationObjectiveRatingConfiguration : IEntityTypeConfigur
     {
         builder.ToTable("EvaluationObjectiveRatings");
         builder.HasKey(rating => rating.Id);
+        // Client-generated key: keeps navigation-discovered new rows classified as Added everywhere.
+        builder.Property(rating => rating.Id).ValueGeneratedNever();
         builder.Property(rating => rating.TenantId).IsRequired();
         builder.Property(rating => rating.AssignmentId).IsRequired();
         builder.Property(rating => rating.ObjectiveSnapshotId).IsRequired();
@@ -120,6 +122,7 @@ public sealed class EvaluationSkillRatingConfiguration : IEntityTypeConfiguratio
     {
         builder.ToTable("EvaluationSkillRatings");
         builder.HasKey(rating => rating.Id);
+        builder.Property(rating => rating.Id).ValueGeneratedNever();
         builder.Property(rating => rating.TenantId).IsRequired();
         builder.Property(rating => rating.AssignmentId).IsRequired();
         builder.Property(rating => rating.SkillSnapshotItemId).IsRequired();
@@ -135,6 +138,7 @@ public sealed class EvaluationQuestionAnswerConfiguration : IEntityTypeConfigura
     {
         builder.ToTable("EvaluationQuestionAnswers");
         builder.HasKey(answer => answer.Id);
+        builder.Property(answer => answer.Id).ValueGeneratedNever();
         builder.Property(answer => answer.TenantId).IsRequired();
         builder.Property(answer => answer.AssignmentId).IsRequired();
         builder.Property(answer => answer.QuestionSnapshotId).IsRequired();

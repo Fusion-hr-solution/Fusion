@@ -28,7 +28,8 @@ internal static class EvaluationAssessmentRules
 internal static class EvaluationAssessmentErrors
 {
     public static bool IsCorrectable(Exception ex) =>
-        ex is DomainRuleViolationException or ArgumentException or InvalidOperationException;
+        ex is DomainRuleViolationException or ArgumentException or InvalidOperationException
+            or EvaluationAssessmentIncompleteException;
 
     public static Result<T> Forbidden<T>() => Result.Failure<T>(Error.Forbidden(
         "Evaluations.Forbidden", "You do not have access to this evaluation assignment."));
@@ -39,6 +40,17 @@ internal static class EvaluationAssessmentErrors
         ? Result.Failure<T>(Error.Validation("Evaluations.IncompleteSubmission",
             $"The assessment is incomplete: {incomplete.IncompleteItems.Count} item(s) still need a response."))
         : Result.Failure<T>(Error.Validation("Evaluations.InvalidAssessment", ex.Message));
+
+    /// <summary>
+    /// Same as <see cref="Invalid{T}(Exception)"/> but resolves incomplete items against the round's
+    /// frozen snapshots so the caller receives the specific blockers, not just a count.
+    /// </summary>
+    public static Result<T> Invalid<T>(Exception ex, EvaluationRound round, EvaluationAssignment assignment) =>
+        ex is EvaluationAssessmentIncompleteException incomplete
+            ? Result.Failure<T>(Error.Validation("Evaluations.IncompleteSubmission",
+                $"The assessment is incomplete: {incomplete.IncompleteItems.Count} item(s) still need a response.",
+                EvaluationAssessmentMapper.IncompleteItems(round, assignment, incomplete.IncompleteItems)))
+            : Invalid<T>(ex);
 }
 
 /// <summary>

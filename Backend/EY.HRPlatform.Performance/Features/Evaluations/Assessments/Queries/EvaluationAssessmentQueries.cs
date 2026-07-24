@@ -12,11 +12,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Performance.Features.Evaluations.Assessments.Queries;
 
-public sealed record GetMyEvaluationsQuery(ClaimsPrincipal Actor)
-    : IQuery<Result<IReadOnlyList<MyEvaluationListItemDto>>>;
+public sealed record GetMyEvaluationsQuery(ClaimsPrincipal Actor, int Page = 1, int PageSize = 20)
+    : IQuery<Result<MyEvaluationsPageDto>>;
 public sealed record GetMyAssessmentWorkspaceQuery(ClaimsPrincipal Actor, Guid RoundId)
     : IQuery<Result<AssessmentWorkspaceDto>>;
-public sealed record GetTeamAssessmentQueueQuery(ClaimsPrincipal Actor, Guid RoundId)
+public sealed record GetTeamAssessmentQueueQuery(ClaimsPrincipal Actor, Guid RoundId, int Page = 1, int PageSize = 20)
     : IQuery<Result<TeamQueueDto>>;
 public sealed record GetParticipantAssessmentWorkspaceQuery(ClaimsPrincipal Actor, Guid RoundId, Guid ParticipantEmployeeId)
     : IQuery<Result<ParticipantWorkspaceDto>>;
@@ -26,29 +26,45 @@ public sealed record GetRoundCompletionQuery(ClaimsPrincipal Actor, Guid RoundId
 // ─── My evaluations list ─────────────────────────────────────────────────────
 
 public sealed class GetMyEvaluationsQueryHandler(PerformanceDbContext db, IPerformanceAccessPolicyService access)
-    : IQueryHandler<GetMyEvaluationsQuery, Result<IReadOnlyList<MyEvaluationListItemDto>>>
+    : IQueryHandler<GetMyEvaluationsQuery, Result<MyEvaluationsPageDto>>
 {
-    public async Task<Result<IReadOnlyList<MyEvaluationListItemDto>>> Handle(GetMyEvaluationsQuery q, CancellationToken ct)
+    public async Task<Result<MyEvaluationsPageDto>> Handle(GetMyEvaluationsQuery q, CancellationToken ct)
     {
-        if (!access.CanViewOwnEvaluations(q.Actor)) return EvaluationAssessmentErrors.Forbidden<IReadOnlyList<MyEvaluationListItemDto>>();
+        if (!access.CanViewOwnEvaluations(q.Actor)) return EvaluationAssessmentErrors.Forbidden<MyEvaluationsPageDto>();
         var employeeId = q.Actor.GetEmployeeId();
-        if (!employeeId.HasValue) return Result.Failure<IReadOnlyList<MyEvaluationListItemDto>>(
+        if (!employeeId.HasValue) return Result.Failure<MyEvaluationsPageDto>(
             Error.Forbidden("Evaluations.EmployeeMissing", "Your employee identity could not be resolved."));
 
-        var mine = await db.EvaluationAssignments.AsNoTracking()
-            .Where(a => a.ParticipantEmployeeId == employeeId.Value)
+        var page = Math.Max(1, q.Page);
+        var pageSize = Math.Clamp(q.PageSize, 1, 100);
+
+        // Page over rounds (the list unit), ordered in SQL: dated work first, then by name.
+        var roundsQuery = db.EvaluationRounds.AsNoTracking()
+            .Where(r => db.EvaluationAssignments.Any(
+                a => a.RoundId == r.Id && a.ParticipantEmployeeId == employeeId.Value));
+        var total = await roundsQuery.CountAsync(ct);
+        var pageRoundIds = await roundsQuery
+            .OrderBy(r => r.SelfAssessmentDeadline == null && r.ManagerAssessmentDeadline == null)
+            .ThenBy(r => r.SelfAssessmentDeadline ?? r.ManagerAssessmentDeadline)
+            .ThenBy(r => r.Name).ThenBy(r => r.Id)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(r => r.Id)
             .ToListAsync(ct);
-        var roundIds = mine.Select(a => a.RoundId).Distinct().ToArray();
+
         var rounds = await db.EvaluationRounds.AsNoTracking()
             .Include(r => r.ScaleSnapshot).ThenInclude(s => s!.Levels)
-            .Where(r => roundIds.Contains(r.Id)).ToDictionaryAsync(r => r.Id, ct);
+            .Where(r => pageRoundIds.Contains(r.Id)).ToDictionaryAsync(r => r.Id, ct);
+        var mine = await db.EvaluationAssignments.AsNoTracking()
+            .Where(a => a.ParticipantEmployeeId == employeeId.Value && pageRoundIds.Contains(a.RoundId))
+            .ToListAsync(ct);
+        var byRound = mine.ToLookup(a => a.RoundId);
 
-        var items = new List<MyEvaluationListItemDto>();
-        foreach (var group in mine.GroupBy(a => a.RoundId))
+        var items = new List<MyEvaluationListItemDto>(pageRoundIds.Count);
+        foreach (var roundId in pageRoundIds)
         {
-            if (!rounds.TryGetValue(group.Key, out var round)) continue;
-            var self = group.FirstOrDefault(a => a.Kind == EvaluationAssignmentKind.SelfAssessment);
-            var manager = group.FirstOrDefault(a => a.Kind == EvaluationAssignmentKind.ManagerAssessment);
+            if (!rounds.TryGetValue(roundId, out var round)) continue;
+            var self = byRound[roundId].FirstOrDefault(a => a.Kind == EvaluationAssignmentKind.SelfAssessment);
+            var manager = byRound[roundId].FirstOrDefault(a => a.Kind == EvaluationAssignmentKind.ManagerAssessment);
             var (status, nextAction, deadline) = ResolveEmployeeState(round, self, manager);
 
             items.Add(new MyEvaluationListItemDto(
@@ -57,11 +73,7 @@ public sealed class GetMyEvaluationsQueryHandler(PerformanceDbContext db, IPerfo
                 manager?.FinalRatingOrdinal is int o ? round.ScaleSnapshot!.Levels.FirstOrDefault(l => l.Ordinal == o)?.Label : null));
         }
 
-        return items
-            .OrderByDescending(x => x.Deadline.HasValue)
-            .ThenBy(x => x.Deadline)
-            .ThenBy(x => x.RoundName)
-            .ToArray();
+        return new MyEvaluationsPageDto(page, pageSize, total, items);
     }
 
     private static (string Status, string NextAction, DateTime? Deadline) ResolveEmployeeState(
@@ -103,6 +115,11 @@ public sealed class GetMyAssessmentWorkspaceQueryHandler(PerformanceDbContext db
         var manager = assignments.FirstOrDefault(a => a.Kind == EvaluationAssignmentKind.ManagerAssessment);
         if (self is null && manager is null) return EvaluationAssessmentErrors.NotFound<AssessmentWorkspaceDto>(q.RoundId);
 
+        // Manager-only round before finalization: the employee gets round identity only — never the
+        // manager's draft or submitted-but-unfinalized content. Finalization is the visibility boundary.
+        if (self is null && manager!.Status != EvaluationAssignmentStatus.Finalized)
+            return EvaluationAssessmentMapper.AwaitingWorkspace(round, manager);
+
         var result = manager?.Status == EvaluationAssignmentStatus.Finalized
             ? EvaluationAssessmentMapper.Result(round, manager)
             : null;
@@ -131,52 +148,77 @@ public sealed class GetTeamAssessmentQueueQueryHandler(PerformanceDbContext db, 
         var round = await EvaluationAssignmentLoader.LoadRoundAsync(db, q.RoundId, ct);
         if (round is null) return EvaluationAssessmentErrors.NotFound<TeamQueueDto>(q.RoundId);
 
-        var managerAssignments = await EvaluationAssignmentLoader.WithResponses(db).AsNoTracking()
-            .Where(a => a.RoundId == q.RoundId && a.AssigneeEmployeeId == employeeId.Value
-                && a.Kind == EvaluationAssignmentKind.ManagerAssessment)
-            .ToListAsync(ct);
-        if (managerAssignments.Count == 0)
-            return new TeamQueueDto(round.Id, round.Name, round.AssessmentModel.ToString(), Array.Empty<TeamQueueItemDto>());
-
-        var participantIds = managerAssignments.Select(a => a.ParticipantEmployeeId).ToArray();
-        var selfByParticipant = await db.EvaluationAssignments.AsNoTracking()
-            .Where(a => a.RoundId == q.RoundId && participantIds.Contains(a.ParticipantEmployeeId)
-                && a.Kind == EvaluationAssignmentKind.SelfAssessment)
-            .Include(a => a.ObjectiveRatings).Include(a => a.SkillRatings)
-            .ToDictionaryAsync(a => a.ParticipantEmployeeId, ct);
+        var page = Math.Max(1, q.Page);
+        var pageSize = Math.Clamp(q.PageSize, 1, 100);
         var now = DateTime.UtcNow;
+        var managerOnly = round.AssessmentModel == EvaluationAssessmentModel.ManagerOnly;
+        var selfDeadlinePassed = round.SelfAssessmentDeadline is { } sdl && now > sdl;
 
-        var items = managerAssignments.Select(manager =>
+        // Attention-first ordering runs in SQL over the manager assignment + left-joined self status;
+        // response projections are loaded only for the selected page.
+        var baseQuery =
+            from m in db.EvaluationAssignments.AsNoTracking()
+            where m.RoundId == q.RoundId && m.AssigneeEmployeeId == employeeId.Value
+                && m.Kind == EvaluationAssignmentKind.ManagerAssessment
+            join s0 in db.EvaluationAssignments.AsNoTracking().Where(a =>
+                    a.RoundId == q.RoundId && a.Kind == EvaluationAssignmentKind.SelfAssessment)
+                on m.ParticipantEmployeeId equals s0.ParticipantEmployeeId into selfJoin
+            from s in selfJoin.DefaultIfEmpty()
+            select new
+            {
+                Manager = m,
+                SelfId = (Guid?)s!.Id,
+                SelfStatus = (EvaluationAssignmentStatus?)s!.Status,
+                Actionable = managerOnly || selfDeadlinePassed
+                    || s!.Status == EvaluationAssignmentStatus.Submitted
+                    || s!.Status == EvaluationAssignmentStatus.Finalized
+            };
+
+        var total = await baseQuery.CountAsync(ct);
+        var pageRows = await baseQuery
+            .OrderBy(x => x.Manager.Status == EvaluationAssignmentStatus.Finalized
+                ? (x.Manager.AcknowledgedAt != null ? 5 : 3)
+                : (!x.Actionable ? 4 : (x.Manager.Status == EvaluationAssignmentStatus.Submitted ? 1 : 2)))
+            .ThenBy(x => x.Manager.ParticipantName).ThenBy(x => x.Manager.Id)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .ToListAsync(ct);
+
+        var assignmentIds = pageRows.Select(x => x.Manager.Id)
+            .Concat(pageRows.Where(x => x.SelfId.HasValue).Select(x => x.SelfId!.Value))
+            .ToArray();
+        var objectiveRatings = (await db.Set<EvaluationObjectiveRating>().AsNoTracking()
+                .Where(r => assignmentIds.Contains(r.AssignmentId))
+                .Select(r => new { r.AssignmentId, ItemId = r.ObjectiveSnapshotId, Ordinal = r.RatingOrdinal })
+                .ToListAsync(ct))
+            .Concat(await db.Set<EvaluationSkillRating>().AsNoTracking()
+                .Where(r => assignmentIds.Contains(r.AssignmentId))
+                .Select(r => new { r.AssignmentId, ItemId = r.SkillSnapshotItemId, Ordinal = r.ProficiencyOrdinal })
+                .ToListAsync(ct))
+            .ToLookup(r => r.AssignmentId);
+
+        var items = pageRows.Select(row =>
         {
-            selfByParticipant.TryGetValue(manager.ParticipantEmployeeId, out var self);
+            var manager = row.Manager;
             var actionable = EvaluationActionability.IsManagerActionable(
-                round.AssessmentModel, self?.Status, round.SelfAssessmentDeadline, now);
-            var selfMissing = EvaluationActionability.SelfAssessmentMissing(self?.Status, round.SelfAssessmentDeadline, now);
-            var selfSubmitted = self?.Status is EvaluationAssignmentStatus.Submitted or EvaluationAssignmentStatus.Finalized;
-            var materialDiffs = actionable && selfSubmitted ? CountMaterialDifferences(round, manager, self) : 0;
+                round.AssessmentModel, row.SelfStatus, round.SelfAssessmentDeadline, now);
+            var selfMissing = EvaluationActionability.SelfAssessmentMissing(row.SelfStatus, round.SelfAssessmentDeadline, now);
+            var selfSubmitted = row.SelfStatus is EvaluationAssignmentStatus.Submitted or EvaluationAssignmentStatus.Finalized;
+            var materialDiffs = 0;
+            if (actionable && selfSubmitted && row.SelfId is { } selfId)
+            {
+                var selfRatings = objectiveRatings[selfId].ToDictionary(r => r.ItemId, r => r.Ordinal);
+                materialDiffs = objectiveRatings[manager.Id].Count(mr =>
+                    selfRatings.TryGetValue(mr.ItemId, out var sr) &&
+                    EvaluationAssessmentRules.IsMaterialDifference(sr, mr.Ordinal));
+            }
             var nextAction = ResolveNextAction(manager, actionable, selfSubmitted);
             return new TeamQueueItemDto(
-                manager.ParticipantEmployeeId, manager.ParticipantName, self?.Id, manager.Id, manager.Status.ToString(),
+                manager.ParticipantEmployeeId, manager.ParticipantName, row.SelfId, manager.Id, manager.Status.ToString(),
                 actionable, selfSubmitted, selfMissing, materialDiffs,
                 round.ManagerAssessmentDeadline, manager.FinalizedAt, manager.AcknowledgedAt, nextAction);
-        }).ToList();
+        }).ToArray();
 
-        // Attention-first: actionable-unfinalized, then material differences, then awaiting-ack, muted awaiting-self last.
-        var ordered = items
-            .OrderBy(i => AttentionRank(i))
-            .ThenByDescending(i => i.MaterialDifferenceCount)
-            .ThenBy(i => i.ParticipantName)
-            .ToArray();
-        return new TeamQueueDto(round.Id, round.Name, round.AssessmentModel.ToString(), ordered);
-    }
-
-    private static int AttentionRank(TeamQueueItemDto i)
-    {
-        if (i.Status == EvaluationAssignmentStatus.Finalized.ToString())
-            return i.AcknowledgedAt.HasValue ? 5 : 3; // acknowledged last-ish, awaiting-ack mid
-        if (!i.Actionable) return 4;                    // awaiting self — muted
-        if (i.Status == EvaluationAssignmentStatus.Submitted.ToString()) return 1; // ready to finalize
-        return 2;                                        // actionable, not yet submitted
+        return new TeamQueueDto(round.Id, round.Name, round.AssessmentModel.ToString(), page, pageSize, total, items);
     }
 
     private static string ResolveNextAction(EvaluationAssignment manager, bool actionable, bool selfSubmitted)
@@ -192,19 +234,6 @@ public sealed class GetTeamAssessmentQueueQueryHandler(PerformanceDbContext db, 
         };
     }
 
-    private static int CountMaterialDifferences(EvaluationRound round, EvaluationAssignment manager, EvaluationAssignment? self)
-    {
-        if (self is null) return 0;
-        var selfObj = self.ObjectiveRatings.ToDictionary(r => r.ObjectiveSnapshotId, r => r.RatingOrdinal);
-        var count = manager.ObjectiveRatings.Count(mr =>
-            selfObj.TryGetValue(mr.ObjectiveSnapshotId, out var sr) &&
-            EvaluationAssessmentRules.IsMaterialDifference(sr, mr.RatingOrdinal));
-        var selfSkill = self.SkillRatings.ToDictionary(r => r.SkillSnapshotItemId, r => r.ProficiencyOrdinal);
-        count += manager.SkillRatings.Count(mr =>
-            selfSkill.TryGetValue(mr.SkillSnapshotItemId, out var sr) &&
-            EvaluationAssessmentRules.IsMaterialDifference(sr, mr.ProficiencyOrdinal));
-        return count;
-    }
 }
 
 // ─── Participant (comparison / finalization) workspace ───────────────────────

@@ -14,11 +14,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Performance.Features.Evaluations.Assessments.Commands;
 
-public sealed record SaveSelfDraftCommand(ClaimsPrincipal Actor, Guid AssignmentId, EvaluationAssessmentDraftInput Input)
+public sealed record SaveSelfDraftCommand(ClaimsPrincipal Actor, Guid AssignmentId, EvaluationAssessmentDraftInput Input, uint ExpectedVersion)
     : ICommand<Result<AssessmentWorkspaceDto>>;
 public sealed record SubmitSelfCommand(ClaimsPrincipal Actor, Guid AssignmentId, uint ExpectedVersion)
     : ICommand<Result<AssessmentWorkspaceDto>>;
-public sealed record SaveManagerDraftCommand(ClaimsPrincipal Actor, Guid AssignmentId, EvaluationAssessmentDraftInput Input)
+public sealed record SaveManagerDraftCommand(ClaimsPrincipal Actor, Guid AssignmentId, EvaluationAssessmentDraftInput Input, uint ExpectedVersion)
     : ICommand<Result<ParticipantWorkspaceDto>>;
 public sealed record SubmitManagerCommand(ClaimsPrincipal Actor, Guid AssignmentId, uint ExpectedVersion)
     : ICommand<Result<ParticipantWorkspaceDto>>;
@@ -41,12 +41,14 @@ public sealed class SaveSelfDraftCommandHandler(
     {
         var ctx = await EvaluationAssessmentAuth.LoadSelfAsync(db, access, c.Actor, c.AssignmentId, ct);
         if (ctx.Failure is { } f) return Result.Failure<AssessmentWorkspaceDto>(f);
+        ConcurrencyGuard.Ensure(ctx.Assignment!.Version, c.ExpectedVersion, nameof(EvaluationAssignment), ctx.Assignment.Id);
         try
         {
-            ctx.Assignment!.SaveDraft(c.Input, ctx.Snapshot!, DateTime.UtcNow);
+            ctx.Assignment.SaveDraft(c.Input, ctx.Snapshot!, DateTime.UtcNow);
             await db.SaveChangesAsync(ct);
             return EvaluationAssessmentMapper.Workspace(ctx.Round!, ctx.Assignment, editable: true, result: null);
         }
+        catch (DbUpdateConcurrencyException) { throw new ConcurrencyException(nameof(EvaluationAssignment), ctx.Assignment.Id); }
         catch (Exception ex) when (EvaluationAssessmentErrors.IsCorrectable(ex))
         {
             return EvaluationAssessmentErrors.Invalid<AssessmentWorkspaceDto>(ex);
@@ -71,9 +73,10 @@ public sealed class SubmitSelfCommandHandler(
             await db.SaveChangesAsync(ct);
             return EvaluationAssessmentMapper.Workspace(ctx.Round!, ctx.Assignment, editable: false, result: null);
         }
+        catch (DbUpdateConcurrencyException) { throw new ConcurrencyException(nameof(EvaluationAssignment), ctx.Assignment.Id); }
         catch (Exception ex) when (EvaluationAssessmentErrors.IsCorrectable(ex))
         {
-            return EvaluationAssessmentErrors.Invalid<AssessmentWorkspaceDto>(ex);
+            return EvaluationAssessmentErrors.Invalid<AssessmentWorkspaceDto>(ex, ctx.Round!, ctx.Assignment);
         }
     }
 }
@@ -88,12 +91,14 @@ public sealed class SaveManagerDraftCommandHandler(
     {
         var ctx = await EvaluationAssessmentAuth.LoadManagerAsync(db, access, c.Actor, c.AssignmentId, requireActionable: true, ct);
         if (ctx.Failure is { } f) return Result.Failure<ParticipantWorkspaceDto>(f);
+        ConcurrencyGuard.Ensure(ctx.Assignment!.Version, c.ExpectedVersion, nameof(EvaluationAssignment), ctx.Assignment.Id);
         try
         {
-            ctx.Assignment!.SaveDraft(c.Input, ctx.Snapshot!, DateTime.UtcNow);
+            ctx.Assignment.SaveDraft(c.Input, ctx.Snapshot!, DateTime.UtcNow);
             await db.SaveChangesAsync(ct);
             return await EvaluationAssessmentAuth.ManagerWorkspaceAsync(db, access, c.Actor, ctx.Round!, ctx.Assignment, ct);
         }
+        catch (DbUpdateConcurrencyException) { throw new ConcurrencyException(nameof(EvaluationAssignment), ctx.Assignment.Id); }
         catch (Exception ex) when (EvaluationAssessmentErrors.IsCorrectable(ex))
         {
             return EvaluationAssessmentErrors.Invalid<ParticipantWorkspaceDto>(ex);
@@ -118,9 +123,10 @@ public sealed class SubmitManagerCommandHandler(
             await db.SaveChangesAsync(ct);
             return await EvaluationAssessmentAuth.ManagerWorkspaceAsync(db, access, c.Actor, ctx.Round!, ctx.Assignment, ct);
         }
+        catch (DbUpdateConcurrencyException) { throw new ConcurrencyException(nameof(EvaluationAssignment), ctx.Assignment.Id); }
         catch (Exception ex) when (EvaluationAssessmentErrors.IsCorrectable(ex))
         {
-            return EvaluationAssessmentErrors.Invalid<ParticipantWorkspaceDto>(ex);
+            return EvaluationAssessmentErrors.Invalid<ParticipantWorkspaceDto>(ex, ctx.Round!, ctx.Assignment);
         }
     }
 }
@@ -157,6 +163,7 @@ public sealed class ReopenSelfCommandHandler(
             var round = await EvaluationAssignmentLoader.LoadRoundAsync(db, self.RoundId, ct);
             return await EvaluationAssessmentAuth.ManagerWorkspaceAsync(db, access, c.Actor, round!, manager!, ct);
         }
+        catch (DbUpdateConcurrencyException) { throw new ConcurrencyException(nameof(EvaluationAssignment), self.Id); }
         catch (Exception ex) when (EvaluationAssessmentErrors.IsCorrectable(ex))
         {
             return EvaluationAssessmentErrors.Invalid<ParticipantWorkspaceDto>(ex);
@@ -226,6 +233,7 @@ public sealed class AcknowledgeEvaluationCommandHandler(
             var result = EvaluationAssessmentMapper.Result(round!, manager);
             return EvaluationAssessmentMapper.Workspace(round!, manager, editable: false, result);
         }
+        catch (DbUpdateConcurrencyException) { throw new ConcurrencyException(nameof(EvaluationAssignment), manager.Id); }
         catch (Exception ex) when (EvaluationAssessmentErrors.IsCorrectable(ex))
         {
             return EvaluationAssessmentErrors.Invalid<AssessmentWorkspaceDto>(ex);

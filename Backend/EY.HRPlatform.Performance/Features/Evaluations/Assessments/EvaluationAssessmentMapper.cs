@@ -104,7 +104,43 @@ internal static class EvaluationAssessmentMapper
             editable, assignment.ObjectivePlanSnapshotId.HasValue, assignment.SkillSnapshotId.HasValue,
             round.ObjectivesWeightPercent, round.SkillsWeightPercent, Deadline(round, assignment.Kind),
             PerformanceScale(round), ProficiencyScale(round), objectives, skills, questions, result,
-            managerAssignment?.Id);
+            managerAssignment?.Id,
+            assignment.Version,
+            showManagerContent ? managerAssignment!.Version : null);
+    }
+
+    /// <summary>
+    /// Metadata-only employee view of a manager-only round before finalization: real round identity,
+    /// no assessment content, no scales, no versions. Finalization is the visibility boundary.
+    /// </summary>
+    public static AssessmentWorkspaceDto AwaitingWorkspace(EvaluationRound round, EvaluationAssignment manager) => new(
+        manager.Id, round.Id, round.Name, manager.Kind.ToString(), "AwaitingManager",
+        Editable: false, manager.ObjectivePlanSnapshotId.HasValue, manager.SkillSnapshotId.HasValue,
+        round.ObjectivesWeightPercent, round.SkillsWeightPercent, round.FinalizationDeadline,
+        Array.Empty<AssessmentScaleLevelDto>(), Array.Empty<AssessmentProficiencyLevelDto>(),
+        Array.Empty<AssessmentObjectiveItemDto>(), Array.Empty<AssessmentSkillItemDto>(),
+        Array.Empty<AssessmentQuestionItemDto>(), Result: null, ManagerAssignmentId: null,
+        Version: 0, ManagerAssignmentVersion: null);
+
+    /// <summary>Resolves incomplete-submission items to their frozen labels and workspace sections.</summary>
+    public static IReadOnlyList<AssessmentIncompleteItemDto> IncompleteItems(
+        EvaluationRound round, EvaluationAssignment assignment,
+        IReadOnlyList<EvaluationAssessmentIncompleteItem> items)
+    {
+        var objectiveTitles = ObjectivesFor(round, assignment).ToDictionary(o => o.Id, o => o.Title);
+        var skillNames = (round.SkillSnapshot?.Items ?? Array.Empty<EvaluationRoundSkillSnapshotItem>())
+            .ToDictionary(i => i.Id, i => i.SkillName);
+        var questionPrompts = round.TemplateSnapshot!.Questions.ToDictionary(q => q.Id, q => q.Prompt);
+
+        return items.Select(item => item.Kind switch
+        {
+            EvaluationAssessmentItemKind.Objective => new AssessmentIncompleteItemDto(
+                "Objective", item.Id, "Objectives", objectiveTitles.GetValueOrDefault(item.Id, "Objective")),
+            EvaluationAssessmentItemKind.Skill => new AssessmentIncompleteItemDto(
+                "Skill", item.Id, "Skills", skillNames.GetValueOrDefault(item.Id, "Skill")),
+            _ => new AssessmentIncompleteItemDto(
+                "Question", item.Id, "Questions", questionPrompts.GetValueOrDefault(item.Id, "Question"))
+        }).ToArray();
     }
 
     // ─── Comparison workspace (manager, self+manager side by side) ────────────
@@ -198,7 +234,7 @@ internal static class EvaluationAssessmentMapper
             round.ManagerAssessmentDeadline, round.FinalizationDeadline,
             PerformanceScale(round), ProficiencyScale(round),
             objectives, skills, questions,
-            meanManagerObjective, belowCount, meetsCount, exceedsCount, result, manager.Version);
+            meanManagerObjective, belowCount, meetsCount, exceedsCount, result, manager.Version, self?.Version);
     }
 
     public static EvaluationResultDto Result(EvaluationRound round, EvaluationAssignment manager) => new(

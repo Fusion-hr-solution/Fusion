@@ -20,6 +20,9 @@ public sealed record MyEvaluationListItemDto(
     int? FinalRatingOrdinal,
     string? FinalRatingLabel);
 
+public sealed record MyEvaluationsPageDto(
+    int Page, int PageSize, int TotalCount, IReadOnlyList<MyEvaluationListItemDto> Items);
+
 // ─── Result surface (post-finalization) ──────────────────────────────────────
 
 public sealed record EvaluationResultDto(
@@ -55,6 +58,9 @@ public sealed record AssessmentQuestionItemDto(
     Guid QuestionSnapshotId, string Prompt, string Type, bool IsRequired, bool AllowNotApplicable,
     string? MyTextAnswer, int? MyRatingOrdinal, bool IsNotApplicable, string? NotApplicableReason);
 
+/// <summary>A frozen item a submission still requires, addressable from the workspace UI.</summary>
+public sealed record AssessmentIncompleteItemDto(string Kind, Guid Id, string Section, string Label);
+
 public sealed record AssessmentWorkspaceDto(
     Guid AssignmentId,
     Guid RoundId,
@@ -73,7 +79,9 @@ public sealed record AssessmentWorkspaceDto(
     IReadOnlyList<AssessmentSkillItemDto> Skills,
     IReadOnlyList<AssessmentQuestionItemDto> Questions,
     EvaluationResultDto? Result,
-    Guid? ManagerAssignmentId);
+    Guid? ManagerAssignmentId,
+    uint Version,
+    uint? ManagerAssignmentVersion);
 
 // ─── Team queue (manager list) ───────────────────────────────────────────────
 
@@ -93,7 +101,9 @@ public sealed record TeamQueueItemDto(
     string NextAction);
 
 public sealed record TeamQueueDto(
-    Guid RoundId, string RoundName, string AssessmentModel, IReadOnlyList<TeamQueueItemDto> Items);
+    Guid RoundId, string RoundName, string AssessmentModel,
+    int Page, int PageSize, int TotalCount,
+    IReadOnlyList<TeamQueueItemDto> Items);
 
 // ─── Participant (manager) comparison workspace ──────────────────────────────
 
@@ -145,7 +155,8 @@ public sealed record ParticipantWorkspaceDto(
     int SkillsMeetsExpectation,
     int SkillsExceedsExpectation,
     EvaluationResultDto? Result,
-    uint Version);
+    uint ManagerVersion,
+    uint? SelfVersion);
 
 // ─── HR completion band ──────────────────────────────────────────────────────
 

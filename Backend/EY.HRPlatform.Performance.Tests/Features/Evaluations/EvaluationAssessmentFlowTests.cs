@@ -54,7 +54,8 @@ public class EvaluationAssessmentFlowTests
         var result = await handler.Handle(new GetMyEvaluationsQuery(Employee(s.ParticipantId)), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        var item = Assert.Single(result.Value);
+        Assert.Equal(1, result.Value.TotalCount);
+        var item = Assert.Single(result.Value.Items);
         Assert.Equal(s.RoundId, item.RoundId);
         Assert.Equal("Start self-assessment", item.NextAction);
     }
@@ -86,7 +87,7 @@ public class EvaluationAssessmentFlowTests
 
         var handler = new SaveSelfDraftCommandHandler(db, Access, ActivityLog(db, tenant));
         var result = await handler.Handle(
-            new SaveSelfDraftCommand(Employee(Guid.NewGuid()), s.SelfId, EvaluationAssessmentDraftInput.Empty),
+            new SaveSelfDraftCommand(Employee(Guid.NewGuid()), s.SelfId, EvaluationAssessmentDraftInput.Empty, 0),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -103,7 +104,7 @@ public class EvaluationAssessmentFlowTests
         // Self is NotStarted and the self deadline is in the future → manager not actionable yet.
         var handler = new SaveManagerDraftCommandHandler(db, Access, ActivityLog(db, tenant));
         var result = await handler.Handle(
-            new SaveManagerDraftCommand(Reviewer(s.ReviewerId), s.ManagerId, EvaluationAssessmentDraftInput.Empty),
+            new SaveManagerDraftCommand(Reviewer(s.ReviewerId), s.ManagerId, EvaluationAssessmentDraftInput.Empty, 0),
             CancellationToken.None);
 
         Assert.True(result.IsFailure);

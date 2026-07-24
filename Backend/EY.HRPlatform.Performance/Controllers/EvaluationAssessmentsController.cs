@@ -17,16 +17,20 @@ public sealed class EvaluationAssessmentsController(ISender sender) : Controller
     // ─── Employee ─────────────────────────────────────────────────────────────
 
     [HttpGet("mine")]
-    public async Task<IActionResult> Mine(CancellationToken ct) =>
-        Respond(await sender.Send(new GetMyEvaluationsQuery(User), ct));
+    public async Task<IActionResult> Mine([FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default) =>
+        Respond(await sender.Send(new GetMyEvaluationsQuery(User, page, pageSize), ct));
 
     [HttpGet("rounds/{roundId:guid}/self")]
     public async Task<IActionResult> MyWorkspace(Guid roundId, CancellationToken ct) =>
         Respond(await sender.Send(new GetMyAssessmentWorkspaceQuery(User, roundId), ct));
 
     [HttpPost("assignments/{assignmentId:guid}/self/draft")]
-    public async Task<IActionResult> SaveSelfDraft(Guid assignmentId, SaveDraftRequest request, CancellationToken ct) =>
-        Respond(await sender.Send(new SaveSelfDraftCommand(User, assignmentId, request.ToInput()), ct));
+    public async Task<IActionResult> SaveSelfDraft(Guid assignmentId, SaveDraftRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken ct)
+    {
+        if (!TryVersion(ifMatch, out var version)) return PreconditionRequired();
+        return Respond(await sender.Send(new SaveSelfDraftCommand(User, assignmentId, request.ToInput(), version), ct));
+    }
 
     [HttpPost("assignments/{assignmentId:guid}/self/submit")]
     public async Task<IActionResult> SubmitSelf(Guid assignmentId, [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken ct)
@@ -46,16 +50,20 @@ public sealed class EvaluationAssessmentsController(ISender sender) : Controller
     // ─── Manager ──────────────────────────────────────────────────────────────
 
     [HttpGet("rounds/{roundId:guid}/team")]
-    public async Task<IActionResult> TeamQueue(Guid roundId, CancellationToken ct) =>
-        Respond(await sender.Send(new GetTeamAssessmentQueueQuery(User, roundId), ct));
+    public async Task<IActionResult> TeamQueue(Guid roundId, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default) =>
+        Respond(await sender.Send(new GetTeamAssessmentQueueQuery(User, roundId, page, pageSize), ct));
 
     [HttpGet("rounds/{roundId:guid}/participants/{participantId:guid}")]
     public async Task<IActionResult> ParticipantWorkspace(Guid roundId, Guid participantId, CancellationToken ct) =>
         Respond(await sender.Send(new GetParticipantAssessmentWorkspaceQuery(User, roundId, participantId), ct));
 
     [HttpPost("assignments/{assignmentId:guid}/manager/draft")]
-    public async Task<IActionResult> SaveManagerDraft(Guid assignmentId, SaveDraftRequest request, CancellationToken ct) =>
-        Respond(await sender.Send(new SaveManagerDraftCommand(User, assignmentId, request.ToInput()), ct));
+    public async Task<IActionResult> SaveManagerDraft(Guid assignmentId, SaveDraftRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken ct)
+    {
+        if (!TryVersion(ifMatch, out var version)) return PreconditionRequired();
+        return Respond(await sender.Send(new SaveManagerDraftCommand(User, assignmentId, request.ToInput(), version), ct));
+    }
 
     [HttpPost("assignments/{assignmentId:guid}/manager/submit")]
     public async Task<IActionResult> SubmitManager(Guid assignmentId, [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken ct)
@@ -97,7 +105,7 @@ public sealed class EvaluationAssessmentsController(ISender sender) : Controller
         if (error.Code.Contains("Conflict", StringComparison.OrdinalIgnoreCase) || error.Code.Contains("NotActionable", StringComparison.OrdinalIgnoreCase))
             return Conflict(ApiResponse.Failure(error.Message));
         if (error.Code.Contains("Invalid", StringComparison.OrdinalIgnoreCase) || error.Code.Contains("Validation", StringComparison.OrdinalIgnoreCase) || error.Code.Contains("Incomplete", StringComparison.OrdinalIgnoreCase))
-            return UnprocessableEntity(ApiResponse.Failure(error.Message));
+            return UnprocessableEntity(ApiResponse.Failure(error.Message, error.Details));
         return BadRequest(ApiResponse.Failure(error.Message));
     }
 
