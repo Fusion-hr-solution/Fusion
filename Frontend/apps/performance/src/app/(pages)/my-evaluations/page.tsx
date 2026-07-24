@@ -1,2 +1,2 @@
-import { EvaluationWorkEntryPage } from "@/components/evaluations/evaluation-work-entry-page";
-export default function MyEvaluationsRoute() { return <EvaluationWorkEntryPage mode="mine" />; }
+import { MyEvaluationsPage } from "@/components/evaluations/evaluation-assessment-pages";
+export default function MyEvaluationsRoute() { return <MyEvaluationsPage />; }

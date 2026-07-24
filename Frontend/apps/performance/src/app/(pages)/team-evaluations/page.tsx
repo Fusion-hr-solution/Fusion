@@ -1,2 +1,2 @@
-import { EvaluationWorkEntryPage } from "@/components/evaluations/evaluation-work-entry-page";
-export default function TeamEvaluationsRoute() { return <EvaluationWorkEntryPage mode="team" />; }
+import { TeamEvaluationsPage } from "@/components/evaluations/evaluation-assessment-pages";
+export default function TeamEvaluationsRoute() { return <TeamEvaluationsPage />; }

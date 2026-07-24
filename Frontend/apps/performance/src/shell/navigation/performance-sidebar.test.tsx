@@ -100,6 +100,10 @@ vi.mock("@repo/auth", () => ({
     user?.permissions?.some(
       (grant) => grant.permissionKey === "performance.evaluation.manage" && grant.scope === "Tenant",
     ) ?? false,
+  canManageSkills: (user: TestUser | null) =>
+    user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.skills.manage" && grant.scope === "Tenant",
+    ) ?? false,
   canOperateEvaluations: (user: TestUser | null) =>
     user?.permissions?.some(
       (grant) => grant.permissionKey === "performance.evaluation.operate" && grant.scope === "Tenant",

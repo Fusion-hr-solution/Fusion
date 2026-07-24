@@ -11,16 +11,13 @@ export interface PagedResponse<T> {
   hasPreviousPage: boolean;
 }
 
-export type PerformanceCycleStatus =
-  | "Draft"
-  | "Launched";
+export type PerformanceCycleStatus = "Draft" | "Launched";
 export type PerformanceCycleType = "Annual" | "MidYear" | "Specific";
-export type CycleDeadlineState =
-  | "None"
-  | "Upcoming"
-  | "DueSoon"
-  | "Overdue";
-export type PopulationRuleType = "OrgUnit" | "IncludeEmployee" | "ExcludeEmployee";
+export type CycleDeadlineState = "None" | "Upcoming" | "DueSoon" | "Overdue";
+export type PopulationRuleType =
+  | "OrgUnit"
+  | "IncludeEmployee"
+  | "ExcludeEmployee";
 
 export interface PerformanceCycleSummaryDto {
   id: string;
@@ -444,9 +441,17 @@ export interface UpsertTeamObjectiveRequest {
 
 // ── Employee objectives (P1.4) ──────────────────────────────────────
 
-export type EmployeeObjectivePlanStatus = "Draft" | "Submitted" | "ChangesRequested" | "Approved";
+export type EmployeeObjectivePlanStatus =
+  | "Draft"
+  | "Submitted"
+  | "ChangesRequested"
+  | "Approved";
 export type ObjectiveAlignmentType = "TeamObjective" | "StrategicObjective";
-export type PlanReviewEventType = "Submitted" | "ChangesRequested" | "Resubmitted" | "Approved";
+export type PlanReviewEventType =
+  | "Submitted"
+  | "ChangesRequested"
+  | "Resubmitted"
+  | "Approved";
 
 export interface MyObjectivePlanCampaignDto {
   id: string;
@@ -550,7 +555,10 @@ export interface EmployeeObjectivePlanWorkspaceDto {
 
 // ── Objective progress (Performance Record, partition 1) ─────────────
 
-export type ObjectiveProgressState = "not-started" | "in-progress" | "completed";
+export type ObjectiveProgressState =
+  | "not-started"
+  | "in-progress"
+  | "completed";
 
 export interface ObjectiveProgressAttachmentDto {
   id: string;
@@ -682,7 +690,11 @@ export interface PlanApprovalReviewDto {
   jobTitle: string | null;
   orgUnitName: string | null;
   status: EmployeeObjectivePlanStatus;
-  reviewState: "waiting-for-review" | "changes-requested" | "approved" | "not-ready";
+  reviewState:
+    | "waiting-for-review"
+    | "changes-requested"
+    | "approved"
+    | "not-ready";
   objectiveCount: number;
   totalWeight: number;
   submittedAt: string | null;
@@ -1197,123 +1209,683 @@ export interface DiscussionSignalMutationResult {
 // ── Evaluation configuration, rounds, and frozen work-entry context ──
 
 export type EvaluationConfigStatus = "Draft" | "Active" | "Archived";
-export type EvaluationSectionType = "Objectives" | "CustomQuestions" | "OverallComments" | "Skills";
+export type EvaluationSectionType =
+  | "Objectives"
+  | "CustomQuestions"
+  | "OverallComments"
+  | "Skills";
 export type EvaluationQuestionType = "Text" | "Rating";
 export type EvaluationTargetRater = "Self" | "Manager" | "Both";
 export type EvaluationRoundType = "MidCycle" | "YearEnd" | "SpecificReview";
 export type EvaluationAssessmentModel = "SelfAndManager" | "ManagerOnly";
-export type EvaluationDeadlineKind = "SelfAssessment" | "ManagerAssessment" | "Finalization";
+export type EvaluationDeadlineKind =
+  | "SelfAssessment"
+  | "ManagerAssessment"
+  | "Finalization";
 
 export interface EvaluationRatingScaleLevelDto {
-  id: string; ordinal: number; value: number; label: string;
-  description: string | null; behavioralGuidance: string | null;
+  id: string;
+  ordinal: number;
+  value: number;
+  label: string;
+  description: string | null;
+  behavioralGuidance: string | null;
 }
 export interface EvaluationRatingScaleDto {
-  id: string; name: string; description: string | null; status: EvaluationConfigStatus;
-  isInUse: boolean; version: number; levels: EvaluationRatingScaleLevelDto[];
+  id: string;
+  name: string;
+  description: string | null;
+  status: EvaluationConfigStatus;
+  isInUse: boolean;
+  version: number;
+  levels: EvaluationRatingScaleLevelDto[];
 }
 export interface EvaluationRatingScaleLevelInput {
-  id?: string | null; label: string; description?: string | null; behavioralGuidance?: string | null;
+  id?: string | null;
+  label: string;
+  description?: string | null;
+  behavioralGuidance?: string | null;
 }
 export interface EvaluationRatingScaleWriteRequest {
-  name: string; description?: string | null; levels: EvaluationRatingScaleLevelInput[];
+  name: string;
+  description?: string | null;
+  levels: EvaluationRatingScaleLevelInput[];
 }
 export interface EvaluationTemplateQuestionInput {
-  id?: string | null; prompt: string; type: EvaluationQuestionType; isRequired: boolean;
-  targetRater: EvaluationTargetRater; allowNotApplicable: boolean;
+  id?: string | null;
+  prompt: string;
+  type: EvaluationQuestionType;
+  isRequired: boolean;
+  targetRater: EvaluationTargetRater;
+  allowNotApplicable: boolean;
 }
 export interface EvaluationTemplateSectionInput {
-  id?: string | null; type: EvaluationSectionType; title: string; guidance?: string | null;
+  id?: string | null;
+  type: EvaluationSectionType;
+  title: string;
+  guidance?: string | null;
   questions: EvaluationTemplateQuestionInput[];
 }
-export interface EvaluationTemplateQuestionDto extends Omit<EvaluationTemplateQuestionInput, "id"> {
-  id: string; ordinal: number;
+export interface EvaluationTemplateQuestionDto extends Omit<
+  EvaluationTemplateQuestionInput,
+  "id"
+> {
+  id: string;
+  ordinal: number;
 }
 export interface EvaluationTemplateSectionDto {
-  id: string; ordinal: number; type: EvaluationSectionType; title: string;
-  guidance: string | null; questions: EvaluationTemplateQuestionDto[];
+  id: string;
+  ordinal: number;
+  type: EvaluationSectionType;
+  title: string;
+  guidance: string | null;
+  questions: EvaluationTemplateQuestionDto[];
 }
 export interface EvaluationTemplateDto {
-  id: string; name: string; purpose: string | null; participantInstructions: string | null;
-  status: EvaluationConfigStatus; isInUse: boolean; version: number; sections: EvaluationTemplateSectionDto[];
+  id: string;
+  name: string;
+  purpose: string | null;
+  participantInstructions: string | null;
+  status: EvaluationConfigStatus;
+  isInUse: boolean;
+  version: number;
+  sections: EvaluationTemplateSectionDto[];
 }
 export interface EvaluationTemplateWriteRequest {
-  name: string; purpose?: string | null; participantInstructions?: string | null;
+  name: string;
+  purpose?: string | null;
+  participantInstructions?: string | null;
   sections: EvaluationTemplateSectionInput[];
 }
 export interface EvaluationRoundSummaryDto {
-  id: string; campaignId: string; name: string; purpose: string | null; type: EvaluationRoundType;
-  assessmentModel: EvaluationAssessmentModel; status: "Draft" | "Launched" | "Closed";
-  operationalState: "Draft" | "ReadyToLaunch" | "InProgress" | "Overdue" | "Completed";
-  selfAssessmentDeadline: string | null; managerAssessmentDeadline: string | null;
-  finalizationDeadline: string | null; launchedAt: string | null; version: number;
+  id: string;
+  campaignId: string;
+  name: string;
+  purpose: string | null;
+  type: EvaluationRoundType;
+  assessmentModel: EvaluationAssessmentModel;
+  status: "Draft" | "Launched" | "Closed";
+  operationalState:
+    | "Draft"
+    | "ReadyToLaunch"
+    | "InProgress"
+    | "Overdue"
+    | "Completed";
+  selfAssessmentDeadline: string | null;
+  managerAssessmentDeadline: string | null;
+  finalizationDeadline: string | null;
+  launchedAt: string | null;
+  version: number;
 }
 export type EvaluationRoundScaleLevelDto = EvaluationRatingScaleLevelDto;
-export interface EvaluationRoundTemplateQuestionDto extends EvaluationTemplateQuestionDto { sectionId: string }
-export interface EvaluationRoundTemplateSectionDto extends Omit<EvaluationTemplateSectionDto, "questions"> {
+export interface EvaluationRoundTemplateQuestionDto extends EvaluationTemplateQuestionDto {
+  sectionId: string;
+}
+export interface EvaluationRoundTemplateSectionDto extends Omit<
+  EvaluationTemplateSectionDto,
+  "questions"
+> {
   questions: EvaluationRoundTemplateQuestionDto[];
 }
+export interface EvaluationRoundProficiencyLevelDto {
+  id: string;
+  ordinal: number;
+  value: number;
+  label: string;
+  description: string | null;
+}
+export interface EvaluationRoundSkillItemDto {
+  id: string;
+  skillId: string;
+  skillName: string;
+  categoryName: string;
+  expectedLevelOrdinal: number;
+  expectedLevelLabel: string | null;
+}
+export interface EvaluationRoundSkillDto {
+  sourceExpectationSetId: string | null;
+  setName: string | null;
+  scaleName: string | null;
+  objectivesWeightPercent: number;
+  skillsWeightPercent: number;
+  proficiencyLevels: EvaluationRoundProficiencyLevelDto[];
+  items: EvaluationRoundSkillItemDto[];
+}
 export interface EvaluationRoundDetailDto {
-  round: EvaluationRoundSummaryDto; sourceRatingScaleId: string | null; ratingScaleName: string | null;
-  ratingScaleLevels: EvaluationRoundScaleLevelDto[]; sourceTemplateId: string | null;
-  templateName: string | null; templatePurpose: string | null; templateInstructions: string | null;
+  round: EvaluationRoundSummaryDto;
+  sourceRatingScaleId: string | null;
+  ratingScaleName: string | null;
+  ratingScaleLevels: EvaluationRoundScaleLevelDto[];
+  sourceTemplateId: string | null;
+  templateName: string | null;
+  templatePurpose: string | null;
+  templateInstructions: string | null;
   templateSections: EvaluationRoundTemplateSectionDto[];
   exclusions: { employeeId: string; employeeName: string; reason: string }[];
-  reviewerCorrections: { employeeId: string; reviewerEmployeeId: string; reviewerName: string; reason: string }[];
-  participantCount: number; assignmentCount: number;
+  reviewerCorrections: {
+    employeeId: string;
+    reviewerEmployeeId: string;
+    reviewerName: string;
+    reason: string;
+  }[];
+  participantCount: number;
+  assignmentCount: number;
+  includesSkills: boolean;
+  skills: EvaluationRoundSkillDto;
 }
-export interface EvaluationReadinessIssueDto { code: string; message: string; employeeId: string | null }
+export interface EvaluationReadinessIssueDto {
+  code: string;
+  message: string;
+  employeeId: string | null;
+}
 export interface EvaluationRoundAssignmentPreviewDto {
-  employeeId: string; employeeName: string; reviewerEmployeeId: string | null; reviewerName: string | null;
-  included: boolean; hasEligibleObjectivePlan: boolean; omissionReason: string | null;
+  employeeId: string;
+  employeeName: string;
+  reviewerEmployeeId: string | null;
+  reviewerName: string | null;
+  included: boolean;
+  hasEligibleObjectivePlan: boolean;
+  omissionReason: string | null;
+}
+export interface EvaluationRoundReadinessSkillsDto {
+  includesSkills: boolean;
+  setSelected: boolean;
+  setName: string | null;
+  itemCount: number;
+  objectivesWeightPercent: number;
+  skillsWeightPercent: number;
 }
 export interface EvaluationRoundReadinessDto {
-  roundId: string; canLaunch: boolean; campaignParticipantCount: number; includedParticipantCount: number;
-  omittedParticipantCount: number; managerAssignmentCount: number; selfAssignmentCount: number;
-  blockers: EvaluationReadinessIssueDto[]; warnings: EvaluationReadinessIssueDto[];
+  roundId: string;
+  canLaunch: boolean;
+  campaignParticipantCount: number;
+  includedParticipantCount: number;
+  omittedParticipantCount: number;
+  managerAssignmentCount: number;
+  selfAssignmentCount: number;
+  blockers: EvaluationReadinessIssueDto[];
+  warnings: EvaluationReadinessIssueDto[];
   assignmentPreview: EvaluationRoundAssignmentPreviewDto[];
+  skills: EvaluationRoundReadinessSkillsDto;
 }
 export interface EvaluationAssignmentRosterItemDto {
-  id: string; participantEmployeeId: string; participantName: string; kind: "SelfAssessment" | "ManagerAssessment";
-  assigneeEmployeeId: string; assigneeName: string; status: string;
+  id: string;
+  participantEmployeeId: string;
+  participantName: string;
+  kind: "SelfAssessment" | "ManagerAssessment";
+  assigneeEmployeeId: string;
+  assigneeName: string;
+  status: string;
 }
 export interface EvaluationAssignmentRosterDto {
-  roundId: string; page: number; pageSize: number; totalCount: number; items: EvaluationAssignmentRosterItemDto[];
+  roundId: string;
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  items: EvaluationAssignmentRosterItemDto[];
 }
 export interface EvaluationObjectiveSnapshotDto {
-  id: string; title: string; description: string | null; weight: number | null; deadline: string | null;
-  measurementIndicator: string | null; targetValue: string | null; targetUnit: string | null; successCriteria: string | null;
+  id: string;
+  title: string;
+  description: string | null;
+  weight: number | null;
+  deadline: string | null;
+  measurementIndicator: string | null;
+  targetValue: string | null;
+  targetUnit: string | null;
+  successCriteria: string | null;
 }
 export interface EvaluationWorkEntryDto {
-  round: EvaluationRoundDetailDto; assignment: EvaluationAssignmentRosterItemDto;
+  round: EvaluationRoundDetailDto;
+  assignment: EvaluationAssignmentRosterItemDto;
   objectiveBaseline: EvaluationObjectiveSnapshotDto[];
+}
+
+// ── Skills configuration ─────────────────────────────────────────────
+
+export type SkillLifecycleStatus = "Active" | "Archived";
+
+export interface SkillCategoryDto {
+  id: string;
+  name: string;
+  status: SkillLifecycleStatus;
+  activeSkillCount: number;
+  version: number;
+}
+export interface SkillDto {
+  id: string;
+  name: string;
+  description: string | null;
+  categoryId: string;
+  categoryName: string;
+  status: SkillLifecycleStatus;
+  isInUse: boolean;
+  version: number;
+}
+export interface ProficiencyScaleLevelDto {
+  id: string;
+  ordinal: number;
+  value: number;
+  label: string;
+  description: string | null;
+}
+export interface ProficiencyScaleDto {
+  id: string;
+  name: string;
+  description: string | null;
+  status: EvaluationConfigStatus;
+  isInUse: boolean;
+  version: number;
+  levels: ProficiencyScaleLevelDto[];
+}
+export interface SkillExpectationItemDto {
+  id: string;
+  skillId: string;
+  skillName: string;
+  categoryName: string;
+  expectedLevelOrdinal: number;
+  expectedLevelLabel: string;
+}
+export interface SkillExpectationSetDto {
+  id: string;
+  name: string;
+  description: string | null;
+  proficiencyScaleId: string;
+  proficiencyScaleName: string;
+  status: EvaluationConfigStatus;
+  isInUse: boolean;
+  version: number;
+  items: SkillExpectationItemDto[];
+}
+export interface SkillsConfigurationWorkspaceDto {
+  categories: SkillCategoryDto[];
+  skills: SkillDto[];
+  proficiencyScales: ProficiencyScaleDto[];
+  expectationSets: SkillExpectationSetDto[];
+}
+export interface ProficiencyScaleLevelInput {
+  id?: string | null;
+  label: string;
+  description?: string | null;
+}
+export interface SkillExpectationItemInput {
+  skillId: string;
+  expectedLevelOrdinal: number;
+}
+export interface SkillNameRequest {
+  name: string;
+}
+export interface SkillWriteRequest {
+  name: string;
+  description?: string | null;
+  categoryId: string;
+}
+export interface ProficiencyScaleWriteRequest {
+  name: string;
+  description?: string | null;
+  levels: ProficiencyScaleLevelInput[];
+}
+export interface SkillExpectationSetWriteRequest {
+  name: string;
+  description?: string | null;
+  proficiencyScaleId: string;
+  items: SkillExpectationItemInput[];
+}
+export interface SkillStatusRequest {
+  status: EvaluationConfigStatus;
+}
+
+// ── Round skill draft + weights (round setup) ────────────────────────
+
+export interface EvaluationRoundExpectationSetRequest {
+  expectationSetId: string;
+}
+export interface EvaluationRoundSkillExpectedLevelRequest {
+  expectedLevelOrdinal: number;
+}
+export interface EvaluationRoundWeightsRequest {
+  objectivesWeightPercent: number;
+  skillsWeightPercent: number;
+}
+
+// ── Assessment workspaces, queues, and actions ───────────────────────
+
+export interface AssessmentScaleLevelDto {
+  ordinal: number;
+  label: string;
+  description: string | null;
+}
+export interface AssessmentProficiencyLevelDto {
+  ordinal: number;
+  label: string;
+  description: string | null;
+}
+
+export interface MyEvaluationListItemDto {
+  roundId: string;
+  roundName: string;
+  roundType: EvaluationRoundType;
+  status: string;
+  nextAction: string;
+  deadline: string | null;
+  finalizedAt: string | null;
+  acknowledgedAt: string | null;
+  finalScore: number | null;
+  finalRatingOrdinal: number | null;
+  finalRatingLabel: string | null;
+}
+export interface EvaluationResultDto {
+  overallObjectivesRatingOrdinal: number | null;
+  overallObjectivesRatingLabel: string | null;
+  overallSkillsRatingOrdinal: number | null;
+  overallSkillsRatingLabel: string | null;
+  finalScore: number | null;
+  finalRatingOrdinal: number | null;
+  finalRatingLabel: string | null;
+  discussionSummary: string | null;
+  objectivesWeightPercent: number;
+  skillsWeightPercent: number;
+  finalizedAt: string | null;
+  acknowledgedAt: string | null;
+  acknowledgementComment: string | null;
+}
+export interface AssessmentObjectiveItemDto {
+  objectiveSnapshotId: string;
+  title: string;
+  description: string | null;
+  weight: number | null;
+  deadline: string | null;
+  measurementIndicator: string | null;
+  targetValue: string | null;
+  targetUnit: string | null;
+  successCriteria: string | null;
+  myRatingOrdinal: number | null;
+  myComment: string | null;
+  managerRatingOrdinal: number | null;
+  managerComment: string | null;
+}
+export interface AssessmentSkillItemDto {
+  skillSnapshotItemId: string;
+  skillId: string;
+  skillName: string;
+  categoryName: string;
+  expectedLevelOrdinal: number;
+  expectedLevelLabel: string | null;
+  myProficiencyOrdinal: number | null;
+  myComment: string | null;
+  managerProficiencyOrdinal: number | null;
+  managerComment: string | null;
+}
+export interface AssessmentQuestionItemDto {
+  questionSnapshotId: string;
+  prompt: string;
+  type: EvaluationQuestionType;
+  isRequired: boolean;
+  allowNotApplicable: boolean;
+  myTextAnswer: string | null;
+  myRatingOrdinal: number | null;
+  isNotApplicable: boolean;
+  notApplicableReason: string | null;
+}
+export interface AssessmentWorkspaceDto {
+  assignmentId: string;
+  managerAssignmentId: string | null;
+  roundId: string;
+  roundName: string;
+  kind: "SelfAssessment" | "ManagerAssessment";
+  status: string;
+  editable: boolean;
+  includesObjectives: boolean;
+  includesSkills: boolean;
+  objectivesWeightPercent: number;
+  skillsWeightPercent: number;
+  deadline: string | null;
+  performanceScale: AssessmentScaleLevelDto[];
+  proficiencyScale: AssessmentProficiencyLevelDto[];
+  objectives: AssessmentObjectiveItemDto[];
+  skills: AssessmentSkillItemDto[];
+  questions: AssessmentQuestionItemDto[];
+  result: EvaluationResultDto | null;
+}
+export interface TeamQueueItemDto {
+  participantEmployeeId: string;
+  participantName: string;
+  selfAssignmentId: string | null;
+  managerAssignmentId: string;
+  status: string;
+  actionable: boolean;
+  selfSubmitted: boolean;
+  selfMissing: boolean;
+  materialDifferenceCount: number;
+  deadline: string | null;
+  finalizedAt: string | null;
+  acknowledgedAt: string | null;
+  nextAction: string;
+}
+export interface TeamQueueDto {
+  roundId: string;
+  roundName: string;
+  assessmentModel: EvaluationAssessmentModel;
+  items: TeamQueueItemDto[];
+}
+export interface ComparisonObjectiveDto {
+  objectiveSnapshotId: string;
+  title: string;
+  description: string | null;
+  weight: number | null;
+  measurementIndicator: string | null;
+  targetValue: string | null;
+  targetUnit: string | null;
+  successCriteria: string | null;
+  selfRatingOrdinal: number | null;
+  selfComment: string | null;
+  managerRatingOrdinal: number | null;
+  managerComment: string | null;
+  materialDifference: boolean;
+}
+export interface ComparisonSkillDto {
+  skillSnapshotItemId: string;
+  skillId: string;
+  skillName: string;
+  categoryName: string;
+  expectedLevelOrdinal: number;
+  expectedLevelLabel: string | null;
+  selfProficiencyOrdinal: number | null;
+  selfComment: string | null;
+  managerProficiencyOrdinal: number | null;
+  managerComment: string | null;
+  managerGap: number | null;
+  gapState: "Below" | "Meets" | "Exceeds" | null;
+  materialDifference: boolean;
+}
+export interface ComparisonQuestionDto {
+  questionSnapshotId: string;
+  prompt: string;
+  type: EvaluationQuestionType;
+  targetRater: EvaluationTargetRater;
+  isRequired: boolean;
+  allowNotApplicable: boolean;
+  selfTextAnswer: string | null;
+  selfRatingOrdinal: number | null;
+  selfNotApplicable: boolean;
+  managerTextAnswer: string | null;
+  managerRatingOrdinal: number | null;
+  managerNotApplicable: boolean;
+}
+export interface ParticipantWorkspaceDto {
+  roundId: string;
+  roundName: string;
+  participantEmployeeId: string;
+  participantName: string;
+  selfAssignmentId: string | null;
+  managerAssignmentId: string;
+  managerStatus: string;
+  actionable: boolean;
+  selfSubmitted: boolean;
+  selfMissing: boolean;
+  includesObjectives: boolean;
+  includesSkills: boolean;
+  objectivesWeightPercent: number;
+  skillsWeightPercent: number;
+  managerDeadline: string | null;
+  finalizationDeadline: string | null;
+  performanceScale: AssessmentScaleLevelDto[];
+  proficiencyScale: AssessmentProficiencyLevelDto[];
+  objectives: ComparisonObjectiveDto[];
+  skills: ComparisonSkillDto[];
+  questions: ComparisonQuestionDto[];
+  meanManagerObjectiveRating: number | null;
+  skillsBelowExpectation: number;
+  skillsMeetsExpectation: number;
+  skillsExceedsExpectation: number;
+  result: EvaluationResultDto | null;
+  version: number;
+}
+export interface RoundCompletionDto {
+  roundId: string;
+  roundName: string;
+  assessmentModel: EvaluationAssessmentModel;
+  participantCount: number;
+  selfNotStarted: number;
+  selfInProgress: number;
+  selfSubmitted: number;
+  managerNotStarted: number;
+  managerInProgress: number;
+  managerSubmitted: number;
+  finalized: number;
+  acknowledged: number;
+  overdueSelf: number;
+  overdueManager: number;
+  overdueFinalization: number;
+}
+export interface AssessmentObjectiveRatingInput {
+  objectiveSnapshotId: string;
+  ratingOrdinal?: number | null;
+  comment?: string | null;
+}
+export interface AssessmentSkillRatingInput {
+  skillSnapshotItemId: string;
+  proficiencyOrdinal?: number | null;
+  comment?: string | null;
+}
+export interface AssessmentQuestionAnswerInput {
+  questionSnapshotId: string;
+  textAnswer?: string | null;
+  ratingOrdinal?: number | null;
+  isNotApplicable: boolean;
+  notApplicableReason?: string | null;
+}
+export interface SaveAssessmentDraftRequest {
+  objectiveRatings?: AssessmentObjectiveRatingInput[];
+  skillRatings?: AssessmentSkillRatingInput[];
+  questionAnswers?: AssessmentQuestionAnswerInput[];
+}
+export interface FinalizeEvaluationRequest {
+  overallObjectivesRatingOrdinal?: number | null;
+  overallSkillsRatingOrdinal?: number | null;
+  discussionSummary: string;
+}
+export interface ReopenSelfAssessmentRequest {
+  reason: string;
+}
+export interface AcknowledgeEvaluationRequest {
+  comment?: string | null;
 }
 
 // ── Paths ────────────────────────────────────────────────────────────
 
 export const performancePaths = {
   evaluationScales: () => "/performance/evaluation-config/scales",
-  evaluationScale: (id: string) => `/performance/evaluation-config/scales/${id}`,
-  evaluationScaleStatus: (id: string) => `/performance/evaluation-config/scales/${id}/status`,
-  evaluationScaleDuplicate: (id: string) => `/performance/evaluation-config/scales/${id}/duplicate`,
+  evaluationScale: (id: string) =>
+    `/performance/evaluation-config/scales/${id}`,
+  evaluationScaleStatus: (id: string) =>
+    `/performance/evaluation-config/scales/${id}/status`,
+  evaluationScaleDuplicate: (id: string) =>
+    `/performance/evaluation-config/scales/${id}/duplicate`,
   evaluationTemplates: () => "/performance/evaluation-config/templates",
-  evaluationTemplate: (id: string) => `/performance/evaluation-config/templates/${id}`,
-  evaluationTemplateStatus: (id: string) => `/performance/evaluation-config/templates/${id}/status`,
-  evaluationTemplateDuplicate: (id: string) => `/performance/evaluation-config/templates/${id}/duplicate`,
+  evaluationTemplate: (id: string) =>
+    `/performance/evaluation-config/templates/${id}`,
+  evaluationTemplateStatus: (id: string) =>
+    `/performance/evaluation-config/templates/${id}/status`,
+  evaluationTemplateDuplicate: (id: string) =>
+    `/performance/evaluation-config/templates/${id}/duplicate`,
   evaluationTemplatePreview: (id: string, rater: EvaluationTargetRater) =>
     `/performance/evaluation-config/templates/${id}/preview?rater=${rater}`,
   evaluationRounds: () => "/performance/evaluations",
   evaluationRound: (id: string) => `/performance/evaluations/${id}`,
-  evaluationRoundConfiguration: (id: string) => `/performance/evaluations/${id}/configuration`,
-  evaluationRoundDeadlines: (id: string) => `/performance/evaluations/${id}/deadlines`,
-  evaluationRoundReadiness: (id: string) => `/performance/evaluations/${id}/readiness`,
-  evaluationRoundExclusion: (id: string, employeeId: string) => `/performance/evaluations/${id}/participants/${employeeId}/exclusion`,
-  evaluationRoundReviewer: (id: string, employeeId: string) => `/performance/evaluations/${id}/participants/${employeeId}/reviewer`,
-  evaluationRoundLaunch: (id: string) => `/performance/evaluations/${id}/launch`,
-  evaluationRoundDeadlineExtensions: (id: string) => `/performance/evaluations/${id}/deadline-extensions`,
-  evaluationRoundAssignments: (id: string) => `/performance/evaluations/${id}/assignments`,
+  evaluationRoundConfiguration: (id: string) =>
+    `/performance/evaluations/${id}/configuration`,
+  evaluationRoundDeadlines: (id: string) =>
+    `/performance/evaluations/${id}/deadlines`,
+  evaluationRoundReadiness: (id: string) =>
+    `/performance/evaluations/${id}/readiness`,
+  evaluationRoundExclusion: (id: string, employeeId: string) =>
+    `/performance/evaluations/${id}/participants/${employeeId}/exclusion`,
+  evaluationRoundReviewer: (id: string, employeeId: string) =>
+    `/performance/evaluations/${id}/participants/${employeeId}/reviewer`,
+  evaluationRoundLaunch: (id: string) =>
+    `/performance/evaluations/${id}/launch`,
+  evaluationRoundDeadlineExtensions: (id: string) =>
+    `/performance/evaluations/${id}/deadline-extensions`,
+  evaluationRoundAssignments: (id: string) =>
+    `/performance/evaluations/${id}/assignments`,
+  evaluationRoundExpectationSet: (id: string) =>
+    `/performance/evaluations/${id}/skills/expectation-set`,
+  evaluationRoundSkillItem: (id: string, draftItemId: string) =>
+    `/performance/evaluations/${id}/skills/items/${draftItemId}`,
+  evaluationRoundSkillItemExpectedLevel: (id: string, draftItemId: string) =>
+    `/performance/evaluations/${id}/skills/items/${draftItemId}/expected-level`,
+  evaluationRoundWeights: (id: string) =>
+    `/performance/evaluations/${id}/weights`,
   myEvaluationAssignments: () => "/performance/evaluations/mine",
   teamEvaluationAssignments: () => "/performance/evaluations/team",
+  // Skills configuration workspace
+  skillsWorkspace: () => "/performance/skills-config/workspace",
+  skillsActiveSets: () => "/performance/skills-config/active-sets",
+  skillCategories: () => "/performance/skills-config/categories",
+  skillCategory: (id: string) => `/performance/skills-config/categories/${id}`,
+  skillCategoryArchive: (id: string) =>
+    `/performance/skills-config/categories/${id}/archive`,
+  skills: () => "/performance/skills-config/skills",
+  skill: (id: string) => `/performance/skills-config/skills/${id}`,
+  skillArchive: (id: string) =>
+    `/performance/skills-config/skills/${id}/archive`,
+  proficiencyScales: () => "/performance/skills-config/scales",
+  proficiencyScale: (id: string) => `/performance/skills-config/scales/${id}`,
+  proficiencyScaleStatus: (id: string) =>
+    `/performance/skills-config/scales/${id}/status`,
+  proficiencyScaleDuplicate: (id: string) =>
+    `/performance/skills-config/scales/${id}/duplicate`,
+  skillExpectationSets: () => "/performance/skills-config/sets",
+  skillExpectationSet: (id: string) => `/performance/skills-config/sets/${id}`,
+  skillExpectationSetStatus: (id: string) =>
+    `/performance/skills-config/sets/${id}/status`,
+  skillExpectationSetDuplicate: (id: string) =>
+    `/performance/skills-config/sets/${id}/duplicate`,
+  // Assessment workspaces + actions
+  myAssessments: () => "/performance/assessments/mine",
+  myAssessmentWorkspace: (roundId: string) =>
+    `/performance/assessments/rounds/${roundId}/self`,
+  saveSelfAssessmentDraft: (assignmentId: string) =>
+    `/performance/assessments/assignments/${assignmentId}/self/draft`,
+  submitSelfAssessment: (assignmentId: string) =>
+    `/performance/assessments/assignments/${assignmentId}/self/submit`,
+  acknowledgeEvaluation: (assignmentId: string) =>
+    `/performance/assessments/assignments/${assignmentId}/acknowledge`,
+  teamAssessmentQueue: (roundId: string) =>
+    `/performance/assessments/rounds/${roundId}/team`,
+  participantAssessmentWorkspace: (roundId: string, participantId: string) =>
+    `/performance/assessments/rounds/${roundId}/participants/${participantId}`,
+  saveManagerAssessmentDraft: (assignmentId: string) =>
+    `/performance/assessments/assignments/${assignmentId}/manager/draft`,
+  submitManagerAssessment: (assignmentId: string) =>
+    `/performance/assessments/assignments/${assignmentId}/manager/submit`,
+  reopenSelfAssessment: (assignmentId: string) =>
+    `/performance/assessments/assignments/${assignmentId}/self/reopen`,
+  finalizeEvaluation: (assignmentId: string) =>
+    `/performance/assessments/assignments/${assignmentId}/finalize`,
+  roundCompletion: (roundId: string) =>
+    `/performance/assessments/rounds/${roundId}/completion`,
   cycles: () => "/performance/cycles",
   cycle: (id: string) => `/performance/cycles/${id}`,
   cycleBySlug: (slug: string) => `/performance/cycles/by-slug/${slug}`,
@@ -1328,12 +1900,14 @@ export const performancePaths = {
     `/performance/cycles/${id}/strategic-objectives`,
   campaignStrategicObjective: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/strategic-objectives/${objectiveId}`,
-  campaignStrategicObjectiveActiveState: (cycleId: string, objectiveId: string) =>
+  campaignStrategicObjectiveActiveState: (
+    cycleId: string,
+    objectiveId: string
+  ) =>
     `/performance/cycles/${cycleId}/strategic-objectives/${objectiveId}/active-state`,
   cycleParticipantApprover: (cycleId: string, employeeId: string) =>
     `/performance/cycles/${cycleId}/participants/${employeeId}/approver`,
-  platformPerformanceConfiguration: () =>
-    "/performance/platform/configuration",
+  platformPerformanceConfiguration: () => "/performance/platform/configuration",
   platformPerformanceConfigurationApply: () =>
     "/performance/platform/configuration/apply",
   objectivePlanningConfiguration: () =>
@@ -1351,7 +1925,8 @@ export const performancePaths = {
     `/performance/team-objectives/campaigns/${cycleId}/objectives`,
   teamObjective: (cycleId: string, objectiveId: string) =>
     `/performance/team-objectives/campaigns/${cycleId}/objectives/${objectiveId}`,
-  myObjectivePlanCampaigns: () => "/performance/employee-objectives/my-campaigns",
+  myObjectivePlanCampaigns: () =>
+    "/performance/employee-objectives/my-campaigns",
   employeeObjectiveWorkspace: (slug: string) =>
     `/performance/employee-objectives/campaigns/${slug}`,
   employeeObjectives: (cycleId: string) =>
@@ -1363,7 +1938,8 @@ export const performancePaths = {
   employeeObjectiveProgress: (cycleId: string, objectiveId: string) =>
     `/performance/employee-objectives/campaigns/${cycleId}/objectives/${objectiveId}/progress`,
   attachments: () => "/performance/attachments",
-  attachment: (attachmentId: string) => `/performance/attachments/${attachmentId}`,
+  attachment: (attachmentId: string) =>
+    `/performance/attachments/${attachmentId}`,
   myTeamProgressCampaigns: () => "/performance/team-progress/my-campaigns",
   teamProgressWorkspace: (slug: string) =>
     `/performance/team-progress/campaigns/${slug}`,
@@ -1381,24 +1957,36 @@ export const performancePaths = {
     `/performance/cascade-coverage/campaigns/${slug}`,
   planningCompletionWorkspace: (slug: string) =>
     `/performance/planning-completion/campaigns/${slug}`,
-  planningCompletionParticipant: (cycleId: string, participantEmployeeId: string) =>
+  planningCompletionParticipant: (
+    cycleId: string,
+    participantEmployeeId: string
+  ) =>
     `/performance/planning-completion/campaigns/${cycleId}/participants/${participantEmployeeId}`,
   planningCompletionReminder: (cycleId: string) =>
     `/performance/planning-completion/campaigns/${cycleId}/reminders`,
-  planningCompletionReassignReviewer: (cycleId: string, participantEmployeeId: string) =>
+  planningCompletionReassignReviewer: (
+    cycleId: string,
+    participantEmployeeId: string
+  ) =>
     `/performance/planning-completion/campaigns/${cycleId}/participants/${participantEmployeeId}/reassign-reviewer`,
-  planningCompletionExcludeParticipant: (cycleId: string, participantEmployeeId: string) =>
+  planningCompletionExcludeParticipant: (
+    cycleId: string,
+    participantEmployeeId: string
+  ) =>
     `/performance/planning-completion/campaigns/${cycleId}/participants/${participantEmployeeId}/exclude`,
   planningCompletionLock: (cycleId: string) =>
     `/performance/planning-completion/campaigns/${cycleId}/lock`,
   checkInParticipantPanel: (cycleId: string, employeeId: string) =>
     `/performance/check-ins/campaigns/${cycleId}/participants/${employeeId}`,
   checkInDetail: (checkInId: string) => `/performance/check-ins/${checkInId}`,
-  myCheckIns: (cycleId: string) => `/performance/check-ins/mine?cycleId=${cycleId}`,
-  planCheckIn: (cycleId: string) => `/performance/check-ins/campaigns/${cycleId}`,
+  myCheckIns: (cycleId: string) =>
+    `/performance/check-ins/mine?cycleId=${cycleId}`,
+  planCheckIn: (cycleId: string) =>
+    `/performance/check-ins/campaigns/${cycleId}`,
   rescheduleCheckIn: (checkInId: string) =>
     `/performance/check-ins/${checkInId}/reschedule`,
-  cancelCheckIn: (checkInId: string) => `/performance/check-ins/${checkInId}/cancel`,
+  cancelCheckIn: (checkInId: string) =>
+    `/performance/check-ins/${checkInId}/cancel`,
   completeCheckIn: (checkInId: string) =>
     `/performance/check-ins/${checkInId}/complete`,
   addCheckInAddendum: (checkInId: string) =>
@@ -1420,24 +2008,73 @@ export const performancePaths = {
 export const performanceQueryKeys = {
   all: () => ["performance"] as const,
   cycles: () => [...performanceQueryKeys.all(), "cycles"] as const,
-  evaluationConfiguration: () => [...performanceQueryKeys.all(), "evaluation-configuration"] as const,
+  evaluationConfiguration: () =>
+    [...performanceQueryKeys.all(), "evaluation-configuration"] as const,
   evaluationScales: (status?: EvaluationConfigStatus | null) =>
-    [...performanceQueryKeys.evaluationConfiguration(), "scales", status ?? null] as const,
-  evaluationScale: (id: string) => [...performanceQueryKeys.evaluationConfiguration(), "scale", id] as const,
+    [
+      ...performanceQueryKeys.evaluationConfiguration(),
+      "scales",
+      status ?? null,
+    ] as const,
+  evaluationScale: (id: string) =>
+    [...performanceQueryKeys.evaluationConfiguration(), "scale", id] as const,
   evaluationTemplates: (status?: EvaluationConfigStatus | null) =>
-    [...performanceQueryKeys.evaluationConfiguration(), "templates", status ?? null] as const,
-  evaluationTemplate: (id: string) => [...performanceQueryKeys.evaluationConfiguration(), "template", id] as const,
+    [
+      ...performanceQueryKeys.evaluationConfiguration(),
+      "templates",
+      status ?? null,
+    ] as const,
+  evaluationTemplate: (id: string) =>
+    [
+      ...performanceQueryKeys.evaluationConfiguration(),
+      "template",
+      id,
+    ] as const,
   evaluationTemplatePreview: (id: string, rater: EvaluationTargetRater) =>
     [...performanceQueryKeys.evaluationTemplate(id), "preview", rater] as const,
-  evaluationRounds: () => [...performanceQueryKeys.all(), "evaluations"] as const,
+  evaluationRounds: () =>
+    [...performanceQueryKeys.all(), "evaluations"] as const,
   evaluationRoundList: (campaignId?: string | null) =>
-    [...performanceQueryKeys.evaluationRounds(), "list", campaignId ?? null] as const,
-  evaluationRound: (id: string) => [...performanceQueryKeys.evaluationRounds(), id] as const,
-  evaluationRoundReadiness: (id: string) => [...performanceQueryKeys.evaluationRound(id), "readiness"] as const,
+    [
+      ...performanceQueryKeys.evaluationRounds(),
+      "list",
+      campaignId ?? null,
+    ] as const,
+  evaluationRound: (id: string) =>
+    [...performanceQueryKeys.evaluationRounds(), id] as const,
+  evaluationRoundReadiness: (id: string) =>
+    [...performanceQueryKeys.evaluationRound(id), "readiness"] as const,
   evaluationRoundAssignments: (id: string, page: number, pageSize: number) =>
-    [...performanceQueryKeys.evaluationRound(id), "assignments", { page, pageSize }] as const,
-  myEvaluationAssignments: () => [...performanceQueryKeys.evaluationRounds(), "mine"] as const,
-  teamEvaluationAssignments: () => [...performanceQueryKeys.evaluationRounds(), "team"] as const,
+    [
+      ...performanceQueryKeys.evaluationRound(id),
+      "assignments",
+      { page, pageSize },
+    ] as const,
+  myEvaluationAssignments: () =>
+    [...performanceQueryKeys.evaluationRounds(), "mine"] as const,
+  teamEvaluationAssignments: () =>
+    [...performanceQueryKeys.evaluationRounds(), "team"] as const,
+  skillsConfiguration: () =>
+    [...performanceQueryKeys.all(), "skills-configuration"] as const,
+  skillsWorkspace: () =>
+    [...performanceQueryKeys.skillsConfiguration(), "workspace"] as const,
+  skillsActiveSets: () =>
+    [...performanceQueryKeys.skillsConfiguration(), "active-sets"] as const,
+  assessments: () => [...performanceQueryKeys.all(), "assessments"] as const,
+  myAssessments: () => [...performanceQueryKeys.assessments(), "mine"] as const,
+  myAssessmentWorkspace: (roundId: string) =>
+    [...performanceQueryKeys.assessments(), "self", roundId] as const,
+  teamAssessmentQueue: (roundId: string) =>
+    [...performanceQueryKeys.assessments(), "team", roundId] as const,
+  participantAssessmentWorkspace: (roundId: string, participantId: string) =>
+    [
+      ...performanceQueryKeys.assessments(),
+      "participant",
+      roundId,
+      participantId,
+    ] as const,
+  roundCompletion: (roundId: string) =>
+    [...performanceQueryKeys.assessments(), "completion", roundId] as const,
   cycleList: (params: {
     search?: string | null;
     status?: string | null;
@@ -1463,7 +2100,10 @@ export const performanceQueryKeys = {
     [...performanceQueryKeys.cycle(id), "strategic-objectives"] as const,
   cyclePopulationPreview: (id: string) =>
     [...performanceQueryKeys.cycle(id), "population-preview"] as const,
-  cycleParticipants: (id: string, params: { search?: string | null; page: number; pageSize: number }) =>
+  cycleParticipants: (
+    id: string,
+    params: { search?: string | null; page: number; pageSize: number }
+  ) =>
     [
       ...performanceQueryKeys.cycle(id),
       "participants",
@@ -1473,18 +2113,31 @@ export const performanceQueryKeys = {
         pageSize: params.pageSize,
       },
     ] as const,
-  cycleAudit: (id: string) => [...performanceQueryKeys.cycle(id), "audit"] as const,
-  cycleReadiness: (id: string) => [...performanceQueryKeys.cycle(id), "readiness"] as const,
+  cycleAudit: (id: string) =>
+    [...performanceQueryKeys.cycle(id), "audit"] as const,
+  cycleReadiness: (id: string) =>
+    [...performanceQueryKeys.cycle(id), "readiness"] as const,
   objectivePlanningConfiguration: () =>
-    [...performanceQueryKeys.all(), "objective-planning-configuration"] as const,
+    [
+      ...performanceQueryKeys.all(),
+      "objective-planning-configuration",
+    ] as const,
   platformPerformanceConfiguration: () =>
-    [...performanceQueryKeys.all(), "platform-performance-configuration"] as const,
-  notifications: () => [...performanceQueryKeys.all(), "notifications"] as const,
-  notificationList: (params: { unreadOnly: boolean; page: number; pageSize: number }) =>
-    [...performanceQueryKeys.notifications(), "list", params] as const,
+    [
+      ...performanceQueryKeys.all(),
+      "platform-performance-configuration",
+    ] as const,
+  notifications: () =>
+    [...performanceQueryKeys.all(), "notifications"] as const,
+  notificationList: (params: {
+    unreadOnly: boolean;
+    page: number;
+    pageSize: number;
+  }) => [...performanceQueryKeys.notifications(), "list", params] as const,
   notificationUnreadCount: () =>
     [...performanceQueryKeys.notifications(), "unread-count"] as const,
-  teamObjectives: () => [...performanceQueryKeys.all(), "team-objectives"] as const,
+  teamObjectives: () =>
+    [...performanceQueryKeys.all(), "team-objectives"] as const,
   myTeamObjectiveCampaigns: () =>
     [...performanceQueryKeys.teamObjectives(), "my-campaigns"] as const,
   teamObjectiveWorkspace: (slug: string) =>
@@ -1500,8 +2153,14 @@ export const performanceQueryKeys = {
   teamProgressWorkspace: (slug: string) =>
     [...performanceQueryKeys.teamProgress(), "workspace", slug] as const,
   teamProgressParticipant: (slug: string, employeeId: string) =>
-    [...performanceQueryKeys.teamProgress(), "participant", slug, employeeId] as const,
-  planApprovals: () => [...performanceQueryKeys.all(), "plan-approvals"] as const,
+    [
+      ...performanceQueryKeys.teamProgress(),
+      "participant",
+      slug,
+      employeeId,
+    ] as const,
+  planApprovals: () =>
+    [...performanceQueryKeys.all(), "plan-approvals"] as const,
   myPlanApprovalCampaigns: () =>
     [...performanceQueryKeys.planApprovals(), "campaigns"] as const,
   planApprovalWorkspace: (slug: string) =>
@@ -1525,7 +2184,7 @@ export const performanceQueryKeys = {
       search?: string | null;
       page?: number;
       pageSize?: number;
-    },
+    }
   ) =>
     [
       ...performanceQueryKeys.planningCompletion(),
@@ -1542,7 +2201,10 @@ export const performanceQueryKeys = {
         pageSize: params?.pageSize ?? 50,
       },
     ] as const,
-  planningCompletionParticipant: (cycleId: string, participantEmployeeId: string) =>
+  planningCompletionParticipant: (
+    cycleId: string,
+    participantEmployeeId: string
+  ) =>
     [
       ...performanceQueryKeys.planningCompletion(),
       "participant",
