@@ -40,7 +40,9 @@ public sealed class EvaluationRoundLaunchedNotificationHandler(
                 e.CampaignId,
                 "EvaluationAssignment",
                 assignment.Id,
-                self ? $"/my-evaluations?assignment={assignment.Id}" : $"/team-evaluations?assignment={assignment.Id}",
+                self
+                    ? $"/my-evaluations/{e.RoundId}"
+                    : $"/team-evaluations/{e.RoundId}/{assignment.ParticipantEmployeeId}",
                 $"evaluation-launched:{assignment.Id}",
                 ct);
         }
@@ -140,7 +142,9 @@ public sealed class EvaluationRoundDeadlineExtendedNotificationHandler(
                 e.CampaignId,
                 "EvaluationRound",
                 e.RoundId,
-                self ? "/my-evaluations" : "/team-evaluations",
+                self
+                    ? $"/my-evaluations/{e.RoundId}"
+                    : $"/team-evaluations/{e.RoundId}/{assignment.ParticipantEmployeeId}",
                 $"evaluation-deadline-extended:{e.RoundId}:{e.DeadlineKind}:{e.NewDeadline.Ticks}:{assignment.AssigneeEmployeeId}",
                 ct);
         }
