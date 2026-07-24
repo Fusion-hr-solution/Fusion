@@ -18,13 +18,21 @@ public sealed class SkillsConfigurationController(
     ISender sender,
     IPerformanceAccessPolicyService access) : ControllerBase
 {
-    // ─── Workspace (defaults-bearing read) ───────────────────────────────────
+    // ─── Workspace (pure read) ───────────────────────────────────────────────
 
     [HttpGet("workspace")]
     public async Task<IActionResult> GetWorkspace(CancellationToken ct)
     {
         if (!access.CanManageSkills(User)) return Forbid();
         return Respond(await sender.Send(new GetSkillsConfigurationWorkspaceQuery(User), ct));
+    }
+
+    // Explicit, idempotent tenant-defaults provisioning — the workspace empty-state action.
+    [HttpPost("provision-defaults")]
+    public async Task<IActionResult> ProvisionDefaults(CancellationToken ct)
+    {
+        if (!access.CanManageSkills(User)) return Forbid();
+        return Respond(await sender.Send(new ProvisionSkillDefaultsCommand(User), ct));
     }
 
     // Round-facing read of active sets — evaluation configuration permission, not skills.manage.

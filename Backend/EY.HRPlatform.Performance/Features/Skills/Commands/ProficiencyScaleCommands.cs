@@ -54,6 +54,9 @@ public sealed class CreateProficiencyScaleCommandHandler(
         if (!access.CanManageSkills(command.Actor))
             return SkillsConfigurationErrors.Forbidden<ProficiencyScaleDto>();
 
+        if (await SkillsConfigurationNames.ScaleTakenAsync(db, command.Name, null, cancellationToken))
+            return SkillsConfigurationErrors.NameConflict<ProficiencyScaleDto>("proficiency scale");
+
         try
         {
             var scale = ProficiencyScale.CreateDraft(
@@ -97,6 +100,9 @@ public sealed class UpdateProficiencyScaleCommandHandler(
             .SingleOrDefaultAsync(item => item.Id == command.ScaleId, cancellationToken);
         if (scale is null)
             return Result.Failure<ProficiencyScaleDto>(Error.NotFound("ProficiencyScale", command.ScaleId));
+
+        if (await SkillsConfigurationNames.ScaleTakenAsync(db, command.Name, scale.Id, cancellationToken))
+            return SkillsConfigurationErrors.NameConflict<ProficiencyScaleDto>("proficiency scale");
 
         try
         {
@@ -231,6 +237,9 @@ public sealed class DuplicateProficiencyScaleCommandHandler(
             .SingleOrDefaultAsync(item => item.Id == command.ScaleId, cancellationToken);
         if (source is null)
             return Result.Failure<ProficiencyScaleDto>(Error.NotFound("ProficiencyScale", command.ScaleId));
+
+        if (await SkillsConfigurationNames.ScaleTakenAsync(db, command.Name, null, cancellationToken))
+            return SkillsConfigurationErrors.NameConflict<ProficiencyScaleDto>("proficiency scale");
 
         try
         {

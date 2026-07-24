@@ -15,6 +15,7 @@ public sealed class SkillCategoryConfiguration : IEntityTypeConfiguration<SkillC
         builder.Property(category => category.Version).IsRowVersion();
         builder.Property(category => category.TenantId).IsRequired();
         builder.Property(category => category.Name).HasMaxLength(SkillCategory.NameMaxLength).IsRequired();
+        builder.Property(category => category.NormalizedName).HasMaxLength(SkillCategory.NameMaxLength).IsRequired();
         builder.Property(category => category.Status)
             .HasConversion<string>()
             .HasMaxLength(20)
@@ -24,10 +25,10 @@ public sealed class SkillCategoryConfiguration : IEntityTypeConfiguration<SkillC
         builder.Property(category => category.UpdatedBy).HasMaxLength(256);
 
         builder.HasIndex(category => new { category.TenantId, category.Status });
-        builder.HasIndex(category => new { category.TenantId, category.Name })
+        builder.HasIndex(category => new { category.TenantId, category.NormalizedName })
             .IsUnique()
             .HasFilter("\"Status\" <> 'Archived'")
-            .HasDatabaseName("UX_SkillCategories_Tenant_ActiveName");
+            .HasDatabaseName("UX_SkillCategories_Tenant_ActiveNormalizedName");
         builder.Ignore(category => category.DomainEvents);
     }
 }
@@ -41,6 +42,7 @@ public sealed class SkillConfiguration : IEntityTypeConfiguration<Skill>
         builder.Property(skill => skill.Version).IsRowVersion();
         builder.Property(skill => skill.TenantId).IsRequired();
         builder.Property(skill => skill.Name).HasMaxLength(Skill.NameMaxLength).IsRequired();
+        builder.Property(skill => skill.NormalizedName).HasMaxLength(Skill.NameMaxLength).IsRequired();
         builder.Property(skill => skill.Description).HasMaxLength(Skill.DescriptionMaxLength);
         builder.Property(skill => skill.SkillCategoryId).IsRequired();
         builder.Property(skill => skill.Status)
@@ -59,10 +61,10 @@ public sealed class SkillConfiguration : IEntityTypeConfiguration<Skill>
 
         builder.HasIndex(skill => new { skill.TenantId, skill.Status });
         builder.HasIndex(skill => new { skill.TenantId, skill.SkillCategoryId });
-        builder.HasIndex(skill => new { skill.TenantId, skill.Name })
+        builder.HasIndex(skill => new { skill.TenantId, skill.NormalizedName })
             .IsUnique()
             .HasFilter("\"Status\" <> 'Archived'")
-            .HasDatabaseName("UX_Skills_Tenant_ActiveName");
+            .HasDatabaseName("UX_Skills_Tenant_ActiveNormalizedName");
         builder.Ignore(skill => skill.DomainEvents);
     }
 }
@@ -76,6 +78,7 @@ public sealed class ProficiencyScaleConfiguration : IEntityTypeConfiguration<Pro
         builder.Property(scale => scale.Version).IsRowVersion();
         builder.Property(scale => scale.TenantId).IsRequired();
         builder.Property(scale => scale.Name).HasMaxLength(ProficiencyScale.NameMaxLength).IsRequired();
+        builder.Property(scale => scale.NormalizedName).HasMaxLength(ProficiencyScale.NameMaxLength).IsRequired();
         builder.Property(scale => scale.Description).HasMaxLength(ProficiencyScale.DescriptionMaxLength);
         builder.Property(scale => scale.Status)
             .HasConversion<string>()
@@ -94,10 +97,10 @@ public sealed class ProficiencyScaleConfiguration : IEntityTypeConfiguration<Pro
             .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         builder.HasIndex(scale => new { scale.TenantId, scale.Status });
-        builder.HasIndex(scale => new { scale.TenantId, scale.Name })
+        builder.HasIndex(scale => new { scale.TenantId, scale.NormalizedName })
             .IsUnique()
             .HasFilter("\"Status\" <> 'Archived'")
-            .HasDatabaseName("UX_ProficiencyScales_Tenant_ActiveName");
+            .HasDatabaseName("UX_ProficiencyScales_Tenant_ActiveNormalizedName");
         builder.Ignore(scale => scale.DomainEvents);
     }
 }
@@ -127,6 +130,7 @@ public sealed class SkillExpectationSetConfiguration : IEntityTypeConfiguration<
         builder.Property(set => set.Version).IsRowVersion();
         builder.Property(set => set.TenantId).IsRequired();
         builder.Property(set => set.Name).HasMaxLength(SkillExpectationSet.NameMaxLength).IsRequired();
+        builder.Property(set => set.NormalizedName).HasMaxLength(SkillExpectationSet.NameMaxLength).IsRequired();
         builder.Property(set => set.Description).HasMaxLength(SkillExpectationSet.DescriptionMaxLength);
         builder.Property(set => set.ProficiencyScaleId).IsRequired();
         builder.Property(set => set.Status)
@@ -151,10 +155,10 @@ public sealed class SkillExpectationSetConfiguration : IEntityTypeConfiguration<
 
         builder.HasIndex(set => new { set.TenantId, set.Status });
         builder.HasIndex(set => new { set.TenantId, set.ProficiencyScaleId });
-        builder.HasIndex(set => new { set.TenantId, set.Name })
+        builder.HasIndex(set => new { set.TenantId, set.NormalizedName })
             .IsUnique()
             .HasFilter("\"Status\" <> 'Archived'")
-            .HasDatabaseName("UX_SkillExpectationSets_Tenant_ActiveName");
+            .HasDatabaseName("UX_SkillExpectationSets_Tenant_ActiveNormalizedName");
         builder.Ignore(set => set.DomainEvents);
     }
 }

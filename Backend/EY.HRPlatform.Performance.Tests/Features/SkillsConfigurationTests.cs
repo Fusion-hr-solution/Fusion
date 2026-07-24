@@ -47,8 +47,8 @@ public class SkillsConfigurationTests
     public async Task Workspace_WithoutSkillsPermission_IsForbidden()
     {
         var tenantId = Guid.NewGuid();
-        await using var db = PerformanceTestContext.Create(tenantId, out var tenant);
-        var handler = new GetSkillsConfigurationWorkspaceQueryHandler(db, tenant, Access, new ConfigurationAuditWriter(db));
+        await using var db = PerformanceTestContext.Create(tenantId, out _);
+        var handler = new GetSkillsConfigurationWorkspaceQueryHandler(db, Access);
 
         var result = await handler.Handle(
             new GetSkillsConfigurationWorkspaceQuery(ClaimsPrincipalBuilder.Anonymous()), CancellationToken.None);
@@ -58,16 +58,27 @@ public class SkillsConfigurationTests
     }
 
     [Fact]
-    public async Task Workspace_FirstReadSeedsDefaults_AndSecondReadDoesNotDuplicate()
+    public async Task Workspace_ReadIsPure_AndProvisionCommandIsIdempotent()
     {
         var tenantId = Guid.NewGuid();
         var dbName = $"skills-defaults-{Guid.NewGuid()}";
         var actor = SkillsAdmin();
 
+        // A read never provisions: the workspace stays empty and no rows are written.
+        await using (var db = PerformanceTestContext.Create(tenantId, out _, dbName))
+        {
+            var read = await new GetSkillsConfigurationWorkspaceQueryHandler(db, Access)
+                .Handle(new GetSkillsConfigurationWorkspaceQuery(actor), CancellationToken.None);
+            Assert.True(read.IsSuccess);
+            Assert.Empty(read.Value.Categories);
+            Assert.Equal(0, await db.SkillCategories.CountAsync());
+            Assert.Equal(0, await db.ProficiencyScales.CountAsync());
+        }
+
         await using (var db = PerformanceTestContext.Create(tenantId, out var tenant, dbName))
         {
-            var handler = new GetSkillsConfigurationWorkspaceQueryHandler(db, tenant, Access, new ConfigurationAuditWriter(db));
-            var first = await handler.Handle(new GetSkillsConfigurationWorkspaceQuery(actor), CancellationToken.None);
+            var handler = new ProvisionSkillDefaultsCommandHandler(db, tenant, Access, new ConfigurationAuditWriter(db));
+            var first = await handler.Handle(new ProvisionSkillDefaultsCommand(actor), CancellationToken.None);
             Assert.True(first.IsSuccess);
             Assert.Equal(3, first.Value.Categories.Count);
             Assert.Equal(6, first.Value.Skills.Count);
@@ -78,8 +89,8 @@ public class SkillsConfigurationTests
 
         await using (var db = PerformanceTestContext.Create(tenantId, out var tenant, dbName))
         {
-            var handler = new GetSkillsConfigurationWorkspaceQueryHandler(db, tenant, Access, new ConfigurationAuditWriter(db));
-            var second = await handler.Handle(new GetSkillsConfigurationWorkspaceQuery(actor), CancellationToken.None);
+            var handler = new ProvisionSkillDefaultsCommandHandler(db, tenant, Access, new ConfigurationAuditWriter(db));
+            var second = await handler.Handle(new ProvisionSkillDefaultsCommand(actor), CancellationToken.None);
             Assert.True(second.IsSuccess);
             Assert.Equal(3, second.Value.Categories.Count);
             Assert.Equal(6, second.Value.Skills.Count);
@@ -94,6 +105,36 @@ public class SkillsConfigurationTests
     }
 
     [Fact]
+    public async Task Provision_WithoutSkillsPermission_IsForbidden()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = PerformanceTestContext.Create(tenantId, out var tenant);
+        var handler = new ProvisionSkillDefaultsCommandHandler(db, tenant, Access, new ConfigurationAuditWriter(db));
+
+        var result = await handler.Handle(
+            new ProvisionSkillDefaultsCommand(ClaimsPrincipalBuilder.Anonymous()), CancellationToken.None);
+
+        Assert.True(result.IsFailure);
+        Assert.Contains("Forbidden", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task CreateCategory_CasingOnlyDuplicate_IsNameConflict()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = PerformanceTestContext.Create(tenantId, out var tenant, $"skills-casefold-{Guid.NewGuid()}");
+        var handler = new CreateSkillCategoryCommandHandler(db, tenant, Access, new ConfigurationAuditWriter(db));
+        var actor = SkillsAdmin();
+
+        var first = await handler.Handle(new CreateSkillCategoryCommand(actor, "Leadership"), CancellationToken.None);
+        Assert.True(first.IsSuccess);
+
+        var second = await handler.Handle(new CreateSkillCategoryCommand(actor, "LEADERSHIP"), CancellationToken.None);
+        Assert.True(second.IsFailure);
+        Assert.Contains("Conflict", second.Error.Code);
+    }
+
+    [Fact]
     public async Task Workspace_DefaultsAreTenantIsolated()
     {
         var tenantA = Guid.NewGuid();
@@ -102,15 +143,15 @@ public class SkillsConfigurationTests
 
         await using (var db = PerformanceTestContext.Create(tenantA, out var tenant, dbName))
         {
-            var handler = new GetSkillsConfigurationWorkspaceQueryHandler(db, tenant, Access, new ConfigurationAuditWriter(db));
-            var result = await handler.Handle(new GetSkillsConfigurationWorkspaceQuery(SkillsAdmin()), CancellationToken.None);
+            var handler = new ProvisionSkillDefaultsCommandHandler(db, tenant, Access, new ConfigurationAuditWriter(db));
+            var result = await handler.Handle(new ProvisionSkillDefaultsCommand(SkillsAdmin()), CancellationToken.None);
             Assert.True(result.IsSuccess);
         }
 
         await using (var db = PerformanceTestContext.Create(tenantB, out var tenant, dbName))
         {
-            var handler = new GetSkillsConfigurationWorkspaceQueryHandler(db, tenant, Access, new ConfigurationAuditWriter(db));
-            var result = await handler.Handle(new GetSkillsConfigurationWorkspaceQuery(SkillsAdmin()), CancellationToken.None);
+            var handler = new ProvisionSkillDefaultsCommandHandler(db, tenant, Access, new ConfigurationAuditWriter(db));
+            var result = await handler.Handle(new ProvisionSkillDefaultsCommand(SkillsAdmin()), CancellationToken.None);
             Assert.True(result.IsSuccess);
             // Tenant B sees only its own three categories, none of tenant A's.
             Assert.Equal(3, result.Value.Categories.Count);

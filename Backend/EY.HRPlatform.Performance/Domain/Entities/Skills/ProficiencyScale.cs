@@ -23,6 +23,8 @@ public sealed class ProficiencyScale : AggregateRoot, ITenantEntity
 
     public Guid TenantId { get; private set; }
     public string Name { get; private set; } = string.Empty;
+    /// <summary>Case-folded key backing tenant-unique names (DB-enforced, case-insensitive).</summary>
+    public string NormalizedName { get; private set; } = string.Empty;
     public string? Description { get; private set; }
     public EvaluationConfigStatus Status { get; private set; }
     public bool IsInUse { get; private set; }
@@ -68,6 +70,7 @@ public sealed class ProficiencyScale : AggregateRoot, ITenantEntity
     {
         EnsureNotArchived();
         Name = NormalizeRequired(name, nameof(name), NameMaxLength);
+        NormalizedName = Name.ToUpperInvariant();
         Description = NormalizeOptional(description, nameof(description), DescriptionMaxLength);
         UpdatedAt = DateTime.UtcNow;
     }

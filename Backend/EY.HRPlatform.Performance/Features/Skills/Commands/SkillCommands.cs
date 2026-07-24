@@ -50,6 +50,9 @@ public sealed class CreateSkillCommandHandler(
             return SkillsConfigurationErrors.Invalid<SkillDto>(
                 new InvalidOperationException("A skill cannot be added to an archived category."));
 
+        if (await SkillsConfigurationNames.SkillTakenAsync(db, command.Name, null, cancellationToken))
+            return SkillsConfigurationErrors.NameConflict<SkillDto>("skill");
+
         try
         {
             var skill = Skill.Create(tenant.TenantId, command.Name, command.Description, command.CategoryId);
@@ -99,6 +102,9 @@ public sealed class UpdateSkillCommandHandler(
         if (category.Status != SkillLifecycleStatus.Active)
             return SkillsConfigurationErrors.Invalid<SkillDto>(
                 new InvalidOperationException("A skill cannot be moved into an archived category."));
+
+        if (await SkillsConfigurationNames.SkillTakenAsync(db, command.Name, skill.Id, cancellationToken))
+            return SkillsConfigurationErrors.NameConflict<SkillDto>("skill");
 
         try
         {

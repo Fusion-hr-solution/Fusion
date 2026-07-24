@@ -19,6 +19,8 @@ public sealed class Skill : AggregateRoot, ITenantEntity
 
     public Guid TenantId { get; private set; }
     public string Name { get; private set; } = string.Empty;
+    /// <summary>Case-folded key backing tenant-unique names (DB-enforced, case-insensitive).</summary>
+    public string NormalizedName { get; private set; } = string.Empty;
     public string? Description { get; private set; }
     public Guid SkillCategoryId { get; private set; }
     public SkillLifecycleStatus Status { get; private set; }
@@ -44,6 +46,7 @@ public sealed class Skill : AggregateRoot, ITenantEntity
             Status = SkillLifecycleStatus.Active
         };
         skill.Name = NormalizeRequired(name, nameof(name), NameMaxLength);
+        skill.NormalizedName = skill.Name.ToUpperInvariant();
         skill.Description = NormalizeOptional(description, nameof(description), DescriptionMaxLength);
         return skill;
     }
@@ -55,6 +58,7 @@ public sealed class Skill : AggregateRoot, ITenantEntity
             throw new DomainRuleViolationException("A skill requires a category.");
 
         Name = NormalizeRequired(name, nameof(name), NameMaxLength);
+        NormalizedName = Name.ToUpperInvariant();
         Description = NormalizeOptional(description, nameof(description), DescriptionMaxLength);
         SkillCategoryId = skillCategoryId;
         UpdatedAt = DateTime.UtcNow;

@@ -1,21 +1,18 @@
 using System.Security.Claims;
-using EY.HRPlatform.Performance.Domain.Defaults;
 using EY.HRPlatform.Performance.Domain.Entities.Skills;
 using EY.HRPlatform.Performance.Domain.Enums;
-using EY.HRPlatform.Performance.Features.ConfigurationAudit;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Features.Skills.Dtos;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
-using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Performance.Features.Skills.Queries;
 
 /// <summary>
-/// First authorized read instantiates tenant-owned product defaults (idempotent) and returns
-/// the full skills configuration workspace: categories, skills, proficiency scales, expectation sets.
+/// Pure read of the full skills configuration workspace: categories, skills, proficiency scales,
+/// expectation sets. Tenant defaults are provisioned only via the explicit provision command.
 /// </summary>
 public sealed record GetSkillsConfigurationWorkspaceQuery(ClaimsPrincipal Actor)
     : IQuery<Result<SkillsConfigurationWorkspaceDto>>;
@@ -29,9 +26,7 @@ public sealed record ListActiveExpectationSetsForRoundQuery(ClaimsPrincipal Acto
 
 public sealed class GetSkillsConfigurationWorkspaceQueryHandler(
     PerformanceDbContext db,
-    ITenantContext tenant,
-    IPerformanceAccessPolicyService access,
-    IConfigurationAuditWriter audit)
+    IPerformanceAccessPolicyService access)
     : IQueryHandler<GetSkillsConfigurationWorkspaceQuery, Result<SkillsConfigurationWorkspaceDto>>
 {
     public async Task<Result<SkillsConfigurationWorkspaceDto>> Handle(
@@ -40,8 +35,6 @@ public sealed class GetSkillsConfigurationWorkspaceQueryHandler(
     {
         if (!access.CanManageSkills(query.Actor))
             return SkillsConfigurationErrors.Forbidden<SkillsConfigurationWorkspaceDto>();
-
-        await EnsureTenantSkillDefaultsAsync(cancellationToken);
 
         var categories = await db.SkillCategories
             .AsNoTracking()
@@ -96,44 +89,6 @@ public sealed class GetSkillsConfigurationWorkspaceQueryHandler(
         scalesById.TryGetValue(scaleId, out var scale)
             ? scale.Levels.ToDictionary(level => level.Ordinal, level => level.Label)
             : new Dictionary<int, string>();
-
-    /// <summary>
-    /// Idempotent tenant-defaults instantiation. The filtered unique name indexes make a
-    /// concurrent second first-read collide on save; that collision means another request
-    /// already seeded the tenant, so it is swallowed and the read proceeds.
-    /// </summary>
-    private async Task EnsureTenantSkillDefaultsAsync(CancellationToken cancellationToken)
-    {
-        var tenantId = tenant.TenantId;
-        var alreadySeeded = await db.ProficiencyScales.AnyAsync(cancellationToken)
-            || await db.SkillCategories.AnyAsync(cancellationToken)
-            || await db.SkillExpectationSets.AnyAsync(cancellationToken);
-        if (alreadySeeded)
-            return;
-
-        var defaults = SkillConfigurationDefaults.InstantiateForTenant(tenantId);
-        db.ProficiencyScales.Add(defaults.ProficiencyScale);
-        db.SkillCategories.AddRange(defaults.Categories);
-        db.Skills.AddRange(defaults.Skills);
-        db.SkillExpectationSets.Add(defaults.ExpectationSet);
-
-        await audit.AppendTenantAsync(
-            tenantId, Guid.Empty, "Performance provisioning",
-            "SkillConfigurationDefaultsProvisioned", nameof(SkillExpectationSet),
-            defaults.ExpectationSet.Id, newValue: defaults.ExpectationSet.Name,
-            cancellationToken: cancellationToken);
-
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            // Another concurrent first-read seeded the tenant; discard our unsaved copies.
-            foreach (var entry in db.ChangeTracker.Entries().Where(e => e.State == EntityState.Added).ToList())
-                entry.State = EntityState.Detached;
-        }
-    }
 }
 
 public sealed class ListActiveExpectationSetsForRoundQueryHandler(

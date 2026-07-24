@@ -66,6 +66,9 @@ public sealed class CreateSkillExpectationSetCommandHandler(
         if (skillGuard.IsFailure)
             return Result.Failure<SkillExpectationSetDto>(skillGuard.Error);
 
+        if (await SkillsConfigurationNames.SetTakenAsync(db, command.Name, null, cancellationToken))
+            return SkillsConfigurationErrors.NameConflict<SkillExpectationSetDto>("expectation set");
+
         try
         {
             var set = SkillExpectationSet.CreateDraft(
@@ -121,6 +124,9 @@ public sealed class UpdateSkillExpectationSetCommandHandler(
         var skillGuard = await SkillExpectationSetSupport.ValidateSkillsAsync(db, command.Items, cancellationToken);
         if (skillGuard.IsFailure)
             return Result.Failure<SkillExpectationSetDto>(skillGuard.Error);
+
+        if (await SkillsConfigurationNames.SetTakenAsync(db, command.Name, set.Id, cancellationToken))
+            return SkillsConfigurationErrors.NameConflict<SkillExpectationSetDto>("expectation set");
 
         try
         {
@@ -246,6 +252,9 @@ public sealed class DuplicateSkillExpectationSetCommandHandler(
             .SingleOrDefaultAsync(item => item.Id == source.ProficiencyScaleId, cancellationToken);
         if (scale is null)
             return Result.Failure<SkillExpectationSetDto>(Error.NotFound("ProficiencyScale", source.ProficiencyScaleId));
+
+        if (await SkillsConfigurationNames.SetTakenAsync(db, command.Name, null, cancellationToken))
+            return SkillsConfigurationErrors.NameConflict<SkillExpectationSetDto>("expectation set");
 
         try
         {

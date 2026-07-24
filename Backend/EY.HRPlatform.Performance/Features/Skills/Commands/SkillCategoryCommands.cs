@@ -35,6 +35,9 @@ public sealed class CreateSkillCategoryCommandHandler(
         if (!access.CanManageSkills(command.Actor))
             return SkillsConfigurationErrors.Forbidden<SkillCategoryDto>();
 
+        if (await SkillsConfigurationNames.CategoryTakenAsync(db, command.Name, null, cancellationToken))
+            return SkillsConfigurationErrors.NameConflict<SkillCategoryDto>("skill category");
+
         try
         {
             var category = SkillCategory.Create(tenant.TenantId, command.Name);
@@ -75,6 +78,8 @@ public sealed class UpdateSkillCategoryCommandHandler(
             .SingleOrDefaultAsync(item => item.Id == command.CategoryId, cancellationToken);
         if (category is null)
             return Result.Failure<SkillCategoryDto>(Error.NotFound("SkillCategory", command.CategoryId));
+        if (await SkillsConfigurationNames.CategoryTakenAsync(db, command.Name, category.Id, cancellationToken))
+            return SkillsConfigurationErrors.NameConflict<SkillCategoryDto>("skill category");
 
         try
         {
