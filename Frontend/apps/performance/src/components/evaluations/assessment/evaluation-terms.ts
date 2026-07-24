@@ -54,6 +54,7 @@ export const evaluationTerms = {
   finalized: "Finalized",
   reopenSelf: "Reopen self-assessment",
   reopenReasonLabel: "Reason shared with the employee",
+  awaitingAcknowledgement: "Awaiting acknowledgement",
   noSelfSubmission: "No self-assessment was submitted before the deadline.",
   awaitingSelf: "Awaiting self-assessment",
   materialDifference: "Material difference",
