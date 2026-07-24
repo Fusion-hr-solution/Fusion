@@ -130,6 +130,28 @@ public sealed class EvaluationRoundReadinessResolver(
             warnings.Add(new("Round.ShortDeadline",
                 "The manager assessment deadline gives reviewers little time to respond."));
 
+        // Skills readiness: only relevant when the draft template copy includes a Skills section.
+        if (round.IncludesSkills)
+        {
+            var expectationSet = round.SourceExpectationSetId.HasValue
+                ? await db.SkillExpectationSets
+                    .SingleOrDefaultAsync(x => x.Id == round.SourceExpectationSetId, cancellationToken)
+                : null;
+
+            if (expectationSet is null)
+                blockers.Add(new("Round.SkillSetMissing", "Select an expectation set for the Skills section."));
+            else if (expectationSet.Status != EvaluationConfigStatus.Active)
+                blockers.Add(new("Round.SkillSetInactive", "The selected expectation set is no longer active."));
+
+            if (round.DraftSkillItems.Count == 0)
+                blockers.Add(new("Round.SkillItemsEmpty", "Keep at least one skill or remove the Skills section."));
+            var copiedOrdinals = round.DraftProficiencyLevels.Select(level => level.Ordinal).ToHashSet();
+            if (round.DraftSkillItems.Any(item => !copiedOrdinals.Contains(item.ExpectedLevelOrdinal)))
+                blockers.Add(new("Round.SkillExpectedLevelInvalid", "Every expected level must exist on the copied proficiency scale."));
+            if (round.SkillsWeightPercent == 0)
+                blockers.Add(new("Round.SkillsWeightUnset", "Set a skills weight above zero or remove the Skills section."));
+        }
+
         if (template is not null)
         {
             var customQuestionsSection = template.Sections
@@ -141,11 +163,19 @@ public sealed class EvaluationRoundReadinessResolver(
                     "This round has no contextual questions to guide reviewers."));
         }
 
+        var skillsDto = new EvaluationRoundReadinessSkillsDto(
+            round.IncludesSkills,
+            round.SourceExpectationSetId.HasValue,
+            round.DraftSkillSetName,
+            round.DraftSkillItems.Count,
+            round.ObjectivesWeightPercent,
+            round.SkillsWeightPercent);
+
         var dto = new EvaluationRoundReadinessDto(
             round.Id, blockers.Count == 0, campaign.Participants.Count, included,
             preview.Count(x => !x.Included && x.OmissionReason is not null), included,
             round.AssessmentModel == EvaluationAssessmentModel.SelfAndManager ? included : 0,
-            blockers, warnings, preview);
+            blockers, warnings, preview, skillsDto);
         return new EvaluationRoundReadinessResult(dto, campaign, scale, template, candidates);
     }
 }

@@ -56,6 +56,9 @@ public sealed class CreateEvaluationTemplateCommandHandler(
         if (!access.CanManageEvaluations(command.Actor))
             return EvaluationConfigurationErrors.Forbidden<EvaluationTemplateDto>();
 
+        if (!await EvaluationTemplateSkillsGuard.HasActiveSetForSkillsSectionAsync(db, command.Sections, cancellationToken))
+            return EvaluationTemplateSkillsGuard.NoActiveSet<EvaluationTemplateDto>();
+
         try
         {
             var template = EvaluationTemplate.CreateDraft(
@@ -116,6 +119,9 @@ public sealed class UpdateEvaluationTemplateCommandHandler(
             .SingleOrDefaultAsync(item => item.Id == command.TemplateId, cancellationToken);
         if (template is null)
             return Result.Failure<EvaluationTemplateDto>(Error.NotFound("EvaluationTemplate", command.TemplateId));
+
+        if (!await EvaluationTemplateSkillsGuard.HasActiveSetForSkillsSectionAsync(db, command.Sections, cancellationToken))
+            return EvaluationTemplateSkillsGuard.NoActiveSet<EvaluationTemplateDto>();
 
         try
         {
@@ -257,6 +263,29 @@ public sealed class SetEvaluationTemplateStatusCommandHandler(
             return EvaluationConfigurationErrors.Invalid<EvaluationTemplateDto>(ex);
         }
     }
+}
+
+internal static class EvaluationTemplateSkillsGuard
+{
+    /// <summary>
+    /// A template may carry a <c>Skills</c> section only once the tenant has an active expectation
+    /// set to score it against (config spec). No Skills section → always allowed.
+    /// </summary>
+    public static async Task<bool> HasActiveSetForSkillsSectionAsync(
+        PerformanceDbContext db,
+        IReadOnlyList<EvaluationTemplateSectionInput> sections,
+        CancellationToken cancellationToken)
+    {
+        if (sections is null || sections.All(section => section.Type != EvaluationSectionType.Skills))
+            return true;
+
+        return await db.SkillExpectationSets
+            .AnyAsync(set => set.Status == EvaluationConfigStatus.Active, cancellationToken);
+    }
+
+    public static Result<T> NoActiveSet<T>() => Result.Failure<T>(Error.Validation(
+        "Evaluations.SkillsSectionRequiresActiveSet",
+        "A Skills section requires an active skill expectation set."));
 }
 
 public sealed class DuplicateEvaluationTemplateCommandHandler(

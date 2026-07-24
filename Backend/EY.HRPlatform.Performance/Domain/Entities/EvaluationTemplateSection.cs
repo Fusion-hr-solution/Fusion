@@ -27,7 +27,7 @@ public sealed class EvaluationTemplateSection : BaseEntity, ITenantEntity
         string title,
         string? guidance)
     {
-        if (!Enum.IsDefined(type) || type == EvaluationSectionType.Skills)
+        if (!Enum.IsDefined(type))
             throw new DomainRuleViolationException("The selected evaluation section type is not available.");
 
         var section = new EvaluationTemplateSection

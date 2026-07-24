@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Entities.Skills;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Domain.Events;
 using EY.HRPlatform.Performance.Exceptions;
@@ -24,6 +25,8 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
     private readonly List<EvaluationRoundParticipant> _participants = new();
     private readonly List<EvaluationObjectivePlanSnapshot> _objectivePlanSnapshots = new();
     private readonly List<EvaluationRoundDeadlineExtension> _deadlineExtensions = new();
+    private readonly List<EvaluationRoundSkillDraftItem> _draftSkillItems = new();
+    private readonly List<EvaluationRoundProficiencyDraftLevel> _draftProficiencyLevels = new();
 
     private EvaluationRound() { }
 
@@ -48,9 +51,17 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
     public string? DraftTemplatePurpose { get; private set; }
     public string? DraftTemplateInstructions { get; private set; }
 
+    public Guid? SourceExpectationSetId { get; private set; }
+    public string? DraftSkillSetName { get; private set; }
+    public string? DraftSkillScaleName { get; private set; }
+    public string? DraftSkillScaleDescription { get; private set; }
+    public int ObjectivesWeightPercent { get; private set; } = 100;
+    public int SkillsWeightPercent { get; private set; }
+
     public EvaluationRoundScaleSnapshot? ScaleSnapshot { get; private set; }
     public EvaluationRoundTemplateSnapshot? TemplateSnapshot { get; private set; }
     public EvaluationRoundPolicySnapshot? PolicySnapshot { get; private set; }
+    public EvaluationRoundSkillSnapshot? SkillSnapshot { get; private set; }
 
     public IReadOnlyCollection<EvaluationRoundScaleDraftLevel> DraftScaleLevels =>
         _draftScaleLevels.OrderBy(level => level.Ordinal).ToArray();
@@ -63,9 +74,15 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
     public IReadOnlyCollection<EvaluationRoundParticipant> Participants => _participants.AsReadOnly();
     public IReadOnlyCollection<EvaluationObjectivePlanSnapshot> ObjectivePlanSnapshots => _objectivePlanSnapshots.AsReadOnly();
     public IReadOnlyCollection<EvaluationRoundDeadlineExtension> DeadlineExtensions => _deadlineExtensions.AsReadOnly();
+    public IReadOnlyCollection<EvaluationRoundSkillDraftItem> DraftSkillItems => _draftSkillItems.AsReadOnly();
+    public IReadOnlyCollection<EvaluationRoundProficiencyDraftLevel> DraftProficiencyLevels =>
+        _draftProficiencyLevels.OrderBy(level => level.Ordinal).ToArray();
 
     public bool IncludesObjectives =>
         _draftTemplateSections.Any(section => section.Type == EvaluationSectionType.Objectives);
+
+    public bool IncludesSkills =>
+        _draftTemplateSections.Any(section => section.Type == EvaluationSectionType.Skills);
 
     public static EvaluationRound CreateDraft(
         Guid tenantId,
@@ -200,8 +217,113 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
                 Id,
                 sectionMap[question.SectionId],
                 question)));
+
+        if (!IncludesSkills)
+            ClearSkillSelection();
+
         UpdatedAt = DateTime.UtcNow;
     }
+
+    public void SelectExpectationSet(
+        SkillExpectationSet set,
+        ProficiencyScale scale,
+        IReadOnlyCollection<EvaluationRoundSkillSource> skills)
+    {
+        EnsureDraft();
+        ArgumentNullException.ThrowIfNull(set);
+        ArgumentNullException.ThrowIfNull(scale);
+        ArgumentNullException.ThrowIfNull(skills);
+        if (!IncludesSkills)
+            throw new DomainRuleViolationException("Add a Skills section before selecting an expectation set.");
+        if (set.TenantId != TenantId)
+            throw new DomainRuleViolationException("The expectation set must belong to the round's tenant.");
+        if (set.Status != EvaluationConfigStatus.Active)
+            throw new DomainRuleViolationException("Only an active expectation set can be selected.");
+        if (scale.Id != set.ProficiencyScaleId || scale.TenantId != TenantId ||
+            scale.Status != EvaluationConfigStatus.Active)
+        {
+            throw new DomainRuleViolationException("The expectation set's proficiency scale must be active and tenant-owned.");
+        }
+
+        var skillById = skills.ToDictionary(source => source.SkillId);
+
+        SourceExpectationSetId = set.Id;
+        DraftSkillSetName = set.Name;
+        DraftSkillScaleName = scale.Name;
+        DraftSkillScaleDescription = scale.Description;
+
+        _draftProficiencyLevels.Clear();
+        _draftProficiencyLevels.AddRange(scale.Levels.Select(level =>
+            EvaluationRoundProficiencyDraftLevel.Copy(TenantId, Id, level)));
+
+        _draftSkillItems.Clear();
+        foreach (var item in set.Items)
+        {
+            if (!skillById.TryGetValue(item.SkillId, out var source))
+                throw new DomainRuleViolationException("Every expectation-set skill must be resolvable at selection.");
+
+            _draftSkillItems.Add(EvaluationRoundSkillDraftItem.Copy(
+                TenantId,
+                Id,
+                item.SkillId,
+                source.SkillName,
+                source.CategoryName,
+                item.ExpectedLevelOrdinal));
+        }
+
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void RemoveDraftSkillItem(Guid draftItemId)
+    {
+        EnsureDraft();
+        var item = FindDraftSkillItem(draftItemId);
+        _draftSkillItems.Remove(item);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void UpdateDraftSkillExpectedLevel(Guid draftItemId, int expectedLevelOrdinal)
+    {
+        EnsureDraft();
+        if (_draftProficiencyLevels.All(level => level.Ordinal != expectedLevelOrdinal))
+            throw new DomainRuleViolationException("The expected level is not a copied proficiency level.");
+
+        FindDraftSkillItem(draftItemId).SetExpectedLevel(expectedLevelOrdinal);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void SetWeights(int objectivesWeightPercent, int skillsWeightPercent)
+    {
+        EnsureDraft();
+        if (objectivesWeightPercent is < 0 or > 100 || skillsWeightPercent is < 0 or > 100)
+            throw new DomainRuleViolationException("Each weight must be between 0 and 100.");
+        if (objectivesWeightPercent + skillsWeightPercent != 100)
+            throw new DomainRuleViolationException("Objectives and skills weights must sum to 100.");
+        if (skillsWeightPercent > 0 && !IncludesSkills)
+            throw new DomainRuleViolationException("A skills weight requires a Skills section.");
+        if (objectivesWeightPercent > 0 && !IncludesObjectives)
+            throw new DomainRuleViolationException("An objectives weight requires an Objectives section.");
+
+        ObjectivesWeightPercent = objectivesWeightPercent;
+        SkillsWeightPercent = skillsWeightPercent;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    private void ClearSkillSelection()
+    {
+        SourceExpectationSetId = null;
+        DraftSkillSetName = null;
+        DraftSkillScaleName = null;
+        DraftSkillScaleDescription = null;
+        _draftSkillItems.Clear();
+        _draftProficiencyLevels.Clear();
+        ObjectivesWeightPercent = 100;
+        SkillsWeightPercent = 0;
+    }
+
+    private EvaluationRoundSkillDraftItem FindDraftSkillItem(Guid draftItemId) =>
+        _draftSkillItems.SingleOrDefault(item => item.Id == draftItemId)
+        ?? throw new DomainRuleViolationException("The skill item does not belong to this round.");
 
     public void UpdateDraftTemplateSection(Guid draftSectionId, string title, string? guidance)
     {
@@ -278,6 +400,9 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
         PerformanceCycle campaign,
         EvaluationRatingScale sourceScale,
         EvaluationTemplate sourceTemplate,
+        SkillExpectationSet? sourceExpectationSet,
+        ProficiencyScale? sourceProficiencyScale,
+        IReadOnlyCollection<Skill> referencedSkills,
         IReadOnlyCollection<EvaluationRoundLaunchCandidate> candidates,
         DateTime occurredAt)
     {
@@ -289,6 +414,7 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
             throw new DomainRuleViolationException("The campaign must be launched and planning-locked before evaluation launch.");
         EnsureSelectedConfigurationIsCurrent(sourceScale, sourceTemplate);
         EnsureDraftConfigurationComplete();
+        var skillsById = EnsureSkillSelectionCurrent(sourceExpectationSet, sourceProficiencyScale, referencedSkills);
 
         var launchTime = NormalizeUtc(occurredAt, nameof(occurredAt));
         ValidateDeadlines(
@@ -355,7 +481,21 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
             AssessmentModel,
             SelfAssessmentDeadline,
             ManagerAssessmentDeadline.Value,
-            FinalizationDeadline.Value);
+            FinalizationDeadline.Value,
+            ObjectivesWeightPercent,
+            SkillsWeightPercent);
+
+        if (IncludesSkills)
+        {
+            SkillSnapshot = EvaluationRoundSkillSnapshot.Capture(
+                TenantId,
+                Id,
+                sourceExpectationSet!.Id,
+                DraftSkillSetName!,
+                DraftSkillScaleName!,
+                _draftProficiencyLevels,
+                _draftSkillItems);
+        }
 
         foreach (var item in eligible)
         {
@@ -382,6 +522,13 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
 
         sourceScale.MarkInUse();
         sourceTemplate.MarkInUse();
+        if (IncludesSkills)
+        {
+            sourceExpectationSet!.MarkInUse();
+            sourceProficiencyScale!.MarkInUse();
+            foreach (var skillId in _draftSkillItems.Select(item => item.SkillId).Distinct())
+                skillsById[skillId].MarkInUse();
+        }
         Status = EvaluationRoundStatus.Launched;
         LaunchedAt = launchTime;
         UpdatedAt = DateTime.UtcNow;
@@ -553,6 +700,51 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
             throw new DomainRuleViolationException("Set all required evaluation deadlines before launch.");
     }
 
+    private Dictionary<Guid, Skill> EnsureSkillSelectionCurrent(
+        SkillExpectationSet? sourceExpectationSet,
+        ProficiencyScale? sourceProficiencyScale,
+        IReadOnlyCollection<Skill> referencedSkills)
+    {
+        if (!IncludesSkills)
+            return new Dictionary<Guid, Skill>();
+
+        if (sourceExpectationSet is null || sourceProficiencyScale is null)
+            throw new DomainRuleViolationException("Select an expectation set and its proficiency scale before launch.");
+        if (SourceExpectationSetId != sourceExpectationSet.Id ||
+            sourceExpectationSet.TenantId != TenantId ||
+            sourceExpectationSet.Status != EvaluationConfigStatus.Active)
+        {
+            throw new DomainRuleViolationException("The selected expectation set must still be active and tenant-owned.");
+        }
+        if (sourceProficiencyScale.Id != sourceExpectationSet.ProficiencyScaleId ||
+            sourceProficiencyScale.TenantId != TenantId ||
+            sourceProficiencyScale.Status != EvaluationConfigStatus.Active)
+        {
+            throw new DomainRuleViolationException("The expectation set's proficiency scale must still be active and tenant-owned.");
+        }
+        if (_draftSkillItems.Count < 1)
+            throw new DomainRuleViolationException("Keep at least one skill in the round before launch.");
+        if (_draftSkillItems.Any(item => _draftProficiencyLevels.All(level => level.Ordinal != item.ExpectedLevelOrdinal)))
+            throw new DomainRuleViolationException("Every expected level must exist on the copied proficiency scale.");
+
+        var skillsById = new Dictionary<Guid, Skill>();
+        foreach (var skill in referencedSkills)
+        {
+            if (skill.TenantId != TenantId)
+                throw new DomainRuleViolationException("Referenced skills must belong to the round's tenant.");
+            skillsById[skill.Id] = skill;
+        }
+        foreach (var skillId in _draftSkillItems.Select(item => item.SkillId).Distinct())
+        {
+            if (!skillsById.TryGetValue(skillId, out var skill))
+                throw new DomainRuleViolationException("Every referenced skill must be provided at launch.");
+            if (skill.Status != SkillLifecycleStatus.Active)
+                throw new DomainRuleViolationException("A referenced skill must still be active at launch.");
+        }
+
+        return skillsById;
+    }
+
     private EvaluationRoundScaleDraftLevel FindDraftScaleLevel(Guid levelId) =>
         _draftScaleLevels.SingleOrDefault(level => level.Id == levelId)
         ?? throw new DomainRuleViolationException("The scale level does not belong to this round.");
@@ -669,3 +861,12 @@ public sealed record EvaluationRoundOmittedParticipant(
     Guid EmployeeId,
     string EmployeeName,
     string Reason);
+
+/// <summary>
+/// Skill display data (name + category name) resolved by the handler when an
+/// expectation set is selected, so the round can copy self-contained draft items.
+/// </summary>
+public sealed record EvaluationRoundSkillSource(
+    Guid SkillId,
+    string SkillName,
+    string CategoryName);

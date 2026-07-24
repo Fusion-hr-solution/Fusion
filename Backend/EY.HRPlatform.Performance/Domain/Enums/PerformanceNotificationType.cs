@@ -28,5 +28,9 @@ public enum PerformanceNotificationType
     EvaluationLaunched,
     EvaluationDeadlineExtended,
     EvaluationDeadlineDueSoon,
-    EvaluationDeadlineOverdue
+    EvaluationDeadlineOverdue,
+    EvaluationSelfAssessmentSubmitted,
+    EvaluationSelfAssessmentReopened,
+    EvaluationFinalized,
+    EvaluationAcknowledged
 }

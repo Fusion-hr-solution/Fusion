@@ -59,6 +59,46 @@ public sealed class EvaluationRoundsController(
             User, id, request.RatingScaleId, request.TemplateId, version), ct));
     }
 
+    [HttpPut("{id:guid}/skills/expectation-set")]
+    public async Task<IActionResult> SelectExpectationSet(Guid id, EvaluationRoundExpectationSetRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken ct)
+    {
+        if (!access.CanManageEvaluations(User)) return Forbid();
+        if (!TryVersion(ifMatch, out var version)) return PreconditionRequired();
+        return Respond(await sender.Send(new SelectEvaluationRoundExpectationSetCommand(
+            User, id, request.ExpectationSetId, version), ct));
+    }
+
+    [HttpDelete("{id:guid}/skills/items/{draftItemId:guid}")]
+    public async Task<IActionResult> RemoveSkillItem(Guid id, Guid draftItemId,
+        [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken ct)
+    {
+        if (!access.CanManageEvaluations(User)) return Forbid();
+        if (!TryVersion(ifMatch, out var version)) return PreconditionRequired();
+        return Respond(await sender.Send(new RemoveEvaluationRoundSkillItemCommand(User, id, draftItemId, version), ct));
+    }
+
+    [HttpPut("{id:guid}/skills/items/{draftItemId:guid}/expected-level")]
+    public async Task<IActionResult> UpdateSkillExpectedLevel(Guid id, Guid draftItemId,
+        EvaluationRoundSkillExpectedLevelRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken ct)
+    {
+        if (!access.CanManageEvaluations(User)) return Forbid();
+        if (!TryVersion(ifMatch, out var version)) return PreconditionRequired();
+        return Respond(await sender.Send(new UpdateEvaluationRoundSkillExpectedLevelCommand(
+            User, id, draftItemId, request.ExpectedLevelOrdinal, version), ct));
+    }
+
+    [HttpPut("{id:guid}/weights")]
+    public async Task<IActionResult> SetWeights(Guid id, EvaluationRoundWeightsRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken ct)
+    {
+        if (!access.CanManageEvaluations(User)) return Forbid();
+        if (!TryVersion(ifMatch, out var version)) return PreconditionRequired();
+        return Respond(await sender.Send(new SetEvaluationRoundWeightsCommand(
+            User, id, request.ObjectivesWeightPercent, request.SkillsWeightPercent, version), ct));
+    }
+
     [HttpPut("{id:guid}/deadlines")]
     public async Task<IActionResult> SetDeadlines(Guid id, EvaluationRoundDeadlinesRequest request,
         [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken ct)
@@ -167,6 +207,9 @@ public sealed record CreateEvaluationRoundRequest(
 public sealed record UpdateEvaluationRoundRequest(
     string Name, string? Purpose, EvaluationRoundType Type, EvaluationAssessmentModel AssessmentModel);
 public sealed record EvaluationRoundConfigurationRequest(Guid RatingScaleId, Guid TemplateId);
+public sealed record EvaluationRoundExpectationSetRequest(Guid ExpectationSetId);
+public sealed record EvaluationRoundSkillExpectedLevelRequest(int ExpectedLevelOrdinal);
+public sealed record EvaluationRoundWeightsRequest(int ObjectivesWeightPercent, int SkillsWeightPercent);
 public sealed record EvaluationRoundDeadlinesRequest(
     DateTime? SelfAssessmentDeadline, DateTime ManagerAssessmentDeadline, DateTime FinalizationDeadline);
 public sealed record EvaluationRoundExclusionRequest(bool Excluded, string? Reason);

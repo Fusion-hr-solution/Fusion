@@ -127,6 +127,8 @@ public sealed class EvaluationRoundPolicySnapshotConfiguration : IEntityTypeConf
         builder.Property(snapshot => snapshot.RoundId).IsRequired();
         builder.Property(snapshot => snapshot.AssessmentModel).HasConversion<string>().HasMaxLength(24).IsRequired();
         builder.Property(snapshot => snapshot.VisibilityModel).HasConversion<string>().HasMaxLength(24).IsRequired();
+        builder.Property(snapshot => snapshot.ObjectivesWeightPercent).HasDefaultValue(100).IsRequired();
+        builder.Property(snapshot => snapshot.SkillsWeightPercent).HasDefaultValue(0).IsRequired();
         builder.HasIndex(snapshot => new { snapshot.TenantId, snapshot.RoundId }).IsUnique();
     }
 }

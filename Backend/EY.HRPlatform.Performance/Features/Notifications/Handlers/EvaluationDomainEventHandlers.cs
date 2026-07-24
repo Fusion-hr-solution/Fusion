@@ -58,6 +58,64 @@ public sealed class EvaluationRoundDeadlineExtendedActivityHandler(IActivityLog 
     }
 }
 
+// ─── Assessment workflow notifications (post-commit) ─────────────────────────
+
+public sealed class EvaluationSelfAssessmentSubmittedNotificationHandler(IPerformanceNotifier notifier)
+    : INotificationHandler<EvaluationSelfAssessmentSubmittedEvent>
+{
+    public Task Handle(EvaluationSelfAssessmentSubmittedEvent e, CancellationToken ct) =>
+        notifier.NotifyAsync(
+            e.ReviewerEmployeeId,
+            PerformanceNotificationType.EvaluationSelfAssessmentSubmitted,
+            "Self-assessment submitted",
+            $"{e.ParticipantName} submitted their self-assessment.",
+            null, "EvaluationAssignment", e.SelfAssignmentId,
+            $"/team-evaluations/{e.RoundId}/{e.ParticipantEmployeeId}",
+            $"evaluation-self-submitted:{e.SelfAssignmentId}", ct);
+}
+
+public sealed class EvaluationSelfAssessmentReopenedNotificationHandler(IPerformanceNotifier notifier)
+    : INotificationHandler<EvaluationSelfAssessmentReopenedEvent>
+{
+    public Task Handle(EvaluationSelfAssessmentReopenedEvent e, CancellationToken ct) =>
+        notifier.NotifyAsync(
+            e.ParticipantEmployeeId,
+            PerformanceNotificationType.EvaluationSelfAssessmentReopened,
+            "Self-assessment reopened",
+            $"Your self-assessment was reopened for revision. Reason: {e.Reason}",
+            null, "EvaluationAssignment", e.SelfAssignmentId,
+            $"/my-evaluations/{e.RoundId}",
+            $"evaluation-self-reopened:{e.SelfAssignmentId}:{e.OccurredOn.Ticks}", ct);
+}
+
+public sealed class EvaluationFinalizedNotificationHandler(IPerformanceNotifier notifier)
+    : INotificationHandler<EvaluationFinalizedEvent>
+{
+    public Task Handle(EvaluationFinalizedEvent e, CancellationToken ct) =>
+        notifier.NotifyAsync(
+            e.ParticipantEmployeeId,
+            PerformanceNotificationType.EvaluationFinalized,
+            "Your evaluation is finalized",
+            "Your evaluation is complete and ready for you to review and acknowledge.",
+            null, "EvaluationAssignment", e.ManagerAssignmentId,
+            $"/my-evaluations/{e.RoundId}",
+            $"evaluation-finalized:{e.ManagerAssignmentId}", ct);
+}
+
+public sealed class EvaluationAcknowledgedNotificationHandler(IPerformanceNotifier notifier)
+    : INotificationHandler<EvaluationAcknowledgedEvent>
+{
+    public Task Handle(EvaluationAcknowledgedEvent e, CancellationToken ct) =>
+        notifier.NotifyAsync(
+            e.ReviewerEmployeeId,
+            PerformanceNotificationType.EvaluationAcknowledged,
+            "Evaluation acknowledged",
+            $"{e.ParticipantName} acknowledged their finalized evaluation.",
+            null, "EvaluationAssignment", e.ManagerAssignmentId,
+            $"/team-evaluations/{e.RoundId}/{e.ParticipantEmployeeId}",
+            $"evaluation-acknowledged:{e.ManagerAssignmentId}", ct);
+}
+
 public sealed class EvaluationRoundDeadlineExtendedNotificationHandler(
     IPerformanceNotifier notifier,
     PerformanceDbContext db) : INotificationHandler<EvaluationRoundDeadlineExtendedEvent>
