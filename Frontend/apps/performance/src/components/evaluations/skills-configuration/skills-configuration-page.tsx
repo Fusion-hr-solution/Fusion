@@ -202,13 +202,7 @@ function ProvisionEmptyState({
   return (
     <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-border px-6 py-16 text-center">
       <Sparkles aria-hidden className="size-8 text-primary" />
-      <div>
-        <p className="text-lg font-medium">Set up your skills catalogue</p>
-        <p className="mt-1 max-w-md text-sm text-muted-foreground">
-          Start with Fusion&apos;s default proficiency scale, categories, starter
-          skills, and a capability expectation set — then tailor them.
-        </p>
-      </div>
+      <p className="text-lg font-medium">Set up your skills catalogue</p>
       <Button
         disabled={provision.isLoading}
         onClick={() => provision.mutate()}

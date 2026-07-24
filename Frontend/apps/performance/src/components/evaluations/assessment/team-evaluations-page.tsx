@@ -122,9 +122,15 @@ export function TeamEvaluationsPage() {
             <div className="flex min-w-0 flex-col gap-1">
               <div className="flex flex-wrap items-center gap-2">
                 <StatusBadge
-                  tone={round.operationalState === "Overdue" ? "danger" : "info"}
+                  tone={
+                    round.operationalState === "Overdue"
+                      ? "danger"
+                      : round.operationalState === "Completed"
+                        ? "success"
+                        : "info"
+                  }
                 >
-                  {round.operationalState}
+                  {round.operationalState.replace(/([A-Z])/g, " $1").trim()}
                 </StatusBadge>
                 <span className="truncate font-medium">{round.name}</span>
               </div>
