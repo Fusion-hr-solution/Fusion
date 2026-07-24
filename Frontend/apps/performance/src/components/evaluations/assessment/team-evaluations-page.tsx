@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, UsersRound } from "lucide-react";
@@ -64,6 +64,13 @@ export function TeamEvaluationsPage() {
     { enabled: allowed }
   );
 
+  // Single-round fast path: land straight in the only round's queue (redirect off-render).
+  const rounds = query.data ? summarize(query.data) : [];
+  const soleRoundId = rounds.length === 1 ? rounds[0]?.roundId : undefined;
+  useEffect(() => {
+    if (soleRoundId) router.replace(`/team-evaluations/${soleRoundId}`);
+  }, [soleRoundId, router]);
+
   if (authLoading || (allowed && query.isLoading))
     return (
       <PageContainer width="wide">
@@ -86,18 +93,13 @@ export function TeamEvaluationsPage() {
       </PageContainer>
     );
 
-  const rounds = summarize(query.data);
-
-  // Single-round fast path: land straight in the only round's queue.
-  const onlyRound = rounds[0];
-  if (rounds.length === 1 && onlyRound) {
-    router.replace(`/team-evaluations/${onlyRound.roundId}`);
+  // Redirect pending — show the skeleton rather than a flash of the list.
+  if (soleRoundId)
     return (
       <PageContainer width="wide">
         <PageListSkeleton />
       </PageContainer>
     );
-  }
 
   if (rounds.length === 0)
     return (

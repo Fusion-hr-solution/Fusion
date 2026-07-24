@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, ClipboardPenLine } from "lucide-react";
@@ -52,6 +52,16 @@ export function MyEvaluationsPage() {
     { enabled: allowed }
   );
 
+  // Single-round fast path: one round, land straight in it (redirect off-render).
+  const page = query.data;
+  const soleRoundId =
+    page && page.totalCount === 1 && page.items.length === 1
+      ? page.items[0]?.roundId
+      : undefined;
+  useEffect(() => {
+    if (soleRoundId) router.replace(href(soleRoundId));
+  }, [soleRoundId, router]);
+
   if (authLoading || (allowed && query.isLoading))
     return (
       <PageContainer width="wide">
@@ -76,16 +86,13 @@ export function MyEvaluationsPage() {
 
   const items = query.data.items;
 
-  // Single-round fast path: one round, land straight in it.
-  const only = items[0];
-  if (query.data.totalCount === 1 && items.length === 1 && only) {
-    router.replace(href(only.roundId));
+  // Redirect pending — show the skeleton rather than a flash of the list.
+  if (soleRoundId)
     return (
       <PageContainer width="wide">
         <PageListSkeleton />
       </PageContainer>
     );
-  }
 
   if (items.length === 0)
     return (
