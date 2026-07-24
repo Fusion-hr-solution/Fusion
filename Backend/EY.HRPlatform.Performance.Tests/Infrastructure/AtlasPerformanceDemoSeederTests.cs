@@ -96,6 +96,27 @@ public sealed class AtlasPerformanceDemoSeederTests
         Assert.Equal(2, assignments.Count);
         Assert.Contains(assignments, item => item.Kind == EvaluationAssignmentKind.SelfAssessment);
         Assert.Contains(assignments, item => item.Kind == EvaluationAssignmentKind.ManagerAssessment);
+
+        var executionRound = await db.EvaluationRounds
+            .Include(item => item.Participants)
+            .SingleAsync(item => item.Name == AtlasPerformanceDemoSeeder.AssessmentRoundName);
+        Assert.Equal(6, executionRound.Participants.Count);
+        var executionAssignments = await db.EvaluationAssignments
+            .Where(item => item.RoundId == executionRound.Id)
+            .ToListAsync();
+        Assert.Equal(12, executionAssignments.Count);
+        Assert.Contains(executionAssignments, item => item.Status == EvaluationAssignmentStatus.NotStarted);
+        Assert.Contains(executionAssignments, item => item.Status == EvaluationAssignmentStatus.InProgress);
+        Assert.Contains(executionAssignments, item => item.Kind == EvaluationAssignmentKind.SelfAssessment
+            && item.Status == EvaluationAssignmentStatus.Submitted);
+        Assert.Contains(executionAssignments, item => item.Kind == EvaluationAssignmentKind.ManagerAssessment
+            && item.Status == EvaluationAssignmentStatus.Submitted);
+        Assert.Contains(executionAssignments, item => item.Status == EvaluationAssignmentStatus.Finalized
+            && item.AcknowledgedAt is null);
+        Assert.Contains(executionAssignments, item => item.AcknowledgedAt is not null);
+
+        var executionRoundCount = await db.EvaluationRounds.CountAsync(item => item.Name == AtlasPerformanceDemoSeeder.AssessmentRoundName);
+        Assert.Equal(1, executionRoundCount);
     }
 
     [Fact]
@@ -138,6 +159,8 @@ public sealed class AtlasPerformanceDemoSeederTests
         var assignments = await isolationDb.EvaluationAssignments.ToListAsync();
         Assert.Single(assignments);
         Assert.Equal(EvaluationAssignmentKind.ManagerAssessment, assignments[0].Kind);
+        Assert.Equal(EvaluationAssignmentStatus.Finalized, assignments[0].Status);
+        Assert.Equal(3, assignments[0].FinalRatingOrdinal);
 
         var plan = await isolationDb.EmployeeObjectivePlans
             .Include(item => item.Objectives)

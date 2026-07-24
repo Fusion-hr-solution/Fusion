@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Entities;
+using EY.HRPlatform.Performance.Domain.Entities.Skills;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -25,7 +26,10 @@ internal static class EvaluationTestScenario
         uint RoundVersion,
         Guid ScaleId,
         Guid TemplateId,
-        IReadOnlyList<SeededParticipant> Participants);
+        IReadOnlyList<SeededParticipant> Participants,
+        Guid? ExpectationSetId = null,
+        Guid? ProficiencyScaleId = null,
+        IReadOnlyList<Guid>? SkillIds = null);
 
     internal sealed record Options(
         EvaluationAssessmentModel AssessmentModel = EvaluationAssessmentModel.SelfAndManager,
@@ -35,7 +39,10 @@ internal static class EvaluationTestScenario
         bool AssessableTemplate = true,
         bool IncludeObjectivesSection = true,
         bool LockPlanning = true,
-        DateTime? ManagerDeadline = null);
+        DateTime? ManagerDeadline = null,
+        bool IncludeSkillsSection = false,
+        bool SelectExpectationSet = true,
+        int SkillsWeightPercent = 30);
 
     /// <summary>Seeds the full scenario into <paramref name="db"/> and returns the created ids.</summary>
     internal static async Task<Result> SeedAsync(
@@ -115,11 +122,44 @@ internal static class EvaluationTestScenario
         scale.Activate();
         db.EvaluationRatingScales.Add(scale);
 
+        // Optional tenant skills configuration: a proficiency scale, category, skills, and an
+        // active expectation set the round can select for its Skills section.
+        SkillExpectationSet? expectationSet = null;
+        ProficiencyScale? proficiencyScale = null;
+        List<Skill> skills = new();
+        IReadOnlyList<EvaluationRoundSkillSource> skillSources = Array.Empty<EvaluationRoundSkillSource>();
+        if (opts.IncludeSkillsSection)
+        {
+            proficiencyScale = ProficiencyScale.CreateDraft(
+                tenantId, "Five-level proficiency", null,
+                [new("Foundational"), new("Developing"), new("Proficient"), new("Advanced"), new("Expert")]);
+            proficiencyScale.Activate();
+            var category = SkillCategory.Create(tenantId, "Technical");
+            skills =
+            [
+                Skill.Create(tenantId, "Software engineering", null, category.Id),
+                Skill.Create(tenantId, "Data analysis", null, category.Id),
+            ];
+            expectationSet = SkillExpectationSet.CreateDraft(tenantId, "Core capabilities", null, proficiencyScale.Id);
+            expectationSet.AddItem(skills[0].Id, 3, proficiencyScale);
+            expectationSet.AddItem(skills[1].Id, 4, proficiencyScale);
+            expectationSet.Activate(proficiencyScale);
+            db.ProficiencyScales.Add(proficiencyScale);
+            db.SkillCategories.Add(category);
+            db.Skills.AddRange(skills);
+            db.SkillExpectationSets.Add(expectationSet);
+            skillSources = skills
+                .Select(s => new EvaluationRoundSkillSource(s.Id, s.Name, "Technical"))
+                .ToArray();
+        }
+
         var template = EvaluationTemplate.CreateDraft(tenantId, "Annual template", "Annual review", null);
         if (opts.AssessableTemplate)
         {
             if (opts.IncludeObjectivesSection)
                 template.AddSection(new EvaluationTemplateSectionDraft(EvaluationSectionType.Objectives, "Objectives"));
+            if (opts.IncludeSkillsSection)
+                template.AddSection(new EvaluationTemplateSectionDraft(EvaluationSectionType.Skills, "Skills"));
             var customSection = template.AddSection(new EvaluationTemplateSectionDraft(EvaluationSectionType.CustomQuestions, "Reflection"));
             if (opts.IncludeCustomQuestions)
                 template.AddQuestion(customSection.Id, new EvaluationTemplateQuestionDraft(
@@ -134,6 +174,11 @@ internal static class EvaluationTestScenario
             EvaluationRoundType.MidCycle, opts.AssessmentModel);
         round.SelectRatingScale(scale);
         round.SelectTemplate(template);
+        if (opts.IncludeSkillsSection && opts.SelectExpectationSet)
+        {
+            round.SelectExpectationSet(expectationSet!, proficiencyScale!, skillSources);
+            round.SetWeights(100 - opts.SkillsWeightPercent, opts.SkillsWeightPercent);
+        }
         // Round deadlines are compared to real UtcNow by the readiness resolver (short-deadline
         // warning), so default them comfortably in the future to keep the baseline warning-free.
         var managerDeadline = opts.ManagerDeadline ?? DateTime.UtcNow.AddDays(30);
@@ -145,7 +190,9 @@ internal static class EvaluationTestScenario
 
         await db.SaveChangesAsync(ct);
 
-        return new Result(tenantId, cycle.Id, round.Id, round.Version, scale.Id, template.Id, participantSpecs);
+        return new Result(
+            tenantId, cycle.Id, round.Id, round.Version, scale.Id, template.Id, participantSpecs,
+            expectationSet?.Id, proficiencyScale?.Id, skills.Select(s => s.Id).ToArray());
     }
 
     /// <summary>
@@ -179,16 +226,35 @@ internal static class EvaluationTestScenario
                 p, p.ApproverEmployeeId, p.ApproverName, planByEmployee.GetValueOrDefault(p.EmployeeId)))
             .ToArray();
 
+        SkillExpectationSet? expectationSet = null;
+        ProficiencyScale? proficiencyScale = null;
+        IReadOnlyCollection<Skill> referencedSkills = Array.Empty<Skill>();
+        if (seeded.ExpectationSetId is { } setId)
+        {
+            expectationSet = await db.SkillExpectationSets.Include(s => s.Items).SingleAsync(s => s.Id == setId, ct);
+            proficiencyScale = await db.ProficiencyScales.Include(s => s.Levels)
+                .SingleAsync(s => s.Id == expectationSet.ProficiencyScaleId, ct);
+            referencedSkills = await db.Skills.Where(s => seeded.SkillIds!.Contains(s.Id)).ToListAsync(ct);
+        }
+
         var freshRound = EvaluationRound.CreateDraft(
             tenantId, campaign, "Launched evaluation", "Fresh-insert launch",
             EvaluationRoundType.MidCycle, round.AssessmentModel);
         freshRound.SelectRatingScale(scale);
         freshRound.SelectTemplate(template);
+        if (expectationSet is not null)
+        {
+            var sources = referencedSkills
+                .Select(s => new EvaluationRoundSkillSource(s.Id, s.Name, "Technical"))
+                .ToArray();
+            freshRound.SelectExpectationSet(expectationSet, proficiencyScale!, sources);
+            freshRound.SetWeights(100 - (options?.SkillsWeightPercent ?? 30), options?.SkillsWeightPercent ?? 30);
+        }
         freshRound.SetDeadlines(
             round.AssessmentModel == EvaluationAssessmentModel.SelfAndManager ? round.SelfAssessmentDeadline : null,
             round.ManagerAssessmentDeadline!.Value,
             round.FinalizationDeadline!.Value);
-        var result = freshRound.Launch(campaign, scale, template, candidates, DateTime.UtcNow);
+        var result = freshRound.Launch(campaign, scale, template, expectationSet, proficiencyScale, referencedSkills, candidates, DateTime.UtcNow);
         db.EvaluationRounds.Add(freshRound);
         db.EvaluationAssignments.AddRange(result.Assignments);
         await db.SaveChangesAsync(ct);

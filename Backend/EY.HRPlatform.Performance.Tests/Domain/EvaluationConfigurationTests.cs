@@ -85,12 +85,14 @@ public class EvaluationConfigurationTests
     }
 
     [Fact]
-    public void Template_RejectsSkillsAndTextNotApplicable()
+    public void Template_AcceptsSkillsOncePerTypeButRejectsTextNotApplicable()
     {
         var template = EvaluationTemplate.CreateDraft(TenantId, "Annual review");
 
+        template.AddSection(new EvaluationTemplateSectionDraft(EvaluationSectionType.Skills, "Skills"));
+        Assert.Contains(template.Sections, section => section.Type == EvaluationSectionType.Skills);
         Assert.Throws<DomainRuleViolationException>(() => template.AddSection(
-            new EvaluationTemplateSectionDraft(EvaluationSectionType.Skills, "Skills")));
+            new EvaluationTemplateSectionDraft(EvaluationSectionType.Skills, "Skills again")));
 
         var custom = template.AddSection(
             new EvaluationTemplateSectionDraft(EvaluationSectionType.CustomQuestions, "Questions"));
