@@ -82,6 +82,7 @@ public static class AccessProfileTemplates
             new(PerformancePermissions.AuditView, PermissionScopes.Tenant),
             new(PerformancePermissions.EvaluationManage, PermissionScopes.Tenant),
             new(PerformancePermissions.EvaluationOperate, PermissionScopes.Tenant),
+            new(PerformancePermissions.SkillsManage, PermissionScopes.Tenant),
         ]);
 
     public static readonly SeededAccessProfileTemplate OrgAdmin = new(
@@ -124,6 +125,7 @@ public static class AccessProfileTemplates
             new(PerformancePermissions.RetentionManage, PermissionScopes.Tenant),
             new(PerformancePermissions.AuditView, PermissionScopes.Tenant),
             new(PerformancePermissions.ConfidentialIdentityView, PermissionScopes.Tenant),
+            new(PerformancePermissions.SkillsManage, PermissionScopes.Tenant),
         ]);
 
     public static IReadOnlyList<SeededAccessProfileTemplate> All => [Employee, Manager, Direction, HrAdmin, OrgAdmin];
