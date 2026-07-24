@@ -372,21 +372,25 @@ function CatalogueTab({
           }
         />
       ) : (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-5">
           {categories.map((category) => {
             const categorySkills = byCategory.get(category.id) ?? [];
             const blocked = categorySkills.some((s) => s.status === "Active");
             return (
-              <section key={category.id} className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">{category.name}</h3>
-                    <Life status={category.status} />
-                    <span className="text-xs text-muted-foreground">
-                      {category.activeSkillCount} active
+              <section key={category.id} className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+                  <div className="flex items-baseline gap-2">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                      {category.name}
+                    </h3>
+                    <span className="text-xs tabular-nums text-muted-foreground/70">
+                      {category.activeSkillCount}
                     </span>
+                    {category.status !== "Active" ? (
+                      <Life status={category.status} />
+                    ) : null}
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5">
                     <Button
                       variant="ghost"
                       size="sm"
@@ -410,39 +414,42 @@ function CatalogueTab({
                   </div>
                 </div>
                 {categorySkills.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
+                  <p className="px-1 text-sm text-muted-foreground">
                     No skills in this category yet.
                   </p>
                 ) : (
-                  <div className="grid gap-3 md:grid-cols-2">
+                  <div className="flex flex-col divide-y divide-border overflow-hidden rounded-xl border border-border">
                     {categorySkills.map((skill) => (
                       <div
                         key={skill.id}
-                        className="flex min-h-24 flex-col justify-between rounded-xl border border-border p-4"
+                        className="group flex items-center gap-3 px-3 py-2.5"
                       >
-                        <div>
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="font-medium">{skill.name}</p>
-                            <Life status={skill.status} inUse={skill.isInUse} />
-                          </div>
+                        <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                          <span className="shrink-0 font-medium">
+                            {skill.name}
+                          </span>
                           {skill.description ? (
-                            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                            <span className="min-w-0 truncate text-sm text-muted-foreground">
                               {skill.description}
-                            </p>
+                            </span>
                           ) : null}
                         </div>
-                        <div className="mt-3 flex gap-1">
+                        <Life status={skill.status} inUse={skill.isInUse} />
+                        <div className="flex items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon-sm"
+                            aria-label={`Edit ${skill.name}`}
                             disabled={skill.isInUse}
                             onClick={() => setEditSkill(skill)}
                           >
-                            <Pencil data-icon="inline-start" />
-                            Edit
+                            <Pencil />
                           </Button>
                           {skill.status === "Active" ? (
-                            <ArchiveAction
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Archive ${skill.name}`}
                               onClick={async () => {
                                 await api.post(
                                   performancePaths.skillArchive(skill.id),
@@ -451,7 +458,9 @@ function CatalogueTab({
                                 toast.success("Skill archived");
                                 await refetch();
                               }}
-                            />
+                            >
+                              <Archive />
+                            </Button>
                           ) : null}
                         </div>
                       </div>

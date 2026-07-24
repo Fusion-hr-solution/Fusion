@@ -61,7 +61,7 @@ export function EvaluationRoundWorkspacePage() {
   const launch = async () => { await api.post(performancePaths.evaluationRoundLaunch(id), {}, { headers: { "If-Match": `"${detail.round.version}"` } }); toast.success("Evaluation round launched"); await round.refetch(); await roster.refetch(); };
   return <PageContainer width="wide"><PageHeader eyebrow={<RoundState value={detail.round.operationalState} />} title={detail.round.name} description={detail.round.purpose ?? "Formal evaluation round"} actions={!launched && canOperate ? <Button disabled={!readiness.data?.canLaunch} onClick={launch}><Rocket data-icon="inline-start" />Launch round</Button> : undefined} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
-      <div className="flex min-w-0 flex-col gap-6"><Card><CardContent className="pt-6"><div className="grid gap-6 sm:grid-cols-3"><Metric label="Participants" value={launched ? detail.participantCount : readiness.data?.includedParticipantCount ?? "—"} /><Metric label="Assignments" value={launched ? detail.assignmentCount : (readiness.data?.managerAssignmentCount ?? 0) + (readiness.data?.selfAssignmentCount ?? 0)} /><Metric label="Manager deadline" value={formatDate(detail.round.managerAssessmentDeadline)} /></div></CardContent></Card>{launched && completion.data ? <CompletionBand value={completion.data} /> : null}
+      <div className="flex min-w-0 flex-col gap-5">{launched && completion.data ? <CompletionOverview value={completion.data} assignments={detail.assignmentCount} deadline={detail.round.managerAssessmentDeadline} /> : <Card><CardContent className="py-5"><div className="grid gap-6 sm:grid-cols-3"><Metric label="Participants" value={readiness.data?.includedParticipantCount ?? "—"} /><Metric label="Assignments" value={(readiness.data?.managerAssignmentCount ?? 0) + (readiness.data?.selfAssignmentCount ?? 0)} /><Metric label="Manager deadline" value={formatDate(detail.round.managerAssessmentDeadline)} /></div></CardContent></Card>}
         {!launched && canManage ? <RoundSetupPanel detail={detail} onUpdated={async () => { await round.refetch(); await readiness.refetch(); }} /> : null}
         {launched && canOperate ? <DeadlineExtensionPanel detail={detail} onUpdated={round.refetch} /> : null}
         <section><h2 className="mb-3 text-base font-semibold">{launched ? "Frozen evaluation design" : "Evaluation design preview"}</h2><div className="grid gap-4 md:grid-cols-2"><Card><CardContent className="pt-6"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rating scale</p><h3 className="mt-1 font-semibold">{detail.ratingScaleName ?? "Not selected"}</h3><div className="mt-4 flex flex-col gap-2">{detail.ratingScaleLevels.map(level => <div key={level.id} className="flex items-start gap-3"><span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">{level.value}</span><div><p className="text-sm font-medium">{level.label}</p><p className="text-xs text-muted-foreground">{level.description}</p></div></div>)}</div></CardContent></Card><Card><CardContent className="pt-6"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Template</p><h3 className="mt-1 font-semibold">{detail.templateName ?? "Not selected"}</h3><div className="mt-4 flex flex-col gap-3">{detail.templateSections.map(section => <div key={section.id}><p className="text-sm font-medium">{section.title}</p><p className="text-xs text-muted-foreground">{section.questions.length ? `${section.questions.length} question${section.questions.length === 1 ? "" : "s"}` : "Frozen objective context"}</p></div>)}</div></CardContent></Card>{detail.includesSkills ? <Card><CardContent className="pt-6"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Skills snapshot</p><h3 className="mt-1 font-semibold">{detail.skills.setName}</h3><p className="text-sm text-muted-foreground">{detail.skills.items.length} skills · {detail.skills.scaleName}</p><div className="mt-4 flex h-2 overflow-hidden rounded-full bg-muted"><div className="bg-primary" style={{ width: `${detail.skills.objectivesWeightPercent}%` }} /><div className="bg-foreground/40" style={{ width: `${detail.skills.skillsWeightPercent}%` }} /></div><div className="mt-4 flex flex-col gap-2">{detail.skills.items.map(item => <div key={item.id} className="flex items-center justify-between gap-3 text-sm"><span className="font-medium">{item.skillName}</span><span className="text-muted-foreground">{item.expectedLevelLabel ?? item.expectedLevelOrdinal}</span></div>)}</div></CardContent></Card> : null}</div></section>
@@ -72,19 +72,46 @@ export function EvaluationRoundWorkspacePage() {
   </PageContainer>;
 }
 
-function CompletionBand({ value }: { value: RoundCompletionDto }) {
+function CompletionOverview({ value, assignments, deadline }: { value: RoundCompletionDto; assignments: number; deadline: string | null }) {
   const total = Math.max(value.participantCount, 1);
   const finalizedTotal = value.finalized + value.acknowledged;
+  const pct = Math.round((finalizedTotal / total) * 100);
   const overdue = value.overdueSelf + value.overdueManager + value.overdueFinalization;
   // Manager-side lifecycle progression covers each participant's journey to completion.
-  const stages: Array<{ id: string; label: string; count: number; className: string }> = [
-    { id: "acknowledged", label: "Acknowledged", count: value.acknowledged, className: "bg-emerald-600 dark:bg-emerald-400" },
-    { id: "finalized", label: "Finalized", count: value.finalized, className: "bg-primary" },
-    { id: "managerSubmitted", label: "Manager submitted", count: value.managerSubmitted, className: "bg-amber-500 dark:bg-amber-400" },
-    { id: "managerInProgress", label: "In assessment", count: value.managerInProgress, className: "bg-sky-500/70 dark:bg-sky-400/60" },
-    { id: "notStarted", label: "Not started", count: value.managerNotStarted, className: "bg-muted-foreground/25" },
+  const stages: Array<{ id: string; label: string; count: number; bar: string; dot: string }> = [
+    { id: "notStarted", label: "Not started", count: value.managerNotStarted, bar: "bg-muted-foreground/25", dot: "bg-muted-foreground/40" },
+    { id: "managerInProgress", label: "In assessment", count: value.managerInProgress, bar: "bg-sky-500/70 dark:bg-sky-400/60", dot: "bg-sky-500 dark:bg-sky-400" },
+    { id: "managerSubmitted", label: "Manager submitted", count: value.managerSubmitted, bar: "bg-amber-500 dark:bg-amber-400", dot: "bg-amber-500 dark:bg-amber-400" },
+    { id: "finalized", label: "Finalized", count: value.finalized, bar: "bg-primary", dot: "bg-primary" },
+    { id: "acknowledged", label: "Acknowledged", count: value.acknowledged, bar: "bg-emerald-600 dark:bg-emerald-400", dot: "bg-emerald-600 dark:bg-emerald-400" },
   ];
-  return <Card><CardContent className="flex flex-col gap-4 pt-6"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Completion</p><p className="mt-1 text-3xl font-semibold tabular-nums">{finalizedTotal} / {value.participantCount}</p></div><div className="text-right text-sm"><p>{value.acknowledged} acknowledged</p>{overdue > 0 ? <p className="font-medium text-amber-700 dark:text-amber-300">{overdue} overdue</p> : <p className="text-muted-foreground">On track</p>}</div></div><div className="flex h-3 overflow-hidden rounded-full bg-muted">{stages.map(stage => stage.count > 0 ? <div key={stage.id} className={stage.className} style={{ width: `${(stage.count / total) * 100}%` }} title={`${stage.label}: ${stage.count}`} /> : null)}</div><div className="flex flex-wrap gap-x-4 gap-y-1">{stages.filter(s => s.count > 0).map(stage => <span key={stage.id} className="flex items-center gap-1.5 text-xs text-muted-foreground"><span aria-hidden className={`size-2 rounded-full ${stage.className}`} />{stage.label} {stage.count}</span>)}</div></CardContent></Card>;
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+        <div className="flex items-baseline gap-2.5">
+          <span className="text-3xl font-semibold leading-none tabular-nums">{finalizedTotal}<span className="text-xl text-muted-foreground">/{value.participantCount}</span></span>
+          <span className="text-sm text-muted-foreground">finalized · {pct}%</span>
+        </div>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <span>{assignments} assignments</span>
+          <span className="hidden sm:inline">Due {formatDate(deadline)}</span>
+          {overdue > 0 ? <span className="rounded-full bg-amber-500/15 px-2 py-0.5 font-semibold text-amber-700 dark:text-amber-300">{overdue} overdue</span> : <span className="text-emerald-700 dark:text-emerald-400">On track</span>}
+        </div>
+      </div>
+      <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
+        {stages.map(stage => stage.count > 0 ? <div key={stage.id} className={stage.bar} style={{ width: `${(stage.count / total) * 100}%` }} title={`${stage.label}: ${stage.count}`} /> : null)}
+      </div>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-5">
+        {stages.map(stage => (
+          <div key={stage.id} className="flex items-center gap-2">
+            <span aria-hidden className={`size-2 shrink-0 rounded-full ${stage.dot}`} />
+            <span className="text-lg font-semibold tabular-nums leading-none">{stage.count}</span>
+            <span className="truncate text-xs text-muted-foreground">{stage.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function RoundSetupPanel({ detail, onUpdated }: { detail: EvaluationRoundDetailDto; onUpdated: () => Promise<unknown> }) {
