@@ -20,7 +20,7 @@ import type {
   AssessmentWorkspaceDto,
   EvaluationWorkEntryDto,
   FinalizeEvaluationRequest,
-  MyEvaluationListItemDto,
+  MyEvaluationsPageDto,
   ReopenSelfAssessmentRequest,
   SaveAssessmentDraftRequest,
   TeamQueueDto,
@@ -62,7 +62,7 @@ export function MyEvaluationsPage() {
   const api = useMemo(() => createPlatformApiClient(), []);
   const { user, isLoading } = useAuth();
   const allowed = canAccessMyEvaluations(user);
-  const query = useApiQuery<MyEvaluationListItemDto[]>(
+  const query = useApiQuery<MyEvaluationsPageDto>(
     performanceQueryKeys.myAssessments(),
     (signal) => api.get(performancePaths.myAssessments(), { signal }),
     { enabled: allowed }
@@ -101,11 +101,11 @@ export function MyEvaluationsPage() {
   return (
     <PageContainer width="wide">
       <PageHeader title="My evaluations" />
-      {!query.data?.length ? (
+      {!query.data?.items.length ? (
         <PageEmpty icon={ClipboardPenLine} title="No evaluation work" />
       ) : (
         <div className="flex flex-col gap-3">
-          {query.data.map((item) => (
+          {query.data.items.map((item) => (
             <button
               key={item.roundId}
               type="button"
@@ -1138,7 +1138,7 @@ function ParticipantEditable({
     workspace.result?.overallSkillsRatingOrdinal ?? null
   );
   const [reopenReason, setReopenReason] = useState("");
-  const headers = { headers: { "If-Match": `"${workspace.version}"` } };
+  const headers = { headers: { "If-Match": `"${workspace.managerVersion}"` } };
   const save = useApiMutation<
     ParticipantWorkspaceDto,
     SaveAssessmentDraftRequest

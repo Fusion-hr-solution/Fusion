@@ -1574,6 +1574,12 @@ export interface MyEvaluationListItemDto {
   finalRatingOrdinal: number | null;
   finalRatingLabel: string | null;
 }
+export interface MyEvaluationsPageDto {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  items: MyEvaluationListItemDto[];
+}
 export interface EvaluationResultDto {
   overallObjectivesRatingOrdinal: number | null;
   overallObjectivesRatingLabel: string | null;
@@ -1627,12 +1633,19 @@ export interface AssessmentQuestionItemDto {
   isNotApplicable: boolean;
   notApplicableReason: string | null;
 }
+export interface AssessmentIncompleteItemDto {
+  kind: "Objective" | "Skill" | "Question";
+  id: string;
+  section: "Objectives" | "Skills" | "Questions";
+  label: string;
+}
 export interface AssessmentWorkspaceDto {
   assignmentId: string;
   managerAssignmentId: string | null;
   roundId: string;
   roundName: string;
   kind: "SelfAssessment" | "ManagerAssessment";
+  /** Assignment status, or the "AwaitingManager" projection on manager-only rounds pre-finalization. */
   status: string;
   editable: boolean;
   includesObjectives: boolean;
@@ -1646,6 +1659,10 @@ export interface AssessmentWorkspaceDto {
   skills: AssessmentSkillItemDto[];
   questions: AssessmentQuestionItemDto[];
   result: EvaluationResultDto | null;
+  /** Concurrency token for mutations on this assignment (If-Match). */
+  version: number;
+  /** Manager-assignment token for acknowledge; present only once finalized. */
+  managerAssignmentVersion: number | null;
 }
 export interface TeamQueueItemDto {
   participantEmployeeId: string;
@@ -1666,6 +1683,9 @@ export interface TeamQueueDto {
   roundId: string;
   roundName: string;
   assessmentModel: EvaluationAssessmentModel;
+  page: number;
+  pageSize: number;
+  totalCount: number;
   items: TeamQueueItemDto[];
 }
 export interface ComparisonObjectiveDto {
@@ -1739,7 +1759,10 @@ export interface ParticipantWorkspaceDto {
   skillsMeetsExpectation: number;
   skillsExceedsExpectation: number;
   result: EvaluationResultDto | null;
-  version: number;
+  /** Manager-assignment token for draft/submit/finalize (If-Match). */
+  managerVersion: number;
+  /** Self-assignment token for reopen (If-Match); null when no self assignment exists. */
+  selfVersion: number | null;
 }
 export interface RoundCompletionDto {
   roundId: string;
@@ -1841,6 +1864,7 @@ export const performancePaths = {
   teamEvaluationAssignments: () => "/performance/evaluations/team",
   // Skills configuration workspace
   skillsWorkspace: () => "/performance/skills-config/workspace",
+  provisionSkillDefaults: () => "/performance/skills-config/provision-defaults",
   skillsActiveSets: () => "/performance/skills-config/active-sets",
   skillCategories: () => "/performance/skills-config/categories",
   skillCategory: (id: string) => `/performance/skills-config/categories/${id}`,
@@ -2061,11 +2085,17 @@ export const performanceQueryKeys = {
   skillsActiveSets: () =>
     [...performanceQueryKeys.skillsConfiguration(), "active-sets"] as const,
   assessments: () => [...performanceQueryKeys.all(), "assessments"] as const,
-  myAssessments: () => [...performanceQueryKeys.assessments(), "mine"] as const,
+  myAssessments: (page = 1, pageSize = 20) =>
+    [...performanceQueryKeys.assessments(), "mine", { page, pageSize }] as const,
   myAssessmentWorkspace: (roundId: string) =>
     [...performanceQueryKeys.assessments(), "self", roundId] as const,
-  teamAssessmentQueue: (roundId: string) =>
-    [...performanceQueryKeys.assessments(), "team", roundId] as const,
+  teamAssessmentQueue: (roundId: string, page = 1, pageSize = 20) =>
+    [
+      ...performanceQueryKeys.assessments(),
+      "team",
+      roundId,
+      { page, pageSize },
+    ] as const,
   participantAssessmentWorkspace: (roundId: string, participantId: string) =>
     [
       ...performanceQueryKeys.assessments(),
