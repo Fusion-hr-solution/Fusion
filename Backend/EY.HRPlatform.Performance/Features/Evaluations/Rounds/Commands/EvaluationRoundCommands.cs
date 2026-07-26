@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using EY.HRPlatform.Performance.Domain.Entities;
+using EY.HRPlatform.Performance.Domain.Entities.Skills;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Exceptions;
 using EY.HRPlatform.Performance.Features.ConfigurationAudit;
@@ -41,6 +42,22 @@ public sealed record SetEvaluationRoundExclusionCommand(
 public sealed record CorrectEvaluationRoundReviewerCommand(
     ClaimsPrincipal Actor, Guid RoundId, Guid ParticipantEmployeeId,
     Guid ReviewerEmployeeId, string ReviewerName, string Reason, uint ExpectedVersion)
+    : ICommand<Result<EvaluationRoundDetailDto>>;
+
+public sealed record SelectEvaluationRoundExpectationSetCommand(
+    ClaimsPrincipal Actor, Guid RoundId, Guid ExpectationSetId, uint ExpectedVersion)
+    : ICommand<Result<EvaluationRoundDetailDto>>;
+
+public sealed record RemoveEvaluationRoundSkillItemCommand(
+    ClaimsPrincipal Actor, Guid RoundId, Guid DraftItemId, uint ExpectedVersion)
+    : ICommand<Result<EvaluationRoundDetailDto>>;
+
+public sealed record UpdateEvaluationRoundSkillExpectedLevelCommand(
+    ClaimsPrincipal Actor, Guid RoundId, Guid DraftItemId, int ExpectedLevelOrdinal, uint ExpectedVersion)
+    : ICommand<Result<EvaluationRoundDetailDto>>;
+
+public sealed record SetEvaluationRoundWeightsCommand(
+    ClaimsPrincipal Actor, Guid RoundId, int ObjectivesWeightPercent, int SkillsWeightPercent, uint ExpectedVersion)
     : ICommand<Result<EvaluationRoundDetailDto>>;
 
 public sealed record LaunchEvaluationRoundCommand(ClaimsPrincipal Actor, Guid RoundId, uint ExpectedVersion)
@@ -151,6 +168,74 @@ public sealed class CorrectEvaluationRoundReviewerCommandHandler(PerformanceDbCo
     }
 }
 
+public sealed class SelectEvaluationRoundExpectationSetCommandHandler(
+    PerformanceDbContext db, IPerformanceAccessPolicyService access)
+    : ICommandHandler<SelectEvaluationRoundExpectationSetCommand, Result<EvaluationRoundDetailDto>>
+{
+    public async Task<Result<EvaluationRoundDetailDto>> Handle(SelectEvaluationRoundExpectationSetCommand c, CancellationToken ct)
+    {
+        if (!access.CanManageEvaluations(c.Actor)) return EvaluationRoundErrors.Forbidden<EvaluationRoundDetailDto>();
+        var round = await EvaluationRoundLoader.LoadAsync(db, c.RoundId, ct);
+        if (round is null) return EvaluationRoundErrors.NotFound<EvaluationRoundDetailDto>(c.RoundId);
+        var set = await db.SkillExpectationSets.Include(x => x.Items).SingleOrDefaultAsync(x => x.Id == c.ExpectationSetId, ct);
+        if (set is null) return Result.Failure<EvaluationRoundDetailDto>(Error.NotFound("SkillExpectationSet", c.ExpectationSetId));
+        var scale = await db.ProficiencyScales.Include(x => x.Levels).SingleOrDefaultAsync(x => x.Id == set.ProficiencyScaleId, ct);
+        if (scale is null) return Result.Failure<EvaluationRoundDetailDto>(Error.NotFound("ProficiencyScale", set.ProficiencyScaleId));
+
+        var skillIds = set.Items.Select(item => item.SkillId).Distinct().ToArray();
+        var skillLookup = await Skills.Queries.SkillsConfigurationQuerySupport.BuildSkillLookupAsync(db, skillIds, ct);
+        var sources = skillLookup
+            .Select(entry => new EvaluationRoundSkillSource(entry.Key, entry.Value.Name, entry.Value.CategoryName))
+            .ToArray();
+
+        ConcurrencyGuard.Ensure(round.Version, c.ExpectedVersion, nameof(EvaluationRound), round.Id);
+        try { round.SelectExpectationSet(set, scale, sources); await db.SaveChangesAsync(ct); return EvaluationRoundMapper.ToDetail(round); }
+        catch (Exception ex) when (EvaluationRoundErrors.IsCorrectable(ex)) { return EvaluationRoundErrors.Invalid<EvaluationRoundDetailDto>(ex); }
+    }
+}
+
+public sealed class RemoveEvaluationRoundSkillItemCommandHandler(PerformanceDbContext db, IPerformanceAccessPolicyService access)
+    : ICommandHandler<RemoveEvaluationRoundSkillItemCommand, Result<EvaluationRoundDetailDto>>
+{
+    public async Task<Result<EvaluationRoundDetailDto>> Handle(RemoveEvaluationRoundSkillItemCommand c, CancellationToken ct)
+    {
+        if (!access.CanManageEvaluations(c.Actor)) return EvaluationRoundErrors.Forbidden<EvaluationRoundDetailDto>();
+        var round = await EvaluationRoundLoader.LoadAsync(db, c.RoundId, ct);
+        if (round is null) return EvaluationRoundErrors.NotFound<EvaluationRoundDetailDto>(c.RoundId);
+        ConcurrencyGuard.Ensure(round.Version, c.ExpectedVersion, nameof(EvaluationRound), round.Id);
+        try { round.RemoveDraftSkillItem(c.DraftItemId); await db.SaveChangesAsync(ct); return EvaluationRoundMapper.ToDetail(round); }
+        catch (Exception ex) when (EvaluationRoundErrors.IsCorrectable(ex)) { return EvaluationRoundErrors.Invalid<EvaluationRoundDetailDto>(ex); }
+    }
+}
+
+public sealed class UpdateEvaluationRoundSkillExpectedLevelCommandHandler(PerformanceDbContext db, IPerformanceAccessPolicyService access)
+    : ICommandHandler<UpdateEvaluationRoundSkillExpectedLevelCommand, Result<EvaluationRoundDetailDto>>
+{
+    public async Task<Result<EvaluationRoundDetailDto>> Handle(UpdateEvaluationRoundSkillExpectedLevelCommand c, CancellationToken ct)
+    {
+        if (!access.CanManageEvaluations(c.Actor)) return EvaluationRoundErrors.Forbidden<EvaluationRoundDetailDto>();
+        var round = await EvaluationRoundLoader.LoadAsync(db, c.RoundId, ct);
+        if (round is null) return EvaluationRoundErrors.NotFound<EvaluationRoundDetailDto>(c.RoundId);
+        ConcurrencyGuard.Ensure(round.Version, c.ExpectedVersion, nameof(EvaluationRound), round.Id);
+        try { round.UpdateDraftSkillExpectedLevel(c.DraftItemId, c.ExpectedLevelOrdinal); await db.SaveChangesAsync(ct); return EvaluationRoundMapper.ToDetail(round); }
+        catch (Exception ex) when (EvaluationRoundErrors.IsCorrectable(ex)) { return EvaluationRoundErrors.Invalid<EvaluationRoundDetailDto>(ex); }
+    }
+}
+
+public sealed class SetEvaluationRoundWeightsCommandHandler(PerformanceDbContext db, IPerformanceAccessPolicyService access)
+    : ICommandHandler<SetEvaluationRoundWeightsCommand, Result<EvaluationRoundDetailDto>>
+{
+    public async Task<Result<EvaluationRoundDetailDto>> Handle(SetEvaluationRoundWeightsCommand c, CancellationToken ct)
+    {
+        if (!access.CanManageEvaluations(c.Actor)) return EvaluationRoundErrors.Forbidden<EvaluationRoundDetailDto>();
+        var round = await EvaluationRoundLoader.LoadAsync(db, c.RoundId, ct);
+        if (round is null) return EvaluationRoundErrors.NotFound<EvaluationRoundDetailDto>(c.RoundId);
+        ConcurrencyGuard.Ensure(round.Version, c.ExpectedVersion, nameof(EvaluationRound), round.Id);
+        try { round.SetWeights(c.ObjectivesWeightPercent, c.SkillsWeightPercent); await db.SaveChangesAsync(ct); return EvaluationRoundMapper.ToDetail(round); }
+        catch (Exception ex) when (EvaluationRoundErrors.IsCorrectable(ex)) { return EvaluationRoundErrors.Invalid<EvaluationRoundDetailDto>(ex); }
+    }
+}
+
 public sealed class LaunchEvaluationRoundCommandHandler(
     PerformanceDbContext db, IPerformanceAccessPolicyService access, IEvaluationRoundReadinessResolver readiness,
     ITenantContext tenant, IConfigurationAuditWriter audit)
@@ -167,9 +252,33 @@ public sealed class LaunchEvaluationRoundCommandHandler(
         var resolved = await readiness.ResolveAsync(round, ct);
         if (!resolved.Dto.CanLaunch)
             return Result.Failure<EvaluationRoundLaunchDto>(Error.Conflict("EvaluationRound.NotReady", string.Join(" ", resolved.Dto.Blockers.Select(x => x.Message))));
+
+        SkillExpectationSet? expectationSet = null;
+        ProficiencyScale? proficiencyScale = null;
+        IReadOnlyCollection<Skill> referencedSkills = Array.Empty<Skill>();
+        if (round.IncludesSkills && round.SourceExpectationSetId is { } setId)
+        {
+            expectationSet = await db.SkillExpectationSets.Include(x => x.Items).SingleOrDefaultAsync(x => x.Id == setId, ct);
+            if (expectationSet is not null)
+            {
+                proficiencyScale = await db.ProficiencyScales.Include(x => x.Levels)
+                    .SingleOrDefaultAsync(x => x.Id == expectationSet.ProficiencyScaleId, ct);
+                var skillIds = round.DraftSkillItems.Select(item => item.SkillId).Distinct().ToArray();
+                referencedSkills = await db.Skills.Where(skill => skillIds.Contains(skill.Id)).ToListAsync(ct);
+            }
+        }
+
         try
         {
-            var result = round.Launch(resolved.Campaign, resolved.Scale!, resolved.Template!, resolved.Candidates, DateTime.UtcNow);
+            var result = round.Launch(
+                resolved.Campaign,
+                resolved.Scale!,
+                resolved.Template!,
+                expectationSet,
+                proficiencyScale,
+                referencedSkills,
+                resolved.Candidates,
+                DateTime.UtcNow);
             db.EvaluationAssignments.AddRange(result.Assignments);
             await audit.AppendTenantAsync(tenant.TenantId, c.Actor.GetUserId(), c.Actor.GetFullName(),
                 "EvaluationRoundLaunched", nameof(EvaluationRound), round.Id,
@@ -218,7 +327,10 @@ internal static class EvaluationRoundLoader
             .Include(x => x.ScaleSnapshot).ThenInclude(x => x!.Levels)
             .Include(x => x.TemplateSnapshot).ThenInclude(x => x!.Sections)
             .Include(x => x.TemplateSnapshot).ThenInclude(x => x!.Questions)
-            .Include(x => x.PolicySnapshot);
+            .Include(x => x.PolicySnapshot)
+            .Include(x => x.DraftSkillItems).Include(x => x.DraftProficiencyLevels)
+            .Include(x => x.SkillSnapshot).ThenInclude(x => x!.Levels)
+            .Include(x => x.SkillSnapshot).ThenInclude(x => x!.Items);
 
     public static Task<EvaluationRound?> LoadAsync(PerformanceDbContext db, Guid id, CancellationToken ct) =>
         Query(db).SingleOrDefaultAsync(x => x.Id == id, ct);

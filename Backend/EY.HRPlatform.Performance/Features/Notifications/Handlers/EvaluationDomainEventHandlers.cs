@@ -40,7 +40,9 @@ public sealed class EvaluationRoundLaunchedNotificationHandler(
                 e.CampaignId,
                 "EvaluationAssignment",
                 assignment.Id,
-                self ? $"/my-evaluations?assignment={assignment.Id}" : $"/team-evaluations?assignment={assignment.Id}",
+                self
+                    ? $"/my-evaluations/{e.RoundId}"
+                    : $"/team-evaluations/{e.RoundId}/{assignment.ParticipantEmployeeId}",
                 $"evaluation-launched:{assignment.Id}",
                 ct);
         }
@@ -56,6 +58,64 @@ public sealed class EvaluationRoundDeadlineExtendedActivityHandler(IActivityLog 
             new { e.CampaignId, e.DeadlineKind, e.PreviousDeadline, e.NewDeadline, e.Reason });
         await db.SaveChangesAsync(ct);
     }
+}
+
+// ─── Assessment workflow notifications (post-commit) ─────────────────────────
+
+public sealed class EvaluationSelfAssessmentSubmittedNotificationHandler(IPerformanceNotifier notifier)
+    : INotificationHandler<EvaluationSelfAssessmentSubmittedEvent>
+{
+    public Task Handle(EvaluationSelfAssessmentSubmittedEvent e, CancellationToken ct) =>
+        notifier.NotifyAsync(
+            e.ReviewerEmployeeId,
+            PerformanceNotificationType.EvaluationSelfAssessmentSubmitted,
+            "Self-assessment submitted",
+            $"{e.ParticipantName} submitted their self-assessment.",
+            null, "EvaluationAssignment", e.SelfAssignmentId,
+            $"/team-evaluations/{e.RoundId}/{e.ParticipantEmployeeId}",
+            $"evaluation-self-submitted:{e.SelfAssignmentId}", ct);
+}
+
+public sealed class EvaluationSelfAssessmentReopenedNotificationHandler(IPerformanceNotifier notifier)
+    : INotificationHandler<EvaluationSelfAssessmentReopenedEvent>
+{
+    public Task Handle(EvaluationSelfAssessmentReopenedEvent e, CancellationToken ct) =>
+        notifier.NotifyAsync(
+            e.ParticipantEmployeeId,
+            PerformanceNotificationType.EvaluationSelfAssessmentReopened,
+            "Self-assessment reopened",
+            $"Your self-assessment was reopened for revision. Reason: {e.Reason}",
+            null, "EvaluationAssignment", e.SelfAssignmentId,
+            $"/my-evaluations/{e.RoundId}",
+            $"evaluation-self-reopened:{e.SelfAssignmentId}:{e.OccurredOn.Ticks}", ct);
+}
+
+public sealed class EvaluationFinalizedNotificationHandler(IPerformanceNotifier notifier)
+    : INotificationHandler<EvaluationFinalizedEvent>
+{
+    public Task Handle(EvaluationFinalizedEvent e, CancellationToken ct) =>
+        notifier.NotifyAsync(
+            e.ParticipantEmployeeId,
+            PerformanceNotificationType.EvaluationFinalized,
+            "Your evaluation is finalized",
+            "Your evaluation is complete and ready for you to review and acknowledge.",
+            null, "EvaluationAssignment", e.ManagerAssignmentId,
+            $"/my-evaluations/{e.RoundId}",
+            $"evaluation-finalized:{e.ManagerAssignmentId}", ct);
+}
+
+public sealed class EvaluationAcknowledgedNotificationHandler(IPerformanceNotifier notifier)
+    : INotificationHandler<EvaluationAcknowledgedEvent>
+{
+    public Task Handle(EvaluationAcknowledgedEvent e, CancellationToken ct) =>
+        notifier.NotifyAsync(
+            e.ReviewerEmployeeId,
+            PerformanceNotificationType.EvaluationAcknowledged,
+            "Evaluation acknowledged",
+            $"{e.ParticipantName} acknowledged their finalized evaluation.",
+            null, "EvaluationAssignment", e.ManagerAssignmentId,
+            $"/team-evaluations/{e.RoundId}/{e.ParticipantEmployeeId}",
+            $"evaluation-acknowledged:{e.ManagerAssignmentId}", ct);
 }
 
 public sealed class EvaluationRoundDeadlineExtendedNotificationHandler(
@@ -82,7 +142,9 @@ public sealed class EvaluationRoundDeadlineExtendedNotificationHandler(
                 e.CampaignId,
                 "EvaluationRound",
                 e.RoundId,
-                self ? "/my-evaluations" : "/team-evaluations",
+                self
+                    ? $"/my-evaluations/{e.RoundId}"
+                    : $"/team-evaluations/{e.RoundId}/{assignment.ParticipantEmployeeId}",
                 $"evaluation-deadline-extended:{e.RoundId}:{e.DeadlineKind}:{e.NewDeadline.Ticks}:{assignment.AssigneeEmployeeId}",
                 ct);
         }

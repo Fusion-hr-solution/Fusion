@@ -72,6 +72,7 @@ export {
   canAccessTeamProgress,
   canViewPerformanceStrategy,
   canManageEvaluations,
+  canManageSkills,
   canOperateEvaluations,
   canAccessMyEvaluations,
   canAccessTeamEvaluations,

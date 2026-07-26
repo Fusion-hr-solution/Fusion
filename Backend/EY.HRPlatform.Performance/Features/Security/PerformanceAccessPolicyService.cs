@@ -49,6 +49,9 @@ public interface IPerformanceAccessPolicyService
     bool CanViewOwnEvaluations(ClaimsPrincipal user) => false;
     bool CanViewTeamEvaluations(ClaimsPrincipal user) => false;
 
+    // Skills catalogue configuration door — tenant-scoped, deny-by-default.
+    bool CanManageSkills(ClaimsPrincipal user) => false;
+
     // Platform configuration — gated by PlatformRole.PlatformAdmin only (D1)
     bool CanManagePlatformDefaults(ClaimsPrincipal user) => false;
 }
@@ -152,6 +155,11 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
 
     public bool CanViewTeamEvaluations(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.EvaluationTeamView);
+
+    // ─── Skills catalogue configuration ──────────────────────────────────────
+
+    public bool CanManageSkills(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.SkillsManage, PermissionScopes.Tenant);
 
     // ─── Platform performance configuration (D1: PlatformAdmin only) ─────────
 

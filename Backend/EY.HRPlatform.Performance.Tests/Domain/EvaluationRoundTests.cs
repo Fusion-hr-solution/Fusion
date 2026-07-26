@@ -83,7 +83,7 @@ public class EvaluationRoundTests
         var candidates = Candidates(campaign);
 
         Assert.Throws<DomainRuleViolationException>(() =>
-            round.Launch(campaign, scale, template, candidates, LaunchTime));
+            round.Launch(campaign, scale, template, null, null, [], candidates, LaunchTime));
 
         round.SelectRatingScale(scale);
         round.SelectTemplate(template);
@@ -91,7 +91,7 @@ public class EvaluationRoundTests
         round.ExcludeParticipant(campaign.Participants.Single(), "Not in this review scope");
 
         Assert.Throws<DomainRuleViolationException>(() =>
-            round.Launch(campaign, scale, template, candidates, LaunchTime));
+            round.Launch(campaign, scale, template, null, null, [], candidates, LaunchTime));
     }
 
     [Fact]
@@ -105,6 +105,9 @@ public class EvaluationRoundTests
             setup.Campaign,
             setup.Scale,
             setup.Template,
+            null,
+            null,
+            [],
             candidates,
             LaunchTime));
 
@@ -118,6 +121,9 @@ public class EvaluationRoundTests
             setup.Campaign,
             setup.Scale,
             setup.Template,
+            null,
+            null,
+            [],
             candidates,
             LaunchTime);
 
@@ -136,6 +142,9 @@ public class EvaluationRoundTests
             setup.Campaign,
             setup.Scale,
             setup.Template,
+            null,
+            null,
+            [],
             duplicateCandidates,
             LaunchTime));
 
@@ -157,6 +166,9 @@ public class EvaluationRoundTests
             setup.Campaign,
             setup.Scale,
             setup.Template,
+            null,
+            null,
+            [],
             Candidates(setup.Campaign),
             LaunchTime);
 
@@ -182,6 +194,9 @@ public class EvaluationRoundTests
             setup.Campaign,
             setup.Scale,
             setup.Template,
+            null,
+            null,
+            [],
             Candidates(setup.Campaign),
             LaunchTime.AddMinutes(1)));
     }
@@ -194,6 +209,9 @@ public class EvaluationRoundTests
             setup.Campaign,
             setup.Scale,
             setup.Template,
+            null,
+            null,
+            [],
             Candidates(setup.Campaign),
             LaunchTime);
         var originalPolicyDeadline = setup.Round.PolicySnapshot!.ManagerAssessmentDeadline;
@@ -236,6 +254,9 @@ public class EvaluationRoundTests
             setup.Campaign,
             setup.Scale,
             setup.Template,
+            null,
+            null,
+            [],
             Candidates(setup.Campaign),
             LaunchTime);
 

@@ -190,6 +190,8 @@ public sealed class EvaluationRoundPolicySnapshot : BaseEntity, ITenantEntity
     public DateTime? SelfAssessmentDeadline { get; private set; }
     public DateTime ManagerAssessmentDeadline { get; private set; }
     public DateTime FinalizationDeadline { get; private set; }
+    public int ObjectivesWeightPercent { get; private set; } = 100;
+    public int SkillsWeightPercent { get; private set; }
 
     internal static EvaluationRoundPolicySnapshot Capture(
         Guid tenantId,
@@ -197,7 +199,9 @@ public sealed class EvaluationRoundPolicySnapshot : BaseEntity, ITenantEntity
         EvaluationAssessmentModel model,
         DateTime? selfDeadline,
         DateTime managerDeadline,
-        DateTime finalizationDeadline) => new()
+        DateTime finalizationDeadline,
+        int objectivesWeightPercent,
+        int skillsWeightPercent) => new()
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
@@ -208,6 +212,8 @@ public sealed class EvaluationRoundPolicySnapshot : BaseEntity, ITenantEntity
                 : EvaluationVisibilityModel.ManagerImmediate,
             SelfAssessmentDeadline = selfDeadline,
             ManagerAssessmentDeadline = managerDeadline,
-            FinalizationDeadline = finalizationDeadline
+            FinalizationDeadline = finalizationDeadline,
+            ObjectivesWeightPercent = objectivesWeightPercent,
+            SkillsWeightPercent = skillsWeightPercent
         };
 }

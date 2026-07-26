@@ -31,6 +31,12 @@ public sealed class EvaluationRoundConfiguration : IEntityTypeConfiguration<Eval
         builder.Property(round => round.DraftTemplateName).HasMaxLength(EvaluationTemplate.NameMaxLength);
         builder.Property(round => round.DraftTemplatePurpose).HasMaxLength(EvaluationTemplate.PurposeMaxLength);
         builder.Property(round => round.DraftTemplateInstructions).HasMaxLength(EvaluationTemplate.InstructionsMaxLength);
+        builder.Property(round => round.SourceExpectationSetId);
+        builder.Property(round => round.DraftSkillSetName).HasMaxLength(Domain.Entities.Skills.SkillExpectationSet.NameMaxLength);
+        builder.Property(round => round.DraftSkillScaleName).HasMaxLength(Domain.Entities.Skills.ProficiencyScale.NameMaxLength);
+        builder.Property(round => round.DraftSkillScaleDescription).HasMaxLength(Domain.Entities.Skills.ProficiencyScale.DescriptionMaxLength);
+        builder.Property(round => round.ObjectivesWeightPercent).HasDefaultValue(100).IsRequired();
+        builder.Property(round => round.SkillsWeightPercent).HasDefaultValue(0).IsRequired();
 
         builder.HasOne<PerformanceCycle>()
             .WithMany()
@@ -48,8 +54,14 @@ public sealed class EvaluationRoundConfiguration : IEntityTypeConfiguration<Eval
             .WithOne()
             .HasForeignKey<EvaluationRoundPolicySnapshot>(snapshot => snapshot.RoundId)
             .OnDelete(DeleteBehavior.Cascade);
+        builder.HasOne(round => round.SkillSnapshot)
+            .WithOne()
+            .HasForeignKey<EvaluationRoundSkillSnapshot>(snapshot => snapshot.RoundId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         ConfigureCollection(builder, round => round.DraftScaleLevels, level => level.RoundId);
+        ConfigureCollection(builder, round => round.DraftSkillItems, item => item.RoundId);
+        ConfigureCollection(builder, round => round.DraftProficiencyLevels, level => level.RoundId);
         ConfigureCollection(builder, round => round.DraftTemplateSections, section => section.RoundId);
         ConfigureCollection(builder, round => round.DraftTemplateQuestions, question => question.RoundId);
         ConfigureCollection(builder, round => round.Exclusions, exclusion => exclusion.RoundId);
@@ -61,6 +73,8 @@ public sealed class EvaluationRoundConfiguration : IEntityTypeConfiguration<Eval
         foreach (var navigation in new[]
                  {
                      nameof(EvaluationRound.DraftScaleLevels),
+                     nameof(EvaluationRound.DraftSkillItems),
+                     nameof(EvaluationRound.DraftProficiencyLevels),
                      nameof(EvaluationRound.DraftTemplateSections),
                      nameof(EvaluationRound.DraftTemplateQuestions),
                      nameof(EvaluationRound.Exclusions),
@@ -78,6 +92,7 @@ public sealed class EvaluationRoundConfiguration : IEntityTypeConfiguration<Eval
         builder.HasIndex(round => new { round.TenantId, round.SourceRatingScaleId });
         builder.HasIndex(round => new { round.TenantId, round.SourceTemplateId });
         builder.Ignore(round => round.IncludesObjectives);
+        builder.Ignore(round => round.IncludesSkills);
         builder.Ignore(round => round.DomainEvents);
     }
 

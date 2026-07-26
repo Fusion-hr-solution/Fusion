@@ -1,4 +1,4 @@
-import { ClipboardCheck, ClipboardList, ClipboardPenLine, Compass, Gauge, LineChart, Megaphone, ScrollText, Settings2, SlidersHorizontal, Target, UserRoundCheck, UsersRound } from "lucide-react";
+import { BrainCircuit, ClipboardCheck, ClipboardList, ClipboardPenLine, Compass, Gauge, LineChart, Megaphone, ScrollText, Settings2, SlidersHorizontal, Target, UserRoundCheck, UsersRound } from "lucide-react";
 import type { ShellNavSection } from "@repo/ds/shell";
 import {
   canAccessMyObjectives,
@@ -8,6 +8,7 @@ import {
   canAccessMyEvaluations,
   canAccessTeamEvaluations,
   canManageEvaluations,
+  canManageSkills,
   canOperateEvaluations,
   canViewObjectivePlanningConfiguration,
   canViewPerformanceCampaigns,
@@ -208,6 +209,12 @@ export const PERFORMANCE_DOORS: readonly PerformanceDoor[] = [
     description: "Rating scales and evaluation templates.",
     group: "configuration",
     isVisible: canManageEvaluations,
+  },
+  {
+    section: { title: "Configuration", items: [{ label: "Skills", href: "/configuration/skills", icon: BrainCircuit }] },
+    description: "Manage skills, levels, and expectation sets.",
+    group: "configuration",
+    isVisible: canManageSkills,
   },
   {
     section: TENANT_CONFIGURATION_NAV,

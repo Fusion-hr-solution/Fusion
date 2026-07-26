@@ -58,29 +58,47 @@ public sealed class EvaluationDeadlineReminderJob(
             .ToHashSet(StringComparer.Ordinal);
         var notifications = new List<PerformanceNotification>();
 
+        void AddReminders(
+            EvaluationRound round, DateTime? deadline, string deadlineKind,
+            IEnumerable<EvaluationAssignment> eligible, string route)
+        {
+            if (!deadline.HasValue || deadline.Value > dueSoonAt) return;
+            var overdue = deadline.Value < now;
+            var type = overdue ? PerformanceNotificationType.EvaluationDeadlineOverdue : PerformanceNotificationType.EvaluationDeadlineDueSoon;
+            foreach (var assignment in eligible)
+            {
+                // Dedup key is (assignment, deadlineKind, window) so each deadline reminds once per window.
+                var key = $"evaluation-deadline:{round.Id}:{deadlineKind}:{type}:{deadline.Value.Ticks}:{assignment.Id}";
+                if (!existingKeys.Add(key)) continue;
+                notifications.Add(PerformanceNotification.Create(
+                    tenantId, assignment.AssigneeEmployeeId, type,
+                    overdue ? "Evaluation deadline overdue" : "Evaluation deadline approaching",
+                    $"{round.Name} ({deadlineKind.ToLowerInvariant()}) is due {deadline.Value:MMM d, yyyy}.",
+                    round.PerformanceCycleId, key, "EvaluationAssignment", assignment.Id, route));
+            }
+        }
+
         foreach (var round in rounds)
         {
-            var deadlines = new[]
-            {
-                (Kind: EvaluationAssignmentKind.SelfAssessment, Deadline: round.SelfAssessmentDeadline),
-                (Kind: EvaluationAssignmentKind.ManagerAssessment, Deadline: round.ManagerAssessmentDeadline)
-            };
-            foreach (var item in deadlines.Where(x => x.Deadline.HasValue && x.Deadline.Value <= dueSoonAt))
-            {
-                var overdue = item.Deadline!.Value < now;
-                var type = overdue ? PerformanceNotificationType.EvaluationDeadlineOverdue : PerformanceNotificationType.EvaluationDeadlineDueSoon;
-                foreach (var assignment in assignments.Where(x => x.RoundId == round.Id && x.Kind == item.Kind))
-                {
-                    var key = $"evaluation-deadline:{round.Id}:{item.Kind}:{type}:{item.Deadline.Value.Ticks}:{assignment.Id}";
-                    if (!existingKeys.Add(key)) continue;
-                    notifications.Add(PerformanceNotification.Create(
-                        tenantId, assignment.AssigneeEmployeeId, type,
-                        overdue ? "Evaluation deadline overdue" : "Evaluation deadline approaching",
-                        $"{round.Name} is due {item.Deadline.Value:MMM d, yyyy}.",
-                        round.PerformanceCycleId, key, "EvaluationAssignment", assignment.Id,
-                        item.Kind == EvaluationAssignmentKind.SelfAssessment ? "/my-evaluations" : "/team-evaluations"));
-                }
-            }
+            var forRound = assignments.Where(a => a.RoundId == round.Id).ToArray();
+
+            // Self: only while the participant's self-assessment is still open (never submitted/finalized).
+            AddReminders(round, round.SelfAssessmentDeadline, "Self",
+                forRound.Where(a => a.Kind == EvaluationAssignmentKind.SelfAssessment
+                    && a.Status is EvaluationAssignmentStatus.NotStarted or EvaluationAssignmentStatus.InProgress),
+                "/my-evaluations");
+
+            // Manager: only while the reviewer's assessment is still open.
+            AddReminders(round, round.ManagerAssessmentDeadline, "Manager",
+                forRound.Where(a => a.Kind == EvaluationAssignmentKind.ManagerAssessment
+                    && a.Status is EvaluationAssignmentStatus.NotStarted or EvaluationAssignmentStatus.InProgress),
+                "/team-evaluations");
+
+            // Finalization: the reviewer, while the evaluation is not yet finalized.
+            AddReminders(round, round.FinalizationDeadline, "Finalization",
+                forRound.Where(a => a.Kind == EvaluationAssignmentKind.ManagerAssessment
+                    && a.Status != EvaluationAssignmentStatus.Finalized),
+                "/team-evaluations");
         }
 
         if (notifications.Count == 0) return 0;

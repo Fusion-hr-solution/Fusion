@@ -1,10 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { AppBreadcrumb } from "@repo/ds/shell";
 import {
   PERFORMANCE_NAV_SECTIONS,
 } from "@/data/sidebar-nav";
+import { useBreadcrumbLabels } from "@/shell/breadcrumb-labels";
 
 const NAV_ITEMS = PERFORMANCE_NAV_SECTIONS.flatMap((section) => section.items);
 
@@ -12,6 +14,7 @@ const BREADCRUMB_LABELS = new Map([
   ["platform", "Platform administration"],
   ["configuration", "Configuration"],
   ["evaluation", "Evaluation setup"],
+  ["skills", "Skills"],
   ["planning", "Objective Planning"],
   ["performance", "Performance configuration"],
   ["campaigns", "Campaigns"],
@@ -21,19 +24,26 @@ const BREADCRUMB_LABELS = new Map([
   ["team-objectives", "Team objectives"],
   ["plan-approvals", "Plan approvals"],
   ["team-progress", "Team progress"],
+  ["my-evaluations", "My evaluations"],
+  ["team-evaluations", "Team evaluations"],
   ["strategy", "Strategy"],
 ]);
 
 export function PerformanceAppBreadcrumb() {
   const pathname = usePathname();
   const activePath = pathname.replace(/^\/performance/, "") || "/";
+  const dynamicLabels = useBreadcrumbLabels();
+  const overrides = useMemo(
+    () => new Map([...BREADCRUMB_LABELS, ...dynamicLabels]),
+    [dynamicLabels]
+  );
 
   return (
     <AppBreadcrumb
       appName="Performance"
       pathname={activePath}
       navItems={NAV_ITEMS}
-      overrides={BREADCRUMB_LABELS}
+      overrides={overrides}
     />
   );
 }

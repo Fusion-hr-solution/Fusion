@@ -20,6 +20,22 @@ public sealed record EvaluationRoundTemplateSectionDto(
     Guid Id, int Ordinal, string Type, string Title, string? Guidance,
     IReadOnlyList<EvaluationRoundTemplateQuestionDto> Questions);
 
+public sealed record EvaluationRoundProficiencyLevelDto(
+    Guid Id, int Ordinal, int Value, string Label, string? Description);
+
+public sealed record EvaluationRoundSkillItemDto(
+    Guid Id, Guid SkillId, string SkillName, string CategoryName,
+    int ExpectedLevelOrdinal, string? ExpectedLevelLabel);
+
+public sealed record EvaluationRoundSkillDto(
+    Guid? SourceExpectationSetId,
+    string? SetName,
+    string? ScaleName,
+    int ObjectivesWeightPercent,
+    int SkillsWeightPercent,
+    IReadOnlyList<EvaluationRoundProficiencyLevelDto> ProficiencyLevels,
+    IReadOnlyList<EvaluationRoundSkillItemDto> Items);
+
 public sealed record EvaluationRoundDetailDto(
     EvaluationRoundSummaryDto Round,
     Guid? SourceRatingScaleId,
@@ -33,7 +49,9 @@ public sealed record EvaluationRoundDetailDto(
     IReadOnlyList<EvaluationRoundExclusionDto> Exclusions,
     IReadOnlyList<EvaluationRoundReviewerCorrectionDto> ReviewerCorrections,
     int ParticipantCount,
-    int AssignmentCount);
+    int AssignmentCount,
+    bool IncludesSkills,
+    EvaluationRoundSkillDto Skills);
 
 public sealed record EvaluationRoundExclusionDto(Guid EmployeeId, string EmployeeName, string Reason);
 public sealed record EvaluationRoundReviewerCorrectionDto(
@@ -45,12 +63,17 @@ public sealed record EvaluationRoundAssignmentPreviewDto(
     Guid EmployeeId, string EmployeeName, Guid? ReviewerEmployeeId, string? ReviewerName,
     bool Included, bool HasEligibleObjectivePlan, string? OmissionReason);
 
+public sealed record EvaluationRoundReadinessSkillsDto(
+    bool IncludesSkills, bool SetSelected, string? SetName, int ItemCount,
+    int ObjectivesWeightPercent, int SkillsWeightPercent);
+
 public sealed record EvaluationRoundReadinessDto(
     Guid RoundId, bool CanLaunch, int CampaignParticipantCount, int IncludedParticipantCount,
     int OmittedParticipantCount, int ManagerAssignmentCount, int SelfAssignmentCount,
     IReadOnlyList<EvaluationReadinessIssueDto> Blockers,
     IReadOnlyList<EvaluationReadinessIssueDto> Warnings,
-    IReadOnlyList<EvaluationRoundAssignmentPreviewDto> AssignmentPreview);
+    IReadOnlyList<EvaluationRoundAssignmentPreviewDto> AssignmentPreview,
+    EvaluationRoundReadinessSkillsDto Skills);
 
 public sealed record EvaluationRoundLaunchDto(
     Guid RoundId, string Status, DateTime? LaunchedAt, int ParticipantCount,
@@ -107,6 +130,8 @@ public static class EvaluationRoundMapper
             ?? round.DraftScaleLevels.Select(l => new EvaluationRoundScaleLevelDto(
                 l.Id, l.Ordinal, l.Value, l.Label, l.Description, l.BehavioralGuidance)).ToArray();
 
+        var skills = BuildSkills(round);
+
         return new EvaluationRoundDetailDto(
             ToSummary(round, assignments, ready), round.SourceRatingScaleId,
             round.ScaleSnapshot?.Name ?? round.DraftRatingScaleName, levels,
@@ -118,6 +143,48 @@ public static class EvaluationRoundMapper
             round.ReviewerCorrections.Select(x => new EvaluationRoundReviewerCorrectionDto(
                 x.ParticipantEmployeeId, x.ReviewerEmployeeId, x.ReviewerName, x.Reason)).ToArray(),
             round.Participants.Count,
-            assignments?.Count ?? 0);
+            assignments?.Count ?? 0,
+            round.IncludesSkills || round.SkillSnapshot is not null,
+            skills);
+    }
+
+    // Skills draft copy (draft round) or frozen skill snapshot (launched round). Objective-only
+    // rounds carry the 100/0 default and empty collections, so pre-change launched rounds read clean.
+    private static EvaluationRoundSkillDto BuildSkills(EvaluationRound round)
+    {
+        if (round.SkillSnapshot is { } snapshot)
+        {
+            var labelByOrdinal = snapshot.Levels.ToDictionary(level => level.Ordinal, level => level.Label);
+            return new EvaluationRoundSkillDto(
+                snapshot.SourceExpectationSetId,
+                snapshot.SetName,
+                snapshot.ProficiencyScaleName,
+                round.ObjectivesWeightPercent,
+                round.SkillsWeightPercent,
+                snapshot.Levels.Select(level => new EvaluationRoundProficiencyLevelDto(
+                    level.Id, level.Ordinal, level.Value, level.Label, level.Description)).ToArray(),
+                snapshot.Items
+                    .OrderBy(item => item.ExpectedLevelOrdinal)
+                    .Select(item => new EvaluationRoundSkillItemDto(
+                        item.Id, item.SkillId, item.SkillName, item.CategoryName,
+                        item.ExpectedLevelOrdinal,
+                        labelByOrdinal.GetValueOrDefault(item.ExpectedLevelOrdinal))).ToArray());
+        }
+
+        var draftLabelByOrdinal = round.DraftProficiencyLevels.ToDictionary(level => level.Ordinal, level => level.Label);
+        return new EvaluationRoundSkillDto(
+            round.SourceExpectationSetId,
+            round.DraftSkillSetName,
+            round.DraftSkillScaleName,
+            round.ObjectivesWeightPercent,
+            round.SkillsWeightPercent,
+            round.DraftProficiencyLevels.Select(level => new EvaluationRoundProficiencyLevelDto(
+                level.Id, level.Ordinal, level.Value, level.Label, level.Description)).ToArray(),
+            round.DraftSkillItems
+                .OrderBy(item => item.ExpectedLevelOrdinal)
+                .Select(item => new EvaluationRoundSkillItemDto(
+                    item.Id, item.SkillId, item.SkillName, item.CategoryName,
+                    item.ExpectedLevelOrdinal,
+                    draftLabelByOrdinal.GetValueOrDefault(item.ExpectedLevelOrdinal))).ToArray());
     }
 }

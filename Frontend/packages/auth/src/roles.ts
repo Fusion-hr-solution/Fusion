@@ -65,6 +65,7 @@ const PERFORMANCE_PERMISSION = {
   evaluationOperate: "performance.evaluation.operate",
   evaluationSelfView: "performance.evaluation.self.view",
   evaluationTeamView: "performance.evaluation.team.view",
+  skillsManage: "performance.skills.manage",
 } as const;
 
 export function hasAnyRole(
@@ -467,6 +468,10 @@ export function canManageEvaluations(user: AuthUser | null): boolean {
   return hasCorePermission(user, PERFORMANCE_PERMISSION.evaluationManage, "Tenant");
 }
 
+export function canManageSkills(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.skillsManage, "Tenant");
+}
+
 export function canOperateEvaluations(user: AuthUser | null): boolean {
   return hasCorePermission(user, PERFORMANCE_PERMISSION.evaluationOperate, "Tenant");
 }
@@ -488,6 +493,7 @@ export function canAccessPerformance(user: AuthUser | null): boolean {
     canAccessTeamProgress(user) ||
     canManageTeamObjectives(user) ||
     canManageEvaluations(user) ||
+    canManageSkills(user) ||
     canOperateEvaluations(user) ||
     canAccessMyEvaluations(user) ||
     canAccessTeamEvaluations(user) ||
