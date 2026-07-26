@@ -1,10 +1,15 @@
-import { PageContainer, PageHeader, PageLoading } from "@repo/ds/shell";
+"use client";
 
+import { usePathname } from "next/navigation";
+import {
+  getCorePathname,
+  getRoutePageSkeleton,
+} from "@/shell/route-skeletons";
+
+// Route-group loading boundary: renders INSIDE CorePagesShell (frame persists)
+// and shows the TARGET route's dedicated skeleton — the same component the
+// page's own loading branch renders — so the transition reads as one skeleton.
 export default function PagesLoading() {
-  return (
-    <PageContainer width="wide" className="space-y-6">
-      <PageHeader title="Overview" description="Loading the next page." />
-      <PageLoading rows={6} label="Loading page..." />
-    </PageContainer>
-  );
+  const pathname = usePathname();
+  return <>{getRoutePageSkeleton(getCorePathname(pathname))}</>;
 }

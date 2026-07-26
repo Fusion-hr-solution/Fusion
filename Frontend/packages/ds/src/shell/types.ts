@@ -12,6 +12,11 @@ export interface ShellNavItem {
   badge?: string | number;
   disabled?: boolean;
   disabledReason?: string;
+  /**
+   * Access state not yet known: rendered visually identical to enabled but inert
+   * (no navigation), so items never flash enabled→locked while access resolves.
+   */
+  pending?: boolean;
   /** Only an exact path match marks this item active (default: prefix match). */
   exact?: boolean;
 }
@@ -49,4 +54,9 @@ export interface ModuleSidebarProps {
   /** User panel at the very bottom; receives the collapsed state. */
   userPanel?: (collapsed: boolean) => ReactNode;
   collapsible?: boolean;
+  /**
+   * Nav content not yet known (e.g. auth still hydrating): renders skeleton nav
+   * rows in the nav area while keeping the real brand header and footer.
+   */
+  pending?: boolean;
 }

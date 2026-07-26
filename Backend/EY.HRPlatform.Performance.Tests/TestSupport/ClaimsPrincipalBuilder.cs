@@ -26,6 +26,12 @@ public sealed class ClaimsPrincipalBuilder
         return this;
     }
 
+    public ClaimsPrincipalBuilder WithFullName(string fullName)
+    {
+        _claims.Add(new Claim("full_name", fullName));
+        return this;
+    }
+
     public ClaimsPrincipalBuilder WithPermission(string permissionKey, string scope)
     {
         _claims.Add(new Claim(CustomClaimTypes.CorePermission, CorePermissionClaimValue.Encode(permissionKey, scope)));

@@ -54,7 +54,7 @@ using (var scope = app.Services.CreateScope())
     
     // Seed roles always; demo data only when explicitly enabled
     var seedDemoData = builder.Configuration.GetValue<bool>("Database:AutoSeed");
-    await IdentitySeeder.SeedAsync(dbContext, roleManager, userManager, seedDemoData);
+    await IdentitySeeder.SeedAsync(dbContext, roleManager, userManager, seedDemoData, builder.Configuration);
 }
 
 // Middleware pipeline (ORDER MATTERS!)

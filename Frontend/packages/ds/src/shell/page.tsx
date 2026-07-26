@@ -39,7 +39,13 @@ export function PageHeader({ title, description, actions, eyebrow, className }: 
         {eyebrow ? <div className="mb-1">{eyebrow}</div> : null}
         <h1 className="text-[1.4rem] font-semibold leading-tight tracking-tight text-foreground">{title}</h1>
         {description ? (
-          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
+          typeof description === "string" ? (
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>
+          ) : (
+            // Element descriptions (e.g. skeleton placeholders) may contain
+            // block content, which is invalid inside <p>.
+            <div className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</div>
+          )
         ) : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}

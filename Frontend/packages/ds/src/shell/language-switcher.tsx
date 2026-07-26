@@ -54,7 +54,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
             onClick={() => switchTo(code)}
             aria-pressed={active}
             className={cn(
-              "rounded-[5px] px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition-colors",
+              "min-h-11 min-w-11 rounded-[5px] px-2 text-xs font-semibold uppercase tracking-wide transition-colors md:min-h-0 md:min-w-0 md:px-1.5 md:py-0.5 md:text-[10px]",
               active
                 ? "bg-foreground text-background"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"

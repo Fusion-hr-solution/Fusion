@@ -764,29 +764,9 @@ export function formatAttributeValue(value: unknown): string {
   return String(value);
 }
 
-export function DraftStructurePageSkeleton() {
-  return (
-    <PageContainer width="wide" className="space-y-6">
-      <Skeleton className="h-10 w-96" />
-      <Skeleton className="h-6 w-full max-w-2xl" />
-      <DraftStructureWorkbenchSkeleton />
-    </PageContainer>
-  );
-}
-
-export function DraftStructureWorkbenchSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-4 xl:grid-cols-[1.55fr_0.9fr]">
-        <div className="space-y-3">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-[36rem] w-full" />
-        </div>
-        <div className="space-y-3">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-[36rem] w-full" />
-        </div>
-      </div>
-    </div>
-  );
-}
+// Canonical definitions live in the route-skeleton registry so the route
+// loading boundary, guard hold, and workspaces all render the same ones.
+export {
+  DraftStructurePageSkeleton,
+  DraftStructureWorkbenchSkeleton,
+} from "@/shell/route-skeletons";

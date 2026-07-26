@@ -9,23 +9,21 @@ public class CycleDeadlineTests
 
     [Fact]
     public void NoDeadline_IsNone()
-        => Assert.Equal(CycleDeadline.None, CycleDeadline.Evaluate(null, PerformanceCycleStatus.Active, Now, 3));
+        => Assert.Equal(CycleDeadline.None, CycleDeadline.Evaluate(null, PerformanceCycleStatus.Launched, Now, 3));
 
-    [Theory]
-    [InlineData(PerformanceCycleStatus.Draft)]
-    [InlineData(PerformanceCycleStatus.Closed)]
-    public void NotInFlight_IsNone(PerformanceCycleStatus status)
-        => Assert.Equal(CycleDeadline.None, CycleDeadline.Evaluate(Now.AddDays(1), status, Now, 3));
+    [Fact]
+    public void Draft_IsNone()
+        => Assert.Equal(CycleDeadline.None, CycleDeadline.Evaluate(Now.AddDays(1), PerformanceCycleStatus.Draft, Now, 3));
 
     [Fact]
     public void DeadlineInPast_IsOverdue()
-        => Assert.Equal(CycleDeadline.Overdue, CycleDeadline.Evaluate(Now.AddDays(-1), PerformanceCycleStatus.Active, Now, 3));
+        => Assert.Equal(CycleDeadline.Overdue, CycleDeadline.Evaluate(Now.AddDays(-1), PerformanceCycleStatus.Launched, Now, 3));
 
     [Fact]
     public void DeadlineWithinWindow_IsDueSoon()
-        => Assert.Equal(CycleDeadline.DueSoon, CycleDeadline.Evaluate(Now.AddDays(2), PerformanceCycleStatus.AssignmentPreparation, Now, 3));
+        => Assert.Equal(CycleDeadline.DueSoon, CycleDeadline.Evaluate(Now.AddDays(2), PerformanceCycleStatus.Launched, Now, 3));
 
     [Fact]
     public void DeadlineBeyondWindow_IsUpcoming()
-        => Assert.Equal(CycleDeadline.Upcoming, CycleDeadline.Evaluate(Now.AddDays(10), PerformanceCycleStatus.Active, Now, 3));
+        => Assert.Equal(CycleDeadline.Upcoming, CycleDeadline.Evaluate(Now.AddDays(10), PerformanceCycleStatus.Launched, Now, 3));
 }

@@ -4,6 +4,11 @@
 .artifacts/
 
 # ========================
+# Runtime attachment storage (local blob root, never shared)
+# ========================
+Backend/EY.HRPlatform.Performance/App_Data/
+
+# ========================
 # Project docs (local only)
 # ========================
 EY_ACADEMY_MODULE.md
@@ -100,6 +105,7 @@ yarn-error.log*
 coverage/
 .nyc_output/
 test-results/
+.playwright-cli/
 .test-output/
 .vitest/
 .jest/
@@ -109,6 +115,7 @@ tmp/
 temp/
 .tmp/
 .worktrees/
+openspec/
 *.tsbuildinfo
 .eslintcache
 .sass-cache/

@@ -8,30 +8,52 @@ public interface IPerformanceAccessPolicyService
     bool CanViewCycles(ClaimsPrincipal user);
     bool CanManageCycles(ClaimsPrincipal user);
     bool CanOperateCycles(ClaimsPrincipal user);
-    bool CanViewObjectiveLibrary(ClaimsPrincipal user);
-    bool CanManageObjectiveLibrary(ClaimsPrincipal user);
 
     // Strategic objective access (D-05: deny-by-default; no position auto-grant)
     bool CanViewStrategicObjectives(ClaimsPrincipal user);
     bool CanManageStrategicObjectives(ClaimsPrincipal user);
     bool CanPublishStrategicObjectives(ClaimsPrincipal user);
 
-    // Collective objective access (D-15 collective level)
-    bool CanViewCollectiveObjectives(ClaimsPrincipal user);
-    bool CanApproveCollectiveObjectives(ClaimsPrincipal user);
+    // Team objectives (P1.3): capability permission only — frozen-baseline responsibility
+    // and ownership are enforced per operation in the handlers.
+    bool CanManageTeamObjectives(ClaimsPrincipal user) => false;
 
-    // Progress correction (D-13: manager must have explicit permission)
-    bool CanCorrectObjectiveProgress(ClaimsPrincipal user);
+    // Employee objective plans (P1.4): self-authoring only; ownership is enforced per operation.
+    bool CanManageOwnObjectives(ClaimsPrincipal user) => false;
 
-    // Feedback identity access (D-07/D-10: exceptional identity resolution)
-    bool CanAccessConfidentialFeedbackIdentity(ClaimsPrincipal user);
+    // Employee objective plan approval (P1.5): permission opens the door; frozen
+    // approver assignment is enforced per plan in the approval handlers.
+    bool CanApproveEmployeePlans(ClaimsPrincipal user) => false;
 
-    // Feedback threshold details (admin/HR only)
-    bool CanViewFeedbackThresholdDetails(ClaimsPrincipal user);
+    // Team progress visibility (progress record): permission opens the door; effective-reviewer
+    // scope is enforced per participant in the team-progress handlers.
+    bool CanViewTeamProgress(ClaimsPrincipal user) => false;
 
-    bool CanActOnOwnedException(ClaimsPrincipal user) => false;
-    bool CanOverrideException(ClaimsPrincipal user) => false;
-    bool CanViewExceptionAudit(ClaimsPrincipal user) => false;
+    // Check-ins (performance record step 2): the reviewer door opens on the conduct permission;
+    // per-participant effective-reviewer scope is enforced in the check-in access guard. The
+    // employee door is strictly self-scoped.
+    bool CanConductCheckIns(ClaimsPrincipal user) => false;
+    bool CanViewOwnCheckIns(ClaimsPrincipal user) => false;
+
+    // Cascade coverage read (P1.3): Direction door (strategic view) or HR door (cycle view/manage).
+    bool CanViewCascadeCoverage(ClaimsPrincipal user) => false;
+
+    // Objective planning configuration
+    bool CanViewObjectivePlanningConfiguration(ClaimsPrincipal user) => false;
+    bool CanManageObjectivePlanningConfiguration(ClaimsPrincipal user) => false;
+
+    // Evaluation configuration and rounds. Permissions open the relevant door; tenant ownership,
+    // participant ownership, and frozen effective-reviewer scope are enforced in handlers.
+    bool CanManageEvaluations(ClaimsPrincipal user) => false;
+    bool CanOperateEvaluations(ClaimsPrincipal user) => false;
+    bool CanViewOwnEvaluations(ClaimsPrincipal user) => false;
+    bool CanViewTeamEvaluations(ClaimsPrincipal user) => false;
+
+    // Skills catalogue configuration door — tenant-scoped, deny-by-default.
+    bool CanManageSkills(ClaimsPrincipal user) => false;
+
+    // Platform configuration — gated by PlatformRole.PlatformAdmin only (D1)
+    bool CanManagePlatformDefaults(ClaimsPrincipal user) => false;
 }
 
 /// <summary>
@@ -43,85 +65,104 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
     public bool CanViewCycles(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.CycleView, PermissionScopes.Tenant)
             || user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant);
 
     public bool CanManageCycles(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant);
 
     public bool CanOperateCycles(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
-
-    public bool CanViewObjectiveLibrary(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ObjectiveLibraryView, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ObjectiveLibraryManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
-
-    public bool CanManageObjectiveLibrary(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ObjectiveLibraryManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant);
 
     // ─── Strategic objective permissions (D-05) ───────────────────────────────
 
     public bool CanViewStrategicObjectives(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)
             || user.HasCorePermission(PerformancePermissions.StrategicManage, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant);
 
     public bool CanManageStrategicObjectives(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.StrategicManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.StrategicManage, PermissionScopes.Tenant);
 
     public bool CanPublishStrategicObjectives(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant);
 
-    // ─── Collective objective permissions (D-15) ──────────────────────────────
+    // ─── Team objectives + cascade coverage (P1.3) ────────────────────────────
 
-    public bool CanViewCollectiveObjectives(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ObjectiveTeamApprove, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+    /// <summary>
+    /// Any catalog scope of the team-objective permission qualifies: the effective scope is the
+    /// frozen approver baseline, which is stricter than permission scope. No PlatformAdmin bypass —
+    /// team objectives are owned business content, not administration.
+    /// </summary>
+    public bool CanManageTeamObjectives(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveTeamManage);
 
-    public bool CanApproveCollectiveObjectives(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ObjectiveTeamApprove, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+    /// <summary>
+    /// Employee objective authoring is strictly self-scoped. No Tenant/PlatformAdmin bypass:
+    /// resource ownership still comes from the frozen participant baseline in handlers.
+    /// </summary>
+    public bool CanManageOwnObjectives(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self);
 
-    // ─── Progress correction (D-13) ───────────────────────────────────────────
+    public bool CanApproveEmployeePlans(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveTeamApprove);
 
-    public bool CanCorrectObjectiveProgress(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ObjectiveProgressCorrect, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+    /// <summary>
+    /// Team progress is a distinct managerial job from plan approval, so it has its own permission.
+    /// The door opens on the permission; per-participant effective-reviewer scope is enforced in
+    /// the handlers (hide-don't-deny when the scope is empty).
+    /// </summary>
+    public bool CanViewTeamProgress(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveProgressTeamView);
 
-    // ─── Feedback identity access (D-07/D-10) ─────────────────────────────────
+    /// <summary>
+    /// The check-in reviewer door opens on the conduct permission at any catalog scope; the
+    /// effective-reviewer rule (stricter than permission scope) is enforced per participant in the
+    /// <c>CheckInAccessGuard</c>. No PlatformAdmin bypass — check-ins are owned business content.
+    /// </summary>
+    public bool CanConductCheckIns(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.CheckInConduct);
 
-    public bool CanAccessConfidentialFeedbackIdentity(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ConfidentialIdentityView, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+    /// <summary>
+    /// The employee check-in surface is strictly self-scoped. No Tenant/PlatformAdmin bypass:
+    /// record ownership still comes from the participant identity in handlers.
+    /// </summary>
+    public bool CanViewOwnCheckIns(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.CheckInSelfView, PermissionScopes.Self);
 
-    // ─── Feedback threshold details ───────────────────────────────────────────
+    public bool CanViewCascadeCoverage(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)
+            || CanViewCycles(user);
 
-    public bool CanViewFeedbackThresholdDetails(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+    // ─── Objective planning configuration ────────────────────────────────────
 
-    public bool CanActOnOwnedException(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ExceptionAction, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+    public bool CanViewObjectivePlanningConfiguration(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectivePolicyView, PermissionScopes.Tenant)
+            || user.HasCorePermission(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant);
 
-    public bool CanOverrideException(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ExceptionOverride, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+    public bool CanManageObjectivePlanningConfiguration(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant);
 
-    public bool CanViewExceptionAudit(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.ExceptionAuditView, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ExceptionOverride, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.ExceptionManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+    // ─── Evaluation configuration, operations, and work-entry doors ─────────
+
+    public bool CanManageEvaluations(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.EvaluationManage, PermissionScopes.Tenant);
+
+    public bool CanOperateEvaluations(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.EvaluationOperate, PermissionScopes.Tenant);
+
+    public bool CanViewOwnEvaluations(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.EvaluationSelfView, PermissionScopes.Self);
+
+    public bool CanViewTeamEvaluations(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.EvaluationTeamView);
+
+    // ─── Skills catalogue configuration ──────────────────────────────────────
+
+    public bool CanManageSkills(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.SkillsManage, PermissionScopes.Tenant);
+
+    // ─── Platform performance configuration (D1: PlatformAdmin only) ─────────
+
+    public bool CanManagePlatformDefaults(ClaimsPrincipal user)
+        => user.IsInRole(PlatformRole.PlatformAdmin);
 }

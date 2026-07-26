@@ -25,7 +25,7 @@ public static class CycleDeadline
     {
         // Deadlines only matter while a cycle is in flight.
         if (objectiveSettingDeadline is null
-            || status is PerformanceCycleStatus.Draft or PerformanceCycleStatus.Closed)
+            || status is PerformanceCycleStatus.Draft)
         {
             return None;
         }

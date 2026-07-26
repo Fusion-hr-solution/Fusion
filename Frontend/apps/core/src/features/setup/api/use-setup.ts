@@ -185,6 +185,11 @@ export function useSetupState(enabled = true) {
 
   return useApiQuery(coreSetupQueryKeys.state(), queryFn, {
     enabled: isAuthenticated && enabled,
+    // Nav-lock state: long-lived on purpose. Every setup transition writes the
+    // fresh state back via setQueryData/invalidate, and refreshSetupAccess
+    // force-refetches, so this never serves a stale lock decision after a
+    // mutation — it only stops the query re-running on every navigation.
+    staleTime: 5 * 60 * 1000,
   });
 }
 

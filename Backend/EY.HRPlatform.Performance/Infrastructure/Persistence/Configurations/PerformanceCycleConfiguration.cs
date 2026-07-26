@@ -18,7 +18,12 @@ public class PerformanceCycleConfiguration : IEntityTypeConfiguration<Performanc
 
         builder.Property(c => c.TenantId).IsRequired();
         builder.Property(c => c.Name).HasMaxLength(200).IsRequired();
+        builder.Property(c => c.Slug).HasMaxLength(240).IsRequired();
         builder.Property(c => c.Description).HasMaxLength(2000);
+        builder.Property(c => c.Purpose).HasMaxLength(2000);
+        builder.Property(c => c.ReferenceYear);
+        builder.Property(c => c.OwnerUserId);
+        builder.Property(c => c.OwnerName).HasMaxLength(256);
 
         builder.Property(c => c.Type)
             .HasConversion<string>()
@@ -27,20 +32,35 @@ public class PerformanceCycleConfiguration : IEntityTypeConfiguration<Performanc
 
         builder.Property(c => c.PeriodStart).IsRequired();
         builder.Property(c => c.PeriodEnd).IsRequired();
+        builder.Property(c => c.PlanningOpeningDate);
+        builder.Property(c => c.EmployeeSubmissionDeadline);
+        builder.Property(c => c.ManagerApprovalDeadline);
+        builder.Property(c => c.ExpectedPlanningLockDate);
+        builder.Property(c => c.PlanningLockedAt);
+        builder.Property(c => c.PlanningLockedByUserId);
+        builder.Property(c => c.PlanningLockedByName).HasMaxLength(256);
+
+        builder.OwnsOne(c => c.PlanningRulesSnapshot, snapshot =>
+        {
+            snapshot.Property(s => s.MaxObjectiveCount)
+                .HasColumnName("PlanningRulesMaxObjectiveCount");
+            snapshot.Property(s => s.AllowedWeightMenu)
+                .HasColumnName("PlanningRulesAllowedWeightMenu")
+                .HasMaxLength(500);
+            snapshot.Property(s => s.EnabledMeasurementMethods)
+                .HasColumnName("PlanningRulesEnabledMeasurementMethods")
+                .HasMaxLength(100);
+            snapshot.Property(s => s.SourceConfigurationVersionId)
+                .HasColumnName("PlanningRulesSourceConfigurationVersionId");
+            snapshot.Property(s => s.CapturedAt)
+                .HasColumnName("PlanningRulesCapturedAt");
+        });
 
         builder.Property(c => c.Status)
             .HasConversion<string>()
             .HasMaxLength(20)
             .IsRequired()
             .HasDefaultValue(PerformanceCycleStatus.Draft);
-
-        builder.Property(c => c.FeedbackVisibility)
-            .HasConversion<string>()
-            .HasMaxLength(40)
-            .IsRequired();
-        builder.Property(c => c.FrozenFeedbackVisibility)
-            .HasConversion<string>()
-            .HasMaxLength(40);
 
         builder.Property(c => c.CreatedBy).HasMaxLength(256);
         builder.Property(c => c.UpdatedBy).HasMaxLength(256);
@@ -55,7 +75,12 @@ public class PerformanceCycleConfiguration : IEntityTypeConfiguration<Performanc
             .HasForeignKey(p => p.CycleId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasMany(c => c.ExceptionOwners)
+        builder.HasMany(c => c.ApproverOverrides)
+            .WithOne()
+            .HasForeignKey(x => x.CycleId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasMany(c => c.StrategicObjectives)
             .WithOne()
             .HasForeignKey(x => x.CycleId)
             .OnDelete(DeleteBehavior.Cascade);
@@ -64,7 +89,9 @@ public class PerformanceCycleConfiguration : IEntityTypeConfiguration<Performanc
             .SetPropertyAccessMode(PropertyAccessMode.Field);
         builder.Metadata.FindNavigation(nameof(PerformanceCycle.Participants))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
-        builder.Metadata.FindNavigation(nameof(PerformanceCycle.ExceptionOwners))!
+        builder.Metadata.FindNavigation(nameof(PerformanceCycle.ApproverOverrides))!
+            .SetPropertyAccessMode(PropertyAccessMode.Field);
+        builder.Metadata.FindNavigation(nameof(PerformanceCycle.StrategicObjectives))!
             .SetPropertyAccessMode(PropertyAccessMode.Field);
 
         builder.HasIndex(c => c.TenantId)
@@ -74,10 +101,18 @@ public class PerformanceCycleConfiguration : IEntityTypeConfiguration<Performanc
             .IsUnique()
             .HasDatabaseName("IX_PerformanceCycles_TenantId_Name");
 
+        builder.HasIndex(c => new { c.TenantId, c.Slug })
+            .IsUnique()
+            .HasDatabaseName("IX_PerformanceCycles_TenantId_Slug");
+
         builder.HasIndex(c => new { c.TenantId, c.Status })
             .HasDatabaseName("IX_PerformanceCycles_TenantId_Status");
 
+        builder.HasIndex(c => new { c.TenantId, c.ReferenceYear })
+            .HasDatabaseName("IX_PerformanceCycles_TenantId_ReferenceYear");
+
         builder.Ignore(c => c.IsEditable);
+        builder.Ignore(c => c.IsPlanningLocked);
         builder.Ignore(c => c.DomainEvents);
     }
 }

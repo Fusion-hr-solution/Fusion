@@ -4,7 +4,6 @@ using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Features.Eligibility;
 using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
-using EY.HRPlatform.Identity.Features.Tenants.Services;
 using EY.HRPlatform.Identity.Features.WorkforceAccounts;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
@@ -118,7 +117,6 @@ public static class ServiceCollectionExtensions
 
         // 4. Register our custom services
         services.AddScoped<ITokenService, TokenService>();
-        services.AddScoped<ITenantService, TenantService>();
         services.AddScoped<IPlatformOrganizationService, PlatformOrganizationService>();
         services.AddScoped<IAccessProfileService, AccessProfileService>();
         services.AddScoped<IEligibilityDecisionService, EligibilityDecisionService>();
@@ -127,7 +125,22 @@ public static class ServiceCollectionExtensions
             configuration.GetSection("WorkforceInvitationEmail"));
         services.AddScoped<IWorkforceInvitationEmailSender, SmtpWorkforceInvitationEmailSender>();
 
-        // 5. Training service client (service-to-service)
+        // 5. Performance provisioning client (service-to-service, HMAC-signed internal endpoint)
+        var performanceBaseUrl = configuration["Services:PerformanceUrl"]?.Trim();
+        if (string.IsNullOrWhiteSpace(performanceBaseUrl))
+        {
+            services.AddSingleton<IPerformanceProvisioningClient, NoOpPerformanceProvisioningClient>();
+        }
+        else
+        {
+            services.AddHttpClient<IPerformanceProvisioningClient, HttpPerformanceProvisioningClient>(client =>
+            {
+                client.BaseAddress = new Uri(performanceBaseUrl.EndsWith('/') ? performanceBaseUrl : $"{performanceBaseUrl}/");
+                client.Timeout = TimeSpan.FromSeconds(10);
+            });
+        }
+
+        // 6. Training service client (service-to-service)
         // This integration is fire-and-forget only. When local config is blank,
         // keep Identity endpoints working and skip downstream provisioning.
         var trainingBaseUrl = configuration["Services:TrainingUrl"]?.Trim();

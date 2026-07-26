@@ -17,12 +17,12 @@ public sealed record UpdateCycleCommand(
     Guid CycleId,
     uint ExpectedVersion,
     string Name,
-    string? Description,
-    PerformanceCycleType Type,
-    DateTime PeriodStart,
-    DateTime PeriodEnd,
-    DateTime? ObjectiveSettingDeadline,
-    bool PopulationIncludeInactive) : ICommand<Result<PerformanceCycleDetailDto>>;
+    string? Purpose,
+    int ReferenceYear,
+    DateTime PlanningOpeningDate,
+    DateTime EmployeeSubmissionDeadline,
+    DateTime ManagerApprovalDeadline,
+    DateTime ExpectedPlanningLockDate) : ICommand<Result<PerformanceCycleDetailDto>>;
 
 public sealed class UpdateCycleCommandHandler(
     PerformanceDbContext dbContext,
@@ -36,6 +36,7 @@ public sealed class UpdateCycleCommandHandler(
     {
         var cycle = await dbContext.PerformanceCycles
             .Include(c => c.PopulationRules)
+            .Include(c => c.StrategicObjectives)
             .FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
 
         if (cycle is null)
@@ -54,17 +55,30 @@ public sealed class UpdateCycleCommandHandler(
 
         ConcurrencyGuard.Ensure(cycle.Version, request.ExpectedVersion, nameof(PerformanceCycle), cycle.Id);
 
-        cycle.UpdateDetails(
-            request.Name,
-            request.Type,
-            request.PeriodStart,
-            request.PeriodEnd,
-            request.ObjectiveSettingDeadline,
-            request.PopulationIncludeInactive,
-            request.Description);
+        try
+        {
+            cycle.UpdateDraftDetails(
+                request.Name,
+                request.ReferenceYear,
+                request.Purpose,
+                request.PlanningOpeningDate,
+                request.EmployeeSubmissionDeadline,
+                request.ManagerApprovalDeadline,
+                request.ExpectedPlanningLockDate);
+        }
+        catch (ArgumentException exception)
+        {
+            return Result.Failure<PerformanceCycleDetailDto>(
+                Error.Validation("Campaign.InvalidDraft", exception.Message));
+        }
 
         dbContext.PerformanceCycleAuditEvents.Add(PerformanceCycleAuditEvent.Create(
-            tenantContext.TenantId, cycle.Id, PerformanceCycleAuditAction.Updated, currentUser.UserId, currentUser.FullName));
+            tenantContext.TenantId,
+            cycle.Id,
+            PerformanceCycleAuditAction.Updated,
+            currentUser.UserId,
+            currentUser.FullName,
+            "Updated campaign identity or planning schedule."));
 
         await SaveWithConcurrencyAsync(cycle.Id, cancellationToken);
 
