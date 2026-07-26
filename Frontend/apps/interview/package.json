@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "copy-monaco": "node scripts/copy-monaco.mjs",
-    "predev": "node scripts/copy-monaco.mjs",
+    "copy-mediapipe": "node scripts/copy-mediapipe.mjs",
+    "predev": "node scripts/copy-monaco.mjs && node scripts/copy-mediapipe.mjs",
     "dev": "next dev --port 3001",
-    "prebuild": "node scripts/copy-monaco.mjs",
+    "prebuild": "node scripts/copy-monaco.mjs && node scripts/copy-mediapipe.mjs",
     "build": "next build",
     "start": "next start --port 3001",
     "lint": "next lint",

@@ -22,7 +22,10 @@ import {
 import { cn } from "@/lib/utils";
 import { CodeRunner } from "@/components/candidate/code-runner";
 import { FrontendSessionSandbox } from "@/components/candidate/frontend-runner";
+import { useProctoringChannel } from "@/hooks/use-proctoring-channel";
 import { useBrowserIntegrity } from "@/hooks/use-browser-integrity";
+import { useProctor } from "@/hooks/use-proctor";
+import { ProctorConsentGate } from "@/components/candidate/proctor-consent-gate";
 import {
   startCandidateAttempt,
   submitCandidateAttempt,
@@ -260,6 +263,8 @@ export default function CandidateStartPage() {
   const [preparing, setPreparing] = useState(false);
   const [prewarmPhase, setPrewarmPhase] = useState<string>("idle");
   const [prewarmKey, setPrewarmKey] = useState(0);
+  // Layer A webcam proctoring: the candidate must give recorded consent before the camera is touched.
+  const [proctorConsent, setProctorConsent] = useState(false);
   const startedRef = useRef(false);
   const frontendSlotRef = useRef<HTMLDivElement | null>(null);
   const startAttemptRef = useRef<() => Promise<void>>(async () => {});
@@ -279,15 +284,35 @@ export default function CandidateStartPage() {
     return orderQuestions(session.questions, seed, randomizeOrder);
   }, [session, randomizeOrder, token]);
 
-  // Layer B proctoring (browser integrity) — active only during an in-progress, unsubmitted
-  // attempt, and only for the layers the author enabled. Camera-free; the server re-gates by flag.
-  const proctoring = useBrowserIntegrity({
+  // Proctoring — all layers share ONE delivery channel (single heartbeat + POST stream), active
+  // only during an in-progress, unsubmitted attempt. The server re-gates every event by flag.
+  const proctoringActive = Boolean(session) && !submission;
+  const enableProctoring = session?.enableProctoring ?? validation?.enableProctoring ?? false;
+  const { channel: proctoringChannel, flushNow: flushProctoring } = useProctoringChannel({
     token,
     browserFingerprint: browserFingerprint || undefined,
-    active: Boolean(session) && !submission,
+    active: proctoringActive,
+  });
+  // Layer B (browser integrity) — camera-free.
+  useBrowserIntegrity(proctoringChannel, {
+    active: proctoringActive,
     activityMonitoring: session?.enableActivityMonitoring ?? false,
     restrictCopyPaste: session?.restrictCopyPaste ?? false,
   });
+  // Layer A (webcam) — consent-gated; warms on the pre-start screen, pauses while the sandbox boots.
+  const proctor = useProctor(proctoringChannel, {
+    enabled: enableProctoring,
+    consented: proctorConsent,
+    running: proctoringActive,
+    paused: preparing,
+  });
+  const cameraSettled =
+    proctor.status === "ready" ||
+    proctor.status === "running" ||
+    proctor.status === "denied" ||
+    proctor.status === "error" ||
+    proctor.status === "lost" ||
+    proctor.status === "unsupported";
 
   async function resolveBrowserFingerprint(): Promise<string> {
     if (browserFingerprint.trim().length > 0) {
@@ -551,7 +576,7 @@ export default function CandidateStartPage() {
 
     // Deliver the final proctoring batch before the attempt flips to Submitted (after which the
     // ingestion endpoint rejects it). Awaited so a rejection is retried rather than silently lost.
-    await proctoring.flushNow();
+    await flushProctoring();
 
     try {
       const resolvedFingerprint = await resolveBrowserFingerprint();
@@ -980,22 +1005,38 @@ export default function CandidateStartPage() {
                 />
               ) : (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => void handleStartOrResume()}
-                    disabled={starting}
-                    className="group mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-800 px-6 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-[18px] w-[18px]" />}
-                    {validation.canResume ? "Resume Assessment" : "Start Assessment"}
-                    {!starting ? <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /> : null}
-                  </button>
-                  <p className="mt-3 flex items-center justify-center gap-1.5 text-[12px] text-zinc-400">
-                    <Clock className="h-3.5 w-3.5" />
-                    {validation.timeLimitMinutes
-                      ? "Your timer starts the moment you begin."
-                      : "Take your time — there is no countdown."}
-                  </p>
+                  {/* Webcam consent + warm happen BEFORE Start so the model download is off the timer. */}
+                  {enableProctoring ? (
+                    <ProctorConsentGate
+                      status={proctor.status}
+                      stream={proctor.stream}
+                      consented={proctorConsent}
+                      onConsent={() => setProctorConsent(true)}
+                    />
+                  ) : null}
+
+                  {/* Start is withheld until the candidate consents; once consented it unlocks as soon
+                      as the camera settles (ready OR denied — a denied camera still lets them proceed). */}
+                  {!enableProctoring || proctorConsent ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void handleStartOrResume()}
+                        disabled={starting || (enableProctoring && !cameraSettled)}
+                        className="group mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-800 px-6 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-[18px] w-[18px]" />}
+                        {validation.canResume ? "Resume Assessment" : "Start Assessment"}
+                        {!starting ? <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /> : null}
+                      </button>
+                      <p className="mt-3 flex items-center justify-center gap-1.5 text-[12px] text-zinc-400">
+                        <Clock className="h-3.5 w-3.5" />
+                        {validation.timeLimitMinutes
+                          ? "Your timer starts the moment you begin."
+                          : "Take your time — there is no countdown."}
+                      </p>
+                    </>
+                  ) : null}
                 </>
               )}
             </div>
