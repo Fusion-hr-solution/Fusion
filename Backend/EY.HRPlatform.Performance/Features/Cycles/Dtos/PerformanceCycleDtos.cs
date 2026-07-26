@@ -5,6 +5,8 @@ using EY.HRPlatform.Performance.Domain.Enums;
 public sealed record PerformanceCycleSummaryDto(
     Guid Id,
     string Name,
+    string Slug,
+    int? ReferenceYear,
     string Type,
     string Status,
     DateTime PeriodStart,
@@ -12,46 +14,70 @@ public sealed record PerformanceCycleSummaryDto(
     DateTime? ObjectiveSettingDeadline,
     string DeadlineState,
     int ParticipantCount,
-    DateTime? PublishedAt,
-    DateTime? ActivatedAt,
+    DateTime? LaunchedAt,
     DateTime? ClosedAt,
+    DateTime? PlanningLockedAt,
+    string? PlanningLockedByName,
     DateTime CreatedAt,
     uint Version);
 
 public sealed record PopulationRuleDto(
     string RuleType,
     Guid RefId,
-    bool IncludeDescendants);
+    bool IncludeDescendants,
+    string? Reason);
 
 public sealed record PerformanceCycleDetailDto(
     Guid Id,
     string Name,
+    string Slug,
     string? Description,
+    string? Purpose,
+    int? ReferenceYear,
+    Guid? OwnerUserId,
+    string? OwnerName,
     string Type,
     string Status,
     DateTime PeriodStart,
     DateTime PeriodEnd,
     DateTime? ObjectiveSettingDeadline,
+    DateTime? PlanningOpeningDate,
+    DateTime? EmployeeSubmissionDeadline,
+    DateTime? ManagerApprovalDeadline,
+    DateTime? ExpectedPlanningLockDate,
     string DeadlineState,
     bool PopulationIncludeInactive,
     int ParticipantCount,
-    DateTime? PublishedAt,
-    DateTime? ActivatedAt,
+    DateTime? LaunchedAt,
     DateTime? ClosedAt,
+    DateTime? PlanningLockedAt,
+    string? PlanningLockedByName,
     DateTime CreatedAt,
     DateTime? UpdatedAt,
     uint Version,
     IReadOnlyList<PopulationRuleDto> PopulationRules,
-    CampaignGovernanceDto? Governance);
+    CampaignPlanningRulesSnapshotDto? PlanningRulesSnapshot,
+    IReadOnlyList<CampaignStrategicObjectiveDto> StrategicObjectives,
+    CampaignDraftCompletenessDto DraftCompleteness);
 
-public sealed record CampaignGovernanceDto(
-    Guid? RetentionPolicyVersionId,
-    bool RequireTeamObjectiveSuperiorApproval,
-    int MinimumAnonymousFeedbackResponses,
-    string FeedbackVisibility,
-    IReadOnlyList<Guid> ExceptionOwnerEmployeeIds,
-    bool IsFrozen,
-    DateTime? FrozenAt);
+public sealed record CampaignPlanningRulesSnapshotDto(
+    int MaxObjectiveCount,
+    string AllowedWeightMenu,
+    string EnabledMeasurementMethods,
+    Guid SourceConfigurationVersionId,
+    DateTime CapturedAt);
+
+public sealed record CampaignStrategicObjectiveDto(
+    Guid Id,
+    string Title,
+    string? Description,
+    string? ResponsibleFunctionLabel,
+    bool IsActive,
+    uint Version);
+
+public sealed record CampaignDraftCompletenessDto(
+    bool IsComplete,
+    IReadOnlyList<string> BlockingReasons);
 
 public sealed record CycleParticipantDto(
     Guid Id,
@@ -64,6 +90,10 @@ public sealed record CycleParticipantDto(
     string? JobTitle,
     Guid? ManagerId,
     string? ManagerName,
+    Guid ApproverEmployeeId,
+    string ApproverName,
+    bool IsApproverOverridden,
+    string? ApproverOverrideReason,
     DateTime SnapshotAt);
 
 public sealed record CyclePopulationMemberDto(
@@ -73,89 +103,60 @@ public sealed record CyclePopulationMemberDto(
     string? JobTitle,
     Guid? OrgUnitId,
     string? OrgUnitName,
+    Guid? ManagerId,
     string? ManagerName,
     bool IsActive);
 
-public sealed record CycleReadinessDto(
-    int ParticipantCount,
-    int ConfirmedObjectiveResponsibilityCount,
-    int MissingObjectiveResponsibilityCount,
-    IReadOnlyList<CampaignResponsibilityWorkItemDto> MissingParticipants,
-    CampaignWorkforceDeltaDto WorkforceDelta,
-    IReadOnlyList<OverloadedAssigneeWarningDto> OverloadedAssigneeWarnings);
-
-public sealed record OverloadedAssigneeWarningDto(
-    Guid AssigneeEmployeeId,
-    string AssigneeName,
-    int SubjectCount);
+public sealed record CampaignPopulationExclusionDto(
+    Guid EmployeeId,
+    string? FullName,
+    string Reason);
 
 /// <summary>
-/// The difference between the responsibilities curated during preparation and the current Core
-/// workforce, re-resolved at the launch gate. <see cref="BlocksLaunch"/> is true when an issue
-/// (e.g. an inactive/missing final approver) must be re-curated before the campaign can launch.
+/// Live preview of the resolved objective-planning population. When no org-unit scope is set,
+/// <see cref="IsAllActiveBaseline"/> is true only for legacy/no-scope drafts; launch readiness treats
+/// that as an incomplete population decision instead of silently selecting every active employee.
 /// </summary>
-public sealed record CampaignWorkforceDeltaDto(
-    int InactiveSubjectCount,
-    int InactiveOrMissingAssigneeCount,
-    bool BlocksLaunch,
-    IReadOnlyList<CampaignWorkforceDeltaItemDto> Items);
+public sealed record CyclePopulationPreviewDto(
+    bool IsAllActiveBaseline,
+    int TotalCount,
+    IReadOnlyList<CyclePopulationMemberDto> Members,
+    IReadOnlyList<CampaignPopulationExclusionDto> Exclusions);
 
-public sealed record CampaignWorkforceDeltaItemDto(
-    Guid SubjectEmployeeId,
-    string SubjectFullName,
-    Guid AssigneeEmployeeId,
-    string AssigneeName,
-    string Issue);
+// ----- Launch readiness (computed, not persisted) -----
 
-public sealed record CampaignResponsibilitySummaryDto(
-    Guid Id,
-    Guid AssigneeEmployeeId,
-    string AssigneeName,
-    string Duty,
-    string Source,
-    string RelationshipSource,
-    string? OverrideReason,
-    int Revision,
-    DateTime RecordedAt);
-
-public sealed record CuratedCampaignResponsibilityDto(
-    CampaignResponsibilitySummaryDto Responsibility,
-    uint CycleVersion);
-
-public sealed record CampaignResponsibilityWorkItemDto(
-    Guid ParticipantId,
-    Guid SubjectEmployeeId,
-    string SubjectFullName,
+public sealed record CampaignReadinessParticipantDto(
+    Guid EmployeeId,
+    string FullName,
     string? OrgUnitName,
     string? JobTitle,
-    string? CoreManagerName,
-    CampaignResponsibilitySummaryDto? CurrentResponsibility);
+    Guid? ApproverEmployeeId,
+    string? ApproverName,
+    bool IsApproverOverridden,
+    string? ApproverOverrideReason,
+    bool HasApprover);
 
-public sealed record CampaignResponsibilitiesDto(
-    int ParticipantCount,
-    int ConfirmedObjectiveResponsibilityCount,
-    int MissingObjectiveResponsibilityCount,
-    IReadOnlyList<CampaignResponsibilityWorkItemDto> Items);
+public sealed record CampaignReadinessConditionDto(
+    string Code,
+    string Severity,
+    string Message,
+    Guid? EmployeeId);
 
-public sealed record CurateCampaignResponsibilityRequest(
-    Guid SubjectEmployeeId,
-    Guid AssigneeEmployeeId,
-    string Duty,
-    string RelationshipSource,
-    string? OverrideReason);
+public sealed record CycleReadinessDto(
+    bool CanLaunch,
+    bool IsAllActiveBaseline,
+    int IncludedCount,
+    IReadOnlyList<CampaignReadinessParticipantDto> Participants,
+    IReadOnlyList<CampaignPopulationExclusionDto> Exclusions,
+    IReadOnlyList<CampaignReadinessConditionDto> BlockingConditions,
+    IReadOnlyList<CampaignReadinessConditionDto> InformationalConditions);
 
-public sealed record MarkCycleReadyToLaunchRequest(bool AcceptCurrentWorkforceDelta);
-
-public sealed record ConfigureCycleGovernanceRequest(
-    Guid RetentionPolicyVersionId,
-    bool RequireTeamObjectiveSuperiorApproval,
-    int MinimumAnonymousFeedbackResponses,
-    string FeedbackVisibility,
-    IReadOnlyList<Guid> ExceptionOwnerEmployeeIds);
-
-public sealed record CyclePopulationPreviewDto(
-    int TotalCount,
-    IReadOnlyList<CyclePopulationMemberDto> Members);
+public sealed record CampaignLaunchResultDto(
+    Guid Id,
+    string Status,
+    DateTime? LaunchedAt,
+    int FrozenParticipantCount,
+    uint Version);
 
 public sealed record CycleAuditEventDto(
     Guid Id,
@@ -170,43 +171,50 @@ public sealed record CycleAuditEventDto(
 public sealed record PopulationRuleInput(
     string RuleType,
     Guid RefId,
-    bool IncludeDescendants = false);
+    bool IncludeDescendants = false,
+    string? Reason = null);
 
 public sealed record CreatePerformanceCycleRequest(
     string Name,
     string? Description,
-    string Type,
-    DateTime PeriodStart,
-    DateTime PeriodEnd,
+    string? Type,
+    DateTime? PeriodStart,
+    DateTime? PeriodEnd,
     DateTime? ObjectiveSettingDeadline,
+    int? ReferenceYear,
+    string? Purpose,
+    DateTime? PlanningOpeningDate,
+    DateTime? EmployeeSubmissionDeadline,
+    DateTime? ManagerApprovalDeadline,
+    DateTime? ExpectedPlanningLockDate,
     bool PopulationIncludeInactive = false);
 
 public sealed record UpdatePerformanceCycleRequest(
     string Name,
     string? Description,
-    string Type,
-    DateTime PeriodStart,
-    DateTime PeriodEnd,
+    string? Type,
+    DateTime? PeriodStart,
+    DateTime? PeriodEnd,
     DateTime? ObjectiveSettingDeadline,
+    int? ReferenceYear,
+    string? Purpose,
+    DateTime? PlanningOpeningDate,
+    DateTime? EmployeeSubmissionDeadline,
+    DateTime? ManagerApprovalDeadline,
+    DateTime? ExpectedPlanningLockDate,
     bool PopulationIncludeInactive = false);
+
+public sealed record UpsertCampaignStrategicObjectiveRequest(
+    string Title,
+    string? Description,
+    string? ResponsibleFunctionLabel);
+
+public sealed record ToggleCampaignStrategicObjectiveRequest(bool IsActive);
 
 public sealed record SetCyclePopulationRequest(
     bool PopulationIncludeInactive,
     IReadOnlyList<PopulationRuleInput> Rules);
 
-public sealed record WorkforceDeltaDecision(
-    Guid SubjectEmployeeId,
-    Guid AssigneeEmployeeId,
-    bool Accept,
-    string? Reason);
-
-public sealed record ApplyWorkforceDeltaResultDto(int Applied, int Rejected);
-
-public sealed record ApplyWorkforceDeltaRequest(IReadOnlyList<WorkforceDeltaDecision> Decisions);
-
-public sealed record ForceCloseExceptionDecisionDto(
-    Guid ExceptionCaseId,
-    ExceptionResolutionAction Action,
+public sealed record OverrideParticipantApproverRequest(
+    Guid ApproverEmployeeId,
     string Reason);
-
-public sealed record ForceCloseCycleRequest(IReadOnlyList<ForceCloseExceptionDecisionDto> Decisions);

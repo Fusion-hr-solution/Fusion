@@ -19,9 +19,10 @@ public class PerformanceAccessPolicyServiceTests
         Assert.False(_policy.CanViewObjectivePlanningConfiguration(user));
         Assert.False(_policy.CanManageObjectivePlanningConfiguration(user));
         Assert.False(_policy.CanManagePlatformDefaults(user));
-        Assert.False(_policy.CanActOnOwnedException(user));
-        Assert.False(_policy.CanOverrideException(user));
-        Assert.False(_policy.CanViewExceptionAudit(user));
+        Assert.False(_policy.CanManageEvaluations(user));
+        Assert.False(_policy.CanOperateEvaluations(user));
+        Assert.False(_policy.CanViewOwnEvaluations(user));
+        Assert.False(_policy.CanViewTeamEvaluations(user));
     }
 
     [Fact]
@@ -60,7 +61,46 @@ public class PerformanceAccessPolicyServiceTests
     }
 
     [Fact]
-    public void ObjectivePolicyManageGrant_AllowsPlanningConfigurationManageAndView()
+    public void PlatformAdmin_IsDeniedTenantOperations_ButAllowedPlatformDefaults()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithRole(PlatformRole.PlatformAdmin)
+            .Build();
+
+        Assert.False(_policy.CanViewCycles(user));
+        Assert.False(_policy.CanManageCycles(user));
+        Assert.False(_policy.CanOperateCycles(user));
+
+        Assert.False(_policy.CanViewObjectivePlanningConfiguration(user));
+        Assert.False(_policy.CanManageObjectivePlanningConfiguration(user));
+        Assert.True(_policy.CanManagePlatformDefaults(user));
+    }
+
+    // ─── P1.1 configuration checks ───────────────────────────────────────────
+
+    [Fact]
+    public void Anonymous_IsDeniedConfigurationChecks()
+    {
+        var user = ClaimsPrincipalBuilder.Anonymous();
+
+        Assert.False(_policy.CanViewObjectivePlanningConfiguration(user));
+        Assert.False(_policy.CanManageObjectivePlanningConfiguration(user));
+        Assert.False(_policy.CanManagePlatformDefaults(user));
+    }
+
+    [Fact]
+    public void ObjectivePlanningConfigurationViewGrant_AllowsViewOnly()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.ObjectivePolicyView, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.True(_policy.CanViewObjectivePlanningConfiguration(user));
+        Assert.False(_policy.CanManageObjectivePlanningConfiguration(user));
+    }
+
+    [Fact]
+    public void ObjectivePlanningConfigurationManageGrant_AllowsViewAndManage()
     {
         var user = new ClaimsPrincipalBuilder()
             .WithPermission(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant)
@@ -71,30 +111,113 @@ public class PerformanceAccessPolicyServiceTests
     }
 
     [Fact]
-    public void PlatformAdmin_IsAllowedEverything()
+    public void PlatformAdminRole_AllowsPlatformConfigurationOnly_NotTenantConfigurationChecks()
     {
         var user = new ClaimsPrincipalBuilder()
             .WithRole(PlatformRole.PlatformAdmin)
             .Build();
 
-        Assert.True(_policy.CanViewCycles(user));
-        Assert.True(_policy.CanManageCycles(user));
-        Assert.True(_policy.CanOperateCycles(user));
         Assert.True(_policy.CanManagePlatformDefaults(user));
-        Assert.True(_policy.CanActOnOwnedException(user));
-        Assert.True(_policy.CanOverrideException(user));
-        Assert.True(_policy.CanViewExceptionAudit(user));
+        // PlatformAdmin does not implicitly get tenant-scoped configuration — deny-by-default
+        Assert.False(_policy.CanViewObjectivePlanningConfiguration(user));
+        Assert.False(_policy.CanManageObjectivePlanningConfiguration(user));
     }
 
     [Fact]
-    public void ExceptionActionGrant_AllowsOwnerActionOnly()
+    public void TenantConfigurationManage_DoesNotGrantPlatformConfiguration()
     {
         var user = new ClaimsPrincipalBuilder()
-            .WithPermission(PerformancePermissions.ExceptionAction, PermissionScopes.Tenant)
+            .WithPermission(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant)
             .Build();
 
-        Assert.True(_policy.CanActOnOwnedException(user));
-        Assert.False(_policy.CanOverrideException(user));
-        Assert.False(_policy.CanViewExceptionAudit(user));
+        Assert.False(_policy.CanManagePlatformDefaults(user));
+    }
+
+    // ─── P1.3 team objectives + cascade coverage ─────────────────────────────
+
+    [Fact]
+    public void Anonymous_IsDeniedTeamObjectiveAndCoverageChecks()
+    {
+        var user = ClaimsPrincipalBuilder.Anonymous();
+
+        Assert.False(_policy.CanManageTeamObjectives(user));
+        Assert.False(_policy.CanViewCascadeCoverage(user));
+    }
+
+    [Fact]
+    public void TeamObjectiveManageGrant_AnyCatalogScope_AllowsManageOnly()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.DirectReports)
+            .Build();
+
+        Assert.True(_policy.CanManageTeamObjectives(user));
+        Assert.False(_policy.CanViewCascadeCoverage(user));
+        Assert.False(_policy.CanViewCycles(user));
+    }
+
+    [Fact]
+    public void PlatformAdmin_GetsNoTeamObjectiveAuthoringBypass()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithRole(PlatformRole.PlatformAdmin)
+            .Build();
+
+        Assert.False(_policy.CanManageTeamObjectives(user));
+    }
+
+    [Fact]
+    public void StrategicViewGrant_AllowsCoverageWithoutCampaignAdministration()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.True(_policy.CanViewCascadeCoverage(user));
+        Assert.False(_policy.CanManageTeamObjectives(user));
+        Assert.False(_policy.CanViewCycles(user));
+        Assert.False(_policy.CanManageCycles(user));
+    }
+
+    [Fact]
+    public void CycleViewGrant_AllowsCoverage()
+    {
+        var user = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.CycleView, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.True(_policy.CanViewCascadeCoverage(user));
+    }
+
+    [Fact]
+    public void EvaluationManageAndOperate_AreSeparateTenantGrants()
+    {
+        var manager = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.EvaluationManage, PermissionScopes.Tenant)
+            .Build();
+        var operatorUser = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.EvaluationOperate, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.True(_policy.CanManageEvaluations(manager));
+        Assert.False(_policy.CanOperateEvaluations(manager));
+        Assert.False(_policy.CanManageEvaluations(operatorUser));
+        Assert.True(_policy.CanOperateEvaluations(operatorUser));
+    }
+
+    [Fact]
+    public void EvaluationWorkEntryDoors_RequireTheirOwnScopedGrants()
+    {
+        var employee = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.EvaluationSelfView, PermissionScopes.Self)
+            .Build();
+        var reviewer = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.EvaluationTeamView, PermissionScopes.DirectReports)
+            .Build();
+
+        Assert.True(_policy.CanViewOwnEvaluations(employee));
+        Assert.False(_policy.CanViewTeamEvaluations(employee));
+        Assert.False(_policy.CanViewOwnEvaluations(reviewer));
+        Assert.True(_policy.CanViewTeamEvaluations(reviewer));
     }
 }

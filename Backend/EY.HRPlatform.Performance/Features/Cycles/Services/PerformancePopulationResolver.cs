@@ -11,13 +11,17 @@ namespace EY.HRPlatform.Performance.Features.Cycles.Services;
 /// </summary>
 public interface IPerformancePopulationResolver
 {
-    Task<IReadOnlyList<CoreEmployeeSummary>> ResolveAsync(PerformanceCycle cycle, CancellationToken cancellationToken);
+    Task<IReadOnlyList<CoreEmployeeSummary>> ResolveAsync(
+        PerformanceCycle cycle,
+        DateTime? asOf,
+        CancellationToken cancellationToken);
 }
 
 public sealed class PerformancePopulationResolver(ICoreWorkforceClient workforceClient) : IPerformancePopulationResolver
 {
     public async Task<IReadOnlyList<CoreEmployeeSummary>> ResolveAsync(
         PerformanceCycle cycle,
+        DateTime? asOf,
         CancellationToken cancellationToken)
     {
         var orgUnitWithDescendants = cycle.PopulationRules
@@ -53,22 +57,42 @@ public sealed class PerformancePopulationResolver(ICoreWorkforceClient workforce
             }
         }
 
+        var hasPositiveScope =
+            orgUnitWithDescendants.Count > 0 ||
+            orgUnitDirectOnly.Count > 0 ||
+            includeEmployeeIds.Count > 0;
+
+        // No implicit all-workforce baseline. HR must choose a positive scope before
+        // readiness/launch can materialise participants.
+        if (!hasPositiveScope)
+        {
+            return [];
+        }
+
         if (orgUnitWithDescendants.Count > 0)
         {
-            Merge(await workforceClient.GetEmployeesByScopeAsync(
-                orgUnitWithDescendants, includeDescendants: true, cycle.PopulationIncludeInactive, cancellationToken));
+            Merge(asOf.HasValue
+                ? await workforceClient.GetEmployeesByScopeAsOfAsync(
+                    asOf.Value, orgUnitWithDescendants, includeDescendants: true, cycle.PopulationIncludeInactive, cancellationToken)
+                : await workforceClient.GetEmployeesByScopeAsync(
+                    orgUnitWithDescendants, includeDescendants: true, cycle.PopulationIncludeInactive, cancellationToken));
         }
 
         if (orgUnitDirectOnly.Count > 0)
         {
-            Merge(await workforceClient.GetEmployeesByScopeAsync(
-                orgUnitDirectOnly, includeDescendants: false, cycle.PopulationIncludeInactive, cancellationToken));
+            Merge(asOf.HasValue
+                ? await workforceClient.GetEmployeesByScopeAsOfAsync(
+                    asOf.Value, orgUnitDirectOnly, includeDescendants: false, cycle.PopulationIncludeInactive, cancellationToken)
+                : await workforceClient.GetEmployeesByScopeAsync(
+                    orgUnitDirectOnly, includeDescendants: false, cycle.PopulationIncludeInactive, cancellationToken));
         }
 
         // Explicit includes are intentional and added regardless of status filter.
         if (includeEmployeeIds.Count > 0)
         {
-            Merge(await workforceClient.ResolveEmployeesAsync(includeEmployeeIds, cancellationToken));
+            Merge(asOf.HasValue
+                ? await workforceClient.ResolveEmployeesAsOfAsync(asOf.Value, includeEmployeeIds, cancellationToken)
+                : await workforceClient.ResolveEmployeesAsync(includeEmployeeIds, cancellationToken));
         }
 
         foreach (var excludedId in excludeEmployeeIds)

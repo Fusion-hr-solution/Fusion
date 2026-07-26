@@ -1,10 +1,6 @@
-using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.Cycles.Commands;
 using EY.HRPlatform.Performance.Features.Cycles.Dtos;
 using EY.HRPlatform.Performance.Features.Cycles.Queries;
-using EY.HRPlatform.Performance.Features.Exceptions.Commands;
-using EY.HRPlatform.Performance.Features.Exceptions.Dtos;
-using EY.HRPlatform.Performance.Features.Exceptions.Queries;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Models.Responses;
 using EY.HRPlatform.SharedKernel.Api;
@@ -52,6 +48,18 @@ public class PerformanceCyclesController(
         return ToDetailResponse(result);
     }
 
+    [HttpGet("by-slug/{slug}")]
+    public async Task<IActionResult> GetBySlug(string slug, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewCycles(User))
+        {
+            return Forbid();
+        }
+
+        var result = await sender.Send(new GetCycleBySlugQuery(slug), cancellationToken);
+        return ToDetailResponse(result);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(
         [FromBody] CreatePerformanceCycleRequest request,
@@ -62,19 +70,29 @@ public class PerformanceCyclesController(
             return Forbid();
         }
 
-        if (!Enum.TryParse<PerformanceCycleType>(request.Type, ignoreCase: true, out var type))
+        if (!TryGetDraftSchedule(
+                request.ReferenceYear,
+                request.PeriodStart,
+                request.PeriodEnd,
+                request.ObjectiveSettingDeadline,
+                request.PlanningOpeningDate,
+                request.EmployeeSubmissionDeadline,
+                request.ManagerApprovalDeadline,
+                request.ExpectedPlanningLockDate,
+                out var schedule,
+                out var validationFailure))
         {
-            return BadRequest(ApiResponse.Failure($"Unknown cycle type '{request.Type}'."));
+            return validationFailure;
         }
 
         var result = await sender.Send(new CreateCycleCommand(
             request.Name,
-            request.Description,
-            type,
-            request.PeriodStart,
-            request.PeriodEnd,
-            request.ObjectiveSettingDeadline,
-            request.PopulationIncludeInactive), cancellationToken);
+            request.Purpose ?? request.Description,
+            schedule.ReferenceYear,
+            schedule.PlanningOpeningDate,
+            schedule.EmployeeSubmissionDeadline,
+            schedule.ManagerApprovalDeadline,
+            schedule.ExpectedPlanningLockDate), cancellationToken);
 
         if (result.IsFailure)
         {
@@ -103,23 +121,115 @@ public class PerformanceCyclesController(
             return PreconditionRequired();
         }
 
-        if (!Enum.TryParse<PerformanceCycleType>(request.Type, ignoreCase: true, out var type))
+        if (!TryGetDraftSchedule(
+                request.ReferenceYear,
+                request.PeriodStart,
+                request.PeriodEnd,
+                request.ObjectiveSettingDeadline,
+                request.PlanningOpeningDate,
+                request.EmployeeSubmissionDeadline,
+                request.ManagerApprovalDeadline,
+                request.ExpectedPlanningLockDate,
+                out var schedule,
+                out var validationFailure))
         {
-            return BadRequest(ApiResponse.Failure($"Unknown cycle type '{request.Type}'."));
+            return validationFailure;
         }
 
         var result = await sender.Send(new UpdateCycleCommand(
             id,
             expectedVersion,
             request.Name,
-            request.Description,
-            type,
-            request.PeriodStart,
-            request.PeriodEnd,
-            request.ObjectiveSettingDeadline,
-            request.PopulationIncludeInactive), cancellationToken);
+            request.Purpose ?? request.Description,
+            schedule.ReferenceYear,
+            schedule.PlanningOpeningDate,
+            schedule.EmployeeSubmissionDeadline,
+            schedule.ManagerApprovalDeadline,
+            schedule.ExpectedPlanningLockDate), cancellationToken);
 
         return ToDetailResponse(result);
+    }
+
+    [HttpGet("{id:guid}/strategic-objectives")]
+    public async Task<IActionResult> GetStrategicObjectives(Guid id, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewCycles(User))
+            return Forbid();
+
+        var result = await sender.Send(new GetCampaignStrategicObjectivesQuery(id), cancellationToken);
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<IReadOnlyList<CampaignStrategicObjectiveDto>>.Success(result.Value));
+    }
+
+    [HttpPost("{id:guid}/strategic-objectives")]
+    public async Task<IActionResult> AddStrategicObjective(
+        Guid id,
+        [FromBody] UpsertCampaignStrategicObjectiveRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageCycles(User))
+            return Forbid();
+
+        var result = await sender.Send(new AddCampaignStrategicObjectiveCommand(
+            id,
+            request.Title,
+            request.Description,
+            request.ResponsibleFunctionLabel), cancellationToken);
+
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<CampaignStrategicObjectiveDto>.Success(result.Value));
+    }
+
+    [HttpPut("{id:guid}/strategic-objectives/{objectiveId:guid}")]
+    public async Task<IActionResult> UpdateStrategicObjective(
+        Guid id,
+        Guid objectiveId,
+        [FromBody] UpsertCampaignStrategicObjectiveRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageCycles(User))
+            return Forbid();
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+            return PreconditionRequired();
+
+        var result = await sender.Send(new UpdateCampaignStrategicObjectiveCommand(
+            id,
+            objectiveId,
+            expectedVersion,
+            request.Title,
+            request.Description,
+            request.ResponsibleFunctionLabel), cancellationToken);
+
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<CampaignStrategicObjectiveDto>.Success(result.Value));
+    }
+
+    [HttpPut("{id:guid}/strategic-objectives/{objectiveId:guid}/active-state")]
+    public async Task<IActionResult> ToggleStrategicObjective(
+        Guid id,
+        Guid objectiveId,
+        [FromBody] ToggleCampaignStrategicObjectiveRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageCycles(User))
+            return Forbid();
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+            return PreconditionRequired();
+
+        var result = await sender.Send(new ToggleCampaignStrategicObjectiveCommand(
+            id,
+            objectiveId,
+            expectedVersion,
+            request.IsActive), cancellationToken);
+
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<CampaignStrategicObjectiveDto>.Success(result.Value));
     }
 
     [HttpDelete("{id:guid}")]
@@ -141,6 +251,8 @@ public class PerformanceCyclesController(
         var result = await sender.Send(new DeleteCycleCommand(id, expectedVersion), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : NoContent();
     }
+
+    // ─── Objective-planning population, readiness, approver override, launch ──────
 
     [HttpPut("{id:guid}/population")]
     public async Task<IActionResult> SetPopulation(
@@ -164,33 +276,10 @@ public class PerformanceCyclesController(
         return ToDetailResponse(result);
     }
 
-    [HttpPut("{id:guid}/governance")]
-    public async Task<IActionResult> ConfigureGovernance(
-        Guid id,
-        [FromBody] ConfigureCycleGovernanceRequest request,
-        [FromHeader(Name = "If-Match")] string? ifMatch,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManageCycles(User))
-            return Forbid();
-        if (!TryParseVersion(ifMatch, out var expectedVersion))
-            return PreconditionRequired();
-        if (!Enum.TryParse<CampaignFeedbackVisibility>(request.FeedbackVisibility, true, out var visibility))
-            return BadRequest(ApiResponse.Failure($"Unknown feedback visibility '{request.FeedbackVisibility}'."));
-
-        var result = await sender.Send(new ConfigureCycleGovernanceCommand(
-            id, expectedVersion, request.RetentionPolicyVersionId,
-            request.RequireTeamObjectiveSuperiorApproval,
-            request.MinimumAnonymousFeedbackResponses,
-            visibility,
-            request.ExceptionOwnerEmployeeIds), cancellationToken);
-        return ToDetailResponse(result);
-    }
-
     [HttpGet("{id:guid}/population/preview")]
     public async Task<IActionResult> PreviewPopulation(Guid id, CancellationToken cancellationToken)
     {
-        if (!accessPolicy.CanManageCycles(User))
+        if (!accessPolicy.CanViewCycles(User))
         {
             return Forbid();
         }
@@ -201,144 +290,67 @@ public class PerformanceCyclesController(
             : Ok(ApiResponse<CyclePopulationPreviewDto>.Success(result.Value));
     }
 
-    [HttpPost("{id:guid}/publish")]
-    public Task<IActionResult> Publish(Guid id, [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken cancellationToken)
-        => Transition(id, ifMatch, version => new PublishCycleCommand(id, version), cancellationToken);
+    [HttpGet("{id:guid}/readiness")]
+    public async Task<IActionResult> GetReadiness(Guid id, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewCycles(User))
+        {
+            return Forbid();
+        }
 
-    [HttpPost("{id:guid}/activate")]
-    public Task<IActionResult> Activate(Guid id, [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken cancellationToken)
-        => Transition(id, ifMatch, version => new ActivateCycleCommand(id, version), cancellationToken);
+        var result = await sender.Send(new GetCycleReadinessQuery(id), cancellationToken);
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<CycleReadinessDto>.Success(result.Value));
+    }
 
-    [HttpPost("{id:guid}/ready-to-launch")]
-    public async Task<IActionResult> MarkReadyToLaunch(
+    [HttpPut("{id:guid}/participants/{employeeId:guid}/approver")]
+    public async Task<IActionResult> OverrideApprover(
         Guid id,
-        [FromBody] MarkCycleReadyToLaunchRequest request,
+        Guid employeeId,
+        [FromBody] OverrideParticipantApproverRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageCycles(User))
+        {
+            return Forbid();
+        }
+
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+        {
+            return PreconditionRequired();
+        }
+
+        var result = await sender.Send(new OverrideParticipantApproverCommand(
+            id, expectedVersion, employeeId, request.ApproverEmployeeId, request.Reason), cancellationToken);
+        return ToDetailResponse(result);
+    }
+
+    [HttpPost("{id:guid}/launch")]
+    public async Task<IActionResult> Launch(
+        Guid id,
         [FromHeader(Name = "If-Match")] string? ifMatch,
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanOperateCycles(User))
+        {
             return Forbid();
+        }
+
         if (!TryParseVersion(ifMatch, out var expectedVersion))
+        {
             return PreconditionRequired();
+        }
 
-        var result = await sender.Send(
-            new MarkCycleReadyToLaunchCommand(id, expectedVersion, request.AcceptCurrentWorkforceDelta), cancellationToken);
-        return ToDetailResponse(result);
-    }
-
-    [HttpPost("{id:guid}/responsibilities")]
-    public async Task<IActionResult> CurateResponsibility(
-        Guid id,
-        [FromBody] CurateCampaignResponsibilityRequest request,
-        [FromHeader(Name = "If-Match")] string? ifMatch,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManageCycles(User))
-            return Forbid();
-        if (!TryParseVersion(ifMatch, out var expectedVersion))
-            return PreconditionRequired();
-        if (!Enum.TryParse<CampaignResponsibilityDuty>(request.Duty, true, out var duty))
-            return BadRequest(ApiResponse.Failure($"Unknown responsibility duty '{request.Duty}'."));
-
-        var result = await sender.Send(new CurateCampaignResponsibilityCommand(
-            id, expectedVersion, request.SubjectEmployeeId, request.AssigneeEmployeeId,
-            duty, request.RelationshipSource, request.OverrideReason), cancellationToken);
+        var result = await sender.Send(new LaunchCampaignCommand(id, expectedVersion), cancellationToken);
         if (result.IsFailure)
+        {
             return MapFailure(result.Error);
-        SetETag(result.Value.CycleVersion);
-        return Ok(ApiResponse<CuratedCampaignResponsibilityDto>.Success(result.Value));
-    }
+        }
 
-    [HttpGet("{id:guid}/responsibilities")]
-    public async Task<IActionResult> GetResponsibilities(
-        Guid id,
-        [FromQuery] string state = "all",
-        CancellationToken cancellationToken = default)
-    {
-        if (!accessPolicy.CanManageCycles(User))
-            return Forbid();
-
-        var result = await sender.Send(new GetCampaignResponsibilitiesQuery(id, state), cancellationToken);
-        return result.IsFailure
-            ? MapFailure(result.Error)
-            : Ok(ApiResponse<CampaignResponsibilitiesDto>.Success(result.Value));
-    }
-
-    [HttpGet("{id:guid}/responsibilities/{subjectEmployeeId:guid}/history")]
-    public async Task<IActionResult> GetResponsibilityHistory(
-        Guid id,
-        Guid subjectEmployeeId,
-        CancellationToken cancellationToken = default)
-    {
-        if (!accessPolicy.CanManageCycles(User))
-            return Forbid();
-
-        var result = await sender.Send(new GetCampaignResponsibilityHistoryQuery(id, subjectEmployeeId), cancellationToken);
-        return result.IsFailure
-            ? MapFailure(result.Error)
-            : Ok(ApiResponse<IReadOnlyList<CampaignResponsibilitySummaryDto>>.Success(result.Value));
-    }
-
-    [HttpPost("{id:guid}/close")]
-    public Task<IActionResult> Close(Guid id, [FromHeader(Name = "If-Match")] string? ifMatch, CancellationToken cancellationToken)
-        => Transition(id, ifMatch, version => new CloseCycleCommand(id, version), cancellationToken);
-
-    [HttpPost("{id:guid}/force-close")]
-    public async Task<IActionResult> ForceClose(
-        Guid id,
-        [FromBody] ForceCloseCycleRequest request,
-        [FromHeader(Name = "If-Match")] string? ifMatch,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanOverrideException(User))
-            return Forbid();
-        if (!TryParseVersion(ifMatch, out var expectedVersion))
-            return PreconditionRequired();
-
-        var result = await sender.Send(new ForceCloseCycleCommand(id, expectedVersion, request.Decisions), cancellationToken);
-        return ToDetailResponse(result);
-    }
-
-    [HttpGet("{id:guid}/exceptions")]
-    public async Task<IActionResult> GetExceptions(Guid id, CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanViewExceptionAudit(User))
-            return Forbid();
-
-        var result = await sender.Send(new GetCycleExceptionsQuery(id), cancellationToken);
-        return result.IsFailure
-            ? MapFailure(result.Error)
-            : Ok(ApiResponse<IReadOnlyList<ExceptionCaseDto>>.Success(result.Value));
-    }
-
-    [HttpPost("{id:guid}/exceptions/{exceptionCaseId:guid}/resolve")]
-    public async Task<IActionResult> ResolveException(
-        Guid id,
-        Guid exceptionCaseId,
-        [FromBody] ResolveExceptionCaseRequest request,
-        CancellationToken cancellationToken)
-    {
-        var result = await sender.Send(
-            new ResolveExceptionCaseCommand(id, exceptionCaseId, request.Action, request.Reason, request.ReassignToEmployeeId),
-            cancellationToken);
-        return result.IsFailure
-            ? MapFailure(result.Error)
-            : Ok(ApiResponse<ExceptionCaseDto>.Success(result.Value));
-    }
-
-    [HttpPost("{id:guid}/exceptions/{exceptionCaseId:guid}/transfer")]
-    public async Task<IActionResult> TransferException(
-        Guid id,
-        Guid exceptionCaseId,
-        [FromBody] TransferExceptionOwnershipRequest request,
-        CancellationToken cancellationToken)
-    {
-        var result = await sender.Send(
-            new TransferExceptionOwnershipCommand(id, exceptionCaseId, request.NewOwnerEmployeeId, request.Reason),
-            cancellationToken);
-        return result.IsFailure
-            ? MapFailure(result.Error)
-            : Ok(ApiResponse<ExceptionCaseDto>.Success(result.Value));
+        SetETag(result.Value.Version);
+        return Ok(ApiResponse<CampaignLaunchResultDto>.Success(result.Value));
     }
 
     [HttpGet("{id:guid}/participants")]
@@ -374,59 +386,6 @@ public class PerformanceCyclesController(
             : Ok(ApiResponse<IReadOnlyList<CycleAuditEventDto>>.Success(result.Value));
     }
 
-    [HttpPost("{id:guid}/workforce-delta/apply")]
-    public async Task<IActionResult> ApplyWorkforceDelta(
-        Guid id,
-        [FromBody] ApplyWorkforceDeltaRequest request,
-        [FromHeader(Name = "If-Match")] string? ifMatch,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanOperateCycles(User))
-            return Forbid();
-        if (!TryParseVersion(ifMatch, out var expectedVersion))
-            return PreconditionRequired();
-
-        var result = await sender.Send(
-            new ApplyWorkforceDeltaCommand(id, expectedVersion, request.Decisions), cancellationToken);
-        return result.IsFailure
-            ? MapFailure(result.Error)
-            : Ok(ApiResponse<ApplyWorkforceDeltaResultDto>.Success(result.Value));
-    }
-
-    [HttpGet("{id:guid}/readiness")]
-    public async Task<IActionResult> GetReadiness(Guid id, CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManageCycles(User))
-        {
-            return Forbid();
-        }
-
-        var result = await sender.Send(new GetCycleReadinessQuery(id), cancellationToken);
-        return result.IsFailure
-            ? MapFailure(result.Error)
-            : Ok(ApiResponse<CycleReadinessDto>.Success(result.Value));
-    }
-
-    private async Task<IActionResult> Transition(
-        Guid id,
-        string? ifMatch,
-        Func<uint, IRequest<Result<PerformanceCycleDetailDto>>> commandFactory,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanOperateCycles(User))
-        {
-            return Forbid();
-        }
-
-        if (!TryParseVersion(ifMatch, out var expectedVersion))
-        {
-            return PreconditionRequired();
-        }
-
-        var result = await sender.Send(commandFactory(expectedVersion), cancellationToken);
-        return ToDetailResponse(result);
-    }
-
     private IActionResult ToDetailResponse(Result<PerformanceCycleDetailDto> result)
     {
         if (result.IsFailure)
@@ -447,7 +406,9 @@ public class PerformanceCyclesController(
             return NotFound(ApiResponse.Failure(error.Message));
         }
 
-        if (error.Code.Contains("Invalid", StringComparison.OrdinalIgnoreCase))
+        if (error.Code.Contains("Invalid", StringComparison.OrdinalIgnoreCase)
+            || error.Code.Contains("Required", StringComparison.OrdinalIgnoreCase)
+            || error.Code.Contains("Missing", StringComparison.OrdinalIgnoreCase))
         {
             return BadRequest(ApiResponse.Failure(error.Message));
         }
@@ -458,6 +419,45 @@ public class PerformanceCyclesController(
     private IActionResult PreconditionRequired()
         => StatusCode(StatusCodes.Status428PreconditionRequired,
             ApiResponse.Failure("If-Match header with the current version is required."));
+
+    private static bool TryGetDraftSchedule(
+        int? referenceYear,
+        DateTime? legacyPeriodStart,
+        DateTime? legacyPeriodEnd,
+        DateTime? legacyObjectiveSettingDeadline,
+        DateTime? planningOpeningDate,
+        DateTime? employeeSubmissionDeadline,
+        DateTime? managerApprovalDeadline,
+        DateTime? expectedPlanningLockDate,
+        out DraftScheduleRequest schedule,
+        out IActionResult validationFailure)
+    {
+        schedule = default;
+        validationFailure = null!;
+
+        var opening = planningOpeningDate ?? legacyPeriodStart;
+        var submission = employeeSubmissionDeadline ?? legacyObjectiveSettingDeadline;
+        var approval = managerApprovalDeadline ?? submission;
+        var lockDate = expectedPlanningLockDate ?? legacyPeriodEnd;
+        var year = referenceYear ?? opening?.Year;
+
+        if (!year.HasValue || !opening.HasValue || !submission.HasValue || !approval.HasValue || !lockDate.HasValue)
+        {
+            validationFailure = new BadRequestObjectResult(ApiResponse.Failure(
+                "Reference year and all four planning schedule dates are required."));
+            return false;
+        }
+
+        schedule = new DraftScheduleRequest(year.Value, opening.Value, submission.Value, approval.Value, lockDate.Value);
+        return true;
+    }
+
+    private readonly record struct DraftScheduleRequest(
+        int ReferenceYear,
+        DateTime PlanningOpeningDate,
+        DateTime EmployeeSubmissionDeadline,
+        DateTime ManagerApprovalDeadline,
+        DateTime ExpectedPlanningLockDate);
 
     private static bool TryParseVersion(string? ifMatch, out uint version)
     {

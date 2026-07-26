@@ -12,6 +12,10 @@ namespace EY.HRPlatform.Performance.Tests.Features.Provisioning;
 
 public class ProvisionTenantTests
 {
+    private static ProvisionTenantCommandHandler CreateHandler(
+        global::EY.HRPlatform.Performance.Infrastructure.Persistence.PerformanceDbContext db)
+        => new(db, new TenantContext(), new ConfigurationAuditWriter(db));
+
     private static ApplyPlatformPerformanceConfigurationRequest PlatformRequest(
         int startingMaxObjectiveCount,
         string startingWeights,
@@ -47,7 +51,7 @@ public class ProvisionTenantTests
         db.PlatformObjectiveBaselines.Add(CreateStartingConfiguration());
         await db.SaveChangesAsync();
 
-        var handler = new ProvisionTenantCommandHandler(db, new TenantContext());
+        var handler = CreateHandler(db);
         var result = await handler.Handle(new ProvisionTenantCommand(tenantId), CancellationToken.None);
 
         Assert.True(result.IsSuccess);
@@ -75,7 +79,7 @@ public class ProvisionTenantTests
         db.PlatformObjectiveBaselines.Add(CreateStartingConfiguration());
         await db.SaveChangesAsync();
 
-        var handler = new ProvisionTenantCommandHandler(db, new TenantContext());
+        var handler = CreateHandler(db);
 
         var first = await handler.Handle(new ProvisionTenantCommand(tenantId), CancellationToken.None);
         var second = await handler.Handle(new ProvisionTenantCommand(tenantId), CancellationToken.None);
@@ -103,7 +107,7 @@ public class ProvisionTenantTests
         var tenantId = Guid.NewGuid();
         await using var db = PerformanceTestContext.Create(Guid.NewGuid(), out _);
 
-        var handler = new ProvisionTenantCommandHandler(db, new TenantContext());
+        var handler = CreateHandler(db);
         var result = await handler.Handle(new ProvisionTenantCommand(tenantId), CancellationToken.None);
 
         Assert.True(result.IsFailure);
@@ -137,7 +141,7 @@ public class ProvisionTenantTests
 
         await using (var firstDb = PerformanceTestContext.Create(Guid.NewGuid(), out _, databaseName))
         {
-            var handler = new ProvisionTenantCommandHandler(firstDb, new TenantContext());
+            var handler = CreateHandler(firstDb);
             var existing = await handler.Handle(new ProvisionTenantCommand(existingTenantId), CancellationToken.None);
             Assert.True(existing.IsSuccess);
         }
@@ -160,7 +164,7 @@ public class ProvisionTenantTests
 
         await using (var nextDb = PerformanceTestContext.Create(Guid.NewGuid(), out _, databaseName))
         {
-            var handler = new ProvisionTenantCommandHandler(nextDb, new TenantContext());
+            var handler = CreateHandler(nextDb);
             var next = await handler.Handle(new ProvisionTenantCommand(newTenantId), CancellationToken.None);
             Assert.True(next.IsSuccess);
         }

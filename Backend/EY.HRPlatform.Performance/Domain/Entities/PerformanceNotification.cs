@@ -23,6 +23,15 @@ public class PerformanceNotification : BaseEntity, ITenantEntity
     public string Message { get; private set; } = string.Empty;
     public DateTime? ReadAt { get; private set; }
 
+    /// <summary>Generic subject type (e.g. EmployeeObjectivePlan) so notifications are not cycle-only.</summary>
+    public string? SubjectType { get; private set; }
+
+    /// <summary>Identifier of the generic subject the notification concerns.</summary>
+    public Guid? SubjectId { get; private set; }
+
+    /// <summary>Contextual frontend route the notification deep-links to when activated.</summary>
+    public string? NavigationRoute { get; private set; }
+
     /// <summary>
     /// Idempotency key used to avoid generating duplicate reminders for the same recipient,
     /// cycle, type and time window. Null for non-deduped notifications.
@@ -38,7 +47,10 @@ public class PerformanceNotification : BaseEntity, ITenantEntity
         string title,
         string message,
         Guid? cycleId = null,
-        string? dedupKey = null)
+        string? dedupKey = null,
+        string? subjectType = null,
+        Guid? subjectId = null,
+        string? navigationRoute = null)
     {
         if (tenantId == Guid.Empty)
             throw new ArgumentException("TenantId cannot be empty.", nameof(tenantId));
@@ -54,7 +66,10 @@ public class PerformanceNotification : BaseEntity, ITenantEntity
             Title = string.IsNullOrWhiteSpace(title) ? type.ToString() : title.Trim(),
             Message = message?.Trim() ?? string.Empty,
             CycleId = cycleId,
-            DedupKey = dedupKey
+            DedupKey = dedupKey,
+            SubjectType = string.IsNullOrWhiteSpace(subjectType) ? null : subjectType.Trim(),
+            SubjectId = subjectId,
+            NavigationRoute = string.IsNullOrWhiteSpace(navigationRoute) ? null : navigationRoute.Trim(),
         };
     }
 

@@ -22,6 +22,7 @@ public sealed class ApplyObjectivePlanningConfigurationCommandHandler(
     PerformanceDbContext db,
     TenantContext tenantContext,
     IConfigurationAuditWriter audit,
+    ActivityLog.IActivityLog activityLog,
     PerformanceConfigurationValidator validator)
     : ICommandHandler<ApplyObjectivePlanningConfigurationCommand, Result<ObjectivePlanningConfigurationApplyResultDto>>
 {
@@ -84,6 +85,15 @@ public sealed class ApplyObjectivePlanningConfigurationCommandHandler(
             newValue: $"max={applied.MaxObjectivesPerPlan};weights={applied.AllowedWeightValues};methods={applied.MeasurementTypes}",
             reason: command.Request.ChangeSummary,
             cancellationToken: cancellationToken);
+
+        // Shared activity spine (retained alongside the feature-scoped configuration audit above).
+        activityLog.Record(
+            action: "ObjectivePlanningConfigurationApplied",
+            subjectType: "TenantObjectivePlanningConfiguration",
+            subjectId: applied.Id,
+            metadata: new { applied.VersionNumber, applied.MaxObjectivesPerPlan },
+            actorUserId: command.Actor.GetUserId(),
+            actorName: command.Actor.GetFullName());
 
         await db.SaveChangesAsync(cancellationToken);
         return new ObjectivePlanningConfigurationApplyResultDto(

@@ -22,7 +22,8 @@ export class ApiError extends Error {
     public readonly status: number, // e.g. 401, 404, 500
     public readonly statusText: string, // e.g. "Unauthorized"
     public readonly errors: string[], // Messages from the backend
-    public readonly correlationId: string | null // For tracing — include in bug reports
+    public readonly correlationId: string | null, // For tracing — include in bug reports
+    public readonly details: unknown = null // Structured error payload (e.g. incomplete-submission blockers)
   ) {
     super(errors[0] ?? `HTTP ${status} ${statusText}`);
     this.name = "ApiError";
@@ -36,6 +37,7 @@ export interface ApiResponse<T> {
   data: T | null;
   errors: string[];
   isSuccess: boolean;
+  details?: unknown;
 }
 
 // Per-request overrides, passed as the last argument to any client method.
