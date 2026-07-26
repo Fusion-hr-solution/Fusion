@@ -19,6 +19,10 @@ public class PerformanceAccessPolicyServiceTests
         Assert.False(_policy.CanViewObjectivePlanningConfiguration(user));
         Assert.False(_policy.CanManageObjectivePlanningConfiguration(user));
         Assert.False(_policy.CanManagePlatformDefaults(user));
+        Assert.False(_policy.CanManageEvaluations(user));
+        Assert.False(_policy.CanOperateEvaluations(user));
+        Assert.False(_policy.CanViewOwnEvaluations(user));
+        Assert.False(_policy.CanViewTeamEvaluations(user));
     }
 
     [Fact]
@@ -183,5 +187,37 @@ public class PerformanceAccessPolicyServiceTests
             .Build();
 
         Assert.True(_policy.CanViewCascadeCoverage(user));
+    }
+
+    [Fact]
+    public void EvaluationManageAndOperate_AreSeparateTenantGrants()
+    {
+        var manager = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.EvaluationManage, PermissionScopes.Tenant)
+            .Build();
+        var operatorUser = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.EvaluationOperate, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.True(_policy.CanManageEvaluations(manager));
+        Assert.False(_policy.CanOperateEvaluations(manager));
+        Assert.False(_policy.CanManageEvaluations(operatorUser));
+        Assert.True(_policy.CanOperateEvaluations(operatorUser));
+    }
+
+    [Fact]
+    public void EvaluationWorkEntryDoors_RequireTheirOwnScopedGrants()
+    {
+        var employee = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.EvaluationSelfView, PermissionScopes.Self)
+            .Build();
+        var reviewer = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.EvaluationTeamView, PermissionScopes.DirectReports)
+            .Build();
+
+        Assert.True(_policy.CanViewOwnEvaluations(employee));
+        Assert.False(_policy.CanViewTeamEvaluations(employee));
+        Assert.False(_policy.CanViewOwnEvaluations(reviewer));
+        Assert.True(_policy.CanViewTeamEvaluations(reviewer));
     }
 }

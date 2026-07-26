@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start --port 3000",
     "lint": "next lint",
-    "type-check": "tsc --noEmit",
-    "test:e2e": "playwright test"
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@repo/api": "workspace:*",
@@ -20,7 +19,6 @@
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.1",
     "@repo/eslint-config": "workspace:*",
     "@repo/tsconfig": "workspace:*",
     "@types/node": "^22.10.0",

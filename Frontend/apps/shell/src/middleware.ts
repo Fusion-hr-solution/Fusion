@@ -18,9 +18,14 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const authCookie = request.cookies.get("ey_hr_authenticated");
   const isAuthenticated = authCookie?.value === "true";
+  const forceSignIn = request.nextUrl.searchParams.get("force") === "1";
 
   // If authenticated and trying to access auth pages, redirect to home
-  if (isAuthenticated && AUTH_PATHS.some((p) => pathname.startsWith(p))) {
+  if (
+    isAuthenticated &&
+    !forceSignIn &&
+    AUTH_PATHS.some((p) => pathname.startsWith(p))
+  ) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
@@ -37,6 +42,7 @@ export function middleware(request: NextRequest) {
   // Allow Next.js internals & static assets
   if (
     pathname.startsWith("/_next") ||
+    pathname.startsWith("/performance/_next") ||
     pathname.startsWith("/api") ||
     pathname.includes(".")
   ) {

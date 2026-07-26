@@ -19,7 +19,8 @@ public static class IdentitySeeder
         AppIdentityDbContext dbContext,
         RoleManager<IdentityRole<Guid>> roleManager,
         UserManager<ApplicationUser> userManager,
-        bool seedDemoData = false)
+        bool seedDemoData = false,
+        IConfiguration? configuration = null)
     {
         // 1. Create all roles if they don't exist (always runs)
         foreach (var role in PlatformRole.All)
@@ -42,7 +43,7 @@ public static class IdentitySeeder
             return;
         }
 
-        await SeedDemoDataAsync(dbContext, userManager);
+        await SeedDemoDataAsync(dbContext, userManager, configuration);
 
         var seededAccessProfileService = new AccessProfileService(dbContext, userManager);
         await seededAccessProfileService.EnsureSeedDataAsync();
@@ -50,7 +51,8 @@ public static class IdentitySeeder
 
     private static async Task SeedDemoDataAsync(
         AppIdentityDbContext dbContext,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IConfiguration? configuration)
     {
         var demoTenantId = DemoConstants.TenantId;
 
@@ -121,6 +123,139 @@ public static class IdentitySeeder
 
         // Seed Platform Admin demo organizations (mature lifecycle states for local UI review).
         await SeedPlatformAdminDemoOrgsAsync(dbContext, userManager, admin.Id);
+
+        await SeedPerformanceDemoUsersAsync(dbContext, userManager, configuration);
+    }
+
+    private static async Task SeedPerformanceDemoUsersAsync(
+        AppIdentityDbContext dbContext,
+        UserManager<ApplicationUser> userManager,
+        IConfiguration? configuration)
+    {
+        var atlasTenantId = configuration?.GetValue<Guid?>("DemoSeed:AtlasPerformance:TenantId");
+        var isolationTenantId = configuration?.GetValue<Guid?>("DemoSeed:AtlasPerformance:IsolationTenantId");
+        if (atlasTenantId is null || atlasTenantId == Guid.Empty)
+            return;
+
+        await EnsureDemoTenantAsync(dbContext, atlasTenantId.Value, "Atlas Group");
+        if (isolationTenantId is { } configuredTenantB && configuredTenantB != Guid.Empty)
+            await EnsureDemoTenantAsync(dbContext, configuredTenantB, "Atlas Group — Tenant B");
+
+        const string demoPassword = "Demo@123456";
+        var atlasUsers = new[]
+        {
+            ("yassine.draft@atlas.example", "Yassine", "Draft", Guid.Parse("20000000-0000-0000-0000-000000000102")),
+            ("amel.finalized@atlas.example", "Amel", "Finalized", Guid.Parse("20000000-0000-0000-0000-000000000105")),
+        };
+
+        foreach (var seed in atlasUsers)
+            await UpsertDemoEmployeeAsync(userManager, seed.Item1, seed.Item2, seed.Item3, atlasTenantId.Value, seed.Item4, demoPassword);
+
+        if (isolationTenantId is { } tenantB && tenantB != Guid.Empty)
+            await UpsertDemoTenantAdminAsync(userManager, "tenantb.hr@example.com", "Tenant B", "HR", tenantB, demoPassword);
+    }
+
+    private static async Task EnsureDemoTenantAsync(
+        AppIdentityDbContext dbContext,
+        Guid tenantId,
+        string name)
+    {
+        if (await dbContext.Tenants.IgnoreQueryFilters().AnyAsync(tenant => tenant.Id == tenantId))
+            return;
+
+        dbContext.Tenants.Add(Tenant.Create(tenantId, name));
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task UpsertDemoEmployeeAsync(
+        UserManager<ApplicationUser> userManager,
+        string email,
+        string firstName,
+        string lastName,
+        Guid tenantId,
+        Guid employeeId,
+        string password)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+        if (user is null)
+        {
+            user = new ApplicationUser
+            {
+                UserName = email,
+                Email = email,
+                EmailConfirmed = true,
+                FirstName = firstName,
+                LastName = lastName,
+                Department = "Atlas Group",
+                JobTitle = "Consultant",
+                HireDate = DateTime.UtcNow,
+                TenantId = tenantId,
+                EmployeeId = employeeId,
+                IsActive = true,
+            };
+            var result = await userManager.CreateAsync(user, password);
+            if (!result.Succeeded)
+                throw new InvalidOperationException($"Failed to create demo employee {email}: {string.Join(", ", result.Errors.Select(error => error.Description))}");
+        }
+        else
+        {
+            user.TenantId = tenantId;
+            user.EmployeeId = employeeId;
+            user.EmailConfirmed = true;
+            user.IsActive = true;
+            await userManager.UpdateAsync(user);
+            var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
+            var resetResult = await userManager.ResetPasswordAsync(user, resetToken, password);
+            if (!resetResult.Succeeded)
+                throw new InvalidOperationException($"Failed to reset demo employee password for {email}: {string.Join(", ", resetResult.Errors.Select(error => error.Description))}");
+        }
+
+        if (!await userManager.IsInRoleAsync(user, PlatformRole.Employee))
+            await userManager.AddToRoleAsync(user, PlatformRole.Employee);
+    }
+
+    private static async Task UpsertDemoTenantAdminAsync(
+        UserManager<ApplicationUser> userManager,
+        string email,
+        string firstName,
+        string lastName,
+        Guid tenantId,
+        string password)
+    {
+        var user = await userManager.FindByEmailAsync(email);
+        if (user is null)
+        {
+            user = new ApplicationUser
+            {
+                UserName = email,
+                Email = email,
+                EmailConfirmed = true,
+                FirstName = firstName,
+                LastName = lastName,
+                Department = "Human Resources",
+                JobTitle = "HR Administrator",
+                HireDate = DateTime.UtcNow,
+                TenantId = tenantId,
+                IsActive = true,
+            };
+            var result = await userManager.CreateAsync(user, password);
+            if (!result.Succeeded)
+                throw new InvalidOperationException($"Failed to create Tenant B demo admin: {string.Join(", ", result.Errors.Select(error => error.Description))}");
+        }
+        else
+        {
+            user.TenantId = tenantId;
+            user.EmailConfirmed = true;
+            user.IsActive = true;
+            await userManager.UpdateAsync(user);
+            var resetToken = await userManager.GeneratePasswordResetTokenAsync(user);
+            var resetResult = await userManager.ResetPasswordAsync(user, resetToken, password);
+            if (!resetResult.Succeeded)
+                throw new InvalidOperationException($"Failed to reset Tenant B demo admin password: {string.Join(", ", resetResult.Errors.Select(error => error.Description))}");
+        }
+
+        if (!await userManager.IsInRoleAsync(user, PlatformRole.HRAdmin))
+            await userManager.AddToRoleAsync(user, PlatformRole.HRAdmin);
     }
 
     private static async Task SeedPlatformAdminDemoOrgsAsync(

@@ -40,6 +40,23 @@ public class AccessProfileServiceCompatibilityRoleTests
     }
 
     [Fact]
+    public void DemoProfiles_IncludeRoleAppropriateEvaluationPermissions()
+    {
+        Assert.Contains(AccessProfileTemplates.Employee.Grants, grant =>
+            grant.PermissionKey == PerformancePermissions.EvaluationSelfView
+            && grant.Scope == PermissionScopes.Self);
+        Assert.Contains(AccessProfileTemplates.Manager.Grants, grant =>
+            grant.PermissionKey == PerformancePermissions.EvaluationTeamView
+            && grant.Scope == PermissionScopes.DirectReports);
+        Assert.Contains(AccessProfileTemplates.HrAdmin.Grants, grant =>
+            grant.PermissionKey == PerformancePermissions.EvaluationManage
+            && grant.Scope == PermissionScopes.Tenant);
+        Assert.Contains(AccessProfileTemplates.HrAdmin.Grants, grant =>
+            grant.PermissionKey == PerformancePermissions.EvaluationOperate
+            && grant.Scope == PermissionScopes.Tenant);
+    }
+
+    [Fact]
     public void ResolveCompatibilityRole_NarrowAccessAdminPermissions_DoNotEscalateToHrAdmin()
     {
         var role = _service.ResolveCompatibilityRole([

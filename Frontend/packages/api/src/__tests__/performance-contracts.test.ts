@@ -56,3 +56,80 @@ describe("performance P1.6 planning completion contracts", () => {
     ]);
   });
 });
+
+describe("performance evaluation foundation contracts", () => {
+  it("builds configuration and round paths", () => {
+    expect(performancePaths.evaluationScaleStatus("scale-1")).toBe(
+      "/performance/evaluation-config/scales/scale-1/status",
+    );
+    expect(performancePaths.evaluationTemplatePreview("template-1", "Manager")).toBe(
+      "/performance/evaluation-config/templates/template-1/preview?rater=Manager",
+    );
+    expect(performancePaths.evaluationRoundReadiness("round-1")).toBe(
+      "/performance/evaluations/round-1/readiness",
+    );
+    expect(performancePaths.evaluationRoundExclusion("round-1", "employee-1")).toBe(
+      "/performance/evaluations/round-1/participants/employee-1/exclusion",
+    );
+  });
+
+  it("keeps admin, employee, and reviewer caches distinct", () => {
+    expect(performanceQueryKeys.evaluationRoundReadiness("round-1")).toEqual([
+      "performance", "evaluations", "round-1", "readiness",
+    ]);
+    expect(performanceQueryKeys.myEvaluationAssignments()).toEqual([
+      "performance", "evaluations", "mine",
+    ]);
+    expect(performanceQueryKeys.teamEvaluationAssignments()).toEqual([
+      "performance", "evaluations", "team",
+    ]);
+  });
+});
+
+describe("performance evaluation execution contracts", () => {
+  it("builds skills configuration and round skill paths", () => {
+    expect(performancePaths.skillsWorkspace()).toBe("/performance/skills-config/workspace");
+    expect(performancePaths.skillExpectationSetStatus("set-1")).toBe(
+      "/performance/skills-config/sets/set-1/status",
+    );
+    expect(performancePaths.proficiencyScaleDuplicate("scale-1")).toBe(
+      "/performance/skills-config/scales/scale-1/duplicate",
+    );
+    expect(performancePaths.evaluationRoundWeights("round-1")).toBe(
+      "/performance/evaluations/round-1/weights",
+    );
+    expect(performancePaths.evaluationRoundSkillItemExpectedLevel("round-1", "item-1")).toBe(
+      "/performance/evaluations/round-1/skills/items/item-1/expected-level",
+    );
+  });
+
+  it("builds assessment workspace and action paths", () => {
+    expect(performancePaths.myAssessmentWorkspace("round-1")).toBe(
+      "/performance/assessments/rounds/round-1/self",
+    );
+    expect(performancePaths.participantAssessmentWorkspace("round-1", "employee-1")).toBe(
+      "/performance/assessments/rounds/round-1/participants/employee-1",
+    );
+    expect(performancePaths.finalizeEvaluation("assignment-1")).toBe(
+      "/performance/assessments/assignments/assignment-1/finalize",
+    );
+    expect(performancePaths.roundCompletion("round-1")).toBe(
+      "/performance/assessments/rounds/round-1/completion",
+    );
+  });
+
+  it("keeps skills, self, team, and completion caches distinct", () => {
+    expect(performanceQueryKeys.skillsWorkspace()).toEqual([
+      "performance", "skills-configuration", "workspace",
+    ]);
+    expect(performanceQueryKeys.myAssessmentWorkspace("round-1")).toEqual([
+      "performance", "assessments", "self", "round-1",
+    ]);
+    expect(performanceQueryKeys.participantAssessmentWorkspace("round-1", "employee-1")).toEqual([
+      "performance", "assessments", "participant", "round-1", "employee-1",
+    ]);
+    expect(performanceQueryKeys.roundCompletion("round-1")).toEqual([
+      "performance", "assessments", "completion", "round-1",
+    ]);
+  });
+});

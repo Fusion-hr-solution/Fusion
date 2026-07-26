@@ -24,5 +24,13 @@ public enum PerformanceNotificationType
     CheckInOverdue,
     FollowUpActionAssigned,
     FollowUpActionDueSoon,
-    DiscussionSignalRaised
+    DiscussionSignalRaised,
+    EvaluationLaunched,
+    EvaluationDeadlineExtended,
+    EvaluationDeadlineDueSoon,
+    EvaluationDeadlineOverdue,
+    EvaluationSelfAssessmentSubmitted,
+    EvaluationSelfAssessmentReopened,
+    EvaluationFinalized,
+    EvaluationAcknowledged
 }

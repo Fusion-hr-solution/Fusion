@@ -199,7 +199,7 @@ export function ModuleSidebar({
             </div>
           ) : (
           sections.map((section, si) => (
-            <div key={section.title ?? si} className="mb-4">
+            <div key={`${section.title ?? "section"}-${si}`} className="mb-4">
               {!collapsed && section.title ? (
                 <p className="px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">
                   {section.title}

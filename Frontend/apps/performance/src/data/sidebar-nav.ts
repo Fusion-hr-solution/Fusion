@@ -1,10 +1,15 @@
-import { ClipboardCheck, ClipboardList, Compass, LineChart, Megaphone, ScrollText, Settings2, Target, UserRoundCheck } from "lucide-react";
+import { BrainCircuit, ClipboardCheck, ClipboardList, ClipboardPenLine, Compass, Gauge, LineChart, Megaphone, ScrollText, Settings2, SlidersHorizontal, Target, UserRoundCheck, UsersRound } from "lucide-react";
 import type { ShellNavSection } from "@repo/ds/shell";
 import {
   canAccessMyObjectives,
   canAccessPlanApprovals,
   canAccessTeamObjectives,
   canAccessTeamProgress,
+  canAccessMyEvaluations,
+  canAccessTeamEvaluations,
+  canManageEvaluations,
+  canManageSkills,
+  canOperateEvaluations,
   canViewObjectivePlanningConfiguration,
   canViewPerformanceCampaigns,
   canViewPerformanceStrategy,
@@ -106,9 +111,37 @@ export const PLATFORM_ADMIN_NAV: ShellNavSection = {
   ],
 };
 
+export const EVALUATION_CONFIGURATION_NAV: ShellNavSection = {
+  title: "Configuration",
+  items: [
+    { label: "Evaluation setup", href: "/configuration/evaluation", icon: SlidersHorizontal },
+  ],
+};
+
+export const EVALUATIONS_NAV: ShellNavSection = {
+  items: [{ label: "Evaluations", href: "/evaluations", icon: Gauge }],
+};
+
+export const MY_EVALUATIONS_NAV: ShellNavSection = {
+  items: [{ label: "My evaluations", href: "/my-evaluations", icon: ClipboardPenLine }],
+};
+
+export const TEAM_EVALUATIONS_NAV: ShellNavSection = {
+  items: [{ label: "Team evaluations", href: "/team-evaluations", icon: UsersRound }],
+};
+
+/**
+ * `work` — day-to-day operational doors (own their own sidebar section + overview card).
+ * `configuration` — tenant-owned setup; these collapse into ONE "Configuration" sidebar
+ *   section and one calm overview band so the tenant sees a single setup space, not scattered
+ *   duplicate headers. `platform` — cross-tenant admin, kept deliberately separate.
+ */
+export type PerformanceDoorGroup = "work" | "configuration" | "platform";
+
 export type PerformanceDoor = {
   section: ShellNavSection;
   description: string;
+  group: PerformanceDoorGroup;
   isVisible: (user: AuthUser | null) => boolean;
 };
 
@@ -118,43 +151,81 @@ export type PerformanceDoor = {
  */
 export const PERFORMANCE_DOORS: readonly PerformanceDoor[] = [
   {
+    section: MY_EVALUATIONS_NAV,
+    description: "Complete evaluation work assigned to you.",
+    group: "work",
+    isVisible: canAccessMyEvaluations,
+  },
+  {
+    section: TEAM_EVALUATIONS_NAV,
+    description: "Review evaluations assigned through frozen reviewer relationships.",
+    group: "work",
+    isVisible: canAccessTeamEvaluations,
+  },
+  {
     section: MY_OBJECTIVES_NAV,
     description: "Create, correct, submit, or review your own objective plan.",
+    group: "work",
     isVisible: canAccessMyObjectives,
   },
   {
     section: TEAM_OBJECTIVES_NAV,
     description: "Define the team-level objectives employees can align to.",
+    group: "work",
     isVisible: canAccessTeamObjectives,
   },
   {
     section: PLAN_APPROVALS_NAV,
     description: "Review submitted plans, request changes, or approve.",
+    group: "work",
     isVisible: canAccessPlanApprovals,
   },
   {
     section: TEAM_PROGRESS_NAV,
     description: "Follow progress against each person's locked objectives.",
+    group: "work",
     isVisible: canAccessTeamProgress,
   },
   {
     section: STRATEGY_NAV,
     description: "Check campaign strategy coverage and cascade visibility.",
+    group: "work",
     isVisible: canViewPerformanceStrategy,
   },
   {
     section: CAMPAIGNS_NAV,
     description: "Set up, launch, monitor, and lock objective planning campaigns.",
+    group: "work",
     isVisible: canViewPerformanceCampaigns,
   },
   {
+    section: EVALUATIONS_NAV,
+    description: "Configure, check readiness, and launch evaluation rounds.",
+    group: "work",
+    isVisible: (user) => canManageEvaluations(user) || canOperateEvaluations(user),
+  },
+  {
+    section: EVALUATION_CONFIGURATION_NAV,
+    description: "Rating scales and evaluation templates.",
+    group: "configuration",
+    isVisible: canManageEvaluations,
+  },
+  {
+    section: { title: "Configuration", items: [{ label: "Skills", href: "/configuration/skills", icon: BrainCircuit }] },
+    description: "Manage skills, levels, and expectation sets.",
+    group: "configuration",
+    isVisible: canManageSkills,
+  },
+  {
     section: TENANT_CONFIGURATION_NAV,
-    description: "Review tenant planning limits, weights, and measurement methods.",
+    description: "Objective count, weights, and measurement methods.",
+    group: "configuration",
     isVisible: canViewObjectivePlanningConfiguration,
   },
   {
     section: PLATFORM_ADMIN_NAV,
     description: "Maintain platform defaults and supported planning guardrails.",
+    group: "platform",
     isVisible: (user) => hasAnyRole(user, [PLATFORM_ADMIN_ROLE]),
   },
 ];
@@ -166,4 +237,28 @@ export const PERFORMANCE_NAV_SECTIONS: readonly ShellNavSection[] = [
 
 export function getPerformanceDoors(user: AuthUser | null | undefined): PerformanceDoor[] {
   return PERFORMANCE_DOORS.filter((door) => door.isVisible(user ?? null));
+}
+
+export type GroupedPerformanceDoors = Record<PerformanceDoorGroup, PerformanceDoor[]>;
+
+/** Visible doors partitioned by group — consumed by the sidebar and overview so both split
+ *  operational work from configuration identically. */
+export function getPerformanceDoorsByGroup(
+  user: AuthUser | null | undefined,
+): GroupedPerformanceDoors {
+  const grouped: GroupedPerformanceDoors = { work: [], configuration: [], platform: [] };
+  for (const door of getPerformanceDoors(user)) {
+    grouped[door.group].push(door);
+  }
+  return grouped;
+}
+
+/** The single merged "Configuration" sidebar section built from every visible configuration
+ *  door's items — one header, never the duplicated pair. Returns null when nothing is visible. */
+export function buildConfigurationSection(
+  doors: PerformanceDoor[],
+): ShellNavSection | null {
+  const items = doors.flatMap((door) => door.section.items);
+  if (items.length === 0) return null;
+  return { title: "Configuration", items };
 }
