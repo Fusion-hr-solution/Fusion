@@ -123,6 +123,23 @@ public sealed class GetMyObjectivePlanWorkspaceQueryHandler(
                 item.Title))
             .ToList();
 
+        // Once planning is locked and the plan is approved, the workspace becomes the living
+        // progress record: derived per-objective state, weighted plan progress, and append-only
+        // history ride along.
+        Progress.Dtos.PlanProgressDto? progress = null;
+        var progressHistory = new List<Progress.Dtos.ObjectiveProgressUpdateDto>();
+        if (state == "locked-approved" && plan is not null)
+        {
+            var latestByObjective = await Progress.ObjectiveProgressQueries.GetLatestByObjectiveAsync(
+                dbContext, [plan.Id], cancellationToken);
+            progress = Progress.ObjectiveProgressRules.BuildPlanProgress(
+                plan.Objectives, latestByObjective, cycle.PlanningLockedAt, DateTime.UtcNow);
+
+            var historyByObjective = await new Progress.Queries.ObjectiveProgressHistoryReader(dbContext)
+                .GetHistoryByObjectiveAsync([plan.Id], cancellationToken);
+            progressHistory = historyByObjective.Values.SelectMany(items => items).ToList();
+        }
+
         return new EmployeeObjectivePlanWorkspaceDto(
             state,
             cycle.Id,
@@ -139,6 +156,8 @@ public sealed class GetMyObjectivePlanWorkspaceQueryHandler(
             EmployeeObjectivePlanRules.AllowedWeights(cycle),
             EmployeeObjectivePlanRules.EnabledMeasurementMethods(cycle),
             plan is null ? null : EmployeeObjectivePlanMapper.ToPlanDto(plan),
-            teamOptions.Concat(strategicOptions).ToList());
+            teamOptions.Concat(strategicOptions).ToList(),
+            progress,
+            progressHistory);
     }
 }

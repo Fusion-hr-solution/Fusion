@@ -81,7 +81,10 @@ public sealed class RecordPlanningReminderCommandHandler(
                 "Planning follow-up",
                 request.Request.Reason.Trim(),
                 cycle.Id,
-                dedupKey: $"{cycle.Id}:planning-reminder:{request.Request.TargetEmployeeId}:{DateTime.UtcNow:yyyyMMddHHmmss}"));
+                dedupKey: $"{cycle.Id}:planning-reminder:{request.Request.TargetEmployeeId}:{DateTime.UtcNow:yyyyMMddHHmmss}",
+                subjectType: "PerformanceCycle",
+                subjectId: cycle.Id,
+                navigationRoute: $"/campaigns/{cycle.Slug}/completion"));
             notificationTriggered = true;
         }
 

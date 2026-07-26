@@ -59,7 +59,13 @@ const PERFORMANCE_PERMISSION = {
   objectiveSelfManage: "performance.objective.self.manage",
   objectiveTeamManage: "performance.objective.team.manage",
   objectiveTeamApprove: "performance.objective.team.approve",
+  objectiveProgressTeamView: "performance.objective.progress.team.view",
   strategicView: "performance.strategic.view",
+  evaluationManage: "performance.evaluation.manage",
+  evaluationOperate: "performance.evaluation.operate",
+  evaluationSelfView: "performance.evaluation.self.view",
+  evaluationTeamView: "performance.evaluation.team.view",
+  skillsManage: "performance.skills.manage",
 } as const;
 
 export function hasAnyRole(
@@ -440,9 +446,42 @@ export function canAccessMyObjectives(user: AuthUser | null): boolean {
   );
 }
 
+/**
+ * Team-progress door: the permission opens ongoing progress follow-up, distinct from plan
+ * approval. The account must be linked to an employee because visibility is scoped to the
+ * participants the account actually reviews (enforced server-side; the door hides when empty).
+ */
+export function canAccessTeamProgress(user: AuthUser | null): boolean {
+  if (!user?.employeeId) {
+    return false;
+  }
+
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.objectiveProgressTeamView);
+}
+
 /** Direction door: strategy and cascade coverage without HR campaign permissions. */
 export function canViewPerformanceStrategy(user: AuthUser | null): boolean {
   return hasCorePermission(user, PERFORMANCE_PERMISSION.strategicView, "Tenant");
+}
+
+export function canManageEvaluations(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.evaluationManage, "Tenant");
+}
+
+export function canManageSkills(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.skillsManage, "Tenant");
+}
+
+export function canOperateEvaluations(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.evaluationOperate, "Tenant");
+}
+
+export function canAccessMyEvaluations(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.evaluationSelfView, "Self");
+}
+
+export function canAccessTeamEvaluations(user: AuthUser | null): boolean {
+  return hasCorePermission(user, PERFORMANCE_PERMISSION.evaluationTeamView);
 }
 
 export function canAccessPerformance(user: AuthUser | null): boolean {
@@ -451,7 +490,13 @@ export function canAccessPerformance(user: AuthUser | null): boolean {
     canViewObjectivePlanningConfiguration(user) ||
     canAccessMyObjectives(user) ||
     canAccessPlanApprovals(user) ||
+    canAccessTeamProgress(user) ||
     canManageTeamObjectives(user) ||
+    canManageEvaluations(user) ||
+    canManageSkills(user) ||
+    canOperateEvaluations(user) ||
+    canAccessMyEvaluations(user) ||
+    canAccessTeamEvaluations(user) ||
     canViewPerformanceStrategy(user)
   );
 }

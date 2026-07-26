@@ -20,7 +20,6 @@ public enum PerformanceCycleAuditAction
     ReadyToLaunch,
     AssignmentPreparationStarted,
     Activated,
-    Closed,
     WorkforceDeltaApplied,
     WorkforceDeltaRejected,
     PlanningRulesSnapshotCaptured,
@@ -60,24 +59,5 @@ public enum PerformanceCycleAuditAction
     CollectiveObjectiveAutoApproved,
 
     // Progress tracking actions (Plan 03-04)
-    ObjectiveProgressCorrected,
-
-    // Feedback-specific actions (Plan 04-01, D-19)
-    FeedbackResponseSubmitted,
-    FeedbackResponseWithdrawn,
-    FeedbackResponseLocked,
-    FeedbackThresholdReached,
-    FeedbackSuppressed,
-    FeedbackContentAccessed,
-    FeedbackIdentityAccessed,
-    FeedbackResponseInvalidated,
-
-    // Exception case actions (Phase 05)
-    ExceptionOpened,
-    ExceptionOwnershipTransferred,
-    ExceptionReassigned,
-    ExceptionOverridden,
-    ExceptionReturned,
-    ExceptionCancelled,
-    ExceptionForceClosed
+    ObjectiveProgressCorrected
 }

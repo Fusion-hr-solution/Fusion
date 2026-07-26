@@ -19,9 +19,10 @@ public class PerformanceAccessPolicyServiceTests
         Assert.False(_policy.CanViewObjectivePlanningConfiguration(user));
         Assert.False(_policy.CanManageObjectivePlanningConfiguration(user));
         Assert.False(_policy.CanManagePlatformDefaults(user));
-        Assert.False(_policy.CanActOnOwnedException(user));
-        Assert.False(_policy.CanOverrideException(user));
-        Assert.False(_policy.CanViewExceptionAudit(user));
+        Assert.False(_policy.CanManageEvaluations(user));
+        Assert.False(_policy.CanOperateEvaluations(user));
+        Assert.False(_policy.CanViewOwnEvaluations(user));
+        Assert.False(_policy.CanViewTeamEvaluations(user));
     }
 
     [Fact]
@@ -69,27 +70,10 @@ public class PerformanceAccessPolicyServiceTests
         Assert.False(_policy.CanViewCycles(user));
         Assert.False(_policy.CanManageCycles(user));
         Assert.False(_policy.CanOperateCycles(user));
-        Assert.False(_policy.CanActOnOwnedException(user));
-        Assert.False(_policy.CanOverrideException(user));
-        Assert.False(_policy.CanViewExceptionAudit(user));
-        Assert.False(_policy.CanAccessConfidentialFeedbackIdentity(user));
-        Assert.False(_policy.CanViewFeedbackThresholdDetails(user));
 
         Assert.False(_policy.CanViewObjectivePlanningConfiguration(user));
         Assert.False(_policy.CanManageObjectivePlanningConfiguration(user));
         Assert.True(_policy.CanManagePlatformDefaults(user));
-    }
-
-    [Fact]
-    public void ExceptionActionGrant_AllowsOwnerActionOnly()
-    {
-        var user = new ClaimsPrincipalBuilder()
-            .WithPermission(PerformancePermissions.ExceptionAction, PermissionScopes.Tenant)
-            .Build();
-
-        Assert.True(_policy.CanActOnOwnedException(user));
-        Assert.False(_policy.CanOverrideException(user));
-        Assert.False(_policy.CanViewExceptionAudit(user));
     }
 
     // ─── P1.1 configuration checks ───────────────────────────────────────────
@@ -203,5 +187,37 @@ public class PerformanceAccessPolicyServiceTests
             .Build();
 
         Assert.True(_policy.CanViewCascadeCoverage(user));
+    }
+
+    [Fact]
+    public void EvaluationManageAndOperate_AreSeparateTenantGrants()
+    {
+        var manager = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.EvaluationManage, PermissionScopes.Tenant)
+            .Build();
+        var operatorUser = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.EvaluationOperate, PermissionScopes.Tenant)
+            .Build();
+
+        Assert.True(_policy.CanManageEvaluations(manager));
+        Assert.False(_policy.CanOperateEvaluations(manager));
+        Assert.False(_policy.CanManageEvaluations(operatorUser));
+        Assert.True(_policy.CanOperateEvaluations(operatorUser));
+    }
+
+    [Fact]
+    public void EvaluationWorkEntryDoors_RequireTheirOwnScopedGrants()
+    {
+        var employee = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.EvaluationSelfView, PermissionScopes.Self)
+            .Build();
+        var reviewer = new ClaimsPrincipalBuilder()
+            .WithPermission(PerformancePermissions.EvaluationTeamView, PermissionScopes.DirectReports)
+            .Build();
+
+        Assert.True(_policy.CanViewOwnEvaluations(employee));
+        Assert.False(_policy.CanViewTeamEvaluations(employee));
+        Assert.False(_policy.CanViewOwnEvaluations(reviewer));
+        Assert.True(_policy.CanViewTeamEvaluations(reviewer));
     }
 }

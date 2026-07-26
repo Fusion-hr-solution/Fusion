@@ -1,6 +1,8 @@
 using EY.HRPlatform.Performance.Features.EmployeeObjectives.Commands;
 using EY.HRPlatform.Performance.Features.EmployeeObjectives.Dtos;
 using EY.HRPlatform.Performance.Features.EmployeeObjectives.Queries;
+using EY.HRPlatform.Performance.Features.Progress.Commands;
+using EY.HRPlatform.Performance.Features.Progress.Dtos;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.SharedKernel.Results;
@@ -108,6 +110,27 @@ public sealed class EmployeeObjectivesController(
         return result.IsFailure
             ? MapFailure(result.Error)
             : Ok(ApiResponse<SubmitObjectivePlanResponseDto>.Success(result.Value));
+    }
+
+    [HttpPost("campaigns/{cycleId:guid}/objectives/{objectiveId:guid}/progress")]
+    public async Task<IActionResult> RecordProgress(
+        Guid cycleId,
+        Guid objectiveId,
+        [FromBody] RecordObjectiveProgressRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageOwnObjectives(User))
+            return Forbid();
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+            return PreconditionRequired();
+
+        var result = await sender.Send(
+            new RecordObjectiveProgressCommand(cycleId, objectiveId, expectedVersion, request),
+            cancellationToken);
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<RecordObjectiveProgressResponseDto>.Success(result.Value));
     }
 
     private IActionResult MapFailure(Error error)

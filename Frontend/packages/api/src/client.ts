@@ -196,7 +196,8 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
             json as unknown as Record<string, unknown>,
             res.statusText
           ),
-          correlationId
+          correlationId,
+          json.details ?? null
         )
       );
     }

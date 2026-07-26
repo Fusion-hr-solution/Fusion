@@ -265,20 +265,6 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
         Touch();
     }
 
-    public void Close(DateTime occurredAt)
-    {
-        if (Status != PerformanceCycleStatus.Active)
-            throw new DomainRuleViolationException("Only an active campaign can be closed.");
-
-        var now = NormalizeUtc(occurredAt, nameof(occurredAt));
-        if (now < PeriodEnd)
-            throw new DomainRuleViolationException("A cycle cannot be closed before its period ends.");
-
-        Status = PerformanceCycleStatus.Closed;
-        ClosedAt = now;
-        Touch();
-    }
-
     public void LockPlanning(Guid? actorUserId, string? actorName, DateTime occurredAt)
     {
         if (Status != PerformanceCycleStatus.Launched)

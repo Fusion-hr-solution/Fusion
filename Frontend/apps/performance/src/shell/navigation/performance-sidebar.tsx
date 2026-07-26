@@ -8,40 +8,53 @@ import {
   ShellUserPanel,
 } from "@repo/ds/shell";
 import {
-  canAccessMyObjectives,
-  canAccessPlanApprovals,
-  canAccessTeamObjectives,
+  canAccessMyEvaluations,
+  canAccessTeamEvaluations,
   canSeeOwnCoreProfileNavigation,
-  canViewObjectivePlanningConfiguration,
-  canViewPerformanceCampaigns,
-  canViewPerformanceStrategy,
-  hasAnyRole,
-  PLATFORM_ADMIN_ROLE,
   useAuth,
 } from "@repo/auth";
+import { createPlatformApiClient, performancePaths, performanceQueryKeys } from "@repo/api";
+import type { EvaluationWorkEntryDto } from "@repo/api";
+import { useApiQuery } from "@repo/api/query";
+import type { ShellNavSection } from "@repo/ds/shell";
 import {
   OVERVIEW_NAV,
-  CAMPAIGNS_NAV,
-  MY_OBJECTIVES_NAV,
-  PLATFORM_ADMIN_NAV,
-  PLAN_APPROVALS_NAV,
-  STRATEGY_NAV,
-  TEAM_OBJECTIVES_NAV,
-  TENANT_CONFIGURATION_NAV,
+  buildConfigurationSection,
+  getPerformanceDoorsByGroup,
 } from "@/data/sidebar-nav";
+
+const performanceApi = createPlatformApiClient();
 
 export function PerformanceSidebar() {
   const pathname = usePathname();
   const activePath = pathname.replace(/^\/performance/, "") || "/";
   const { user, logout, isLoading: isAuthLoading } = useAuth();
-  const isPlatformAdmin = hasAnyRole(user, [PLATFORM_ADMIN_ROLE]);
-  const canViewPlanningConfiguration = canViewObjectivePlanningConfiguration(user);
-  const canViewCampaigns = canViewPerformanceCampaigns(user);
-  const canAccessMine = canAccessMyObjectives(user);
-  const canAccessTeam = canAccessTeamObjectives(user);
-  const canAccessApprovals = canAccessPlanApprovals(user);
-  const canViewStrategy = canViewPerformanceStrategy(user);
   const canSeeOwnProfile = canSeeOwnCoreProfileNavigation(user);
+  const myEvaluations = useApiQuery<EvaluationWorkEntryDto[]>(
+    performanceQueryKeys.myEvaluationAssignments(),
+    (signal) => performanceApi.get(performancePaths.myEvaluationAssignments(), { signal }),
+    { enabled: canAccessMyEvaluations(user) },
+  );
+  const teamEvaluations = useApiQuery<EvaluationWorkEntryDto[]>(
+    performanceQueryKeys.teamEvaluationAssignments(),
+    (signal) => performanceApi.get(performancePaths.teamEvaluationAssignments(), { signal }),
+    { enabled: canAccessTeamEvaluations(user) },
+  );
+  const hasAssignments = (href: string | undefined) => {
+    if (href === "/my-evaluations") return (myEvaluations.data?.length ?? 0) > 0;
+    if (href === "/team-evaluations") return (teamEvaluations.data?.length ?? 0) > 0;
+    return true;
+  };
+  const grouped = getPerformanceDoorsByGroup(user);
+  const workDoors = grouped.work.filter((door) => hasAssignments(door.section.items[0]?.href));
+  const configurationSection = buildConfigurationSection(grouped.configuration);
+
+  const sections: ShellNavSection[] = [
+    OVERVIEW_NAV,
+    ...workDoors.map((door) => door.section),
+    ...(configurationSection ? [configurationSection] : []),
+    ...grouped.platform.map((door) => door.section),
+  ];
 
   return (
     <ModuleSidebar
@@ -49,17 +62,8 @@ export function PerformanceSidebar() {
       brandSubtitle="Performance workspace"
       brandIcon={BarChart3}
       activePath={activePath}
-      pending={isAuthLoading}
-      sections={[
-        OVERVIEW_NAV,
-        ...(canAccessMine ? [MY_OBJECTIVES_NAV] : []),
-        ...(canAccessTeam ? [TEAM_OBJECTIVES_NAV] : []),
-        ...(canAccessApprovals ? [PLAN_APPROVALS_NAV] : []),
-        ...(canViewStrategy ? [STRATEGY_NAV] : []),
-        ...(canViewCampaigns ? [CAMPAIGNS_NAV] : []),
-        ...(canViewPlanningConfiguration ? [TENANT_CONFIGURATION_NAV] : []),
-        ...(isPlatformAdmin ? [PLATFORM_ADMIN_NAV] : []),
-      ]}
+      pending={isAuthLoading || myEvaluations.isLoading || teamEvaluations.isLoading}
+      sections={sections}
       modules={FUSION_MODULES}
       currentModuleKey="performance"
       userPanel={(collapsed) => (

@@ -87,6 +87,7 @@ public sealed class EmployeeObjectivePlanConfiguration : IEntityTypeConfiguratio
             reviewEvent.ToTable("EmployeeObjectivePlanReviewEvents");
             reviewEvent.WithOwner().HasForeignKey(item => item.PlanId);
             reviewEvent.HasKey(item => item.Id);
+            reviewEvent.Property(item => item.Id).ValueGeneratedNever();
             reviewEvent.Property(item => item.PlanId).IsRequired();
             reviewEvent.Property(item => item.ActorEmployeeId).IsRequired();
             reviewEvent.Property(item => item.ActorName)

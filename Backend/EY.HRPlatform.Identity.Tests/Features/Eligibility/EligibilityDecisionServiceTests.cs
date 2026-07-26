@@ -8,11 +8,11 @@ namespace EY.HRPlatform.Identity.Tests.Features.Eligibility;
 public sealed class EligibilityDecisionServiceTests
 {
     [Fact]
-    public void PacketAPermissions_AreKnownAndHaveLeastPrivilegeScopes()
+    public void PerformancePermissions_AreKnownAndHaveLeastPrivilegeScopes()
     {
         Assert.True(CorePermissionCatalog.IsValidScope(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self));
         Assert.False(CorePermissionCatalog.IsValidScope(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Tenant));
-        Assert.True(CorePermissionCatalog.IsValidScope(PerformancePermissions.ReviewTeamManage, PermissionScopes.DirectReports));
+        Assert.True(CorePermissionCatalog.IsValidScope(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.DirectReports));
         Assert.True(CorePermissionCatalog.IsValidScope(PerformancePermissions.RetentionManage, PermissionScopes.Tenant));
         Assert.False(CorePermissionCatalog.IsValidScope(PerformancePermissions.RetentionManage, PermissionScopes.OrgUnit));
     }

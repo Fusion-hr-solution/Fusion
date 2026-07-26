@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const gatewayUrl = process.env.GATEWAY_URL || "http://localhost:5000";
     const coreUrl = process.env.CORE_MFE_URL || "http://localhost:3002";
-    return [
+    return { beforeFiles: [
       {
         source: "/api/:path*",
         destination: `${gatewayUrl}/api/:path*`,
@@ -34,6 +34,10 @@ const nextConfig: NextConfig = {
         destination: "http://localhost:3003/learning/:path*",
       },
       {
+        source: "/performance/_next/:path*",
+        destination: "http://localhost:3004/performance/_next/:path*",
+      },
+      {
         source: "/performance/:path*",
         destination: "http://localhost:3004/performance/:path*",
       },
@@ -45,7 +49,7 @@ const nextConfig: NextConfig = {
         source: "/onboarding/:path*",
         destination: "http://localhost:3006/onboarding/:path*",
       },
-    ];
+    ] };
   },
 };
 

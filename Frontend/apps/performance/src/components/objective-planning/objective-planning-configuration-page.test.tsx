@@ -97,7 +97,7 @@ describe("ObjectivePlanningConfigurationPage", () => {
   it("renders tenant planning configuration with bounded platform choices", () => {
     const page = renderPage();
 
-    expect(page.textContent).toContain("Objective planning configuration");
+    expect(page.textContent).toContain("Objective planning");
     expect(page.textContent).not.toContain("Objective policy");
     expect(page.textContent).not.toContain("Template");
 

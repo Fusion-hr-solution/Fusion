@@ -28,9 +28,13 @@ public sealed class GetObjectivePlanningConfigurationQueryHandler(PerformanceDbC
                 platform.QuantitativeAvailable,
                 platform.QualitativeAvailable);
 
+        // Load only the current version: reading the whole version history would materialize any
+        // legacy row whose persisted status predates the Current/Replaced model and fault the
+        // entire configuration read. The current version is all this query needs.
         var configuration = await db.TenantObjectivePolicies
             .AsNoTracking()
-            .Include(p => p.Versions)
+            .Include(p => p.Versions
+                .Where(v => v.Status == ObjectivePlanningConfigurationVersionStatus.Current))
             .FirstOrDefaultAsync(cancellationToken);
 
         if (configuration?.ActiveVersion is null)

@@ -4,6 +4,7 @@ import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import PerformancePage from "@/app/(pages)/page";
 import { PerformanceSidebar } from "./performance-sidebar";
 
 type TestUser = {
@@ -23,6 +24,16 @@ const authState = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/performance",
+}));
+
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a href={String(href)} {...props}>{children}</a>
+  ),
+}));
+
+vi.mock("@repo/api/query", () => ({
+  useApiQuery: () => ({ data: [], isLoading: false, isFetching: false, error: null, refetch: vi.fn(), invalidate: vi.fn() }),
 }));
 
 vi.mock("@repo/auth", () => ({
@@ -67,6 +78,36 @@ vi.mock("@repo/auth", () => ({
       (grant) => grant.permissionKey === "performance.objective.team.approve",
     ) ??
       false),
+  canAccessTeamProgress: (user: TestUser | null) =>
+    !!user?.employeeId &&
+    (user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.objective.progress.team.view",
+    ) ??
+      false),
+  canAccessMyEvaluations: (user: TestUser | null) =>
+    !!user?.employeeId &&
+    (user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.evaluation.self.view",
+    ) ??
+      false),
+  canAccessTeamEvaluations: (user: TestUser | null) =>
+    !!user?.employeeId &&
+    (user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.evaluation.team.view",
+    ) ??
+      false),
+  canManageEvaluations: (user: TestUser | null) =>
+    user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.evaluation.manage" && grant.scope === "Tenant",
+    ) ?? false,
+  canManageSkills: (user: TestUser | null) =>
+    user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.skills.manage" && grant.scope === "Tenant",
+    ) ?? false,
+  canOperateEvaluations: (user: TestUser | null) =>
+    user?.permissions?.some(
+      (grant) => grant.permissionKey === "performance.evaluation.operate" && grant.scope === "Tenant",
+    ) ?? false,
   canViewPerformanceStrategy: (user: TestUser | null) =>
     user?.permissions?.some(
       (grant) =>
@@ -82,11 +123,16 @@ vi.mock("@repo/auth", () => ({
   useAuth: () => ({
     user: authState.user,
     logout: vi.fn(),
+    isLoading: false,
   }),
 }));
 
 vi.mock("@repo/ds/shell", () => ({
   FUSION_MODULES: [],
+  PageContainer: ({ children }: { children: React.ReactNode }) => <main>{children}</main>,
+  PageHeader: ({ title }: { title: string }) => <h1>{title}</h1>,
+  PageLoading: ({ label }: { label: string }) => <p>{label}</p>,
+  PagePermissionNotice: ({ title }: { title: string }) => <p>{title}</p>,
   ModuleSidebar: ({
     sections,
     userPanel,
@@ -148,7 +194,51 @@ function renderSidebar(user: TestUser | null = authState.user) {
   return container;
 }
 
+function renderOverview(user: TestUser | null = authState.user) {
+  authState.user = user;
+  container = document.createElement("div");
+  document.body.appendChild(container);
+  root = createRoot(container);
+  act(() => root?.render(<PerformancePage />));
+  return container;
+}
+
 describe("PerformanceSidebar", () => {
+  it("keeps overview cards in the same visible order as sidebar doors", () => {
+    const user: TestUser = {
+      fullName: "Manager",
+      roles: ["Manager"],
+      employeeId: "emp-1",
+      permissions: [
+        { permissionKey: "performance.objective.self.manage", scope: "Self" },
+        { permissionKey: "performance.objective.team.manage", scope: "DirectReports" },
+        { permissionKey: "performance.objective.team.approve", scope: "DirectReports" },
+        { permissionKey: "performance.objective.progress.team.view", scope: "DirectReports" },
+        { permissionKey: "performance.strategic.view", scope: "Tenant" },
+        { permissionKey: "performance.cycle.view", scope: "Tenant" },
+        { permissionKey: "performance.objective.policy.view", scope: "Tenant" },
+      ],
+    };
+    const sidebar = renderSidebar(user);
+    const sidebarLabels = Array.from(
+      sidebar.querySelectorAll('nav[aria-label="Performance navigation"] a'),
+    )
+      .filter((link) => link.getAttribute("href")?.startsWith("/performance/"))
+      .map((link) => link.textContent);
+
+    act(() => root?.unmount());
+    root = null;
+    container?.remove();
+    container = null;
+
+    const overview = renderOverview(user);
+    const overviewLabels = Array.from(overview.querySelectorAll("main section a"))
+      .map((link) => link.querySelector("span span")?.textContent);
+
+    expect(overviewLabels).toEqual(sidebarLabels);
+    expect(overviewLabels).toContain("Team progress");
+  });
+
   it("shows only overview for a basic Performance user", () => {
     const sidebar = renderSidebar();
 
@@ -231,6 +321,35 @@ describe("PerformanceSidebar", () => {
     expect(sidebar.querySelector('a[href="/performance/plan-approvals"]')).toBeTruthy();
   });
 
+  it("shows the Team progress door for an employee-linked reviewer, distinct from Plan approvals", () => {
+    const sidebar = renderSidebar({
+      fullName: "Manager",
+      roles: ["Manager"],
+      employeeId: "emp-1",
+      permissions: [
+        { permissionKey: "performance.objective.team.approve", scope: "DirectReports" },
+        { permissionKey: "performance.objective.progress.team.view", scope: "DirectReports" },
+      ],
+    });
+
+    expect(sidebar.textContent).toContain("Team progress");
+    expect(sidebar.textContent).toContain("Plan approvals");
+    expect(sidebar.querySelector('a[href="/performance/team-progress"]')).toBeTruthy();
+  });
+
+  it("hides Team progress from an account with the permission but no employee link", () => {
+    const sidebar = renderSidebar({
+      fullName: "HR Admin",
+      roles: ["HRAdmin"],
+      employeeId: null,
+      permissions: [
+        { permissionKey: "performance.objective.progress.team.view", scope: "Tenant" },
+      ],
+    });
+
+    expect(sidebar.textContent).not.toContain("Team progress");
+  });
+
   it("hides Plan approvals from an admin with approval permission but no employee link", () => {
     const sidebar = renderSidebar({
       fullName: "HR Admin",
@@ -301,6 +420,28 @@ describe("PerformanceSidebar", () => {
     expect(sidebar.querySelector('a[href="/performance/configuration/planning"]')).toBeTruthy();
     expect(sidebar.textContent).not.toContain("Objective planning configuration");
     expect(sidebar.textContent).not.toContain("Performance setup");
+  });
+
+  it("merges evaluation and planning configuration into a single Configuration section", () => {
+    const sidebar = renderSidebar({
+      fullName: "HR Admin",
+      roles: ["HRAdmin"],
+      permissions: [
+        { permissionKey: "performance.evaluation.manage", scope: "Tenant" },
+        { permissionKey: "performance.objective.policy.manage", scope: "Tenant" },
+      ],
+    });
+
+    const configHeaders = Array.from(sidebar.querySelectorAll("h2")).filter(
+      (heading) => heading.textContent === "Configuration",
+    );
+    expect(configHeaders).toHaveLength(1);
+    expect(sidebar.textContent).toContain("Evaluation setup");
+    expect(sidebar.textContent).toContain("Objective Planning");
+    expect(sidebar.querySelector('a[href="/performance/configuration/evaluation"]')).toBeTruthy();
+    expect(sidebar.querySelector('a[href="/performance/configuration/planning"]')).toBeTruthy();
+    expect(sidebar.textContent).not.toContain("Rating scales");
+    expect(sidebar.textContent).not.toContain("Evaluation templates");
   });
 
   it("keeps Platform Admin navigation separate from tenant configuration", () => {
