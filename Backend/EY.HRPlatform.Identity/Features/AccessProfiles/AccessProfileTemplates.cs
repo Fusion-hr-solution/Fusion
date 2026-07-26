@@ -20,6 +20,8 @@ public static class AccessProfileTemplates
             new(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
             new(CorePermissions.EmployeeView, PermissionScopes.Self),
             new(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self),
+            new(PerformancePermissions.CheckInSelfView, PermissionScopes.Self),
+            new(PerformancePermissions.EvaluationSelfView, PermissionScopes.Self),
         ]);
 
     public static readonly SeededAccessProfileTemplate Manager = new(
@@ -35,6 +37,10 @@ public static class AccessProfileTemplates
             new(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.DirectReports),
             new(PerformancePermissions.ObjectiveTeamApprove, PermissionScopes.DirectReports),
             new(PerformancePermissions.ObjectiveProgressTeamView, PermissionScopes.DirectReports),
+            new(PerformancePermissions.CheckInConduct, PermissionScopes.DirectReports),
+            new(PerformancePermissions.CheckInSelfView, PermissionScopes.Self),
+            new(PerformancePermissions.EvaluationSelfView, PermissionScopes.Self),
+            new(PerformancePermissions.EvaluationTeamView, PermissionScopes.DirectReports),
         ]);
 
     public static readonly SeededAccessProfileTemplate Direction = new(
@@ -74,6 +80,9 @@ public static class AccessProfileTemplates
             new(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.Tenant),
             new(PerformancePermissions.RetentionManage, PermissionScopes.Tenant),
             new(PerformancePermissions.AuditView, PermissionScopes.Tenant),
+            new(PerformancePermissions.EvaluationManage, PermissionScopes.Tenant),
+            new(PerformancePermissions.EvaluationOperate, PermissionScopes.Tenant),
+            new(PerformancePermissions.SkillsManage, PermissionScopes.Tenant),
         ]);
 
     public static readonly SeededAccessProfileTemplate OrgAdmin = new(
@@ -116,6 +125,7 @@ public static class AccessProfileTemplates
             new(PerformancePermissions.RetentionManage, PermissionScopes.Tenant),
             new(PerformancePermissions.AuditView, PermissionScopes.Tenant),
             new(PerformancePermissions.ConfidentialIdentityView, PermissionScopes.Tenant),
+            new(PerformancePermissions.SkillsManage, PermissionScopes.Tenant),
         ]);
 
     public static IReadOnlyList<SeededAccessProfileTemplate> All => [Employee, Manager, Direction, HrAdmin, OrgAdmin];

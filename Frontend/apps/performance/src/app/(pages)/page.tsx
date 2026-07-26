@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useAuth } from "@repo/auth";
 import {
   PageContainer,
@@ -10,14 +11,19 @@ import {
   PagePermissionNotice,
 } from "@repo/ds/shell";
 import { cn } from "@/lib/utils";
-import { getPerformanceDoors } from "@/data/sidebar-nav";
+import { getPerformanceDoorsByGroup, type PerformanceDoor } from "@/data/sidebar-nav";
 
-type WorkDoor = {
+type Entry = {
   title: string;
   description: string;
   href: string;
   icon: LucideIcon;
 };
+
+function toEntry(door: PerformanceDoor): Entry {
+  const item = door.section.items[0]!;
+  return { title: item.label, description: door.description, href: item.href, icon: item.icon };
+}
 
 export default function PerformancePage() {
   const { user, isLoading } = useAuth();
@@ -30,36 +36,50 @@ export default function PerformancePage() {
     );
   }
 
-  const doors: WorkDoor[] = getPerformanceDoors(user).map(({ section, description }) => {
-    const item = section.items[0]!;
-    return { title: item.label, description, href: item.href, icon: item.icon };
-  });
+  const grouped = getPerformanceDoorsByGroup(user);
+  const work = grouped.work.map(toEntry);
+  const configuration = grouped.configuration.map(toEntry);
+  const platform = grouped.platform.map(toEntry);
+  const total = work.length + configuration.length + platform.length;
 
   return (
     <PageContainer>
-      <PageHeader
-        title="Performance"
-        description="Objective planning workspaces for the roles assigned to your account."
-      />
+      <PageHeader title="Performance" />
 
-      {doors.length === 0 ? (
+      {total === 0 ? (
         <PagePermissionNotice title="Performance access required" />
       ) : (
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {doors.map((door) => (
-            <PerformanceDoor key={door.href} door={door} />
-          ))}
-        </section>
+        <div className="flex flex-col gap-10">
+          {work.length > 0 ? (
+            <section
+              aria-label="Workspaces"
+              className="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+            >
+              {work.map((entry) => (
+                <WorkspaceDoor key={entry.href} entry={entry} />
+              ))}
+            </section>
+          ) : null}
+
+          {configuration.length > 0 ? (
+            <SetupBand title="Configuration" entries={configuration} />
+          ) : null}
+
+          {platform.length > 0 ? (
+            <SetupBand title="Platform administration" entries={platform} />
+          ) : null}
+        </div>
       )}
     </PageContainer>
   );
 }
 
-function PerformanceDoor({ door }: { door: WorkDoor }) {
-  const Icon = door.icon;
+/** Operational workspace — a door the user opens to do work. Card affordance. */
+function WorkspaceDoor({ entry }: { entry: Entry }) {
+  const Icon = entry.icon;
   return (
     <Link
-      href={door.href}
+      href={entry.href}
       className={cn(
         "group flex min-h-36 flex-col justify-between rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40 hover:bg-muted/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
       )}
@@ -69,11 +89,52 @@ function PerformanceDoor({ door }: { door: WorkDoor }) {
           <Icon className="size-5" />
         </span>
         <span className="min-w-0">
-          <span className="block text-base font-semibold text-foreground">{door.title}</span>
-          <span className="mt-1 block text-sm leading-5 text-muted-foreground">{door.description}</span>
+          <span className="block text-base font-semibold text-foreground">{entry.title}</span>
+          <span className="mt-1 block text-sm leading-5 text-muted-foreground">
+            {entry.description}
+          </span>
         </span>
       </div>
       <span className="mt-5 text-sm font-medium text-primary">Open workspace</span>
+    </Link>
+  );
+}
+
+/**
+ * Setup areas are not workspaces — they're a small, stable set the tenant configures rarely.
+ * A quiet full-width band with divided rows keeps them visually distinct from the work grid,
+ * so "which is what" is unmistakable at a glance.
+ */
+function SetupBand({ title, entries }: { title: string; entries: Entry[] }) {
+  return (
+    <section aria-label={title} className="flex flex-col gap-3">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h2>
+      <div className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
+        {entries.map((entry) => (
+          <SetupRow key={entry.href} entry={entry} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function SetupRow({ entry }: { entry: Entry }) {
+  const Icon = entry.icon;
+  return (
+    <Link
+      href={entry.href}
+      className="group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+    >
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground transition-colors group-hover:text-foreground">
+        <Icon className="size-4" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium text-foreground">{entry.title}</span>
+        <span className="block truncate text-sm text-muted-foreground">{entry.description}</span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </Link>
   );
 }

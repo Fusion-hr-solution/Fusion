@@ -25,11 +25,27 @@ vi.mock("@repo/api", async () => {
 });
 
 vi.mock("@repo/api/query", () => ({
+  useApiQuery: () => ({
+    data: undefined,
+    isLoading: false,
+    isFetching: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
   useApiMutation: (
     _mutation: unknown,
-    options: { onSuccess: (result: RecordObjectiveProgressResponseDto) => Promise<void> },
+    options: {
+      onSuccess?: (result: RecordObjectiveProgressResponseDto) => Promise<void>;
+      invalidateQueries?: unknown;
+    }
   ) => {
-    mutationHarness.options = options;
+    if (!options.invalidateQueries && options.onSuccess) {
+      mutationHarness.options = options as {
+        onSuccess: (
+          result: RecordObjectiveProgressResponseDto
+        ) => Promise<void>;
+      };
+    }
     return { mutate: vi.fn(), isLoading: false };
   },
 }));
@@ -145,7 +161,10 @@ function lockedApprovedWorkspace(): EmployeeObjectivePlanWorkspaceDto {
 describe("ProgressWorkspace", () => {
   it("renders the weighted-progress hero and an objective progress card", () => {
     const page = render(
-      <ProgressWorkspace workspace={lockedApprovedWorkspace()} onRecorded={async () => {}} />,
+      <ProgressWorkspace
+        workspace={lockedApprovedWorkspace()}
+        onRecorded={async () => {}}
+      />
     );
     expect(page.textContent).toContain("Plan progress");
     // Weighted hero numeral.
@@ -159,21 +178,27 @@ describe("ProgressWorkspace", () => {
   it("preserves dialog input and invites retry after a conflict", async () => {
     const onRecorded = vi.fn(async () => undefined);
     render(
-      <ProgressWorkspace workspace={lockedApprovedWorkspace()} onRecorded={onRecorded} />,
+      <ProgressWorkspace
+        workspace={lockedApprovedWorkspace()}
+        onRecorded={onRecorded}
+      />
     );
 
-    const openButton = Array.from(document.querySelectorAll("button")).find((button) =>
-      button.textContent?.includes("Update progress"),
+    const openButton = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent?.includes("Update progress")
     );
     expect(openButton).toBeDefined();
-    act(() => openButton?.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    act(() =>
+      openButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }))
+    );
 
-    const comment = document.querySelector<HTMLTextAreaElement>("#progress-comment");
+    const comment =
+      document.querySelector<HTMLTextAreaElement>("#progress-comment");
     expect(comment).not.toBeNull();
     act(() => {
       const setValue = Object.getOwnPropertyDescriptor(
         HTMLTextAreaElement.prototype,
-        "value",
+        "value"
       )?.set;
       setValue?.call(comment, "Customer milestone moved");
       comment?.dispatchEvent(new Event("input", { bubbles: true }));
@@ -192,10 +217,11 @@ describe("ProgressWorkspace", () => {
     });
 
     expect(onRecorded).toHaveBeenCalledOnce();
-    expect(document.querySelector<HTMLTextAreaElement>("#progress-comment")?.value)
-      .toBe("Customer milestone moved");
+    expect(
+      document.querySelector<HTMLTextAreaElement>("#progress-comment")?.value
+    ).toBe("Customer milestone moved");
     expect(document.body.textContent).toContain(
-      "Progress changed while you were recording. Review the latest value and try again.",
+      "Progress changed while you were recording. Review the latest value and try again."
     );
   });
 });

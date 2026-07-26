@@ -43,6 +43,7 @@ import {
 } from "@/components/my-objectives/progress/progress-visuals";
 import { useEvidence } from "@/components/my-objectives/progress/use-evidence";
 import { teamProgressTerms } from "@/components/my-objectives/progress/progress-terms";
+import { CheckInPanel } from "@/components/check-ins/check-in-panel";
 
 // ── Door: my team-progress campaigns ─────────────────────────────────────────
 
@@ -791,6 +792,18 @@ function ParticipantDetail({
                 </section>
               ))}
             </div>
+          </div>
+
+          <div className="mt-8 border-t pt-6">
+            <CheckInPanel
+              cycleId={data.cycleId}
+              slug={slug}
+              employeeId={data.employeeId}
+              objectives={data.objectives.map((item) => ({
+                id: item.objective.id,
+                title: item.objective.title,
+              }))}
+            />
           </div>
         </div>
       )}

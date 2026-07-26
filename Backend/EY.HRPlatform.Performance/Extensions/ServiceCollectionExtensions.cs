@@ -4,6 +4,7 @@ using EY.HRPlatform.Performance.Infrastructure.Attachments;
 using EY.HRPlatform.Performance.Features.ObjectivePolicy;
 using EY.HRPlatform.Performance.Features.Cycles.Services;
 using EY.HRPlatform.Performance.Features.EmployeeObjectives;
+using EY.HRPlatform.Performance.Features.Evaluations.Rounds.Services;
 using EY.HRPlatform.Performance.Features.PlanApprovals;
 using EY.HRPlatform.Performance.Features.PlanningCompletion;
 using EY.HRPlatform.Performance.Features.Security;
@@ -42,6 +43,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPerformanceAccessPolicyService, PerformanceAccessPolicyService>();
         services.AddScoped<EmployeeObjectivePlanAccessGuard>();
         services.AddScoped<PlanApprovalAccessGuard>();
+        services.AddScoped<Features.CheckIns.CheckInAccessGuard>();
         services.AddScoped<PlanningCompletionReadService>();
         services.AddScoped<Features.Progress.EffectiveReviewerResolver>();
         services.AddScoped<Features.Progress.Queries.ObjectiveProgressHistoryReader>();
@@ -59,6 +61,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         services.AddScoped<IPerformancePopulationResolver, PerformancePopulationResolver>();
         services.AddScoped<ICampaignReadinessResolver, CampaignReadinessResolver>();
+        services.AddScoped<IEvaluationRoundReadinessResolver, EvaluationRoundReadinessResolver>();
 
         services.AddTransient<BearerTokenForwardingHandler>();
         services.AddHttpClient<ICoreWorkforceClient, CoreWorkforceClient>(client =>
@@ -80,6 +83,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IScheduledJob, InactivitySweepJob>();
         services.AddSingleton<IScheduledJob, AttachmentCleanupJob>();
         services.AddSingleton<IScheduledJob, StaleProgressReminderJob>();
+        services.AddSingleton<IScheduledJob, UpcomingCheckInReminderJob>();
+        services.AddSingleton<IScheduledJob, OverdueCheckInReminderJob>();
+        services.AddSingleton<IScheduledJob, FollowUpActionDueReminderJob>();
+        services.AddSingleton<IScheduledJob, EvaluationDeadlineReminderJob>();
         services.AddHostedService<ScheduledJobRunner>();
 
         return services;

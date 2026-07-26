@@ -15,5 +15,22 @@ public enum PerformanceNotificationType
     PlanChangesRequested,
     ObjectiveCompleted,
     ObjectiveReopened,
-    ObjectiveProgressStale
+    ObjectiveProgressStale,
+    CheckInPlanned,
+    CheckInRescheduled,
+    CheckInCancelled,
+    CheckInCompleted,
+    CheckInReminder,
+    CheckInOverdue,
+    FollowUpActionAssigned,
+    FollowUpActionDueSoon,
+    DiscussionSignalRaised,
+    EvaluationLaunched,
+    EvaluationDeadlineExtended,
+    EvaluationDeadlineDueSoon,
+    EvaluationDeadlineOverdue,
+    EvaluationSelfAssessmentSubmitted,
+    EvaluationSelfAssessmentReopened,
+    EvaluationFinalized,
+    EvaluationAcknowledged
 }
