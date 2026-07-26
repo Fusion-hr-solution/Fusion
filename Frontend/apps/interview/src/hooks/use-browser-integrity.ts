@@ -36,6 +36,11 @@ const EVENT = {
 const DEFAULT_BATCH_INTERVAL_MS = 10_000;
 /** Bound the pending queue so a long offline stretch can't grow it without limit. */
 const MAX_QUEUE = 300;
+/**
+ * Must stay <= the server's ProctoringIngestLimits.MaxBatchSize. A larger POST is rejected 400,
+ * which would turn any backlog (> this many queued events) into a permanent failure loop.
+ */
+const MAX_BATCH = 100;
 
 export interface UseBrowserIntegrityOptions {
   token: string;
@@ -50,8 +55,8 @@ export interface UseBrowserIntegrityOptions {
 }
 
 export interface BrowserIntegrityHandle {
-  /** Best-effort immediate flush (used just before submit). Survives unload via sendBeacon. */
-  flushNow: () => void;
+  /** Best-effort immediate flush (used just before submit), with a sendBeacon fallback. */
+  flushNow: () => Promise<void>;
 }
 
 function newClientEventId(): string {
@@ -85,11 +90,15 @@ export function useBrowserIntegrity(options: UseBrowserIntegrityOptions): Browse
   } = options;
 
   // Latest token/fingerprint without re-attaching listeners when the fingerprint resolves.
+  // Written in an effect, never during render (a discarded concurrent render must not mutate it).
   const optsRef = useRef(options);
-  optsRef.current = options;
+  useEffect(() => {
+    optsRef.current = options;
+  });
 
   const queueRef = useRef<ProctoringEventInput[]>([]);
   const inFlightRef = useRef(false);
+  const secondDisplaySentRef = useRef(false);
 
   const enqueue = useCallback(
     (type: string, extra?: Partial<Omit<ProctoringEventInput, "clientEventId" | "type">>) => {
@@ -115,7 +124,9 @@ export function useBrowserIntegrity(options: UseBrowserIntegrityOptions): Browse
     if (events.length === 0 && !heartbeat) {
       return null;
     }
-    const drained = events.splice(0, events.length);
+    // Never exceed the server's per-batch cap; a backlog drains across successive ticks instead of
+    // being rejected wholesale.
+    const drained = events.splice(0, Math.min(events.length, MAX_BATCH));
     return {
       browserFingerprint: optsRef.current.browserFingerprint,
       heartbeat,
@@ -123,24 +134,27 @@ export function useBrowserIntegrity(options: UseBrowserIntegrityOptions): Browse
     };
   }, []);
 
+  /** Returns true when the batch was delivered (or there was nothing to send). */
   const flushAsync = useCallback(
-    async (heartbeat: boolean): Promise<void> => {
+    async (heartbeat: boolean): Promise<boolean> => {
       if (inFlightRef.current) {
-        return;
+        return false;
       }
       const batch = takeBatch(heartbeat);
       if (!batch) {
-        return;
+        return true;
       }
       inFlightRef.current = true;
       try {
         await submitProctoringEvents(optsRef.current.token, batch);
+        return true;
       } catch {
         // Re-queue on failure so an at-least-once retry lands next tick (client-id deduped server-side).
         queueRef.current.unshift(...batch.events);
         if (queueRef.current.length > MAX_QUEUE) {
           queueRef.current.splice(0, queueRef.current.length - MAX_QUEUE);
         }
+        return false;
       } finally {
         inFlightRef.current = false;
       }
@@ -163,7 +177,18 @@ export function useBrowserIntegrity(options: UseBrowserIntegrityOptions): Browse
     [takeBatch]
   );
 
-  const flushNow = useCallback(() => flushBeacon(true), [flushBeacon]);
+  /**
+   * Final delivery just before submit. Prefers the async POST — the page is still alive, so a
+   * rejection (rate limit, transient network) is visible and the events are re-queued — then falls
+   * back to a beacon for anything still pending. A bare beacon here could silently lose the most
+   * important batch of the attempt.
+   */
+  const flushNow = useCallback(async (): Promise<void> => {
+    await flushAsync(true);
+    if (queueRef.current.length > 0) {
+      flushBeacon(true);
+    }
+  }, [flushAsync, flushBeacon]);
 
   useEffect(() => {
     if (!active || (!activityMonitoring && !restrictCopyPaste)) {
@@ -192,8 +217,10 @@ export function useBrowserIntegrity(options: UseBrowserIntegrityOptions): Browse
     const onVisibility = () => {
       if (document.hidden) {
         openFocusLoss();
-        // A backgrounded tab throttles timers; flush what we have now so it isn't stranded.
-        flushBeacon(true);
+        // A backgrounded tab throttles timers, so flush now — but via the async POST, not a beacon.
+        // The page is still alive, so a rejection (e.g. the server's per-attempt rate limit) is
+        // visible and the events are re-queued, instead of being dropped by fire-and-forget.
+        void flushAsync(true);
       } else {
         closeFocusLoss();
       }
@@ -233,8 +260,10 @@ export function useBrowserIntegrity(options: UseBrowserIntegrityOptions): Browse
       document.addEventListener("fullscreenchange", onFullscreenChange);
 
       // One-shot: a second display present at start is the best answer to the off-camera monitor.
+      // Guarded by a ref so an effect re-run can't emit a duplicate row for the same attempt.
       const screenLike = window.screen as Screen & { isExtended?: boolean };
-      if (screenLike && screenLike.isExtended === true) {
+      if (!secondDisplaySentRef.current && screenLike?.isExtended === true) {
+        secondDisplaySentRef.current = true;
         enqueue(EVENT.secondDisplay);
       }
     }

@@ -578,6 +578,13 @@ public class CandidateAccessService(
             if (ev.Detail is { Length: > ProctoringIngestLimits.MaxDetailLength })
             {
                 throw new ApiException(
+                    $"Proctoring event detail exceeds {ProctoringIngestLimits.MaxDetailLength} characters.",
+                    StatusCodes.Status400BadRequest);
+            }
+
+            if (ev.Detail is { Length: > ProctoringIngestLimits.MaxDetailLength })
+            {
+                throw new ApiException(
                     $"Proctoring event detail is too long (max {ProctoringIngestLimits.MaxDetailLength} characters).",
                     StatusCodes.Status400BadRequest);
             }

@@ -550,8 +550,8 @@ export default function CandidateStartPage() {
     setError(null);
 
     // Deliver the final proctoring batch before the attempt flips to Submitted (after which the
-    // ingestion endpoint rejects it). Best-effort via sendBeacon.
-    proctoring.flushNow();
+    // ingestion endpoint rejects it). Awaited so a rejection is retried rather than silently lost.
+    await proctoring.flushNow();
 
     try {
       const resolvedFingerprint = await resolveBrowserFingerprint();
