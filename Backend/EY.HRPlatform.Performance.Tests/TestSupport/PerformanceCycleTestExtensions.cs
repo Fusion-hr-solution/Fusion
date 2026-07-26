@@ -5,11 +5,9 @@ using EY.HRPlatform.Performance.Domain.Enums;
 namespace EY.HRPlatform.Performance.Tests.TestSupport;
 
 /// <summary>
-/// Test scaffolding for the lean campaign model. The Packet A launch path (governance,
-/// assignment preparation, publish/activate) was removed in P1.2; downstream module tests
-/// (milestones, objectives, collective, feedback, reviews, cascade) still need a cycle in an
-/// in-flight (<see cref="PerformanceCycleStatus.Active"/>) state, which these helpers force
-/// directly. New P1.2 launch behaviour is covered by dedicated aggregate/handler tests.
+/// Test scaffolding for the lean campaign model. Downstream-module tests need a cycle in the
+/// in-flight <see cref="PerformanceCycleStatus.Launched"/> state, which these helpers force
+/// directly. New launch behaviour is covered by dedicated aggregate/handler tests.
 /// </summary>
 internal static class TestCycles
 {
@@ -62,41 +60,15 @@ internal static class TestCycles
 
 internal static class PerformanceCycleTestExtensions
 {
-    /// <summary>No-op shim: governance configuration was removed from the lean model.</summary>
-    internal static PerformanceCycle ConfigureForAssignmentPreparation(this PerformanceCycle cycle) => cycle;
-
-    /// <summary>No-op shim: campaign governance was removed from the lean model.</summary>
-    internal static PerformanceCycle ConfigureGovernance(
-        this PerformanceCycle cycle,
-        Guid retentionPolicyVersionId,
-        bool requireTeamObjectiveSuperiorApproval,
-        int minimumAnonymousFeedbackResponses,
-        CampaignFeedbackVisibility feedbackVisibility,
-        IEnumerable<Guid> exceptionOwnerEmployeeIds) => cycle;
-
-    /// <summary>Forces the cycle into the in-flight Active state for downstream-module tests.</summary>
-    internal static PerformanceCycle ForceActive(this PerformanceCycle cycle)
+    /// <summary>Forces the cycle into the in-flight Launched state for downstream-module tests.</summary>
+    internal static PerformanceCycle ForceLaunched(this PerformanceCycle cycle)
     {
-        SetStatus(cycle, PerformanceCycleStatus.Active);
+        SetStatus(cycle, PerformanceCycleStatus.Launched);
         return cycle;
     }
 
     internal static void Publish(this PerformanceCycle cycle, int resolvedPopulationCount, DateTime occurredAt)
-        => cycle.ForceActive();
-
-    internal static void BeginAssignmentPreparation(this PerformanceCycle cycle, int candidateCount, DateTime occurredAt)
-        => cycle.ForceActive();
-
-    internal static void MarkReadyToLaunch(
-        this PerformanceCycle cycle,
-        int finalResponsibilityCount,
-        int readinessFailureCount,
-        bool hasAcceptedWorkforceDelta,
-        DateTime occurredAt)
-        => cycle.ForceActive();
-
-    internal static void Activate(this PerformanceCycle cycle, DateTime occurredAt)
-        => cycle.ForceActive();
+        => cycle.ForceLaunched();
 
     private static void SetStatus(PerformanceCycle cycle, PerformanceCycleStatus status)
         => typeof(PerformanceCycle)

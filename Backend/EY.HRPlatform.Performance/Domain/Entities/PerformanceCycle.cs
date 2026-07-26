@@ -53,6 +53,9 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
 
     public DateTime? LaunchedAt { get; private set; }
     public DateTime? ClosedAt { get; private set; }
+    public DateTime? PlanningLockedAt { get; private set; }
+    public Guid? PlanningLockedByUserId { get; private set; }
+    public string? PlanningLockedByName { get; private set; }
 
     public IReadOnlyCollection<PerformanceCyclePopulationRule> PopulationRules => _populationRules.AsReadOnly();
     public IReadOnlyCollection<PerformanceCycleParticipant> Participants => _participants.AsReadOnly();
@@ -60,6 +63,7 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
     public IReadOnlyCollection<CampaignStrategicObjective> StrategicObjectives => _strategicObjectives.AsReadOnly();
 
     public bool IsEditable => Status == PerformanceCycleStatus.Draft;
+    public bool IsPlanningLocked => PlanningLockedAt.HasValue;
 
     public static PerformanceCycle CreateDraft(
         Guid tenantId,
@@ -261,17 +265,16 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
         Touch();
     }
 
-    public void Close(DateTime occurredAt)
+    public void LockPlanning(Guid? actorUserId, string? actorName, DateTime occurredAt)
     {
-        if (Status != PerformanceCycleStatus.Active)
-            throw new DomainRuleViolationException("Only an active campaign can be closed.");
+        if (Status != PerformanceCycleStatus.Launched)
+            throw new DomainRuleViolationException("Only a launched campaign can be locked for planning.");
+        if (IsPlanningLocked)
+            throw new DomainRuleViolationException("Planning is already locked for this campaign.");
 
-        var now = NormalizeUtc(occurredAt, nameof(occurredAt));
-        if (now < PeriodEnd)
-            throw new DomainRuleViolationException("A cycle cannot be closed before its period ends.");
-
-        Status = PerformanceCycleStatus.Closed;
-        ClosedAt = now;
+        PlanningLockedAt = NormalizeUtc(occurredAt, nameof(occurredAt));
+        PlanningLockedByUserId = actorUserId;
+        PlanningLockedByName = string.IsNullOrWhiteSpace(actorName) ? null : actorName.Trim();
         Touch();
     }
 

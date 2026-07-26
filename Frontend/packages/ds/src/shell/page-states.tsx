@@ -87,6 +87,58 @@ export function PageLoading({ rows = 5, className, label }: PageLoadingProps) {
   );
 }
 
+export interface PageListSkeletonProps {
+  /** Compact rows shown below the lead card. */
+  rows?: number;
+  className?: string;
+  label?: string;
+}
+
+/**
+ * Loading placeholder for a "door" list: one lead card + a few compact rows.
+ * Content-only (no container) so it drops in under a real PageHeader. The shape
+ * is fixed by design — never sized to the eventual record count — so it reads as
+ * a full list regardless of how many rows load.
+ */
+export function PageListSkeleton({ rows = 3, className, label }: PageListSkeletonProps) {
+  return (
+    <div className={cn("space-y-3", className)} aria-busy aria-label={label ?? "Loading list"}>
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+          <div className="min-w-0 flex-1 space-y-2.5">
+            <Skeleton className="h-5 w-28 rounded-full" />
+            <Skeleton className="h-7 w-64 max-w-full" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <div className="flex items-center gap-8 lg:shrink-0">
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-12" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-12" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+            <Skeleton className="size-5 shrink-0 rounded" />
+          </div>
+        </div>
+      </div>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-4"
+        >
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-4 w-48 max-w-full" />
+            <Skeleton className="h-3 w-64 max-w-full" />
+          </div>
+          <Skeleton className="size-4 shrink-0 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export interface PageSkeletonProps {
   /** Number of content skeleton rows below the header placeholder. */
   rows?: number;

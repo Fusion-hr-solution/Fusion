@@ -1,8 +1,14 @@
+using EY.HRPlatform.Performance.Features.ActivityLog;
 using EY.HRPlatform.Performance.Features.ConfigurationAudit;
+using EY.HRPlatform.Performance.Infrastructure.Attachments;
 using EY.HRPlatform.Performance.Features.ObjectivePolicy;
 using EY.HRPlatform.Performance.Features.Cycles.Services;
-using EY.HRPlatform.Performance.Features.Exceptions.Services;
+using EY.HRPlatform.Performance.Features.EmployeeObjectives;
+using EY.HRPlatform.Performance.Features.Evaluations.Rounds.Services;
+using EY.HRPlatform.Performance.Features.PlanApprovals;
+using EY.HRPlatform.Performance.Features.PlanningCompletion;
 using EY.HRPlatform.Performance.Features.Security;
+using EY.HRPlatform.Performance.Infrastructure.Jobs;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Infrastructure.Persistence.Interceptors;
@@ -35,12 +41,27 @@ public static class ServiceCollectionExtensions
             internalServiceAuthentication));
 
         services.AddScoped<IPerformanceAccessPolicyService, PerformanceAccessPolicyService>();
+        services.AddScoped<EmployeeObjectivePlanAccessGuard>();
+        services.AddScoped<PlanApprovalAccessGuard>();
+        services.AddScoped<Features.CheckIns.CheckInAccessGuard>();
+        services.AddScoped<PlanningCompletionReadService>();
+        services.AddScoped<Features.Progress.EffectiveReviewerResolver>();
+        services.AddScoped<Features.Progress.Queries.ObjectiveProgressHistoryReader>();
         services.AddScoped<IConfigurationAuditWriter, ConfigurationAuditWriter>();
+        services.AddScoped<IActivityLog, ActivityLogWriter>();
+        services.AddScoped<IActivityLogReader, ActivityLogReader>();
+        services.AddScoped<Features.Notifications.IPerformanceNotifier, Features.Notifications.PerformanceNotifier>();
+
+        // Attachments: metadata service + filesystem-backed storage.
+        services.Configure<AttachmentOptions>(configuration.GetSection(AttachmentOptions.SectionName));
+        services.AddScoped<Features.Attachments.IAttachmentService, Features.Attachments.AttachmentService>();
+        services.AddScoped<Features.Attachments.IAttachmentOwnerAuthorization, Features.Attachments.AttachmentOwnerAuthorization>();
+        services.AddSingleton<IAttachmentStorage, FileSystemAttachmentStorage>();
         services.AddScoped<PerformanceConfigurationValidator>();
         services.AddScoped<ICurrentUserContext, CurrentUserContext>();
         services.AddScoped<IPerformancePopulationResolver, PerformancePopulationResolver>();
         services.AddScoped<ICampaignReadinessResolver, CampaignReadinessResolver>();
-        services.AddScoped<IExceptionCaseWorkflowService, ExceptionCaseWorkflowService>();
+        services.AddScoped<IEvaluationRoundReadinessResolver, EvaluationRoundReadinessResolver>();
 
         services.AddTransient<BearerTokenForwardingHandler>();
         services.AddHttpClient<ICoreWorkforceClient, CoreWorkforceClient>(client =>
@@ -55,7 +76,18 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri(EnsureTrailingSlash(baseUrl));
         }).AddHttpMessageHandler<BearerTokenForwardingHandler>();
 
-        services.AddHostedService<DeadlineReminderWorker>();
+        // Background job runner: advisory-locked, observable, tenant-safe sweeps.
+        services.Configure<ScheduledJobsOptions>(configuration.GetSection(ScheduledJobsOptions.SectionName));
+        services.AddSingleton<IAdvisoryLock, PostgresAdvisoryLock>();
+        services.AddSingleton<IScheduledJob, DeadlineReminderJob>();
+        services.AddSingleton<IScheduledJob, InactivitySweepJob>();
+        services.AddSingleton<IScheduledJob, AttachmentCleanupJob>();
+        services.AddSingleton<IScheduledJob, StaleProgressReminderJob>();
+        services.AddSingleton<IScheduledJob, UpcomingCheckInReminderJob>();
+        services.AddSingleton<IScheduledJob, OverdueCheckInReminderJob>();
+        services.AddSingleton<IScheduledJob, FollowUpActionDueReminderJob>();
+        services.AddSingleton<IScheduledJob, EvaluationDeadlineReminderJob>();
+        services.AddHostedService<ScheduledJobRunner>();
 
         return services;
     }
@@ -71,6 +103,9 @@ public static class ServiceCollectionExtensions
 
         // Interceptor validates tenant context on SaveChanges.
         services.AddScoped<TenantSaveChangesInterceptor>();
+
+        // Interceptor dispatches aggregate domain events after a successful commit.
+        services.AddScoped<DomainEventDispatchInterceptor>();
 
         return services;
     }
@@ -97,6 +132,14 @@ public static class ServiceCollectionExtensions
                     "TenantSaveChangesInterceptor is not registered. Ensure AddMultitenancy() is called to register multitenancy services.");
             }
             options.AddInterceptors(tenantInterceptor);
+
+            var dispatchInterceptor = sp.GetService<DomainEventDispatchInterceptor>();
+            if (dispatchInterceptor is null)
+            {
+                throw new InvalidOperationException(
+                    "DomainEventDispatchInterceptor is not registered. Ensure AddMultitenancy() is called to register multitenancy services.");
+            }
+            options.AddInterceptors(dispatchInterceptor);
         });
 
         services.AddHealthChecks()

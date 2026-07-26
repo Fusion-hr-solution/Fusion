@@ -8,14 +8,8 @@ import * as authService from "../auth-service";
 import { makeAuthResponse, makeApiError, makeStoredAuth } from "./helpers";
 
 // Mock next/navigation
-const mockPush = vi.fn();
-const mockReplace = vi.fn();
 const mockSearchParamGet = vi.fn<(key: string) => string | null>();
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: mockPush,
-    replace: mockReplace,
-  }),
   useSearchParams: () => ({
     get: mockSearchParamGet,
   }),
@@ -37,9 +31,17 @@ vi.mock("../auth-service", async () => {
 });
 
 const mockedService = vi.mocked(authService);
+let mockLocationAssign: ReturnType<typeof vi.spyOn>;
+let mockLocationReplace: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockLocationAssign = vi
+    .spyOn(window.location, "assign")
+    .mockImplementation(() => undefined);
+  mockLocationReplace = vi
+    .spyOn(window.location, "replace")
+    .mockImplementation(() => undefined);
   mockedService.loadAuth.mockReturnValue(null);
   mockSearchParamGet.mockReturnValue(null);
 });
@@ -101,7 +103,7 @@ describe("SignInPage", () => {
       await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith("/");
+        expect(mockLocationAssign).toHaveBeenCalledWith("/");
       });
     });
 
@@ -117,7 +119,7 @@ describe("SignInPage", () => {
       await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith("/core/welcome?activation=1");
+        expect(mockLocationAssign).toHaveBeenCalledWith("/core/welcome?activation=1");
       });
     });
 
@@ -133,7 +135,7 @@ describe("SignInPage", () => {
       await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
       await waitFor(() => {
-        expect(mockPush).toHaveBeenCalledWith("/core/welcome?activation=1");
+        expect(mockLocationAssign).toHaveBeenCalledWith("/core/welcome?activation=1");
       });
     });
 
@@ -148,7 +150,7 @@ describe("SignInPage", () => {
 
       await waitFor(() => {
         expect(onSuccess).toHaveBeenCalled();
-        expect(mockPush).not.toHaveBeenCalled();
+        expect(mockLocationAssign).not.toHaveBeenCalled();
       });
     });
 
@@ -189,7 +191,7 @@ describe("SignInPage", () => {
       renderSignInPage();
 
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith("/");
+        expect(mockLocationReplace).toHaveBeenCalledWith("/");
       });
     });
 
@@ -201,7 +203,7 @@ describe("SignInPage", () => {
       renderSignInPage();
 
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith("/core/welcome?activation=1");
+        expect(mockLocationReplace).toHaveBeenCalledWith("/core/welcome?activation=1");
       });
     });
 
@@ -212,7 +214,7 @@ describe("SignInPage", () => {
 
       await waitFor(() => {
         expect(onSuccess).toHaveBeenCalled();
-        expect(mockReplace).not.toHaveBeenCalled();
+        expect(mockLocationReplace).not.toHaveBeenCalled();
       });
     });
   });

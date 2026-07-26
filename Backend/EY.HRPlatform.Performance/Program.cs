@@ -64,6 +64,34 @@ if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
     var dbContext = scope.ServiceProvider.GetRequiredService<PerformanceDbContext>();
     await dbContext.Database.MigrateAsync();
     await PlatformDefaultsSeeder.SeedAsync(dbContext);
+
+    if (app.Environment.IsDevelopment() &&
+        builder.Configuration.GetValue<bool>("DemoSeed:AtlasPerformance:Enabled"))
+    {
+        var tenantValue = builder.Configuration["DemoSeed:AtlasPerformance:TenantId"];
+        if (!Guid.TryParse(tenantValue, out var atlasTenantId) || atlasTenantId == Guid.Empty)
+            throw new InvalidOperationException(
+                "DemoSeed:AtlasPerformance:TenantId must be a non-empty GUID when the Atlas seed is enabled.");
+        scope.ServiceProvider.GetRequiredService<TenantContext>().SetTenant(atlasTenantId);
+        await AtlasPerformanceDemoSeeder.SeedAsync(dbContext, atlasTenantId, DateTime.UtcNow);
+
+        var isolationTenantValue = builder.Configuration["DemoSeed:AtlasPerformance:IsolationTenantId"];
+        if (!string.IsNullOrWhiteSpace(isolationTenantValue))
+        {
+            if (!Guid.TryParse(isolationTenantValue, out var isolationTenantId) ||
+                isolationTenantId == Guid.Empty ||
+                isolationTenantId == atlasTenantId)
+            {
+                throw new InvalidOperationException(
+                    "DemoSeed:AtlasPerformance:IsolationTenantId must be a distinct non-empty GUID when provided.");
+            }
+            using var isolationScope = app.Services.CreateScope();
+            isolationScope.ServiceProvider.GetRequiredService<TenantContext>().SetTenant(isolationTenantId);
+            var isolationDbContext = isolationScope.ServiceProvider.GetRequiredService<PerformanceDbContext>();
+            await AtlasPerformanceDemoSeeder.SeedIsolationTenantAsync(
+                isolationDbContext, isolationTenantId, DateTime.UtcNow);
+        }
+    }
 }
 
 if (app.Environment.IsDevelopment())

@@ -95,6 +95,9 @@ public class AccessProfileServiceSeedBackfillTests
         Assert.Contains(permissions, grant =>
             grant.PermissionKey == CorePermissions.ProfileSelfView
             && grant.Scope == PermissionScopes.Self);
+        Assert.Contains(permissions, grant =>
+            grant.PermissionKey == PerformancePermissions.ObjectiveTeamApprove
+            && grant.Scope == PermissionScopes.DirectReports);
 
         var assignments = dbContext.UserAccessProfiles
             .Where(assignment => assignment.TenantId == tenant.Id && assignment.UserId == user.Id)
@@ -105,6 +108,38 @@ public class AccessProfileServiceSeedBackfillTests
 
         Assert.Single(assignments);
         Assert.Equal(managerProfile.Id, assignments[0].AccessProfileId);
+    }
+
+    [Fact]
+    public async Task EnsureSeedDataAsync_CreatesDirectionProfileWithStrategyViewOnly()
+    {
+        await using var provider = CreateServiceProvider();
+        await using var scope = provider.CreateAsyncScope();
+
+        var dbContext = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        var accessProfileService = scope.ServiceProvider.GetRequiredService<IAccessProfileService>();
+
+        await IdentitySeeder.SeedAsync(dbContext, roleManager, userManager, seedDemoData: false);
+
+        var tenant = Tenant.Create(Guid.NewGuid(), "Direction Tenant");
+        dbContext.Tenants.Add(tenant);
+        await dbContext.SaveChangesAsync();
+
+        await accessProfileService.EnsureSeedDataAsync();
+
+        var directionProfile = dbContext.AccessProfiles
+            .Single(profile => profile.TenantId == tenant.Id && profile.InternalKey == "direction");
+
+        var grants = dbContext.AccessProfileGrants
+            .Where(grant => grant.TenantId == tenant.Id && grant.AccessProfileId == directionProfile.Id)
+            .ToList();
+
+        Assert.Equal("Direction", directionProfile.Name);
+        Assert.Single(grants);
+        Assert.Equal(PerformancePermissions.StrategicView, grants[0].PermissionKey);
+        Assert.Equal(PermissionScopes.Tenant, grants[0].Scope);
     }
 
     private static ServiceProvider CreateServiceProvider()

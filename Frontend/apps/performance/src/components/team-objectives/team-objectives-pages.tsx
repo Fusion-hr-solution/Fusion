@@ -23,6 +23,7 @@ import {
   PageEmpty,
   PageError,
   PageHeader,
+  PageListSkeleton,
   PagePermissionNotice,
   StatusBadge,
 } from "@repo/ds/shell";
@@ -68,8 +69,16 @@ export function TeamObjectiveCampaignsPage() {
     { enabled: canManage },
   );
 
-  if (authLoading) {
-    return <TeamObjectiveListSkeleton />;
+  if (authLoading || isLoading) {
+    return (
+      <PageContainer>
+        <PageHeader
+          title={teamObjectiveTerms.listTitle}
+          description={teamObjectiveTerms.listDescription}
+        />
+        <PageListSkeleton label="Loading team objectives" />
+      </PageContainer>
+    );
   }
 
   if (!canManage) {
@@ -83,9 +92,11 @@ export function TeamObjectiveCampaignsPage() {
 
   return (
     <PageContainer>
-      <PageHeader title={teamObjectiveTerms.listTitle} />
+      <PageHeader
+        title={teamObjectiveTerms.listTitle}
+        description={teamObjectiveTerms.listDescription}
+      />
 
-      {isLoading ? <TeamObjectiveListSkeleton /> : null}
       {!isLoading && error ? (
         <PageError title="Could not load your campaigns" description="Try again." onRetry={refetch} />
       ) : null}
@@ -380,10 +391,11 @@ export function TeamObjectiveWorkspacePage() {
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
         <div className="min-w-0 space-y-3">
-          {workspace.strategicObjectives.map((strategicObjective) => (
+          {workspace.strategicObjectives.map((strategicObjective, index) => (
             <StrategicObjectiveBand
               key={strategicObjective.id}
               strategicObjective={strategicObjective}
+              defaultOpen={index === 0}
               objectives={workspace.myTeamObjectives.filter(
                 (objective) => objective.strategicObjectiveId === strategicObjective.id,
               )}
@@ -433,6 +445,7 @@ export function TeamObjectiveWorkspacePage() {
 function StrategicObjectiveBand({
   strategicObjective,
   objectives,
+  defaultOpen,
   disabled,
   onAdd,
   onEdit,
@@ -440,6 +453,7 @@ function StrategicObjectiveBand({
 }: {
   strategicObjective: TeamObjectiveWorkspaceDto["strategicObjectives"][number];
   objectives: TeamObjectiveDto[];
+  defaultOpen: boolean;
   disabled: boolean;
   onAdd: () => void;
   onEdit: (objective: TeamObjectiveDto) => void;
@@ -452,7 +466,7 @@ function StrategicObjectiveBand({
     <CascadeRow
       covered={covered}
       collapsible
-      defaultOpen={!covered}
+      defaultOpen={defaultOpen}
       title={strategicObjective.title}
       description={strategicObjective.description}
       functionLabel={strategicObjective.responsibleFunctionLabel}
@@ -614,35 +628,6 @@ function ScopeCard({ workspace }: { workspace: TeamObjectiveWorkspaceDto }) {
 }
 
 // ── Skeletons ─────────────────────────────────────────────────────────────────
-
-function TeamObjectiveListSkeleton() {
-  return (
-    <PageContainer>
-      <div className="space-y-5" aria-busy aria-label="Loading team objectives">
-        <Skeleton className="h-8 w-48" />
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-5 w-24 rounded-full" />
-              <Skeleton className="h-7 w-64" />
-            </div>
-            <div className="flex items-center gap-8">
-              <div className="space-y-2">
-                <Skeleton className="h-8 w-12" />
-                <Skeleton className="h-3 w-20" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-8 w-12" />
-                <Skeleton className="h-3 w-24" />
-              </div>
-              <Skeleton className="size-5 shrink-0 rounded" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </PageContainer>
-  );
-}
 
 function TeamObjectiveWorkspaceSkeleton() {
   return (

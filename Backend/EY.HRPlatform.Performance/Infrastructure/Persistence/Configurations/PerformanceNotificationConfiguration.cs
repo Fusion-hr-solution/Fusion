@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Entities;
+using EY.HRPlatform.Performance.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -15,13 +16,15 @@ public class PerformanceNotificationConfiguration : IEntityTypeConfiguration<Per
         builder.Property(n => n.RecipientEmployeeId).IsRequired();
 
         builder.Property(n => n.Type)
-            .HasConversion<string>()
+            .HasConversion(value => ToStorage(value), value => FromStorage(value))
             .HasMaxLength(30)
             .IsRequired();
 
         builder.Property(n => n.Title).HasMaxLength(200).IsRequired();
         builder.Property(n => n.Message).HasMaxLength(2000);
         builder.Property(n => n.DedupKey).HasMaxLength(200);
+        builder.Property(n => n.SubjectType).HasMaxLength(120);
+        builder.Property(n => n.NavigationRoute).HasMaxLength(400);
         builder.Property(n => n.CreatedBy).HasMaxLength(256);
         builder.Property(n => n.UpdatedBy).HasMaxLength(256);
 
@@ -36,4 +39,22 @@ public class PerformanceNotificationConfiguration : IEntityTypeConfiguration<Per
             .HasFilter("\"DedupKey\" IS NOT NULL")
             .HasDatabaseName("IX_PerformanceNotifications_Tenant_DedupKey");
     }
+
+    private static string ToStorage(PerformanceNotificationType value) => value switch
+    {
+        PerformanceNotificationType.EvaluationSelfAssessmentSubmitted => "SelfSubmitted",
+        PerformanceNotificationType.EvaluationSelfAssessmentReopened => "SelfReopened",
+        PerformanceNotificationType.EvaluationFinalized => "EvalFinalized",
+        PerformanceNotificationType.EvaluationAcknowledged => "EvalAcknowledged",
+        _ => value.ToString()
+    };
+
+    private static PerformanceNotificationType FromStorage(string value) => value switch
+    {
+        "SelfSubmitted" => PerformanceNotificationType.EvaluationSelfAssessmentSubmitted,
+        "SelfReopened" => PerformanceNotificationType.EvaluationSelfAssessmentReopened,
+        "EvalFinalized" => PerformanceNotificationType.EvaluationFinalized,
+        "EvalAcknowledged" => PerformanceNotificationType.EvaluationAcknowledged,
+        _ => Enum.Parse<PerformanceNotificationType>(value)
+    };
 }

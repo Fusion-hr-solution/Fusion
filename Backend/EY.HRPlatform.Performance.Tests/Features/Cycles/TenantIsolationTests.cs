@@ -13,7 +13,7 @@ namespace EY.HRPlatform.Performance.Tests.Features.Cycles;
 
 /// <summary>
 /// D-04 guardrail 3: tenant fail-closed — asserts a foreign tenant reads zero rows
-/// from PerformanceCycles, CampaignAssignmentResponsibilities, and PerformanceCycleAuditEvents.
+/// from live Performance campaign data and audit events.
 /// </summary>
 public class TenantIsolationTests
 {
@@ -64,33 +64,6 @@ public class TenantIsolationTests
         await using var foreignDb = PerformanceTestContext.Create(tenantB, out _, dbName);
         var auditEvents = await foreignDb.PerformanceCycleAuditEvents.ToListAsync();
         Assert.Empty(auditEvents);
-    }
-
-    [Fact]
-    public async Task ForeignTenant_CannotReadExceptionCases()
-    {
-        var tenantA = Guid.NewGuid();
-        var tenantB = Guid.NewGuid();
-        var dbName = $"tenant-isolation-exceptions-{Guid.NewGuid()}";
-
-        await using var seedDb = PerformanceTestContext.Create(tenantA, out _, dbName);
-        var exceptionCase = ExceptionCase.Create(
-            tenantA,
-            Guid.NewGuid(),
-            Guid.NewGuid(),
-            CampaignWorkItemType.TeamObjectiveApproval,
-            Guid.NewGuid(),
-            Guid.NewGuid(),
-            "Routing failed",
-            "route-failed",
-            "{}",
-            DateTime.UtcNow);
-        seedDb.ExceptionCases.Add(exceptionCase);
-        await seedDb.SaveChangesAsync();
-
-        await using var foreignDb = PerformanceTestContext.Create(tenantB, out _, dbName);
-        var exceptionCases = await foreignDb.ExceptionCases.ToListAsync();
-        Assert.Empty(exceptionCases);
     }
 
     [Fact]

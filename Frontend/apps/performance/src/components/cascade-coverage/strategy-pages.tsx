@@ -18,6 +18,7 @@ import {
   PageEmpty,
   PageError,
   PageHeader,
+  PageListSkeleton,
   PagePermissionNotice,
   StatusBadge,
 } from "@repo/ds/shell";
@@ -33,18 +34,28 @@ export function StrategyCampaignsPage() {
   const { user, isLoading: authLoading } = useAuth();
   const canView = canViewPerformanceStrategy(user);
 
-  const { data, error, isLoading, refetch } = useApiQuery<CascadeCoverageCampaignDto[]>(
+  const { data, error, isLoading, refetch } = useApiQuery<
+    CascadeCoverageCampaignDto[]
+  >(
     performanceQueryKeys.cascadeCoverageCampaigns(),
     (signal) =>
       apiClient.get<CascadeCoverageCampaignDto[]>(
         performancePaths.cascadeCoverageCampaigns(),
-        { signal },
+        { signal }
       ),
-    { enabled: canView },
+    { enabled: canView }
   );
 
-  if (authLoading) {
-    return <StrategyListSkeleton />;
+  if (authLoading || isLoading) {
+    return (
+      <PageContainer>
+        <PageHeader
+          title={strategyTerms.listTitle}
+          description={strategyTerms.listDescription}
+        />
+        <PageListSkeleton label="Loading strategy campaigns" />
+      </PageContainer>
+    );
   }
 
   if (!canView) {
@@ -58,11 +69,18 @@ export function StrategyCampaignsPage() {
 
   return (
     <PageContainer>
-      <PageHeader title={strategyTerms.listTitle} />
+      <PageHeader
+        title={strategyTerms.listTitle}
+        description={strategyTerms.listDescription}
+      />
 
-      {isLoading ? <StrategyListSkeleton /> : null}
+
       {!isLoading && error ? (
-        <PageError title="Could not load campaigns" description="Try again." onRetry={refetch} />
+        <PageError
+          title="Could not load campaigns"
+          description="Try again."
+          onRetry={refetch}
+        />
       ) : null}
 
       {!isLoading && !error && data ? (
@@ -78,7 +96,7 @@ export function StrategyCampaignsPage() {
                 <StrategyCampaignHero key={campaign.id} campaign={campaign} />
               ) : (
                 <StrategyCampaignRow key={campaign.id} campaign={campaign} />
-              ),
+              )
             )}
           </div>
         )
@@ -92,17 +110,29 @@ export function StrategyCampaignsPage() {
  * snapshot pulled for this campaign, so the door itself tells Direction where the gaps are before
  * they step through it.
  */
-function StrategyCampaignHero({ campaign }: { campaign: CascadeCoverageCampaignDto }) {
+function StrategyCampaignHero({
+  campaign,
+}: {
+  campaign: CascadeCoverageCampaignDto;
+}) {
   const apiClient = useMemo(() => createPlatformApiClient(), []);
   const { data } = useApiQuery<CascadeCoverageDto>(
     performanceQueryKeys.cascadeCoverage(campaign.slug),
     (signal) =>
-      apiClient.get<CascadeCoverageDto>(performancePaths.cascadeCoverage(campaign.slug), { signal }),
-    { enabled: !!campaign.slug },
+      apiClient.get<CascadeCoverageDto>(
+        performancePaths.cascadeCoverage(campaign.slug),
+        { signal }
+      ),
+    { enabled: !!campaign.slug }
   );
 
-  const gaps = data ? data.activeStrategicObjectiveCount - data.coveredStrategicObjectiveCount : 0;
-  const segments = data?.strategicObjectives.map((objective) => objective.teamObjectiveCount > 0) ?? [];
+  const gaps = data
+    ? data.activeStrategicObjectiveCount - data.coveredStrategicObjectiveCount
+    : 0;
+  const segments =
+    data?.strategicObjectives.map(
+      (objective) => objective.teamObjectiveCount > 0
+    ) ?? [];
 
   return (
     <Link
@@ -114,7 +144,9 @@ function StrategyCampaignHero({ campaign }: { campaign: CascadeCoverageCampaignD
           <div className="flex flex-wrap items-center gap-2">
             {data && data.activeStrategicObjectiveCount > 0 ? (
               <StatusBadge tone={gaps > 0 ? "warning" : "success"} dot>
-                {gaps > 0 ? strategyTerms.gapsToClose(gaps) : strategyTerms.fullyCovered}
+                {gaps > 0
+                  ? strategyTerms.gapsToClose(gaps)
+                  : strategyTerms.fullyCovered}
               </StatusBadge>
             ) : (
               <StatusBadge tone="success" dot>
@@ -154,10 +186,11 @@ function StrategyCampaignHero({ campaign }: { campaign: CascadeCoverageCampaignD
                 </div>
                 <SegmentedCoverageBar className="mt-3" segments={segments} />
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {data.teamObjectiveCount} {strategyTerms.teamObjectivesLabel} ·{" "}
+                  {data.teamObjectiveCount} {strategyTerms.teamObjectivesLabel}{" "}
+                  ·{" "}
                   {strategyTerms.contributing(
                     data.managersWithTeamObjectivesCount,
-                    data.managerCount,
+                    data.managerCount
                   )}
                 </p>
               </>
@@ -177,17 +210,25 @@ function StrategyCampaignHero({ campaign }: { campaign: CascadeCoverageCampaignD
 }
 
 /** Secondary launched campaigns — a compact row; the lead hero carries the live snapshot. */
-function StrategyCampaignRow({ campaign }: { campaign: CascadeCoverageCampaignDto }) {
+function StrategyCampaignRow({
+  campaign,
+}: {
+  campaign: CascadeCoverageCampaignDto;
+}) {
   return (
     <Link
       href={`/strategy/${campaign.slug}`}
       className="group flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-4 transition-colors hover:border-primary/40 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="min-w-0 flex-1">
-        <h3 className="truncate text-base font-semibold text-foreground">{campaign.name}</h3>
+        <h3 className="truncate text-base font-semibold text-foreground">
+          {campaign.name}
+        </h3>
         <p className="mt-0.5 text-sm text-muted-foreground">
           {campaign.referenceYear ? `${campaign.referenceYear} · ` : ""}
-          {campaign.launchedAt ? strategyTerms.launchedOn(formatDate(campaign.launchedAt)) : "Launched"}
+          {campaign.launchedAt
+            ? strategyTerms.launchedOn(formatDate(campaign.launchedAt))
+            : "Launched"}
         </p>
       </div>
       <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
@@ -208,8 +249,11 @@ export function StrategyCoveragePage() {
   const { data, error, isLoading, refetch } = useApiQuery<CascadeCoverageDto>(
     performanceQueryKeys.cascadeCoverage(slug),
     (signal) =>
-      apiClient.get<CascadeCoverageDto>(performancePaths.cascadeCoverage(slug), { signal }),
-    { enabled: canView && !!slug },
+      apiClient.get<CascadeCoverageDto>(
+        performancePaths.cascadeCoverage(slug),
+        { signal }
+      ),
+    { enabled: canView && !!slug }
   );
 
   if (authLoading) {
@@ -238,9 +282,13 @@ export function StrategyCoveragePage() {
       <PageContainer>
         <PageHeader title={strategyTerms.listTitle} />
         <PageError
-          title={notFound ? "Campaign not found" : "Could not load this campaign"}
+          title={
+            notFound ? "Campaign not found" : "Could not load this campaign"
+          }
           description={
-            notFound ? "It may not be launched yet, or the link is wrong." : "Try again."
+            notFound
+              ? "It may not be launched yet, or the link is wrong."
+              : "Try again."
           }
           onRetry={notFound ? undefined : refetch}
         />
@@ -248,7 +296,8 @@ export function StrategyCoveragePage() {
     );
   }
 
-  const gaps = data.activeStrategicObjectiveCount - data.coveredStrategicObjectiveCount;
+  const gaps =
+    data.activeStrategicObjectiveCount - data.coveredStrategicObjectiveCount;
 
   return (
     <PageContainer>
@@ -256,12 +305,18 @@ export function StrategyCoveragePage() {
         eyebrow={
           data.activeStrategicObjectiveCount > 0 ? (
             <StatusBadge tone={gaps > 0 ? "warning" : "success"} dot>
-              {gaps > 0 ? strategyTerms.gapsToClose(gaps) : strategyTerms.fullyCovered}
+              {gaps > 0
+                ? strategyTerms.gapsToClose(gaps)
+                : strategyTerms.fullyCovered}
             </StatusBadge>
           ) : undefined
         }
         title={data.name}
-        description={data.launchedAt ? `Launched ${formatDate(data.launchedAt)}` : undefined}
+        description={
+          data.launchedAt
+            ? `Launched ${formatDate(data.launchedAt)}`
+            : undefined
+        }
       />
 
       <CascadeCoverageFull data={data} />
@@ -271,37 +326,14 @@ export function StrategyCoveragePage() {
 
 // ── Skeletons ─────────────────────────────────────────────────────────────────
 
-function StrategyListSkeleton() {
-  return (
-    <PageContainer>
-      <div className="space-y-5" aria-busy aria-label="Loading strategy campaigns">
-        <Skeleton className="h-8 w-40" />
-        <div className="rounded-2xl border border-border bg-card p-6">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-5 w-28 rounded-full" />
-              <Skeleton className="h-7 w-64" />
-              <Skeleton className="h-4 w-40" />
-            </div>
-            <div className="flex items-center gap-5 lg:w-[24rem]">
-              <div className="flex-1 space-y-2.5">
-                <Skeleton className="h-8 w-24" />
-                <Skeleton className="h-2.5 w-full rounded-full" />
-                <Skeleton className="h-3 w-40" />
-              </div>
-              <Skeleton className="size-5 shrink-0 rounded" />
-            </div>
-          </div>
-        </div>
-      </div>
-    </PageContainer>
-  );
-}
-
 function StrategyCoverageSkeleton() {
   return (
     <PageContainer>
-      <div className="space-y-5" aria-busy aria-label="Loading strategy coverage">
+      <div
+        className="space-y-5"
+        aria-busy
+        aria-label="Loading strategy coverage"
+      >
         {/* Header */}
         <div className="space-y-2">
           <Skeleton className="h-5 w-28 rounded-full" />

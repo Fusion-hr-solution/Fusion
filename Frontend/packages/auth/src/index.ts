@@ -67,7 +67,15 @@ export {
   canManageObjectivePlanningConfiguration,
   canManageTeamObjectives,
   canAccessTeamObjectives,
+  canAccessPlanApprovals,
+  canAccessMyObjectives,
+  canAccessTeamProgress,
   canViewPerformanceStrategy,
+  canManageEvaluations,
+  canManageSkills,
+  canOperateEvaluations,
+  canAccessMyEvaluations,
+  canAccessTeamEvaluations,
   canAccessPerformance,
 } from "./roles";
 
