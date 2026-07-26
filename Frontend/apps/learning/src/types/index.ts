@@ -182,7 +182,9 @@ export interface Training {
   instructor: string;
   instructorRole: string;
   enrolledCount: number;
-  rating: number;
+  /** Average learner rating (1..5) from real feedback; null when the training has no ratings yet. */
+  rating: number | null;
+  ratingCount?: number;
   imageUrl: string;
   tags: string[];
   updatedAt: string;

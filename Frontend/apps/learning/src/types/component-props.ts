@@ -88,7 +88,7 @@ export interface TrainingStatsStripProps {
   duration: string;
   chaptersCount: number;
   enrolledCount: number;
-  rating: number;
+  rating: number | null;
 }
 
 export interface CourseOutlineProps {
