@@ -16,6 +16,11 @@ public class TrainingDetailDto
     public Guid? SponsoringServiceLineId { get; set; }
     public DateTime? ScheduledDate { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>Average learner OverallRating (1..5, 2 decimals) from post-training feedback; null when unrated.</summary>
+    public double? AverageRating { get; set; }
+    public int RatingCount { get; set; }
+
     public List<ChapterDto> Chapters { get; set; } = [];
     public List<ExamDto> Exams { get; set; } = [];
     public List<OnSiteCourseDto> OnSiteCourses { get; set; } = [];

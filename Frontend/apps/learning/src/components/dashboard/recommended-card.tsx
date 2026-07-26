@@ -49,9 +49,15 @@ export function RecommendedCard({ training }: RecommendedCardProps) {
               <BookOpen className="h-3 w-3" aria-hidden="true" />
               {t("chaptersCount", { count: training.chaptersCount })}
             </span>
-            <span className="flex items-center gap-1 font-semibold text-foreground">
-              ★ {training.rating}
-            </span>
+            {training.rating != null ? (
+              <span className="flex items-center gap-1 font-semibold text-foreground">
+                ★ {training.rating.toFixed(1)}
+              </span>
+            ) : (
+              <span className="text-muted-foreground/70">
+                {tCommon("noRatings")}
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>

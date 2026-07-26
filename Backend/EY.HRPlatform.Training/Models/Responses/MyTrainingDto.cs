@@ -18,4 +18,8 @@ public class MyTrainingDto
     public DateTime? CompletedAt { get; set; }
     public string AssignmentType { get; set; } = string.Empty;
     public DateTime? DueDate { get; set; }
+
+    /// <summary>Average learner OverallRating (1..5, 2 decimals) from post-training feedback; null when unrated.</summary>
+    public double? AverageRating { get; set; }
+    public int RatingCount { get; set; }
 }

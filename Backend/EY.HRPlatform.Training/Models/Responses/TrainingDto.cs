@@ -16,4 +16,8 @@ public class TrainingDto
     public string CostType { get; set; } = "Internal";
     public DateTime? ScheduledDate { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    /// <summary>Average learner OverallRating (1..5, 2 decimals) from post-training feedback; null when unrated.</summary>
+    public double? AverageRating { get; set; }
+    public int RatingCount { get; set; }
 }
