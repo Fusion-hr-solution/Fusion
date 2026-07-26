@@ -251,6 +251,27 @@ export interface CandidateTimelineMilestone {
   occurredAtUtc?: string;
 }
 
+export type ProctoringSeverity = "none" | "low" | "medium" | "high";
+
+export interface ProctoringTypeCount {
+  type: string;
+  count: number;
+  severity: ProctoringSeverity;
+}
+
+/** Aggregated proctoring roll-up for one attempt — not a raw event firehose. */
+export interface CandidateAttemptProctoringSummary {
+  enabled: boolean;
+  totalEvents: number;
+  severity: ProctoringSeverity;
+  countsByType: ProctoringTypeCount[];
+  firstEventAtUtc?: string;
+  lastEventAtUtc?: string;
+  lastHeartbeatAtUtc?: string;
+  heartbeatGapSeconds?: number;
+  wentDark: boolean;
+}
+
 export interface CandidateAttemptTimeline {
   attemptNumber: number;
   attemptId?: string;
@@ -259,6 +280,8 @@ export interface CandidateAttemptTimeline {
   totalScore?: number;
   maxScore?: number;
   milestones: CandidateTimelineMilestone[];
+  /** Present only when proctoring was enabled or produced events for this attempt. */
+  proctoring?: CandidateAttemptProctoringSummary;
 }
 
 export interface CandidateProgressTimeline {

@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using EY.HRPlatform.Interview.Domain;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Infrastructure;
@@ -14,6 +15,43 @@ namespace EY.HRPlatform.Interview.Tests.Features.Integration;
 
 public class CandidateManagementRoutesIntegrationTests
 {
+    [Fact]
+    public async Task GetTimeline_AggregatesProctoringSummaryPerAttempt()
+    {
+        await using var factory = new InterviewApiFactory();
+        const string candidateEmail = "proctored@example.com";
+
+        // Seed a proctored test + a submitted attempt whose monitor went dark, plus a few events.
+        var (testId, attemptId) = await SeedProctoredAttemptAsync(factory.Services, candidateEmail);
+
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        var response = await client.GetAsync(
+            $"/api/interview/candidates/management/timeline?testId={testId}&candidateEmail={Uri.EscapeDataString(candidateEmail)}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var data = json.RootElement.GetProperty("data");
+        var attempt = data.GetProperty("attempts").EnumerateArray()
+            .Single(item => item.GetProperty("attemptId").GetString() == attemptId.ToString());
+
+        var proctoring = attempt.GetProperty("proctoring");
+        Assert.True(proctoring.GetProperty("enabled").GetBoolean());
+        Assert.Equal(3, proctoring.GetProperty("totalEvents").GetInt32());
+        Assert.Equal("high", proctoring.GetProperty("severity").GetString());
+        Assert.True(proctoring.GetProperty("wentDark").GetBoolean());
+
+        var counts = proctoring.GetProperty("countsByType").EnumerateArray().ToList();
+        // Highest-severity type ranks first.
+        Assert.Equal("second_person", counts[0].GetProperty("type").GetString());
+        Assert.Equal(2, counts[0].GetProperty("count").GetInt32());
+        Assert.Equal("high", counts[0].GetProperty("severity").GetString());
+        Assert.Contains(counts, c => c.GetProperty("type").GetString() == "tab_focus_loss");
+    }
+
     [Fact]
     public async Task GetTimelineCandidates_WhenCandidatesHaveDifferentProgress_ReturnsLatestStatusPerCandidate()
     {
@@ -616,6 +654,67 @@ public class CandidateManagementRoutesIntegrationTests
 
         return test.Id;
     }
+
+    private static async Task<(Guid TestId, Guid AttemptId)> SeedProctoredAttemptAsync(
+        IServiceProvider services,
+        string candidateEmail)
+    {
+        using var scope = services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var test = new Test
+        {
+            Title = "Proctored timeline test",
+            Description = "Proctoring summary coverage",
+            Discipline = Discipline.Engineering,
+            Status = TestStatus.Active,
+            EnableProctoring = true,
+        };
+        db.Tests.Add(test);
+
+        var startedAt = DateTime.UtcNow.AddMinutes(-10);
+        var submittedAt = DateTime.UtcNow;
+        var invitation = new CandidateInvitation
+        {
+            TestId = test.Id,
+            TestTitle = test.Title,
+            Email = candidateEmail,
+            CandidateName = "Proctored Candidate",
+            Status = "Submitted",
+        };
+        db.CandidateInvitations.Add(invitation);
+
+        var attempt = new CandidateTestAttempt
+        {
+            InvitationId = invitation.Id,
+            TestId = test.Id,
+            AttemptNumber = 1,
+            CandidateEmail = candidateEmail,
+            StartedAtUtc = startedAt,
+            SubmittedAtUtc = submittedAt,
+            // Beat once near the start then went dark → a large gap to submit.
+            LastProctorHeartbeatUtc = startedAt.AddSeconds(10),
+        };
+        db.CandidateTestAttempts.Add(attempt);
+
+        db.CandidateProctoringEvents.AddRange(
+            NewProctoringEvent(attempt.Id, ProctoringEventTypes.SecondPerson, "e1", startedAt.AddMinutes(1)),
+            NewProctoringEvent(attempt.Id, ProctoringEventTypes.SecondPerson, "e2", startedAt.AddMinutes(2)),
+            NewProctoringEvent(attempt.Id, ProctoringEventTypes.TabFocusLoss, "e3", startedAt.AddMinutes(3)));
+
+        await db.SaveChangesAsync();
+        return (test.Id, attempt.Id);
+    }
+
+    private static CandidateProctoringEvent NewProctoringEvent(Guid attemptId, string type, string clientEventId, DateTime at) =>
+        new()
+        {
+            AttemptId = attemptId,
+            Type = type,
+            ClientEventId = clientEventId,
+            StartedAtUtc = at,
+            ServerReceivedAtUtc = at,
+        };
 
     private static async Task SetInvitationStatusAsync(IServiceProvider services, string invitationId, string status)
     {
