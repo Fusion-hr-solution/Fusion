@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\EY.HRPlatform.Identity\EY.HRPlatform.Identity.csproj" />
+    <ProjectReference Include="..\EY.HRPlatform.DemoSeed\EY.HRPlatform.DemoSeed.csproj" />
   </ItemGroup>
 
 </Project>
