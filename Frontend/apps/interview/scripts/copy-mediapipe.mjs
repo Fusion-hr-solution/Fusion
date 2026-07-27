@@ -53,9 +53,11 @@ const MODELS = [
     sha256: "64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff",
   },
   {
-    file: "efficientdet_lite0.tflite",
-    url: "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/int8/1/efficientdet_lite0.tflite",
-    sha256: "0720bf247bd76e6594ea28fa9c6f7c5242be774818997dbbeffc4da460c723bb",
+    // EfficientDet-Lite2 (int8) — larger/more accurate than Lite0, which wasn't detecting a
+    // hand-held phone. Keep the object task's model in sync with lib/proctor/constants.ts.
+    file: "efficientdet_lite2.tflite",
+    url: "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/int8/1/efficientdet_lite2.tflite",
+    sha256: "b3f50554cb0ea559e90328845f7d9ba4d13c8bff372914d24e06bc8bb72fa896",
   },
 ];
 

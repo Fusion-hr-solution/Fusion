@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ProctoringChannel } from "@/lib/proctor/proctoring-channel";
-import type { ProctorInbound, ProctorOutbound } from "@/lib/proctor/messages";
+import {
+  detectFace,
+  detectObjects,
+  loadVisionTasks,
+  type VisionTasks,
+} from "@/lib/proctor/vision";
 import {
   ABSENT_SUSTAIN_MS,
   FACE_MODEL_URL,
@@ -18,17 +23,18 @@ import {
 } from "@/lib/proctor/constants";
 
 /**
- * Layer A — webcam proctoring via MediaPipe (FaceLandmarker + ObjectDetector in a GPU worker).
+ * Layer A — webcam proctoring via MediaPipe (FaceLandmarker + ObjectDetector), run on the MAIN
+ * THREAD (a module worker under Next.js dev + basePath + COEP fails opaquely). The GPU delegate still
+ * keeps the heavy compute off the CPU, and at ~1–2 fps the per-frame main-thread cost is small.
  *
  * Privacy/consent: touches the camera ONLY once `consented` is true. Detection is entirely
- * client-side — frames never leave the worker; only small metadata events reach the server. Warm
+ * client-side — frames never leave the page; only small metadata events reach the server. Warm
  * (getUserMedia + model load) is meant to run on the pre-start screen, BEFORE the attempt, so the
- * download is off the timer. Strict teardown stops the tracks (camera light off) and terminates the
- * worker — driven by the lifecycle effect's cleanup, which also makes the acquire StrictMode-safe.
+ * download is off the timer. Strict teardown stops the tracks (camera light off) and closes the
+ * models — driven by the lifecycle effect's cleanup, which also makes the acquire StrictMode-safe.
  *
  * Graceful degradation: a denied/absent/lost camera emits `camera_denied`/`camera_lost` and the
- * candidate proceeds — the reviewer sees the heartbeat gap. Inference pauses while `paused` (e.g.
- * the WebContainers sandbox is booting; both are GPU-heavy).
+ * candidate proceeds. Inference pauses while `paused` (e.g. the WebContainers sandbox is booting).
  */
 
 // requestVideoFrameCallback isn't in every TS DOM lib yet.
@@ -87,7 +93,7 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
   const [warmReady, setWarmReady] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
 
-  const workerRef = useRef<Worker | null>(null);
+  const tasksRef = useRef<VisionTasks | null>(null);
   const videoRef = useRef<VideoWithRvfc | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -96,14 +102,56 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
   const pumpHandleRef = useRef<number | null>(null);
   const pumpGenRef = useRef(0);
   const usingRvfcRef = useRef(false);
-  const tsRef = useRef(0);
   const lastFrameRef = useRef(0);
+  const frameCounterRef = useRef(0);
 
-  // Per-signal state machines (main thread).
+  // Per-signal state machines.
   const secondPersonRef = useRef<Episode>({ activeSince: null, emitted: false });
   const absentRef = useRef<Episode>({ activeSince: null, emitted: false });
   const lookAwayRef = useRef<Episode>({ activeSince: null, emitted: false });
   const objectCooldownRef = useRef<Map<string, number>>(new Map());
+
+  const processFace = useCallback(
+    (faceCount: number, yaw: number | null, pitch: number | null) => {
+      const now = Date.now();
+
+      updateEpisode(secondPersonRef.current, faceCount >= 2, now, SECOND_PERSON_SUSTAIN_MS, (startedAtMs) =>
+        channel.enqueue("second_person", { startedAtUtc: new Date(startedAtMs).toISOString() })
+      );
+
+      updateEpisode(absentRef.current, faceCount === 0, now, ABSENT_SUSTAIN_MS, (startedAtMs) =>
+        channel.enqueue("candidate_absent", { startedAtUtc: new Date(startedAtMs).toISOString() })
+      );
+
+      const lookingAway =
+        faceCount >= 1 &&
+        yaw !== null &&
+        pitch !== null &&
+        (Math.abs(yaw) > YAW_THRESHOLD_DEG || Math.abs(pitch) > PITCH_THRESHOLD_DEG);
+      const confidence =
+        yaw !== null && pitch !== null
+          ? Math.min(1, Math.max(Math.abs(yaw), Math.abs(pitch)) / 90)
+          : undefined;
+      updateEpisode(lookAwayRef.current, lookingAway, now, LOOK_AWAY_SUSTAIN_MS, (startedAtMs) =>
+        channel.enqueue("looking_away", { startedAtUtc: new Date(startedAtMs).toISOString(), confidence })
+      );
+    },
+    [channel]
+  );
+
+  const processObjects = useCallback(
+    (detections: { label: string; score: number }[]) => {
+      const now = Date.now();
+      for (const detection of detections) {
+        const last = objectCooldownRef.current.get(detection.label) ?? 0;
+        if (now - last >= PROHIBITED_OBJECT_COOLDOWN_MS) {
+          objectCooldownRef.current.set(detection.label, now);
+          channel.enqueue("prohibited_object", { detail: detection.label, confidence: detection.score });
+        }
+      }
+    },
+    [channel]
+  );
 
   const stopPump = useCallback(() => {
     pumpGenRef.current += 1; // invalidate any scheduled/in-flight tick
@@ -117,6 +165,10 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
       }
       pumpHandleRef.current = null;
     }
+    // Stop decoding frames while we're not inferring (pre-start, or while the sandbox boots) so the
+    // camera doesn't compete with WebContainers for CPU. The track stays live (light on, instant
+    // resume) — only the <video> element pauses.
+    videoRef.current?.pause();
   }, []);
 
   const startPump = useCallback(() => {
@@ -124,6 +176,7 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
     if (!video) {
       return;
     }
+    void video.play().catch(() => {}); // resume decoding for inference
     const gen = (pumpGenRef.current += 1);
     usingRvfcRef.current = typeof video.requestVideoFrameCallback === "function";
 
@@ -132,26 +185,28 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
         return; // superseded by a newer pump (or stopped)
       }
       const now = performance.now();
-      const worker = workerRef.current;
-      if (worker && video.readyState >= 2 && now - lastFrameRef.current >= FRAME_INTERVAL_MS) {
+      const tasks = tasksRef.current;
+      if (tasks && video.readyState >= 2 && video.videoWidth > 0 && now - lastFrameRef.current >= FRAME_INTERVAL_MS) {
         lastFrameRef.current = now;
         try {
-          // Downscale before inference to bound GPU cost; transfer the bitmap (zero-copy).
-          const bitmap = await createImageBitmap(video, {
-            resizeWidth: 320,
-            resizeHeight: 240,
-            resizeQuality: "low",
-          });
+          // Snapshot the DECODED frame (works on a detached <video>, unlike a 2D-canvas drawImage),
+          // then run one detector on that static bitmap — never the shared video element.
+          const bitmap = await createImageBitmap(video);
           if (gen !== pumpGenRef.current) {
-            bitmap.close(); // stopped while decoding — don't leak or post a stray frame
-            return;
+            bitmap.close();
+          } else {
+            // Alternate models per frame so each runs at ~half the rate, bounding cost.
+            if (frameCounterRef.current % 2 === 0) {
+              const face = detectFace(tasks.face, bitmap);
+              processFace(face.faceCount, face.yaw, face.pitch);
+            } else {
+              processObjects(detectObjects(tasks.object, bitmap));
+            }
+            frameCounterRef.current += 1;
+            bitmap.close();
           }
-          // Strictly increasing timestamp (MediaPipe VIDEO mode requires it).
-          tsRef.current = Math.max(tsRef.current + 1, Math.round(now));
-          const frame: ProctorInbound = { type: "frame", bitmap, timestampMs: tsRef.current };
-          worker.postMessage(frame, [bitmap]);
         } catch {
-          // Transient (frame not ready) — skip.
+          // Transient inference hiccup — skip this frame.
         }
       }
       schedule();
@@ -169,70 +224,15 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
     };
 
     schedule();
+  }, [processFace, processObjects]);
+
+  const releaseCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setStream(null);
   }, []);
 
-  const handleObservation = useCallback(
-    (message: ProctorOutbound) => {
-      const now = Date.now();
-      if (message.type === "ready") {
-        setWarmReady(true);
-        setStatus((prev) => (prev === "requesting" || prev === "warming" ? "ready" : prev));
-        return;
-      }
-      if (message.type === "init-error") {
-        // Model load failed — release the camera (no point holding it) and go inert.
-        setWarmReady(false);
-        setStatus("error");
-        streamRef.current?.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        setStream(null);
-        return;
-      }
-      if (message.type === "face") {
-        const { faceCount, yaw, pitch } = message;
-
-        updateEpisode(secondPersonRef.current, faceCount >= 2, now, SECOND_PERSON_SUSTAIN_MS, (startedAtMs) =>
-          channel.enqueue("second_person", { startedAtUtc: new Date(startedAtMs).toISOString() })
-        );
-
-        updateEpisode(absentRef.current, faceCount === 0, now, ABSENT_SUSTAIN_MS, (startedAtMs) =>
-          channel.enqueue("candidate_absent", { startedAtUtc: new Date(startedAtMs).toISOString() })
-        );
-
-        const lookingAway =
-          faceCount >= 1 &&
-          yaw !== null &&
-          pitch !== null &&
-          (Math.abs(yaw) > YAW_THRESHOLD_DEG || Math.abs(pitch) > PITCH_THRESHOLD_DEG);
-        const confidence =
-          yaw !== null && pitch !== null
-            ? Math.min(1, Math.max(Math.abs(yaw), Math.abs(pitch)) / 90)
-            : undefined;
-        updateEpisode(lookAwayRef.current, lookingAway, now, LOOK_AWAY_SUSTAIN_MS, (startedAtMs) =>
-          channel.enqueue("looking_away", {
-            startedAtUtc: new Date(startedAtMs).toISOString(),
-            confidence,
-          })
-        );
-        return;
-      }
-      if (message.type === "object") {
-        for (const detection of message.detections) {
-          const last = objectCooldownRef.current.get(detection.label) ?? 0;
-          if (now - last >= PROHIBITED_OBJECT_COOLDOWN_MS) {
-            objectCooldownRef.current.set(detection.label, now);
-            channel.enqueue("prohibited_object", {
-              detail: detection.label,
-              confidence: detection.score,
-            });
-          }
-        }
-      }
-    },
-    [channel]
-  );
-
-  // ── Lifecycle: consent → camera → worker + models. Acquire here, release in cleanup, so it is
+  // ── Lifecycle: consent → camera → load models. Acquire here, release in cleanup, so it is
   //    StrictMode-safe (double-invoke fully tears down run 1 before run 2 acquires) and leak-free. ──
   useEffect(() => {
     if (!enabled || !consented) {
@@ -240,7 +240,7 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
     }
     let cancelled = false;
     let acquiredStream: MediaStream | null = null;
-    let createdWorker: Worker | null = null;
+    let createdTasks: VisionTasks | null = null;
     let createdVideo: HTMLVideoElement | null = null;
     let endedTrack: MediaStreamTrack | null = null;
     let onTrackEnded: (() => void) | null = null;
@@ -304,29 +304,25 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
       }
 
       setStatus("warming");
-      const worker = new Worker(new URL("../lib/proctor/proctor-worker.ts", import.meta.url), {
-        type: "module",
-      });
-      worker.onmessage = (event: MessageEvent<ProctorOutbound>) => handleObservation(event.data);
-      worker.onerror = () => {
+      try {
+        const tasks = await loadVisionTasks(MEDIAPIPE_WASM_BASE, FACE_MODEL_URL, OBJECT_MODEL_URL);
+        if (cancelled) {
+          tasks.close();
+          return;
+        }
+        createdTasks = tasks;
+        tasksRef.current = tasks;
+        setWarmReady(true);
+        setStatus((prev) => (prev === "running" ? prev : "ready"));
+      } catch (err) {
         if (cancelled) {
           return;
         }
-        setWarmReady(false);
+        // Now a REAL error on the main thread (not a COEP-sanitized worker blank).
+        console.error("[useProctor] failed to load proctoring models:", err);
         setStatus("error");
-        streamRef.current?.getTracks().forEach((track) => track.stop());
-        streamRef.current = null;
-        setStream(null);
-      };
-      createdWorker = worker;
-      workerRef.current = worker;
-      const init: ProctorInbound = {
-        type: "init",
-        wasmBase: MEDIAPIPE_WASM_BASE,
-        faceModelUrl: FACE_MODEL_URL,
-        objectModelUrl: OBJECT_MODEL_URL,
-      };
-      worker.postMessage(init);
+        releaseCamera();
+      }
     })();
 
     return () => {
@@ -335,16 +331,13 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
       if (endedTrack && onTrackEnded) {
         endedTrack.removeEventListener("ended", onTrackEnded);
       }
-      if (createdWorker) {
-        createdWorker.postMessage({ type: "close" } satisfies ProctorInbound);
-        createdWorker.terminate();
-      }
+      createdTasks?.close();
       acquiredStream?.getTracks().forEach((track) => track.stop()); // camera light off
       if (createdVideo) {
         createdVideo.srcObject = null;
       }
-      if (workerRef.current === createdWorker) {
-        workerRef.current = null;
+      if (tasksRef.current === createdTasks) {
+        tasksRef.current = null;
       }
       if (streamRef.current === acquiredStream) {
         streamRef.current = null;
@@ -353,7 +346,7 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
         videoRef.current = null;
       }
     };
-  }, [enabled, consented, channel, handleObservation, stopPump]);
+  }, [enabled, consented, channel, stopPump, releaseCamera]);
 
   // ── Feed frames only while in progress, not paused, and warm. Inert once warmReady is cleared by
   //    a terminal error/lost, so it can't stomp those states or restart a dead camera. ──

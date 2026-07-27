@@ -3,7 +3,7 @@
 // scripts/copy-mediapipe.mjs and served same-origin (required under the exam page's COEP).
 export const MEDIAPIPE_WASM_BASE = "/interview/mediapipe/wasm";
 export const FACE_MODEL_URL = "/interview/mediapipe/models/face_landmarker.task";
-export const OBJECT_MODEL_URL = "/interview/mediapipe/models/efficientdet_lite0.tflite";
+export const OBJECT_MODEL_URL = "/interview/mediapipe/models/efficientdet_lite2.tflite";
 
 // Frame cadence + signal thresholds. Deliberately conservative to limit false positives; the
 // look-away thresholds especially should become author-configurable (see plan) rather than fixed.
