@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Domain.Enums;
+﻿using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.EmployeeObjectives;
 using EY.HRPlatform.Performance.Features.Progress;
 using EY.HRPlatform.Performance.Features.Progress.Queries;
@@ -43,7 +43,9 @@ public sealed class GetTeamProgressParticipantDetailQueryHandler(
             return Result.Failure<TeamProgressParticipantDetailDto>(
                 new Error("PerformanceCycle.NotFound", $"Campaign '{slug}' was not found."));
 
-        if (cycle.Status != PerformanceCycleStatus.Launched || !cycle.IsPlanningLocked)
+        // A closed campaign is read-only, not unreadable: every read still answers with the
+        // state as it stood at closure.
+        if (!cycle.IsOpenOrClosed() || !cycle.IsPlanningLocked)
             return Result.Failure<TeamProgressParticipantDetailDto>(Error.Validation(
                 "TeamProgress.NotLockedInvalid",
                 "Team progress opens once this campaign's planning is locked."));

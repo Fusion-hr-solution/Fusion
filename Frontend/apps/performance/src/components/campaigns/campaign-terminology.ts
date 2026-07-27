@@ -399,6 +399,43 @@ export const strategyTerms = {
     `Showing the first ${shown} of ${total} team objectives`,
 } as const;
 
+/**
+ * Closure — the campaign's terminal state. A closed campaign is a settled record, so the wording
+ * says what it is now ("Closed", with its date), never what can no longer be done to it.
+ */
+export const campaignClosure = {
+  status: "Closed",
+  closedOn: (date: string) => `Closed ${date}`,
+  archiveLabel: "Read-only record",
+  historyNavLabel: "History",
+  historyTitle: "Campaign history",
+  historyEmpty: {
+    title: "No closed campaigns yet",
+    description: "A campaign appears here once it closes.",
+  },
+  /** The all-closed state of an active door: an invitation, not an absence. */
+  allClosedTitle: "Nothing active right now",
+  allClosedAction: "View campaign history",
+  closeAction: "Close campaign",
+  closeTitle: "Close this campaign?",
+  closeConfirm: "Close campaign",
+  closeCancel: "Keep it open",
+  closeSuccess: "Campaign closed",
+  /** Outstanding work HR is choosing to close over. */
+  outstandingTitle: "Work still outstanding",
+  outstandingPlans: (count: number) =>
+    `${count} ${count === 1 ? "plan" : "plans"} not submitted`,
+  outstandingApprovals: (count: number) =>
+    `${count} awaiting ${count === 1 ? "approval" : "approvals"}`,
+  outstandingSelf: (count: number) =>
+    `${count} self ${count === 1 ? "assessment" : "assessments"} not submitted`,
+  outstandingManager: (count: number) =>
+    `${count} manager ${count === 1 ? "assessment" : "assessments"} not finalized`,
+  outstandingNone: "Everything is finished",
+  closeAnyway: "Close anyway",
+  wouldCloseAutomatically: "Closes on its own once evaluations finish",
+} as const;
+
 export type CampaignTone = "neutral" | "info" | "success" | "warning";
 
 export function campaignStatusLabel(status: string): string {

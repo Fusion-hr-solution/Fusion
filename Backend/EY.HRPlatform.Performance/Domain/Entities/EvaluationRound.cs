@@ -41,6 +41,10 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
     public DateTime? ManagerAssessmentDeadline { get; private set; }
     public DateTime? FinalizationDeadline { get; private set; }
     public DateTime? LaunchedAt { get; private set; }
+    public DateTime? ClosedAt { get; private set; }
+
+    /// <summary>A closed round accepts no further assessment work.</summary>
+    public bool IsClosed => Status == EvaluationRoundStatus.Closed;
     public uint Version { get; private set; }
 
     public Guid? SourceRatingScaleId { get; private set; }
@@ -339,9 +343,24 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Closes the round, terminally. Cascaded from campaign closure, and available to an operator
+    /// closing a single round explicitly. A draft round closes too — an unlaunched round in a closed
+    /// campaign can never be launched, so leaving it Draft would misrepresent it as pending work.
+    /// </summary>
+    public void Close(DateTime occurredAt)
+    {
+        if (IsClosed)
+            throw new DomainRuleViolationException("This evaluation round is already closed.");
+
+        Status = EvaluationRoundStatus.Closed;
+        ClosedAt = occurredAt.Kind == DateTimeKind.Utc ? occurredAt : occurredAt.ToUniversalTime();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
     public void ExcludeParticipant(PerformanceCycleParticipant participant, string reason)
     {
-        EnsureDraft();
+        EnsureOpenForOperations();
         EnsureCampaignParticipant(participant);
         if (_exclusions.Any(item => item.ParticipantEmployeeId == participant.EmployeeId))
             throw new DomainRuleViolationException("The participant is already excluded from this round.");
@@ -357,7 +376,7 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
 
     public void IncludeParticipant(Guid participantEmployeeId)
     {
-        EnsureDraft();
+        EnsureOpenForOperations();
         var exclusion = _exclusions.SingleOrDefault(item => item.ParticipantEmployeeId == participantEmployeeId)
             ?? throw new DomainRuleViolationException("The participant is not excluded from this round.");
         _exclusions.Remove(exclusion);
@@ -393,6 +412,30 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
         if (existing is not null)
             _reviewerCorrections.Remove(existing);
         _reviewerCorrections.Add(correction);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Records a reviewer reassignment after launch. The frozen round participant remains the
+    /// historical baseline; the live assignment is moved by the command handler so existing draft
+    /// responses stay attached to the same assessment.
+    /// </summary>
+    public void ReassignReviewer(
+        PerformanceCycleParticipant participant,
+        Guid reviewerEmployeeId,
+        string reviewerName,
+        string reason)
+    {
+        if (Status != EvaluationRoundStatus.Launched)
+            throw new DomainRuleViolationException("Reviewer reassignment is only available after the round is launched.");
+        EnsureCampaignParticipant(participant);
+
+        var existing = _reviewerCorrections.SingleOrDefault(
+            item => item.ParticipantEmployeeId == participant.EmployeeId);
+        if (existing is not null)
+            _reviewerCorrections.Remove(existing);
+        _reviewerCorrections.Add(EvaluationRoundReviewerCorrection.Create(
+            TenantId, Id, participant.EmployeeId, reviewerEmployeeId, reviewerName, reason));
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -767,6 +810,12 @@ public sealed class EvaluationRound : AggregateRoot, ITenantEntity
     {
         if (Status != EvaluationRoundStatus.Draft)
             throw new DomainRuleViolationException("A launched evaluation round is read-only.");
+    }
+
+    private void EnsureOpenForOperations()
+    {
+        if (Status is not (EvaluationRoundStatus.Draft or EvaluationRoundStatus.Launched))
+            throw new DomainRuleViolationException("A closed evaluation round is read-only.");
     }
 
     private static void EnsureCampaignLink(Guid tenantId, PerformanceCycle campaign)

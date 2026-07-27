@@ -16,7 +16,6 @@
     "@repo/auth": "workspace:*",
     "@repo/ds": "workspace:*",
     "@repo/ui": "workspace:*",
-    "@tabler/icons-react": "^3.44.0",
     "@tanstack/react-query": "^5.90.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

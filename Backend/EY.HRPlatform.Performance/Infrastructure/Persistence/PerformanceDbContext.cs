@@ -1,3 +1,4 @@
+﻿using System.Linq.Expressions;
 using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Entities.Platform;
 using EY.HRPlatform.Performance.Domain.Entities.Skills;
@@ -102,10 +103,10 @@ public class PerformanceDbContext : DbContext
     public DbSet<TenantObjectivePolicy> TenantObjectivePolicies => Set<TenantObjectivePolicy>();
     public DbSet<TenantObjectivePolicyVersion> TenantObjectivePolicyVersions => Set<TenantObjectivePolicyVersion>();
 
-    // Strategic objective + phase shared entities (Plan 03-02)
-    public DbSet<StrategicPeriod> StrategicPeriods => Set<StrategicPeriod>();
-    public DbSet<StrategicObjective> StrategicObjectives => Set<StrategicObjective>();
     public DbSet<ApprovalDelegate> ApprovalDelegates => Set<ApprovalDelegate>();
+
+    /// <summary>Attachment bytes, when the database-backed storage backend is selected (D11).</summary>
+    public DbSet<AttachmentBlob> AttachmentBlobs => Set<AttachmentBlob>();
 
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
@@ -192,149 +193,66 @@ public class PerformanceDbContext : DbContext
         modelBuilder.HasDefaultSchema("performance");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PerformanceDbContext).Assembly);
 
-        // Global tenant filters: all queries automatically scoped to the current tenant.
-        // When CurrentTenantId is Empty (design-time/no context), queries return no results.
-        modelBuilder.Entity<PerformanceCycle>()
-            .HasQueryFilter(c => CurrentTenantId != Guid.Empty && c.TenantId == CurrentTenantId);
+        ApplyTenantQueryFilters(modelBuilder);
+    }
 
-        modelBuilder.Entity<PerformanceCyclePopulationRule>()
-            .HasQueryFilter(r => CurrentTenantId != Guid.Empty && r.TenantId == CurrentTenantId);
+    /// <summary>
+    /// Entities that are deliberately platform-scoped: they carry no <see cref="ITenantEntity"/>
+    /// and are gated by PlatformAdmin authorization instead of a tenant filter.
+    /// </summary>
+    /// <remarks>
+    /// This list is the reviewable artifact that makes the exception set explicit rather than an
+    /// absence. <c>TenantQueryFilterCoverageTests</c> fails when a mapped entity is neither
+    /// tenant-filtered nor named here, so a new entity cannot ship readable across tenants.
+    /// </remarks>
+    internal static readonly IReadOnlySet<string> PlatformScopedEntities = new HashSet<string>(StringComparer.Ordinal)
+    {
+        nameof(Domain.Entities.ScheduledJobRun),
+        nameof(Domain.Entities.Platform.PlatformPerformanceGuardrails),
+        nameof(Domain.Entities.Platform.PlatformObjectiveBaseline),
+        nameof(Domain.Entities.Platform.PlatformObjectiveBaselineVersion),
+        nameof(Domain.Entities.PerformanceConfigurationAuditEntry),
 
-        modelBuilder.Entity<PerformanceCycleParticipant>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
+        // Bytes, addressed only through the tenant-filtered Attachment row that owns them, by a
+        // storage key that is itself tenant-partitioned.
+        nameof(Domain.Entities.AttachmentBlob)
+    };
 
-        modelBuilder.Entity<PerformanceCycleApproverOverride>()
-            .HasQueryFilter(o => CurrentTenantId != Guid.Empty && o.TenantId == CurrentTenantId);
+    /// <summary>
+    /// Applies the tenant filter by convention to every <see cref="ITenantEntity"/> in the model,
+    /// replacing what were 59 hand-written registrations where the 60th would eventually be
+    /// forgotten with no compiler error and no failing test.
+    /// </summary>
+    /// <remarks>
+    /// The expression shape is unchanged: when the tenant is unresolved (design-time, or a request
+    /// with no tenant context) <c>CurrentTenantId</c> is <see cref="Guid.Empty"/> and every query
+    /// returns nothing rather than everything. Owned types are skipped deliberately — EF applies
+    /// their owner's filter, and filtering them independently is invalid.
+    /// </remarks>
+    private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (entityType.IsOwned() || !typeof(ITenantEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                continue;
+            }
 
-        modelBuilder.Entity<PerformanceCycleParticipantExclusion>()
-            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+            var entity = Expression.Parameter(entityType.ClrType, "entity");
+            // Closes over this context instance, exactly as the hand-written lambdas did, so the
+            // tenant is read per query rather than baked into the cached model.
+            var currentTenantId = Expression.Property(Expression.Constant(this), nameof(CurrentTenantId));
 
-        modelBuilder.Entity<PerformanceCycleApproverReassignment>()
-            .HasQueryFilter(r => CurrentTenantId != Guid.Empty && r.TenantId == CurrentTenantId);
+            // entity => CurrentTenantId != Guid.Empty && entity.TenantId == CurrentTenantId
+            var filter = Expression.Lambda(
+                Expression.AndAlso(
+                    Expression.NotEqual(currentTenantId, Expression.Constant(Guid.Empty)),
+                    Expression.Equal(
+                        Expression.Property(entity, nameof(ITenantEntity.TenantId)),
+                        currentTenantId)),
+                entity);
 
-        modelBuilder.Entity<PerformancePlanningReminder>()
-            .HasQueryFilter(r => CurrentTenantId != Guid.Empty && r.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<CampaignStrategicObjective>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<CampaignTeamObjective>()
-            .HasQueryFilter(t => CurrentTenantId != Guid.Empty && t.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<EmployeeObjectivePlan>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<PerformanceNotification>()
-            .HasQueryFilter(n => CurrentTenantId != Guid.Empty && n.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<PerformanceCycleAuditEvent>()
-            .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<ActivityLogEntry>()
-            .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<ObjectiveProgressUpdate>()
-            .HasQueryFilter(u => CurrentTenantId != Guid.Empty && u.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<PerformanceCheckIn>()
-            .HasQueryFilter(c => CurrentTenantId != Guid.Empty && c.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<CheckInFollowUpAction>()
-            .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<ObjectiveDiscussionSignal>()
-            .HasQueryFilter(s => CurrentTenantId != Guid.Empty && s.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<Attachment>()
-            .HasQueryFilter(a => CurrentTenantId != Guid.Empty && a.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<EvaluationRatingScale>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRatingScaleLevel>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationTemplate>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationTemplateSection>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationTemplateQuestion>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRound>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundScaleDraftLevel>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundTemplateDraftSection>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundTemplateDraftQuestion>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundExclusion>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundReviewerCorrection>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundScaleSnapshot>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundScaleSnapshotLevel>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundTemplateSnapshot>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundTemplateSnapshotSection>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundTemplateSnapshotQuestion>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundPolicySnapshot>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundParticipant>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationObjectivePlanSnapshot>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationObjectiveSnapshot>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundDeadlineExtension>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationAssignment>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundSkillDraftItem>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundProficiencyDraftLevel>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundSkillSnapshot>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundSkillSnapshotLevel>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationRoundSkillSnapshotItem>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationObjectiveRating>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationSkillRating>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<EvaluationQuestionAnswer>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<SkillCategory>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<Skill>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<ProficiencyScale>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<ProficiencyScaleLevel>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<SkillExpectationSet>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-        modelBuilder.Entity<SkillExpectationItem>()
-            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<TenantObjectivePolicy>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<TenantObjectivePolicyVersion>()
-            .HasQueryFilter(v => CurrentTenantId != Guid.Empty && v.TenantId == CurrentTenantId);
-
-        // Strategic + phase shared entity tenant filters (Plan 03-02)
-        modelBuilder.Entity<StrategicPeriod>()
-            .HasQueryFilter(p => CurrentTenantId != Guid.Empty && p.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<StrategicObjective>()
-            .HasQueryFilter(o => CurrentTenantId != Guid.Empty && o.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<ApprovalDelegate>()
-            .HasQueryFilter(d => CurrentTenantId != Guid.Empty && d.TenantId == CurrentTenantId);
+            modelBuilder.Entity(entityType.ClrType).HasQueryFilter(filter);
+        }
     }
 }

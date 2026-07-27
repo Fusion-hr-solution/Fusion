@@ -62,6 +62,9 @@ public sealed class UpcomingCheckInReminderJob(
             .Where(checkIn => checkIn.Status == CheckInStatus.Planned
                               && checkIn.PlannedDate >= now.Date
                               && checkIn.PlannedDate <= horizon)
+            // Closed campaigns generate no reminders.
+            .Where(checkIn => dbContext.PerformanceCycles.OpenOnly()
+                .Any(campaign => campaign.Id == checkIn.CycleId))
             .Select(checkIn => new { checkIn.Id, checkIn.EmployeeId, checkIn.CycleId, checkIn.PlannedDate })
             .ToListAsync(cancellationToken);
         if (upcoming.Count == 0)

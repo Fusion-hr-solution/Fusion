@@ -1,4 +1,6 @@
+using EY.HRPlatform.Performance.Features.Shared;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
+using EY.HRPlatform.Performance.Models.Responses;
 using EY.HRPlatform.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
 
@@ -22,32 +24,46 @@ public sealed record ActivityLogEntryDto(
 /// </summary>
 public interface IActivityLogReader
 {
-    Task<Result<IReadOnlyList<ActivityLogEntryDto>>> GetSubjectHistoryAsync(
+    Task<Result<PagedResponse<ActivityLogEntryDto>>> GetSubjectHistoryAsync(
         string subjectType,
         Guid subjectId,
         bool authorized,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        int? page = null,
+        int? pageSize = null);
 }
 
 public sealed class ActivityLogReader(PerformanceDbContext db) : IActivityLogReader
 {
-    public async Task<Result<IReadOnlyList<ActivityLogEntryDto>>> GetSubjectHistoryAsync(
+    public async Task<Result<PagedResponse<ActivityLogEntryDto>>> GetSubjectHistoryAsync(
         string subjectType,
         Guid subjectId,
         bool authorized,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int? page = null,
+        int? pageSize = null)
     {
         if (!authorized)
         {
-            return Result.Failure<IReadOnlyList<ActivityLogEntryDto>>(
+            return Result.Failure<PagedResponse<ActivityLogEntryDto>>(
                 Error.Forbidden("ActivityLog.Forbidden", "You are not authorized to view this activity history."));
         }
 
-        var entries = await db.ActivityLogEntries
+        var requestedPage = HistoryPage.From(page, pageSize);
+
+        var query = db.ActivityLogEntries
             .AsNoTracking()
-            .Where(a => a.SubjectType == subjectType && a.SubjectId == subjectId)
+            .Where(a => a.SubjectType == subjectType && a.SubjectId == subjectId);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        var entries = await query
+            // Id is the stable tiebreak: entries sharing a timestamp must not reorder between pages.
             .OrderByDescending(a => a.OccurredAt)
             .ThenByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.Id)
+            .Skip(requestedPage.Skip)
+            .Take(requestedPage.PageSize)
             .Select(a => new ActivityLogEntryDto(
                 a.Id,
                 a.ActorUserId,
@@ -60,6 +76,6 @@ public sealed class ActivityLogReader(PerformanceDbContext db) : IActivityLogRea
                 a.CorrelationId))
             .ToListAsync(cancellationToken);
 
-        return Result.Success<IReadOnlyList<ActivityLogEntryDto>>(entries);
+        return Result.Success(requestedPage.ToResponse(entries, totalCount));
     }
 }

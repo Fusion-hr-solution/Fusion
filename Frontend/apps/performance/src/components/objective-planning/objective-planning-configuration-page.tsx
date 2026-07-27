@@ -27,6 +27,7 @@ import {
   PagePermissionNotice,
 } from "@repo/ds/shell";
 import { Skeleton } from "@repo/ds";
+import { ConfigurationAuditHistory } from "./configuration-audit-history";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { toast } from "sonner";
 import {
@@ -218,6 +219,10 @@ export function ObjectivePlanningConfigurationPage() {
               ) : null}
             </>
           ) : null}
+
+          {/* The tenant's configuration trail — written since configuration landed, read by nobody
+              until now. */}
+          <ConfigurationAuditHistory />
         </div>
       ) : null}
     </PageContainer>

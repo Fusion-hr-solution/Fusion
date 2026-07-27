@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Features.PlanApprovals.Commands;
+﻿using EY.HRPlatform.Performance.Features.PlanApprovals.Commands;
 using EY.HRPlatform.Performance.Features.PlanApprovals.Dtos;
 using EY.HRPlatform.Performance.Features.PlanApprovals.Queries;
 using EY.HRPlatform.Performance.Features.Security;
@@ -15,13 +15,13 @@ namespace EY.HRPlatform.Performance.Controllers;
 [Authorize]
 public sealed class PlanApprovalsController(
     ISender sender,
-    IPerformanceAccessPolicyService accessPolicy) : ControllerBase
+    IPerformanceAccessPolicyService accessPolicy) : PerformanceControllerBase
 {
     [HttpGet("my-campaigns")]
     public async Task<IActionResult> GetMyCampaigns(CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanApproveEmployeePlans(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new GetMyPlanApprovalCampaignsQuery(), cancellationToken);
         return result.IsFailure
@@ -33,7 +33,7 @@ public sealed class PlanApprovalsController(
     public async Task<IActionResult> GetWorkspace(string slug, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanApproveEmployeePlans(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new GetPlanApprovalWorkspaceQuery(slug), cancellationToken);
         return result.IsFailure
@@ -49,7 +49,7 @@ public sealed class PlanApprovalsController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanApproveEmployeePlans(User))
-            return Forbid();
+            return Denied();
         if (!TryParseVersion(ifMatch, out var expectedVersion))
             return PreconditionRequired();
 
@@ -68,7 +68,7 @@ public sealed class PlanApprovalsController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanApproveEmployeePlans(User))
-            return Forbid();
+            return Denied();
         if (!TryParseVersion(ifMatch, out var expectedVersion))
             return PreconditionRequired();
 
@@ -84,24 +84,10 @@ public sealed class PlanApprovalsController(
             : Ok(ApiResponse<PlanApprovalReviewDto>.Success(result.Value));
     }
 
-    private IActionResult MapFailure(Error error)
-    {
-        if (error.Code.Contains("Forbidden", StringComparison.OrdinalIgnoreCase))
-            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Failure(error.Message));
-
-        if (error.Code.Contains("NotFound", StringComparison.OrdinalIgnoreCase))
-            return NotFound(ApiResponse.Failure(error.Message));
-
-        if (error.Code.Contains("Validation", StringComparison.OrdinalIgnoreCase)
-            || error.Code.Contains("Invalid", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(ApiResponse.Failure(error.Message));
-
-        return Conflict(ApiResponse.Failure(error.Message));
-    }
+    private IActionResult MapFailure(Error error) => Problem(error);
 
     private IActionResult PreconditionRequired()
-        => StatusCode(StatusCodes.Status428PreconditionRequired,
-            ApiResponse.Failure("If-Match header with the current version is required."));
+        => MissingPrecondition();
 
     private static bool TryParseVersion(string? ifMatch, out uint version)
     {

@@ -150,6 +150,16 @@ export type {
   CycleReadinessDto,
   CampaignLaunchResultDto,
   CycleAuditEventDto,
+  NotificationFeedDto,
+  ConfigurationAuditEntryDto,
+  CampaignOutstandingWorkDto,
+  CampaignClosureImpactDto,
+  CampaignClosureResultDto,
+  CloseCampaignRequest,
+  HistoryPageParams,
+  EvaluationTemplatePreviewDto,
+  EvaluationTemplatePreviewSectionDto,
+  EvaluationTemplatePreviewQuestionDto,
   PerformanceNotificationDto,
   PerformancePageDto,
   CreatePerformanceCycleRequest,
@@ -331,4 +341,11 @@ export type {
   ReopenSelfAssessmentRequest,
   AcknowledgeEvaluationRequest,
 } from "./performance";
-export { performancePaths, performanceQueryKeys } from "./performance";
+export { performancePaths, performanceQueryKeys, historyPageQuery } from "./performance";
+
+export {
+  readPerformanceFailure,
+  requiresReload,
+  type PerformanceFailure,
+  type PerformanceFailureKind,
+} from "./performance-failures";

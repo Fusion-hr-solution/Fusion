@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Domain.Entities;
+﻿using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.PlanningCompletion.Dtos;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -36,7 +36,9 @@ public sealed class PlanningCompletionReadService(
             return Result.Failure<PlanningCompletionWorkspaceDto>(
                 new Error("PerformanceCycle.NotFound", $"Campaign '{slug}' was not found."));
 
-        if (cycle.Status != PerformanceCycleStatus.Launched)
+        // A closed campaign is read-only, not unreadable: every read still answers with the
+        // state as it stood at closure.
+        if (!cycle.IsOpenOrClosed())
         {
             return Result.Success(new PlanningCompletionWorkspaceDto(
                 "not-launched",

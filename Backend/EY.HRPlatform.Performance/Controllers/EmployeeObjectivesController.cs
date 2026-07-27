@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Features.EmployeeObjectives.Commands;
+﻿using EY.HRPlatform.Performance.Features.EmployeeObjectives.Commands;
 using EY.HRPlatform.Performance.Features.EmployeeObjectives.Dtos;
 using EY.HRPlatform.Performance.Features.EmployeeObjectives.Queries;
 using EY.HRPlatform.Performance.Features.Progress.Commands;
@@ -17,13 +17,13 @@ namespace EY.HRPlatform.Performance.Controllers;
 [Authorize]
 public sealed class EmployeeObjectivesController(
     ISender sender,
-    IPerformanceAccessPolicyService accessPolicy) : ControllerBase
+    IPerformanceAccessPolicyService accessPolicy) : PerformanceControllerBase
 {
     [HttpGet("my-campaigns")]
     public async Task<IActionResult> GetMyCampaigns(CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageOwnObjectives(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new GetMyObjectivePlanCampaignsQuery(), cancellationToken);
         return result.IsFailure
@@ -35,7 +35,7 @@ public sealed class EmployeeObjectivesController(
     public async Task<IActionResult> GetWorkspace(string slug, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageOwnObjectives(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new GetMyObjectivePlanWorkspaceQuery(slug), cancellationToken);
         return result.IsFailure
@@ -50,7 +50,7 @@ public sealed class EmployeeObjectivesController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageOwnObjectives(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new SaveObjectiveCommand(cycleId, null, null, request), cancellationToken);
         return result.IsFailure
@@ -67,7 +67,7 @@ public sealed class EmployeeObjectivesController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageOwnObjectives(User))
-            return Forbid();
+            return Denied();
         if (!TryParseVersion(ifMatch, out var expectedVersion))
             return PreconditionRequired();
 
@@ -87,7 +87,7 @@ public sealed class EmployeeObjectivesController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageOwnObjectives(User))
-            return Forbid();
+            return Denied();
         if (!TryParseVersion(ifMatch, out var expectedVersion))
             return PreconditionRequired();
 
@@ -102,7 +102,7 @@ public sealed class EmployeeObjectivesController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageOwnObjectives(User))
-            return Forbid();
+            return Denied();
         if (!TryParseVersion(ifMatch, out var expectedVersion))
             return PreconditionRequired();
 
@@ -121,7 +121,7 @@ public sealed class EmployeeObjectivesController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageOwnObjectives(User))
-            return Forbid();
+            return Denied();
         if (!TryParseVersion(ifMatch, out var expectedVersion))
             return PreconditionRequired();
 
@@ -133,24 +133,10 @@ public sealed class EmployeeObjectivesController(
             : Ok(ApiResponse<RecordObjectiveProgressResponseDto>.Success(result.Value));
     }
 
-    private IActionResult MapFailure(Error error)
-    {
-        if (error.Code.Contains("Forbidden", StringComparison.OrdinalIgnoreCase))
-            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Failure(error.Message));
-
-        if (error.Code.Contains("NotFound", StringComparison.OrdinalIgnoreCase))
-            return NotFound(ApiResponse.Failure(error.Message));
-
-        if (error.Code.Contains("Invalid", StringComparison.OrdinalIgnoreCase)
-            || error.Code.Contains("Required", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(ApiResponse.Failure(error.Message));
-
-        return Conflict(ApiResponse.Failure(error.Message));
-    }
+    private IActionResult MapFailure(Error error) => Problem(error);
 
     private IActionResult PreconditionRequired()
-        => StatusCode(StatusCodes.Status428PreconditionRequired,
-            ApiResponse.Failure("If-Match header with the current version is required."));
+        => MissingPrecondition();
 
     private static bool TryParseVersion(string? ifMatch, out uint version)
     {

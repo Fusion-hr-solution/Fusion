@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Domain.Enums;
+﻿using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.TeamObjectives.Dtos;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
@@ -68,7 +68,9 @@ public sealed class GetCascadeCoverageQueryHandler(
             return Result.Failure<CascadeCoverageDto>(
                 new Error("PerformanceCycle.NotFound", $"Campaign '{slug}' was not found."));
 
-        if (cycle.Status != PerformanceCycleStatus.Launched)
+        // A closed campaign is read-only, not unreadable: every read still answers with the
+        // state as it stood at closure.
+        if (!cycle.IsOpenOrClosed())
             return Result.Failure<CascadeCoverageDto>(Error.Validation(
                 "CascadeCoverage.NotLaunchedInvalid",
                 "This campaign is not launched for objective planning yet."));

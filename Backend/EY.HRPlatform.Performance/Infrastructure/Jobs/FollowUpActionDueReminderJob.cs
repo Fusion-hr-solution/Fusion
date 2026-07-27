@@ -57,6 +57,9 @@ public sealed class FollowUpActionDueReminderJob(
         var due = await dbContext.CheckInFollowUpActions
             .AsNoTracking()
             .Where(action => action.Status == FollowUpActionStatus.Open && action.DueDate <= horizon)
+            // Closed campaigns generate no reminders.
+            .Where(action => dbContext.PerformanceCycles.OpenOnly()
+                .Any(campaign => campaign.Id == action.CycleId))
             .Select(action => new { action.Id, action.OwnerEmployeeId, action.CycleId, action.CheckInId, action.Description, action.DueDate })
             .ToListAsync(cancellationToken);
         if (due.Count == 0)

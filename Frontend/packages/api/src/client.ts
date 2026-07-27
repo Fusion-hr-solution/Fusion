@@ -32,12 +32,41 @@ function extractErrors(
     if (messages.length > 0) return messages;
   }
 
+  // RFC 7807 `detail` is the human-readable explanation; prefer it over the generic `title`.
+  if (typeof json.detail === "string" && json.detail.length > 0) {
+    return [json.detail];
+  }
+
   // ProblemDetails with title but no errors map (e.g. 404 ProblemDetails)
   if (typeof json.title === "string" && json.title.length > 0) {
     return [json.title];
   }
 
   return [statusText];
+}
+
+/**
+ * Reads the machine-readable failure code from an RFC 7807 problem response.
+ *
+ * Endpoints still on the older `{ errors: string[] }` envelope carry no code; callers branch on
+ * status for those, and never on message text.
+ */
+function extractCode(json: Record<string, unknown>): string | null {
+  return typeof json.code === "string" && json.code.length > 0 ? json.code : null;
+}
+
+/**
+ * Per-field validation detail, when the problem carries an `errors` map keyed by field.
+ */
+function extractFieldErrors(
+  json: Record<string, unknown>
+): Record<string, string[]> | null {
+  const errors = json.errors;
+  if (errors === null || typeof errors !== "object" || Array.isArray(errors)) {
+    return null;
+  }
+
+  return errors as Record<string, string[]>;
 }
 
 export function createApiClient(config: ApiClientConfig = {}): ApiClient {
@@ -137,14 +166,16 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
       if (!res.ok) {
         // Try to extract error details from a JSON body, fall back to statusText.
         let errors: string[] = [res.statusText];
+        let code: string | null = null;
         try {
           const errJson = (await res.json()) as Record<string, unknown>;
           errors = extractErrors(errJson, res.statusText);
+          code = extractCode(errJson);
         } catch {
           // body wasn't JSON — keep the default
         }
         throwApiError(
-          new ApiError(res.status, res.statusText, errors, correlationId)
+          new ApiError(res.status, res.statusText, errors, correlationId, null, code)
         );
       }
       const body = await res[rtype]();
@@ -197,7 +228,9 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
             res.statusText
           ),
           correlationId,
-          json.details ?? null
+          json.details ??
+            extractFieldErrors(json as unknown as Record<string, unknown>),
+          extractCode(json as unknown as Record<string, unknown>)
         )
       );
     }

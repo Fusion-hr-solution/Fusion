@@ -40,6 +40,14 @@ public class PerformanceCycleConfiguration : IEntityTypeConfiguration<Performanc
         builder.Property(c => c.PlanningLockedByUserId);
         builder.Property(c => c.PlanningLockedByName).HasMaxLength(256);
 
+        // Closure audit. ClosureKind is string-persisted for the same reason Status is: a new member
+        // must never renumber an existing row's meaning.
+        builder.Property(c => c.ClosedByUserId);
+        builder.Property(c => c.ClosedByName).HasMaxLength(256);
+        builder.Property(c => c.ClosureKind)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+
         builder.OwnsOne(c => c.PlanningRulesSnapshot, snapshot =>
         {
             snapshot.Property(s => s.MaxObjectiveCount)

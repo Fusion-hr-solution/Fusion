@@ -1,8 +1,10 @@
-using EY.HRPlatform.Performance.Features.Provisioning;
+﻿using EY.HRPlatform.Performance.Features.Provisioning;
 using EY.HRPlatform.SharedKernel.Security;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using EY.HRPlatform.Performance.Extensions;
 
 namespace EY.HRPlatform.Performance.Controllers;
 
@@ -11,9 +13,10 @@ namespace EY.HRPlatform.Performance.Controllers;
 [ApiExplorerSettings(IgnoreApi = true)]
 public sealed class InternalPerformanceProvisioningController(
     ISender sender,
-    IInternalServiceRequestAuthorizer authorizer) : ControllerBase
+    IInternalServiceRequestAuthorizer authorizer) : PerformanceControllerBase
 {
     [HttpPost("internal/performance/tenants/{tenantId:guid}/provision")]
+    [EnableRateLimiting(RateLimitingExtensions.ExpensiveOperationPolicy)]
     public async Task<IActionResult> Provision(Guid tenantId, CancellationToken cancellationToken)
     {
         if (!await authorizer.AuthorizeAsync(Request, cancellationToken))

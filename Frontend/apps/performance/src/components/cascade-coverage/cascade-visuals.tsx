@@ -251,7 +251,7 @@ export function CascadeRow({
 
   if (!collapsible) {
     return (
-      <section className={laneClass}>
+      <section className={cn(laneClass, "min-w-0")}>
         <div className={headerPad}>{head}</div>
       </section>
     );
@@ -259,7 +259,7 @@ export function CascadeRow({
 
   return (
     <Collapsible defaultOpen={defaultOpen} asChild>
-      <section className={laneClass}>
+      <section className={cn(laneClass, "min-w-0")}>
         <div className="flex items-stretch">
           <CollapsibleTrigger
             className={cn(
@@ -276,7 +276,7 @@ export function CascadeRow({
             </div>
           ) : null}
         </div>
-        <CollapsibleContent className="overflow-hidden">
+        <CollapsibleContent className="min-w-0 overflow-x-auto overflow-y-hidden">
           {children}
         </CollapsibleContent>
       </section>

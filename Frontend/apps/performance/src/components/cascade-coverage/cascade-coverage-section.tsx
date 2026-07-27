@@ -97,8 +97,8 @@ export function CascadeCoverageFull({ data }: { data: CascadeCoverageDto }) {
         ]}
       />
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
-        <div className="min-w-0 space-y-3">
+      <div className="grid min-w-0 gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]">
+        <div className="min-w-0 space-y-3 overflow-x-auto pb-1">
           {data.strategicObjectives.map((strategicObjective) => (
             <CoverageLane
               key={strategicObjective.id}

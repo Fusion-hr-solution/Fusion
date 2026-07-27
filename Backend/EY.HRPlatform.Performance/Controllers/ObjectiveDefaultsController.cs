@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Features.PlatformDefaults.Commands;
+﻿using EY.HRPlatform.Performance.Features.PlatformDefaults.Commands;
 using EY.HRPlatform.Performance.Features.PlatformDefaults.Dtos;
 using EY.HRPlatform.Performance.Features.PlatformDefaults.Queries;
 using EY.HRPlatform.Performance.Features.Security;
@@ -15,13 +15,13 @@ namespace EY.HRPlatform.Performance.Controllers;
 [Authorize]
 public class ObjectiveDefaultsController(
     ISender sender,
-    IPerformanceAccessPolicyService accessPolicy) : ControllerBase
+    IPerformanceAccessPolicyService accessPolicy) : PerformanceControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManagePlatformDefaults(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new GetPlatformPerformanceConfigurationQuery(), cancellationToken);
         return result.IsSuccess
@@ -36,7 +36,7 @@ public class ObjectiveDefaultsController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManagePlatformDefaults(User))
-            return Forbid();
+            return Denied();
 
         var expectedVersion = TryParseVersion(ifMatch, out var version) ? version : (uint?)null;
         var result = await sender.Send(
@@ -52,17 +52,7 @@ public class ObjectiveDefaultsController(
         return Ok(ApiResponse<PlatformConfigurationApplyResultDto>.Success(result.Value));
     }
 
-    private IActionResult MapFailure(Error error)
-    {
-        if (error.Code.EndsWith("NotFound", StringComparison.OrdinalIgnoreCase))
-            return NotFound(ApiResponse.Failure(error.Message));
-        if (error.Code.EndsWith("StaleApply", StringComparison.OrdinalIgnoreCase) ||
-            error.Code.EndsWith("ConcurrencyConflict", StringComparison.OrdinalIgnoreCase))
-            return Conflict(ApiResponse.Failure(error.Message));
-        if (error.Code.Contains("Validation", StringComparison.OrdinalIgnoreCase))
-            return UnprocessableEntity(ApiResponse.Failure(error.Message));
-        return BadRequest(ApiResponse.Failure(error.Message));
-    }
+    private IActionResult MapFailure(Error error) => Problem(error);
 
     private static bool TryParseVersion(string? ifMatch, out uint version)
     {

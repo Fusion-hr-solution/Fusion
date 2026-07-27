@@ -1,7 +1,8 @@
-using EY.HRPlatform.Performance.Controllers;
+﻿using EY.HRPlatform.Performance.Controllers;
 using EY.HRPlatform.Performance.Features.PlanningCompletion.Dtos;
 using EY.HRPlatform.Performance.Features.Security;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 
@@ -27,7 +28,7 @@ public sealed class PlanningCompletionControllerAuthorizationTests
             null,
             cancellationToken: CancellationToken.None);
 
-        Assert.IsType<ForbidResult>(result);
+        AssertDenied(result);
         sender.VerifyNoOtherCalls();
     }
 
@@ -44,7 +45,7 @@ public sealed class PlanningCompletionControllerAuthorizationTests
             new RecordPlanningReminderRequest(Guid.NewGuid(), "Participant", "Follow up"),
             CancellationToken.None);
 
-        Assert.IsType<ForbidResult>(result);
+        AssertDenied(result);
         sender.VerifyNoOtherCalls();
     }
 
@@ -75,9 +76,23 @@ public sealed class PlanningCompletionControllerAuthorizationTests
             new LockPlanningRequest("LOCK"),
             CancellationToken.None);
 
-        Assert.IsType<ForbidResult>(reassign);
-        Assert.IsType<ForbidResult>(exclude);
-        Assert.IsType<ForbidResult>(lockPlanning);
+        AssertDenied(reassign);
+        AssertDenied(exclude);
+        AssertDenied(lockPlanning);
         sender.VerifyNoOtherCalls();
+    }
+
+    /// <summary>
+    /// A denial is a 403 problem carrying a code, and its message discloses nothing about whether
+    /// the target record exists.
+    /// </summary>
+    private static void AssertDenied(IActionResult result)
+    {
+        var objectResult = Assert.IsType<ObjectResult>(result);
+        Assert.Equal(StatusCodes.Status403Forbidden, objectResult.StatusCode);
+
+        var problem = Assert.IsType<ProblemDetails>(objectResult.Value);
+        Assert.Equal("Performance.Forbidden", problem.Extensions["code"]);
+        Assert.DoesNotContain("not found", problem.Detail ?? string.Empty, StringComparison.OrdinalIgnoreCase);
     }
 }

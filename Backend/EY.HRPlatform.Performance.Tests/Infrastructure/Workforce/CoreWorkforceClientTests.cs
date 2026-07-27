@@ -154,15 +154,25 @@ public sealed class CoreWorkforceClientTests
         Assert.Contains(result, s => s.EmployeeId == id1);
         Assert.Contains(result, s => s.EmployeeId == id2);
 
-        // --- Part 2: non-success HTTP status throws InvalidOperationException ---
+        // --- Part 2: a server fault is a dependency failure, not a caller error ---
         var errorResponse = new HttpResponseMessage(HttpStatusCode.InternalServerError)
         {
             Content = new StringContent("Internal Server Error"),
         };
         var (clientForError, _) = BuildPipeline("Bearer test-token", errorResponse);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        await Assert.ThrowsAsync<CoreWorkforceUnavailableException>(
             () => clientForError.ResolveEmployeesAsync([id1], CancellationToken.None));
+
+        // --- Part 3: a client error is Core answering that the request was wrong ---
+        var badRequestResponse = new HttpResponseMessage(HttpStatusCode.BadRequest)
+        {
+            Content = new StringContent("Bad Request"),
+        };
+        var (clientForBadRequest, _) = BuildPipeline("Bearer test-token", badRequestResponse);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => clientForBadRequest.ResolveEmployeesAsync([id1], CancellationToken.None));
     }
 
     [Fact]

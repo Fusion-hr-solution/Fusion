@@ -58,8 +58,9 @@ public sealed class OverdueCheckInReminderJob(
         var overdue = await dbContext.PerformanceCheckIns
             .AsNoTracking()
             .Where(checkIn => checkIn.Status == CheckInStatus.Planned && checkIn.PlannedDate < now.Date)
+            // Closed campaigns generate no reminders: their work is settled and nobody can act on it.
             .Join(
-                dbContext.PerformanceCycles,
+                dbContext.PerformanceCycles.OpenOnly(),
                 checkIn => checkIn.CycleId,
                 cycle => cycle.Id,
                 (checkIn, cycle) => new
@@ -82,21 +83,30 @@ public sealed class OverdueCheckInReminderJob(
                 .ToListAsync(cancellationToken))
             .ToHashSet(StringComparer.Ordinal);
 
+        var pending = overdue
+            .Where(item => !existing.Contains($"checkin-overdue:{item.Id}:{dayBucket}"))
+            .ToList();
+
+        // Resolve reviewers only for the participants this tick actually notifies, rather than
+        // materialising every participant of every campaign that has an overdue check-in.
         var reviewerByCycle = new Dictionary<Guid, Dictionary<Guid, Guid>>();
+        foreach (var group in pending.GroupBy(item => item.CycleId))
+        {
+            reviewerByCycle[group.Key] = await reviewerResolver.ResolveForParticipantsAsync(
+                group.Key,
+                group.Select(item => item.EmployeeId).Distinct().ToList(),
+                cancellationToken);
+        }
+
         var newNotifications = new List<PerformanceNotification>();
 
-        foreach (var item in overdue)
+        foreach (var item in pending)
         {
             var dedupKey = $"checkin-overdue:{item.Id}:{dayBucket}";
-            if (existing.Contains(dedupKey))
-                continue;
 
-            if (!reviewerByCycle.TryGetValue(item.CycleId, out var reviewers))
-            {
-                reviewers = await reviewerResolver.ResolveForCampaignAsync(item.CycleId, cancellationToken);
-                reviewerByCycle[item.CycleId] = reviewers;
-            }
-            if (!reviewers.TryGetValue(item.EmployeeId, out var reviewerId) || reviewerId == Guid.Empty)
+            if (!reviewerByCycle.TryGetValue(item.CycleId, out var reviewers)
+                || !reviewers.TryGetValue(item.EmployeeId, out var reviewerId)
+                || reviewerId == Guid.Empty)
                 continue;
 
             newNotifications.Add(PerformanceNotification.Create(

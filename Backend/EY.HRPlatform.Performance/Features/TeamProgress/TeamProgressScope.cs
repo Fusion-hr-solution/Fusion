@@ -39,11 +39,8 @@ public sealed class TeamProgressScope
         Guid reviewerEmployeeId,
         CancellationToken cancellationToken)
     {
-        var effectiveByParticipant = await reviewerResolver.ResolveForCampaignAsync(cycleId, cancellationToken);
-        var reviewedEmployeeIds = effectiveByParticipant
-            .Where(pair => pair.Value == reviewerEmployeeId)
-            .Select(pair => pair.Key)
-            .ToHashSet();
+        var reviewedEmployeeIds = (await reviewerResolver.ResolveParticipantsForReviewerAsync(
+            cycleId, reviewerEmployeeId, cancellationToken)).ToHashSet();
 
         if (reviewedEmployeeIds.Count == 0)
             return new TeamProgressScope([], new Dictionary<Guid, string>(), new Dictionary<Guid, LatestObjectiveProgress>());

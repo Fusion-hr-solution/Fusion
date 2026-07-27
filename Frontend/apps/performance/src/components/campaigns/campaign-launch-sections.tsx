@@ -11,7 +11,6 @@ import {
   Users,
 } from "lucide-react";
 import {
-  ApiError,
   coreWorkforcePaths,
   coreWorkforceQueryKeys,
   createPlatformApiClient,
@@ -25,7 +24,6 @@ import {
   type PagedResponse,
   type OverrideParticipantApproverRequest,
   type PerformanceCycleDetailDto,
-  type PopulationRuleInput,
   type SetCyclePopulationRequest,
   type WorkforceOrgUnitTreeDto,
 } from "@repo/api";
@@ -64,14 +62,18 @@ import {
   campaignPopulation,
   campaignReadinessReview,
 } from "./campaign-terminology";
+import {
+  fromRulesExclusions,
+  fromRulesScopes,
+  groupParticipantsByApprover,
+  messageFor,
+  serialize,
+  toPopulationRequest,
+  type Exclusion,
+  type OrgScope,
+  type ApproverGroup,
+} from "./campaign-launch-model";
 
-type OrgScope = { orgUnitId: string; includeDescendants: boolean };
-type Exclusion = {
-  employeeId: string;
-  name: string | null;
-  reason: string;
-  orgUnitId: string | null;
-};
 type MemberSnapshot = UnitMember & { orgUnitId: string };
 const READINESS_BLOCKER_LIMIT = 5;
 const READINESS_EXCEPTION_LIMIT = 8;
@@ -556,7 +558,6 @@ export function CampaignPopulationSection({
     </div>
   );
 }
-
 /** Mirrors PopulationScopeTree's bordered container and indented row rhythm. */
 function PopulationScopeTreeSkeleton() {
   const depths = [0, 1, 1, 2, 1, 0, 1];
@@ -580,7 +581,6 @@ function PopulationScopeTreeSkeleton() {
     </div>
   );
 }
-
 // ── Readiness + launch ───────────────────────────────────────────────
 
 export type PreflightGate = { key: string; label: string; done: boolean };
@@ -892,7 +892,6 @@ export function CampaignLaunchPad({
     </div>
   );
 }
-
 function ParticipantRow({
   participant,
   canManage,
@@ -1284,95 +1283,4 @@ function ParticipantSearchResults({
       </p>
     </section>
   );
-}
-
-type ApproverGroup = {
-  approverName: string;
-  count: number;
-};
-
-function groupParticipantsByApprover(
-  participants: CycleParticipantDto[]
-): ApproverGroup[] {
-  const groups = new Map<string, CycleParticipantDto[]>();
-  for (const participant of participants) {
-    const key = participant.approverName || "No approver";
-    groups.set(key, [...(groups.get(key) ?? []), participant]);
-  }
-
-  return Array.from(groups.entries())
-    .map(([approverName, members]) => ({
-      approverName,
-      count: members.length,
-    }))
-    .sort(
-      (a, b) =>
-        b.count - a.count || a.approverName.localeCompare(b.approverName)
-    );
-}
-
-// ── helpers ──────────────────────────────────────────────────────────
-
-function fromRulesScopes(campaign: PerformanceCycleDetailDto): OrgScope[] {
-  return campaign.populationRules
-    .filter((rule) => rule.ruleType === "OrgUnit")
-    .map((rule) => ({
-      orgUnitId: rule.refId,
-      includeDescendants: rule.includeDescendants,
-    }));
-}
-
-function fromRulesExclusions(campaign: PerformanceCycleDetailDto): Exclusion[] {
-  return campaign.populationRules
-    .filter((rule) => rule.ruleType === "ExcludeEmployee")
-    .map((rule) => ({
-      employeeId: rule.refId,
-      name: null,
-      reason: rule.reason ?? "",
-      orgUnitId: null,
-    }));
-}
-
-function toPopulationRequest(
-  scopes: OrgScope[],
-  exclusions: Exclusion[]
-): SetCyclePopulationRequest {
-  const rules: PopulationRuleInput[] = [
-    ...scopes.map<PopulationRuleInput>((scope) => ({
-      ruleType: "OrgUnit",
-      refId: scope.orgUnitId,
-      includeDescendants: scope.includeDescendants,
-    })),
-    ...exclusions.map<PopulationRuleInput>((exclusion) => ({
-      ruleType: "ExcludeEmployee",
-      refId: exclusion.employeeId,
-      reason: exclusion.reason.trim(),
-    })),
-  ];
-  return { populationIncludeInactive: false, rules };
-}
-
-function serialize(scopes: OrgScope[], exclusions: Exclusion[]): string {
-  return JSON.stringify({
-    scopes: [...scopes].sort((a, b) => a.orgUnitId.localeCompare(b.orgUnitId)),
-    exclusions: [...exclusions]
-      .map((exclusion) => ({
-        employeeId: exclusion.employeeId,
-        reason: exclusion.reason.trim(),
-      }))
-      .sort((a, b) => a.employeeId.localeCompare(b.employeeId)),
-  });
-}
-
-function messageFor(error: Error): string {
-  if (error instanceof ApiError) {
-    if (error.status === 409) {
-      return "This campaign changed. Review the latest values and try again.";
-    }
-    if (error.status === 403) {
-      return "You do not have permission for this action.";
-    }
-    return error.errors.length > 0 ? error.errors.join(" ") : error.message;
-  }
-  return error.message;
 }

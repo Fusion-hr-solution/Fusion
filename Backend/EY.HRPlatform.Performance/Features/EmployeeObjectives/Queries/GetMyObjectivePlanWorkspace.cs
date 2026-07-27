@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Domain.Entities;
+﻿using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Exceptions;
 using EY.HRPlatform.Performance.Features.EmployeeObjectives.Dtos;
@@ -36,7 +36,9 @@ public sealed class GetMyObjectivePlanWorkspaceQueryHandler(
             return Result.Failure<EmployeeObjectivePlanWorkspaceDto>(
                 new Error("PerformanceCycle.NotFound", $"Campaign '{slug}' was not found."));
 
-        if (cycle.Status != PerformanceCycleStatus.Launched)
+        // A closed campaign is read-only, not unreadable: every read still answers with the
+        // state as it stood at closure.
+        if (!cycle.IsOpenOrClosed())
             return Result.Failure<EmployeeObjectivePlanWorkspaceDto>(Error.Validation(
                 "EmployeeObjectivePlan.NotLaunchedInvalid",
                 "This campaign is not launched for objective planning yet."));

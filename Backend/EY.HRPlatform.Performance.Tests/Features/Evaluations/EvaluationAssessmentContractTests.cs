@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Exceptions;
@@ -71,7 +71,7 @@ public class EvaluationAssessmentContractTests
 
         // An empty draft moves the assignment to InProgress; the submit then fails on completeness.
         var self = await db.EvaluationAssignments.AsNoTracking().SingleAsync(a => a.Id == s.SelfId);
-        var draft = await new SaveSelfDraftCommandHandler(db, Access, ActivityLog(db, tenant))
+        var draft = await new SaveSelfDraftCommandHandler(db, Access)
             .Handle(new SaveSelfDraftCommand(actor, s.SelfId, EvaluationAssessmentDraftInput.Empty, self.Version),
                 CancellationToken.None);
         Assert.True(draft.IsSuccess);
@@ -97,7 +97,7 @@ public class EvaluationAssessmentContractTests
         var s = await LaunchAsync(tenantId, dbName);
         await using var db = PerformanceTestContext.Create(tenantId, out var tenant, dbName);
 
-        var handler = new SaveSelfDraftCommandHandler(db, Access, ActivityLog(db, tenant));
+        var handler = new SaveSelfDraftCommandHandler(db, Access);
         await Assert.ThrowsAsync<ConcurrencyException>(() => handler.Handle(
             new SaveSelfDraftCommand(Employee(s.ParticipantId), s.SelfId, EvaluationAssessmentDraftInput.Empty, 777),
             CancellationToken.None));
@@ -118,7 +118,7 @@ public class EvaluationAssessmentContractTests
         Assert.True(ws.Editable);
 
         // Draft save carries If-Match and returns the (possibly advanced) version for the next call.
-        var saved = await new SaveSelfDraftCommandHandler(db, Access, ActivityLog(db, tenant))
+        var saved = await new SaveSelfDraftCommandHandler(db, Access)
             .Handle(new SaveSelfDraftCommand(employee, ws.AssignmentId, CompleteDraft(ws), ws.Version), CancellationToken.None);
         Assert.True(saved.IsSuccess);
 
@@ -182,7 +182,7 @@ public class EvaluationAssessmentContractTests
                 new EvaluationObjectiveRatingInput(o.ObjectiveSnapshotId, 1, "Confidential draft note.")).ToArray(),
             Array.Empty<EvaluationSkillRatingInput>(),
             Array.Empty<EvaluationQuestionAnswerInput>());
-        var saved = await new SaveManagerDraftCommandHandler(db, Access, ActivityLog(db, tenant))
+        var saved = await new SaveManagerDraftCommandHandler(db, Access)
             .Handle(new SaveManagerDraftCommand(Reviewer(s.ReviewerId), s.ManagerId, draft, managerWs.Value.ManagerVersion),
                 CancellationToken.None);
         Assert.True(saved.IsSuccess);

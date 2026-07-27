@@ -1,4 +1,4 @@
-import { BrainCircuit, ClipboardCheck, ClipboardList, ClipboardPenLine, Compass, Gauge, LineChart, Megaphone, ScrollText, Settings2, SlidersHorizontal, Target, UserRoundCheck, UsersRound } from "lucide-react";
+import { Archive, BrainCircuit, ClipboardCheck, ClipboardList, ClipboardPenLine, Compass, Gauge, LineChart, Megaphone, ScrollText, Settings2, SlidersHorizontal, Target, UserRoundCheck, UsersRound } from "lucide-react";
 import type { ShellNavSection } from "@repo/ds/shell";
 import {
   canAccessMyObjectives,
@@ -41,6 +41,21 @@ export const CAMPAIGNS_NAV: ShellNavSection = {
       label: "Campaigns",
       href: "/campaigns",
       icon: Megaphone,
+    },
+  ],
+};
+
+/**
+ * Closed campaigns get an explicit entry point rather than being mixed into the active list.
+ * Same access rule as Campaigns — history is a view of the campaigns you can already see — so it
+ * introduces no new permission, only a separate place to look.
+ */
+export const CAMPAIGN_HISTORY_NAV: ShellNavSection = {
+  items: [
+    {
+      label: "History",
+      href: "/campaigns/history",
+      icon: Archive,
     },
   ],
 };
@@ -195,6 +210,12 @@ export const PERFORMANCE_DOORS: readonly PerformanceDoor[] = [
   {
     section: CAMPAIGNS_NAV,
     description: "Set up, launch, monitor, and lock objective planning campaigns.",
+    group: "work",
+    isVisible: canViewPerformanceCampaigns,
+  },
+  {
+    section: CAMPAIGN_HISTORY_NAV,
+    description: "Read the record of campaigns that have closed.",
     group: "work",
     isVisible: canViewPerformanceCampaigns,
   },

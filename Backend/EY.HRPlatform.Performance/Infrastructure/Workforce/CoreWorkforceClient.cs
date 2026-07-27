@@ -87,9 +87,12 @@ public sealed class CoreWorkforceClient(
             return [];
         }
 
-        var response = await httpClient.PostAsJsonAsync(
-            "api/corehr/workforce/employees/resolve",
-            new { employeeIds },
+        var response = await GuardAsync(
+            () => httpClient.PostAsJsonAsync(
+                "api/corehr/workforce/employees/resolve",
+                new { employeeIds },
+                cancellationToken),
+            "employee resolve",
             cancellationToken);
 
         return await ReadEmployeesAsync(response, cancellationToken);
@@ -105,15 +108,14 @@ public sealed class CoreWorkforceClient(
 
         while (true)
         {
-            var response = await httpClient.GetAsync(
-                $"api/corehr/workforce/employees/search?page={page}&pageSize={pageSize}",
+            var response = await GuardAsync(
+                () => httpClient.GetAsync(
+                    $"api/corehr/workforce/employees/search?page={page}&pageSize={pageSize}",
+                    cancellationToken),
+                "workforce search",
                 cancellationToken);
 
-            if (!response.IsSuccessStatusCode)
-            {
-                throw new InvalidOperationException(
-                    $"Core workforce request failed with status {(int)response.StatusCode}.");
-            }
+            EnsureAnswered(response, "workforce");
 
             var payload = await response.Content
                 .ReadFromJsonAsync<ApiResponse<PagedEmployeeResponse>>(cancellationToken);
@@ -150,9 +152,12 @@ public sealed class CoreWorkforceClient(
             return [];
         }
 
-        var response = await httpClient.PostAsJsonAsync(
-            "api/corehr/workforce/employees/by-scope",
-            new { orgUnitIds, includeDescendants, includeInactive },
+        var response = await GuardAsync(
+            () => httpClient.PostAsJsonAsync(
+                "api/corehr/workforce/employees/by-scope",
+                new { orgUnitIds, includeDescendants, includeInactive },
+                cancellationToken),
+            "employees by scope",
             cancellationToken);
 
         return await ReadEmployeesAsync(response, cancellationToken);
@@ -162,8 +167,11 @@ public sealed class CoreWorkforceClient(
         Guid employeeId,
         CancellationToken cancellationToken)
     {
-        var response = await httpClient.GetAsync(
-            $"api/corehr/workforce/employees/{employeeId}/manager-chain",
+        var response = await GuardAsync(
+            () => httpClient.GetAsync(
+                $"api/corehr/workforce/employees/{employeeId}/manager-chain",
+                cancellationToken),
+            "manager chain",
             cancellationToken);
 
         return await ReadEmployeesAsync(response, cancellationToken);
@@ -171,8 +179,11 @@ public sealed class CoreWorkforceClient(
 
     public async Task<CoreOrgUnitDetail?> GetOrgUnitAsync(Guid orgUnitId, CancellationToken cancellationToken)
     {
-        var response = await httpClient.GetAsync(
-            $"api/corehr/workforce/org-units/{orgUnitId}",
+        var response = await GuardAsync(
+            () => httpClient.GetAsync(
+                $"api/corehr/workforce/org-units/{orgUnitId}",
+                cancellationToken),
+            "org unit",
             cancellationToken);
 
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
@@ -180,11 +191,7 @@ public sealed class CoreWorkforceClient(
             return null;
         }
 
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException(
-                $"Core org-unit request failed with status {(int)response.StatusCode}.");
-        }
+        EnsureAnswered(response, "org-unit");
 
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<CoreOrgUnitDetail>>(cancellationToken);
         return payload?.Data;
@@ -195,8 +202,11 @@ public sealed class CoreWorkforceClient(
         bool includeDescendants,
         CancellationToken cancellationToken)
     {
-        var response = await httpClient.GetAsync(
-            $"api/corehr/workforce/org-units/{orgUnitId}/members?includeDescendants={includeDescendants}",
+        var response = await GuardAsync(
+            () => httpClient.GetAsync(
+                $"api/corehr/workforce/org-units/{orgUnitId}/members?includeDescendants={includeDescendants}",
+                cancellationToken),
+            "org-unit members",
             cancellationToken);
 
         return await ReadEmployeesAsync(response, cancellationToken);
@@ -228,7 +238,10 @@ public sealed class CoreWorkforceClient(
         };
 
         await internalServiceRequestSigner.SignAsync(request, cancellationToken);
-        using var response = await httpClient.SendAsync(request, cancellationToken);
+        using var response = await GuardAsync(
+            () => httpClient.SendAsync(request, cancellationToken),
+            "workforce snapshot by scope",
+            cancellationToken);
         return await ReadInternalEmployeesAsync(response, cancellationToken);
     }
 
@@ -252,7 +265,10 @@ public sealed class CoreWorkforceClient(
         };
 
         await internalServiceRequestSigner.SignAsync(request, cancellationToken);
-        using var response = await httpClient.SendAsync(request, cancellationToken);
+        using var response = await GuardAsync(
+            () => httpClient.SendAsync(request, cancellationToken),
+            "workforce snapshot resolve",
+            cancellationToken);
         return await ReadInternalEmployeesAsync(response, cancellationToken);
     }
 
@@ -271,12 +287,11 @@ public sealed class CoreWorkforceClient(
         };
 
         await internalServiceRequestSigner.SignAsync(request, cancellationToken);
-        using var response = await httpClient.SendAsync(request, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException(
-                $"Core campaign workforce request failed with status {(int)response.StatusCode}.");
-        }
+        using var response = await GuardAsync(
+            () => httpClient.SendAsync(request, cancellationToken),
+            "campaign workforce context",
+            cancellationToken);
+        EnsureAnswered(response, "campaign workforce");
 
         return await response.Content.ReadFromJsonAsync<CoreCampaignWorkforceContext>(cancellationToken)
             ?? new CoreCampaignWorkforceContext(asOf, string.Empty, []);
@@ -286,13 +301,12 @@ public sealed class CoreWorkforceClient(
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "/internal/corehr/applicability-options");
         await internalServiceRequestSigner.SignAsync(request, cancellationToken);
-        using var response = await httpClient.SendAsync(request, cancellationToken);
+        using var response = await GuardAsync(
+            () => httpClient.SendAsync(request, cancellationToken),
+            "applicability options",
+            cancellationToken);
 
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException(
-                $"Core applicability-options request failed with status {(int)response.StatusCode}.");
-        }
+        EnsureAnswered(response, "applicability-options");
 
         return await response.Content.ReadFromJsonAsync<CoreApplicabilityOptions>(cancellationToken)
             ?? new CoreApplicabilityOptions([], [], [], []);
@@ -311,11 +325,7 @@ public sealed class CoreWorkforceClient(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException(
-                $"Core workforce request failed with status {(int)response.StatusCode}.");
-        }
+        EnsureAnswered(response, "workforce");
 
         var payload = await response.Content.ReadFromJsonAsync<ApiResponse<List<CoreEmployeeSummary>>>(cancellationToken);
         return payload?.Data ?? [];
@@ -325,13 +335,63 @@ public sealed class CoreWorkforceClient(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
     {
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException(
-                $"Core workforce request failed with status {(int)response.StatusCode}.");
-        }
+        EnsureAnswered(response, "workforce");
 
         return await response.Content.ReadFromJsonAsync<List<CoreEmployeeSummary>>(cancellationToken)
             ?? [];
+    }
+
+    /// <summary>
+    /// Throws on a non-success status, distinguishing a dependency failure (Core could not answer:
+    /// 5xx, timeout, throttle) from Core answering that the request itself was bad. Only the former
+    /// is recoverable by retrying later.
+    /// </summary>
+    private static void EnsureAnswered(HttpResponseMessage response, string operation)
+    {
+        if (response.IsSuccessStatusCode)
+        {
+            return;
+        }
+
+        var status = (int)response.StatusCode;
+        if (status >= 500
+            || response.StatusCode is System.Net.HttpStatusCode.RequestTimeout
+                or System.Net.HttpStatusCode.TooManyRequests)
+        {
+            throw new CoreWorkforceUnavailableException(
+                $"Core HR answered the {operation} request with status {status}.");
+        }
+
+        throw new InvalidOperationException(
+            $"Core {operation} request failed with status {status}.");
+    }
+
+    /// <summary>
+    /// Runs an outbound call, translating transport failures, resilience-pipeline timeouts, and an
+    /// open circuit into <see cref="CoreWorkforceUnavailableException"/>. A cancellation the caller
+    /// asked for is rethrown untouched — that is not a dependency failure.
+    /// </summary>
+    private static async Task<T> GuardAsync<T>(
+        Func<Task<T>> send,
+        string operation,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await send();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception) when (exception
+            is HttpRequestException
+            or OperationCanceledException
+            or Polly.Timeout.TimeoutRejectedException
+            or Polly.CircuitBreaker.BrokenCircuitException)
+        {
+            throw new CoreWorkforceUnavailableException(
+                $"Core HR could not be reached for the {operation} request.", exception);
+        }
     }
 }

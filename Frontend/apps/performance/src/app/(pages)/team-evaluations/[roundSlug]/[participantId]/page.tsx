@@ -1,4 +1,8 @@
-import { ParticipantWorkspacePage } from "@/components/evaluations/assessment/participant-workspace";
+import dynamic from "next/dynamic";
+
+const ParticipantWorkspacePage = dynamic(() =>
+  import("@/components/evaluations/assessment/participant-workspace").then((module) => module.ParticipantWorkspacePage),
+);
 
 export default async function ParticipantAssessmentRoute({
   params,

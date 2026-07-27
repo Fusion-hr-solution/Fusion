@@ -290,6 +290,28 @@ public sealed class EvaluationAssignment : AggregateRoot, ITenantEntity
             TenantId, RoundId, Id, ParticipantEmployeeId, ParticipantName, AssigneeEmployeeId, AssigneeName));
     }
 
+    /// <summary>
+    /// Moves outstanding manager work to another reviewer without changing the assignment or any
+    /// responses already entered. Finalized work is terminal and cannot be reassigned.
+    /// </summary>
+    public void ReassignReviewer(Guid reviewerEmployeeId, string reviewerName, DateTime now)
+    {
+        if (Kind != EvaluationAssignmentKind.ManagerAssessment)
+            throw new DomainRuleViolationException("Only a manager assessment can be reassigned.");
+        if (Status == EvaluationAssignmentStatus.Finalized)
+            throw new DomainRuleViolationException("A finalized evaluation cannot be reassigned.");
+        if (reviewerEmployeeId == Guid.Empty)
+            throw new DomainRuleViolationException("A reassigned reviewer is required.");
+        if (reviewerEmployeeId == ParticipantEmployeeId)
+            throw new DomainRuleViolationException("A participant cannot review themselves.");
+        if (string.IsNullOrWhiteSpace(reviewerName))
+            throw new DomainRuleViolationException("A reassigned reviewer name is required.");
+
+        AssigneeEmployeeId = reviewerEmployeeId;
+        AssigneeName = reviewerName.Trim();
+        UpdatedAt = NormalizeUtc(now);
+    }
+
     private void MarkFinalized(DateTime finalizedAt)
     {
         Status = EvaluationAssignmentStatus.Finalized;

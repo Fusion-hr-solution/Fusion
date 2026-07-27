@@ -43,14 +43,12 @@ public sealed class EvaluationRoundReadinessResolver(
                 .SingleOrDefaultAsync(x => x.Id == round.SourceTemplateId, cancellationToken)
             : null;
 
-        var latestReassignments = (await db.PerformanceCycleApproverReassignments
-                .AsNoTracking()
-                .Where(x => x.CycleId == campaign.Id)
-                .OrderBy(x => x.ReassignedAt)
-                .ToListAsync(cancellationToken))
-            .GroupBy(x => x.ParticipantEmployeeId)
-            .ToDictionary(g => g.Key, g => g.Last());
-        var effectiveReviewerIds = await reviewerResolver.ResolveForCampaignAsync(campaign.Id, cancellationToken);
+        // HR readiness covers every frozen participant, so the campaign-wide map is genuinely
+        // required here. One resolver call yields both the effective reviewers and the
+        // reassignments their names come from, instead of reading the reassignment table twice.
+        var campaignReviewers = await reviewerResolver.ResolveCampaignMapAsync(campaign.Id, cancellationToken);
+        var latestReassignments = campaignReviewers.LatestReassignmentByParticipant;
+        var effectiveReviewerIds = campaignReviewers.ReviewerByParticipant;
 
         var plans = await db.EmployeeObjectivePlans
             .AsNoTracking()

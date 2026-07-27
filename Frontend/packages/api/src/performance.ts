@@ -11,7 +11,29 @@ export interface PagedResponse<T> {
   hasPreviousPage: boolean;
 }
 
-export type PerformanceCycleStatus = "Draft" | "Launched";
+/**
+ * Paging for the append-only histories. The server clamps an oversized `pageSize` rather than
+ * rejecting it, so a caller never has to guess the served maximum.
+ */
+export interface HistoryPageParams {
+  page?: number;
+  pageSize?: number;
+}
+
+export function historyPageQuery(params?: HistoryPageParams): string {
+  if (!params) return "";
+
+  const query = new URLSearchParams();
+  if (params.page !== undefined) query.set("page", String(params.page));
+  if (params.pageSize !== undefined)
+    query.set("pageSize", String(params.pageSize));
+
+  const serialized = query.toString();
+  return serialized ? `?${serialized}` : "";
+}
+
+/** `Closed` is terminal — a closed campaign is a read-only archive. */
+export type PerformanceCycleStatus = "Draft" | "Launched" | "Closed";
 export type PerformanceCycleType = "Annual" | "MidYear" | "Specific";
 export type CycleDeadlineState = "None" | "Upcoming" | "DueSoon" | "Overdue";
 export type PopulationRuleType =
@@ -184,6 +206,51 @@ export interface CampaignLaunchResultDto {
   version: number;
 }
 
+/** One entry in the configuration change history. */
+export interface ConfigurationAuditEntryDto {
+  id: string;
+  scope: "Platform" | "Tenant";
+  action: string;
+  entityType: string;
+  entityId: string;
+  actorName: string | null;
+  occurredAt: string;
+  versionNumber: number | null;
+  previousValue: string | null;
+  newValue: string | null;
+  reason: string | null;
+}
+
+/** What closing a campaign now would leave unfinished. */
+export interface CampaignOutstandingWorkDto {
+  unsubmittedObjectivePlans: number;
+  objectivePlansAwaitingApproval: number;
+  unsubmittedSelfAssessments: number;
+  unfinalizedManagerAssessments: number;
+  hasOutstandingWork: boolean;
+}
+
+export interface CampaignClosureImpactDto {
+  cycleId: string;
+  isAlreadyClosed: boolean;
+  wouldCloseAutomatically: boolean;
+  outstanding: CampaignOutstandingWorkDto;
+  version: number;
+}
+
+export interface CampaignClosureResultDto {
+  cycleId: string;
+  closedAt: string;
+  closureKind: "Automatic" | "Manual";
+  closedByName: string | null;
+  outstandingAtClosure: CampaignOutstandingWorkDto;
+  version: number;
+}
+
+export interface CloseCampaignRequest {
+  confirmOutstandingWork: boolean;
+}
+
 export interface CycleAuditEventDto {
   id: string;
   action: string;
@@ -205,6 +272,15 @@ export interface PerformanceNotificationDto {
   createdAt: string;
   readAt: string | null;
   isRead: boolean;
+}
+
+/**
+ * The bell's payload: one request carries both the list and the badge count, so the two cannot
+ * disagree and the fixed 30-second poll costs one request per user rather than two.
+ */
+export interface NotificationFeedDto {
+  notifications: PerformancePageDto<PerformanceNotificationDto>;
+  unreadCount: number;
 }
 
 export interface PerformancePageDto<T> {
@@ -1259,6 +1335,38 @@ export interface EvaluationTemplateQuestionInput {
   targetRater: EvaluationTargetRater;
   allowNotApplicable: boolean;
 }
+/**
+ * What a participant will see for a template, as the server projects it. Distinct from the write
+ * shape: it carries resolved ids and the rater it was built for, and omits anything only the
+ * author needs.
+ */
+export interface EvaluationTemplatePreviewDto {
+  templateId: string;
+  name: string;
+  purpose: string | null;
+  participantInstructions: string | null;
+  rater: EvaluationTargetRater;
+  sections: EvaluationTemplatePreviewSectionDto[];
+}
+
+export interface EvaluationTemplatePreviewSectionDto {
+  sectionId: string;
+  ordinal: number;
+  type: EvaluationSectionType;
+  title: string;
+  guidance: string | null;
+  questions: EvaluationTemplatePreviewQuestionDto[];
+}
+
+export interface EvaluationTemplatePreviewQuestionDto {
+  questionId: string;
+  ordinal: number;
+  prompt: string;
+  type: EvaluationQuestionType;
+  isRequired: boolean;
+  allowNotApplicable: boolean;
+}
+
 export interface EvaluationTemplateSectionInput {
   id?: string | null;
   type: EvaluationSectionType;
@@ -1918,7 +2026,8 @@ export const performancePaths = {
     `/performance/cycles/${id}/population/preview`,
   cycleLaunch: (id: string) => `/performance/cycles/${id}/launch`,
   cycleParticipants: (id: string) => `/performance/cycles/${id}/participants`,
-  cycleAudit: (id: string) => `/performance/cycles/${id}/audit`,
+  cycleAudit: (id: string, params?: HistoryPageParams) =>
+    `/performance/cycles/${id}/audit${historyPageQuery(params)}`,
   cycleReadiness: (id: string) => `/performance/cycles/${id}/readiness`,
   campaignStrategicObjectives: (id: string) =>
     `/performance/cycles/${id}/strategic-objectives`,
@@ -1938,6 +2047,11 @@ export const performancePaths = {
     "/performance/objective-planning/configuration",
   objectivePlanningConfigurationApply: () =>
     "/performance/objective-planning/configuration/apply",
+  objectivePlanningConfigurationAudit: (params?: HistoryPageParams) =>
+    `/performance/objective-planning/configuration/audit${historyPageQuery(params)}`,
+  cycleClosureImpact: (id: string) =>
+    `/performance/cycles/${id}/closure-impact`,
+  cycleClose: (id: string) => `/performance/cycles/${id}/close`,
   notifications: () => "/performance/notifications",
   notificationsUnreadCount: () => "/performance/notifications/unread-count",
   notificationRead: (id: string) => `/performance/notifications/${id}/read`,
@@ -2143,10 +2257,23 @@ export const performanceQueryKeys = {
         pageSize: params.pageSize,
       },
     ] as const,
-  cycleAudit: (id: string) =>
-    [...performanceQueryKeys.cycle(id), "audit"] as const,
+  cycleAudit: (id: string, params?: HistoryPageParams) =>
+    [
+      ...performanceQueryKeys.cycle(id),
+      "audit",
+      { page: params?.page ?? null, pageSize: params?.pageSize ?? null },
+    ] as const,
   cycleReadiness: (id: string) =>
     [...performanceQueryKeys.cycle(id), "readiness"] as const,
+  objectivePlanningConfigurationAudit: (params?: HistoryPageParams) =>
+    [
+      ...performanceQueryKeys.all(),
+      "objective-planning-configuration",
+      "audit",
+      { page: params?.page ?? null, pageSize: params?.pageSize ?? null },
+    ] as const,
+  cycleClosureImpact: (id: string) =>
+    [...performanceQueryKeys.cycle(id), "closure-impact"] as const,
   objectivePlanningConfiguration: () =>
     [
       ...performanceQueryKeys.all(),

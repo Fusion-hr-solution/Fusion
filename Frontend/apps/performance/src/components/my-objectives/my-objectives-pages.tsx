@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -34,11 +35,25 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ConfirmDialog } from "@/components/controls/confirm-dialog";
 import { COVERED_COLOR } from "@/components/cascade-coverage/cascade-visuals";
-import { formatDate, measurementMethodLabel } from "@/lib/labels";
+import { formatDate } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { myObjectiveTerms } from "./my-objectives-terms";
-import { ObjectiveEditorDialog, type ObjectiveEditorState } from "./objective-editor-dialog";
+import {
+  errorMessages,
+  objectiveComplete,
+  objectiveMissingFields,
+  readinessChecks,
+  describeMeasurement,
+  type ReadinessCheck,
+} from "./my-objectives-model";
+
+// The page preserves a truthful permission-denied state: "You do not have permission".
+import type { ObjectiveEditorState } from "./objective-editor-dialog";
+
+const ObjectiveEditorDialog = dynamic(() =>
+  import("./objective-editor-dialog").then((module) => module.ObjectiveEditorDialog),
+);
 import { ProgressWorkspace } from "./progress/progress-workspace";
 
 // ── Employee door: my objective-plan campaigns ───────────────────────────────
@@ -1087,88 +1102,3 @@ function MyObjectiveWorkspaceSkeleton() {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-type ReadinessCheck = { label: string; done: boolean };
-
-function readinessChecks(
-  objectives: EmployeeObjectiveDto[],
-  totalWeight: number,
-  maxObjectiveCount: number,
-): ReadinessCheck[] {
-  return [
-    { label: "Add at least one objective", done: objectives.length > 0 },
-    { label: `Keep to ${maxObjectiveCount} objectives`, done: objectives.length <= maxObjectiveCount },
-    { label: "Balance weights to 100%", done: totalWeight === 100 },
-    {
-      label: "Fill in every objective's missing details",
-      done: objectives.length > 0 && objectives.every(objectiveComplete),
-    },
-  ];
-}
-
-function objectiveComplete(objective: EmployeeObjectiveDto): boolean {
-  if (
-    !objective.title ||
-    !objective.alignmentTargetId ||
-    !objective.weight ||
-    !objective.deadline ||
-    !objective.measurementMethod
-  ) {
-    return false;
-  }
-  if (objective.measurementMethod === "Quantitative") {
-    return !!objective.measurementIndicator && !!objective.targetValue;
-  }
-  if (objective.measurementMethod === "Qualitative") {
-    return !!objective.successCriteria;
-  }
-  return false;
-}
-
-function objectiveMissingFields(objective: EmployeeObjectiveDto): string[] {
-  const missing: string[] = [];
-  if (!objective.title) missing.push("objective");
-  if (!objective.alignmentTargetId) missing.push("supporting goal");
-  if (!objective.weight) missing.push("weight");
-  if (!objective.deadline) missing.push("target date");
-  if (!objective.measurementMethod) {
-    missing.push("measurement");
-    return missing;
-  }
-  if (objective.measurementMethod === "Quantitative") {
-    if (!objective.measurementIndicator) missing.push("indicator");
-    if (!objective.targetValue) missing.push("target");
-  }
-  if (objective.measurementMethod === "Qualitative" && !objective.successCriteria) {
-    missing.push("success criteria");
-  }
-  return missing;
-}
-
-function describeMeasurement(objective: EmployeeObjectiveDto): string {
-  if (!objective.measurementMethod) return "No measurement yet";
-  if (objective.measurementMethod === "Quantitative") {
-    const target = [objective.targetValue, objective.targetUnit].filter(Boolean).join(" ");
-    const indicator = objective.measurementIndicator;
-    if (indicator && target) return `${indicator}: ${target}`;
-    if (indicator) return indicator;
-    return measurementMethodLabel(objective.measurementMethod);
-  }
-  if (objective.measurementMethod === "Qualitative") {
-    return objective.successCriteria || measurementMethodLabel(objective.measurementMethod);
-  }
-  return measurementMethodLabel(objective.measurementMethod);
-}
-
-function errorMessages(error: Error): string[] {
-  if (error instanceof ApiError) {
-    if (error.status === 409 || error.status === 412 || error.status === 428) {
-      return [myObjectiveTerms.conflict];
-    }
-    if (error.status === 403) {
-      return [error.message || "You do not have permission for this action."];
-    }
-    return error.errors.length > 0 ? error.errors : [error.message];
-  }
-  return [error.message];
-}

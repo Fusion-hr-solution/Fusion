@@ -23,7 +23,13 @@ export class ApiError extends Error {
     public readonly statusText: string, // e.g. "Unauthorized"
     public readonly errors: string[], // Messages from the backend
     public readonly correlationId: string | null, // For tracing — include in bug reports
-    public readonly details: unknown = null // Structured error payload (e.g. incomplete-submission blockers)
+    public readonly details: unknown = null, // Structured error payload (e.g. incomplete-submission blockers)
+    /**
+     * Machine-readable failure code from an RFC 7807 problem response, when the endpoint sends one.
+     * Null for endpoints still on the older envelope — branch on `status` in that case rather than
+     * on message text.
+     */
+    public readonly code: string | null = null
   ) {
     super(errors[0] ?? `HTTP ${status} ${statusText}`);
     this.name = "ApiError";

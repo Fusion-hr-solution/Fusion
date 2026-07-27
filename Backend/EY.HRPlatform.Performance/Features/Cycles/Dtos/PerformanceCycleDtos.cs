@@ -218,3 +218,24 @@ public sealed record SetCyclePopulationRequest(
 public sealed record OverrideParticipantApproverRequest(
     Guid ApproverEmployeeId,
     string Reason);
+
+// ─── Campaign closure ────────────────────────────────────────────────────────
+
+/// <summary>What closing a campaign now would leave unfinished, plus whether it would close by itself.</summary>
+public sealed record CampaignClosureImpactDto(
+    Guid CycleId,
+    bool IsAlreadyClosed,
+    bool WouldCloseAutomatically,
+    Services.CampaignOutstandingWork Outstanding,
+    uint Version);
+
+/// <summary>The recorded outcome of a closure, including what it left unfinished.</summary>
+public sealed record CampaignClosureResultDto(
+    Guid CycleId,
+    DateTime ClosedAt,
+    string ClosureKind,
+    string? ClosedByName,
+    Services.CampaignOutstandingWork OutstandingAtClosure,
+    uint Version);
+
+public sealed record CloseCampaignRequest(bool ConfirmOutstandingWork);

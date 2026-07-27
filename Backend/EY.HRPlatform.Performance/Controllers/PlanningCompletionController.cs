@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Features.PlanningCompletion.Commands;
+﻿using EY.HRPlatform.Performance.Features.PlanningCompletion.Commands;
 using EY.HRPlatform.Performance.Features.PlanningCompletion.Dtos;
 using EY.HRPlatform.Performance.Features.PlanningCompletion.Queries;
 using EY.HRPlatform.Performance.Features.Security;
@@ -15,7 +15,7 @@ namespace EY.HRPlatform.Performance.Controllers;
 [Authorize]
 public sealed class PlanningCompletionController(
     ISender sender,
-    IPerformanceAccessPolicyService accessPolicy) : ControllerBase
+    IPerformanceAccessPolicyService accessPolicy) : PerformanceControllerBase
 {
     [HttpGet("campaigns/{slug}")]
     public async Task<IActionResult> GetWorkspace(
@@ -31,7 +31,7 @@ public sealed class PlanningCompletionController(
         CancellationToken cancellationToken = default)
     {
         if (!accessPolicy.CanViewCycles(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new GetPlanningCompletionWorkspaceQuery(
             slug,
@@ -56,7 +56,7 @@ public sealed class PlanningCompletionController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewCycles(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(
             new GetPlanningCompletionParticipantDetailQuery(cycleId, participantEmployeeId),
@@ -74,7 +74,7 @@ public sealed class PlanningCompletionController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageCycles(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new RecordPlanningReminderCommand(cycleId, request), cancellationToken);
         return result.IsFailure
@@ -90,7 +90,7 @@ public sealed class PlanningCompletionController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageCycles(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(
             new ReassignPlanningReviewerCommand(cycleId, participantEmployeeId, request),
@@ -108,7 +108,7 @@ public sealed class PlanningCompletionController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageCycles(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(
             new ExcludePlanningParticipantCommand(cycleId, participantEmployeeId, request),
@@ -126,7 +126,7 @@ public sealed class PlanningCompletionController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanOperateCycles(User))
-            return Forbid();
+            return Denied();
         if (!TryParseVersion(ifMatch, out var expectedVersion))
             return PreconditionRequired();
 
@@ -136,25 +136,10 @@ public sealed class PlanningCompletionController(
             : Ok(ApiResponse<PlanningCompletionWorkspaceDto>.Success(result.Value));
     }
 
-    private IActionResult MapFailure(Error error)
-    {
-        if (error.Code.Contains("Forbidden", StringComparison.OrdinalIgnoreCase))
-            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Failure(error.Message));
-
-        if (error.Code.Contains("NotFound", StringComparison.OrdinalIgnoreCase))
-            return NotFound(ApiResponse.Failure(error.Message));
-
-        if (error.Code.Contains("Validation", StringComparison.OrdinalIgnoreCase)
-            || error.Code.Contains("Invalid", StringComparison.OrdinalIgnoreCase)
-            || error.Code.Contains("Required", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(ApiResponse.Failure(error.Message));
-
-        return Conflict(ApiResponse.Failure(error.Message));
-    }
+    private IActionResult MapFailure(Error error) => Problem(error);
 
     private IActionResult PreconditionRequired()
-        => StatusCode(StatusCodes.Status428PreconditionRequired,
-            ApiResponse.Failure("If-Match header with the current version is required."));
+        => MissingPrecondition();
 
     private static bool TryParseVersion(string? ifMatch, out uint version)
     {

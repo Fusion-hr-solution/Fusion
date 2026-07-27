@@ -5,8 +5,8 @@ import {
   createPlatformApiClient,
   performancePaths,
   performanceQueryKeys,
+  type NotificationFeedDto,
   type PerformanceNotificationDto,
-  type PerformancePageDto,
 } from "@repo/api";
 import { useApiMutation, useApiQuery } from "@repo/api/query";
 
@@ -34,30 +34,21 @@ export function activateNotification(
 }
 
 /**
- * Notification data hooks for the header bell. The unread count and list poll every
- * POLL_INTERVAL_MS (30s) with staleTime 0, so each poll refetches fresh state; polling pauses while
- * the tab is hidden (refetchIntervalInBackground false). Reading these hooks never mutates — nothing
- * is marked read until the user activates a notification.
+ * Notification data for the header bell: one polled request per refresh carrying both the list and
+ * the unread count, every POLL_INTERVAL_MS (30s) with staleTime 0 so each poll returns fresh state.
+ * Polling still pauses while the tab is hidden (refetchIntervalInBackground false), and reading
+ * never mutates — nothing is marked read until the user activates a notification.
+ *
+ * The count used to be a second independent poll, doubling the bell's fixed per-user cost for a
+ * number the list response can carry.
  */
 export function useNotifications(enabled: boolean) {
   const apiClient = useMemo(() => createPlatformApiClient(), []);
 
-  const unread = useApiQuery<number>(
-    performanceQueryKeys.notificationUnreadCount(),
-    (signal) =>
-      apiClient.get<number>(performancePaths.notificationsUnreadCount(), { signal }),
-    {
-      enabled,
-      refetchInterval: enabled ? POLL_INTERVAL_MS : false,
-      refetchIntervalInBackground: false,
-      staleTime: 0,
-    },
-  );
-
-  const list = useApiQuery<PerformancePageDto<PerformanceNotificationDto>>(
+  const feed = useApiQuery<NotificationFeedDto>(
     performanceQueryKeys.notificationList(listParams),
     (signal) =>
-      apiClient.get<PerformancePageDto<PerformanceNotificationDto>>(
+      apiClient.get<NotificationFeedDto>(
         `${performancePaths.notifications()}?unreadOnly=${UNREAD_ONLY}&page=${PAGE}&pageSize=${PAGE_SIZE}`,
         { signal },
       ),
@@ -85,10 +76,10 @@ export function useNotifications(enabled: boolean) {
   );
 
   return {
-    unreadCount: unread.data ?? 0,
-    notifications: list.data?.items ?? [],
-    isLoading: list.isLoading,
-    error: list.error,
+    unreadCount: feed.data?.unreadCount ?? 0,
+    notifications: feed.data?.notifications.items ?? [],
+    isLoading: feed.isLoading,
+    error: feed.error,
     markRead,
     markAllRead,
   };

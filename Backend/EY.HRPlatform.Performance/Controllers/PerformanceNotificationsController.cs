@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Features.Notifications.Commands;
+﻿using EY.HRPlatform.Performance.Features.Notifications.Commands;
 using EY.HRPlatform.Performance.Features.Notifications.Dtos;
 using EY.HRPlatform.Performance.Features.Notifications.Queries;
 using EY.HRPlatform.Performance.Models.Responses;
@@ -12,7 +12,7 @@ namespace EY.HRPlatform.Performance.Controllers;
 [ApiController]
 [Route("api/performance/notifications")]
 [Authorize]
-public class PerformanceNotificationsController(ISender sender) : ControllerBase
+public class PerformanceNotificationsController(ISender sender) : PerformanceControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetMine(
@@ -22,7 +22,9 @@ public class PerformanceNotificationsController(ISender sender) : ControllerBase
         CancellationToken cancellationToken = default)
     {
         var result = await sender.Send(new GetMyNotificationsQuery(unreadOnly, page, pageSize), cancellationToken);
-        return Ok(ApiResponse<PagedResponse<PerformanceNotificationDto>>.Success(result));
+
+        // One request answers both the list and the badge.
+        return Ok(ApiResponse<NotificationFeedDto>.Success(result));
     }
 
     [HttpGet("unread-count")]
@@ -36,9 +38,7 @@ public class PerformanceNotificationsController(ISender sender) : ControllerBase
     public async Task<IActionResult> MarkRead(Guid id, CancellationToken cancellationToken)
     {
         var result = await sender.Send(new MarkNotificationReadCommand(id), cancellationToken);
-        return result.IsFailure
-            ? NotFound(ApiResponse.Failure(result.Error.Message))
-            : NoContent();
+        return result.IsFailure ? Problem(result.Error) : NoContent();
     }
 
     [HttpPost("read-all")]

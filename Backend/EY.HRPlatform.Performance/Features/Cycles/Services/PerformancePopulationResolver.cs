@@ -1,6 +1,7 @@
 using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Infrastructure.Workforce;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EY.HRPlatform.Performance.Features.Cycles.Services;
 
@@ -17,7 +18,13 @@ public interface IPerformancePopulationResolver
         CancellationToken cancellationToken);
 }
 
-public sealed class PerformancePopulationResolver(ICoreWorkforceClient workforceClient) : IPerformancePopulationResolver
+/// <remarks>
+/// Resolves the whole population in one pass, so it takes the bulk Core HR policy: a longer
+/// deadline and no retry.
+/// </remarks>
+public sealed class PerformancePopulationResolver(
+    [FromKeyedServices(CoreWorkforceClientNames.Bulk)] ICoreWorkforceClient workforceClient)
+    : IPerformancePopulationResolver
 {
     public async Task<IReadOnlyList<CoreEmployeeSummary>> ResolveAsync(
         PerformanceCycle cycle,

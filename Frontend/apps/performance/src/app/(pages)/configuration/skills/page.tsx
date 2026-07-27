@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
-import { SkillsConfigurationPage } from "@/components/evaluations/skills-configuration/skills-configuration-page";
+import dynamic from "next/dynamic";
+
+const SkillsConfigurationPage = dynamic(() =>
+  import("@/components/evaluations/skills-configuration/skills-configuration-page").then((module) => module.SkillsConfigurationPage),
+);
 
 export const metadata: Metadata = { title: "Skills | EY Performance" };
 

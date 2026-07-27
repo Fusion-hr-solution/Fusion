@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Features.Attachments;
+﻿using EY.HRPlatform.Performance.Features.Attachments;
 using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.SharedKernel.Results;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +11,7 @@ namespace EY.HRPlatform.Performance.Controllers;
 [Authorize]
 public class PerformanceAttachmentsController(
     IAttachmentService attachments,
-    IAttachmentOwnerAuthorization ownerAuthorization) : ControllerBase
+    IAttachmentOwnerAuthorization ownerAuthorization) : PerformanceControllerBase
 {
     /// <summary>
     /// Multipart upload. The owning feature supplies the owner type/id; the attachment layer enforces
@@ -27,12 +27,12 @@ public class PerformanceAttachmentsController(
     {
         if (!await ownerAuthorization.CanUploadAsync(ownerType, ownerId, User, cancellationToken))
         {
-            return Forbid();
+            return Denied();
         }
 
         if (file is null || file.Length == 0)
         {
-            return BadRequest(ApiResponse.Failure("A file is required."));
+            return Problem(StatusCodes.Status400BadRequest, "Attachment.FileRequired", "A file is required.");
         }
 
         await using var stream = file.OpenReadStream();
@@ -41,9 +41,8 @@ public class PerformanceAttachmentsController(
 
         if (result.IsFailure)
         {
-            return IsForbidden(result.Error)
-                ? Forbid()
-                : BadRequest(ApiResponse.Failure(result.Error.Message));
+            // The code decides the outcome; nothing branches on message text.
+            return IsForbidden(result.Error) ? Denied() : Problem(result.Error);
         }
 
         return Ok(ApiResponse<AttachmentDto>.Success(result.Value));
@@ -65,12 +64,17 @@ public class PerformanceAttachmentsController(
             cancellationToken);
         if (result.IsFailure)
         {
-            return IsForbidden(result.Error)
-                ? Forbid()
-                : NotFound(ApiResponse.Failure(result.Error.Message));
+            // A denial and a missing attachment answer identically, so neither discloses
+            // whether the record exists.
+            return IsForbidden(result.Error) ? Denied() : Problem(result.Error);
         }
 
         var download = result.Value;
+
+        // Never let the browser second-guess the stored type, and never let it render the bytes
+        // inline: a download is a file the user saves, not a document the origin executes.
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+
         return File(download.Content, download.ContentType, download.FileName);
     }
 

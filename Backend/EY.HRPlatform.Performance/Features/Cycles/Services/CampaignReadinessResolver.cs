@@ -2,6 +2,7 @@ using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.Cycles.Dtos;
 using EY.HRPlatform.Performance.Infrastructure.Workforce;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EY.HRPlatform.Performance.Features.Cycles.Services;
 
@@ -46,9 +47,13 @@ public sealed record CampaignReadinessResult(
     public int IncludedCount => Participants.Count;
 }
 
+/// <remarks>
+/// Sits on the readiness and campaign-launch fan-out, so it takes the bulk Core HR policy.
+/// </remarks>
 public sealed class CampaignReadinessResolver(
     IPerformancePopulationResolver populationResolver,
-    ICoreWorkforceClient workforceClient) : ICampaignReadinessResolver
+    [FromKeyedServices(CoreWorkforceClientNames.Bulk)] ICoreWorkforceClient workforceClient)
+    : ICampaignReadinessResolver
 {
     public const string SeverityBlocking = "Blocking";
     public const string SeverityInformational = "Informational";

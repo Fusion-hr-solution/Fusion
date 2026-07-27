@@ -44,9 +44,16 @@ public class CheckInReminderJobsTests
         scope.ServiceProvider.GetRequiredService<TenantContext>().SetTenant(tenantId);
         var db = scope.ServiceProvider.GetRequiredService<PerformanceDbContext>();
 
+        // Reminders are scoped to open campaigns, so the action has to belong to a real launched one.
+        var cycle = TestCycles.Create(
+            tenantId, "FY26", PerformanceCycleType.Annual,
+            DateTime.UtcNow.AddDays(-30), DateTime.UtcNow.AddDays(300),
+            objectiveSettingDeadline: DateTime.UtcNow.AddDays(-2)).ForceLaunched();
+        db.PerformanceCycles.Add(cycle);
+
         var action = CheckInFollowUpAction.Create(
             tenantId,
-            Guid.NewGuid(),
+            cycle.Id,
             Guid.NewGuid(),
             Guid.NewGuid(),
             "Share the updated delivery plan",
