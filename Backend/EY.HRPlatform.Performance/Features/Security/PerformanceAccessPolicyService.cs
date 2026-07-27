@@ -9,10 +9,8 @@ public interface IPerformanceAccessPolicyService
     bool CanManageCycles(ClaimsPrincipal user);
     bool CanOperateCycles(ClaimsPrincipal user);
 
-    // Strategic objective access (D-05: deny-by-default; no position auto-grant)
+    // Strategic visibility (D-05: deny-by-default; no position auto-grant)
     bool CanViewStrategicObjectives(ClaimsPrincipal user);
-    bool CanManageStrategicObjectives(ClaimsPrincipal user);
-    bool CanPublishStrategicObjectives(ClaimsPrincipal user);
 
     // Team objectives (P1.3): capability permission only — frozen-baseline responsibility
     // and ownership are enforced per operation in the handlers.
@@ -73,18 +71,12 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
     public bool CanOperateCycles(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.CyclePublish, PermissionScopes.Tenant);
 
-    // ─── Strategic objective permissions (D-05) ───────────────────────────────
+    // ─── Strategic visibility (D-05) ──────────────────────────────────────────
+    // The tenant strategic-objective library was removed; `performance.strategic.view` is retained
+    // because cascade coverage and the Direction "Strategy" door read through it.
 
     public bool CanViewStrategicObjectives(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.StrategicManage, PermissionScopes.Tenant)
-            || user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant);
-
-    public bool CanManageStrategicObjectives(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.StrategicManage, PermissionScopes.Tenant);
-
-    public bool CanPublishStrategicObjectives(ClaimsPrincipal user)
-        => user.HasCorePermission(PerformancePermissions.StrategicPublish, PermissionScopes.Tenant);
+        => user.HasCorePermission(PerformancePermissions.StrategicView, PermissionScopes.Tenant);
 
     // ─── Team objectives + cascade coverage (P1.3) ────────────────────────────
 

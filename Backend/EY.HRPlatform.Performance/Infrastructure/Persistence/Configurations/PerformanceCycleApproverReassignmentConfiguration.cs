@@ -44,5 +44,10 @@ public sealed class PerformanceCycleApproverReassignmentConfiguration
 
         builder.HasIndex(item => new { item.TenantId, item.CycleId, item.NewApproverEmployeeId })
             .HasDatabaseName("IX_ApproverReassignments_Tenant_Cycle_NewApprover");
+
+        // The reviewer-scoped read's correlated "latest reassignment" lookup keys on
+        // (CycleId, ParticipantEmployeeId) without a leading TenantId, so it gets its own index.
+        builder.HasIndex(item => new { item.CycleId, item.ParticipantEmployeeId, item.ReassignedAt })
+            .HasDatabaseName("IX_ApproverReassignments_Cycle_Participant_Time");
     }
 }

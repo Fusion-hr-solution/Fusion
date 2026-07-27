@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Features.Cycles.Commands;
+﻿using EY.HRPlatform.Performance.Features.Cycles.Commands;
 using EY.HRPlatform.Performance.Features.Cycles.Dtos;
 using EY.HRPlatform.Performance.Features.Cycles.Queries;
 using EY.HRPlatform.Performance.Features.Security;
@@ -8,6 +8,8 @@ using EY.HRPlatform.SharedKernel.Results;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using EY.HRPlatform.Performance.Extensions;
 
 namespace EY.HRPlatform.Performance.Controllers;
 
@@ -16,7 +18,7 @@ namespace EY.HRPlatform.Performance.Controllers;
 [Authorize]
 public class PerformanceCyclesController(
     ISender sender,
-    IPerformanceAccessPolicyService accessPolicy) : ControllerBase
+    IPerformanceAccessPolicyService accessPolicy) : PerformanceControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -29,7 +31,7 @@ public class PerformanceCyclesController(
     {
         if (!accessPolicy.CanViewCycles(User))
         {
-            return Forbid();
+            return Denied();
         }
 
         var result = await sender.Send(new GetCyclesQuery(search, status, type, page, pageSize), cancellationToken);
@@ -41,7 +43,7 @@ public class PerformanceCyclesController(
     {
         if (!accessPolicy.CanViewCycles(User))
         {
-            return Forbid();
+            return Denied();
         }
 
         var result = await sender.Send(new GetCycleByIdQuery(id), cancellationToken);
@@ -53,7 +55,7 @@ public class PerformanceCyclesController(
     {
         if (!accessPolicy.CanViewCycles(User))
         {
-            return Forbid();
+            return Denied();
         }
 
         var result = await sender.Send(new GetCycleBySlugQuery(slug), cancellationToken);
@@ -67,7 +69,7 @@ public class PerformanceCyclesController(
     {
         if (!accessPolicy.CanManageCycles(User))
         {
-            return Forbid();
+            return Denied();
         }
 
         if (!TryGetDraftSchedule(
@@ -113,7 +115,7 @@ public class PerformanceCyclesController(
     {
         if (!accessPolicy.CanManageCycles(User))
         {
-            return Forbid();
+            return Denied();
         }
 
         if (!TryParseVersion(ifMatch, out var expectedVersion))
@@ -154,7 +156,7 @@ public class PerformanceCyclesController(
     public async Task<IActionResult> GetStrategicObjectives(Guid id, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewCycles(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new GetCampaignStrategicObjectivesQuery(id), cancellationToken);
         return result.IsFailure
@@ -169,7 +171,7 @@ public class PerformanceCyclesController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageCycles(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new AddCampaignStrategicObjectiveCommand(
             id,
@@ -191,7 +193,7 @@ public class PerformanceCyclesController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageCycles(User))
-            return Forbid();
+            return Denied();
         if (!TryParseVersion(ifMatch, out var expectedVersion))
             return PreconditionRequired();
 
@@ -217,7 +219,7 @@ public class PerformanceCyclesController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageCycles(User))
-            return Forbid();
+            return Denied();
         if (!TryParseVersion(ifMatch, out var expectedVersion))
             return PreconditionRequired();
 
@@ -240,7 +242,7 @@ public class PerformanceCyclesController(
     {
         if (!accessPolicy.CanManageCycles(User))
         {
-            return Forbid();
+            return Denied();
         }
 
         if (!TryParseVersion(ifMatch, out var expectedVersion))
@@ -263,7 +265,7 @@ public class PerformanceCyclesController(
     {
         if (!accessPolicy.CanManageCycles(User))
         {
-            return Forbid();
+            return Denied();
         }
 
         if (!TryParseVersion(ifMatch, out var expectedVersion))
@@ -277,11 +279,12 @@ public class PerformanceCyclesController(
     }
 
     [HttpGet("{id:guid}/population/preview")]
+    [EnableRateLimiting(RateLimitingExtensions.ExpensiveOperationPolicy)]
     public async Task<IActionResult> PreviewPopulation(Guid id, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewCycles(User))
         {
-            return Forbid();
+            return Denied();
         }
 
         var result = await sender.Send(new GetCyclePopulationPreviewQuery(id), cancellationToken);
@@ -295,7 +298,7 @@ public class PerformanceCyclesController(
     {
         if (!accessPolicy.CanViewCycles(User))
         {
-            return Forbid();
+            return Denied();
         }
 
         var result = await sender.Send(new GetCycleReadinessQuery(id), cancellationToken);
@@ -314,7 +317,7 @@ public class PerformanceCyclesController(
     {
         if (!accessPolicy.CanManageCycles(User))
         {
-            return Forbid();
+            return Denied();
         }
 
         if (!TryParseVersion(ifMatch, out var expectedVersion))
@@ -328,6 +331,7 @@ public class PerformanceCyclesController(
     }
 
     [HttpPost("{id:guid}/launch")]
+    [EnableRateLimiting(RateLimitingExtensions.ExpensiveOperationPolicy)]
     public async Task<IActionResult> Launch(
         Guid id,
         [FromHeader(Name = "If-Match")] string? ifMatch,
@@ -335,7 +339,7 @@ public class PerformanceCyclesController(
     {
         if (!accessPolicy.CanOperateCycles(User))
         {
-            return Forbid();
+            return Denied();
         }
 
         if (!TryParseVersion(ifMatch, out var expectedVersion))
@@ -363,7 +367,7 @@ public class PerformanceCyclesController(
     {
         if (!accessPolicy.CanViewCycles(User))
         {
-            return Forbid();
+            return Denied();
         }
 
         var result = await sender.Send(new GetCycleParticipantsQuery(id, search, page, pageSize), cancellationToken);
@@ -372,18 +376,74 @@ public class PerformanceCyclesController(
             : Ok(ApiResponse<PagedResponse<CycleParticipantDto>>.Success(result.Value));
     }
 
+    /// <summary>
+    /// What closing this campaign now would leave unfinished. A read — asking closes nothing.
+    /// </summary>
+    [HttpGet("{id:guid}/closure-impact")]
+    public async Task<IActionResult> GetClosureImpact(Guid id, CancellationToken cancellationToken)
+    {
+        // Same door as closing itself: only an operator who could close should see the impact.
+        if (!accessPolicy.CanOperateCycles(User))
+        {
+            return Denied();
+        }
+
+        var result = await sender.Send(new GetCampaignClosureImpactQuery(id), cancellationToken);
+        return result.IsFailure
+            ? MapFailure(result.Error)
+            : Ok(ApiResponse<CampaignClosureImpactDto>.Success(result.Value));
+    }
+
+    /// <summary>
+    /// Closes the campaign. Reports outstanding work first; closes anyway once confirmed.
+    /// </summary>
+    [HttpPost("{id:guid}/close")]
+    public async Task<IActionResult> Close(
+        Guid id,
+        [FromBody] CloseCampaignRequest? request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanOperateCycles(User))
+        {
+            return Denied();
+        }
+
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+        {
+            return PreconditionRequired();
+        }
+
+        var result = await sender.Send(
+            new CloseCampaignCommand(
+                User, id, expectedVersion, request?.ConfirmOutstandingWork ?? false),
+            cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return MapFailure(result.Error);
+        }
+
+        SetETag(result.Value.Version);
+        return Ok(ApiResponse<CampaignClosureResultDto>.Success(result.Value));
+    }
+
     [HttpGet("{id:guid}/audit")]
-    public async Task<IActionResult> GetAudit(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetAudit(
+        Guid id,
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize,
+        CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewCycles(User))
         {
-            return Forbid();
+            return Denied();
         }
 
-        var result = await sender.Send(new GetCycleAuditQuery(id), cancellationToken);
+        var result = await sender.Send(new GetCycleAuditQuery(id, page, pageSize), cancellationToken);
         return result.IsFailure
             ? MapFailure(result.Error)
-            : Ok(ApiResponse<IReadOnlyList<CycleAuditEventDto>>.Success(result.Value));
+            : Ok(ApiResponse<PagedResponse<CycleAuditEventDto>>.Success(result.Value));
     }
 
     private IActionResult ToDetailResponse(Result<PerformanceCycleDetailDto> result)
@@ -399,28 +459,12 @@ public class PerformanceCyclesController(
 
     private void SetETag(uint version) => Response.Headers.ETag = $"\"{version}\"";
 
-    private IActionResult MapFailure(Error error)
-    {
-        if (error.Code.Contains("NotFound", StringComparison.OrdinalIgnoreCase))
-        {
-            return NotFound(ApiResponse.Failure(error.Message));
-        }
-
-        if (error.Code.Contains("Invalid", StringComparison.OrdinalIgnoreCase)
-            || error.Code.Contains("Required", StringComparison.OrdinalIgnoreCase)
-            || error.Code.Contains("Missing", StringComparison.OrdinalIgnoreCase))
-        {
-            return BadRequest(ApiResponse.Failure(error.Message));
-        }
-
-        return Conflict(ApiResponse.Failure(error.Message));
-    }
+    private IActionResult MapFailure(Error error) => Problem(error);
 
     private IActionResult PreconditionRequired()
-        => StatusCode(StatusCodes.Status428PreconditionRequired,
-            ApiResponse.Failure("If-Match header with the current version is required."));
+        => MissingPrecondition();
 
-    private static bool TryGetDraftSchedule(
+    private bool TryGetDraftSchedule(
         int? referenceYear,
         DateTime? legacyPeriodStart,
         DateTime? legacyPeriodEnd,
@@ -443,8 +487,10 @@ public class PerformanceCyclesController(
 
         if (!year.HasValue || !opening.HasValue || !submission.HasValue || !approval.HasValue || !lockDate.HasValue)
         {
-            validationFailure = new BadRequestObjectResult(ApiResponse.Failure(
-                "Reference year and all four planning schedule dates are required."));
+            validationFailure = Problem(
+                StatusCodes.Status422UnprocessableEntity,
+                "Performance.Campaign.ScheduleIncomplete",
+                "Reference year and all four planning schedule dates are required.");
             return false;
         }
 

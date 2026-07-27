@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Domain.Enums;
+﻿using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.PlanApprovals.Dtos;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -33,7 +33,9 @@ public sealed class GetPlanApprovalWorkspaceQueryHandler(
             return Result.Failure<PlanApprovalWorkspaceDto>(
                 new Error("PerformanceCycle.NotFound", $"Campaign '{slug}' was not found."));
 
-        if (cycle.Status != PerformanceCycleStatus.Launched)
+        // A closed campaign is read-only, not unreadable: every read still answers with the
+        // state as it stood at closure.
+        if (!cycle.IsOpenOrClosed())
             return Result.Failure<PlanApprovalWorkspaceDto>(Error.Validation(
                 "PlanApproval.NotLaunchedInvalid",
                 "This campaign is not launched for objective planning yet."));

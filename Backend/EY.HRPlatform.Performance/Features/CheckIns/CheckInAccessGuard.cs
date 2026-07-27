@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Domain.Entities;
+﻿using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -40,7 +40,9 @@ public sealed class CheckInAccessGuard(
         if (cycle is null)
             return Result.Failure<CheckInPlanScope>(Error.NotFound("PerformanceCycle", cycleId));
 
-        if (cycle.Status != PerformanceCycleStatus.Launched || !cycle.IsPlanningLocked)
+        // A closed campaign is read-only, not unreadable: every read still answers with the
+        // state as it stood at closure.
+        if (!cycle.IsOpenOrClosed() || !cycle.IsPlanningLocked)
             return Result.Failure<CheckInPlanScope>(Error.Validation(
                 "CheckIn.CampaignNotReady",
                 "Check-ins open once campaign planning is locked."));

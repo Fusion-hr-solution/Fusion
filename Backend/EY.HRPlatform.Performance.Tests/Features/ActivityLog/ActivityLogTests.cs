@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Domain.Entities;
+﻿using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Features.ActivityLog;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Tests.TestSupport;
@@ -76,7 +76,7 @@ public class ActivityLogTests
         var result = await reader.GetSubjectHistoryAsync("EmployeeObjectivePlan", subjectId, authorized: true, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Value);
+        Assert.Empty(result.Value.Items);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public class ActivityLogTests
         var result = await reader.GetSubjectHistoryAsync("EmployeeObjectivePlan", subjectId, authorized: true, CancellationToken.None);
 
         Assert.True(result.IsSuccess);
-        Assert.Empty(result.Value);
+        Assert.Empty(result.Value.Items);
     }
 
     [Fact]
@@ -122,9 +122,9 @@ public class ActivityLogTests
         var reader = new ActivityLogReader(db);
         var result = await reader.GetSubjectHistoryAsync("EmployeeObjectivePlan", subjectId, authorized: true, CancellationToken.None);
 
-        Assert.Equal(2, result.Value.Count);
-        Assert.Equal("Second", result.Value[0].Action);
-        Assert.Equal("First", result.Value[1].Action);
+        Assert.Equal(2, result.Value.Items.Count);
+        Assert.Equal("Second", result.Value.Items[0].Action);
+        Assert.Equal("First", result.Value.Items[1].Action);
     }
 
     [Fact]

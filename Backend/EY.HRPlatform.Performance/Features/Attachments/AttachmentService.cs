@@ -120,6 +120,18 @@ public sealed class AttachmentService(
                 Error.Validation("Attachment.Empty", "The file is empty."));
         }
 
+        // The declared content type is an assertion; the bytes are the evidence. Rejecting a
+        // mismatch here means nothing is persisted — neither the bytes nor the metadata row.
+        var leadingBytes = buffer.GetBuffer()
+            .AsSpan(0, (int)Math.Min(size, Infrastructure.Attachments.ContentTypeVerifier.InspectionLength));
+
+        if (!Infrastructure.Attachments.ContentTypeVerifier.Matches(normalizedContentType, leadingBytes))
+        {
+            return Result.Failure<AttachmentDto>(Error.Validation(
+                "Attachment.ContentTypeMismatch",
+                $"The file's contents do not match the declared type '{normalizedContentType}'."));
+        }
+
         var attachment = Attachment.CreatePending(
             tenantContext.TenantId, ownerType, ownerId,
             uploaderId.Value, fileName, normalizedContentType, size);

@@ -59,5 +59,9 @@ public enum PerformanceCycleAuditAction
     CollectiveObjectiveAutoApproved,
 
     // Progress tracking actions (Plan 03-04)
-    ObjectiveProgressCorrected
+    ObjectiveProgressCorrected,
+
+    // Campaign closure
+    CampaignClosed,
+    EvaluationRoundClosed
 }

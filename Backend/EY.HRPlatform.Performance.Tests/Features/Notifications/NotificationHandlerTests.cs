@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Domain.Entities;
+﻿using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.Notifications.Commands;
 using EY.HRPlatform.Performance.Features.Notifications.Queries;
@@ -27,7 +27,33 @@ public class NotificationHandlerTests
         var handler = new GetMyNotificationsQueryHandler(db, new StubCurrentUserContext { EmployeeId = me });
         var result = await handler.Handle(new GetMyNotificationsQuery(false, 1, 20), CancellationToken.None);
 
-        Assert.Equal(2, result.TotalCount);
+        Assert.Equal(2, result.Notifications.TotalCount);
+
+        // The badge count arrives with the list, computed from the same recipient predicate.
+        Assert.Equal(2, result.UnreadCount);
+    }
+
+    [Fact]
+    public async Task The_unread_count_ignores_the_lists_filter_and_page()
+    {
+        var me = Guid.NewGuid();
+        await using var db = PerformanceTestContext.Create(TenantId, out _);
+
+        var read = Seed(me);
+        read.MarkRead();
+        db.PerformanceNotifications.AddRange(Seed(me), Seed(me), read);
+        await db.SaveChangesAsync();
+
+        var handler = new GetMyNotificationsQueryHandler(db, new StubCurrentUserContext { EmployeeId = me });
+
+        // A single-item page and an unread-only filter must not change the badge: it counts the
+        // caller's unread set, so it agrees with the dedicated count endpoint.
+        var firstPage = await handler.Handle(new GetMyNotificationsQuery(false, 1, 1), CancellationToken.None);
+        var unreadOnly = await handler.Handle(new GetMyNotificationsQuery(true, 1, 20), CancellationToken.None);
+
+        Assert.Single(firstPage.Notifications.Items);
+        Assert.Equal(2, firstPage.UnreadCount);
+        Assert.Equal(2, unreadOnly.UnreadCount);
     }
 
     [Fact]

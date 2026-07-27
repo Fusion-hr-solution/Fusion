@@ -35,5 +35,9 @@ public class PerformanceCycleParticipantConfiguration : IEntityTypeConfiguration
             .IsUnique()
             .HasDatabaseName("IX_PerformanceCycleParticipants_Cycle_Employee");
 
+        // Supports the reviewer-scoped read: a manager's participants resolve from the index
+        // rather than from a scan of the campaign's whole frozen population.
+        builder.HasIndex(p => new { p.CycleId, p.ApproverEmployeeId })
+            .HasDatabaseName("IX_PerformanceCycleParticipants_Cycle_Approver");
     }
 }

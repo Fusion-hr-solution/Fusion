@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Domain.Entities;
+﻿using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Features.Evaluations.Assessments.Commands;
 using EY.HRPlatform.Performance.Features.Evaluations.Assessments.Queries;
 using EY.HRPlatform.SharedKernel.Api;
@@ -12,7 +12,7 @@ namespace EY.HRPlatform.Performance.Controllers;
 [ApiController]
 [Route("api/performance/assessments")]
 [Authorize]
-public sealed class EvaluationAssessmentsController(ISender sender) : ControllerBase
+public sealed class EvaluationAssessmentsController(ISender sender) : PerformanceControllerBase
 {
     // ─── Employee ─────────────────────────────────────────────────────────────
 
@@ -98,19 +98,9 @@ public sealed class EvaluationAssessmentsController(ISender sender) : Controller
         ? Ok(ApiResponse<T>.Success(result.Value))
         : MapFailure(result.Error);
 
-    private IActionResult MapFailure(Error error)
-    {
-        if (error.Code.Contains("Forbidden", StringComparison.OrdinalIgnoreCase)) return Forbid();
-        if (error.Code.Contains("NotFound", StringComparison.OrdinalIgnoreCase)) return NotFound(ApiResponse.Failure(error.Message));
-        if (error.Code.Contains("Conflict", StringComparison.OrdinalIgnoreCase) || error.Code.Contains("NotActionable", StringComparison.OrdinalIgnoreCase))
-            return Conflict(ApiResponse.Failure(error.Message));
-        if (error.Code.Contains("Invalid", StringComparison.OrdinalIgnoreCase) || error.Code.Contains("Validation", StringComparison.OrdinalIgnoreCase) || error.Code.Contains("Incomplete", StringComparison.OrdinalIgnoreCase))
-            return UnprocessableEntity(ApiResponse.Failure(error.Message, error.Details));
-        return BadRequest(ApiResponse.Failure(error.Message));
-    }
+    private IActionResult MapFailure(Error error) => Problem(error);
 
-    private IActionResult PreconditionRequired() => StatusCode(StatusCodes.Status428PreconditionRequired,
-        ApiResponse.Failure("If-Match header with the current version is required."));
+    private IActionResult PreconditionRequired() => MissingPrecondition();
 
     private static bool TryVersion(string? value, out uint version)
     {

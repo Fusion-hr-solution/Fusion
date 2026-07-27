@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Features.CheckIns.Commands;
+﻿using EY.HRPlatform.Performance.Features.CheckIns.Commands;
 using EY.HRPlatform.Performance.Features.CheckIns.Dtos;
 using EY.HRPlatform.Performance.Features.CheckIns.Queries;
 using EY.HRPlatform.Performance.Features.Security;
@@ -15,7 +15,7 @@ namespace EY.HRPlatform.Performance.Controllers;
 [Authorize]
 public sealed class CheckInsController(
     ISender sender,
-    IPerformanceAccessPolicyService accessPolicy) : ControllerBase
+    IPerformanceAccessPolicyService accessPolicy) : PerformanceControllerBase
 {
     // ─── Reviewer reads ─────────────────────────────────────────────────────
 
@@ -23,7 +23,7 @@ public sealed class CheckInsController(
     public async Task<IActionResult> GetParticipantPanel(Guid cycleId, Guid employeeId, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanConductCheckIns(User))
-            return Forbid();
+            return Denied();
         var result = await sender.Send(new GetCheckInParticipantPanelQuery(cycleId, employeeId), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<CheckInParticipantPanelDto>.Success(result.Value));
     }
@@ -32,7 +32,7 @@ public sealed class CheckInsController(
     public async Task<IActionResult> GetDetail(Guid checkInId, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanConductCheckIns(User) && !accessPolicy.CanViewOwnCheckIns(User))
-            return Forbid();
+            return Denied();
         var result = await sender.Send(new GetCheckInDetailQuery(checkInId), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<CheckInDetailDto>.Success(result.Value));
     }
@@ -43,7 +43,7 @@ public sealed class CheckInsController(
     public async Task<IActionResult> GetMine([FromQuery] Guid cycleId, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewOwnCheckIns(User))
-            return Forbid();
+            return Denied();
         var result = await sender.Send(new GetEmployeeCheckInsQuery(cycleId), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<EmployeeCheckInsDto>.Success(result.Value));
     }
@@ -54,7 +54,7 @@ public sealed class CheckInsController(
     public async Task<IActionResult> Plan(Guid cycleId, [FromBody] PlanCheckInRequest request, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanConductCheckIns(User))
-            return Forbid();
+            return Denied();
         var result = await sender.Send(new PlanCheckInCommand(cycleId, request), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<CheckInMutationResult>.Success(result.Value));
     }
@@ -63,7 +63,7 @@ public sealed class CheckInsController(
     public async Task<IActionResult> Reschedule(Guid checkInId, [FromBody] RescheduleCheckInRequest request, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanConductCheckIns(User))
-            return Forbid();
+            return Denied();
         var result = await sender.Send(new RescheduleCheckInCommand(checkInId, request), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<CheckInMutationResult>.Success(result.Value));
     }
@@ -72,7 +72,7 @@ public sealed class CheckInsController(
     public async Task<IActionResult> Cancel(Guid checkInId, [FromBody] CancelCheckInRequest request, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanConductCheckIns(User))
-            return Forbid();
+            return Denied();
         var result = await sender.Send(new CancelCheckInCommand(checkInId, request), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<CheckInMutationResult>.Success(result.Value));
     }
@@ -81,7 +81,7 @@ public sealed class CheckInsController(
     public async Task<IActionResult> Complete(Guid checkInId, [FromBody] CompleteCheckInRequest request, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanConductCheckIns(User))
-            return Forbid();
+            return Denied();
         var result = await sender.Send(new CompleteCheckInCommand(checkInId, request), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<CheckInMutationResult>.Success(result.Value));
     }
@@ -90,7 +90,7 @@ public sealed class CheckInsController(
     public async Task<IActionResult> AddAddendum(Guid checkInId, [FromBody] AddCheckInAddendumRequest request, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanConductCheckIns(User))
-            return Forbid();
+            return Denied();
         var result = await sender.Send(new AddCheckInAddendumCommand(checkInId, request), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<CheckInMutationResult>.Success(result.Value));
     }
@@ -101,7 +101,7 @@ public sealed class CheckInsController(
     public async Task<IActionResult> CompleteAction(Guid actionId, [FromBody] CompleteFollowUpActionRequest request, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewOwnCheckIns(User) && !accessPolicy.CanConductCheckIns(User))
-            return Forbid();
+            return Denied();
         var result = await sender.Send(new CompleteFollowUpActionCommand(actionId, request), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<FollowUpActionMutationResult>.Success(result.Value));
     }
@@ -110,7 +110,7 @@ public sealed class CheckInsController(
     public async Task<IActionResult> CancelAction(Guid actionId, [FromBody] CancelFollowUpActionRequest request, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanConductCheckIns(User))
-            return Forbid();
+            return Denied();
         var result = await sender.Send(new CancelFollowUpActionCommand(actionId, request), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<FollowUpActionMutationResult>.Success(result.Value));
     }
@@ -121,7 +121,7 @@ public sealed class CheckInsController(
     public async Task<IActionResult> AddResponse(Guid checkInId, [FromBody] AddCheckInEmployeeResponseRequest request, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewOwnCheckIns(User))
-            return Forbid();
+            return Denied();
         var result = await sender.Send(new AddCheckInEmployeeResponseCommand(checkInId, request), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<CheckInMutationResult>.Success(result.Value));
     }
@@ -130,7 +130,7 @@ public sealed class CheckInsController(
     public async Task<IActionResult> RaiseSignal(Guid cycleId, [FromBody] RaiseDiscussionSignalRequest request, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageOwnObjectives(User))
-            return Forbid();
+            return Denied();
         var result = await sender.Send(new RaiseDiscussionSignalCommand(cycleId, request), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<DiscussionSignalMutationResult>.Success(result.Value));
     }
@@ -139,20 +139,10 @@ public sealed class CheckInsController(
     public async Task<IActionResult> CloseSignal(Guid signalId, [FromBody] CloseDiscussionSignalRequest request, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanConductCheckIns(User))
-            return Forbid();
+            return Denied();
         var result = await sender.Send(new CloseDiscussionSignalCommand(signalId, request), cancellationToken);
         return result.IsFailure ? MapFailure(result.Error) : Ok(ApiResponse<DiscussionSignalMutationResult>.Success(result.Value));
     }
 
-    private IActionResult MapFailure(Error error)
-    {
-        if (error.Code.Contains("Forbidden", StringComparison.OrdinalIgnoreCase))
-            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Failure(error.Message));
-        if (error.Code.Contains("NotFound", StringComparison.OrdinalIgnoreCase))
-            return NotFound(ApiResponse.Failure(error.Message));
-        if (error.Code.Contains("Validation", StringComparison.OrdinalIgnoreCase)
-            || error.Code.Contains("Invalid", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(ApiResponse.Failure(error.Message));
-        return Conflict(ApiResponse.Failure(error.Message));
-    }
+    private IActionResult MapFailure(Error error) => Problem(error);
 }

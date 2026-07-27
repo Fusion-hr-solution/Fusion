@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Domain.Enums;
+﻿using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Exceptions;
 using EY.HRPlatform.SharedKernel.Domain;
 using EY.HRPlatform.SharedKernel.Multitenancy;
@@ -53,6 +53,9 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
 
     public DateTime? LaunchedAt { get; private set; }
     public DateTime? ClosedAt { get; private set; }
+    public Guid? ClosedByUserId { get; private set; }
+    public string? ClosedByName { get; private set; }
+    public CampaignClosureKind? ClosureKind { get; private set; }
     public DateTime? PlanningLockedAt { get; private set; }
     public Guid? PlanningLockedByUserId { get; private set; }
     public string? PlanningLockedByName { get; private set; }
@@ -64,6 +67,24 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
 
     public bool IsEditable => Status == PerformanceCycleStatus.Draft;
     public bool IsPlanningLocked => PlanningLockedAt.HasValue;
+
+    /// <summary>A closed campaign is a read-only archive: every campaign-scoped write is rejected.</summary>
+    public bool IsClosed => Status == PerformanceCycleStatus.Closed;
+
+    /// <summary>Not yet closed — what reminder sweeps, readiness, and active workspace lists scope to.</summary>
+    public bool IsOpen => Status != PerformanceCycleStatus.Closed;
+
+    /// <summary>
+    /// Launched, or launched-and-since-closed: the campaign has a frozen baseline, so its workspaces
+    /// have something real to show.
+    /// </summary>
+    /// <remarks>
+    /// The read-path counterpart to <see cref="IsOpen"/>. Detail reads use this so closure makes a
+    /// campaign read-only rather than unreadable, while writes and sweeps keep requiring
+    /// <see cref="PerformanceCycleStatus.Launched"/> exactly.
+    /// </remarks>
+    public bool IsOpenOrClosed()
+        => Status is PerformanceCycleStatus.Launched or PerformanceCycleStatus.Closed;
 
     public static PerformanceCycle CreateDraft(
         Guid tenantId,
@@ -262,6 +283,34 @@ public class PerformanceCycle : AggregateRoot, ITenantEntity
 
         Status = PerformanceCycleStatus.Launched;
         LaunchedAt = now;
+        Touch();
+    }
+
+    /// <summary>
+    /// Closes the campaign, terminally. A draft campaign is deleted rather than closed, and a
+    /// campaign already closed cannot be closed again or moved out of Closed.
+    /// </summary>
+    public void Close(
+        CampaignClosureKind closureKind,
+        Guid? actorUserId,
+        string? actorName,
+        DateTime occurredAt)
+    {
+        if (Status == PerformanceCycleStatus.Draft)
+            throw new DomainRuleViolationException(
+                "A campaign that was never launched is deleted, not closed.");
+        if (IsClosed)
+            throw new DomainRuleViolationException("This campaign is already closed.");
+
+        // Evaluation rounds are their own aggregate, so the cascade is the caller's job: the close
+        // handler closes each open round in the same unit of work as this transition.
+        var now = NormalizeUtc(occurredAt, nameof(occurredAt));
+
+        Status = PerformanceCycleStatus.Closed;
+        ClosedAt = now;
+        ClosedByUserId = actorUserId;
+        ClosedByName = string.IsNullOrWhiteSpace(actorName) ? null : actorName.Trim();
+        ClosureKind = closureKind;
         Touch();
     }
 

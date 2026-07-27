@@ -14,6 +14,8 @@ const state = vi.hoisted(() => ({
   markReadCalls: [] as string[],
   markAllReadCalls: 0,
   pushCalls: [] as string[],
+  queriedKeys: [] as string[],
+  queryOptions: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock("@repo/auth", () => ({
@@ -34,13 +36,26 @@ vi.mock("@repo/api", async () => {
 
 let mutationCall = 0;
 vi.mock("@repo/api/query", () => ({
-  useApiQuery: (queryKey: unknown, _fn: unknown) => {
+  useApiQuery: (queryKey: unknown, _fn: unknown, options: Record<string, unknown>) => {
     const key = JSON.stringify(queryKey ?? []);
-    if (key.includes("unread-count")) {
-      return { data: state.unreadCount, error: null, isLoading: false, isFetching: false, refetch: vi.fn(), invalidate: vi.fn() };
-    }
+
+    // One request now answers both the list and the badge, so the hook only issues the list query.
+    // A lingering unread-count query would show up here as a second call.
+    state.queriedKeys.push(key);
+    state.queryOptions.push(options);
+
     return {
-      data: { items: state.notifications, totalCount: state.notifications.length, page: 1, pageSize: 20, totalPages: 1, hasNextPage: false },
+      data: {
+        notifications: {
+          items: state.notifications,
+          totalCount: state.notifications.length,
+          page: 1,
+          pageSize: 20,
+          totalPages: 1,
+          hasNextPage: false,
+        },
+        unreadCount: state.unreadCount,
+      },
       error: null,
       isLoading: false,
       isFetching: false,
@@ -75,6 +90,8 @@ afterEach(() => {
   state.markReadCalls = [];
   state.markAllReadCalls = 0;
   state.pushCalls = [];
+  state.queriedKeys = [];
+  state.queryOptions = [];
   mutationCall = 0;
 });
 
@@ -122,6 +139,50 @@ describe("NotificationBell", () => {
     state.unreadCount = 42;
     const el = render(<NotificationBell />);
     expect(el.textContent).toContain("9+");
+  });
+});
+
+describe("notification polling cost", () => {
+  it("issues a single request that carries both the list and the badge count", () => {
+    state.unreadCount = 4;
+    state.notifications = [];
+
+    render(<NotificationBell />);
+
+    // Previously two independent 30-second polls per user: one for the list, one for the count.
+    expect(state.queriedKeys).toHaveLength(1);
+    expect(state.queriedKeys.some((key) => key.includes("unread-count"))).toBe(false);
+  });
+
+  it("shows the badge from the same response that carries the list", () => {
+    state.unreadCount = 7;
+    state.notifications = [];
+
+    const el = render(<NotificationBell />);
+
+    // The badge and the list can never disagree, because they arrive together.
+    expect(el.textContent).toContain("7");
+    expect(state.queriedKeys).toHaveLength(1);
+  });
+
+  it("still needs only one request when the list has content", () => {
+    state.unreadCount = 2;
+    state.notifications = [
+      notification({ id: "n-1", isRead: false }),
+      notification({ id: "n-2", isRead: true }),
+    ];
+
+    const el = render(<NotificationBell />);
+
+    expect(el.textContent).toContain("2");
+    expect(state.queriedKeys).toHaveLength(1);
+  });
+
+  it("pauses polling while the tab is hidden", () => {
+    render(<NotificationBell />);
+
+    expect(state.queryOptions).toHaveLength(1);
+    expect(state.queryOptions[0]?.refetchIntervalInBackground).toBe(false);
   });
 });
 

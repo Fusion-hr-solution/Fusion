@@ -6,6 +6,7 @@ using EY.HRPlatform.Performance.Infrastructure.Workforce;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace EY.HRPlatform.Performance.Features.Cycles.Queries;
 
@@ -18,7 +19,7 @@ public sealed record GetCyclePopulationPreviewQuery(Guid CycleId) : IQuery<Resul
 public sealed class GetCyclePopulationPreviewQueryHandler(
     PerformanceDbContext dbContext,
     IPerformancePopulationResolver populationResolver,
-    ICoreWorkforceClient workforceClient)
+    [FromKeyedServices(CoreWorkforceClientNames.Bulk)] ICoreWorkforceClient workforceClient)
     : IQueryHandler<GetCyclePopulationPreviewQuery, Result<CyclePopulationPreviewDto>>
 {
     public async Task<Result<CyclePopulationPreviewDto>> Handle(

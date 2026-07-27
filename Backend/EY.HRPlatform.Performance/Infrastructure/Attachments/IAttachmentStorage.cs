@@ -63,11 +63,30 @@ public sealed class FileSystemAttachmentStorage(IOptions<AttachmentOptions> opti
         }
 
         var path = Path.GetFullPath(Path.Combine(_root, Path.Combine(segments)));
-        if (!path.StartsWith(_root, StringComparison.Ordinal))
+
+        // Compare on a path-segment boundary, not on a textual prefix: a sibling directory that
+        // merely starts with the root's name — "…/attachments-elsewhere" against a root of
+        // "…/attachments" — would otherwise be accepted as inside it.
+        if (!IsInsideRoot(path))
         {
             throw new ArgumentException("Storage key escapes the storage root.", nameof(storageKey));
         }
 
         return path;
+    }
+
+    private bool IsInsideRoot(string candidate)
+    {
+        var rootWithSeparator = _root.EndsWith(Path.DirectorySeparatorChar)
+            ? _root
+            : _root + Path.DirectorySeparatorChar;
+
+        // Path casing is platform-dependent; matching the filesystem's own comparison avoids both
+        // false rejections on Windows and false acceptances elsewhere.
+        var comparison = OperatingSystem.IsWindows()
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
+
+        return candidate.StartsWith(rootWithSeparator, comparison);
     }
 }

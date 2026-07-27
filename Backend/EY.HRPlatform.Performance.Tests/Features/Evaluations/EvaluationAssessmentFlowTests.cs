@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.ActivityLog;
@@ -85,7 +85,7 @@ public class EvaluationAssessmentFlowTests
         await using var db = PerformanceTestContext.Create(tenantId, out var tenant, $"assess-forbidden-{Guid.NewGuid()}");
         var s = await LaunchAsync(db, tenantId, "R");
 
-        var handler = new SaveSelfDraftCommandHandler(db, Access, ActivityLog(db, tenant));
+        var handler = new SaveSelfDraftCommandHandler(db, Access);
         var result = await handler.Handle(
             new SaveSelfDraftCommand(Employee(Guid.NewGuid()), s.SelfId, EvaluationAssessmentDraftInput.Empty, 0),
             CancellationToken.None);
@@ -102,7 +102,7 @@ public class EvaluationAssessmentFlowTests
         var s = await LaunchAsync(db, tenantId, "R");
 
         // Self is NotStarted and the self deadline is in the future → manager not actionable yet.
-        var handler = new SaveManagerDraftCommandHandler(db, Access, ActivityLog(db, tenant));
+        var handler = new SaveManagerDraftCommandHandler(db, Access);
         var result = await handler.Handle(
             new SaveManagerDraftCommand(Reviewer(s.ReviewerId), s.ManagerId, EvaluationAssessmentDraftInput.Empty, 0),
             CancellationToken.None);

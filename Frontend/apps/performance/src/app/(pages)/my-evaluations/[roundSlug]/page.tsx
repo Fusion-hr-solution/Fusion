@@ -1,4 +1,8 @@
-import { SelfAssessmentWorkspacePage } from "@/components/evaluations/assessment/self-assessment-workspace";
+import dynamic from "next/dynamic";
+
+const SelfAssessmentWorkspacePage = dynamic(() =>
+  import("@/components/evaluations/assessment/self-assessment-workspace").then((module) => module.SelfAssessmentWorkspacePage),
+);
 
 export default async function MyAssessmentRoute({
   params,

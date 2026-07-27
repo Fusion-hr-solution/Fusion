@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Domain.Enums;
+﻿using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Features.Skills.Commands;
 using EY.HRPlatform.Performance.Features.Skills.Dtos;
@@ -16,14 +16,14 @@ namespace EY.HRPlatform.Performance.Controllers;
 [Authorize]
 public sealed class SkillsConfigurationController(
     ISender sender,
-    IPerformanceAccessPolicyService access) : ControllerBase
+    IPerformanceAccessPolicyService access) : PerformanceControllerBase
 {
     // ─── Workspace (pure read) ───────────────────────────────────────────────
 
     [HttpGet("workspace")]
     public async Task<IActionResult> GetWorkspace(CancellationToken ct)
     {
-        if (!access.CanManageSkills(User)) return Forbid();
+        if (!access.CanManageSkills(User)) return Denied();
         return Respond(await sender.Send(new GetSkillsConfigurationWorkspaceQuery(User), ct));
     }
 
@@ -31,7 +31,7 @@ public sealed class SkillsConfigurationController(
     [HttpPost("provision-defaults")]
     public async Task<IActionResult> ProvisionDefaults(CancellationToken ct)
     {
-        if (!access.CanManageSkills(User)) return Forbid();
+        if (!access.CanManageSkills(User)) return Denied();
         return Respond(await sender.Send(new ProvisionSkillDefaultsCommand(User), ct));
     }
 
@@ -39,7 +39,7 @@ public sealed class SkillsConfigurationController(
     [HttpGet("active-sets")]
     public async Task<IActionResult> ListActiveSetsForRound(CancellationToken ct)
     {
-        if (!access.CanManageEvaluations(User)) return Forbid();
+        if (!access.CanManageEvaluations(User)) return Denied();
         return Respond(await sender.Send(new ListActiveExpectationSetsForRoundQuery(User), ct));
     }
 
@@ -113,15 +113,7 @@ public sealed class SkillsConfigurationController(
         ? Ok(ApiResponse<T>.Success(result.Value))
         : MapFailure(result.Error);
 
-    private IActionResult MapFailure(Error error)
-    {
-        if (error.Code.Contains("Forbidden", StringComparison.OrdinalIgnoreCase)) return Forbid();
-        if (error.Code.Contains("NotFound", StringComparison.OrdinalIgnoreCase)) return NotFound(ApiResponse.Failure(error.Message));
-        if (error.Code.Contains("Conflict", StringComparison.OrdinalIgnoreCase)) return Conflict(ApiResponse.Failure(error.Message));
-        if (error.Code.Contains("Invalid", StringComparison.OrdinalIgnoreCase) || error.Code.Contains("Validation", StringComparison.OrdinalIgnoreCase))
-            return UnprocessableEntity(ApiResponse.Failure(error.Message));
-        return BadRequest(ApiResponse.Failure(error.Message));
-    }
+    private IActionResult MapFailure(Error error) => Problem(error);
 }
 
 public sealed record SkillNameRequest(string Name);

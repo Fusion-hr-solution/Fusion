@@ -39,6 +39,8 @@ internal static class EvaluationAssessmentAuth
 
         var round = await EvaluationAssignmentLoader.LoadRoundAsync(db, assignment.RoundId, ct);
         if (round is null) return Fail(Error.NotFound("EvaluationRound", assignment.RoundId));
+        if (await IsExcludedAsync(db, assignment, ct))
+            return Fail(ExcludedError());
         return new AssessmentContext(assignment, round, EvaluationAssessmentSnapshotBuilder.Build(round, assignment), null);
     }
 
@@ -57,6 +59,8 @@ internal static class EvaluationAssessmentAuth
 
         var round = await EvaluationAssignmentLoader.LoadRoundAsync(db, assignment.RoundId, ct);
         if (round is null) return Fail(Error.NotFound("EvaluationRound", assignment.RoundId));
+        if (await IsExcludedAsync(db, assignment, ct))
+            return Fail(ExcludedError());
 
         if (requireActionable)
         {
@@ -97,4 +101,17 @@ internal static class EvaluationAssessmentAuth
     }
 
     private static AssessmentContext Fail(Error error) => new(null, null, null, error);
+
+    private static Task<bool> IsExcludedAsync(
+        PerformanceDbContext db,
+        EvaluationAssignment assignment,
+        CancellationToken ct)
+        => db.EvaluationRoundExclusions.AnyAsync(
+            exclusion => exclusion.RoundId == assignment.RoundId
+                && exclusion.ParticipantEmployeeId == assignment.ParticipantEmployeeId,
+            ct);
+
+    private static Error ExcludedError() => Error.Conflict(
+        "Evaluations.ParticipantExcluded",
+        "This participant is excluded from the evaluation round and has no outstanding work.");
 }

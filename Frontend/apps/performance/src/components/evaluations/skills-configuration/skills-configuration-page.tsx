@@ -54,15 +54,9 @@ import {
 } from "@repo/ds";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SKILLS_TAB_LABELS, type SkillsConfigurationTab } from "./skills-configuration-model";
 
-type Tab = "catalogue" | "scales" | "sets";
 type Api = ReturnType<typeof createPlatformApiClient>;
-
-const TAB_LABELS: Record<Tab, string> = {
-  catalogue: "Catalogue",
-  scales: "Proficiency scales",
-  sets: "Expectation sets",
-};
 
 export function SkillsConfigurationPage() {
   const api = useMemo(() => createPlatformApiClient(), []);
@@ -73,7 +67,7 @@ export function SkillsConfigurationPage() {
     (signal) => api.get(performancePaths.skillsWorkspace(), { signal }),
     { enabled: allowed }
   );
-  const [tab, setTab] = useState<Tab>("catalogue");
+  const [tab, setTab] = useState<SkillsConfigurationTab>("catalogue");
 
   if (authLoading || (allowed && workspace.isLoading))
     return (
@@ -115,7 +109,7 @@ export function SkillsConfigurationPage() {
       </PageContainer>
     );
 
-  const counts: Record<Tab, number> = {
+  const counts: Record<SkillsConfigurationTab, number> = {
     catalogue: data.skills.length,
     scales: data.proficiencyScales.length,
     sets: data.expectationSets.length,
@@ -130,7 +124,7 @@ export function SkillsConfigurationPage() {
           role="tablist"
           aria-label="Skills configuration"
         >
-          {(Object.keys(TAB_LABELS) as Tab[]).map((value) => (
+          {(Object.keys(SKILLS_TAB_LABELS) as SkillsConfigurationTab[]).map((value) => (
             <button
               key={value}
               type="button"
@@ -144,7 +138,7 @@ export function SkillsConfigurationPage() {
                   : "border-border text-muted-foreground hover:text-foreground"
               )}
             >
-              {TAB_LABELS[value]}
+              {SKILLS_TAB_LABELS[value]}
               <span className="ml-2 text-xs tabular-nums text-muted-foreground">
                 {counts[value]}
               </span>

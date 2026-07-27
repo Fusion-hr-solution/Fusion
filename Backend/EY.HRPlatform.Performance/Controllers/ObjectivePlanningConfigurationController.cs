@@ -1,7 +1,9 @@
-using EY.HRPlatform.Performance.Features.ObjectivePolicy.Commands;
+﻿using EY.HRPlatform.Performance.Features.ObjectivePolicy.Commands;
 using EY.HRPlatform.Performance.Features.ObjectivePolicy.Dtos;
 using EY.HRPlatform.Performance.Features.ObjectivePolicy.Queries;
+using EY.HRPlatform.Performance.Features.ConfigurationAudit.Queries;
 using EY.HRPlatform.Performance.Features.Security;
+using EY.HRPlatform.Performance.Models.Responses;
 using EY.HRPlatform.SharedKernel.Api;
 using EY.HRPlatform.SharedKernel.Results;
 using MediatR;
@@ -15,17 +17,42 @@ namespace EY.HRPlatform.Performance.Controllers;
 [Authorize]
 public class ObjectivePlanningConfigurationController(
     ISender sender,
-    IPerformanceAccessPolicyService accessPolicy) : ControllerBase
+    IPerformanceAccessPolicyService accessPolicy) : PerformanceControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewObjectivePlanningConfiguration(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new GetObjectivePlanningConfigurationQuery(), cancellationToken);
         return result.IsSuccess
             ? Ok(ApiResponse<ObjectivePlanningConfigurationSummaryDto>.Success(result.Value))
+            : MapFailure(result.Error);
+    }
+
+    /// <summary>
+    /// The configuration change history, most-recent-first. Platform-scoped entries are included
+    /// only for a platform administrator.
+    /// </summary>
+    [HttpGet("audit")]
+    public async Task<IActionResult> GetAudit(
+        [FromQuery] int? page,
+        [FromQuery] int? pageSize,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewObjectivePlanningConfiguration(User))
+            return Denied();
+
+        var result = await sender.Send(
+            new GetConfigurationAuditQuery(
+                IncludePlatformScope: accessPolicy.CanManagePlatformDefaults(User),
+                page,
+                pageSize),
+            cancellationToken);
+
+        return result.IsSuccess
+            ? Ok(ApiResponse<PagedResponse<ConfigurationAuditEntryDto>>.Success(result.Value))
             : MapFailure(result.Error);
     }
 
@@ -36,11 +63,10 @@ public class ObjectivePlanningConfigurationController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageObjectivePlanningConfiguration(User))
-            return Forbid();
+            return Denied();
 
         if (!TryParseVersion(ifMatch, out var expectedVersion))
-            return StatusCode(StatusCodes.Status428PreconditionRequired,
-                ApiResponse.Failure("If-Match header with the current version is required."));
+            return MissingPrecondition();
 
         var result = await sender.Send(
             new ApplyObjectivePlanningConfigurationCommand(User, request, expectedVersion),
@@ -55,18 +81,7 @@ public class ObjectivePlanningConfigurationController(
         return Ok(ApiResponse<ObjectivePlanningConfigurationApplyResultDto>.Success(result.Value));
     }
 
-    private IActionResult MapFailure(Error error)
-    {
-        if (error.Code.EndsWith("NotConfigured", StringComparison.OrdinalIgnoreCase) ||
-            error.Code.EndsWith("NotFound", StringComparison.OrdinalIgnoreCase))
-            return NotFound(ApiResponse.Failure(error.Message));
-        if (error.Code.EndsWith("StaleApply", StringComparison.OrdinalIgnoreCase) ||
-            error.Code.EndsWith("ConcurrencyConflict", StringComparison.OrdinalIgnoreCase))
-            return Conflict(ApiResponse.Failure(error.Message));
-        if (error.Code.Contains("Validation", StringComparison.OrdinalIgnoreCase))
-            return UnprocessableEntity(ApiResponse.Failure(error.Message));
-        return BadRequest(ApiResponse.Failure(error.Message));
-    }
+    private IActionResult MapFailure(Error error) => Problem(error);
 
     private static bool TryParseVersion(string? ifMatch, out uint version)
     {

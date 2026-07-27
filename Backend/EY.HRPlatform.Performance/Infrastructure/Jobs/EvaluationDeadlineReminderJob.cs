@@ -42,13 +42,26 @@ public sealed class EvaluationDeadlineReminderJob(
         var db = scope.ServiceProvider.GetRequiredService<PerformanceDbContext>();
         var now = DateTime.UtcNow;
         var dueSoonAt = now.AddDays(options.Value.DueSoonWindowDays);
+        // Rounds close with their campaign, so Launched already excludes closed campaigns.
         var rounds = await db.EvaluationRounds.AsNoTracking()
             .Where(x => x.Status == EvaluationRoundStatus.Launched)
             .ToListAsync(ct);
-        var roundIds = rounds.Select(x => x.Id).ToArray();
-        var assignments = await db.EvaluationAssignments.AsNoTracking()
-            .Where(x => roundIds.Contains(x.RoundId) && x.Status != EvaluationAssignmentStatus.Finalized)
-            .ToListAsync(ct);
+
+        // Only rounds with a deadline inside the reminder window can produce a notification this
+        // tick, so the assignment set is bounded by those rather than by every launched round the
+        // tenant has open.
+        var roundIds = rounds
+            .Where(round => HasDeadlineInWindow(round, now, dueSoonAt))
+            .Select(round => round.Id)
+            .ToArray();
+
+        var assignments = roundIds.Length == 0
+            ? []
+            : await db.EvaluationAssignments.AsNoTracking()
+                .Where(x => roundIds.Contains(x.RoundId) && x.Status != EvaluationAssignmentStatus.Finalized)
+                .Where(x => !db.EvaluationRoundExclusions.Any(e => e.RoundId == x.RoundId
+                    && e.ParticipantEmployeeId == x.ParticipantEmployeeId))
+                .ToListAsync(ct);
         // Preload existing reminder dedup keys once per sweep instead of probing the database per
         // assignment; the unique (TenantId, DedupKey) index remains the concurrency safety net.
         var existingKeys = (await db.PerformanceNotifications.AsNoTracking()
@@ -107,4 +120,17 @@ public sealed class EvaluationDeadlineReminderJob(
         logger.LogInformation("Generated {Count} evaluation reminder(s) for tenant {TenantId}.", notifications.Count, tenantId);
         return notifications.Count;
     }
+
+    /// <summary>
+    /// Whether any of the round's three deadlines falls inside the reminder window. Mirrors the
+    /// condition <c>AddReminders</c> applies per deadline, so bounding the assignment set cannot
+    /// exclude a round that would have produced a reminder.
+    /// </summary>
+    private static bool HasDeadlineInWindow(EvaluationRound round, DateTime now, DateTime dueSoonAt)
+        => IsInWindow(round.SelfAssessmentDeadline, dueSoonAt)
+           || IsInWindow(round.ManagerAssessmentDeadline, dueSoonAt)
+           || IsInWindow(round.FinalizationDeadline, dueSoonAt);
+
+    private static bool IsInWindow(DateTime? deadline, DateTime dueSoonAt)
+        => deadline.HasValue && deadline.Value <= dueSoonAt;
 }

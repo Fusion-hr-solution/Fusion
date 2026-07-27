@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
+  Archive,
   Lock,
   Pencil,
   Plus,
@@ -35,10 +36,8 @@ import {
 import type {
   CampaignPlanningRulesSnapshotDto,
   CampaignStrategicObjectiveDto,
-  CreatePerformanceCycleRequest,
   PerformanceCycleDetailDto,
   PerformanceCycleSummaryDto,
-  PerformanceCycleType,
   PagedResponse,
   ToggleCampaignStrategicObjectiveRequest,
   UpdatePerformanceCycleRequest,
@@ -68,6 +67,7 @@ import {
   StatusBadge,
 } from "@repo/ds/shell";
 import { Badge } from "@/components/ui/badge";
+import { CampaignAuditHistory } from "./campaign-audit-history";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -89,6 +89,12 @@ import {
   CampaignPopulationSection,
   type PreflightGate,
 } from "./campaign-launch-sections";
+import {
+  CampaignGrid,
+  CampaignGridSkeleton,
+  CampaignListLoading,
+} from "./campaign-list-sections";
+export { CampaignListLoading } from "./campaign-list-sections";
 import { PlanningFlowBand } from "./planning-flow-band";
 import {
   CampaignRunwaySpine,
@@ -97,6 +103,7 @@ import {
 } from "./campaign-setup-stepper";
 import {
   campaignDiscard,
+  campaignClosure,
   campaignJourney,
   campaignRunway,
   campaignScheduleSteps,
@@ -105,67 +112,30 @@ import {
   campaignStrategy,
   campaignTerms,
 } from "./campaign-terminology";
-
-type DraftForm = {
-  name: string;
-  purpose: string;
-  referenceYear: number;
-  planningOpeningDate: string;
-  employeeSubmissionDeadline: string;
-  managerApprovalDeadline: string;
-  expectedPlanningLockDate: string;
-};
-
-type ObjectiveForm = {
-  title: string;
-  description: string;
-  responsibleFunctionLabel: string;
-};
-
-type ScheduleKey =
-  | "planningOpeningDate"
-  | "employeeSubmissionDeadline"
-  | "managerApprovalDeadline"
-  | "expectedPlanningLockDate";
-
-const SCHEDULE_STEP_ORDER = [
-  "planningOpeningDate",
-  "employeeSubmissionDeadline",
-  "managerApprovalDeadline",
-  "expectedPlanningLockDate",
-] as const satisfies readonly ScheduleKey[];
-
-const SCHEDULE_STEPS: {
-  key: ScheduleKey;
-  label: string;
-  caption: string;
-  short: string;
-}[] = SCHEDULE_STEP_ORDER.map((key) => ({
-  key,
-  ...campaignScheduleSteps[key],
-}));
-
-const currentYear = new Date().getFullYear();
-const yearOptions = Array.from(
-  { length: 5 },
-  (_, index) => currentYear - 1 + index
-);
-
-const STEP_ORDER = [
-  "campaign",
-  "timeline",
-  "strategy",
-  "population",
-  "launch",
-] as const satisfies readonly RunwayStepKey[];
-
-type StepState = {
-  campaign: boolean;
-  timeline: boolean;
-  timelineError: boolean;
-  strategy: boolean;
-  population: boolean;
-};
+import {
+  dayGap,
+  emptyObjectiveForm,
+  errorToMessages,
+  formatDate,
+  fromCampaign,
+  fromObjective,
+  parseMeasurementMethods,
+  parseWeights,
+  serializeDraftForm,
+  toDraftRequest,
+  toObjectiveRequest,
+  validateDraftForm,
+  type DraftForm,
+  type ObjectiveForm,
+} from "./campaign-form-mapping";
+import {
+  SCHEDULE_STEP_ORDER,
+  SCHEDULE_STEPS,
+  STEP_ORDER,
+  yearOptions,
+  getStepState,
+  firstOpenStep,
+} from "./campaign-page-model";
 
 export function CampaignListPage() {
   const apiClient = useMemo(() => createPlatformApiClient(), []);
@@ -190,6 +160,14 @@ export function CampaignListPage() {
       ),
     { enabled: canView }
   );
+
+  // Closed campaigns leave the active list by default: day-to-day work is about open campaigns,
+  // and intermixing settled records makes the list harder to scan every cycle that ends.
+  const allCampaigns = data?.items ?? [];
+  const activeCampaigns = allCampaigns.filter(
+    (campaign) => campaign.status !== "Closed"
+  );
+  const closedCount = allCampaigns.length - activeCampaigns.length;
 
   if (authLoading) {
     return <CampaignListLoading />;
@@ -228,20 +206,53 @@ export function CampaignListPage() {
       ) : null}
 
       {!isLoading && !error && data ? (
-        data.items.length === 0 ? (
-          <PageEmpty
-            title="No campaigns yet"
-            description="Create a campaign to set its schedule, planning rules, and strategic objectives."
-            action={
-              canManage ? (
-                <Button size="sm" onClick={() => setCreateOpen(true)}>
-                  <Plus /> {campaignTerms.createAction}
-                </Button>
-              ) : null
-            }
-          />
+        activeCampaigns.length === 0 ? (
+          closedCount > 0 ? (
+            // Every campaign has closed. That is a milestone, not an absence — so the empty state
+            // points at the record rather than reading as "nothing here".
+            <PageEmpty
+              title={campaignClosure.allClosedTitle}
+              action={
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Button asChild size="sm" variant="outline">
+                    <Link href="/campaigns/history">
+                      <Archive /> {campaignClosure.allClosedAction}
+                    </Link>
+                  </Button>
+                  {canManage ? (
+                    <Button size="sm" onClick={() => setCreateOpen(true)}>
+                      <Plus /> {campaignTerms.createAction}
+                    </Button>
+                  ) : null}
+                </div>
+              }
+            />
+          ) : (
+            <PageEmpty
+              title="No campaigns yet"
+              description="Create a campaign to set its schedule, planning rules, and strategic objectives."
+              action={
+                canManage ? (
+                  <Button size="sm" onClick={() => setCreateOpen(true)}>
+                    <Plus /> {campaignTerms.createAction}
+                  </Button>
+                ) : null
+              }
+            />
+          )
         ) : (
-          <CampaignGrid campaigns={data.items} />
+          <>
+            <CampaignGrid campaigns={activeCampaigns} />
+            {closedCount > 0 ? (
+              <div className="mt-5 flex justify-center">
+                <Button asChild size="sm" variant="ghost">
+                  <Link href="/campaigns/history">
+                    <Archive /> {campaignClosure.allClosedAction}
+                  </Link>
+                </Button>
+              </div>
+            ) : null}
+          </>
         )
       ) : null}
 
@@ -251,164 +262,6 @@ export function CampaignListPage() {
 }
 
 // ── Campaign list: lifecycle-grouped work-item cards ─────────────────────────
-
-const CAMPAIGN_TYPE_LABEL: Record<PerformanceCycleType, string> = {
-  Annual: "Annual planning",
-  MidYear: "Mid-year planning",
-  Specific: "Specific period",
-};
-
-function CampaignGrid({
-  campaigns,
-}: {
-  campaigns: readonly PerformanceCycleSummaryDto[];
-}) {
-  const groups = useMemo(() => {
-    // Draft is the actionable "finish me" bucket, so it leads.
-    const setup: PerformanceCycleSummaryDto[] = [];
-    const active: PerformanceCycleSummaryDto[] = [];
-    for (const campaign of campaigns) {
-      const target = campaign.status === "Draft" ? setup : active;
-      target.push(campaign);
-    }
-    const byRecency = (a: PerformanceCycleSummaryDto, b: PerformanceCycleSummaryDto) =>
-      (b.referenceYear ?? 0) - (a.referenceYear ?? 0) ||
-      b.createdAt.localeCompare(a.createdAt);
-    for (const items of [setup, active]) items.sort(byRecency);
-    return [
-      { key: "setup", label: "In setup", items: setup },
-      { key: "active", label: "Active", items: active },
-    ].filter((bucket) => bucket.items.length > 0);
-  }, [campaigns]);
-
-  const showHeaders = groups.length > 1;
-
-  return (
-    <div className="space-y-8">
-      {groups.map((group) => (
-        <section key={group.key} className="space-y-3">
-          {showHeaders ? (
-            <div className="flex items-baseline gap-2">
-              <h2 className="text-sm font-semibold text-foreground">{group.label}</h2>
-              <span className="text-xs font-medium tabular-nums text-muted-foreground">
-                {group.items.length}
-              </span>
-            </div>
-          ) : null}
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {group.items.map((campaign) => (
-              <CampaignCard key={campaign.id} campaign={campaign} />
-            ))}
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
-
-function CampaignCard({ campaign }: { campaign: PerformanceCycleSummaryDto }) {
-  const locked = !!campaign.planningLockedAt;
-  const isDraft = campaign.status === "Draft";
-  const year =
-    campaign.referenceYear ?? new Date(campaign.periodStart).getUTCFullYear();
-  const urgent = !locked && !isDraft ? campaign.deadlineState : "None";
-
-  return (
-    <Link
-      href={`/campaigns/${campaign.slug}`}
-      className="group flex flex-col rounded-2xl border border-border bg-card p-5 transition-colors hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      <div className="flex items-center justify-between gap-2">
-        {locked ? (
-          <StatusBadge tone="neutral">
-            <Lock className="size-3" /> Planning locked
-          </StatusBadge>
-        ) : (
-          <StatusBadge tone={campaignStatusTone(campaign.status)} dot>
-            {campaignStatusLabel(campaign.status)}
-          </StatusBadge>
-        )}
-        <span className="text-sm font-medium tabular-nums text-muted-foreground">
-          {year}
-        </span>
-      </div>
-
-      <h3 className="mt-3 text-balance font-heading text-xl font-semibold leading-snug tracking-tight text-foreground">
-        {campaign.name}
-      </h3>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {CAMPAIGN_TYPE_LABEL[campaign.type]}
-      </p>
-
-      <div className="mt-4 flex items-end justify-between gap-3 border-t border-border pt-4">
-        {isDraft ? (
-          <span className="text-sm font-medium text-primary">Continue setup</span>
-        ) : (
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <Users className="size-3.5" />
-              <span className="font-semibold tabular-nums text-foreground">
-                {campaign.participantCount}
-              </span>
-              participants
-            </span>
-            {urgent === "Overdue" ? (
-              <StatusBadge tone="danger">Overdue</StatusBadge>
-            ) : urgent === "DueSoon" ? (
-              <StatusBadge tone="warning">Due soon</StatusBadge>
-            ) : null}
-          </span>
-        )}
-        <ChevronRight className="size-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-      </div>
-    </Link>
-  );
-}
-
-/**
- * Full list-loading frame: header placeholder + the card-grid skeleton. Shared by
- * the route-level `loading.tsx` and the page's own auth/data loading states so a
- * navigation shows ONE skeleton shape end to end — no flat-rows flash before the grid.
- */
-export function CampaignListLoading() {
-  return (
-    <PageContainer>
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 space-y-2">
-          <Skeleton className="h-7 w-40" />
-          <Skeleton className="h-4 w-80 max-w-full" />
-        </div>
-        <Skeleton className="h-9 w-32 rounded-md" />
-      </div>
-      <CampaignGridSkeleton />
-    </PageContainer>
-  );
-}
-
-export function CampaignGridSkeleton() {
-  return (
-    <div
-      className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
-      aria-busy
-      aria-label="Loading campaigns"
-    >
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="rounded-2xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between">
-            <Skeleton className="h-5 w-24 rounded-full" />
-            <Skeleton className="h-4 w-10" />
-          </div>
-          <Skeleton className="mt-3 h-6 w-3/4" />
-          <Skeleton className="mt-2 h-4 w-32" />
-          <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="size-5 rounded" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export function CampaignDraftPage() {
   const params = useParams<{ slug?: string }>();
@@ -619,11 +472,15 @@ export function CampaignDraftPage() {
   }
 
   const isDraft = campaign.status === "Draft";
+
+  // Closure is terminal: a closed campaign is a settled record, so no setup, launch, lock,
+  // reminder, exclusion or reassignment control belongs on it.
+  const isClosed = campaign.status === "Closed";
   const localErrors = validateDraftForm(form);
   const isDirty =
     serializeDraftForm(form) !== serializeDraftForm(fromCampaign(campaign));
-  const readOnly = !canManage || !isDraft;
-  const canDiscard = canManage && isDraft;
+  const readOnly = !canManage || !isDraft || isClosed;
+  const canDiscard = canManage && isDraft && !isClosed;
   const objectiveRequest = toObjectiveRequest(objectiveForm);
 
   // Applied population/approver/launch changes must reflect immediately: refetch the campaign
@@ -757,7 +614,14 @@ export function CampaignDraftPage() {
           campaign.ownerName ? `Owned by ${campaign.ownerName}` : undefined
         }
         actions={
-          !isDraft ? (
+          isClosed ? (
+            <Badge variant="outline" className="gap-1.5">
+              <Archive className="size-3.5" aria-hidden />
+              {campaign.closedAt
+                ? campaignClosure.closedOn(formatDate(campaign.closedAt))
+                : campaignClosure.status}
+            </Badge>
+          ) : !isDraft ? (
             <Button asChild size="sm">
               <Link href={`/campaigns/${campaign.slug}/completion`}>
                 <Lock />
@@ -919,7 +783,10 @@ export function CampaignDraftPage() {
           canAccessTeam={canAccessTeam}
           canAccessApprovals={canAccessApprovals}
           canViewStrategy={canViewStrategy}
-          canViewCompletion={canView}
+          // A closed campaign still shows what happened; it offers no route into locking,
+          // reminders, or completion, because none of those can act on it any more.
+          canViewCompletion={canView && !isClosed}
+          isClosed={isClosed}
         />
       )}
 
@@ -937,49 +804,6 @@ export function CampaignDraftPage() {
   );
 }
 
-function getStepState(
-  form: DraftForm,
-  campaign: PerformanceCycleDetailDto
-): StepState {
-  const scheduleDates = SCHEDULE_STEPS.map((step) => form[step.key]);
-  const scheduleComplete = scheduleDates.every(Boolean);
-  const scheduleOrdered =
-    scheduleComplete &&
-    scheduleDates.every(
-      (value, index) => index === 0 || (scheduleDates[index - 1] ?? "") <= value
-    );
-  const timelineError = scheduleDates.some(
-    (value, index) =>
-      index > 0 && !!value && value < (scheduleDates[index - 1] ?? "")
-  );
-  const activeObjectiveCount = campaign.strategicObjectives.filter(
-    (objective) => objective.isActive
-  ).length;
-  const hasPopulationScope = campaign.populationRules.some(
-    (rule) => rule.ruleType === "OrgUnit" || rule.ruleType === "IncludeEmployee"
-  );
-
-  return {
-    campaign: !!form.name.trim() && !!form.referenceYear,
-    timeline: scheduleComplete && scheduleOrdered,
-    timelineError,
-    strategy: activeObjectiveCount > 0,
-    population: hasPopulationScope,
-  };
-}
-
-function firstOpenStep(
-  form: DraftForm,
-  campaign: PerformanceCycleDetailDto
-): RunwayStepKey {
-  const state = getStepState(form, campaign);
-  if (!state.campaign) return "campaign";
-  if (!state.timeline) return "timeline";
-  if (!state.strategy) return "strategy";
-  if (!state.population) return "population";
-  return "launch";
-}
-
 function LaunchedCampaignWorkspace({
   campaign,
   form,
@@ -988,6 +812,7 @@ function LaunchedCampaignWorkspace({
   canAccessApprovals,
   canViewStrategy,
   canViewCompletion,
+  isClosed = false,
 }: {
   campaign: PerformanceCycleDetailDto;
   form: DraftForm;
@@ -996,10 +821,12 @@ function LaunchedCampaignWorkspace({
   canAccessApprovals: boolean;
   canViewStrategy: boolean;
   canViewCompletion: boolean;
+  /** A closed campaign reads as a settled record: state, no affordances. */
+  isClosed?: boolean;
 }) {
   return (
     <div className="space-y-5">
-      <LaunchedCampaignSummary campaign={campaign} form={form} />
+      <LaunchedCampaignSummary campaign={campaign} form={form} isClosed={isClosed} />
       <PlanningFlowBand
         slug={campaign.slug}
         planningOpeningDate={form.planningOpeningDate || null}
@@ -1019,6 +846,8 @@ function LaunchedCampaignWorkspace({
       />
       <CascadeCoverageSection slug={campaign.slug} />
       <CampaignLaunchedBaseline campaign={campaign} />
+      {/* The campaign's own change trail, written since launch and until now unreadable. */}
+      <CampaignAuditHistory cycleId={campaign.id} />
     </div>
   );
 }
@@ -1026,16 +855,28 @@ function LaunchedCampaignWorkspace({
 function LaunchedCampaignSummary({
   campaign,
   form,
+  isClosed = false,
 }: {
   campaign: PerformanceCycleDetailDto;
   form: DraftForm;
+  isClosed?: boolean;
 }) {
   const activeObjectives = campaign.strategicObjectives.filter(
     (objective) => objective.isActive
   );
   const locked = !!campaign.planningLockedAt;
-  const stateLabel = locked ? "Planning locked" : "Baseline frozen";
-  const stateDate = locked
+
+  // Closure outranks the planning state: once closed, that is what the campaign is.
+  const stateLabel = isClosed
+    ? campaignClosure.status
+    : locked
+      ? "Planning locked"
+      : "Baseline frozen";
+  const stateDate = isClosed
+    ? campaign.closedAt
+      ? formatDate(campaign.closedAt)
+      : campaignClosure.status
+    : locked
     ? campaign.planningLockedAt
       ? formatDate(campaign.planningLockedAt)
       : "Locked"
@@ -1969,182 +1810,4 @@ export function CampaignPageSkeleton({ width }: { width?: "narrow" } = {}) {
       </div>
     </PageContainer>
   );
-}
-
-function emptyObjectiveForm(): ObjectiveForm {
-  return {
-    title: "",
-    description: "",
-    responsibleFunctionLabel: "",
-  };
-}
-
-function fromCampaign(campaign: PerformanceCycleDetailDto): DraftForm {
-  return {
-    name: campaign.name,
-    purpose: campaign.purpose ?? campaign.description ?? "",
-    referenceYear:
-      campaign.referenceYear ?? new Date(campaign.periodStart).getUTCFullYear(),
-    planningOpeningDate: toDateInput(
-      campaign.planningOpeningDate ?? campaign.periodStart
-    ),
-    employeeSubmissionDeadline: toDateInput(
-      campaign.employeeSubmissionDeadline ??
-        campaign.objectiveSettingDeadline ??
-        campaign.periodStart
-    ),
-    managerApprovalDeadline: toDateInput(
-      campaign.managerApprovalDeadline ??
-        campaign.objectiveSettingDeadline ??
-        campaign.periodStart
-    ),
-    expectedPlanningLockDate: toDateInput(
-      campaign.expectedPlanningLockDate ?? campaign.periodEnd
-    ),
-  };
-}
-
-function fromObjective(
-  objective: CampaignStrategicObjectiveDto
-): ObjectiveForm {
-  return {
-    title: objective.title,
-    description: objective.description ?? "",
-    responsibleFunctionLabel: objective.responsibleFunctionLabel ?? "",
-  };
-}
-
-function toDraftRequest(
-  form: DraftForm
-): CreatePerformanceCycleRequest | UpdatePerformanceCycleRequest {
-  return {
-    name: form.name.trim(),
-    purpose: nullIfBlank(form.purpose),
-    referenceYear: form.referenceYear,
-    planningOpeningDate: toIsoDate(form.planningOpeningDate),
-    employeeSubmissionDeadline: toIsoDate(form.employeeSubmissionDeadline),
-    managerApprovalDeadline: toIsoDate(form.managerApprovalDeadline),
-    expectedPlanningLockDate: toIsoDate(form.expectedPlanningLockDate),
-  };
-}
-
-function toObjectiveRequest(
-  form: ObjectiveForm
-): UpsertCampaignStrategicObjectiveRequest {
-  return {
-    title: form.title.trim(),
-    description: nullIfBlank(form.description),
-    responsibleFunctionLabel: nullIfBlank(form.responsibleFunctionLabel),
-  };
-}
-
-function validateDraftForm(form: DraftForm): string[] {
-  const errors: string[] = [];
-  if (!form.name.trim()) {
-    errors.push("Campaign name is required.");
-  }
-  if (!form.referenceYear) {
-    errors.push("Reference year is required.");
-  }
-  const dates = [
-    form.planningOpeningDate,
-    form.employeeSubmissionDeadline,
-    form.managerApprovalDeadline,
-    form.expectedPlanningLockDate,
-  ];
-  if (dates.some((date) => !date)) {
-    errors.push("All planning schedule dates are required.");
-  }
-  if (dates.every(Boolean)) {
-    if (form.employeeSubmissionDeadline < form.planningOpeningDate) {
-      errors.push("Employee submission cannot be before planning opening.");
-    }
-    if (form.managerApprovalDeadline < form.employeeSubmissionDeadline) {
-      errors.push("Manager approval cannot be before employee submission.");
-    }
-    if (form.expectedPlanningLockDate < form.managerApprovalDeadline) {
-      errors.push("Planning lock cannot be before manager approval.");
-    }
-  }
-  return errors;
-}
-
-function serializeDraftForm(form: DraftForm): string {
-  return JSON.stringify(form);
-}
-
-function errorToMessages(error: Error): string[] {
-  if (error instanceof ApiError) {
-    if (error.status === 409) {
-      return [
-        "This campaign changed. Your edits are still here; review the latest values before saving again.",
-      ];
-    }
-    if (error.status === 403) {
-      return ["You do not have permission for this campaign action."];
-    }
-    return error.errors.length > 0 ? error.errors : [error.message];
-  }
-
-  if ("status" in error && (error as { status?: number }).status === 409) {
-    return [
-      "This campaign changed. Your edits are still here; review the latest values before saving again.",
-    ];
-  }
-  if ("status" in error && (error as { status?: number }).status === 403) {
-    return ["You do not have permission for this campaign action."];
-  }
-
-  return [error.message];
-}
-
-function dayGap(from: string, to: string): number {
-  const start = Date.parse(from);
-  const end = Date.parse(to);
-  if (Number.isNaN(start) || Number.isNaN(end)) {
-    return 0;
-  }
-  return Math.round((end - start) / 86_400_000);
-}
-
-function toDateInput(value: string): string {
-  return value.slice(0, 10);
-}
-
-function toIsoDate(value: string): string {
-  return `${value}T00:00:00.000Z`;
-}
-
-function nullIfBlank(value: string): string | null {
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
-}
-
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(
-    new Date(value)
-  );
-}
-
-function parseWeights(value: string): string[] {
-  try {
-    const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) {
-      return parsed.map((item) => `${item}%`);
-    }
-  } catch {
-    // Existing configs may use comma-separated values.
-  }
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean)
-    .map((item) => (item.endsWith("%") ? item : `${item}%`));
-}
-
-function parseMeasurementMethods(value: string): string[] {
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
 }

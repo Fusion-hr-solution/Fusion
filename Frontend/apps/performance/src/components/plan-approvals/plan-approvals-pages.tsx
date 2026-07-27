@@ -51,6 +51,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatDate, measurementMethodLabel } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { describeMeasurement, errorMessage, latestChangeRequest, referencedObjectives, reviewEventLabel, samePerson } from "./plan-approvals-model";
 
 const reviewGroups = [
   { key: "waiting-for-review", title: "Waiting for review" },
@@ -807,22 +808,6 @@ function ReferenceChips({
   );
 }
 
-function latestChangeRequest(plan: PlanApprovalReviewDto) {
-  return [...plan.reviewHistory]
-    .filter((event) => event.type === "ChangesRequested")
-    .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())[0] ?? null;
-}
-
-function referencedObjectives(plan: PlanApprovalReviewDto, referencedObjectiveIds: string[]) {
-  if (referencedObjectiveIds.length === 0) return [];
-  const referenced = new Set(referencedObjectiveIds);
-  return plan.objectives.filter((objective) => referenced.has(objective.id));
-}
-
-function samePerson(left: string | null | undefined, right: string | null | undefined) {
-  return Boolean(left && right && left.trim().toLocaleLowerCase() === right.trim().toLocaleLowerCase());
-}
-
 function ReviewMeter({ workspace }: { workspace: PlanApprovalWorkspaceDto }) {
   return (
     <div className="flex items-center gap-2.5">
@@ -860,32 +845,6 @@ function KeyValue({ label, children }: { label: string; children: React.ReactNod
   );
 }
 
-function describeMeasurement(objective: EmployeeObjectiveDto): string {
-  if (!objective.measurementMethod) return "Not set";
-  if (objective.measurementMethod === "Quantitative") {
-    const target = [objective.targetValue, objective.targetUnit].filter(Boolean).join(" ");
-    if (objective.measurementIndicator && target) return `${objective.measurementIndicator}: ${target}`;
-    return objective.measurementIndicator ?? measurementMethodLabel(objective.measurementMethod);
-  }
-  return objective.successCriteria ?? measurementMethodLabel(objective.measurementMethod);
-}
-
-function reviewEventLabel(type: string): string {
-  if (type === "ChangesRequested") return "Changes requested";
-  if (type === "Resubmitted") return "Resubmitted";
-  if (type === "Approved") return "Approved";
-  return "Submitted";
-}
-
-function errorMessage(error: Error): string {
-  if (error instanceof ApiError) {
-    if (error.status === 409 || error.status === 412 || error.status === 428) {
-      return "This plan changed. Review the latest version and try again.";
-    }
-    return error.errors[0] ?? error.message;
-  }
-  return error.message;
-}
 
 function PlanApprovalWorkspaceSkeleton() {
   return (

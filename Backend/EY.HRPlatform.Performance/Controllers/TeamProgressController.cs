@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Features.Security;
+﻿using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Features.TeamProgress.Dtos;
 using EY.HRPlatform.Performance.Features.TeamProgress.Queries;
 using EY.HRPlatform.SharedKernel.Api;
@@ -14,13 +14,13 @@ namespace EY.HRPlatform.Performance.Controllers;
 [Authorize]
 public sealed class TeamProgressController(
     ISender sender,
-    IPerformanceAccessPolicyService accessPolicy) : ControllerBase
+    IPerformanceAccessPolicyService accessPolicy) : PerformanceControllerBase
 {
     [HttpGet("my-campaigns")]
     public async Task<IActionResult> GetMyCampaigns(CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewTeamProgress(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new GetMyTeamProgressCampaignsQuery(), cancellationToken);
         return result.IsFailure
@@ -32,7 +32,7 @@ public sealed class TeamProgressController(
     public async Task<IActionResult> GetWorkspace(string slug, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewTeamProgress(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new GetTeamProgressWorkspaceQuery(slug), cancellationToken);
         return result.IsFailure
@@ -47,7 +47,7 @@ public sealed class TeamProgressController(
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewTeamProgress(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new GetTeamProgressParticipantDetailQuery(slug, employeeId), cancellationToken);
         return result.IsFailure
@@ -55,18 +55,5 @@ public sealed class TeamProgressController(
             : Ok(ApiResponse<TeamProgressParticipantDetailDto>.Success(result.Value));
     }
 
-    private IActionResult MapFailure(Error error)
-    {
-        if (error.Code.Contains("Forbidden", StringComparison.OrdinalIgnoreCase))
-            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse.Failure(error.Message));
-
-        if (error.Code.Contains("NotFound", StringComparison.OrdinalIgnoreCase))
-            return NotFound(ApiResponse.Failure(error.Message));
-
-        if (error.Code.Contains("Validation", StringComparison.OrdinalIgnoreCase)
-            || error.Code.Contains("Invalid", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(ApiResponse.Failure(error.Message));
-
-        return Conflict(ApiResponse.Failure(error.Message));
-    }
+    private IActionResult MapFailure(Error error) => Problem(error);
 }

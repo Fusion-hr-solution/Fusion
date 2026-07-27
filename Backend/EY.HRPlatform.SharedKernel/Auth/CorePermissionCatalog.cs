@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 
 namespace EY.HRPlatform.SharedKernel.Auth;
 
@@ -126,8 +126,6 @@ public static class PerformancePermissions
 
     // Strategic objective permissions (Plan 03-02, D-05: deny-by-default, never auto-granted by position)
     public const string StrategicView = "performance.strategic.view";
-    public const string StrategicManage = "performance.strategic.manage";
-    public const string StrategicPublish = "performance.strategic.publish";
 
     // Progress and team-approval permissions (consumed by Plans 03-03 / 03-04)
     public const string ObjectiveProgressCorrect = "performance.objective.progress.correct";
@@ -164,8 +162,6 @@ public static class PerformancePermissions
             AuditView,
             ConfidentialIdentityView,
             StrategicView,
-            StrategicManage,
-            StrategicPublish,
             ObjectiveProgressCorrect,
             ObjectiveTeamApprove,
             ObjectiveProgressTeamView,
@@ -257,8 +253,6 @@ public static class CorePermissionCatalog
 
             // Strategic objective permissions (D-05: deny-by-default, never auto-granted by position)
             new(PerformancePermissions.StrategicView, "View strategic objectives", "Performance", [PermissionScopes.Tenant]),
-            new(PerformancePermissions.StrategicManage, "Manage strategic objectives", "Performance", [PermissionScopes.Tenant]),
-            new(PerformancePermissions.StrategicPublish, "Publish strategic objectives", "Performance", [PermissionScopes.Tenant], "Explicit deny-by-default publish grant; never auto-granted by top-management position."),
 
             // Progress correction and employee objective plan approval permissions
             new(PerformancePermissions.ObjectiveProgressCorrect, "Correct objective progress (manager override)", "Performance", [PermissionScopes.Tenant]),

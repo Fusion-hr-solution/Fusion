@@ -36,7 +36,8 @@ public sealed class ListEvaluationRoundsQueryHandler(PerformanceDbContext db, IP
         if (q.CampaignId.HasValue) source = source.Where(x => x.PerformanceCycleId == q.CampaignId);
         var rounds = await source.OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
         var ids = rounds.Select(x => x.Id).ToArray();
-        var assignments = await db.EvaluationAssignments.AsNoTracking().Where(x => ids.Contains(x.RoundId)).ToListAsync(ct);
+        var assignments = await db.EvaluationAssignments.AsNoTracking()
+            .Where(x => ids.Contains(x.RoundId)).ToListAsync(ct);
         return rounds.Select(x => EvaluationRoundMapper.ToSummary(x, assignments.Where(a => a.RoundId == x.Id).ToArray())).ToArray();
     }
 }
@@ -123,6 +124,8 @@ internal static class EvaluationWorkEntryLoader
             .Where(x => self
                 ? x.ParticipantEmployeeId == employeeId && x.AssigneeEmployeeId == employeeId && x.Kind == Domain.Enums.EvaluationAssignmentKind.SelfAssessment
                 : x.AssigneeEmployeeId == employeeId && x.Kind == Domain.Enums.EvaluationAssignmentKind.ManagerAssessment)
+            .Where(x => !db.EvaluationRoundExclusions.Any(e => e.RoundId == x.RoundId
+                && e.ParticipantEmployeeId == x.ParticipantEmployeeId))
             .OrderBy(x => x.Status).ThenBy(x => x.ParticipantName).ToListAsync(ct);
         var roundIds = assignments.Select(x => x.RoundId).Distinct().ToArray();
         var rounds = await EvaluationRoundLoader.Query(db)

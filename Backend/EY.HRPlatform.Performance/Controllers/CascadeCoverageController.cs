@@ -1,4 +1,4 @@
-using EY.HRPlatform.Performance.Features.Security;
+﻿using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Features.TeamObjectives.Dtos;
 using EY.HRPlatform.Performance.Features.TeamObjectives.Queries;
 using EY.HRPlatform.SharedKernel.Api;
@@ -19,13 +19,13 @@ namespace EY.HRPlatform.Performance.Controllers;
 [Authorize]
 public sealed class CascadeCoverageController(
     ISender sender,
-    IPerformanceAccessPolicyService accessPolicy) : ControllerBase
+    IPerformanceAccessPolicyService accessPolicy) : PerformanceControllerBase
 {
     [HttpGet("campaigns")]
     public async Task<IActionResult> GetCampaigns(CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewCascadeCoverage(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new GetCascadeCoverageCampaignsQuery(), cancellationToken);
         return result.IsFailure
@@ -37,7 +37,7 @@ public sealed class CascadeCoverageController(
     public async Task<IActionResult> GetCoverage(string slug, CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewCascadeCoverage(User))
-            return Forbid();
+            return Denied();
 
         var result = await sender.Send(new GetCascadeCoverageQuery(slug), cancellationToken);
         return result.IsFailure
@@ -45,14 +45,5 @@ public sealed class CascadeCoverageController(
             : Ok(ApiResponse<CascadeCoverageDto>.Success(result.Value));
     }
 
-    private IActionResult MapFailure(Error error)
-    {
-        if (error.Code.Contains("NotFound", StringComparison.OrdinalIgnoreCase))
-            return NotFound(ApiResponse.Failure(error.Message));
-
-        if (error.Code.Contains("Invalid", StringComparison.OrdinalIgnoreCase))
-            return BadRequest(ApiResponse.Failure(error.Message));
-
-        return Conflict(ApiResponse.Failure(error.Message));
-    }
+    private IActionResult MapFailure(Error error) => Problem(error);
 }

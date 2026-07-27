@@ -160,6 +160,8 @@ public sealed class GetTeamAssessmentQueueQueryHandler(PerformanceDbContext db, 
             from m in db.EvaluationAssignments.AsNoTracking()
             where m.RoundId == q.RoundId && m.AssigneeEmployeeId == employeeId.Value
                 && m.Kind == EvaluationAssignmentKind.ManagerAssessment
+                && !db.EvaluationRoundExclusions.Any(e => e.RoundId == m.RoundId
+                    && e.ParticipantEmployeeId == m.ParticipantEmployeeId)
             join s0 in db.EvaluationAssignments.AsNoTracking().Where(a =>
                     a.RoundId == q.RoundId && a.Kind == EvaluationAssignmentKind.SelfAssessment)
                 on m.ParticipantEmployeeId equals s0.ParticipantEmployeeId into selfJoin
@@ -299,6 +301,8 @@ public sealed class GetRoundCompletionQueryHandler(PerformanceDbContext db, IPer
         // Counts only — never unfinalized assessment content.
         var assignments = await db.EvaluationAssignments.AsNoTracking()
             .Where(a => a.RoundId == q.RoundId)
+            .Where(a => !db.EvaluationRoundExclusions.Any(e => e.RoundId == a.RoundId
+                && e.ParticipantEmployeeId == a.ParticipantEmployeeId))
             .Select(a => new { a.Kind, a.Status, a.ParticipantEmployeeId, a.AcknowledgedAt })
             .ToListAsync(ct);
         var now = DateTime.UtcNow;

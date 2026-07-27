@@ -4,6 +4,7 @@ using EY.HRPlatform.Performance.Domain.Entities.Skills;
 using EY.HRPlatform.Performance.Domain.Enums;
 using EY.HRPlatform.Performance.Exceptions;
 using EY.HRPlatform.Performance.Features.ConfigurationAudit;
+using EY.HRPlatform.Performance.Features.ActivityLog;
 using EY.HRPlatform.Performance.Features.Evaluations.Rounds.Dtos;
 using EY.HRPlatform.Performance.Features.Evaluations.Rounds.Services;
 using EY.HRPlatform.Performance.Features.Security;
@@ -134,36 +135,130 @@ public sealed class SetEvaluationRoundDeadlinesCommandHandler(PerformanceDbConte
     }
 }
 
-public sealed class SetEvaluationRoundExclusionCommandHandler(PerformanceDbContext db, IPerformanceAccessPolicyService access)
+public sealed class SetEvaluationRoundExclusionCommandHandler(
+    PerformanceDbContext db,
+    IPerformanceAccessPolicyService access,
+    IActivityLog activity)
     : ICommandHandler<SetEvaluationRoundExclusionCommand, Result<EvaluationRoundDetailDto>>
 {
     public async Task<Result<EvaluationRoundDetailDto>> Handle(SetEvaluationRoundExclusionCommand c, CancellationToken ct)
     {
-        if (!access.CanManageEvaluations(c.Actor)) return EvaluationRoundErrors.Forbidden<EvaluationRoundDetailDto>();
+        if (!access.CanOperateEvaluations(c.Actor)) return EvaluationRoundErrors.Forbidden<EvaluationRoundDetailDto>();
         var round = await EvaluationRoundLoader.LoadAsync(db, c.RoundId, ct);
         if (round is null) return EvaluationRoundErrors.NotFound<EvaluationRoundDetailDto>(c.RoundId);
         var participant = await db.PerformanceCycleParticipants.SingleOrDefaultAsync(x => x.CycleId == round.PerformanceCycleId && x.EmployeeId == c.ParticipantEmployeeId, ct);
         if (participant is null) return Result.Failure<EvaluationRoundDetailDto>(Error.NotFound("PerformanceCycleParticipant", c.ParticipantEmployeeId));
         ConcurrencyGuard.Ensure(round.Version, c.ExpectedVersion, nameof(EvaluationRound), round.Id);
-        try { if (c.Excluded) round.ExcludeParticipant(participant, c.Reason ?? ""); else round.IncludeParticipant(c.ParticipantEmployeeId); await db.SaveChangesAsync(ct); return EvaluationRoundMapper.ToDetail(round); }
+        try
+        {
+            if (c.Excluded)
+            {
+                round.ExcludeParticipant(participant, c.Reason ?? "");
+                db.Entry(round.Exclusions.Single(item => item.ParticipantEmployeeId == c.ParticipantEmployeeId)).State = EntityState.Added;
+                activity.Record(
+                    "EvaluationRoundParticipantExcluded",
+                    "EvaluationRound",
+                    round.Id,
+                    new { participant.EmployeeId, participant.FullName, Reason = c.Reason },
+                    actorUserId: c.Actor.GetUserId(),
+                    actorName: c.Actor.GetFullName());
+            }
+            else
+            {
+                round.IncludeParticipant(c.ParticipantEmployeeId);
+                activity.Record(
+                    "EvaluationRoundParticipantIncluded",
+                    "EvaluationRound",
+                    round.Id,
+                    new { participant.EmployeeId, participant.FullName },
+                    actorUserId: c.Actor.GetUserId(),
+                    actorName: c.Actor.GetFullName());
+            }
+
+            await db.SaveChangesAsync(ct);
+            return EvaluationRoundMapper.ToDetail(round);
+        }
         catch (Exception ex) when (EvaluationRoundErrors.IsCorrectable(ex)) { return EvaluationRoundErrors.Invalid<EvaluationRoundDetailDto>(ex); }
     }
 }
 
-public sealed class CorrectEvaluationRoundReviewerCommandHandler(PerformanceDbContext db, IPerformanceAccessPolicyService access)
+public sealed class CorrectEvaluationRoundReviewerCommandHandler(
+    PerformanceDbContext db,
+    IPerformanceAccessPolicyService access,
+    IActivityLog activity)
     : ICommandHandler<CorrectEvaluationRoundReviewerCommand, Result<EvaluationRoundDetailDto>>
 {
     public async Task<Result<EvaluationRoundDetailDto>> Handle(CorrectEvaluationRoundReviewerCommand c, CancellationToken ct)
     {
-        if (!access.CanManageEvaluations(c.Actor)) return EvaluationRoundErrors.Forbidden<EvaluationRoundDetailDto>();
+        if (!access.CanManageEvaluations(c.Actor) && !access.CanOperateEvaluations(c.Actor))
+            return EvaluationRoundErrors.Forbidden<EvaluationRoundDetailDto>();
         var round = await EvaluationRoundLoader.LoadAsync(db, c.RoundId, ct);
         if (round is null) return EvaluationRoundErrors.NotFound<EvaluationRoundDetailDto>(c.RoundId);
         var participant = await db.PerformanceCycleParticipants.SingleOrDefaultAsync(x => x.CycleId == round.PerformanceCycleId && x.EmployeeId == c.ParticipantEmployeeId, ct);
         if (participant is null) return Result.Failure<EvaluationRoundDetailDto>(Error.NotFound("PerformanceCycleParticipant", c.ParticipantEmployeeId));
-        var latest = await db.PerformanceCycleApproverReassignments.AsNoTracking().Where(x => x.CycleId == round.PerformanceCycleId && x.ParticipantEmployeeId == c.ParticipantEmployeeId).OrderByDescending(x => x.ReassignedAt).FirstOrDefaultAsync(ct);
-        var currentReviewer = latest?.NewApproverEmployeeId ?? participant.ApproverEmployeeId;
+        if (round.Status == EvaluationRoundStatus.Launched && !access.CanOperateEvaluations(c.Actor))
+            return EvaluationRoundErrors.Forbidden<EvaluationRoundDetailDto>();
+        if (round.Status == EvaluationRoundStatus.Launched && await db.EvaluationRoundExclusions.AnyAsync(
+                exclusion => exclusion.RoundId == round.Id && exclusion.ParticipantEmployeeId == c.ParticipantEmployeeId, ct))
+        {
+            return Result.Failure<EvaluationRoundDetailDto>(Error.Conflict(
+                "Evaluations.ParticipantExcluded",
+                "This participant is excluded from the evaluation round and has no outstanding work."));
+        }
         ConcurrencyGuard.Ensure(round.Version, c.ExpectedVersion, nameof(EvaluationRound), round.Id);
-        try { round.CorrectReviewer(participant, currentReviewer, c.ReviewerEmployeeId, c.ReviewerName, c.Reason); await db.SaveChangesAsync(ct); return EvaluationRoundMapper.ToDetail(round); }
+        try
+        {
+            if (round.Status == EvaluationRoundStatus.Draft)
+            {
+                var latest = await db.PerformanceCycleApproverReassignments.AsNoTracking()
+                    .Where(x => x.CycleId == round.PerformanceCycleId && x.ParticipantEmployeeId == c.ParticipantEmployeeId)
+                    .OrderByDescending(x => x.ReassignedAt).FirstOrDefaultAsync(ct);
+                var currentReviewer = latest?.NewApproverEmployeeId ?? participant.ApproverEmployeeId;
+                round.CorrectReviewer(participant, currentReviewer, c.ReviewerEmployeeId, c.ReviewerName, c.Reason);
+                db.Entry(round.ReviewerCorrections.Single(item => item.ParticipantEmployeeId == c.ParticipantEmployeeId)).State = EntityState.Added;
+                activity.Record(
+                    "EvaluationRoundReviewerCorrected",
+                    "EvaluationRound",
+                    round.Id,
+                    new { participant.EmployeeId, participant.FullName, NewReviewerEmployeeId = c.ReviewerEmployeeId, c.ReviewerName, c.Reason },
+                    actorUserId: c.Actor.GetUserId(),
+                    actorName: c.Actor.GetFullName());
+            }
+            else
+            {
+                var assignment = await db.EvaluationAssignments.SingleOrDefaultAsync(
+                    x => x.RoundId == round.Id && x.ParticipantEmployeeId == c.ParticipantEmployeeId
+                        && x.Kind == EvaluationAssignmentKind.ManagerAssessment,
+                    ct);
+                if (assignment is null)
+                    return EvaluationRoundErrors.NotFound<EvaluationRoundDetailDto>(c.ParticipantEmployeeId);
+
+                var previousReviewerEmployeeId = assignment.AssigneeEmployeeId;
+                var previousReviewerName = assignment.AssigneeName;
+                round.ReassignReviewer(participant, c.ReviewerEmployeeId, c.ReviewerName, c.Reason);
+                db.Entry(round.ReviewerCorrections.Single(item => item.ParticipantEmployeeId == c.ParticipantEmployeeId)).State = EntityState.Added;
+                assignment.ReassignReviewer(c.ReviewerEmployeeId, c.ReviewerName, DateTime.UtcNow);
+                activity.Record(
+                    "EvaluationRoundReviewerReassigned",
+                    "EvaluationRound",
+                    round.Id,
+                    new
+                    {
+                        participant.EmployeeId,
+                        participant.FullName,
+                        PreviousReviewerEmployeeId = previousReviewerEmployeeId,
+                        PreviousReviewerName = previousReviewerName,
+                        NewReviewerEmployeeId = c.ReviewerEmployeeId,
+                        c.ReviewerName,
+                        c.Reason
+                    },
+                    actorUserId: c.Actor.GetUserId(),
+                    actorName: c.Actor.GetFullName());
+            }
+
+            await db.SaveChangesAsync(ct);
+            return EvaluationRoundMapper.ToDetail(round);
+        }
         catch (Exception ex) when (EvaluationRoundErrors.IsCorrectable(ex)) { return EvaluationRoundErrors.Invalid<EvaluationRoundDetailDto>(ex); }
     }
 }

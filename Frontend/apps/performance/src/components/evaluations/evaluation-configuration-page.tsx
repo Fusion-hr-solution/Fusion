@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Archive, Copy, Eye, GripVertical, Pencil, Plus, Save, ShieldCheck, X } from "lucide-react";
+import { AlertTriangle, Archive, Copy, Eye, GripVertical, Pencil, Plus, Save, ShieldCheck, X } from "lucide-react";
 import { createPlatformApiClient, performancePaths, performanceQueryKeys } from "@repo/api";
 import type {
   EvaluationRatingScaleDto, EvaluationRatingScaleWriteRequest,
-  EvaluationTemplateDto, EvaluationTemplateSectionInput, EvaluationTemplateWriteRequest,
+  EvaluationTemplateDto, EvaluationTemplatePreviewDto, EvaluationTemplateSectionInput, EvaluationTemplateWriteRequest,
   EvaluationTargetRater,
 } from "@repo/api";
 import { useApiMutation, useApiQuery } from "@repo/api/query";
@@ -14,6 +14,7 @@ import { PageContainer, PageEmpty, PageError, PageHeader, PageLoading, PagePermi
 import { Alert, AlertDescription, AlertTitle, Badge, Button, Card, CardContent, Field, FieldDescription, FieldGroup, FieldLabel, Input, NativeSelect, Separator, Textarea } from "@repo/ds";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { templatePreviewTerms } from "./template-preview-terms";
 
 type Segment = "scales" | "templates";
 type Api = ReturnType<typeof createPlatformApiClient>;
@@ -391,7 +392,13 @@ function TemplateLibrary({ items, refetch, api }: { items: EvaluationTemplateDto
               <option value="Manager">Manager</option>
             </NativeSelect>
           </div>
-          <TemplatePreview form={form} rater={preview} />
+          <TemplatePreviewSurface
+            api={api}
+            templateId={selected?.id ?? null}
+            saved={selected}
+            form={form}
+            rater={preview}
+          />
         </div>
       ) : mode === "edit" && !frozen ? (
         <TemplateEditor
@@ -506,6 +513,111 @@ function TemplateSectionEditor({ section, onChange }: { section: EvaluationTempl
       ))}
     </Field>
   );
+}
+
+/**
+ * What the participant will actually see.
+ *
+ * Renders the server's preview for a saved template — the same projection the assessment surface
+ * builds, so what HR checks here is what the employee gets, including for an unpublished draft.
+ *
+ * The saved-versus-unsaved question is answered plainly rather than papered over: the server can
+ * only preview what has been saved, so when the author has pending edits this says so instead of
+ * showing a preview that quietly disagrees with the form above it.
+ */
+function TemplatePreviewSurface({
+  api,
+  templateId,
+  saved,
+  form,
+  rater,
+}: {
+  api: Api;
+  templateId: string | null;
+  saved: EvaluationTemplateDto | null | undefined;
+  form: EvaluationTemplateWriteRequest;
+  rater: EvaluationTargetRater;
+}) {
+  const previewQuery = useApiQuery<EvaluationTemplatePreviewDto>(
+    performanceQueryKeys.evaluationTemplatePreview(templateId ?? "none", rater),
+    (signal) =>
+      api.get(performancePaths.evaluationTemplatePreview(templateId!, rater), { signal }),
+    { enabled: !!templateId },
+  );
+
+  const dirty =
+    !!saved && JSON.stringify(serializeTemplate(saved)) !== JSON.stringify(form);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {!templateId ? (
+        <p className="text-sm text-muted-foreground">
+          {templatePreviewTerms.unsavedOnly}
+        </p>
+      ) : dirty ? (
+        <Alert>
+          <AlertTriangle />
+          <AlertTitle>{templatePreviewTerms.showingSavedTitle}</AlertTitle>
+          <AlertDescription>{templatePreviewTerms.showingSaved}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {previewQuery.error ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+          <p className="text-sm text-muted-foreground">{templatePreviewTerms.failed}</p>
+          <Button size="sm" variant="outline" onClick={() => previewQuery.refetch()}>
+            {templatePreviewTerms.retry}
+          </Button>
+        </div>
+      ) : null}
+
+      {/* Falls back to the local projection of the edited form when there is nothing saved yet,
+          so a brand-new template can still be previewed while it is being written. */}
+      <TemplatePreview form={previewQuery.data ? toPreviewForm(previewQuery.data, rater) : form} rater={rater} />
+    </div>
+  );
+}
+
+/** The saved template as the write shape, for comparing against the author's current form. */
+function serializeTemplate(template: EvaluationTemplateDto): EvaluationTemplateWriteRequest {
+  return {
+    name: template.name,
+    purpose: template.purpose,
+    participantInstructions: template.participantInstructions,
+    sections: template.sections,
+  };
+}
+
+/**
+ * The server preview projected into the shape the preview renderer already speaks.
+ *
+ * The server has already filtered to the requested rater, so its questions carry no rater of their
+ * own; re-stamping them with the rater they were built for keeps the projection truthful rather
+ * than inventing a value.
+ */
+function toPreviewForm(
+  preview: EvaluationTemplatePreviewDto,
+  rater: EvaluationTargetRater,
+): EvaluationTemplateWriteRequest {
+  return {
+    name: preview.name,
+    purpose: preview.purpose ?? null,
+    participantInstructions: preview.participantInstructions ?? null,
+    sections: preview.sections.map((section) => ({
+      id: section.sectionId,
+      type: section.type,
+      title: section.title,
+      guidance: section.guidance,
+      questions: section.questions.map((question) => ({
+        id: question.questionId,
+        prompt: question.prompt,
+        type: question.type,
+        isRequired: question.isRequired,
+        allowNotApplicable: question.allowNotApplicable,
+        targetRater: rater,
+      })),
+    })),
+  };
 }
 
 function TemplatePreview({ form, rater }: { form: EvaluationTemplateWriteRequest; rater: EvaluationTargetRater }) {

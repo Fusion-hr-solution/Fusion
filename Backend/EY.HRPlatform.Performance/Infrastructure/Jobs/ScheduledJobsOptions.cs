@@ -21,4 +21,10 @@ public sealed class ScheduledJobsOptions
 
     /// <summary>Hours a pending (uncommitted) attachment may live before cleanup reaps it.</summary>
     public int AttachmentAbandonmentHours { get; set; } = 24;
+
+    /// <summary>
+    /// How often to look for campaigns that should have closed automatically but did not. A backstop
+    /// behind the inline close path, so it runs infrequently by design.
+    /// </summary>
+    public int CampaignClosureReconciliationIntervalMinutes { get; set; } = 180;
 }

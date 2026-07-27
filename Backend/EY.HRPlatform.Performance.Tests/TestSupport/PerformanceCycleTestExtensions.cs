@@ -74,4 +74,17 @@ internal static class PerformanceCycleTestExtensions
         => typeof(PerformanceCycle)
             .GetProperty(nameof(PerformanceCycle.Status), BindingFlags.Public | BindingFlags.Instance)!
             .SetValue(cycle, status);
+
+    /// <summary>
+    /// Forces an assignment's status, so a closure test can arrange "every manager assessment is
+    /// finalized" without driving each assessment through its full authoring flow.
+    /// </summary>
+    internal static void ForceStatus(
+        this Performance.Domain.Entities.EvaluationAssignment assignment,
+        EvaluationAssignmentStatus status)
+        => typeof(Performance.Domain.Entities.EvaluationAssignment)
+            .GetProperty(
+                nameof(Performance.Domain.Entities.EvaluationAssignment.Status),
+                BindingFlags.Public | BindingFlags.Instance)!
+            .SetValue(assignment, status);
 }
