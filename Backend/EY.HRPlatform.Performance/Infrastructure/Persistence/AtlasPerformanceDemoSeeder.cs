@@ -47,6 +47,8 @@ public static class AtlasPerformanceDemoSeeder
         if (tenantId == Guid.Empty)
             throw new ArgumentException("The Atlas tenant id is required.", nameof(tenantId));
 
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
         var existingCycle = await db.PerformanceCycles
             .IgnoreQueryFilters()
             .Include(cycle => cycle.Participants)
@@ -57,6 +59,7 @@ public static class AtlasPerformanceDemoSeeder
         {
             await EnsureAssessmentExecutionAsync(db, tenantId, asOfUtc, cancellationToken);
             await WriteReceiptAsync(db, tenantId, cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
             return;
         }
 
@@ -166,6 +169,7 @@ public static class AtlasPerformanceDemoSeeder
 
         await EnsureAssessmentExecutionAsync(db, tenantId, asOfUtc, cancellationToken);
         await WriteReceiptAsync(db, tenantId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     private static async Task WriteReceiptAsync(PerformanceDbContext db, Guid tenantId, CancellationToken cancellationToken)
