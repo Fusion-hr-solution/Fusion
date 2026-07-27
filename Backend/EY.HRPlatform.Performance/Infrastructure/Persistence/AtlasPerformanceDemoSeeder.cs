@@ -160,9 +160,18 @@ public static class AtlasPerformanceDemoSeeder
 
         SeedCheckInScenario(db, cycle, plan, objectives[1], lockDate);
 
-        db.PerformanceCycles.Add(cycle);
-        db.EmployeeObjectivePlans.AddRange(plans);
-        await db.SaveChangesAsync(cancellationToken);
+        var autoDetectChanges = db.ChangeTracker.AutoDetectChangesEnabled;
+        db.ChangeTracker.AutoDetectChangesEnabled = false;
+        try
+        {
+            db.PerformanceCycles.Add(cycle);
+            db.EmployeeObjectivePlans.AddRange(plans);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        finally
+        {
+            db.ChangeTracker.AutoDetectChangesEnabled = autoDetectChanges;
+        }
 
         // Preserve the focused one-person fixture used by the non-canonical
         // isolation tests while keeping the canonical tenant on the faster,

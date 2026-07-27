@@ -1,7 +1,9 @@
+using EY.HRPlatform.SharedKernel.Multitenancy;
+
 namespace EY.HRPlatform.DemoSeed;
 
 /// <summary>Service-local proof that the canonical manifest was applied successfully.</summary>
-public sealed class CanonicalSeedReceipt
+public sealed class CanonicalSeedReceipt : ITenantEntity
 {
     private CanonicalSeedReceipt() { }
     public Guid Id { get; private set; }

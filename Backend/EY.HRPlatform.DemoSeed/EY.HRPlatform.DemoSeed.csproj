@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\EY.HRPlatform.SharedKernel\EY.HRPlatform.SharedKernel.csproj" />
     <EmbeddedResource Include="CanonicalDemoTenantManifest.json" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.3" />

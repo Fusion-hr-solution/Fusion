@@ -98,8 +98,11 @@ if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<PerformanceDbContext>();
+    app.Logger.LogInformation("Performance database migration starting.");
     await dbContext.Database.MigrateAsync();
+    app.Logger.LogInformation("Performance database migration completed.");
     await PlatformDefaultsSeeder.SeedAsync(dbContext);
+    app.Logger.LogInformation("Performance platform defaults completed.");
 
     var legacyDemoSeedEnabled = builder.Configuration.GetValue<bool>("DemoSeed:AtlasPerformance:Enabled");
     var canonicalSeedEnabled = builder.Configuration.GetValue<bool>("DemoSeed:Canonical:Enabled");
@@ -123,7 +126,9 @@ if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
                 throw new InvalidOperationException("Canonical tenant reset is Development-only.");
             await AtlasPerformanceDemoSeeder.ResetAsync(dbContext, canonicalTenantId);
         }
+        app.Logger.LogInformation("Canonical Performance seed starting for {TenantId}.", canonicalTenantId);
         await AtlasPerformanceDemoSeeder.SeedAsync(dbContext, canonicalTenantId, CanonicalDemoSeed.AsOfUtc);
+        app.Logger.LogInformation("Canonical Performance seed completed for {TenantId}.", canonicalTenantId);
     }
 }
 

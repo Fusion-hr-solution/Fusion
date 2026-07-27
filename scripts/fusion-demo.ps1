@@ -153,17 +153,17 @@ function Verify-Personas {
     if ($totalCount -ne 320) { throw "Canonical workforce count mismatch ($totalCount; expected 320)." }
     Write-Host "verified CoreHR workforce count: $totalCount" -ForegroundColor Green
 
-    $campaign = Invoke-RestMethod -Uri "$gatewayUrl/api/performance/team-progress/campaigns/$performanceCampaignSlug" -Headers $headers
-    if ($null -eq $campaign.data) { throw "Canonical Performance campaign verification returned no data." }
-    Write-Host "verified Performance campaign: $performanceCampaignSlug" -ForegroundColor Green
-
-    $notifications = Invoke-RestMethod -Uri "$gatewayUrl/api/performance/notifications" -Headers $headers
-    if ($null -eq $notifications.data) { throw "Canonical Performance notification verification returned no data." }
-    Write-Host "verified Performance notifications" -ForegroundColor Green
-
     $managerBody = @{ email = "flit.manager@atlas.example"; password = "Demo@123456" } | ConvertTo-Json
     $managerLogin = Invoke-RestMethod -Uri "$gatewayUrl/api/identity/auth/login" -Method Post -ContentType "application/json" -Body $managerBody
     $managerHeaders = @{ Authorization = "Bearer $($managerLogin.data.accessToken)" }
+    $campaign = Invoke-RestMethod -Uri "$gatewayUrl/api/performance/team-progress/campaigns/$performanceCampaignSlug" -Headers $managerHeaders
+    if ($null -eq $campaign.data) { throw "Canonical Performance campaign verification returned no data." }
+    Write-Host "verified Performance campaign: $performanceCampaignSlug" -ForegroundColor Green
+
+    $notifications = Invoke-RestMethod -Uri "$gatewayUrl/api/performance/notifications" -Headers $managerHeaders
+    if ($null -eq $notifications.data) { throw "Canonical Performance notification verification returned no data." }
+    Write-Host "verified Performance notifications" -ForegroundColor Green
+
     $access = Invoke-RestMethod -Uri "$gatewayUrl/api/identity/core-access/me" -Headers $managerHeaders
     if ($null -eq $access.data) { throw "Manager access profile/permission verification returned no data." }
     $workforceContext = Invoke-RestMethod -Uri "$gatewayUrl/api/corehr/workforce/me" -Headers $managerHeaders
