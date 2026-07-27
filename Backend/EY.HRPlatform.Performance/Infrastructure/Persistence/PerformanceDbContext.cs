@@ -6,6 +6,8 @@ using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Persistence;
 using Microsoft.EntityFrameworkCore;
 
+using EY.HRPlatform.DemoSeed;
+
 namespace EY.HRPlatform.Performance.Infrastructure.Persistence;
 
 public class PerformanceDbContext : DbContext
@@ -52,6 +54,7 @@ public class PerformanceDbContext : DbContext
     public DbSet<ObjectiveDiscussionSignal> ObjectiveDiscussionSignals => Set<ObjectiveDiscussionSignal>();
     public DbSet<ScheduledJobRun> ScheduledJobRuns => Set<ScheduledJobRun>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<CanonicalSeedReceipt> CanonicalSeedReceipts => Set<CanonicalSeedReceipt>();
 
     // Evaluation configuration, rounds, immutable launch snapshots, and assignments
     public DbSet<EvaluationRatingScale> EvaluationRatingScales => Set<EvaluationRatingScale>();
@@ -189,6 +192,14 @@ public class PerformanceDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+        modelBuilder.Entity<CanonicalSeedReceipt>(entity =>
+        {
+            entity.ToTable("CanonicalSeedReceipts");
+            entity.HasKey(receipt => receipt.Id);
+            entity.HasIndex(receipt => new { receipt.TenantId, receipt.ManifestVersion }).IsUnique();
+            entity.Property(receipt => receipt.ManifestVersion).HasMaxLength(200).IsRequired();
+            entity.Property(receipt => receipt.ManifestHash).HasMaxLength(128).IsRequired();
+        });
 
         modelBuilder.HasDefaultSchema("performance");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PerformanceDbContext).Assembly);

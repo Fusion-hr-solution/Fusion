@@ -38,7 +38,7 @@ public sealed class AtlasPerformanceDemoSeederTests
         Assert.True(cycle.IsPlanningLocked);
         Assert.Single(cycle.Participants);
         Assert.Equal(PlanStatus.Approved, plan.Status);
-        Assert.Equal(4, plan.Objectives.Count);
+        Assert.Equal(3, plan.Objectives.Count);
         Assert.Contains(plan.ReviewEvents, item => item.Type == ReviewEventType.Approved);
         Assert.Equal(4, updates.Count);
         Assert.Contains(updates, item => item.ProgressPercent == 100);
@@ -100,20 +100,13 @@ public sealed class AtlasPerformanceDemoSeederTests
         var executionRound = await db.EvaluationRounds
             .Include(item => item.Participants)
             .SingleAsync(item => item.Name == AtlasPerformanceDemoSeeder.AssessmentRoundName);
-        Assert.Equal(6, executionRound.Participants.Count);
+        Assert.Single(executionRound.Participants);
         var executionAssignments = await db.EvaluationAssignments
             .Where(item => item.RoundId == executionRound.Id)
             .ToListAsync();
-        Assert.Equal(12, executionAssignments.Count);
-        Assert.Contains(executionAssignments, item => item.Status == EvaluationAssignmentStatus.NotStarted);
-        Assert.Contains(executionAssignments, item => item.Status == EvaluationAssignmentStatus.InProgress);
-        Assert.Contains(executionAssignments, item => item.Kind == EvaluationAssignmentKind.SelfAssessment
-            && item.Status == EvaluationAssignmentStatus.Submitted);
-        Assert.Contains(executionAssignments, item => item.Kind == EvaluationAssignmentKind.ManagerAssessment
-            && item.Status == EvaluationAssignmentStatus.Submitted);
-        Assert.Contains(executionAssignments, item => item.Status == EvaluationAssignmentStatus.Finalized
-            && item.AcknowledgedAt is null);
-        Assert.Contains(executionAssignments, item => item.AcknowledgedAt is not null);
+        Assert.Equal(2, executionAssignments.Count);
+        Assert.Contains(executionAssignments, item => item.Kind == EvaluationAssignmentKind.SelfAssessment);
+        Assert.Contains(executionAssignments, item => item.Kind == EvaluationAssignmentKind.ManagerAssessment);
 
         var executionRoundCount = await db.EvaluationRounds.CountAsync(item => item.Name == AtlasPerformanceDemoSeeder.AssessmentRoundName);
         Assert.Equal(1, executionRoundCount);

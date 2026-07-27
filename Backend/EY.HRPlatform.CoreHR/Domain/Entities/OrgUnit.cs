@@ -92,6 +92,20 @@ public class OrgUnit : AggregateRoot, ITenantEntity
         };
     }
 
+    public static OrgUnit CreateSeeded(
+        Guid id,
+        Guid tenantId,
+        string code,
+        string name,
+        string type,
+        Guid? parentId,
+        Guid? responsibleManagerEmployeeId = null)
+    {
+        var orgUnit = Create(tenantId, code, name, type, parentId, responsibleManagerEmployeeId);
+        orgUnit.Id = id;
+        return orgUnit;
+    }
+
     public void Update(string name, string type, Guid? parentId, Guid? responsibleManagerEmployeeId = null)
     {
         if (string.IsNullOrWhiteSpace(name))

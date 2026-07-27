@@ -1,184 +1,227 @@
+using System.Text.Json;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
+using EY.HRPlatform.DemoSeed;
 using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 
 /// <summary>
-/// Seeds initial data for CoreHR module (development/demo environments).
+/// Seeds the single canonical Development tenant. CoreHR owns the workforce truth used by
+/// Identity and Performance; no downstream service creates employee records.
 /// </summary>
 public static class CoreHRSeeder
 {
-    /// <summary>Deterministic actor id used when seeder calls domain methods that require a user id.</summary>
     private static readonly Guid SeederActorId = Guid.Parse("00000000-0000-0000-0000-000000000099");
-    private const string SeederDisplayName = "System Seeder";
+    private const string SeederDisplayName = "Canonical Demo Seeder";
+    private const string SourceReference = "canonical-fusion-tenant-v1";
 
-    public static async Task SeedAsync(CoreHRDbContext dbContext, Guid tenantId)
+    public static async Task ResetAsync(CoreHRDbContext dbContext, Guid tenantId, CancellationToken cancellationToken = default)
     {
-        await SeedSetupState(dbContext, tenantId);
-        await SeedOrgUnits(dbContext, tenantId);
-        await SeedEmployees(dbContext, tenantId);
+        if (tenantId != CanonicalDemoSeed.TenantId)
+            throw new InvalidOperationException("Canonical CoreHR reset is restricted to the configured demo tenant.");
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await CanonicalTenantResetter.ResetAsync(dbContext, tenantId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
-    private static async Task SeedSetupState(CoreHRDbContext dbContext, Guid tenantId)
+    public static async Task SeedAsync(CoreHRDbContext dbContext, Guid tenantId, CancellationToken cancellationToken = default)
     {
-        // Idempotent: skip if a setup state already exists for this tenant
-        if (await dbContext.TenantSetupStates.IgnoreQueryFilters().AnyAsync(s => s.TenantId == tenantId))
+        if (tenantId != CanonicalDemoSeed.TenantId)
+            throw new InvalidOperationException("Canonical CoreHR seeding is restricted to the configured demo tenant.");
+
+        CanonicalManifestValidator.EnsureValid(CanonicalDemoSeed.BuildOrgUnits(), CanonicalDemoSeed.BuildEmployees(), tenantId);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+        var existingEmployeeCount = await dbContext.Employees.IgnoreQueryFilters()
+            .CountAsync(employee => employee.TenantId == tenantId);
+        if (existingEmployeeCount > 0)
+        {
+            if (existingEmployeeCount != 320)
+                throw new InvalidOperationException(
+                    $"Canonical CoreHR data is partial: expected 320 employees, found {existingEmployeeCount}. Run the canonical fresh reset.");
+
+            var expectedIds = CanonicalDemoSeed.BuildEmployees().Select(employee => employee.Id).ToHashSet();
+            var actualIds = await dbContext.Employees.IgnoreQueryFilters()
+                .Where(employee => employee.TenantId == tenantId)
+                .Select(employee => employee.Id)
+                .ToListAsync();
+            if (!expectedIds.SetEquals(actualIds))
+                throw new InvalidOperationException("Canonical CoreHR employee IDs drifted from the manifest. Run the canonical fresh reset.");
+
+            await WriteReceiptAsync(dbContext, tenantId);
+            await transaction.CommitAsync(cancellationToken);
+            return;
+        }
+
+        await SeedSetupStateAsync(dbContext, tenantId);
+        await SeedTenantSettingsAsync(dbContext, tenantId);
+        var orgUnits = await SeedOrgUnitsAsync(dbContext, tenantId);
+        await SeedEmployeesAsync(dbContext, tenantId, orgUnits);
+        await WriteReceiptAsync(dbContext, tenantId);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static async Task SeedSetupStateAsync(CoreHRDbContext dbContext, Guid tenantId)
+    {
+        if (await dbContext.TenantSetupStates.IgnoreQueryFilters().AnyAsync(state => state.TenantId == tenantId))
             return;
 
-        // Advance through the state machine to StructurallyPublished so the
-        // frontend setup gate passes and employees/org units are accessible.
         var setupState = TenantSetupState.CreateActivated(tenantId);
-        setupState.Approve(
-            SeederActorId,
-            SeederDisplayName,
-            PlatformRole.PlatformAdmin,
-            isPlatformAssisted: true);
+        setupState.Approve(SeederActorId, SeederDisplayName, PlatformRole.PlatformAdmin, isPlatformAssisted: true);
         setupState.Publish();
-
         dbContext.TenantSetupStates.Add(setupState);
         await dbContext.SaveChangesAsync();
     }
 
-    private static async Task SeedOrgUnits(CoreHRDbContext dbContext, Guid tenantId)
+    private static async Task SeedTenantSettingsAsync(CoreHRDbContext dbContext, Guid tenantId)
     {
-        // Skip if OrgUnits already exist for this tenant
-        if (await dbContext.OrgUnits.IgnoreQueryFilters().AnyAsync(o => o.TenantId == tenantId))
+        if (await dbContext.TenantSettings.IgnoreQueryFilters().AnyAsync(settings => settings.TenantId == tenantId))
             return;
 
-        // Create root departments
-        var engineering = OrgUnit.Create(tenantId, "ENG", "Engineering", "Department", null);
-        var hr = OrgUnit.Create(tenantId, "HR", "Human Resources", "Department", null);
-        var sales = OrgUnit.Create(tenantId, "SALES", "Sales", "Department", null);
-
-        dbContext.OrgUnits.AddRange(engineering, hr, sales);
-        await dbContext.SaveChangesAsync();
-
-        // Create teams under departments
-        var platformTeam = OrgUnit.Create(tenantId, "ENG-PLATFORM", "Platform Team", "Team", engineering.Id);
-        var frontendTeam = OrgUnit.Create(tenantId, "ENG-FRONTEND", "Frontend Team", "Team", engineering.Id);
-        var backendTeam = OrgUnit.Create(tenantId, "ENG-BACKEND", "Backend Team", "Team", engineering.Id);
-        var recruiting = OrgUnit.Create(tenantId, "HR-RECRUIT", "Recruiting", "Team", hr.Id);
-        var peopleOps = OrgUnit.Create(tenantId, "HR-OPS", "People Ops", "Team", hr.Id);
-        var enterpriseSales = OrgUnit.Create(tenantId, "SALES-ENT", "Enterprise Sales", "Team", sales.Id);
-
-        dbContext.OrgUnits.AddRange(platformTeam, frontendTeam, backendTeam, recruiting, peopleOps, enterpriseSales);
+        dbContext.TenantSettings.Add(TenantSettings.Create(tenantId, JsonSerializer.Serialize(new
+        {
+            locale = "en-TN",
+            timeZone = "Africa/Tunis",
+            currency = "TND",
+            orgUnitTypes = new[] { "Department", "Team" }
+        })));
         await dbContext.SaveChangesAsync();
     }
 
-    private static async Task SeedEmployees(CoreHRDbContext db, Guid tenantId)
+    private static async Task<Dictionary<string, OrgUnit>> SeedOrgUnitsAsync(
+        CoreHRDbContext dbContext,
+        Guid tenantId)
     {
-        // Idempotent: skip if employees already exist for this tenant
-        if (await db.Employees.IgnoreQueryFilters().AnyAsync(e => e.TenantId == tenantId))
-            return;
-        var orgUnits = await db.OrgUnits.IgnoreQueryFilters()
-            .Where(o => o.TenantId == tenantId && new[]
-            {
-                "ENG", "HR", "ENG-PLATFORM", "ENG-FRONTEND", "ENG-BACKEND", "HR-OPS"
-            }.Contains(o.Code))
-            .ToDictionaryAsync(o => o.Code);
-
-        var seedEmployees = new[]
+        var existing = await dbContext.OrgUnits.IgnoreQueryFilters()
+            .Where(unit => unit.TenantId == tenantId)
+            .ToListAsync();
+        if (existing.Count > 0)
         {
-            new SeedEmployee("Robert", "Taylor", "robert.taylor@ey-hr.com", "Engineering", "VP of Engineering", "ENG", null, new DateTime(2018, 3, 1, 0, 0, 0, DateTimeKind.Utc), true),
-            new SeedEmployee("Maria", "Garcia", "maria.garcia@ey-hr.com", "Human Resources", "HR Director", "HR", null, new DateTime(2021, 3, 10, 0, 0, 0, DateTimeKind.Utc), true),
-            new SeedEmployee("Lisa", "Brown", "lisa.brown@ey-hr.com", "Finance", "Finance Director", null, null, new DateTime(2020, 11, 1, 0, 0, 0, DateTimeKind.Utc), true),
-            new SeedEmployee("Michael", "Lee", "michael.lee@ey-hr.com", "Marketing", "Marketing Director", null, null, new DateTime(2019, 7, 15, 0, 0, 0, DateTimeKind.Utc), true),
-            new SeedEmployee("James", "Wilson", "james.wilson@ey-hr.com", "Engineering", "Tech Lead", "ENG-PLATFORM", "robert.taylor@ey-hr.com", new DateTime(2022, 6, 1, 0, 0, 0, DateTimeKind.Utc), true),
-            new SeedEmployee("Sarah", "Chen", "sarah.chen@ey-hr.com", "Engineering", "Senior Software Engineer", "ENG-BACKEND", "james.wilson@ey-hr.com", new DateTime(2023, 1, 15, 0, 0, 0, DateTimeKind.Utc), true),
-            new SeedEmployee("Alex", "Kumar", "alex.kumar@ey-hr.com", "Engineering", "Junior Software Engineer", "ENG-FRONTEND", "james.wilson@ey-hr.com", new DateTime(2024, 2, 1, 0, 0, 0, DateTimeKind.Utc), true),
-            new SeedEmployee("Emma", "Rodriguez", "emma.rodriguez@ey-hr.com", "Human Resources", "HR Specialist", "HR-OPS", "maria.garcia@ey-hr.com", new DateTime(2023, 5, 20, 0, 0, 0, DateTimeKind.Utc), true),
-            new SeedEmployee("David", "Kim", "david.kim@ey-hr.com", "Finance", "Financial Analyst", null, "lisa.brown@ey-hr.com", new DateTime(2023, 8, 20, 0, 0, 0, DateTimeKind.Utc), true),
-            new SeedEmployee("Emily", "Johnson", "emily.johnson@ey-hr.com", "Marketing", "Marketing Specialist", null, "michael.lee@ey-hr.com", new DateTime(2022, 2, 14, 0, 0, 0, DateTimeKind.Utc), true),
-            new SeedEmployee("John", "Smith", "john.smith@ey-hr.com", "Engineering", "Software Engineer", "ENG-BACKEND", "james.wilson@ey-hr.com", new DateTime(2020, 1, 10, 0, 0, 0, DateTimeKind.Utc), false),
-        };
+            if (existing.Count != 40)
+                throw new InvalidOperationException($"Canonical CoreHR organization is partial: expected 40 units, found {existing.Count}.");
+            return existing.ToDictionary(unit => unit.Code, StringComparer.OrdinalIgnoreCase);
+        }
 
-        var employees = seedEmployees
-            .Select(seed => Employee.Create(tenantId, seed.FirstName, seed.LastName, seed.Email, seed.Department))
+        var specs = CanonicalDemoSeed.BuildOrgUnits();
+        var byCode = new Dictionary<string, OrgUnit>(StringComparer.OrdinalIgnoreCase);
+        foreach (var spec in specs.Where(spec => spec.ParentCode is null))
+        {
+            var unit = OrgUnit.CreateSeeded(spec.Id, tenantId, spec.Code, spec.Name, spec.Type, null);
+            byCode[spec.Code] = unit;
+            dbContext.OrgUnits.Add(unit);
+        }
+        await dbContext.SaveChangesAsync();
+
+        foreach (var spec in specs.Where(spec => spec.ParentCode is not null))
+        {
+            var unit = OrgUnit.CreateSeeded(
+                spec.Id,
+                tenantId,
+                spec.Code,
+                spec.Name,
+                spec.Type,
+                byCode[spec.ParentCode!].Id);
+            byCode[spec.Code] = unit;
+            dbContext.OrgUnits.Add(unit);
+        }
+        await dbContext.SaveChangesAsync();
+        return byCode;
+    }
+
+    private static async Task SeedEmployeesAsync(
+        CoreHRDbContext dbContext,
+        Guid tenantId,
+        IReadOnlyDictionary<string, OrgUnit> orgUnits)
+    {
+        var specs = CanonicalDemoSeed.BuildEmployees();
+        var employees = specs.Select(spec => Employee.CreateSeeded(
+            spec.Id,
+            tenantId,
+            spec.FirstName,
+            spec.LastName,
+            spec.Email,
+            spec.Department,
+            spec.EmployeeNumber,
+            phone: $"+216 70 {spec.EmployeeNumber[^4..]}"))
             .ToList();
+        dbContext.Employees.AddRange(employees);
+        await dbContext.SaveChangesAsync();
 
-        await db.Employees.AddRangeAsync(employees);
-        await db.SaveChangesAsync();
+        var employmentsByEmployeeId = new Dictionary<Guid, Employment>();
+        var assignmentsByEmployeeId = new Dictionary<Guid, WorkAssignment>();
+        var employments = new List<Employment>(specs.Count);
+        var assignments = new List<WorkAssignment>(specs.Count);
 
-        var employeesByEmail = employees.ToDictionary(employee => employee.Email, StringComparer.OrdinalIgnoreCase);
-
-        var employments = new List<Employment>();
-        var assignmentsByEmail = new Dictionary<string, WorkAssignment>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var seed in seedEmployees)
+        foreach (var spec in specs)
         {
-            var employee = employeesByEmail[seed.Email];
             var employment = Employment.Start(
                 tenantId,
-                employee.Id,
-                seed.HireDate,
-                "FullTime",
+                spec.Id,
+                spec.HireDate,
+                spec.EmploymentType,
                 WorkforceSourceType.Manual,
-                sourceReference: "CoreHRSeeder");
+                SourceReference);
+            if (!spec.IsActive)
+                employment.End(spec.EndDate!.Value);
 
-            if (!seed.IsActive)
-            {
-                employment.End(new DateTime(2024, 1, 10, 0, 0, 0, DateTimeKind.Utc));
-            }
+            var assignment = WorkAssignment.Create(
+                tenantId,
+                employment.Id,
+                spec.Id,
+                orgUnits[spec.OrgUnitCode].Id,
+                spec.JobTitle,
+                spec.WorkLocation,
+                isPrimary: true,
+                effectiveFrom: spec.HireDate,
+                effectiveTo: employment.EffectiveTo,
+                source: WorkforceSourceType.Manual,
+                sourceReference: SourceReference);
 
             employments.Add(employment);
-
-            if (seed.OrgUnitCode is not null && orgUnits.TryGetValue(seed.OrgUnitCode, out var orgUnit))
-            {
-                assignmentsByEmail[seed.Email] = WorkAssignment.Create(
-                    tenantId,
-                    employment.Id,
-                    employee.Id,
-                    orgUnit.Id,
-                    seed.JobTitle,
-                    null,
-                    isPrimary: true,
-                    effectiveFrom: seed.HireDate,
-                    effectiveTo: employment.EffectiveTo,
-                    source: WorkforceSourceType.Manual,
-                    sourceReference: "CoreHRSeeder");
-            }
+            assignments.Add(assignment);
+            employmentsByEmployeeId[spec.Id] = employment;
+            assignmentsByEmployeeId[spec.Id] = assignment;
         }
 
-        await db.Employments.AddRangeAsync(employments);
-        await db.WorkAssignments.AddRangeAsync(assignmentsByEmail.Values);
+        dbContext.Employments.AddRange(employments);
+        dbContext.WorkAssignments.AddRange(assignments);
+        await dbContext.SaveChangesAsync();
 
-        var relationships = new List<ManagerRelationship>();
-        foreach (var seed in seedEmployees.Where(seed => seed.ManagerEmail is not null))
-        {
-            if (!assignmentsByEmail.TryGetValue(seed.Email, out var subjectAssignment)
-                || !assignmentsByEmail.TryGetValue(seed.ManagerEmail!, out var managerAssignment))
-            {
-                continue;
-            }
-
-            relationships.Add(ManagerRelationship.Create(
+        var relationships = specs
+            .Where(spec => spec.ManagerId is not null && assignmentsByEmployeeId.ContainsKey(spec.ManagerId.Value))
+            .Select(spec => ManagerRelationship.Create(
                 tenantId,
-                subjectAssignment.EmployeeId,
-                managerAssignment.EmployeeId,
-                subjectAssignment.Id,
-                managerAssignment.Id,
+                spec.Id,
+                spec.ManagerId!.Value,
+                assignmentsByEmployeeId[spec.Id].Id,
+                assignmentsByEmployeeId[spec.ManagerId.Value].Id,
                 ReportingRelationshipType.PrimaryManager,
-                seed.HireDate,
+                spec.HireDate,
                 WorkforceSourceType.Manual,
-                effectiveTo: employments.First(current => current.EmployeeId == subjectAssignment.EmployeeId).EffectiveTo,
-                sourceReference: "CoreHRSeeder"));
-        }
+                effectiveTo: employmentsByEmployeeId[spec.Id].EffectiveTo,
+                sourceReference: SourceReference))
+            .ToList();
 
-        await db.ManagerRelationships.AddRangeAsync(relationships);
-
-        await db.SaveChangesAsync();
+        dbContext.ManagerRelationships.AddRange(relationships);
+        await dbContext.SaveChangesAsync();
+        await WriteReceiptAsync(dbContext, tenantId);
     }
 
-    private sealed record SeedEmployee(
-        string FirstName,
-        string LastName,
-        string Email,
-        string? Department,
-        string JobTitle,
-        string? OrgUnitCode,
-        string? ManagerEmail,
-        DateTime HireDate,
-        bool IsActive);
+    private static async Task WriteReceiptAsync(CoreHRDbContext dbContext, Guid tenantId)
+    {
+        var receipt = await dbContext.CanonicalSeedReceipts.IgnoreQueryFilters()
+            .SingleOrDefaultAsync(item => item.TenantId == tenantId);
+        if (receipt is null)
+            dbContext.CanonicalSeedReceipts.Add(CanonicalSeedReceipt.Create(tenantId, CanonicalDemoSeed.AsOfUtc));
+        else
+        {
+            if (receipt.ManifestHash != CanonicalDemoSeed.ManifestHash)
+                throw new InvalidOperationException("Canonical CoreHR seed receipt drifted from the manifest. Run the canonical fresh reset.");
+            receipt.Refresh(CanonicalDemoSeed.AsOfUtc);
+        }
+        await dbContext.SaveChangesAsync();
+    }
 }

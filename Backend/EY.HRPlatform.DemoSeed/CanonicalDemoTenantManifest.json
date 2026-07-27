@@ -1,0 +1,20 @@
+{
+  "manifestVersion": "canonical-fusion-tenant-v1",
+  "displayName": "Atlas Group",
+  "tenantId": "fa918a81-2147-45e0-934a-9eeec9a4ca14",
+  "employeeCount": 320,
+  "activeEmployeeCount": 300,
+  "endedEmployeeCount": 20,
+  "departmentCount": 8,
+  "teamCount": 32,
+  "performance": {
+    "activeCampaignSlug": "fy2026-objective-planning-2026",
+    "evaluationCycleSlug": "atlas-evaluation-execution-demo",
+    "evaluationRoundName": "FY2026 Year-end evaluation",
+    "asOfUtc": "2026-07-01T09:00:00Z"
+  },
+  "credentials": {
+    "platformPassword": "Admin@123456",
+    "tenantPassword": "Demo@123456"
+  }
+}
