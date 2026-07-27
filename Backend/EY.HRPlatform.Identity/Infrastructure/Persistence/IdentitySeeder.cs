@@ -74,11 +74,14 @@ public static class IdentitySeeder
         var accessProfiles = new AccessProfileService(dbContext, userManager);
         if (seedDemoData)
         {
-            await using var transaction = await dbContext.Database.BeginTransactionAsync();
+            await using var transaction = dbContext.Database.IsRelational()
+                ? await dbContext.Database.BeginTransactionAsync()
+                : null;
             await SeedCanonicalTenantAsync(dbContext, userManager);
             await WriteReceiptAsync(dbContext);
             await accessProfiles.EnsureSeedDataAsync();
-            await transaction.CommitAsync();
+            if (transaction is not null)
+                await transaction.CommitAsync();
             return;
         }
 

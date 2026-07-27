@@ -33,7 +33,9 @@ public static class CoreHRSeeder
             throw new InvalidOperationException("Canonical CoreHR seeding is restricted to the configured demo tenant.");
 
         CanonicalManifestValidator.EnsureValid(CanonicalDemoSeed.BuildOrgUnits(), CanonicalDemoSeed.BuildEmployees(), tenantId);
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = dbContext.Database.IsRelational()
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
 
         var existingEmployeeCount = await dbContext.Employees.IgnoreQueryFilters()
             .CountAsync(employee => employee.TenantId == tenantId);
@@ -52,7 +54,8 @@ public static class CoreHRSeeder
                 throw new InvalidOperationException("Canonical CoreHR employee IDs drifted from the manifest. Run the canonical fresh reset.");
 
             await WriteReceiptAsync(dbContext, tenantId);
-            await transaction.CommitAsync(cancellationToken);
+            if (transaction is not null)
+                await transaction.CommitAsync(cancellationToken);
             return;
         }
 
@@ -60,8 +63,10 @@ public static class CoreHRSeeder
         await SeedTenantSettingsAsync(dbContext, tenantId);
         var orgUnits = await SeedOrgUnitsAsync(dbContext, tenantId);
         await SeedEmployeesAsync(dbContext, tenantId, orgUnits);
+        await SeedRepresentativeHistoryAsync(dbContext, tenantId);
         await WriteReceiptAsync(dbContext, tenantId);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
     }
 
     private static async Task SeedSetupStateAsync(CoreHRDbContext dbContext, Guid tenantId)
@@ -222,6 +227,58 @@ public static class CoreHRSeeder
                 throw new InvalidOperationException("Canonical CoreHR seed receipt drifted from the manifest. Run the canonical fresh reset.");
             receipt.Refresh(CanonicalDemoSeed.AsOfUtc);
         }
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task SeedRepresentativeHistoryAsync(CoreHRDbContext dbContext, Guid tenantId)
+    {
+        if (await dbContext.WorkforceAuditEntries.IgnoreQueryFilters().AnyAsync(entry => entry.TenantId == tenantId)
+            || await dbContext.EmployeeImportHistories.IgnoreQueryFilters().AnyAsync(history => history.TenantId == tenantId))
+            return;
+
+        var director = CanonicalDemoSeed.DirectorId;
+        var importSession = EmployeeImportSession.CreatePreviewReady(
+            tenantId,
+            "atlas-canonical-workforce.csv",
+            12840,
+            "[\"employeeNumber\",\"firstName\",\"lastName\",\"email\"]",
+            "[]",
+            "[]",
+            CanonicalDemoSeed.AsOfUtc.AddDays(30),
+            CanonicalDemoSeed.AsOfUtc,
+            EmployeeImportMode.BusinessChange);
+        importSession.SetValidationResult("[]", "[]");
+        importSession.MarkApplying();
+        importSession.MarkApplied(CanonicalDemoSeed.AsOfUtc);
+        dbContext.EmployeeImportSessions.Add(importSession);
+        await dbContext.SaveChangesAsync();
+
+        dbContext.EmployeeImportHistories.Add(EmployeeImportHistory.CreateApplied(
+            tenantId,
+            importSession.Id,
+            "atlas-canonical-workforce.csv",
+            12840,
+            320,
+            320,
+            320,
+            0,
+            320,
+            CanonicalDemoSeed.AsOfUtc,
+            SeederActorId,
+            SeederDisplayName,
+            "PlatformAdmin"));
+
+        var employees = CanonicalDemoSeed.BuildEmployees();
+        dbContext.WorkforceAuditEntries.AddRange(
+            WorkforceAuditEntry.Record(tenantId, "Employee", director, WorkforceAuditAction.EmployeeProfileUpdated,
+                WorkforceSourceType.Manual, SeederDisplayName, CanonicalDemoSeed.AsOfUtc,
+                SourceReference, changeDetails: "Canonical leadership profile established."),
+            WorkforceAuditEntry.Record(tenantId, "EmployeeImportHistory", importSession.Id, WorkforceAuditAction.ImportPublished,
+                WorkforceSourceType.Import, SeederDisplayName, CanonicalDemoSeed.AsOfUtc,
+                SourceReference, importSession.Id, "Canonical workforce import published."),
+            WorkforceAuditEntry.Record(tenantId, "Employment", employees[319].Id, WorkforceAuditAction.EmploymentEnded,
+                WorkforceSourceType.Manual, SeederDisplayName, employees[319].EndDate,
+                SourceReference, changeDetails: "Representative ended employment history."));
         await dbContext.SaveChangesAsync();
     }
 }

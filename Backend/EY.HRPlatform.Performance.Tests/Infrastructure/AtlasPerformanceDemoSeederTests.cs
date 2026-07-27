@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Enums;
+using EY.HRPlatform.DemoSeed;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +9,30 @@ namespace EY.HRPlatform.Performance.Tests.Infrastructure;
 
 public sealed class AtlasPerformanceDemoSeederTests
 {
+    [Fact]
+    public async Task SeedAsync_CanonicalTenant_CreatesHundredsPersonPopulation()
+    {
+        var tenant = new TenantContext();
+        tenant.SetTenant(CanonicalDemoSeed.TenantId);
+        var options = new DbContextOptionsBuilder<PerformanceDbContext>()
+            .UseInMemoryDatabase($"atlas-canonical-seed-{Guid.NewGuid():N}")
+            .Options;
+        await using var db = new PerformanceDbContext(options, tenant);
+
+        await AtlasPerformanceDemoSeeder.SeedAsync(db, CanonicalDemoSeed.TenantId, CanonicalDemoSeed.AsOfUtc);
+        await AtlasPerformanceDemoSeeder.SeedAsync(db, CanonicalDemoSeed.TenantId, CanonicalDemoSeed.AsOfUtc);
+
+        var cycle = await db.PerformanceCycles
+            .Include(item => item.Participants)
+            .SingleAsync(item => item.Slug == AtlasPerformanceDemoSeeder.CycleSlug);
+        Assert.Equal(300, cycle.Participants.Count);
+        Assert.All(CanonicalDemoSeed.LifecycleEmployeeIds, employeeId =>
+            Assert.Contains(cycle.Participants, participant => participant.EmployeeId == employeeId));
+        Assert.Equal(306, await db.EmployeeObjectivePlans.CountAsync());
+        Assert.Equal(906, await db.EmployeeObjectivePlans.SelectMany(item => item.Objectives).CountAsync());
+        Assert.Equal(1, await db.CanonicalSeedReceipts.CountAsync());
+    }
+
     [Fact]
     public async Task SeedAsync_CreatesCompleteMixedStateScenario_AndIsIdempotent()
     {

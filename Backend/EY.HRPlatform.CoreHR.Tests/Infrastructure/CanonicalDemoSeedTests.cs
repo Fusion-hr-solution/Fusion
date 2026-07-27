@@ -1,4 +1,7 @@
 using EY.HRPlatform.DemoSeed;
+using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
+using EY.HRPlatform.SharedKernel.Multitenancy;
+using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.CoreHR.Tests.Infrastructure;
 
@@ -55,5 +58,25 @@ public sealed class CanonicalDemoSeedTests
 
         Assert.Contains(errors, error => error.Contains("tenant", StringComparison.OrdinalIgnoreCase));
         Assert.Contains(errors, error => error.Contains("expected 320", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task CoreHrSeeder_creates_workforce_history_and_is_idempotent()
+    {
+        var tenant = new TenantContext();
+        tenant.SetTenant(CanonicalDemoSeed.TenantId);
+        var options = new DbContextOptionsBuilder<CoreHRDbContext>()
+            .UseInMemoryDatabase($"corehr-canonical-seed-{Guid.NewGuid():N}")
+            .Options;
+        await using var db = new CoreHRDbContext(options, tenant);
+
+        await CoreHRSeeder.SeedAsync(db, CanonicalDemoSeed.TenantId);
+        await CoreHRSeeder.SeedAsync(db, CanonicalDemoSeed.TenantId);
+
+        Assert.Equal(320, await db.Employees.IgnoreQueryFilters().CountAsync(item => item.TenantId == CanonicalDemoSeed.TenantId));
+        Assert.Equal(300, await db.Employments.IgnoreQueryFilters().CountAsync(item => item.TenantId == CanonicalDemoSeed.TenantId && item.EffectiveTo == null));
+        Assert.NotEmpty(await db.WorkforceAuditEntries.IgnoreQueryFilters().Where(item => item.TenantId == CanonicalDemoSeed.TenantId).ToListAsync());
+        Assert.Single(await db.EmployeeImportHistories.IgnoreQueryFilters().Where(item => item.TenantId == CanonicalDemoSeed.TenantId).ToListAsync());
+        Assert.Single(await db.CanonicalSeedReceipts.IgnoreQueryFilters().Where(item => item.TenantId == CanonicalDemoSeed.TenantId).ToListAsync());
     }
 }
