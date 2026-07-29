@@ -44,8 +44,8 @@ console.log(`[copy-mediapipe] copied wasm ${wasmSrc} -> ${wasmDest}`);
 
 // ── 2. model files (downloaded once, then cached) ──
 // Pinned to a specific version path so the model can't silently change under us, and to a known
-// SHA-256 so a corrupted or tampered download is rejected rather than served + parsed in the wasm
-// worker. Keep in sync with the task options in lib/proctor/proctor-worker.ts.
+// SHA-256 so a corrupted or tampered download is rejected rather than served + parsed by MediaPipe.
+// Keep the file names in sync with the model URLs in lib/proctor/constants.ts.
 const MODELS = [
   {
     file: "face_landmarker.task",

@@ -1173,9 +1173,13 @@ public class CandidateManagementService(
         DateTime nowUtc)
     {
         var totalEvents = groups.Sum(group => group.Count);
+        var lastHeartbeat = attempt.LastProctorHeartbeatUtc;
 
-        // Nothing to show: proctoring was off for this test AND it produced no events.
-        if (!enabled && totalEvents == 0)
+        // Whether proctoring actually ran for THIS attempt: enabled on the test now, OR it left
+        // evidence (events or a heartbeat). Using this rather than the test's current flag keeps older
+        // attempts accurate after an author toggles proctoring off, and drives the DTO's Enabled below.
+        var proctoringWasActive = enabled || totalEvents > 0 || lastHeartbeat.HasValue;
+        if (!proctoringWasActive)
         {
             return null;
         }
@@ -1196,18 +1200,14 @@ public class CandidateManagementService(
         DateTime? firstEvent = groups.Count > 0 ? groups.Min(group => group.First) : null;
         DateTime? lastEvent = groups.Count > 0 ? groups.Max(group => group.Last) : null;
 
-        var lastHeartbeat = attempt.LastProctorHeartbeatUtc;
         var started = startedAtUtc ?? (attempt.StartedAtUtc != default ? attempt.StartedAtUtc : (DateTime?)null);
         var end = submittedAtUtc ?? nowUtc;
 
-        // Evaluate the heartbeat whenever there's evidence proctoring actually ran for this attempt
-        // (events or a heartbeat), not only when the test's flag is currently on — an author can
-        // toggle proctoring off after the fact, but past attempts still deserve an accurate gap.
-        var proctoringWasActive = enabled || totalEvents > 0 || lastHeartbeat.HasValue;
-
+        // proctoringWasActive is guaranteed true here (we returned null otherwise), so the heartbeat
+        // gap is evaluated for every attempt where proctoring ran.
         int? gapSeconds = null;
         var wentDark = false;
-        if (proctoringWasActive && started.HasValue)
+        if (started.HasValue)
         {
             // Measure the gap from the last heartbeat (or attempt start, if none ever arrived) to
             // the attempt end. A large gap means the monitor went dark before the candidate finished.
@@ -1219,7 +1219,7 @@ public class CandidateManagementService(
 
         return new CandidateAttemptProctoringSummaryDto
         {
-            Enabled = enabled,
+            Enabled = proctoringWasActive,
             TotalEvents = totalEvents,
             Severity = severity,
             CountsByType = countsByType,

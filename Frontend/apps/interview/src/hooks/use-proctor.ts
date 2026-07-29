@@ -97,6 +97,13 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
   const videoRef = useRef<VideoWithRvfc | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
+  // A camera failure can happen during pre-start warm, before the attempt is running. Emitting it
+  // then would stamp startedAtUtc before attempt.StartedAtUtc, so once the channel flushes (after
+  // start) the backend rejects it as outside the attempt window and the channel retries forever.
+  // So: emit immediately if the attempt is already running, else buffer and emit at attempt start.
+  const runningRef = useRef(running);
+  const pendingCameraStatusRef = useRef<{ type: string; detail?: string } | null>(null);
+
   // Frame-pump state. A monotonically increasing generation invalidates any in-flight tick so a
   // pause/resume (or StrictMode re-run) can never leave two loops running.
   const pumpHandleRef = useRef<number | null>(null);
@@ -110,6 +117,29 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
   const absentRef = useRef<Episode>({ activeSince: null, emitted: false });
   const lookAwayRef = useRef<Episode>({ activeSince: null, emitted: false });
   const objectCooldownRef = useRef<Map<string, number>>(new Map());
+
+  // Emit a camera-status event with a timestamp the backend will accept: now if the attempt is
+  // running, otherwise buffer it (only the latest matters) to emit once the attempt starts.
+  const reportCameraStatus = useCallback(
+    (type: string, detail?: string) => {
+      if (runningRef.current) {
+        channel.enqueue(type, detail ? { detail } : undefined);
+      } else {
+        pendingCameraStatusRef.current = { type, detail };
+      }
+    },
+    [channel]
+  );
+
+  // Keep runningRef in sync, and flush any buffered camera-status event at attempt start.
+  useEffect(() => {
+    runningRef.current = running;
+    if (running && pendingCameraStatusRef.current) {
+      const pending = pendingCameraStatusRef.current;
+      pendingCameraStatusRef.current = null;
+      channel.enqueue(pending.type, pending.detail ? { detail: pending.detail } : undefined);
+    }
+  }, [running, channel]);
 
   const processFace = useCallback(
     (faceCount: number, yaw: number | null, pitch: number | null) => {
@@ -249,7 +279,7 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
       if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
         if (!cancelled) {
           setStatus("unsupported");
-          channel.enqueue("camera_denied", { detail: "unsupported" });
+          reportCameraStatus("camera_denied", "unsupported");
         }
         return;
       }
@@ -264,7 +294,7 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
       } catch (err) {
         if (!cancelled) {
           setStatus("denied");
-          channel.enqueue("camera_denied", { detail: err instanceof Error ? err.name : "denied" });
+          reportCameraStatus("camera_denied", err instanceof Error ? err.name : "denied");
         }
         return;
       }
@@ -281,7 +311,7 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
       endedTrack = mediaStream.getVideoTracks()[0] ?? null;
       onTrackEnded = () => {
         // Fires on unplug/OS revocation (NOT on our own stop()). Go inert.
-        channel.enqueue("camera_lost");
+        reportCameraStatus("camera_lost");
         setWarmReady(false);
         setStatus("lost");
         stopPump();
@@ -346,7 +376,7 @@ export function useProctor(channel: ProctoringChannel, options: UseProctorOption
         videoRef.current = null;
       }
     };
-  }, [enabled, consented, channel, stopPump, releaseCamera]);
+  }, [enabled, consented, channel, stopPump, releaseCamera, reportCameraStatus]);
 
   // ── Feed frames only while in progress, not paused, and warm. Inert once warmReady is cleared by
   //    a terminal error/lost, so it can't stomp those states or restart a dead camera. ──

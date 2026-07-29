@@ -18,6 +18,7 @@ public class CandidateAccessService(
     AppDbContext dbContext,
     IServiceProvider serviceProvider,
     ICodeRunThrottle runThrottle,
+    [FromKeyedServices(CodeRunThrottle.ProctoringKey)] ICodeRunThrottle proctoringThrottle,
     ILogger<CandidateAccessService> logger) : ICandidateAccessService
 {
     // Hard sandbox limits for candidate runs: no network, short CPU/wall time, 256 MB,
@@ -534,10 +535,9 @@ public class CandidateAccessService(
 
         await ApplyAndValidateAccessLocksAsync(invitation, metadata, settings, cancellationToken);
 
-        // Reuse the per-attempt rate limit + concurrency budget (shared with /run). The 2 s
-        // min-interval sits well below the client's ~10 s batch cadence and also serializes
-        // same-attempt bursts, so the in-code dedupe below never races itself.
-        await using var slot = await runThrottle.AcquireAsync(attempt.Id, cancellationToken);
+        // Proctoring's own throttle (no min-interval, generous caps) — separate from the code-run
+        // limiter so a ~10 s heartbeat cadence and the final submit flush are never 429'd.
+        await using var slot = await proctoringThrottle.AcquireAsync(attempt.Id, cancellationToken);
 
         var events = request.Events ?? [];
         if (events.Count > ProctoringIngestLimits.MaxBatchSize)
@@ -579,13 +579,6 @@ public class CandidateAccessService(
             {
                 throw new ApiException(
                     $"Proctoring event detail exceeds {ProctoringIngestLimits.MaxDetailLength} characters.",
-                    StatusCodes.Status400BadRequest);
-            }
-
-            if (ev.Detail is { Length: > ProctoringIngestLimits.MaxDetailLength })
-            {
-                throw new ApiException(
-                    $"Proctoring event detail is too long (max {ProctoringIngestLimits.MaxDetailLength} characters).",
                     StatusCodes.Status400BadRequest);
             }
 

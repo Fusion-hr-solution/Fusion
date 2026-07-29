@@ -288,21 +288,32 @@ export default function CandidateStartPage() {
   // only during an in-progress, unsubmitted attempt. The server re-gates every event by flag.
   const proctoringActive = Boolean(session) && !submission;
   const enableProctoring = session?.enableProctoring ?? validation?.enableProctoring ?? false;
+  const enableActivityMonitoring = session?.enableActivityMonitoring ?? false;
+  const restrictCopyPaste = session?.restrictCopyPaste ?? false;
+  // The channel (and its heartbeat) must only run when a layer is actually enabled — otherwise a
+  // non-proctored attempt would emit heartbeats and show a (spurious) proctoring summary to reviewers.
+  const anyProctoringEnabled = enableProctoring || enableActivityMonitoring || restrictCopyPaste;
   const { channel: proctoringChannel, flushNow: flushProctoring } = useProctoringChannel({
     token,
     browserFingerprint: browserFingerprint || undefined,
-    active: proctoringActive,
+    active: proctoringActive && anyProctoringEnabled,
   });
   // Layer B (browser integrity) — camera-free.
   useBrowserIntegrity(proctoringChannel, {
     active: proctoringActive,
-    activityMonitoring: session?.enableActivityMonitoring ?? false,
-    restrictCopyPaste: session?.restrictCopyPaste ?? false,
+    activityMonitoring: enableActivityMonitoring,
+    restrictCopyPaste,
   });
-  // Layer A (webcam) — consent-gated; warms on the pre-start screen, pauses while the sandbox boots.
+  // For a Frontend Project test the WebContainers sandbox boots on the pre-start screen; loading the
+  // ~34 MB of MediaPipe at the same time starves that boot (adds ~1 min). So defer Layer A's warm
+  // until the attempt is actually running (sandbox already booted) for those tests; other tests keep
+  // warming on the pre-start screen so the model load stays off the timer.
+  const hasFrontendProject = Boolean(validation?.frontendFramework);
+  const proctorWarmConsent = proctorConsent && (proctoringActive || !hasFrontendProject);
+  // Layer A (webcam) — consent-gated; warms when proctorWarmConsent is true.
   const proctor = useProctor(proctoringChannel, {
     enabled: enableProctoring,
-    consented: proctorConsent,
+    consented: proctorWarmConsent,
     running: proctoringActive,
     paused: preparing,
   });
@@ -1005,24 +1016,28 @@ export default function CandidateStartPage() {
                 />
               ) : (
                 <>
-                  {/* Webcam consent + warm happen BEFORE Start so the model download is off the timer. */}
+                  {/* Webcam consent + warm happen BEFORE Start so the model download is off the timer —
+                      except for Frontend Project tests, where the warm is deferred to attempt start so
+                      it doesn't starve the sandbox boot (see proctorWarmConsent). */}
                   {enableProctoring ? (
                     <ProctorConsentGate
                       status={proctor.status}
                       stream={proctor.stream}
                       consented={proctorConsent}
+                      deferred={hasFrontendProject}
                       onConsent={() => setProctorConsent(true)}
                     />
                   ) : null}
 
                   {/* Start is withheld until the candidate consents; once consented it unlocks as soon
-                      as the camera settles (ready OR denied — a denied camera still lets them proceed). */}
+                      as the camera settles (ready OR denied). For a Frontend Project test the camera
+                      warms later (at attempt start), so Start doesn't wait on it. */}
                   {!enableProctoring || proctorConsent ? (
                     <>
                       <button
                         type="button"
                         onClick={() => void handleStartOrResume()}
-                        disabled={starting || (enableProctoring && !cameraSettled)}
+                        disabled={starting || (enableProctoring && !hasFrontendProject && !cameraSettled)}
                         className="group mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-800 px-6 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-[18px] w-[18px]" />}

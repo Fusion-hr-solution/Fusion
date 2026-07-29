@@ -86,11 +86,14 @@ export function ProctorConsentGate({
   status,
   stream,
   consented,
+  deferred = false,
   onConsent,
 }: {
   status: ProctorStatus;
   stream: MediaStream | null;
   consented: boolean;
+  /** Camera warm is deferred to attempt start (Frontend Project tests) — don't show a live preview yet. */
+  deferred?: boolean;
   onConsent: () => void;
 }) {
   if (!consented) {
@@ -122,6 +125,17 @@ export function ProctorConsentGate({
           <Video className="h-4 w-4" />
           I consent and enable my camera
         </button>
+      </div>
+    );
+  }
+
+  // Frontend Project tests defer the camera warm to attempt start (so it doesn't starve the sandbox
+  // boot), so there's no live stream to preview here yet — reassure the candidate instead.
+  if (deferred && (status === "idle" || status === "requesting")) {
+    return (
+      <div className="mt-7 flex items-center gap-2 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-[12px] font-medium text-emerald-700">
+        <ShieldCheck className="h-4 w-4 shrink-0" />
+        Consent recorded. Your camera will turn on automatically when the assessment begins.
       </div>
     );
   }

@@ -39,18 +39,9 @@ function newClientEventId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-/**
- * Minimum spacing between async POSTs — kept just above the server's per-attempt rate-limit window
- * (a 2s min-interval) so a burst (e.g. an event-driven flush landing right after the heartbeat tick)
- * doesn't trip a 429. Anything skipped stays queued and rides the next tick; the beacon path
- * (unload/submit) ignores this so final delivery is never blocked.
- */
-const MIN_FLUSH_SPACING_MS = 3_000;
-
 export class ProctoringChannel {
   private readonly queue: ProctoringEventInput[] = [];
   private inFlight = false;
-  private lastFlushAtMs = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
   private readonly batchIntervalMs: number;
 
@@ -112,16 +103,10 @@ export class ProctoringChannel {
     if (this.inFlight) {
       return false;
     }
-    // Respect the server's rate limit from the client side so retries don't pile into 429s.
-    const now = Date.now();
-    if (now - this.lastFlushAtMs < MIN_FLUSH_SPACING_MS) {
-      return false;
-    }
     const batch = this.takeBatch(heartbeat);
     if (!batch) {
       return true;
     }
-    this.lastFlushAtMs = now;
     this.inFlight = true;
     try {
       await submitProctoringEvents(this.opts.getToken(), {

@@ -869,15 +869,27 @@ public class CandidateAccessServiceTests
     private static CandidateAccessService CreateAccessService(AppDbContext db, IServiceProvider? services = null)
     {
         var provider = services ?? new ServiceCollection().BuildServiceProvider();
-        var throttle = new CodeRunThrottle(
+        var runThrottle = new CodeRunThrottle(
             new ConfigurationBuilder().Build(),
             NullLogger<CodeRunThrottle>.Instance);
         return new CandidateAccessService(
             db,
             provider,
-            throttle,
+            runThrottle,
+            CreateProctoringThrottle(),
             NullLogger<CandidateAccessService>.Instance);
     }
+
+    // Mirrors the "Proctoring" DI profile: no min-interval, so proctoring tests can post back-to-back.
+    private static CodeRunThrottle CreateProctoringThrottle() =>
+        new(
+            new ConfigurationBuilder().Build(),
+            NullLogger<CodeRunThrottle>.Instance,
+            section: "Proctoring",
+            defaultMaxConcurrent: 64,
+            defaultMinIntervalSeconds: 0,
+            defaultMaxRunsPerMinute: 60,
+            defaultMaxRunSeconds: 10);
 
     // ── Proctoring ingestion (Phase 2) ─────────────────────────────────────────────
 
@@ -1159,19 +1171,9 @@ public class CandidateAccessServiceTests
 
     /// <summary>Access service whose throttle has no min-interval, so a test can post two
     /// proctoring batches back-to-back without tripping the per-attempt rate limit.</summary>
-    private static CandidateAccessService CreateProctorAccessService(AppDbContext db)
-    {
-        var throttle = new CodeRunThrottle(
-            new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string?> { ["CodeRun:MinIntervalSeconds"] = "0" })
-                .Build(),
-            NullLogger<CodeRunThrottle>.Instance);
-        return new CandidateAccessService(
-            db,
-            new ServiceCollection().BuildServiceProvider(),
-            throttle,
-            NullLogger<CandidateAccessService>.Instance);
-    }
+    // Proctoring now has its own no-min-interval throttle inside the service, so the standard access
+    // service already lets proctoring tests post back-to-back.
+    private static CandidateAccessService CreateProctorAccessService(AppDbContext db) => CreateAccessService(db);
 
     private static async Task<(CandidateAccessService Access, string Token, Guid AttemptId)> SeedStartedAttemptAsync(
         AppDbContext db, string email = "proctor@example.com", bool singleUse = false)
