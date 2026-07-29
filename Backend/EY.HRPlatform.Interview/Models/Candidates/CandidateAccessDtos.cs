@@ -27,6 +27,11 @@ public class CandidateAccessValidationDto
     public bool AllowBacktracking { get; set; }
     public bool ShowProgressBar { get; set; }
     public bool RandomizeOrder { get; set; }
+    /// <summary>Proctoring flags — surfaced pre-start so the candidate UI can show the consent gate
+    /// (webcam) before the attempt/timer begins.</summary>
+    public bool EnableProctoring { get; set; }
+    public bool EnableActivityMonitoring { get; set; }
+    public bool RestrictCopyPaste { get; set; }
     /// <summary>If the test has a Frontend Project question, its framework ("react" | "angular" |
     /// "next"); null otherwise. Lets the candidate UI pre-warm the WebContainer before the attempt
     /// (and its timer) starts.</summary>
@@ -72,6 +77,9 @@ public class CandidateAccessSessionDto
     public bool AllowBacktracking { get; set; }
     public bool ShowProgressBar { get; set; }
     public bool RandomizeOrder { get; set; }
+    public bool EnableProctoring { get; set; }
+    public bool EnableActivityMonitoring { get; set; }
+    public bool RestrictCopyPaste { get; set; }
     public List<CandidateAccessQuestionDto> Questions { get; set; } = [];
 }
 

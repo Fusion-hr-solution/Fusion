@@ -3,6 +3,7 @@ using System;
 using EY.HRPlatform.Interview.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EY.HRPlatform.Interview.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260721114530_AddTestProctoringFlags")]
+    partial class AddTestProctoringFlags
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -309,57 +312,6 @@ namespace EY.HRPlatform.Interview.Migrations
                     b.ToTable("CandidatePrivacyActions", (string)null);
                 });
 
-            modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.CandidateProctoringEvent", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("AttemptId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ClientEventId")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
-
-                    b.Property<double?>("Confidence")
-                        .HasColumnType("double precision");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Detail")
-                        .HasMaxLength(512)
-                        .HasColumnType("character varying(512)");
-
-                    b.Property<DateTime?>("EndedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("ServerReceivedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("StartedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AttemptId");
-
-                    b.HasIndex("AttemptId", "ClientEventId")
-                        .IsUnique();
-
-                    b.ToTable("CandidateProctoringEvents", (string)null);
-                });
-
             modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.CandidateProgressEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -579,9 +531,6 @@ namespace EY.HRPlatform.Interview.Migrations
 
                     b.Property<Guid>("InvitationId")
                         .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("LastProctorHeartbeatUtc")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal?>("MaxScore")
                         .HasPrecision(5, 2)
@@ -969,17 +918,6 @@ namespace EY.HRPlatform.Interview.Migrations
                         .IsRequired();
 
                     b.Navigation("Test");
-                });
-
-            modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.CandidateProctoringEvent", b =>
-                {
-                    b.HasOne("EY.HRPlatform.Interview.Domain.Entities.CandidateTestAttempt", "Attempt")
-                        .WithMany()
-                        .HasForeignKey("AttemptId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Attempt");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Interview.Domain.Entities.CandidateProgressEvent", b =>

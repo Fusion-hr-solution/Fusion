@@ -33,6 +33,9 @@ interface BackendTestDto {
   allowBacktracking: boolean;
   showProgressBar: boolean;
   randomizeOrder: boolean;
+  enableProctoring: boolean;
+  enableActivityMonitoring: boolean;
+  restrictCopyPaste: boolean;
   candidateCount: number;
   questionCount: number;
   createdAt: string;
@@ -47,6 +50,9 @@ interface UpsertTestRequest {
   allowBacktracking: boolean;
   showProgressBar: boolean;
   randomizeOrder: boolean;
+  enableProctoring: boolean;
+  enableActivityMonitoring: boolean;
+  restrictCopyPaste: boolean;
 }
 
 interface BackendQuestionDto {
@@ -157,6 +163,9 @@ function mapTest(dto: BackendTestDto): Test {
     allowBacktracking: dto.allowBacktracking ?? true,
     showProgressBar: dto.showProgressBar ?? true,
     randomizeOrder: dto.randomizeOrder ?? false,
+    enableProctoring: dto.enableProctoring ?? false,
+    enableActivityMonitoring: dto.enableActivityMonitoring ?? false,
+    restrictCopyPaste: dto.restrictCopyPaste ?? false,
     candidateCount: dto.candidateCount,
     questionCount: dto.questionCount,
     createdAt: dto.createdAt,
@@ -357,6 +366,9 @@ interface PersistTestInput {
   allowBacktracking: boolean;
   showProgressBar: boolean;
   randomizeOrder: boolean;
+  enableProctoring: boolean;
+  enableActivityMonitoring: boolean;
+  restrictCopyPaste: boolean;
 }
 
 function toUpsertTestRequest(input: PersistTestInput): UpsertTestRequest {
@@ -370,6 +382,9 @@ function toUpsertTestRequest(input: PersistTestInput): UpsertTestRequest {
     allowBacktracking: input.allowBacktracking,
     showProgressBar: input.showProgressBar,
     randomizeOrder: input.randomizeOrder,
+    enableProctoring: input.enableProctoring,
+    enableActivityMonitoring: input.enableActivityMonitoring,
+    restrictCopyPaste: input.restrictCopyPaste,
   };
 }
 
@@ -434,6 +449,9 @@ export async function setTestStatus(test: Test, status: TestStatus): Promise<Tes
     allowBacktracking: test.allowBacktracking,
     showProgressBar: test.showProgressBar,
     randomizeOrder: test.randomizeOrder,
+    enableProctoring: test.enableProctoring,
+    enableActivityMonitoring: test.enableActivityMonitoring,
+    restrictCopyPaste: test.restrictCopyPaste,
   });
 }
 
@@ -458,5 +476,8 @@ export async function duplicateTest(test: Test): Promise<Test> {
     allowBacktracking: test.allowBacktracking,
     showProgressBar: test.showProgressBar,
     randomizeOrder: test.randomizeOrder,
+    enableProctoring: test.enableProctoring,
+    enableActivityMonitoring: test.enableActivityMonitoring,
+    restrictCopyPaste: test.restrictCopyPaste,
   });
 }

@@ -53,6 +53,7 @@ public static class ServiceCollectionExtensions
             services.AddScoped<HumanReviewService>();
             services.AddDistributedMemoryCache();
             services.AddSingleton<ICodeRunThrottle, CodeRunThrottle>();
+            AddProctoringThrottle(services);
             return services;
         }
 
@@ -156,8 +157,25 @@ public static class ServiceCollectionExtensions
         // optional IConnectionMultiplexer when Redis is configured; otherwise uses its
         // in-process fallback.
         services.AddSingleton<ICodeRunThrottle, CodeRunThrottle>();
+        AddProctoringThrottle(services);
 
         return services;
+    }
+
+    // Proctoring ingestion is cheap (a bulk insert) and fires on a ~10s heartbeat cadence, so the
+    // code-run throttle's 2s min-interval would 429 legitimate flushes (and drop the final batch at
+    // submit). It gets its own instance: no min-interval, generous caps, independent Redis keys.
+    private static void AddProctoringThrottle(IServiceCollection services)
+    {
+        services.AddKeyedSingleton<ICodeRunThrottle>(CodeRunThrottle.ProctoringKey, (sp, _) => new CodeRunThrottle(
+            sp.GetRequiredService<IConfiguration>(),
+            sp.GetRequiredService<ILogger<CodeRunThrottle>>(),
+            sp.GetService<IConnectionMultiplexer>(),
+            section: "Proctoring",
+            defaultMaxConcurrent: 64,
+            defaultMinIntervalSeconds: 0,
+            defaultMaxRunsPerMinute: 60,
+            defaultMaxRunSeconds: 10));
     }
 
     /// <summary>

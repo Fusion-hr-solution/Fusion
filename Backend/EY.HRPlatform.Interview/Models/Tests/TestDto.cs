@@ -13,6 +13,9 @@ public class TestDto
     public bool AllowBacktracking { get; set; }
     public bool ShowProgressBar { get; set; }
     public bool RandomizeOrder { get; set; }
+    public bool EnableProctoring { get; set; }
+    public bool EnableActivityMonitoring { get; set; }
+    public bool RestrictCopyPaste { get; set; }
     public int CandidateCount { get; set; }
     public int QuestionCount { get; set; }
     public string CreatedAt { get; set; } = string.Empty;

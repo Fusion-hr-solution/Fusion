@@ -137,6 +137,24 @@ export interface BackendCandidateTimelineMilestoneDto {
   occurredAtUtc?: string;
 }
 
+export interface BackendProctoringTypeCountDto {
+  type: string;
+  count: number;
+  severity: "none" | "low" | "medium" | "high";
+}
+
+export interface BackendCandidateAttemptProctoringSummaryDto {
+  enabled: boolean;
+  totalEvents: number;
+  severity: "none" | "low" | "medium" | "high";
+  countsByType: BackendProctoringTypeCountDto[];
+  firstEventAtUtc?: string;
+  lastEventAtUtc?: string;
+  lastHeartbeatAtUtc?: string;
+  heartbeatGapSeconds?: number;
+  wentDark: boolean;
+}
+
 export interface BackendCandidateAttemptTimelineDto {
   attemptNumber: number;
   attemptId?: string;
@@ -145,6 +163,7 @@ export interface BackendCandidateAttemptTimelineDto {
   totalScore?: number;
   maxScore?: number;
   milestones: BackendCandidateTimelineMilestoneDto[];
+  proctoring?: BackendCandidateAttemptProctoringSummaryDto;
 }
 
 export interface BackendCandidateProgressTimelineDto {

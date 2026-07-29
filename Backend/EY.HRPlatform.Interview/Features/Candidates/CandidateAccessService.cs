@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using EY.HRPlatform.Interview.Domain;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Features.Grading.Judge0;
@@ -17,6 +18,7 @@ public class CandidateAccessService(
     AppDbContext dbContext,
     IServiceProvider serviceProvider,
     ICodeRunThrottle runThrottle,
+    [FromKeyedServices(CodeRunThrottle.ProctoringKey)] ICodeRunThrottle proctoringThrottle,
     ILogger<CandidateAccessService> logger) : ICandidateAccessService
 {
     // Hard sandbox limits for candidate runs: no network, short CPU/wall time, 256 MB,
@@ -477,6 +479,228 @@ public class CandidateAccessService(
         };
     }
 
+    public async Task<ProctoringIngestResultDto> SubmitProctoringEventsAsync(
+        SubmitProctoringEventsDto request,
+        CancellationToken cancellationToken)
+    {
+        var normalizedToken = NormalizeToken(request.Token);
+        // Lightweight invitation is enough for the access gate; we never touch the question graph.
+        var invitation = await FindInvitationByTokenAsync(normalizedToken, includeQuestions: false, cancellationToken)
+            ?? throw new ApiException("Invitation link is invalid.", StatusCodes.Status404NotFound);
+
+        var settings = await GetEffectiveSettingsAsync(invitation.TestId, cancellationToken);
+        var nowUtc = DateTime.UtcNow;
+        var state = ResolveState(invitation, settings, nowUtc);
+
+        // Same gate as /run — only an authorized, in-progress attempt may post proctoring events.
+        if (state == InvitationAccessState.Expired)
+        {
+            throw new ApiException(
+                BuildExpiredMessage(invitation, settings, nowUtc),
+                StatusCodes.Status410Gone);
+        }
+
+        if (state == InvitationAccessState.Submitted)
+        {
+            throw new ApiException(
+                "This attempt has already been submitted.",
+                StatusCodes.Status409Conflict);
+        }
+
+        if (state == InvitationAccessState.Invited)
+        {
+            throw new ApiException(
+                "Start the assessment before sending proctoring events.",
+                StatusCodes.Status409Conflict);
+        }
+
+        var attempt = GetActiveAttempt(invitation)
+            ?? throw new ApiException(
+                "Start the assessment before sending proctoring events.",
+                StatusCodes.Status409Conflict);
+
+        if (settings.EmailVerificationEnabled && !invitation.EmailVerifiedAtUtc.HasValue)
+        {
+            throw new ApiException(
+                "Email verification is required before sending proctoring events.",
+                StatusCodes.Status403Forbidden);
+        }
+
+        // Re-apply the IP / browser-fingerprint lock so a leaked token can't stream events from
+        // another browser or IP when single-use / fingerprint / IP lock is enabled.
+        var metadata = BuildAccessMetadata(
+            request.ClientIpAddress,
+            request.BrowserFingerprint,
+            request.UserAgent);
+
+        await ApplyAndValidateAccessLocksAsync(invitation, metadata, settings, cancellationToken);
+
+        // Proctoring's own throttle (no min-interval, generous caps) — separate from the code-run
+        // limiter so a ~10 s heartbeat cadence and the final submit flush are never 429'd.
+        await using var slot = await proctoringThrottle.AcquireAsync(attempt.Id, cancellationToken);
+
+        var events = request.Events ?? [];
+        if (events.Count > ProctoringIngestLimits.MaxBatchSize)
+        {
+            throw new ApiException(
+                $"Too many events in one batch (max {ProctoringIngestLimits.MaxBatchSize}).",
+                StatusCodes.Status400BadRequest);
+        }
+
+        // Validate the whole batch up front. A well-behaved client never trips these, so a 400
+        // surfaces a client bug rather than silently storing garbage. All timestamps are treated
+        // as UTC and must fall inside the attempt window (± clock skew).
+        var maxFutureUtc = nowUtc + ProctoringIngestLimits.ClockSkew;
+        var minStartUtc = attempt.StartedAtUtc - ProctoringIngestLimits.ClockSkew;
+        foreach (var ev in events)
+        {
+            if (string.IsNullOrWhiteSpace(ev.ClientEventId) || ev.ClientEventId.Length > 64)
+            {
+                throw new ApiException(
+                    "Each proctoring event needs a clientEventId of at most 64 characters.",
+                    StatusCodes.Status400BadRequest);
+            }
+
+            if (!ProctoringEventTypes.IsValid(ev.Type))
+            {
+                throw new ApiException(
+                    $"Unknown proctoring event type '{ev.Type}'.",
+                    StatusCodes.Status400BadRequest);
+            }
+
+            if (ev.Confidence is < 0 or > 1)
+            {
+                throw new ApiException(
+                    "Proctoring event confidence must be between 0 and 1.",
+                    StatusCodes.Status400BadRequest);
+            }
+
+            if (ev.Detail is { Length: > ProctoringIngestLimits.MaxDetailLength })
+            {
+                throw new ApiException(
+                    $"Proctoring event detail exceeds {ProctoringIngestLimits.MaxDetailLength} characters.",
+                    StatusCodes.Status400BadRequest);
+            }
+
+            var startUtc = AsUtc(ev.StartedAtUtc);
+            if (startUtc < minStartUtc || startUtc > maxFutureUtc)
+            {
+                throw new ApiException(
+                    "Proctoring event startedAtUtc is outside the attempt window.",
+                    StatusCodes.Status400BadRequest);
+            }
+
+            if (ev.EndedAtUtc is { } endedRaw)
+            {
+                var endUtc = AsUtc(endedRaw);
+                if (endUtc < startUtc || endUtc > maxFutureUtc)
+                {
+                    throw new ApiException(
+                        "Proctoring event endedAtUtc must be at/after startedAtUtc and not in the future.",
+                        StatusCodes.Status400BadRequest);
+                }
+            }
+        }
+
+        var incoming = events.Count;
+        var accepted = 0;
+        var dropped = 0;
+        if (incoming > 0)
+        {
+            // De-dupe within the batch (a repeated clientEventId keeps the latest).
+            var byClientId = new Dictionary<string, ProctoringEventInputDto>(StringComparer.Ordinal);
+            foreach (var ev in events)
+            {
+                byClientId[ev.ClientEventId] = ev;
+            }
+
+            // Server-side layer enforcement: keep only events whose governing flag the author
+            // actually enabled on this test. A well-behaved client never sends disabled-layer
+            // events, but a token holder could — so drop them here rather than trust the client.
+            var admissible = byClientId.Values
+                .Where(ev => IsProctoringLayerEnabled(invitation.Test, ev.Type))
+                .ToList();
+            dropped = byClientId.Count - admissible.Count;
+
+            if (admissible.Count > 0)
+            {
+                // De-dupe against what's already stored — an at-least-once re-send never creates
+                // duplicate rows.
+                var incomingIds = admissible.Select(ev => ev.ClientEventId).ToList();
+                var existingIds = await dbContext.CandidateProctoringEvents
+                    .Where(e => e.AttemptId == attempt.Id && incomingIds.Contains(e.ClientEventId))
+                    .Select(e => e.ClientEventId)
+                    .ToListAsync(cancellationToken);
+                var existingSet = existingIds.ToHashSet(StringComparer.Ordinal);
+
+                var toInsert = admissible
+                    .Where(ev => !existingSet.Contains(ev.ClientEventId))
+                    .Select(ev => new CandidateProctoringEvent
+                    {
+                        AttemptId = attempt.Id,
+                        Type = ev.Type,
+                        Confidence = ev.Confidence,
+                        Detail = ev.Detail,
+                        StartedAtUtc = AsUtc(ev.StartedAtUtc),
+                        EndedAtUtc = ev.EndedAtUtc is { } endedUtc ? AsUtc(endedUtc) : null,
+                        ServerReceivedAtUtc = nowUtc,
+                        ClientEventId = ev.ClientEventId,
+                    })
+                    .ToList();
+
+                if (toInsert.Count > 0)
+                {
+                    // One bulk insert per batch — never per-row SaveChanges.
+                    dbContext.CandidateProctoringEvents.AddRange(toInsert);
+                }
+
+                accepted = toInsert.Count;
+            }
+        }
+
+        // Heartbeat: refresh the attempt's single heartbeat column (never one row per beat) on an
+        // explicit ping OR whenever we accept rows — receiving events is itself proof of life.
+        string? heartbeatAtUtc = null;
+        if (request.Heartbeat || accepted > 0)
+        {
+            attempt.LastProctorHeartbeatUtc = nowUtc;
+            attempt.SetUpdatedAt(nowUtc);
+            heartbeatAtUtc = nowUtc.ToString("O");
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new ProctoringIngestResultDto
+        {
+            Accepted = accepted,
+            // incoming = accepted + dropped(disabled layer) + deduplicated(in-batch or already stored)
+            Deduplicated = incoming - accepted - dropped,
+            Dropped = dropped,
+            HeartbeatAtUtc = heartbeatAtUtc,
+        };
+    }
+
+    /// <summary>True when the author enabled the layer that governs <paramref name="type"/> on this
+    /// test. Unknown types (already rejected earlier) and a missing test resolve to false.</summary>
+    private static bool IsProctoringLayerEnabled(Test? test, string type) =>
+        ProctoringEventTypes.LayerOf(type) switch
+        {
+            ProctoringLayer.ActivityMonitoring => test?.EnableActivityMonitoring ?? false,
+            ProctoringLayer.ClipboardRestriction => test?.RestrictCopyPaste ?? false,
+            ProctoringLayer.Webcam => test?.EnableProctoring ?? false,
+            _ => false,
+        };
+
+    /// <summary>Normalize any client-supplied timestamp to UTC so window checks and storage are
+    /// consistent regardless of the Kind the JSON binder produced.</summary>
+    private static DateTime AsUtc(DateTime value) =>
+        value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc),
+        };
+
     private async Task<LinkSecurityRuntimeSettings> GetEffectiveSettingsAsync(
         Guid testId,
         CancellationToken cancellationToken)
@@ -928,6 +1152,9 @@ public class CandidateAccessService(
             AllowBacktracking = invitation.Test?.AllowBacktracking ?? true,
             ShowProgressBar = invitation.Test?.ShowProgressBar ?? true,
             RandomizeOrder = invitation.Test?.RandomizeOrder ?? false,
+            EnableProctoring = invitation.Test?.EnableProctoring ?? false,
+            EnableActivityMonitoring = invitation.Test?.EnableActivityMonitoring ?? false,
+            RestrictCopyPaste = invitation.Test?.RestrictCopyPaste ?? false,
             FrontendFramework = frontendFramework,
         };
 
@@ -974,6 +1201,9 @@ public class CandidateAccessService(
             AllowBacktracking = invitation.Test?.AllowBacktracking ?? true,
             ShowProgressBar = invitation.Test?.ShowProgressBar ?? true,
             RandomizeOrder = invitation.Test?.RandomizeOrder ?? false,
+            EnableProctoring = invitation.Test?.EnableProctoring ?? false,
+            EnableActivityMonitoring = invitation.Test?.EnableActivityMonitoring ?? false,
+            RestrictCopyPaste = invitation.Test?.RestrictCopyPaste ?? false,
             Questions = questions,
         };
     }

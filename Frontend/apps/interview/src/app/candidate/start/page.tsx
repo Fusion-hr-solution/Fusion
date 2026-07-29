@@ -22,6 +22,10 @@ import {
 import { cn } from "@/lib/utils";
 import { CodeRunner } from "@/components/candidate/code-runner";
 import { FrontendSessionSandbox } from "@/components/candidate/frontend-runner";
+import { useProctoringChannel } from "@/hooks/use-proctoring-channel";
+import { useBrowserIntegrity } from "@/hooks/use-browser-integrity";
+import { useProctor } from "@/hooks/use-proctor";
+import { ProctorConsentGate } from "@/components/candidate/proctor-consent-gate";
 import {
   startCandidateAttempt,
   submitCandidateAttempt,
@@ -259,6 +263,8 @@ export default function CandidateStartPage() {
   const [preparing, setPreparing] = useState(false);
   const [prewarmPhase, setPrewarmPhase] = useState<string>("idle");
   const [prewarmKey, setPrewarmKey] = useState(0);
+  // Layer A webcam proctoring: the candidate must give recorded consent before the camera is touched.
+  const [proctorConsent, setProctorConsent] = useState(false);
   const startedRef = useRef(false);
   const frontendSlotRef = useRef<HTMLDivElement | null>(null);
   const startAttemptRef = useRef<() => Promise<void>>(async () => {});
@@ -277,6 +283,47 @@ export default function CandidateStartPage() {
     const seed = session.attemptId || session.invitationId || token || "candidate";
     return orderQuestions(session.questions, seed, randomizeOrder);
   }, [session, randomizeOrder, token]);
+
+  // Proctoring — all layers share ONE delivery channel (single heartbeat + POST stream), active
+  // only during an in-progress, unsubmitted attempt. The server re-gates every event by flag.
+  const proctoringActive = Boolean(session) && !submission;
+  const enableProctoring = session?.enableProctoring ?? validation?.enableProctoring ?? false;
+  const enableActivityMonitoring = session?.enableActivityMonitoring ?? false;
+  const restrictCopyPaste = session?.restrictCopyPaste ?? false;
+  // The channel (and its heartbeat) must only run when a layer is actually enabled — otherwise a
+  // non-proctored attempt would emit heartbeats and show a (spurious) proctoring summary to reviewers.
+  const anyProctoringEnabled = enableProctoring || enableActivityMonitoring || restrictCopyPaste;
+  const { channel: proctoringChannel, flushNow: flushProctoring } = useProctoringChannel({
+    token,
+    browserFingerprint: browserFingerprint || undefined,
+    active: proctoringActive && anyProctoringEnabled,
+  });
+  // Layer B (browser integrity) — camera-free.
+  useBrowserIntegrity(proctoringChannel, {
+    active: proctoringActive,
+    activityMonitoring: enableActivityMonitoring,
+    restrictCopyPaste,
+  });
+  // For a Frontend Project test the WebContainers sandbox boots on the pre-start screen; loading the
+  // ~34 MB of MediaPipe at the same time starves that boot (adds ~1 min). So defer Layer A's warm
+  // until the attempt is actually running (sandbox already booted) for those tests; other tests keep
+  // warming on the pre-start screen so the model load stays off the timer.
+  const hasFrontendProject = Boolean(validation?.frontendFramework);
+  const proctorWarmConsent = proctorConsent && (proctoringActive || !hasFrontendProject);
+  // Layer A (webcam) — consent-gated; warms when proctorWarmConsent is true.
+  const proctor = useProctor(proctoringChannel, {
+    enabled: enableProctoring,
+    consented: proctorWarmConsent,
+    running: proctoringActive,
+    paused: preparing,
+  });
+  const cameraSettled =
+    proctor.status === "ready" ||
+    proctor.status === "running" ||
+    proctor.status === "denied" ||
+    proctor.status === "error" ||
+    proctor.status === "lost" ||
+    proctor.status === "unsupported";
 
   async function resolveBrowserFingerprint(): Promise<string> {
     if (browserFingerprint.trim().length > 0) {
@@ -339,6 +386,9 @@ export default function CandidateStartPage() {
           allowBacktracking: false,
           showProgressBar: false,
           randomizeOrder: false,
+          enableProctoring: false,
+          enableActivityMonitoring: false,
+          restrictCopyPaste: false,
           status: "Invalid",
           message: "A valid invitation token is required.",
         });
@@ -374,6 +424,9 @@ export default function CandidateStartPage() {
           allowBacktracking: false,
           showProgressBar: false,
           randomizeOrder: false,
+          enableProctoring: false,
+          enableActivityMonitoring: false,
+          restrictCopyPaste: false,
           status: "Invalid",
           message: err instanceof Error ? err.message : "Invitation validation failed.",
         });
@@ -531,6 +584,10 @@ export default function CandidateStartPage() {
 
     setSubmitting(true);
     setError(null);
+
+    // Deliver the final proctoring batch before the attempt flips to Submitted (after which the
+    // ingestion endpoint rejects it). Awaited so a rejection is retried rather than silently lost.
+    await flushProctoring();
 
     try {
       const resolvedFingerprint = await resolveBrowserFingerprint();
@@ -721,6 +778,7 @@ export default function CandidateStartPage() {
 
     return (
       <textarea
+        data-proctor-answer
         value={draft?.answerText ?? ""}
         onChange={(event) => updateTextAnswer(question.id, event.target.value)}
         placeholder="Type your answer here..."
@@ -871,6 +929,17 @@ export default function CandidateStartPage() {
               </div>
             ) : null}
 
+            {session &&
+            (session.enableActivityMonitoring || session.restrictCopyPaste || session.enableProctoring) ? (
+              <div
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/30 bg-amber-400/10 px-3 py-1.5 text-[12px] font-medium text-amber-100"
+                title="This assessment is monitored for integrity (activity and clipboard). Detection runs in your browser."
+              >
+                <ShieldCheck className="h-3.5 w-3.5" />
+                Monitored session
+              </div>
+            ) : null}
+
             <div className="rounded-full border border-white/12 bg-white/5 px-3 py-1.5 text-[12px] font-medium text-white/70">
               {validation.candidateName || validation.candidateEmail}
             </div>
@@ -947,22 +1016,42 @@ export default function CandidateStartPage() {
                 />
               ) : (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => void handleStartOrResume()}
-                    disabled={starting}
-                    className="group mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-800 px-6 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-[18px] w-[18px]" />}
-                    {validation.canResume ? "Resume Assessment" : "Start Assessment"}
-                    {!starting ? <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /> : null}
-                  </button>
-                  <p className="mt-3 flex items-center justify-center gap-1.5 text-[12px] text-zinc-400">
-                    <Clock className="h-3.5 w-3.5" />
-                    {validation.timeLimitMinutes
-                      ? "Your timer starts the moment you begin."
-                      : "Take your time — there is no countdown."}
-                  </p>
+                  {/* Webcam consent + warm happen BEFORE Start so the model download is off the timer —
+                      except for Frontend Project tests, where the warm is deferred to attempt start so
+                      it doesn't starve the sandbox boot (see proctorWarmConsent). */}
+                  {enableProctoring ? (
+                    <ProctorConsentGate
+                      status={proctor.status}
+                      stream={proctor.stream}
+                      consented={proctorConsent}
+                      deferred={hasFrontendProject}
+                      onConsent={() => setProctorConsent(true)}
+                    />
+                  ) : null}
+
+                  {/* Start is withheld until the candidate consents; once consented it unlocks as soon
+                      as the camera settles (ready OR denied). For a Frontend Project test the camera
+                      warms later (at attempt start), so Start doesn't wait on it. */}
+                  {!enableProctoring || proctorConsent ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void handleStartOrResume()}
+                        disabled={starting || (enableProctoring && !hasFrontendProject && !cameraSettled)}
+                        className="group mt-7 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-zinc-900 to-zinc-800 px-6 py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all hover:shadow-xl hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-[18px] w-[18px]" />}
+                        {validation.canResume ? "Resume Assessment" : "Start Assessment"}
+                        {!starting ? <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" /> : null}
+                      </button>
+                      <p className="mt-3 flex items-center justify-center gap-1.5 text-[12px] text-zinc-400">
+                        <Clock className="h-3.5 w-3.5" />
+                        {validation.timeLimitMinutes
+                          ? "Your timer starts the moment you begin."
+                          : "Take your time — there is no countdown."}
+                      </p>
+                    </>
+                  ) : null}
                 </>
               )}
             </div>
