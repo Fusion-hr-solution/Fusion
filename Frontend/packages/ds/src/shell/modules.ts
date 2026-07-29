@@ -16,7 +16,7 @@ import type { ShellModule } from "./types";
 export const FUSION_MODULES: ShellModule[] = [
   { key: "core", label: "Core HR", description: "Workforce & organization", icon: BrainCircuit, href: "/core" },
   { key: "learning", label: "Learning", description: "Training & onboarding", icon: BookOpen, href: "/learning" },
-  { key: "performance", label: "Performance", description: "Cycles & objectives", icon: BarChart3, href: "/performance" },
+  { key: "performance", label: "Performance", description: "Workspace", icon: BarChart3, href: "/performance" },
   { key: "recruitment", label: "Recruitment", description: "Hiring pipeline", icon: UsersRound, href: "/recruitment" },
   { key: "onboarding", label: "Onboarding", description: "New-hire journeys", icon: Handshake, href: "/onboarding" },
   { key: "interview", label: "Interview", description: "Candidate assessments", icon: Video, href: "/interview" },

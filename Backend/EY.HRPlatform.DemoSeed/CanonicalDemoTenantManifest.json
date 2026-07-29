@@ -7,12 +7,6 @@
   "endedEmployeeCount": 20,
   "departmentCount": 8,
   "teamCount": 32,
-  "performance": {
-    "activeCampaignSlug": "fy2026-objective-planning-2026",
-    "evaluationCycleSlug": "atlas-evaluation-execution-demo",
-    "evaluationRoundName": "FY2026 Year-end evaluation",
-    "asOfUtc": "2026-07-01T09:00:00Z"
-  },
   "credentials": {
     "platformPassword": "Admin@123456",
     "tenantPassword": "Demo@123456"
@@ -21,14 +15,12 @@
     { "name": "Platform administrator", "email": "admin@ey-hr.com", "employeeId": null, "passwordKind": "platform" },
     { "name": "HR administrator", "email": "atlas.hr@atlas.example", "employeeId": "employee0002", "passwordKind": "tenant" },
     { "name": "Organization administrator", "email": "atlas.orgadmin@atlas.example", "employeeId": "employee0003", "passwordKind": "tenant" },
-    { "name": "Direction", "email": "direction@atlas.example", "employeeId": "employee0004", "passwordKind": "tenant" },
     { "name": "Manager", "email": "flit.manager@atlas.example", "employeeId": "20000000-0000-0000-0000-000000000001", "passwordKind": "tenant" },
     { "name": "Pending employee", "email": "nour.pending@atlas.example", "employeeId": "20000000-0000-0000-0000-000000000101", "passwordKind": "tenant" },
     { "name": "Draft employee", "email": "yassine.draft@atlas.example", "employeeId": "20000000-0000-0000-0000-000000000102", "passwordKind": "tenant" },
     { "name": "Submitted employee", "email": "meriem.submitted@atlas.example", "employeeId": "20000000-0000-0000-0000-000000000103", "passwordKind": "tenant" },
     { "name": "Manager-review employee", "email": "oussama.review@atlas.example", "employeeId": "20000000-0000-0000-0000-000000000104", "passwordKind": "tenant" },
     { "name": "Finalized employee", "email": "amel.finalized@atlas.example", "employeeId": "20000000-0000-0000-0000-000000000105", "passwordKind": "tenant" },
-    { "name": "Acknowledged employee", "email": "hatem.acknowledged@atlas.example", "employeeId": "20000000-0000-0000-0000-000000000106", "passwordKind": "tenant" },
-    { "name": "Empty Performance workspace", "email": "empty.employee@atlas.example", "employeeId": "employee0051", "passwordKind": "tenant" }
+    { "name": "Acknowledged employee", "email": "hatem.acknowledged@atlas.example", "employeeId": "20000000-0000-0000-0000-000000000106", "passwordKind": "tenant" }
   ]
 }

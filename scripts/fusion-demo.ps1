@@ -12,7 +12,6 @@ $logRoot = Join-Path $artifactRoot "logs"
 $pidFile = Join-Path $artifactRoot "pids.json"
 $gatewayUrl = "http://localhost:5000"
 $canonicalTenantId = "fa918a81-2147-45e0-934a-9eeec9a4ca14"
-$performanceCampaignSlug = "atlas-progress-demo"
 $owned = [System.Collections.Generic.List[object]]::new()
 
 function Import-LocalEnvironment {
@@ -37,7 +36,7 @@ function Import-LocalEnvironment {
     $env:ServiceUrls__CoreApiBaseUrl = "http://localhost:5301"
     $env:DemoSeed__Canonical__TenantId = $canonicalTenantId
 
-    foreach ($name in @("ConnectionStrings__IdentityDb", "ConnectionStrings__CoreHRDb", "ConnectionStrings__PerformanceDb", "Jwt__Secret")) {
+    foreach ($name in @("ConnectionStrings__IdentityDb", "ConnectionStrings__CoreHRDb", "Jwt__Secret")) {
         if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
             throw "Missing $name. Set it in local environment configuration before running fusion-demo.ps1."
         }
@@ -120,15 +119,13 @@ function Verify-Personas {
         @{ Email = "admin@ey-hr.com"; Password = "Admin@123456"; EmployeeId = $null },
         @{ Email = "atlas.hr@atlas.example"; Password = "Demo@123456"; EmployeeId = "required" },
         @{ Email = "atlas.orgadmin@atlas.example"; Password = "Demo@123456"; EmployeeId = "required" },
-        @{ Email = "direction@atlas.example"; Password = "Demo@123456"; EmployeeId = "required" },
         @{ Email = "flit.manager@atlas.example"; Password = "Demo@123456"; EmployeeId = "20000000-0000-0000-0000-000000000001" },
         @{ Email = "nour.pending@atlas.example"; Password = "Demo@123456"; EmployeeId = "20000000-0000-0000-0000-000000000101" },
         @{ Email = "yassine.draft@atlas.example"; Password = "Demo@123456"; EmployeeId = "20000000-0000-0000-0000-000000000102" },
         @{ Email = "meriem.submitted@atlas.example"; Password = "Demo@123456"; EmployeeId = "20000000-0000-0000-0000-000000000103" },
         @{ Email = "oussama.review@atlas.example"; Password = "Demo@123456"; EmployeeId = "20000000-0000-0000-0000-000000000104" },
         @{ Email = "amel.finalized@atlas.example"; Password = "Demo@123456"; EmployeeId = "20000000-0000-0000-0000-000000000105" },
-        @{ Email = "hatem.acknowledged@atlas.example"; Password = "Demo@123456"; EmployeeId = "20000000-0000-0000-0000-000000000106" },
-        @{ Email = "empty.employee@atlas.example"; Password = "Demo@123456"; EmployeeId = "required" }
+        @{ Email = "hatem.acknowledged@atlas.example"; Password = "Demo@123456"; EmployeeId = "20000000-0000-0000-0000-000000000106" }
     )
 
     foreach ($persona in $personas) {
@@ -153,23 +150,9 @@ function Verify-Personas {
     if ($totalCount -ne 320) { throw "Canonical workforce count mismatch ($totalCount; expected 320)." }
     Write-Host "verified CoreHR workforce count: $totalCount" -ForegroundColor Green
 
-    $planningConfiguration = Invoke-RestMethod -Uri "$gatewayUrl/api/performance/objective-planning/configuration" -Headers $headers
-    if (-not $planningConfiguration.data.isConfigured -or $null -eq $planningConfiguration.data.configuration) {
-        throw "Canonical Performance objective planning configuration was not provisioned."
-    }
-    Write-Host "verified Performance objective planning configuration" -ForegroundColor Green
-
     $managerBody = @{ email = "flit.manager@atlas.example"; password = "Demo@123456" } | ConvertTo-Json
     $managerLogin = Invoke-RestMethod -Uri "$gatewayUrl/api/identity/auth/login" -Method Post -ContentType "application/json" -Body $managerBody
     $managerHeaders = @{ Authorization = "Bearer $($managerLogin.data.accessToken)" }
-    $campaign = Invoke-RestMethod -Uri "$gatewayUrl/api/performance/team-progress/campaigns/$performanceCampaignSlug" -Headers $managerHeaders
-    if ($null -eq $campaign.data) { throw "Canonical Performance campaign verification returned no data." }
-    Write-Host "verified Performance campaign: $performanceCampaignSlug" -ForegroundColor Green
-
-    $notifications = Invoke-RestMethod -Uri "$gatewayUrl/api/performance/notifications" -Headers $managerHeaders
-    if ($null -eq $notifications.data) { throw "Canonical Performance notification verification returned no data." }
-    Write-Host "verified Performance notifications" -ForegroundColor Green
-
     $access = Invoke-RestMethod -Uri "$gatewayUrl/api/identity/core-access/me" -Headers $managerHeaders
     if ($null -eq $access.data) { throw "Manager access profile/permission verification returned no data." }
     $workforceContext = Invoke-RestMethod -Uri "$gatewayUrl/api/corehr/workforce/me" -Headers $managerHeaders
@@ -180,9 +163,7 @@ function Verify-Personas {
 
     $history = Invoke-RestMethod -Uri "$gatewayUrl/api/corehr/employees/import/history?page=1&pageSize=10" -Headers $headers
     if ($null -eq $history.data) { throw "CoreHR import history verification returned no data." }
-    $approvals = Invoke-RestMethod -Uri "$gatewayUrl/api/performance/plan-approvals/my-campaigns" -Headers $managerHeaders
-    if ($null -eq $approvals.data) { throw "Performance plan approval verification returned no data." }
-    Write-Host "verified CoreHR import history and Performance planning data" -ForegroundColor Green
+    Write-Host "verified CoreHR import history" -ForegroundColor Green
 }
 
 function Stop-OwnedProcesses {

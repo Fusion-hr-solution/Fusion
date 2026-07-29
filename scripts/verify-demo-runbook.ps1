@@ -14,7 +14,7 @@ $required = @(
     $manifest.displayName, $manifest.tenantId, $manifest.manifestVersion,
     "$($manifest.employeeCount) employees", "$($manifest.activeEmployeeCount) active",
     "$($manifest.endedEmployeeCount) ended/inactive", "$($manifest.departmentCount) departments",
-    "$($manifest.teamCount) teams", $manifest.performance.asOfUtc,
+    "$($manifest.teamCount) teams",
     ".\scripts\fusion-demo.ps1 up -Fresh"
 )
 foreach ($value in $required) {

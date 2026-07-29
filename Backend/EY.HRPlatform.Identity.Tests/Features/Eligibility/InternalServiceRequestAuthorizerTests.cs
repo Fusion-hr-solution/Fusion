@@ -35,10 +35,10 @@ public sealed class InternalServiceRequestAuthorizerTests
     {
         var options = new InternalServiceAuthenticationOptions
         {
-            CallerName = "performance",
+            CallerName = "module",
             ActiveKeyId = "2026-rotation-a",
             Keys = new Dictionary<string, string> { ["2026-rotation-a"] = "test-secret" },
-            AllowedCallers = ["performance"],
+            AllowedCallers = ["module"],
         };
         var signer = new InternalServiceRequestSigner(options);
         using var outbound = new HttpRequestMessage(HttpMethod.Post, "https://identity.local/internal/identity/eligibility/evaluate")
@@ -143,7 +143,7 @@ public sealed class InternalServiceRequestAuthorizerTests
     [Fact]
     public async Task AuthorizeAsync_RejectsDisallowedCaller()
     {
-        // Options have AllowedCallers = ["performance"] but the request claims "corehr".
+        // Options have AllowedCallers = ["module"] but the request claims "corehr".
         var request = new DefaultHttpContext().Request;
         request.Method = HttpMethods.Post;
         request.Path = "/internal/identity/eligibility/evaluate";
@@ -158,7 +158,7 @@ public sealed class InternalServiceRequestAuthorizerTests
         {
             Keys = new Dictionary<string, string> { ["2026-rotation-a"] = "test-secret" },
             // "corehr" is NOT in the allowed list.
-            AllowedCallers = ["performance"],
+            AllowedCallers = ["module"],
         });
 
         Assert.False(await authorizer.AuthorizeAsync(request));

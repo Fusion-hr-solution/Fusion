@@ -9,7 +9,7 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 
 /// <summary>
 /// Seeds the single canonical Development tenant. CoreHR owns the workforce truth used by
-/// Identity and Performance; no downstream service creates employee records.
+/// Identity and downstream modules; no downstream service creates employee records.
 /// </summary>
 public static class CoreHRSeeder
 {

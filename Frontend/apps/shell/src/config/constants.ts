@@ -25,7 +25,7 @@ export const MICROFRONTENDS: Microfrontend[] = [
   },
   {
     title: "Performance",
-    description: "Track employee performance reviews, goals, and development plans.",
+    description: "Performance workspace",
     href: "/performance",
     badge: "Microfrontend",
   },

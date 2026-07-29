@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 
 namespace EY.HRPlatform.SharedKernel.Auth;
 
@@ -113,70 +113,6 @@ public static class CorePermissions
         ]);
 }
 
-public static class PerformancePermissions
-{
-    public const string CycleView = "performance.cycle.view";
-    public const string CycleManage = "performance.cycle.manage";
-    public const string CyclePublish = "performance.cycle.publish";
-    public const string ObjectiveSelfManage = "performance.objective.self.manage";
-    public const string ObjectiveTeamManage = "performance.objective.team.manage";
-    public const string RetentionManage = "performance.retention.manage";
-    public const string AuditView = "performance.audit.view";
-    public const string ConfidentialIdentityView = "performance.feedback.identity.view";
-
-    // Strategic objective permissions (Plan 03-02, D-05: deny-by-default, never auto-granted by position)
-    public const string StrategicView = "performance.strategic.view";
-
-    // Progress and team-approval permissions (consumed by Plans 03-03 / 03-04)
-    public const string ObjectiveProgressCorrect = "performance.objective.progress.correct";
-    public const string ObjectiveTeamApprove = "performance.objective.team.approve";
-
-    // Team-progress visibility for effective reviewers (distinct from plan approval).
-    public const string ObjectiveProgressTeamView = "performance.objective.progress.team.view";
-
-    // Check-ins and follow-up (performance record step 2): reviewer conducts, employee views own.
-    public const string CheckInConduct = "performance.checkin.conduct";
-    public const string CheckInSelfView = "performance.checkin.self.view";
-
-    // Objective planning configuration permissions.
-    public const string ObjectivePolicyView = "performance.objective.policy.view";
-    public const string ObjectivePolicyManage = "performance.objective.policy.manage";
-
-    // Evaluation configuration, governed round operations, and assignment work-entry doors.
-    public const string EvaluationManage = "performance.evaluation.manage";
-    public const string EvaluationOperate = "performance.evaluation.operate";
-    public const string EvaluationSelfView = "performance.evaluation.self.view";
-    public const string EvaluationTeamView = "performance.evaluation.team.view";
-
-    // Skills catalogue, proficiency scales, and expectation sets configuration.
-    public const string SkillsManage = "performance.skills.manage";
-
-    public static readonly ReadOnlyCollection<string> All =
-        Array.AsReadOnly([
-            CycleView,
-            CycleManage,
-            CyclePublish,
-            ObjectiveSelfManage,
-            ObjectiveTeamManage,
-            RetentionManage,
-            AuditView,
-            ConfidentialIdentityView,
-            StrategicView,
-            ObjectiveProgressCorrect,
-            ObjectiveTeamApprove,
-            ObjectiveProgressTeamView,
-            CheckInConduct,
-            CheckInSelfView,
-            ObjectivePolicyView,
-            ObjectivePolicyManage,
-            EvaluationManage,
-            EvaluationOperate,
-            EvaluationSelfView,
-            EvaluationTeamView,
-            SkillsManage,
-        ]);
-}
-
 public static class ModuleSettingsPermissions
 {
     public const string LearningView = "settings.modules.view:learning";
@@ -242,39 +178,7 @@ public static class CorePermissionCatalog
             new(ModuleSettingsPermissions.LearningManage, "Manage Learning module settings", "Module settings", [PermissionScopes.Module]),
             new(ModuleSettingsPermissions.InterviewView, "View Interview module settings", "Module settings", [PermissionScopes.Module]),
             new(ModuleSettingsPermissions.InterviewManage, "Manage Interview module settings", "Module settings", [PermissionScopes.Module]),
-            new(PerformancePermissions.CycleView, "View performance cycles", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Controls access to performance cycles and their participation."),
-            new(PerformancePermissions.CycleManage, "Manage performance cycles", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Create and edit draft cycles and their population."),
-            new(PerformancePermissions.CyclePublish, "Operate performance cycles", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Publish, activate, and close cycles (governance-gated transitions)."),
-            new(PerformancePermissions.ObjectiveSelfManage, "Manage own objectives", "Performance", [PermissionScopes.Self]),
-            new(PerformancePermissions.ObjectiveTeamManage, "Manage team objectives", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
-            new(PerformancePermissions.RetentionManage, "Manage performance retention", "Performance", [PermissionScopes.Tenant]),
-            new(PerformancePermissions.AuditView, "View performance audit", "Performance", [PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
-            new(PerformancePermissions.ConfidentialIdentityView, "View confidential feedback identities", "Performance", [PermissionScopes.Tenant]),
 
-            // Strategic objective permissions (D-05: deny-by-default, never auto-granted by position)
-            new(PerformancePermissions.StrategicView, "View strategic objectives", "Performance", [PermissionScopes.Tenant]),
-
-            // Progress correction and employee objective plan approval permissions
-            new(PerformancePermissions.ObjectiveProgressCorrect, "Correct objective progress (manager override)", "Performance", [PermissionScopes.Tenant]),
-            new(PerformancePermissions.ObjectiveTeamApprove, "Approve employee objective plans", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
-            new(PerformancePermissions.ObjectiveProgressTeamView, "View team objective progress", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant]),
-
-            // Check-in and follow-up permissions (performance record step 2).
-            new(PerformancePermissions.CheckInConduct, "Conduct performance check-ins", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Plan, reschedule, cancel, and complete check-ins for participants you review; effective-reviewer scope is enforced per participant."),
-            new(PerformancePermissions.CheckInSelfView, "View own check-ins", "Performance", [PermissionScopes.Self]),
-
-            // Objective planning configuration permissions.
-            new(PerformancePermissions.ObjectivePolicyView, "View objective planning configuration", "Performance", [PermissionScopes.Tenant]),
-            new(PerformancePermissions.ObjectivePolicyManage, "Manage objective planning configuration", "Performance", [PermissionScopes.Tenant]),
-
-            // Evaluation configuration and work-entry permissions.
-            new(PerformancePermissions.EvaluationManage, "Manage evaluation configuration and rounds", "Performance", [PermissionScopes.Tenant], "Create and maintain rating scales, templates, and draft evaluation rounds."),
-            new(PerformancePermissions.EvaluationOperate, "Operate evaluation rounds", "Performance", [PermissionScopes.Tenant], "Launch rounds and extend deadlines through audited governance transitions."),
-            new(PerformancePermissions.EvaluationSelfView, "View own evaluations", "Performance", [PermissionScopes.Self], "Access evaluation assignments where the signed-in employee is the participant."),
-            new(PerformancePermissions.EvaluationTeamView, "View team evaluations", "Performance", [PermissionScopes.DirectReports, PermissionScopes.OrgUnit, PermissionScopes.Tenant], "Access manager assignments only where the signed-in employee is the frozen effective reviewer."),
-
-            // Skills catalogue configuration.
-            new(PerformancePermissions.SkillsManage, "Manage skills configuration", "Performance", [PermissionScopes.Tenant], "Create and maintain the skills catalogue, proficiency scales, and expectation sets."),
         ]);
 
     private static readonly IReadOnlyDictionary<string, CorePermissionDefinition> ByKey =

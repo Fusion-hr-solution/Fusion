@@ -64,7 +64,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmployeeImportWorkflowService, EmployeeImportWorkflowService>();
         services.AddSingleton<IEmployeeImportApplyQueueProcessor, EmployeeImportApplyQueueProcessor>();
         services.AddScoped<IWorkforceContractService, WorkforceContractService>();
-        services.AddScoped<ICampaignWorkforceContextService, CampaignWorkforceContextService>();
         services.AddScoped<IInternalWorkforceSnapshotService, InternalWorkforceSnapshotService>();
         services.AddScoped<IApplicabilityOptionsService, ApplicabilityOptionsService>();
         services.AddScoped<WorkforceResolutionScope>();

@@ -166,7 +166,7 @@ public sealed record WorkforceOrgUnitTreeDto(
 
 /// <summary>
 /// Detailed org-unit projection returned by the workforce contract's org-unit-by-id read (D-16 seam #2).
-/// Includes the responsible manager/owner so Performance can route collective-objective approval
+/// Includes the responsible manager/owner so downstream workflows can resolve collective ownership
 /// without modelling org structure itself.
 /// </summary>
 public sealed record WorkforceOrgUnitDetailDto(

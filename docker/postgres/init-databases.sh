@@ -7,12 +7,10 @@ psql -v ON_ERROR_STOP=1 --username $POSTGRES_USER --dbname postgres <<-EOSQL
     CREATE DATABASE fusion_identity;
     CREATE DATABASE fusion_training;
     CREATE DATABASE fusion_corehr;
-    CREATE DATABASE fusion_performance;
     
     GRANT ALL PRIVILEGES ON DATABASE fusion_identity TO $POSTGRES_USER;
     GRANT ALL PRIVILEGES ON DATABASE fusion_training TO $POSTGRES_USER;
     GRANT ALL PRIVILEGES ON DATABASE fusion_corehr TO $POSTGRES_USER;
-    GRANT ALL PRIVILEGES ON DATABASE fusion_performance TO $POSTGRES_USER;
 EOSQL
 
 echo "Databases created successfully"

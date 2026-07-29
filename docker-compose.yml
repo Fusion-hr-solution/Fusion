@@ -102,10 +102,6 @@ services:
     container_name: fusion-performance
     environment:
       ASPNETCORE_ENVIRONMENT: Docker
-      ConnectionStrings__PerformanceDb: Host=postgres;Database=fusion_performance;Username=${POSTGRES_USER:-fusion};Password=${POSTGRES_PASSWORD:-FusionDev123!}
-    depends_on:
-      postgres:
-        condition: service_healthy
     networks:
       - fusion-net
 

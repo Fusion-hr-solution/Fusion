@@ -58,25 +58,6 @@ export {
   canSeeOrganizationsNavigation,
   canAccessTenantContext,
   canAccessTenantSurfaces,
-  canViewPerformanceCycles,
-  canManagePerformanceCycles,
-  canViewPerformanceCampaigns,
-  canManagePerformanceCampaigns,
-  canOperatePerformanceCycles,
-  canViewObjectivePlanningConfiguration,
-  canManageObjectivePlanningConfiguration,
-  canManageTeamObjectives,
-  canAccessTeamObjectives,
-  canAccessPlanApprovals,
-  canAccessMyObjectives,
-  canAccessTeamProgress,
-  canViewPerformanceStrategy,
-  canManageEvaluations,
-  canManageSkills,
-  canOperateEvaluations,
-  canAccessMyEvaluations,
-  canAccessTeamEvaluations,
-  canAccessPerformance,
 } from "./roles";
 
 // Components
@@ -85,3 +66,5 @@ export { SignInPage } from "./components/signin-page";
 export type { SignInPageProps } from "./components/signin-page";
 export { SignUpPage } from "./components/signup-page";
 export type { SignUpPageProps } from "./components/signup-page";
+
+

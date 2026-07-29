@@ -19,9 +19,6 @@ public static class AccessProfileTemplates
             new(CorePermissions.ProfileSelfView, PermissionScopes.Self),
             new(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
             new(CorePermissions.EmployeeView, PermissionScopes.Self),
-            new(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self),
-            new(PerformancePermissions.CheckInSelfView, PermissionScopes.Self),
-            new(PerformancePermissions.EvaluationSelfView, PermissionScopes.Self),
         ]);
 
     public static readonly SeededAccessProfileTemplate Manager = new(
@@ -33,22 +30,6 @@ public static class AccessProfileTemplates
             new(CorePermissions.ProfileSelfUpdate, PermissionScopes.Self),
             new(CorePermissions.EmployeeView, PermissionScopes.DirectReports),
             new(CorePermissions.TeamView, PermissionScopes.DirectReports),
-            new(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self),
-            new(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.DirectReports),
-            new(PerformancePermissions.ObjectiveTeamApprove, PermissionScopes.DirectReports),
-            new(PerformancePermissions.ObjectiveProgressTeamView, PermissionScopes.DirectReports),
-            new(PerformancePermissions.CheckInConduct, PermissionScopes.DirectReports),
-            new(PerformancePermissions.CheckInSelfView, PermissionScopes.Self),
-            new(PerformancePermissions.EvaluationSelfView, PermissionScopes.Self),
-            new(PerformancePermissions.EvaluationTeamView, PermissionScopes.DirectReports),
-        ]);
-
-    public static readonly SeededAccessProfileTemplate Direction = new(
-        "direction",
-        "Direction",
-        "Read-only access to campaign strategy and cascade coverage.",
-        [
-            new(PerformancePermissions.StrategicView, PermissionScopes.Tenant),
         ]);
 
     public static readonly SeededAccessProfileTemplate HrAdmin = new(
@@ -72,17 +53,6 @@ public static class AccessProfileTemplates
             new(CorePermissions.SettingsStructureView, PermissionScopes.Tenant),
             new(CorePermissions.SettingsProvisioningView, PermissionScopes.Tenant),
             new(CorePermissions.SettingsGovernanceView, PermissionScopes.Tenant),
-            new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
-            new(PerformancePermissions.CycleManage, PermissionScopes.Tenant),
-            new(PerformancePermissions.CyclePublish, PermissionScopes.Tenant),
-            new(PerformancePermissions.ObjectivePolicyView, PermissionScopes.Tenant),
-            new(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant),
-            new(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.Tenant),
-            new(PerformancePermissions.RetentionManage, PermissionScopes.Tenant),
-            new(PerformancePermissions.AuditView, PermissionScopes.Tenant),
-            new(PerformancePermissions.EvaluationManage, PermissionScopes.Tenant),
-            new(PerformancePermissions.EvaluationOperate, PermissionScopes.Tenant),
-            new(PerformancePermissions.SkillsManage, PermissionScopes.Tenant),
         ]);
 
     public static readonly SeededAccessProfileTemplate OrgAdmin = new(
@@ -116,19 +86,9 @@ public static class AccessProfileTemplates
             new(CorePermissions.SettingsGovernanceView, PermissionScopes.Tenant),
             new(CorePermissions.AccessProfilesView, PermissionScopes.Tenant),
             new(CorePermissions.AccessProfilesManageV2, PermissionScopes.Tenant),
-            new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
-            new(PerformancePermissions.CycleManage, PermissionScopes.Tenant),
-            new(PerformancePermissions.CyclePublish, PermissionScopes.Tenant),
-            new(PerformancePermissions.ObjectivePolicyView, PermissionScopes.Tenant),
-            new(PerformancePermissions.ObjectivePolicyManage, PermissionScopes.Tenant),
-            new(PerformancePermissions.ObjectiveTeamManage, PermissionScopes.Tenant),
-            new(PerformancePermissions.RetentionManage, PermissionScopes.Tenant),
-            new(PerformancePermissions.AuditView, PermissionScopes.Tenant),
-            new(PerformancePermissions.ConfidentialIdentityView, PermissionScopes.Tenant),
-            new(PerformancePermissions.SkillsManage, PermissionScopes.Tenant),
         ]);
 
-    public static IReadOnlyList<SeededAccessProfileTemplate> All => [Employee, Manager, Direction, HrAdmin, OrgAdmin];
+    public static IReadOnlyList<SeededAccessProfileTemplate> All => [Employee, Manager, HrAdmin, OrgAdmin];
 
     public static SeededAccessProfileTemplate? GetByInternalKey(string internalKey)
         => All.FirstOrDefault(t =>
@@ -206,3 +166,4 @@ public static class AccessProfileTemplates
         "Access Administrator",
     };
 }
+

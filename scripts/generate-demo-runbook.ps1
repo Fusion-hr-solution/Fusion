@@ -19,7 +19,7 @@ $personaRows = ($manifest.personas | ForEach-Object {
 $content = @"
 # Canonical Fusion Demo Tenant
 
-The repository uses one Development-only tenant as the shared CoreHR and Performance verification baseline.
+The repository uses one Development-only tenant as the shared CoreHR verification baseline.
 
 ## Tenant
 
@@ -28,7 +28,6 @@ The repository uses one Development-only tenant as the shared CoreHR and Perform
 - Manifest version: ``$($manifest.manifestVersion)``
 - Workforce: $($manifest.employeeCount) employees — $($manifest.activeEmployeeCount) active, $($manifest.endedEmployeeCount) ended/inactive
 - Organization: $($manifest.departmentCount) departments, $($manifest.teamCount) teams
-- Fixed scenario date: $($manifest.performance.asOfUtc)
 
 ## Credentials
 
@@ -53,11 +52,11 @@ The script reads local database connection strings and JWT secrets from ignored 
 
 - Shell: http://localhost:3000
 - CoreHR: http://localhost:3002
-- Performance: http://localhost:3004
+- Performance workspace: http://localhost:3004
 - Gateway: http://localhost:5000
 - Identity: http://localhost:5101
 - CoreHR API: http://localhost:5301
-- Performance API: http://localhost:5401
+- Performance host: http://localhost:5401
 "@
 
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $OutputPath) | Out-Null

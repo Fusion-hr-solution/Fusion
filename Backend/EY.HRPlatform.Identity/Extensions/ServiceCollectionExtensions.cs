@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
@@ -125,21 +125,6 @@ public static class ServiceCollectionExtensions
             configuration.GetSection("WorkforceInvitationEmail"));
         services.AddScoped<IWorkforceInvitationEmailSender, SmtpWorkforceInvitationEmailSender>();
 
-        // 5. Performance provisioning client (service-to-service, HMAC-signed internal endpoint)
-        var performanceBaseUrl = configuration["Services:PerformanceUrl"]?.Trim();
-        if (string.IsNullOrWhiteSpace(performanceBaseUrl))
-        {
-            services.AddSingleton<IPerformanceProvisioningClient, NoOpPerformanceProvisioningClient>();
-        }
-        else
-        {
-            services.AddHttpClient<IPerformanceProvisioningClient, HttpPerformanceProvisioningClient>(client =>
-            {
-                client.BaseAddress = new Uri(performanceBaseUrl.EndsWith('/') ? performanceBaseUrl : $"{performanceBaseUrl}/");
-                client.Timeout = TimeSpan.FromSeconds(10);
-            });
-        }
-
         // 6. Training service client (service-to-service)
         // This integration is fire-and-forget only. When local config is blank,
         // keep Identity endpoints working and skip downstream provisioning.
@@ -163,3 +148,5 @@ public static class ServiceCollectionExtensions
         return services;
     }
 }
+
+

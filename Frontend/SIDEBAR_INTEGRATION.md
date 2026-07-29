@@ -259,7 +259,7 @@ const CUSTOM_MODULES: SidebarModule[] = [
 | Shell | `ShellSidebar` | `apps/shell/src/components/shell-sidebar.tsx` |
 | Interview | `InterviewSidebar` | `apps/interview/src/components/interview-sidebar.tsx` |
 | Core | `CoreSidebar` | `apps/core/src/components/core-sidebar.tsx` |
-| Performance | `PerformanceSidebar` | `apps/performance/src/components/performance-sidebar.tsx` |
+| Performance | `PerformanceSidebar` | `apps/performance/src/shell/navigation/performance-sidebar.tsx` |
 | Recruitment | `RecruitmentSidebar` | `apps/recruitment/src/components/recruitment-sidebar.tsx` |
 | Onboarding | `OnboardingSidebar` | `apps/onboarding/src/components/onboarding-sidebar.tsx` |
 | Learning | `LearningSidebar` | `apps/learning/src/components/learning-sidebar.tsx` |

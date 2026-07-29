@@ -15,7 +15,7 @@ Frontend/
 │   ├── interview/         → Interview management MFE       — port 3001
 │   ├── core/              → Core platform MFE              — port 3002
 │   ├── learning/          → Learning & courses MFE         — port 3003
-│   ├── performance/       → Performance reviews MFE        — port 3004
+│   ├── performance/       → Performance workspace MFE       — port 3004
 │   ├── recruitment/       → Recruitment & hiring MFE       — port 3005
 │   └── onboarding/        → New hire onboarding MFE        — port 3006
 ├── packages/

@@ -42,7 +42,7 @@ fusion/
 │   │   ├── interview/               → Interview management (port 3001)
 │   │   ├── core/                    → Core platform (port 3002)
 │   │   ├── learning/                → Learning & courses (port 3003)
-│   │   ├── performance/             → Performance reviews (port 3004)
+│   │   ├── performance/             → Performance workspace (port 3004)
 │   │   ├── recruitment/             → Recruitment & hiring (port 3005)
 │   │   └── onboarding/              → New hire onboarding (port 3006)
 │   └── packages/

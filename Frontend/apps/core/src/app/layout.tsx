@@ -20,7 +20,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         {/* Shared design-system fonts (IBM Plex Sans + Space Grotesk), loaded at runtime so the
-            build has no font-CDN dependency. Families/fallbacks live in @repo/ds tokens. Matches Performance. */}
+            build has no font-CDN dependency. Families/fallbacks live in @repo/ds tokens. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font -- App Router head link, loaded once in the root layout */}

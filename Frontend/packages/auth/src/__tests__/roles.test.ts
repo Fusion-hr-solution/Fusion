@@ -18,11 +18,6 @@ import {
   canSeeOrganizationsNavigation,
   canViewCoreAccessProfiles,
   canManageCoreAccessProfiles,
-  canViewObjectivePlanningConfiguration,
-  canManageObjectivePlanningConfiguration,
-  canAccessMyObjectives,
-  canAccessPlanApprovals,
-  canAccessPerformance,
 } from "../roles";
 import type { AuthUser } from "../types";
 
@@ -270,48 +265,7 @@ describe("role helpers", () => {
     expect(canSeeCoreSettingsNavigation(profileManager)).toBe(true);
   });
 
-  it("uses explicit Performance P1.1 permissions for objective planning configuration", () => {
-    const p11Admin = makeUser([], null, [
-      grant("performance.objective.policy.manage", "Tenant"),
-    ]);
-
-    expect(canViewObjectivePlanningConfiguration(p11Admin)).toBe(true);
-    expect(canManageObjectivePlanningConfiguration(p11Admin)).toBe(true);
-    expect(canAccessPerformance(p11Admin)).toBe(true);
-  });
-
-  it("allows only employee-linked self-manage users to access My objectives", () => {
-    const employee = makeUser(["Employee"], "employee-1", [
-      grant("performance.objective.self.manage", "Self"),
-    ]);
-    const unlinked = makeUser(["Employee"], null, [
-      grant("performance.objective.self.manage", "Self"),
-    ]);
-    const managerOnly = makeUser(["Manager"], "employee-2", [
-      grant("performance.objective.team.manage", "DirectReports"),
-    ]);
-
-    expect(canAccessMyObjectives(employee)).toBe(true);
-    expect(canAccessPerformance(employee)).toBe(true);
-    expect(canAccessMyObjectives(unlinked)).toBe(false);
-    expect(canAccessMyObjectives(managerOnly)).toBe(false);
-  });
-
-  it("allows only employee-linked approvers to access Plan approvals", () => {
-    const approver = makeUser(["Manager"], "employee-1", [
-      grant("performance.objective.team.approve", "DirectReports"),
-    ]);
-    const unlinkedAdmin = makeUser(["HRAdmin"], null, [
-      grant("performance.objective.team.approve", "Tenant"),
-    ]);
-    const noPermission = makeUser(["Manager"], "employee-2", [
-      grant("performance.objective.team.manage", "DirectReports"),
-    ]);
-
-    expect(canAccessPlanApprovals(approver)).toBe(true);
-    expect(canAccessPerformance(approver)).toBe(true);
-    expect(canAccessPlanApprovals(unlinkedAdmin)).toBe(false);
-    expect(canAccessPlanApprovals(noPermission)).toBe(false);
-  });
 
 });
+
+
