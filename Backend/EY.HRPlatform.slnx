@@ -14,6 +14,7 @@
   </Folder>
   <Folder Name="/src/Shared/">
     <Project Path="EY.HRPlatform.SharedKernel/EY.HRPlatform.SharedKernel.csproj" />
+    <Project Path="EY.HRPlatform.DemoSeed/EY.HRPlatform.DemoSeed.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="EY.HRPlatform.CoreHR.Tests/EY.HRPlatform.CoreHR.Tests.csproj" />

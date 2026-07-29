@@ -1,6 +1,7 @@
 using EY.HRPlatform.Performance.Domain.Defaults;
 using EY.HRPlatform.Performance.Domain.Entities;
 using EY.HRPlatform.Performance.Domain.Enums;
+using EY.HRPlatform.DemoSeed;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -19,10 +20,23 @@ public static class AtlasPerformanceDemoSeeder
     public const string AssessmentRoundName = "FY2026 Year-end evaluation";
     public const string IsolationEvaluationRoundName = "FY2026 manager evaluation";
 
-    private static readonly Guid EmployeeId = Guid.Parse("20000000-0000-0000-0000-000000000003");
-    private static readonly Guid ManagerId = Guid.Parse("20000000-0000-0000-0000-000000000001");
+    private static readonly Guid EmployeeId = CanonicalDemoSeed.LifecycleEmployeeIds[1];
+    private static readonly Guid ManagerId = CanonicalDemoSeed.DirectorId;
     private static readonly Guid ManagerUserId = Guid.Parse("10000000-0000-0000-0000-000000000001");
     private static readonly Guid EmployeeUserId = Guid.Parse("10000000-0000-0000-0000-000000000003");
+
+    public static async Task ResetAsync(
+        PerformanceDbContext db,
+        Guid tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        if (tenantId != CanonicalDemoSeed.TenantId)
+            throw new InvalidOperationException("Canonical Performance reset is restricted to the configured demo tenant.");
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        await CanonicalTenantResetter.ResetAsync(db, tenantId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
 
     public static async Task SeedAsync(
         PerformanceDbContext db,
@@ -33,6 +47,10 @@ public static class AtlasPerformanceDemoSeeder
         if (tenantId == Guid.Empty)
             throw new ArgumentException("The Atlas tenant id is required.", nameof(tenantId));
 
+        await using var transaction = db.Database.IsRelational()
+            ? await db.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
         var existingCycle = await db.PerformanceCycles
             .IgnoreQueryFilters()
             .Include(cycle => cycle.Participants)
@@ -41,14 +59,10 @@ public static class AtlasPerformanceDemoSeeder
                 cancellationToken);
         if (existingCycle is not null)
         {
-            var existingPlan = await db.EmployeeObjectivePlans
-                .IgnoreQueryFilters()
-                .Include(plan => plan.Objectives)
-                .SingleAsync(
-                    plan => plan.TenantId == tenantId && plan.CycleId == existingCycle.Id,
-                    cancellationToken);
-            await EnsureTenantAEvaluationAsync(
-                db, tenantId, existingCycle, existingPlan, asOfUtc, cancellationToken);
+            await EnsureAssessmentExecutionAsync(db, tenantId, asOfUtc, cancellationToken);
+            await WriteReceiptAsync(db, tenantId, cancellationToken);
+            if (transaction is not null)
+                await transaction.CommitAsync(cancellationToken);
             return;
         }
 
@@ -72,7 +86,7 @@ public static class AtlasPerformanceDemoSeeder
             lockDate,
             CampaignPlanningRulesSnapshot.Capture(
                 5,
-                "0.25,0.50",
+                "0.30,0.40",
                 "Quantitative,Qualitative",
                 ManagerUserId,
                 opening));
@@ -81,49 +95,57 @@ public static class AtlasPerformanceDemoSeeder
             "Improve client delivery quality",
             "Shared strategic outcome for the Atlas progress walkthrough.",
             "Advisory");
-        cycle.Launch(
-            [new ResolvedLaunchParticipant(
-                EmployeeId,
-                "Sami Analyst",
-                ManagerId,
-                "Flit Manager",
+        var workforce = tenantId == CanonicalDemoSeed.TenantId
+            ? CanonicalDemoSeed.BuildEmployees().Where(employee => employee.IsActive).ToList()
+            : [CanonicalDemoSeed.GetEmployee(EmployeeId)];
+        var workforceById = workforce.ToDictionary(employee => employee.Id);
+        cycle.Launch(workforce.Select(employee =>
+        {
+            var manager = employee.ManagerId is { } managerId && workforceById.TryGetValue(managerId, out var resolvedManager)
+                ? resolvedManager
+                : CanonicalDemoSeed.GetEmployee(ManagerId);
+            return new ResolvedLaunchParticipant(
+                employee.Id,
+                $"{employee.FirstName} {employee.LastName}",
+                manager.Id,
+                $"{manager.FirstName} {manager.LastName}",
                 false,
                 null,
-                "SAMI-001",
-                "sami.analyst@atlas.example",
+                employee.EmployeeNumber,
+                employee.Email,
                 null,
-                "Advisory",
-                "Analyst",
-                ManagerId,
-                "Flit Manager")],
-            opening.AddDays(1));
+                employee.Department,
+                employee.JobTitle,
+                manager.Id,
+                $"{manager.FirstName} {manager.LastName}");
+        }).ToArray(), opening.AddDays(1));
 
-        var participant = cycle.Participants.Single();
-        var plan = EmployeeObjectivePlan.CreateDraft(cycle, participant, opening.AddDays(2));
-        var objectives = new[]
+        var plans = new List<EmployeeObjectivePlan>(workforce.Count);
+        foreach (var employee in workforce)
         {
-            plan.AddObjective(cycle, "Reduce delivery defects", ObjectiveAlignmentType.StrategicObjective,
-                strategic.Id, strategic.Title, 25, new DateTime(year, 12, 15, 0, 0, 0, DateTimeKind.Utc),
-                "Quantitative", "Delivery quality score", "95", "%", opening.AddDays(2)),
-            plan.AddObjective(cycle, "Complete control reviews", ObjectiveAlignmentType.StrategicObjective,
-                strategic.Id, strategic.Title, 25, new DateTime(year, 12, 15, 0, 0, 0, DateTimeKind.Utc),
-                "Quantitative", "Reviews completed", "12", "reviews", opening.AddDays(2)),
-            plan.AddObjective(cycle, "Coach junior consultants", ObjectiveAlignmentType.StrategicObjective,
-                strategic.Id, strategic.Title, 25, new DateTime(year, 12, 15, 0, 0, 0, DateTimeKind.Utc),
+            var currentParticipant = cycle.Participants.Single(item => item.EmployeeId == employee.Id);
+            var currentPlan = EmployeeObjectivePlan.CreateDraft(cycle, currentParticipant, opening.AddDays(2));
+            currentPlan.AddObjective(cycle, $"Improve {employee.Department} delivery quality", ObjectiveAlignmentType.StrategicObjective,
+                strategic.Id, strategic.Title, 40, new DateTime(year, 12, 15, 0, 0, 0, DateTimeKind.Utc),
+                "Quantitative", "Delivery quality score", "95", "%", opening.AddDays(2));
+            currentPlan.AddObjective(cycle, $"Deliver a measurable {employee.Department} outcome", ObjectiveAlignmentType.StrategicObjective,
+                strategic.Id, strategic.Title, 30, new DateTime(year, 12, 15, 0, 0, 0, DateTimeKind.Utc),
+                "Quantitative", "Outcome completion", "100", "%", opening.AddDays(2));
+            currentPlan.AddObjective(cycle, "Build capability and share knowledge", ObjectiveAlignmentType.StrategicObjective,
+                strategic.Id, strategic.Title, 30, new DateTime(year, 12, 15, 0, 0, 0, DateTimeKind.Utc),
                 "Qualitative", null, null, null, opening.AddDays(2),
-                successCriteria: "Monthly coaching is documented and acknowledged."),
-            plan.AddObjective(cycle, "Publish a reusable delivery playbook", ObjectiveAlignmentType.StrategicObjective,
-                strategic.Id, strategic.Title, 25, new DateTime(year, 12, 15, 0, 0, 0, DateTimeKind.Utc),
-                "Qualitative", null, null, null, opening.AddDays(2),
-                successCriteria: "The playbook is accepted by the Advisory leadership team."),
-        };
+                successCriteria: "Evidence of capability growth and knowledge sharing is recorded.");
+            var submission = currentPlan.Submit(cycle, currentParticipant, opening.AddDays(10));
+            if (!submission.Succeeded)
+                throw new InvalidOperationException($"Canonical objective plan is invalid for {employee.Email}: " +
+                    string.Join("; ", submission.BlockingReasons.Select(reason => reason.Message)));
+            currentPlan.Approve(new EmployeeObjectivePlanReviewActor(currentParticipant.ApproverEmployeeId, currentParticipant.ApproverName!), opening.AddDays(11));
+            plans.Add(currentPlan);
+        }
 
-        var submission = plan.Submit(cycle, participant, opening.AddDays(10));
-        if (!submission.Succeeded)
-            throw new InvalidOperationException("The declarative Atlas plan is invalid: " +
-                string.Join("; ", submission.BlockingReasons.Select(reason => reason.Message)));
-
-        plan.Approve(new EmployeeObjectivePlanReviewActor(ManagerId, "Flit Manager"), opening.AddDays(11));
+        var participant = cycle.Participants.Single(item => item.EmployeeId == EmployeeId);
+        var plan = plans.Single(item => item.EmployeeId == EmployeeId);
+        var objectives = plan.Objectives.ToArray();
         cycle.LockPlanning(ManagerUserId, "Flit Manager", lockDate);
 
         AddProgress(db, plan.RecordProgress(cycle, objectives[0].Id, 100, null, "95/95", "Target sustained.",
@@ -138,11 +160,44 @@ public static class AtlasPerformanceDemoSeeder
 
         SeedCheckInScenario(db, cycle, plan, objectives[1], lockDate);
 
-        db.PerformanceCycles.Add(cycle);
-        db.EmployeeObjectivePlans.Add(plan);
-        await db.SaveChangesAsync(cancellationToken);
+        var autoDetectChanges = db.ChangeTracker.AutoDetectChangesEnabled;
+        db.ChangeTracker.AutoDetectChangesEnabled = false;
+        try
+        {
+            db.PerformanceCycles.Add(cycle);
+            db.EmployeeObjectivePlans.AddRange(plans);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        finally
+        {
+            db.ChangeTracker.AutoDetectChangesEnabled = autoDetectChanges;
+        }
 
-        await EnsureTenantAEvaluationAsync(db, tenantId, cycle, plan, asOfUtc, cancellationToken);
+        // Preserve the focused one-person fixture used by the non-canonical
+        // isolation tests while keeping the canonical tenant on the faster,
+        // six-person executable round.
+        if (tenantId != CanonicalDemoSeed.TenantId)
+            await EnsureTenantAEvaluationAsync(db, tenantId, cycle, plan, asOfUtc, cancellationToken);
+
+        await EnsureAssessmentExecutionAsync(db, tenantId, asOfUtc, cancellationToken);
+        await WriteReceiptAsync(db, tenantId, cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+    }
+
+    private static async Task WriteReceiptAsync(PerformanceDbContext db, Guid tenantId, CancellationToken cancellationToken)
+    {
+        var receipt = await db.CanonicalSeedReceipts.IgnoreQueryFilters()
+            .SingleOrDefaultAsync(item => item.TenantId == tenantId, cancellationToken);
+        if (receipt is null)
+            db.CanonicalSeedReceipts.Add(CanonicalSeedReceipt.Create(tenantId, CanonicalDemoSeed.AsOfUtc));
+        else
+        {
+            if (receipt.ManifestHash != CanonicalDemoSeed.ManifestHash)
+                throw new InvalidOperationException("Canonical Performance seed receipt drifted from the manifest. Run the canonical fresh reset.");
+            receipt.Refresh(CanonicalDemoSeed.AsOfUtc);
+        }
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>
@@ -204,7 +259,7 @@ public static class AtlasPerformanceDemoSeeder
                 "Nadia Manager")],
             opening.AddDays(1));
 
-        var participant = cycle.Participants.Single();
+        var participant = cycle.Participants.Single(item => item.EmployeeId == employeeId);
         var plan = EmployeeObjectivePlan.CreateDraft(cycle, participant, opening.AddDays(2));
         plan.AddObjective(
             cycle,
@@ -364,7 +419,7 @@ public static class AtlasPerformanceDemoSeeder
             "What outcome or capability should carry forward?", EvaluationQuestionType.Text, true, EvaluationTargetRater.Both));
         skillsTemplate.Activate();
 
-        var participant = cycle.Participants.Single();
+        var participant = cycle.Participants.Single(item => item.EmployeeId == EmployeeId);
         var round = EvaluationRound.CreateDraft(
             tenantId,
             cycle,
@@ -384,6 +439,26 @@ public static class AtlasPerformanceDemoSeeder
                 skill.Id, skill.Name, categoryNames.GetValueOrDefault(skill.SkillCategoryId, string.Empty))).ToArray());
         var launchAt = asOfUtc.ToUniversalTime();
         round.SetDeadlines(launchAt.AddDays(14), launchAt.AddDays(28), launchAt.AddDays(35));
+        var plansByEmployeeId = await db.EmployeeObjectivePlans.IgnoreQueryFilters()
+            .Include(item => item.Objectives)
+            .Where(item => item.TenantId == tenantId && item.CycleId == cycle.Id)
+            .ToDictionaryAsync(item => item.EmployeeId, cancellationToken);
+        var candidates = cycle.Participants
+            .Select(item =>
+        {
+            if (!plansByEmployeeId.TryGetValue(item.EmployeeId, out var participantPlan))
+                throw new InvalidOperationException($"Missing objective plan for evaluation participant {item.EmployeeId}.");
+
+            var reviewer = item.EmployeeId == CanonicalDemoSeed.DirectorId
+                ? CanonicalDemoSeed.BuildEmployees()[1]
+                : CanonicalDemoSeed.GetEmployee(item.ApproverEmployeeId);
+
+            return new EvaluationRoundLaunchCandidate(
+                item,
+                reviewer.Id,
+                $"{reviewer.FirstName} {reviewer.LastName}",
+                participantPlan);
+        }).ToArray();
         var launch = round.Launch(
             cycle,
             scale,
@@ -391,11 +466,7 @@ public static class AtlasPerformanceDemoSeeder
             sourceExpectationSet: skillSet,
             sourceProficiencyScale: skillScale,
             referencedSkills: skillEntities,
-            [new EvaluationRoundLaunchCandidate(
-                participant,
-                participant.ApproverEmployeeId,
-                participant.ApproverName,
-                plan)],
+            candidates,
             launchAt);
 
         db.EvaluationRounds.Add(round);
@@ -411,6 +482,8 @@ public static class AtlasPerformanceDemoSeeder
         DateTime asOfUtc,
         CancellationToken cancellationToken)
     {
+        await EnsureEvaluationConfigurationAsync(db, tenantId, cancellationToken);
+
         var existing = await db.EvaluationRounds
             .IgnoreQueryFilters()
             .Include(round => round.Participants)
@@ -429,16 +502,26 @@ public static class AtlasPerformanceDemoSeeder
 
         var year = asOfUtc.ToUniversalTime().Year;
         var opening = new DateTime(year, 7, 1, 9, 0, 0, DateTimeKind.Utc);
-        var managerId = ManagerId;
-        var participants = new[]
+        // Keep the executable evaluation round scoped to documented personas so
+        // the verification harness can complete every participant transition
+        // without inventing credentials for synthetic workforce records.
+        var workforce = tenantId == CanonicalDemoSeed.TenantId
+            ? CanonicalDemoSeed.LifecycleEmployeeIds.Select(CanonicalDemoSeed.GetEmployee).ToList()
+            : [CanonicalDemoSeed.GetEmployee(EmployeeId)];
+        var workforceById = workforce.ToDictionary(employee => employee.Id);
+        var participants = workforce.Select(employee =>
         {
-            (Guid.Parse("20000000-0000-0000-0000-000000000101"), "Nour Pending", "nour.pending@atlas.example"),
-            (Guid.Parse("20000000-0000-0000-0000-000000000102"), "Yassine Draft", "yassine.draft@atlas.example"),
-            (Guid.Parse("20000000-0000-0000-0000-000000000103"), "Meriem Submitted", "meriem.submitted@atlas.example"),
-            (Guid.Parse("20000000-0000-0000-0000-000000000104"), "Oussama Manager Review", "oussama.review@atlas.example"),
-            (Guid.Parse("20000000-0000-0000-0000-000000000105"), "Amel Finalized", "amel.finalized@atlas.example"),
-            (Guid.Parse("20000000-0000-0000-0000-000000000106"), "Hatem Acknowledged", "hatem.acknowledged@atlas.example")
-        };
+            var manager = employee.ManagerId is { } managerId && workforceById.TryGetValue(managerId, out var resolvedManager)
+                ? resolvedManager
+                : employee.Id == CanonicalDemoSeed.DirectorId
+                    ? CanonicalDemoSeed.BuildEmployees()[1]
+                    : CanonicalDemoSeed.GetEmployee(ManagerId);
+            return (employee.Id,
+                Name: $"{employee.FirstName} {employee.LastName}",
+                employee.Email,
+                ManagerId: manager.Id,
+                ManagerName: $"{manager.FirstName} {manager.LastName}");
+        }).ToArray();
 
         var cycle = PerformanceCycle.CreateDraft(
             tenantId, $"FY{year} evaluation execution demo", AssessmentCycleSlug, year,
@@ -448,13 +531,13 @@ public static class AtlasPerformanceDemoSeeder
         var strategic = cycle.AddStrategicObjective(
             "Deliver the annual client portfolio", "Frozen baseline for the year-end assessment.", "Advisory");
         cycle.Launch(participants.Select(item => new ResolvedLaunchParticipant(
-            item.Item1, item.Item2, managerId, "Flit Manager", false, null, item.Item1.ToString("N"),
-            item.Item3, null, "Advisory", "Consultant", managerId, "Flit Manager")).ToArray(), opening.AddDays(1));
+            item.Id, item.Name, item.ManagerId, item.ManagerName, false, null, item.Id.ToString("N"),
+            item.Email, null, "Advisory", "Consultant", item.ManagerId, item.ManagerName)).ToArray(), opening.AddDays(1));
 
         var plans = new List<EmployeeObjectivePlan>();
         foreach (var item in participants)
         {
-            var participant = cycle.Participants.Single(candidate => candidate.EmployeeId == item.Item1);
+            var participant = cycle.Participants.Single(candidate => candidate.EmployeeId == item.Id);
             var plan = EmployeeObjectivePlan.CreateDraft(cycle, participant, opening.AddDays(2));
             plan.AddObjective(cycle, "Deliver the annual client portfolio", ObjectiveAlignmentType.StrategicObjective,
                 strategic.Id, strategic.Title, 100, new DateTime(year, 12, 15, 0, 0, 0, DateTimeKind.Utc),
@@ -462,7 +545,7 @@ public static class AtlasPerformanceDemoSeeder
             var submission = plan.Submit(cycle, participant, opening.AddDays(3));
             if (!submission.Succeeded)
                 throw new InvalidOperationException("The assessment demo objective plan is invalid.");
-            plan.Approve(new EmployeeObjectivePlanReviewActor(managerId, "Flit Manager"), opening.AddDays(4));
+            plan.Approve(new EmployeeObjectivePlanReviewActor(item.ManagerId, item.ManagerName), opening.AddDays(4));
             plans.Add(plan);
         }
         cycle.LockPlanning(ManagerUserId, "Flit Manager", opening.AddDays(5));
@@ -487,7 +570,7 @@ public static class AtlasPerformanceDemoSeeder
         round.SetDeadlines(opening.AddDays(14), opening.AddDays(28), opening.AddDays(35));
         var launch = round.Launch(cycle, scale, template, skillSet, skillScale, skills,
             cycle.Participants.Select((participant, index) => new EvaluationRoundLaunchCandidate(
-                participant, managerId, "Flit Manager", plans[index])).ToArray(), opening.AddDays(6));
+                participant, participants[index].ManagerId, participants[index].ManagerName, plans[index])).ToArray(), opening.AddDays(6));
 
         db.PerformanceCycles.Add(cycle);
         db.EmployeeObjectivePlans.AddRange(plans);
@@ -495,6 +578,48 @@ public static class AtlasPerformanceDemoSeeder
         db.EvaluationRounds.Add(round);
         db.EvaluationAssignments.AddRange(launch.Assignments);
         await SeedAssessmentAssignmentStatesAsync(db, round, asOfUtc, cancellationToken, launch.Assignments);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task EnsureEvaluationConfigurationAsync(
+        PerformanceDbContext db,
+        Guid tenantId,
+        CancellationToken cancellationToken)
+    {
+        var skills = await db.Skills.IgnoreQueryFilters()
+            .Where(item => item.TenantId == tenantId && item.Status == SkillLifecycleStatus.Active)
+            .ToListAsync(cancellationToken);
+        var skillScale = await db.ProficiencyScales.IgnoreQueryFilters()
+            .Include(item => item.Levels)
+            .SingleOrDefaultAsync(item => item.TenantId == tenantId && item.Name == SkillConfigurationDefaults.DefaultScaleName, cancellationToken);
+        var skillSet = await db.SkillExpectationSets.IgnoreQueryFilters()
+            .Include(item => item.Items)
+            .SingleOrDefaultAsync(item => item.TenantId == tenantId && item.Name == SkillConfigurationDefaults.DefaultSetName, cancellationToken);
+        var skillDefaults = SkillConfigurationDefaults.InstantiateForTenant(tenantId);
+        if (skills.Count == 0)
+        {
+            db.SkillCategories.AddRange(skillDefaults.Categories);
+            db.Skills.AddRange(skillDefaults.Skills);
+        }
+        if (skillScale is null)
+            db.ProficiencyScales.Add(skillDefaults.ProficiencyScale);
+        if (skillSet is null)
+            db.SkillExpectationSets.Add(skillDefaults.ExpectationSet);
+
+        var ratingScale = await db.EvaluationRatingScales.IgnoreQueryFilters()
+            .Include(item => item.Levels)
+            .SingleOrDefaultAsync(item => item.TenantId == tenantId && item.Name == EvaluationConfigurationDefaults.DefaultScaleName, cancellationToken);
+        var template = await db.EvaluationTemplates.IgnoreQueryFilters()
+            .AsSplitQuery()
+            .Include(item => item.Sections)
+            .Include(item => item.Questions)
+            .SingleOrDefaultAsync(item => item.TenantId == tenantId && item.Name == EvaluationConfigurationDefaults.DefaultTemplateName, cancellationToken);
+        var evaluationDefaults = EvaluationConfigurationDefaults.InstantiateForTenant(tenantId);
+        if (ratingScale is null)
+            db.EvaluationRatingScales.Add(evaluationDefaults.RatingScale);
+        if (template is null)
+            db.EvaluationTemplates.Add(evaluationDefaults.Template);
+
         await db.SaveChangesAsync(cancellationToken);
     }
 

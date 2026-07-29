@@ -52,8 +52,20 @@ using (var scope = app.Services.CreateScope())
     var userManager = scope.ServiceProvider
         .GetRequiredService<UserManager<ApplicationUser>>();
     
-    // Seed roles always; demo data only when explicitly enabled
-    var seedDemoData = builder.Configuration.GetValue<bool>("Database:AutoSeed");
+    // Seed roles always; canonical demo data only when explicitly enabled.
+    var legacyAutoSeed = builder.Configuration.GetValue<bool>("Database:AutoSeed");
+    var seedDemoData = builder.Configuration.GetValue<bool>("Database:CanonicalSeed:Enabled");
+    var resetCanonicalTenant = builder.Configuration.GetValue<bool>("Database:CanonicalSeed:Reset");
+    if (app.Environment.IsDevelopment() && legacyAutoSeed && !seedDemoData)
+        throw new InvalidOperationException(
+            "Database:AutoSeed is retired. Use Database:CanonicalSeed:Enabled=true and scripts/fusion-demo.ps1.");
+    if (resetCanonicalTenant)
+    {
+        if (!app.Environment.IsDevelopment())
+            throw new InvalidOperationException("Canonical tenant reset is Development-only.");
+        await IdentitySeeder.ResetCanonicalTenantAsync(dbContext);
+    }
+
     await IdentitySeeder.SeedAsync(dbContext, roleManager, userManager, seedDemoData, builder.Configuration);
 }
 

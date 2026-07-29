@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
+using EY.HRPlatform.DemoSeed;
+
 namespace EY.HRPlatform.Identity.Infrastructure.Persistence;
 
 public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
@@ -21,6 +23,7 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<UserAccessProfileOrgUnitScope> UserAccessProfileOrgUnitScopes => Set<UserAccessProfileOrgUnitScope>();
     public DbSet<InviteAccessProfile> InviteAccessProfiles => Set<InviteAccessProfile>();
     public DbSet<AccessAuditEvent> AccessAuditEvents => Set<AccessAuditEvent>();
+    public DbSet<CanonicalSeedReceipt> CanonicalSeedReceipts => Set<CanonicalSeedReceipt>();
 
     /// <summary>
     /// Runtime constructor with tenant context for production use.
@@ -59,6 +62,14 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+        builder.Entity<CanonicalSeedReceipt>(entity =>
+        {
+            entity.ToTable("CanonicalSeedReceipts");
+            entity.HasKey(receipt => receipt.Id);
+            entity.HasIndex(receipt => new { receipt.TenantId, receipt.ManifestVersion }).IsUnique();
+            entity.Property(receipt => receipt.ManifestVersion).HasMaxLength(200).IsRequired();
+            entity.Property(receipt => receipt.ManifestHash).HasMaxLength(128).IsRequired();
+        });
 
         // All identity tables go into the "identity" schema
         builder.HasDefaultSchema("identity");

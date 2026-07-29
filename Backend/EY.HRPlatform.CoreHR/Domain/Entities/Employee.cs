@@ -62,6 +62,22 @@ public class Employee : AggregateRoot, ITenantEntity
         };
     }
 
+    public static Employee CreateSeeded(
+        Guid id,
+        Guid tenantId,
+        string firstName,
+        string lastName,
+        string email,
+        string? department = null,
+        string? employeeNumber = null,
+        string? phone = null)
+    {
+        var employee = Create(tenantId, firstName, lastName, email, department, employeeNumber, phone);
+        employee.Id = id;
+        employee.StableEmployeeKey = GenerateStableKey(id);
+        return employee;
+    }
+
     public static Employee Create(
         Guid tenantId,
         string firstName,
@@ -141,8 +157,7 @@ public class Employee : AggregateRoot, ITenantEntity
 
     private static string GenerateStableKey(Guid id)
     {
-        var shortId = id.ToString("N")[..8].ToUpperInvariant();
-        return $"E-{shortId}";
+        return $"E-{id:N}".ToUpperInvariant();
     }
 
     private static string? NormalizeEmployeeNumber(string? employeeNumber)

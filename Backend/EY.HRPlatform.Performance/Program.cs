@@ -1,10 +1,13 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json.Serialization;
+using EY.HRPlatform.DemoSeed;
 using EY.HRPlatform.Performance.Extensions;
+using EY.HRPlatform.Performance.Features.Provisioning;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Middleware;
 using EY.HRPlatform.Performance.Models.Responses;
 using EY.HRPlatform.SharedKernel.Multitenancy;
+using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +32,8 @@ builder.Services.AddControllers()
     })
     .ConfigureApiBehaviorOptions(options =>
     {
+        // Model binding is a failure source like any other: it must emit the same problem shape,
+        // with a code and correlation id, rather than the framework's bare validation payload.
         options.InvalidModelStateResponseFactory = context =>
         {
             var fieldErrors = context.ModelState
@@ -82,6 +87,8 @@ builder.Services.AddOpenTelemetry()
     })
     .WithTracing(tracing =>
     {
+        // Inbound requests, outbound Core HR calls, and database work on one trace, so a slow
+        // campaign launch can be attributed to the dependency or to the query that caused it.
         tracing.AddAspNetCoreInstrumentation();
         tracing.AddHttpClientInstrumentation();
         tracing.AddEntityFrameworkCoreInstrumentation();
@@ -93,35 +100,48 @@ if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<PerformanceDbContext>();
+    app.Logger.LogInformation("Performance database migration starting.");
     await dbContext.Database.MigrateAsync();
+    app.Logger.LogInformation("Performance database migration completed.");
     await PlatformDefaultsSeeder.SeedAsync(dbContext);
+    app.Logger.LogInformation("Performance platform defaults completed.");
 
-    if (app.Environment.IsDevelopment() &&
-        builder.Configuration.GetValue<bool>("DemoSeed:AtlasPerformance:Enabled"))
+    var legacyDemoSeedEnabled = builder.Configuration.GetValue<bool>("DemoSeed:AtlasPerformance:Enabled");
+    var canonicalSeedEnabled = builder.Configuration.GetValue<bool>("DemoSeed:Canonical:Enabled");
+    var resetCanonicalTenant = builder.Configuration.GetValue<bool>("DemoSeed:Canonical:Reset");
+    if (app.Environment.IsDevelopment() && legacyDemoSeedEnabled && !canonicalSeedEnabled)
+        throw new InvalidOperationException(
+            "DemoSeed:AtlasPerformance is retired. Use DemoSeed:Canonical:Enabled=true and scripts/fusion-demo.ps1.");
+
+    if (app.Environment.IsDevelopment() && canonicalSeedEnabled)
     {
-        var tenantValue = builder.Configuration["DemoSeed:AtlasPerformance:TenantId"];
-        if (!Guid.TryParse(tenantValue, out var atlasTenantId) || atlasTenantId == Guid.Empty)
-            throw new InvalidOperationException(
-                "DemoSeed:AtlasPerformance:TenantId must be a non-empty GUID when the Atlas seed is enabled.");
-        scope.ServiceProvider.GetRequiredService<TenantContext>().SetTenant(atlasTenantId);
-        await AtlasPerformanceDemoSeeder.SeedAsync(dbContext, atlasTenantId, DateTime.UtcNow);
-
-        var isolationTenantValue = builder.Configuration["DemoSeed:AtlasPerformance:IsolationTenantId"];
-        if (!string.IsNullOrWhiteSpace(isolationTenantValue))
+        var tenantValue = builder.Configuration["DemoSeed:Canonical:TenantId"];
+        var canonicalTenantId = Guid.TryParse(tenantValue, out var configuredTenantId)
+            ? configuredTenantId
+            : CanonicalDemoSeed.TenantId;
+        if (canonicalTenantId != CanonicalDemoSeed.TenantId)
+            throw new InvalidOperationException("DemoSeed:Canonical:TenantId must match the canonical manifest tenant.");
+        scope.ServiceProvider.GetRequiredService<TenantContext>().SetTenant(canonicalTenantId);
+        if (resetCanonicalTenant)
         {
-            if (!Guid.TryParse(isolationTenantValue, out var isolationTenantId) ||
-                isolationTenantId == Guid.Empty ||
-                isolationTenantId == atlasTenantId)
-            {
-                throw new InvalidOperationException(
-                    "DemoSeed:AtlasPerformance:IsolationTenantId must be a distinct non-empty GUID when provided.");
-            }
-            using var isolationScope = app.Services.CreateScope();
-            isolationScope.ServiceProvider.GetRequiredService<TenantContext>().SetTenant(isolationTenantId);
-            var isolationDbContext = isolationScope.ServiceProvider.GetRequiredService<PerformanceDbContext>();
-            await AtlasPerformanceDemoSeeder.SeedIsolationTenantAsync(
-                isolationDbContext, isolationTenantId, DateTime.UtcNow);
+            if (!app.Environment.IsDevelopment())
+                throw new InvalidOperationException("Canonical tenant reset is Development-only.");
+            await AtlasPerformanceDemoSeeder.ResetAsync(dbContext, canonicalTenantId);
         }
+
+        var provisioning = await scope.ServiceProvider
+            .GetRequiredService<ISender>()
+            .Send(new ProvisionTenantCommand(canonicalTenantId));
+        if (provisioning.IsFailure)
+            throw new InvalidOperationException(
+                $"Canonical Performance tenant provisioning failed: {provisioning.Error.Message}");
+
+        app.Logger.LogInformation(
+            "Canonical Performance tenant configuration ready for {TenantId}.",
+            canonicalTenantId);
+        app.Logger.LogInformation("Canonical Performance seed starting for {TenantId}.", canonicalTenantId);
+        await AtlasPerformanceDemoSeeder.SeedAsync(dbContext, canonicalTenantId, CanonicalDemoSeed.AsOfUtc);
+        app.Logger.LogInformation("Canonical Performance seed completed for {TenantId}.", canonicalTenantId);
     }
 }
 
@@ -154,6 +174,7 @@ app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>(); // after auth (claims populated), resolves tenant from claim/header
 app.UseMiddleware<LogContextEnrichmentMiddleware>(); // enriches logs with correlation/user/tenant
 app.UseAuthorization();
+// After auth and tenant resolution, so the limiter partitions on a resolved caller.
 app.UseRateLimiter();
 app.MapControllers();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();

@@ -65,15 +65,29 @@ if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
     var dbContext = scope.ServiceProvider.GetRequiredService<CoreHRDbContext>();
     await dbContext.Database.MigrateAsync();
     
-    // Seed demo data for development - uses a well-known demo tenant ID
-    if (builder.Configuration.GetValue<bool>("Database:AutoSeed"))
+    // Seed canonical demo data only when explicitly enabled.
+    var legacyAutoSeed = builder.Configuration.GetValue<bool>("Database:AutoSeed");
+    var canonicalSeedEnabled = builder.Configuration.GetValue<bool>("Database:CanonicalSeed:Enabled");
+    var resetCanonicalTenant = builder.Configuration.GetValue<bool>("Database:CanonicalSeed:Reset");
+    if (app.Environment.IsDevelopment() && legacyAutoSeed && !canonicalSeedEnabled)
+        throw new InvalidOperationException(
+            "Database:AutoSeed is retired. Use Database:CanonicalSeed:Enabled=true and scripts/fusion-demo.ps1.");
+
+    if (canonicalSeedEnabled)
     {
         var demoTenantId = builder.Configuration.GetValue<Guid?>("Database:DemoTenantId") 
-            ?? DemoConstants.TenantId;
+            ?? EY.HRPlatform.DemoSeed.CanonicalDemoSeed.TenantId;
         
         // Set tenant context for seeding (required by TenantSaveChangesInterceptor)
         var tenantContext = scope.ServiceProvider.GetRequiredService<TenantContext>();
         tenantContext.SetTenant(demoTenantId);
+
+        if (resetCanonicalTenant)
+        {
+            if (!app.Environment.IsDevelopment())
+                throw new InvalidOperationException("Canonical tenant reset is Development-only.");
+            await CoreHRSeeder.ResetAsync(dbContext, demoTenantId);
+        }
         
         await CoreHRSeeder.SeedAsync(dbContext, demoTenantId);
     }

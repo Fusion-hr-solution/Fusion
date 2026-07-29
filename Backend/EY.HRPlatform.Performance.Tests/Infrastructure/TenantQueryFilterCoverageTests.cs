@@ -87,6 +87,7 @@ public sealed class TenantQueryFilterCoverageTests
         "Attachment",
         "CampaignStrategicObjective",
         "CampaignTeamObjective",
+        "CanonicalSeedReceipt",
         "CheckInFollowUpAction",
         "EmployeeObjectivePlan",
         "EvaluationAssignment",
