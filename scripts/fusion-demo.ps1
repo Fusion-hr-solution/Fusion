@@ -153,6 +153,12 @@ function Verify-Personas {
     if ($totalCount -ne 320) { throw "Canonical workforce count mismatch ($totalCount; expected 320)." }
     Write-Host "verified CoreHR workforce count: $totalCount" -ForegroundColor Green
 
+    $planningConfiguration = Invoke-RestMethod -Uri "$gatewayUrl/api/performance/objective-planning/configuration" -Headers $headers
+    if (-not $planningConfiguration.data.isConfigured -or $null -eq $planningConfiguration.data.configuration) {
+        throw "Canonical Performance objective planning configuration was not provisioned."
+    }
+    Write-Host "verified Performance objective planning configuration" -ForegroundColor Green
+
     $managerBody = @{ email = "flit.manager@atlas.example"; password = "Demo@123456" } | ConvertTo-Json
     $managerLogin = Invoke-RestMethod -Uri "$gatewayUrl/api/identity/auth/login" -Method Post -ContentType "application/json" -Body $managerBody
     $managerHeaders = @{ Authorization = "Bearer $($managerLogin.data.accessToken)" }

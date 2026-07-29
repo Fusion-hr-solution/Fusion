@@ -207,15 +207,24 @@ function mintRequest(
   name: string,
   year: number
 ): CreatePerformanceCycleRequest {
+  const today = localDateAtUtcMidnight(new Date());
+
   return {
     name,
     purpose: null,
     referenceYear: year,
-    planningOpeningDate: `${year}-01-15T00:00:00.000Z`,
-    employeeSubmissionDeadline: `${year}-02-15T00:00:00.000Z`,
-    managerApprovalDeadline: `${year}-03-01T00:00:00.000Z`,
-    expectedPlanningLockDate: `${year}-03-15T00:00:00.000Z`,
+    planningOpeningDate: today,
+    employeeSubmissionDeadline: today,
+    managerApprovalDeadline: today,
+    expectedPlanningLockDate: today,
   };
+}
+
+function localDateAtUtcMidnight(value: Date): string {
+  const year = value.getFullYear();
+  const month = `${value.getMonth() + 1}`.padStart(2, "0");
+  const day = `${value.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}T00:00:00.000Z`;
 }
 
 /** Approximate the tenant-unique slug the server will mint (final value is authoritative on collision). */

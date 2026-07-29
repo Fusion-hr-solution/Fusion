@@ -2,10 +2,12 @@
 using System.Text.Json.Serialization;
 using EY.HRPlatform.DemoSeed;
 using EY.HRPlatform.Performance.Extensions;
+using EY.HRPlatform.Performance.Features.Provisioning;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Middleware;
 using EY.HRPlatform.Performance.Models.Responses;
 using EY.HRPlatform.SharedKernel.Multitenancy;
+using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -126,6 +128,17 @@ if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
                 throw new InvalidOperationException("Canonical tenant reset is Development-only.");
             await AtlasPerformanceDemoSeeder.ResetAsync(dbContext, canonicalTenantId);
         }
+
+        var provisioning = await scope.ServiceProvider
+            .GetRequiredService<ISender>()
+            .Send(new ProvisionTenantCommand(canonicalTenantId));
+        if (provisioning.IsFailure)
+            throw new InvalidOperationException(
+                $"Canonical Performance tenant provisioning failed: {provisioning.Error.Message}");
+
+        app.Logger.LogInformation(
+            "Canonical Performance tenant configuration ready for {TenantId}.",
+            canonicalTenantId);
         app.Logger.LogInformation("Canonical Performance seed starting for {TenantId}.", canonicalTenantId);
         await AtlasPerformanceDemoSeeder.SeedAsync(dbContext, canonicalTenantId, CanonicalDemoSeed.AsOfUtc);
         app.Logger.LogInformation("Canonical Performance seed completed for {TenantId}.", canonicalTenantId);

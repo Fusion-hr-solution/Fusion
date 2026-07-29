@@ -408,7 +408,16 @@ describe("Campaigns workspace", () => {
     });
 
     expect(state.mutationCalls).toHaveLength(1);
-    expect(state.mutationCalls[0]).toMatchObject({ name: "FY26 Planning" });
+    const today = new Date();
+    const demoReadyDate =
+      `${today.getFullYear()}-${`${today.getMonth() + 1}`.padStart(2, "0")}-${`${today.getDate()}`.padStart(2, "0")}T00:00:00.000Z`;
+    expect(state.mutationCalls[0]).toMatchObject({
+      name: "FY26 Planning",
+      planningOpeningDate: demoReadyDate,
+      employeeSubmissionDeadline: demoReadyDate,
+      managerApprovalDeadline: demoReadyDate,
+      expectedPlanningLockDate: demoReadyDate,
+    });
     expect(state.routerPush).toHaveBeenCalledWith(
       "/campaigns/fy26-planning-2026"
     );

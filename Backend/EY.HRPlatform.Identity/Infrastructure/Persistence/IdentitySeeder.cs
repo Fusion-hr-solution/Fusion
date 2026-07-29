@@ -139,6 +139,8 @@ public static class IdentitySeeder
             var employee = persona.EmployeeId is { } employeeId && employees.TryGetValue(employeeId, out var spec)
                 ? spec
                 : null;
+            var firstName = employee?.FirstName ?? persona.FirstName;
+            var lastName = employee?.LastName ?? persona.LastName;
             var user = await userManager.FindByEmailAsync(persona.Email);
             if (user is null && persona.EmployeeId is { } linkedEmployeeId)
             {
@@ -164,8 +166,8 @@ public static class IdentitySeeder
                     UserName = persona.Email,
                     Email = persona.Email,
                     EmailConfirmed = true,
-                    FirstName = persona.FirstName,
-                    LastName = persona.LastName,
+                    FirstName = firstName,
+                    LastName = lastName,
                     Department = employee?.Department ?? "Platform",
                     JobTitle = employee?.JobTitle ?? "Platform Administrator",
                     HireDate = employee?.HireDate ?? CanonicalDemoSeed.AsOfUtc.AddYears(-10),
@@ -181,8 +183,8 @@ public static class IdentitySeeder
             {
                 user.TenantId = CanonicalDemoSeed.TenantId;
                 user.EmployeeId = persona.EmployeeId;
-                user.FirstName = persona.FirstName;
-                user.LastName = persona.LastName;
+                user.FirstName = firstName;
+                user.LastName = lastName;
                 user.Department = employee?.Department ?? "Platform";
                 user.JobTitle = employee?.JobTitle ?? "Platform Administrator";
                 user.EmailConfirmed = true;

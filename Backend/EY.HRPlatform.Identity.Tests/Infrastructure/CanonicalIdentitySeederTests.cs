@@ -42,5 +42,12 @@ public sealed class CanonicalIdentitySeederTests
         Assert.Contains(PlatformRole.Manager, await users.GetRolesAsync(manager!));
         Assert.NotEmpty(db.UserAccessProfiles.Where(item => item.UserId == manager!.Id));
         Assert.Equal(CanonicalDemoSeed.TenantId, manager!.TenantId);
+
+        var hrAdmin = await users.FindByEmailAsync("atlas.hr@atlas.example");
+        var linkedEmployee = CanonicalDemoSeed.GetEmployeeByEmail("employee0002@atlas.example");
+        Assert.NotNull(hrAdmin);
+        Assert.Equal(linkedEmployee.Id, hrAdmin!.EmployeeId);
+        Assert.Equal(linkedEmployee.FirstName, hrAdmin.FirstName);
+        Assert.Equal(linkedEmployee.LastName, hrAdmin.LastName);
     }
 }
