@@ -54,8 +54,6 @@ import {
 } from "@/features/access/shared/employee-access";
 import { useEmployeeFieldVisibility } from "@/features/employees/shared/employee-field-visibility";
 import { canAccessEmployeeRoster } from "@/lib/employee-roster-access";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 
 const DEFAULT_EMPLOYEE_SORTING: SortingState = [{ id: "Name", desc: false }];
 
@@ -192,23 +190,14 @@ export default function EmployeeRosterWorkspace() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { tenantId, tenantSlug } = useTenantContext();
-  const isTenantContextReadOnly = !!tenantId;
-  const accessWorkspaceHref = buildTenantContextHref("/access", tenantId, tenantSlug);
-  const accessReviewHref = buildTenantContextHref(
-    "/access?access=NotInvited",
-    tenantId,
-    tenantSlug
-  );
-  const canAccess = canAccessEmployeeRoster(user) || isTenantContextReadOnly;
+  const accessWorkspaceHref = "/access";
+  const accessReviewHref = "/access?access=NotInvited";
+  const canAccess = canAccessEmployeeRoster(user);
   const canUseAccessWorkspace =
-    (canAccessCoreAccess(user) || canManageCoreAccessProfiles(user)) &&
-    !isTenantContextReadOnly;
-  const canUseOrgChart = canAccessCoreOrgChart(user) || isTenantContextReadOnly;
-  const canManageEmployee =
-    canManageCoreEmployees(user) && !isTenantContextReadOnly;
-  const canImportEmployees =
-    canImportCoreEmployees(user) && !isTenantContextReadOnly;
+    canAccessCoreAccess(user) || canManageCoreAccessProfiles(user);
+  const canUseOrgChart = canAccessCoreOrgChart(user);
+  const canManageEmployee = canManageCoreEmployees(user);
+  const canImportEmployees = canImportCoreEmployees(user);
   const shouldRedirectAccessReview =
     searchParams.get("review") === "access" && canUseAccessWorkspace;
   const shouldOpenCreateEmployee = searchParams.get("create") === "1";
@@ -334,13 +323,7 @@ export default function EmployeeRosterWorkspace() {
   const currentTableRefetching = isFetching && !!data;
 
   const columns = useMemo<ColumnDef<EmployeeRosterRow>[]>(() => {
-    const baseColumns = buildEmployeeColumns<EmployeeRosterRow>(
-      fieldVisibility,
-      {
-        tenantId,
-        tenantSlug,
-      }
-    );
+    const baseColumns = buildEmployeeColumns<EmployeeRosterRow>(fieldVisibility);
 
     const accessColumn: ColumnDef<EmployeeRosterRow> = {
       id: "Account",
@@ -385,8 +368,6 @@ export default function EmployeeRosterWorkspace() {
         <div className="flex justify-center">
           <EmployeeRowActions
             employee={row.original}
-            tenantId={tenantId}
-            tenantSlug={tenantSlug}
             canViewEmployee={canAccess}
             canManageEmployee={canManageEmployee}
             canUseAccessWorkspace={canUseAccessWorkspace}
@@ -405,8 +386,6 @@ export default function EmployeeRosterWorkspace() {
     canUseOrgChart,
     fieldVisibility,
     isLoadingWorkforceAccounts,
-    tenantId,
-    tenantSlug,
     workforceAccountsError,
   ]);
 
@@ -559,18 +538,16 @@ export default function EmployeeRosterWorkspace() {
 
   const handleRowClick = useCallback(
     (employee: EmployeeRosterRow) => {
-      router.push(
-        buildTenantContextHref(`/employees/${employee.stableEmployeeKey}`, tenantId, tenantSlug)
-      );
+      router.push(`/employees/${employee.stableEmployeeKey}`);
     },
-    [router, tenantId, tenantSlug]
+    [router]
   );
 
   const handleNavigateToEmployee = useCallback(
     (employeeKey: string) => {
-      router.push(buildTenantContextHref(`/employees/${employeeKey}`, tenantId, tenantSlug));
+      router.push(`/employees/${employeeKey}`);
     },
-    [router, tenantId, tenantSlug]
+    [router]
   );
 
   const updateCreateEmployeeQueryParam = useCallback(
@@ -590,11 +567,9 @@ export default function EmployeeRosterWorkspace() {
 
   const handleCreateEmployeeCreated = useCallback(
     (employeeKey: string) => {
-      router.push(
-        buildTenantContextHref(`/employees/${employeeKey}`, tenantId, tenantSlug)
-      );
+      router.push(`/employees/${employeeKey}`);
     },
-    [router, tenantId, tenantSlug]
+    [router]
   );
 
   useEffect(() => {

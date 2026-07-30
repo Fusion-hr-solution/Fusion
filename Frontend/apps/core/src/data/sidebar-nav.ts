@@ -1,5 +1,4 @@
 import {
-  Building,
   ClipboardList,
   LayoutDashboard,
   Network,
@@ -27,6 +26,5 @@ export const ADMIN_NAV: ShellNavSection = {
     { label: "Setup", href: "/setup", icon: ClipboardList },
     { label: "Access", href: "/access", icon: ShieldCheck },
     { label: "Settings", href: "/settings", icon: Settings2 },
-    { label: "Organizations", href: "/organizations", icon: Building },
   ],
 };

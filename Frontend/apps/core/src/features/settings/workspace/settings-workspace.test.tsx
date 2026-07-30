@@ -55,14 +55,6 @@ vi.mock("@repo/api", () => ({
   },
 }));
 
-vi.mock("@/shell/tenant-context/core-tenant-context-provider", () => ({
-  useTenantContext: () => ({
-    tenantId: null,
-    tenantSlug: null,
-    tenantName: "Acme Corp",
-  }),
-}));
-
 vi.mock("@/features/access/components/access-profiles-workspace", () => ({
   AccessProfilesWorkspace: () => <div>Access profiles panel</div>,
 }));

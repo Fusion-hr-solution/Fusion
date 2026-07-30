@@ -18,7 +18,6 @@ import {
 } from "@repo/ds/shell";
 import { toast } from "sonner";
 import { useCoreSetupAccess } from "@/shell/setup-access";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,7 +31,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { useSetupReadiness } from "@/features/setup/api/use-setup";
 import { shouldAutoActivateSetup } from "@/features/setup/setup-entry-routing";
 import { DraftUnitDialog } from "@/app/(pages)/setup/draft-structure/create-draft-unit-dialog";
@@ -74,7 +72,6 @@ import {
 export default function DraftStructureWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { tenantId, tenantSlug } = useTenantContext();
   const initialImportSessionId = searchParams.get("session");
   const initialImportOpen =
     searchParams.get("import") === "1" || !!initialImportSessionId;
@@ -356,11 +353,7 @@ export default function DraftStructureWorkspace() {
       : isSetupComplete && setupState?.structurallyPublishedAt
         ? `Live since ${formatTimestamp(setupState.structurallyPublishedAt)}`
         : null;
-  const setupSummaryHref = buildTenantContextHref(
-    "/setup",
-    tenantId,
-    tenantSlug
-  );
+  const setupSummaryHref = "/setup";
 
   const startSetupEntry = useCallback(async () => {
     setSetupEntryError(null);

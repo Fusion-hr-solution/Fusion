@@ -42,16 +42,14 @@ public interface ICoreAccessPolicyService
 public sealed class CoreAccessPolicyService : ICoreAccessPolicyService
 {
     public bool CanViewOverview(ClaimsPrincipal user)
-        => user.HasCorePermission(CorePermissions.OverviewView, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(CorePermissions.OverviewView, PermissionScopes.Tenant);
 
     public bool CanViewSetup(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.SetupView, PermissionScopes.Tenant)
             || user.HasCorePermission(CorePermissions.SetupManage, PermissionScopes.Tenant)
             || user.HasCorePermission(CorePermissions.StructureView, PermissionScopes.Tenant)
             || user.HasCorePermission(CorePermissions.StructureManage, PermissionScopes.Tenant)
-            || user.HasCorePermission(CorePermissions.StructurePublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(CorePermissions.StructurePublish, PermissionScopes.Tenant);
 
     public bool CanManageSetup(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.SetupManage, PermissionScopes.Tenant)
@@ -63,8 +61,7 @@ public sealed class CoreAccessPolicyService : ICoreAccessPolicyService
     public bool CanViewStructure(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.StructureView, PermissionScopes.Tenant)
             || user.HasCorePermission(CorePermissions.StructureManage, PermissionScopes.Tenant)
-            || user.HasCorePermission(CorePermissions.StructurePublish, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(CorePermissions.StructurePublish, PermissionScopes.Tenant);
 
     public bool CanManageStructure(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.StructureManage, PermissionScopes.Tenant);
@@ -137,23 +134,20 @@ public sealed class CoreAccessPolicyService : ICoreAccessPolicyService
 
     public bool CanViewOrgChart(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.OrgChartView, PermissionScopes.Tenant)
-            || user.HasCorePermission(CorePermissions.OrgChartView, PermissionScopes.DirectReports)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(CorePermissions.OrgChartView, PermissionScopes.DirectReports);
 
     public bool CanViewAccess(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.AccessView, PermissionScopes.Tenant)
             || user.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant)
             || user.HasCorePermission(CorePermissions.AccessAssignmentsView, PermissionScopes.Tenant)
-            || user.HasCorePermission(CorePermissions.AccessAssignmentsManage, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+            || user.HasCorePermission(CorePermissions.AccessAssignmentsManage, PermissionScopes.Tenant);
 
     public bool CanManageAccess(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.AccessManage, PermissionScopes.Tenant)
             || user.HasCorePermission(CorePermissions.AccessAssignmentsManage, PermissionScopes.Tenant);
 
     public bool CanViewTenantEmployees(ClaimsPrincipal user)
-        => user.HasCorePermission(CorePermissions.EmployeeView, PermissionScopes.Tenant)
-            || user.IsInRole(PlatformRole.PlatformAdmin);
+        => user.HasCorePermission(CorePermissions.EmployeeView, PermissionScopes.Tenant);
 
     public bool CanManageEmployees(ClaimsPrincipal user)
         => user.HasCorePermission(CorePermissions.EmployeeManage, PermissionScopes.Tenant);

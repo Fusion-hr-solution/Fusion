@@ -20,7 +20,6 @@ import {
   type TenantSetupActivityDto,
   type TenantSetupStateDto,
 } from "@repo/api";
-import { useAuth } from "@repo/auth";
 import { toast } from "sonner";
 import { PageContainer, PageHeader } from "@repo/ds/shell";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -39,7 +38,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { SetupStatusBadge } from "@/app/(pages)/setup/setup-status-badge";
 import {
@@ -55,10 +53,8 @@ export interface SetupWorkspaceProps {
   readinessError: Error | null;
   isReadinessLoading: boolean;
   refetchReadiness: () => Promise<unknown>;
-  isTenantContextReadOnly: boolean;
   onPublish: (args: VersionedSetupMutationArgs) => Promise<TenantSetupStateDto>;
   onReopen: (args: VersionedSetupMutationArgs) => Promise<TenantSetupStateDto>;
-  dashboardHref: string;
   draftStructureHref: string;
   importEmployeesHref: string;
   canAccess: boolean;
@@ -899,10 +895,8 @@ export function SetupWorkspace({
   readinessError,
   isReadinessLoading,
   refetchReadiness,
-  isTenantContextReadOnly,
   onPublish,
   onReopen,
-  dashboardHref,
   draftStructureHref,
   importEmployeesHref,
   setupTransitionKind,
@@ -1064,90 +1058,65 @@ export function SetupWorkspace({
   }> = [];
 
   if (!setupStarted) {
-    if (!isTenantContextReadOnly) {
-      summaryActions.push({
-        label: "Open draft workspace",
-        onClick: () => router.push(draftStructureHref),
-      });
-    }
+    summaryActions.push({
+      label: "Open draft workspace",
+      onClick: () => router.push(draftStructureHref),
+    });
   } else if (phase === "structurallyGoverned" && !hasLivePublishedStructure) {
-    if (isTenantContextReadOnly) {
-      summaryActions.push({
-        label: "View approved structure",
-        onClick: () => router.push(draftStructureHref),
-      });
-    } else {
-      summaryActions.push(
-        {
-          label: "Reopen draft",
-          pendingLabel: "Reopening...",
-          onClick: () => {
-            void handleReopen();
-          },
-          disabled: reopenDisabled,
-          isLoading: isReopening,
+    summaryActions.push(
+      {
+        label: "Reopen draft",
+        pendingLabel: "Reopening...",
+        onClick: () => {
+          void handleReopen();
         },
-        {
-          label: "Publish structure",
-          pendingLabel: "Publishing...",
-          onClick: () => setPublishDialogOpen(true),
-          variant: "outline",
-          disabled: publishDisabled,
-          isLoading: isPublishing,
-        }
-      );
-    }
-  } else if (draftCycleActive) {
-    const showPublishAction =
-      !isTenantContextReadOnly &&
-      (isReadyForPublish || setupState.requiresRepublish);
-    if (isTenantContextReadOnly) {
-      summaryActions.push({
-        label: "View draft workspace",
-        onClick: () => router.push(draftStructureHref),
-      });
-    } else {
-      summaryActions.push({
-        label: "Open draft workspace",
-        onClick: () => router.push(draftStructureHref),
-        variant: showPublishAction ? "outline" : undefined,
-      });
-      if (showPublishAction) {
-        summaryActions.push({
-          label: setupState.requiresRepublish
-            ? "Publish changes"
-            : "Publish structure",
-          pendingLabel: "Publishing...",
-          onClick: () => setPublishDialogOpen(true),
-          disabled: publishDisabled,
-          isLoading: isPublishing,
-        });
+        disabled: reopenDisabled,
+        isLoading: isReopening,
+      },
+      {
+        label: "Publish structure",
+        pendingLabel: "Publishing...",
+        onClick: () => setPublishDialogOpen(true),
+        variant: "outline",
+        disabled: publishDisabled,
+        isLoading: isPublishing,
       }
+    );
+  } else if (draftCycleActive) {
+    const showPublishAction = isReadyForPublish || setupState.requiresRepublish;
+    summaryActions.push({
+      label: "Open draft workspace",
+      onClick: () => router.push(draftStructureHref),
+      variant: showPublishAction ? "outline" : undefined,
+    });
+    if (showPublishAction) {
+      summaryActions.push({
+        label: setupState.requiresRepublish
+          ? "Publish changes"
+          : "Publish structure",
+        pendingLabel: "Publishing...",
+        onClick: () => setPublishDialogOpen(true),
+        disabled: publishDisabled,
+        isLoading: isPublishing,
+      });
     }
   } else if (hasLivePublishedStructure) {
-    if (isTenantContextReadOnly) {
-      summaryActions.push({
-        label: "View live structure",
-        onClick: () => router.push(draftStructureHref),
-      });
-    } else {
-      summaryActions.push(
-        {
-          label: "Reopen draft",
-          pendingLabel: "Reopening...",
-          onClick: () => {
-            void handleReopen();
-          },
-          disabled: reopenDisabled,
-          isLoading: isReopening,
+    summaryActions.push(
+      {
+        label: "Reopen draft",
+        pendingLabel: "Reopening...",
+        onClick: () => {
+          void handleReopen();
         },
-        {
-          label: "Import employees",
-          onClick: () => router.push(importEmployeesHref),
-          variant: "outline",
-        }
-      );
-    }
+        disabled: reopenDisabled,
+        isLoading: isReopening,
+      },
+      {
+        label: "Import employees",
+        onClick: () => router.push(importEmployeesHref),
+        variant: "outline",
+      }
+    );
   }
 
   const visibleActivities = setupState.recentActivities.slice(

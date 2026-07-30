@@ -18,13 +18,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import type { EmployeeRosterItem } from "./employee-roster.types";
 
 interface EmployeeRowActionsProps {
   employee: EmployeeRosterItem;
-  tenantId: string | null;
-  tenantSlug: string | null;
   canViewEmployee: boolean;
   canManageEmployee: boolean;
   canUseAccessWorkspace: boolean;
@@ -33,8 +30,6 @@ interface EmployeeRowActionsProps {
 
 export function EmployeeRowActions({
   employee,
-  tenantId,
-  tenantSlug,
   canViewEmployee,
   canManageEmployee,
   canUseAccessWorkspace,
@@ -42,24 +37,12 @@ export function EmployeeRowActions({
 }: EmployeeRowActionsProps) {
   const hrefs = useMemo(
     () => ({
-      profile: buildTenantContextHref(`/employees/${employee.stableEmployeeKey}`, tenantId, tenantSlug),
-      edit: buildTenantContextHref(
-        `/employees/${employee.stableEmployeeKey}?sheet=identity`,
-        tenantId,
-        tenantSlug
-      ),
-      orgChart: buildTenantContextHref(
-        `/org-chart?focusEmployeeKey=${employee.stableEmployeeKey}`,
-        tenantId,
-        tenantSlug
-      ),
-      access: buildTenantContextHref(
-        `/access?employeeKey=${employee.stableEmployeeKey}`,
-        tenantId,
-        tenantSlug
-      ),
+      profile: `/employees/${employee.stableEmployeeKey}`,
+      edit: `/employees/${employee.stableEmployeeKey}?sheet=identity`,
+      orgChart: `/org-chart?focusEmployeeKey=${employee.stableEmployeeKey}`,
+      access: `/access?employeeKey=${employee.stableEmployeeKey}`,
     }),
-    [employee.stableEmployeeKey, tenantId, tenantSlug]
+    [employee.stableEmployeeKey]
   );
 
   return (

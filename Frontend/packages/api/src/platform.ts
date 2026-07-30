@@ -18,8 +18,6 @@ const AUTH_STORAGE_KEY = "ey_hr_auth";
 const AUTH_COOKIE_NAME = "ey_hr_authenticated";
 const AUTH_STORAGE_EVENT = "ey_hr_auth:changed";
 const ACCESS_TOKEN_REFRESH_BUFFER_MS = 60_000;
-const PLATFORM_ADMIN_ROLE = "PlatformAdmin";
-const CORE_TENANT_CONTEXT_STORAGE_KEY = "ey_core_tenant_context";
 
 interface BrowserStoredAuth {
   accessToken: string;
@@ -144,43 +142,6 @@ function loadBrowserAuth(): BrowserStoredAuth | null {
   }
 }
 
-function loadBrowserTenantId(): string | null {
-  if (!isBrowser()) {
-    return null;
-  }
-
-  try {
-    return sessionStorage.getItem(CORE_TENANT_CONTEXT_STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function isCoreBrowserPath(): boolean {
-  if (!isBrowser()) {
-    return false;
-  }
-
-  const pathname =
-    typeof window.location?.pathname === "string"
-      ? window.location.pathname
-      : "";
-  return pathname === "/core" || pathname.startsWith("/core/");
-}
-
-function getBrowserTenantId(): string | null {
-  const stored = loadBrowserAuth();
-  if (!stored?.user.tenantId) {
-    return null;
-  }
-
-  if (isCoreBrowserPath() && stored.user.roles.includes(PLATFORM_ADMIN_ROLE)) {
-    return loadBrowserTenantId();
-  }
-
-  return stored.user.tenantId;
-}
-
 function isAccessTokenUsable(accessTokenExpiration: string): boolean {
   return new Date(accessTokenExpiration).getTime() > Date.now() + ACCESS_TOKEN_REFRESH_BUFFER_MS;
 }
@@ -276,8 +237,8 @@ export interface PlatformApiClientConfig {
    */
   getToken?: () => string | null;
   /**
-   * Optional tenant ID callback for PlatformAdmin tenant-context operations.
-   * When set and returns a non-null value, the client attaches
+   * Optional explicit tenant ID callback for an authorized tenant-scoped
+   * workflow. When set and returns a non-null value, the client attaches the
    * `X-Tenant-Id` header to every request.
    */
   getTenantId?: () => string | null;
@@ -312,7 +273,7 @@ export function createPlatformApiClient(
   const getToken =
     config.getToken ??
     (() => getBrowserAccessToken(baseUrl));
-  const getTenantId = config.getTenantId ?? getBrowserTenantId;
+  const getTenantId = config.getTenantId;
 
   const client = createApiClient({
     baseUrl,

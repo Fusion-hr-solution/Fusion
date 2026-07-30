@@ -11,9 +11,19 @@ interface BaseStateProps {
   description?: string;
   action?: ReactNode;
   className?: string;
+  headingLevel?: 1 | 2 | 3;
 }
 
-function StateShell({ icon: Icon, title, description, action, className }: BaseStateProps) {
+function StateShell({
+  icon: Icon,
+  title,
+  description,
+  action,
+  className,
+  headingLevel = 3,
+}: BaseStateProps) {
+  const Heading = headingLevel === 1 ? "h1" : headingLevel === 2 ? "h2" : "h3";
+
   return (
     <div
       className={cn(
@@ -26,7 +36,9 @@ function StateShell({ icon: Icon, title, description, action, className }: BaseS
           <Icon className="h-5 w-5 text-muted-foreground" />
         </span>
       ) : null}
-      <h3 className="text-base font-semibold text-foreground">{title}</h3>
+      <Heading className="text-base font-semibold text-foreground">
+        {title}
+      </Heading>
       {description ? (
         <p className="mt-1 max-w-md text-sm text-muted-foreground">{description}</p>
       ) : null}
@@ -51,13 +63,21 @@ export interface PageErrorProps extends Omit<BaseStateProps, "icon" | "action"> 
 }
 
 /** Constructive error state with an optional retry. */
-export function PageError({ title, description, onRetry, retryLabel = "Try again", className }: PageErrorProps) {
+export function PageError({
+  title,
+  description,
+  onRetry,
+  retryLabel = "Try again",
+  className,
+  headingLevel,
+}: PageErrorProps) {
   return (
     <StateShell
       icon={AlertTriangle}
       title={title}
       description={description}
       className={className}
+      headingLevel={headingLevel}
       action={
         onRetry ? (
           <Button variant="outline" size="sm" onClick={onRetry}>

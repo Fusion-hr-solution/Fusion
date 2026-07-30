@@ -16,8 +16,6 @@ import {
 } from "@repo/auth";
 import { PagePermissionNotice } from "@repo/ds/shell";
 import { toast } from "sonner";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Accordion,
@@ -246,7 +244,6 @@ export function AccessProfilesWorkspace({
   embedded?: boolean;
 } = {}) {
   const { user } = useAuth();
-  const { tenantId, tenantSlug } = useTenantContext();
   const canViewProfiles = canViewCoreAccessProfiles(user);
   const canManageProfiles = canManageCoreAccessProfiles(user);
 
@@ -346,11 +343,7 @@ export function AccessProfilesWorkspace({
   );
 
   const selectedProfileAssignmentsHref = selectedProfile
-    ? buildTenantContextHref(
-        `/access?profileId=${encodeURIComponent(selectedProfile.id)}`,
-        tenantId,
-        tenantSlug
-      )
+    ? `/access?profileId=${encodeURIComponent(selectedProfile.id)}`
     : "";
 
   const hasProfileChanges = useMemo(() => {

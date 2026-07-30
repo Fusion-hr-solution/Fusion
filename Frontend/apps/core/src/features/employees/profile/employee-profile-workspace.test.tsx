@@ -77,15 +77,6 @@ vi.mock("@repo/auth", () => ({
     !!user?.roles?.includes("HRAdmin"),
 }));
 
-vi.mock("@/shell/tenant-context/core-tenant-context-provider", () => ({
-  useTenantContext: () => ({
-    tenantId: null,
-    tenantSummary: null,
-    isLoading: false,
-    clearTenantContext: vi.fn(),
-  }),
-}));
-
 vi.mock("@/components/ui/sheet", () => ({
   Sheet: ({ open, children }: any) => (open ? <div>{children}</div> : null),
   SheetContent: ({ children }: any) => <div>{children}</div>,
@@ -371,7 +362,6 @@ function renderWorkspace(
           roles: ["HRAdmin"],
         } as any
       }
-      isTenantContextReadOnly={false}
       canManageEmployee={true}
       canManageReporting={true}
       canViewAccess={true}

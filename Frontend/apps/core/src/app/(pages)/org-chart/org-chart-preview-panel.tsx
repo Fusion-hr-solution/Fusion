@@ -27,7 +27,6 @@ interface OrgChartPreviewPanelProps {
   onFocusBranch: (employeeId: string) => void;
   onViewManager: (managerId: string) => void;
   onViewDirectReports: (employeeId: string) => void;
-  isTenantContextReadOnly?: boolean;
 }
 
 export function OrgChartPreviewPanel({
@@ -35,7 +34,6 @@ export function OrgChartPreviewPanel({
   showJobTitle,
   onClose,
   onOpenProfile,
-  isTenantContextReadOnly,
   onManageReportingRelationship,
   onFocusBranch,
   onViewManager,
@@ -159,13 +157,11 @@ export function OrgChartPreviewPanel({
         </Button>
 
         <div className="flex flex-col gap-0.5">
-          {!isTenantContextReadOnly ? (
-            <PanelAction
-              icon={<Network className="size-4" />}
-              title="Edit reporting lines"
-              onClick={() => onManageReportingRelationship(employee.employeeId)}
-            />
-          ) : null}
+          <PanelAction
+            icon={<Network className="size-4" />}
+            title="Edit reporting lines"
+            onClick={() => onManageReportingRelationship(employee.employeeId)}
+          />
           {hasSecondaryNav && employee.hasChildren ? (
             <PanelAction
               icon={<TreePine className="size-4" />}

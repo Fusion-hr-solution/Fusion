@@ -1,4 +1,4 @@
-// @repo/ds — shared shadcn design system (Tailwind v4) for Core + Performance.
+// @repo/ds — shared shadcn design system (Tailwind v4) for Platform, Core, and Performance.
 // Theme tokens live in ./styles/tokens.css and are governed by the shadcn preset.
 
 export { cn } from "./lib/utils";

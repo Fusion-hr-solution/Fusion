@@ -18,7 +18,6 @@ import {
   PageError,
 } from "@repo/ds/shell";
 import { MyProfilePageSkeleton } from "@/shell/route-skeletons";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { useTenantSettings } from "@/features/settings/api/use-tenant-settings";
 import { useEmployeeFieldPolicy } from "@/features/employees/shared/employee-field-visibility";
 import {
@@ -32,17 +31,12 @@ import {
 
 export default function MyProfilePage() {
   const { user, isLoading: authLoading } = useAuth();
-  const { tenantId } = useTenantContext();
   const employeeId = user?.employeeId ?? null;
-  const isTenantContextReadOnly = !!tenantId;
-  const canManageEmployee =
-    canManageCoreEmployees(user) && !isTenantContextReadOnly;
-  const canManageReporting =
-    canManageCoreReporting(user) && !isTenantContextReadOnly;
-  const canManageAccess = canManageCoreAccess(user) && !isTenantContextReadOnly;
-  const canViewAccess =
-    canAccessCoreAccess(user) || canManageAccess || isTenantContextReadOnly;
-  const canUseOrgChart = canAccessCoreOrgChart(user) || isTenantContextReadOnly;
+  const canManageEmployee = canManageCoreEmployees(user);
+  const canManageReporting = canManageCoreReporting(user);
+  const canManageAccess = canManageCoreAccess(user);
+  const canViewAccess = canAccessCoreAccess(user) || canManageAccess;
+  const canUseOrgChart = canAccessCoreOrgChart(user);
   const canViewProfile = !!employeeId;
 
   const fieldPolicy = useEmployeeFieldPolicy(canViewProfile, "employee");
@@ -116,7 +110,6 @@ export default function MyProfilePage() {
     reportingLines,
     fieldPolicy,
     user,
-    isTenantContextReadOnly,
     canManageEmployee,
     canManageReporting,
     canViewAccess,

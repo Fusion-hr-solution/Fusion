@@ -5,7 +5,6 @@ import {
   canAccessCoreSetup,
   canAccessCoreSettings,
   canAccessCoreTeam,
-  canAccessOrganizations,
   canAccessOwnCoreProfile,
   canManageCoreAccessProfiles,
   type AuthUser,
@@ -14,10 +13,6 @@ import {
 export function resolveInviteAcceptanceDestination(
   user: AuthUser
 ): string {
-  if (canAccessOrganizations(user)) {
-    return "/organizations";
-  }
-
   if (canAccessCoreOverview(user)) {
     return "/";
   }

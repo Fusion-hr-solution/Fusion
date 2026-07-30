@@ -9,7 +9,6 @@ import {
   type UseApiQueryResult,
 } from "@repo/api/query";
 import { useAuth } from "@repo/auth";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import {
   canAccessEmployeeProfile,
   canAccessEmployeeRoster,
@@ -30,20 +29,12 @@ import type {
 
 function useCanAccessRoster(): boolean {
   const { user } = useAuth();
-  const { tenantId } = useTenantContext();
-  return (
-    canAccessEmployeeRoster(user) ||
-    (!!user?.roles.includes("PlatformAdmin") && !!tenantId)
-  );
+  return canAccessEmployeeRoster(user);
 }
 
 function useCanAccessProfile(): boolean {
   const { user } = useAuth();
-  const { tenantId } = useTenantContext();
-  return (
-    canAccessEmployeeProfile(user) ||
-    (!!user?.roles.includes("PlatformAdmin") && !!tenantId)
-  );
+  return canAccessEmployeeProfile(user);
 }
 
 const EMPLOYEE_ROSTER_PATH = "/corehr/employees";

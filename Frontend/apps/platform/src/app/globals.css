@@ -1,0 +1,23 @@
+@import "tailwindcss";
+@import "shadcn/tailwind.css";
+@import "tw-animate-css";
+@import "../../../../packages/ds/src/styles/tokens.css";
+
+@source "../../../../packages/ds/src/**/*.{ts,tsx}";
+@source "../../../../packages/auth/src/**/*.{ts,tsx}";
+
+:root {
+  --font-sans: var(--platform-font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--platform-font-heading), ui-sans-serif, system-ui, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -13,7 +13,7 @@ export const MICROFRONTENDS: Microfrontend[] = [
   },
   {
     title: "Core",
-    description: "Core platform features, settings, and administration tools.",
+    description: "Core HR workforce and organization management.",
     href: "/core",
     badge: "Microfrontend",
   },

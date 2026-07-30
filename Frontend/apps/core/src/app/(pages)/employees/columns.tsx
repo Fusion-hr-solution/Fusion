@@ -6,7 +6,6 @@ import { ArrowUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { EmployeeFieldVisibility } from "@/features/employees/shared/employee-field-visibility";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import type { EmployeeRosterItem } from "./employee-roster.types";
 
 function SortHeader({
@@ -77,11 +76,7 @@ function getManagerBadge(employee: EmployeeRosterItem): {
 }
 
 export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
-  fieldVisibility: EmployeeFieldVisibility,
-  options?: {
-    tenantId?: string | null;
-    tenantSlug?: string | null;
-  }
+  fieldVisibility: EmployeeFieldVisibility
 ): ColumnDef<TEmployee>[] {
   const columns: ColumnDef<TEmployee>[] = [
     {
@@ -93,11 +88,7 @@ export function buildEmployeeColumns<TEmployee extends EmployeeRosterItem>(
       },
       header: ({ column }) => <SortHeader label="Employee" column={column} />,
       cell: ({ row }) => {
-        const profileHref = buildTenantContextHref(
-          `/employees/${row.original.stableEmployeeKey}`,
-          options?.tenantId ?? null,
-          options?.tenantSlug ?? null
-        );
+        const profileHref = `/employees/${row.original.stableEmployeeKey}`;
 
         return (
           <div className="min-w-0">

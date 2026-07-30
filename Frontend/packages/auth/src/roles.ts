@@ -6,8 +6,6 @@ export const HR_ADMIN_ROLE = "HRAdmin";
 export const MANAGER_ROLE = "Manager";
 export const EMPLOYEE_ROLE = "Employee";
 
-export const CORE_TENANT_CONTEXT_STORAGE_KEY = "ey_core_tenant_context";
-
 const SELF_SCOPE_RANK = 1;
 const DIRECT_REPORTS_SCOPE_RANK = 2;
 const ORG_UNIT_SCOPE_RANK = 2;
@@ -62,6 +60,10 @@ export function hasAnyRole(
   return roles.some((role) => user.roles.includes(role));
 }
 
+export function canAccessPlatform(user: AuthUser | null): boolean {
+  return hasAnyRole(user, [PLATFORM_ADMIN_ROLE]);
+}
+
 function getScopeRank(scope: PermissionScope | null | undefined): number {
   switch (scope) {
     case "Tenant":
@@ -83,10 +85,6 @@ function getEffectivePermissionScope(
   user: AuthUser | null,
   permissionKey: string
 ): PermissionScope | null {
-  if (isPlatformAdminOutsideCoreTenantContext(user)) {
-    return null;
-  }
-
   if (!user?.effectivePermissions?.length) {
     return null;
   }
@@ -142,34 +140,6 @@ function hasAnyTenantPermission(
   );
 }
 
-function hasCoreTenantContext(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  const pathname =
-    typeof window.location?.pathname === "string"
-      ? window.location.pathname
-      : "";
-  if (pathname !== "/core" && !pathname.startsWith("/core/")) {
-    return false;
-  }
-
-  try {
-    return !!sessionStorage.getItem(CORE_TENANT_CONTEXT_STORAGE_KEY);
-  } catch {
-    return false;
-  }
-}
-
-function isPlatformAdminOutsideCoreTenantContext(user: AuthUser | null): boolean {
-  return hasAnyRole(user, [PLATFORM_ADMIN_ROLE]) && !hasCoreTenantContext();
-}
-
-function isPlatformAdminInCoreTenantContext(user: AuthUser | null): boolean {
-  return hasAnyRole(user, [PLATFORM_ADMIN_ROLE]) && hasCoreTenantContext();
-}
-
 export function canAccessCoreSetup(user: AuthUser | null): boolean {
   return (
     hasCorePermission(user, CORE_PERMISSION.setupView, "Tenant") ||
@@ -181,7 +151,7 @@ export function canAccessCoreSetup(user: AuthUser | null): boolean {
 }
 
 export function canSeeCoreSetupNavigation(user: AuthUser | null): boolean {
-  return canAccessCoreSetup(user) || isPlatformAdminInCoreTenantContext(user);
+  return canAccessCoreSetup(user);
 }
 
 export function canAccessCoreSettings(user: AuthUser | null): boolean {
@@ -295,7 +265,7 @@ export function canAccessCoreOrgChart(user: AuthUser | null): boolean {
 }
 
 export function canSeeCoreOrgChartNavigation(user: AuthUser | null): boolean {
-  return canAccessCoreOrgChart(user) || isPlatformAdminInCoreTenantContext(user);
+  return canAccessCoreOrgChart(user);
 }
 
 export function canAccessCoreOverview(user: AuthUser | null): boolean {
@@ -307,8 +277,7 @@ export function canAccessCoreAccess(user: AuthUser | null): boolean {
     hasCorePermission(user, CORE_PERMISSION.accessView, "Tenant") ||
     hasCorePermission(user, CORE_PERMISSION.accessManage, "Tenant") ||
     hasCorePermission(user, CORE_PERMISSION.accessAssignmentsView, "Tenant") ||
-    hasCorePermission(user, CORE_PERMISSION.accessAssignmentsManage, "Tenant") ||
-    isPlatformAdminInCoreTenantContext(user)
+    hasCorePermission(user, CORE_PERMISSION.accessAssignmentsManage, "Tenant")
   );
 }
 
@@ -320,30 +289,5 @@ export function canManageCoreAccess(user: AuthUser | null): boolean {
 }
 
 export function canSeeCoreAccessNavigation(user: AuthUser | null): boolean {
-  return (
-    canAccessCoreAccess(user) ||
-    canViewCoreAccessProfiles(user) ||
-    isPlatformAdminInCoreTenantContext(user)
-  );
+  return canAccessCoreAccess(user) || canViewCoreAccessProfiles(user);
 }
-
-export function canAccessTenantAccessProfiles(user: AuthUser | null): boolean {
-  return isPlatformAdminInCoreTenantContext(user);
-}
-
-export function canAccessOrganizations(user: AuthUser | null): boolean {
-  return hasAnyRole(user, [PLATFORM_ADMIN_ROLE]);
-}
-
-export function canSeeOrganizationsNavigation(user: AuthUser | null): boolean {
-  return canAccessOrganizations(user);
-}
-
-export function canAccessTenantContext(user: AuthUser | null): boolean {
-  return hasAnyRole(user, [PLATFORM_ADMIN_ROLE]);
-}
-
-export function canAccessTenantSurfaces(user: AuthUser | null): boolean {
-  return hasAnyRole(user, [PLATFORM_ADMIN_ROLE]);
-}
-

@@ -12,14 +12,18 @@ This monorepo uses **Next.js `rewrites()`** in the shell app to compose multiple
 Frontend/
 ├── apps/
 │   ├── shell/             → Host / container app           — port 3000
+│   ├── platform/          → Platform control-plane MFE     — port 3007
 │   ├── interview/         → Interview management MFE       — port 3001
-│   ├── core/              → Core platform MFE              — port 3002
+│   ├── core/              → Core HR MFE                    — port 3002
 │   ├── learning/          → Learning & courses MFE         — port 3003
-│   ├── performance/       → Performance workspace MFE       — port 3004
+│   ├── performance/       → Performance workspace MFE      — port 3004
 │   ├── recruitment/       → Recruitment & hiring MFE       — port 3005
 │   └── onboarding/        → New hire onboarding MFE        — port 3006
 ├── packages/
-│   ├── ui/                → Shared UI components (shadcn/ui + Tailwind)
+│   ├── ds/                → Product design system for Platform, Core, and Performance
+│   ├── ui/                → Lower-level shared UI infrastructure
+│   ├── auth/              → Shared authentication and authorization foundations
+│   ├── api/               → Shared transport and API-client foundations
 │   ├── eslint-config/     → Shared ESLint configuration
 │   └── tsconfig/          → Shared TypeScript configurations
 ├── turbo.json             → Turborepo task pipeline
@@ -57,6 +61,7 @@ The shell app uses **Next.js `rewrites()`** to proxy each microfrontend path to 
 | Path               | App           | Port |
 |--------------------|---------------|------|
 | `/`                | shell         | 3000 |
+| `/platform/*`      | platform      | 3007 |
 | `/interview/*`     | interview     | 3001 |
 | `/core/*`          | core          | 3002 |
 | `/learning/*`      | learning      | 3003 |
@@ -65,6 +70,11 @@ The shell app uses **Next.js `rewrites()`** to proxy each microfrontend path to 
 | `/onboarding/*`    | onboarding    | 3006 |
 
 Each MFE has a `basePath` in its `next.config.ts` matching its route prefix (e.g., `basePath: "/interview"`).
+
+Platform runs directly at `http://localhost:3007/platform` and through the
+shell at `http://localhost:3000/platform`. The shell rewrite uses
+`PLATFORM_MFE_URL`, which defaults to `http://localhost:3007` for local
+development. Platform is a control plane, not a customer tenant module.
 
 > **Note:** Use standard `<a>` tags (not Next.js `<Link>`) for cross-app navigation, since each microfrontend is a separate Next.js application.
 
@@ -92,6 +102,7 @@ pnpm dev
 
 # Start a single app
 pnpm --filter shell dev
+pnpm --filter platform dev
 pnpm --filter interview dev
 ```
 
@@ -194,11 +205,11 @@ pnpm type-check
    ```
 3. **Assign a port** in `apps/my-app/package.json`:
    ```json
-   "scripts": { "dev": "next dev --turbopack -p 3007" }
+   "scripts": { "dev": "next dev --turbopack -p 3008" }
    ```
 4. **Add a rewrite** in `apps/shell/next.config.ts`:
    ```ts
-   { source: "/my-app/:path*", destination: "http://localhost:3007/my-app/:path*" }
+   { source: "/my-app/:path*", destination: "http://localhost:3008/my-app/:path*" }
    ```
 5. **Add navigation links** in the shell and other app layouts
 6. **Scaffold the folder structure** following the unified convention (`components/`, `services/`, `types/`, `lib/`, `config/`, `hooks/`)

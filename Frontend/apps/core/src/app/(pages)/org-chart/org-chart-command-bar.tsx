@@ -136,7 +136,6 @@ interface OrgChartCommandBarProps {
 
   isReassignMode: boolean;
   onToggleReassignMode: () => void;
-  isTenantContextReadOnly?: boolean;
 }
 
 export function OrgChartCommandBar({
@@ -172,7 +171,6 @@ export function OrgChartCommandBar({
   isExporting,
   isReassignMode,
   onToggleReassignMode,
-  isTenantContextReadOnly,
 }: OrgChartCommandBarProps) {
   const isPeople = lens === "people";
   const [searchOpen, setSearchOpen] = useState(false);
@@ -486,7 +484,7 @@ export function OrgChartCommandBar({
                   Reset view
                 </Button>
 
-                {isPeople && !isTenantContextReadOnly ? (
+                {isPeople ? (
                   <Button
                     variant={isReassignMode ? "secondary" : "outline"}
                     size="sm"

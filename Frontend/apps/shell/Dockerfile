@@ -21,6 +21,7 @@ WORKDIR /app
 # Accept build arguments
 ARG GATEWAY_URL=http://localhost:5000
 ARG CORE_MFE_URL=http://localhost:3002
+ARG PLATFORM_MFE_URL=http://localhost:3007
 
 # Copy everything from deps stage
 COPY --from=deps /app .
@@ -31,6 +32,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_STANDALONE=true
 ENV GATEWAY_URL=${GATEWAY_URL}
 ENV CORE_MFE_URL=${CORE_MFE_URL}
+ENV PLATFORM_MFE_URL=${PLATFORM_MFE_URL}
 RUN pnpm --filter shell build
 
 # Stage 3: Runtime

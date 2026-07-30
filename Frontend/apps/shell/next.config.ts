@@ -12,10 +12,20 @@ const nextConfig: NextConfig = {
   async rewrites() {
     const gatewayUrl = process.env.GATEWAY_URL || "http://localhost:5000";
     const coreUrl = process.env.CORE_MFE_URL || "http://localhost:3002";
+    const platformUrl =
+      process.env.PLATFORM_MFE_URL || "http://localhost:3007";
     return { beforeFiles: [
       {
         source: "/api/:path*",
         destination: `${gatewayUrl}/api/:path*`,
+      },
+      {
+        source: "/platform/_next/:path*",
+        destination: `${platformUrl}/platform/_next/:path*`,
+      },
+      {
+        source: "/platform/:path*",
+        destination: `${platformUrl}/platform/:path*`,
       },
       {
         source: "/interview/:path*",

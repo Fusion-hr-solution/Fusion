@@ -3,8 +3,6 @@
 export const dynamic = "force-dynamic";
 
 import { canAccessCoreSetup, useAuth } from "@repo/auth";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import {
   PageContainer,
   PageHeader,
@@ -21,9 +19,7 @@ import { SetupPageSkeleton } from "@/features/setup/components/setup-workspace";
 
 export default function SetupPage() {
   const { user } = useAuth();
-  const { tenantId, tenantSlug } = useTenantContext();
-  const isTenantContextReadOnly = !!tenantId;
-  const canAccess = canAccessCoreSetup(user) || isTenantContextReadOnly;
+  const canAccess = canAccessCoreSetup(user);
 
   const {
     setupState,
@@ -84,17 +80,8 @@ export default function SetupPage() {
     return <SetupPageSkeleton />;
   }
 
-  const dashboardHref = buildTenantContextHref("/", tenantId, tenantSlug);
-  const draftStructureHref = buildTenantContextHref(
-    "/setup/draft-structure",
-    tenantId,
-    tenantSlug
-  );
-  const importEmployeesHref = buildTenantContextHref(
-    "/employees/import",
-    tenantId,
-    tenantSlug
-  );
+  const draftStructureHref = "/setup/draft-structure";
+  const importEmployeesHref = "/employees/import";
 
   const workspaceProps: SetupWorkspaceProps = {
     setupState,
@@ -102,10 +89,8 @@ export default function SetupPage() {
     readinessError,
     isReadinessLoading,
     refetchReadiness,
-    isTenantContextReadOnly,
     onPublish: publishSetup,
     onReopen: reopenSetup,
-    dashboardHref,
     draftStructureHref,
     importEmployeesHref,
     canAccess,

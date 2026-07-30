@@ -3,6 +3,8 @@ import type { NextConfig } from "next";
 
 const frontendWorkspaceRoot = path.resolve(process.cwd(), "../..");
 const useStandaloneOutput = process.env.NEXT_OUTPUT_MODE === "standalone";
+const developmentShellUrl =
+  process.env.NODE_ENV === "development" ? "http://localhost:3000" : "";
 
 const nextConfig: NextConfig = {
   ...(useStandaloneOutput ? { output: "standalone" as const } : {}),
@@ -19,6 +21,10 @@ const nextConfig: NextConfig = {
     ];
   },
   allowedDevOrigins: ["http://localhost:3000"],
+  env: {
+    NEXT_PUBLIC_SHELL_URL:
+      process.env.NEXT_PUBLIC_SHELL_URL ?? developmentShellUrl,
+  },
   images: {
     remotePatterns: [
       {
@@ -34,17 +40,6 @@ const nextConfig: NextConfig = {
         source: "/",
         destination: "/core",
         basePath: false,
-        permanent: false,
-      },
-      // Legacy executive-console paths → flat /core/* routes
-      {
-        source: "/corehr",
-        destination: "/organizations",
-        permanent: false,
-      },
-      {
-        source: "/corehr/:path*",
-        destination: "/:path*",
         permanent: false,
       },
     ];

@@ -88,12 +88,12 @@ describe("resolveInviteAcceptanceDestination", () => {
     ).toBe("/setup");
   });
 
-  it("keeps platform admins on the admin workspace root", () => {
+  it("does not grant a Platform Administrator a Core destination", () => {
     expect(
       resolveInviteAcceptanceDestination(createAuthUser({
         roles: ["PlatformAdmin"],
         employeeId: null,
       }))
-    ).toBe("/organizations");
+    ).toBe("/");
   });
 });

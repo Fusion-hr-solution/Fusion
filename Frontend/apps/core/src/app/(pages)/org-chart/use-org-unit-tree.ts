@@ -7,12 +7,7 @@ import {
   useApiQuery,
   type UseApiQueryResult,
 } from "@repo/api/query";
-import {
-  canAccessCoreOrgChart,
-  PLATFORM_ADMIN_ROLE,
-  useAuth,
-} from "@repo/auth";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
+import { canAccessCoreOrgChart, useAuth } from "@repo/auth";
 import {
   normalizeOrgUnitTreeQuery,
   orgUnitTreeQueryKeys,
@@ -33,11 +28,8 @@ export function useOrgUnitTree(
   enabled = true
 ): UseApiQueryResult<OrgUnitTreeNodeDto[]> {
   const { user, isAuthenticated } = useAuth();
-  const { tenantId } = useTenantContext();
   const client = useMemo(() => createPlatformApiClient(), []);
-  const canAccess =
-    canAccessCoreOrgChart(user) ||
-    (!!user?.roles.includes(PLATFORM_ADMIN_ROLE) && !!tenantId);
+  const canAccess = canAccessCoreOrgChart(user);
   const normalizedQuery = normalizeOrgUnitTreeQuery(query);
 
   const queryFn = useCallback(

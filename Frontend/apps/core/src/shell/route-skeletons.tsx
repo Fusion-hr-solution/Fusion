@@ -115,17 +115,6 @@ export function TeamPageSkeleton() {
   );
 }
 
-export function OrganizationsPageSkeleton() {
-  return (
-    <TitledPageLoading
-      title="Organizations"
-      description="Loading organizations."
-      rows={8}
-      label="Loading organizations..."
-    />
-  );
-}
-
 export function AccessPageSkeleton() {
   return (
     <TitledPageLoading
@@ -295,7 +284,6 @@ export function getRoutePageSkeleton(corePath: string): ReactNode {
   if (corePath === "/profile") return <MyProfilePageSkeleton />;
   if (corePath === "/team") return <TeamPageSkeleton />;
   if (corePath === "/org-chart") return <OrgChartPageSkeleton />;
-  if (corePath === "/organizations") return <OrganizationsPageSkeleton />;
   if (corePath === "/settings") return <SettingsPageSkeleton />;
   if (corePath === "/access/profiles")
     return <TitledPageLoading title="Access profiles" rows={4} label="Opening access profile settings" />;

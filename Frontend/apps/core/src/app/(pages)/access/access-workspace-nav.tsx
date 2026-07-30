@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { ShieldCheck, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
 
 export function AccessWorkspaceNav({
   active,
@@ -15,13 +13,8 @@ export function AccessWorkspaceNav({
   showPeople: boolean;
   showProfiles: boolean;
 }) {
-  const { tenantId, tenantSlug } = useTenantContext();
-  const peopleHref = buildTenantContextHref("/access", tenantId, tenantSlug);
-  const profilesHref = buildTenantContextHref(
-    "/settings?tab=access-permissions",
-    tenantId,
-    tenantSlug
-  );
+  const peopleHref = "/access";
+  const profilesHref = "/settings?tab=access-permissions";
 
   if (!showPeople && !showProfiles) {
     return null;

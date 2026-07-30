@@ -95,13 +95,6 @@ vi.mock("@/lib/employee-roster-access", () => ({
   canAccessEmployeeProfile: () => true,
 }));
 
-vi.mock("@/shell/tenant-context/core-tenant-context-provider", () => ({
-  useTenantContext: () => ({
-    tenantId: null,
-    tenantSlug: null,
-  }),
-}));
-
 vi.mock("@/app/(pages)/access/use-access-subjects", () => ({
   useAccessSubjectSummary: mockUseAccessSubjectSummary,
   useAccessSubjectSelectionPreview: mockUseAccessSubjectSelectionPreview,

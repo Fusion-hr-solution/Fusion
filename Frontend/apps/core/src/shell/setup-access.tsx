@@ -13,7 +13,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { coreSetupQueryKeys, type TenantSetupStateDto } from "@repo/api";
 import { useApiQueryClient } from "@repo/api/query";
 import { canSeeCoreSetupNavigation, useAuth } from "@repo/auth";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { PageContainer, PageHeader, PageLoading } from "@repo/ds/shell";
 import { getRoutePageSkeleton } from "@/shell/route-skeletons";
 import {
@@ -118,7 +117,6 @@ function SetupRedirectFallback() {
 
 export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
-  const { tenantId } = useTenantContext();
   const queryClient = useApiQueryClient();
   const [setupStateOverride, setSetupStateOverride] =
     useState<TenantSetupStateDto>();
@@ -127,7 +125,7 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
   const shouldCheckSetupAccess =
     !isAuthLoading &&
     isAuthenticated &&
-    (canSeeCoreSetupNavigation(user) || !!tenantId);
+    canSeeCoreSetupNavigation(user);
   const {
     data: setupState,
     error: setupError,
@@ -157,7 +155,7 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
 
     setSetupStateOverride(undefined);
     setSetupTransitionKind(null);
-  }, [shouldCheckSetupAccess, tenantId]);
+  }, [shouldCheckSetupAccess]);
 
   const refreshSetupAccess = useCallback(() => {
     if (!shouldCheckSetupAccess) {

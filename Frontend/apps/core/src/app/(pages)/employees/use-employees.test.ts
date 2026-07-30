@@ -20,18 +20,6 @@ const authState = vi.hoisted(() => ({
   },
 }));
 
-const tenantContextState = vi.hoisted(() => ({
-  tenantId: null as string | null,
-  tenantName: null as string | null,
-  tenantStatus: null as string | null,
-  isActive: false,
-  isArchived: false,
-  isReady: false,
-  isLoading: false,
-  setTenant: vi.fn(),
-  clearTenant: vi.fn(),
-}));
-
 vi.mock("@repo/api", () => ({
   createPlatformApiClient: () => ({
     delete: mockDelete,
@@ -50,15 +38,6 @@ vi.mock("@repo/auth", () => ({
     !!user?.employeeId && !!user.roles?.includes("Manager"),
   canAccessOwnCoreProfile: (user: { employeeId?: string | null } | null) =>
     !!user?.employeeId,
-}));
-
-vi.mock("@/shell/tenant-context/core-tenant-context-provider", () => ({
-  useTenantContext: () => ({
-    tenantId: null,
-    tenantSummary: null,
-    isLoading: false,
-    clearTenantContext: vi.fn(),
-  }),
 }));
 
 vi.mock("@repo/api/query", async () => {
@@ -114,13 +93,6 @@ beforeEach(() => {
     fullName: "HR Admin",
     roles: ["HRAdmin"],
   };
-  tenantContextState.tenantId = null;
-  tenantContextState.tenantName = null;
-  tenantContextState.tenantStatus = null;
-  tenantContextState.isActive = false;
-  tenantContextState.isArchived = false;
-  tenantContextState.isReady = false;
-  tenantContextState.isLoading = false;
 });
 
 describe("useEmployeeRoster", () => {

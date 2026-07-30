@@ -1,13 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
+  canAccessPlatform,
   canAccessCorePeople,
   canAccessCoreSettings,
   canManageCoreSettings,
   canAccessCoreSetup,
   canAccessCoreTeam,
-  CORE_TENANT_CONTEXT_STORAGE_KEY,
   canAccessOwnCoreProfile,
-  canAccessOrganizations,
   hasCorePermission,
   canSeeOwnCoreProfileNavigation,
   canSeeCorePeopleNavigation,
@@ -15,7 +14,6 @@ import {
   canSeeCoreSetupNavigation,
   canSeeCoreAccessNavigation,
   canSeeCoreTeamNavigation,
-  canSeeOrganizationsNavigation,
   canViewCoreAccessProfiles,
   canManageCoreAccessProfiles,
 } from "../roles";
@@ -52,17 +50,26 @@ function grant(
   };
 }
 
-beforeEach(() => {
-  window.sessionStorage.clear();
-  window.history.replaceState({}, "", "/");
-});
-
-afterEach(() => {
-  window.sessionStorage.clear();
-  window.history.replaceState({}, "", "/");
-});
-
 describe("role helpers", () => {
+  it("grants Platform access only to authenticated platform administrators", () => {
+    expect(canAccessPlatform(null)).toBe(false);
+    expect(canAccessPlatform(makeUser([]))).toBe(false);
+    expect(canAccessPlatform(makeUser(["Employee"]))).toBe(false);
+    expect(canAccessPlatform(makeUser(["HRAdmin"]))).toBe(false);
+    expect(canAccessPlatform(makeUser(["PlatformAdmin"]))).toBe(true);
+  });
+
+  it("does not turn Platform authority into customer workspace access", () => {
+    const user = makeUser(["PlatformAdmin"]);
+
+    expect(canAccessPlatform(user)).toBe(true);
+    expect(canAccessCorePeople(user)).toBe(false);
+    expect(canAccessCoreSettings(user)).toBe(false);
+    expect(canAccessCoreSetup(user)).toBe(false);
+    expect(canAccessCoreTeam(user)).toBe(false);
+    expect(canAccessOwnCoreProfile(user)).toBe(false);
+  });
+
   it("allows tenant HR admins to access setup and setup navigation", () => {
     const user = makeUser(["HRAdmin"], undefined, [
       grant("core.employee.view", "Tenant"),
@@ -78,8 +85,6 @@ describe("role helpers", () => {
     expect(canSeeCoreSetupNavigation(user)).toBe(true);
     expect(canAccessCoreTeam(user)).toBe(false);
     expect(canAccessOwnCoreProfile(user)).toBe(false);
-    expect(canAccessOrganizations(user)).toBe(false);
-    expect(canSeeOrganizationsNavigation(user)).toBe(false);
   });
 
   it("allows linked managers to access self and team workspaces", () => {
@@ -107,11 +112,10 @@ describe("role helpers", () => {
     expect(canSeeCoreTeamNavigation(user)).toBe(false);
   });
 
-  it("allows platform admins to access organizations but not setup", () => {
+  it("allows platform admins to access Platform but not Core", () => {
     const user = makeUser(["PlatformAdmin"]);
 
-    expect(canAccessOrganizations(user)).toBe(true);
-    expect(canSeeOrganizationsNavigation(user)).toBe(true);
+    expect(canAccessPlatform(user)).toBe(true);
     expect(canAccessCorePeople(user)).toBe(false);
     expect(canAccessCoreSettings(user)).toBe(false);
     expect(canAccessCoreSetup(user)).toBe(false);
@@ -120,14 +124,13 @@ describe("role helpers", () => {
     expect(canSeeCoreSetupNavigation(user)).toBe(false);
   });
 
-  it("keeps combined-role users in platform admin mode by default", () => {
+  it("does not manufacture Core access from combined role names", () => {
     const user = makeUser(["PlatformAdmin", "HRAdmin"]);
 
-    expect(canAccessOrganizations(user)).toBe(true);
+    expect(canAccessPlatform(user)).toBe(true);
     expect(canAccessCorePeople(user)).toBe(false);
     expect(canAccessCoreSettings(user)).toBe(false);
     expect(canAccessCoreSetup(user)).toBe(false);
-    expect(canSeeOrganizationsNavigation(user)).toBe(true);
     expect(canSeeCorePeopleNavigation(user)).toBe(false);
     expect(canSeeCoreSettingsNavigation(user)).toBe(false);
     expect(canSeeCoreSetupNavigation(user)).toBe(false);
@@ -177,40 +180,6 @@ describe("role helpers", () => {
     expect(canAccessCorePeople(user)).toBe(true);
   });
 
-  it("suppresses core permissions for platform admins outside tenant context", () => {
-    const user = makeUser(["PlatformAdmin", "HRAdmin"], "employee-1", [
-      {
-        permissionKey: "core.employee.view",
-        scope: "Tenant",
-        label: "View employees",
-        group: "Employees",
-        helperText: null,
-        allowedScopes: ["Self", "DirectReports", "Tenant"],
-      },
-    ]);
-
-    expect(canAccessCorePeople(user)).toBe(false);
-  });
-
-  it("allows platform admins to use core permissions inside tenant context", () => {
-    window.history.replaceState({}, "", "/core/settings");
-    window.sessionStorage.setItem(CORE_TENANT_CONTEXT_STORAGE_KEY, "tenant-1");
-
-    const user = makeUser(["PlatformAdmin", "HRAdmin"], "employee-1", [
-      {
-        permissionKey: "core.settings.view",
-        scope: "Tenant",
-        label: "View Core settings",
-        group: "Settings",
-        helperText: null,
-        allowedScopes: ["Tenant"],
-      },
-    ]);
-
-    expect(canAccessCoreSettings(user)).toBe(true);
-    expect(canSeeCoreSettingsNavigation(user)).toBe(true);
-  });
-
   it("uses section settings permissions for settings access", () => {
     const peopleDataAdmin = makeUser([], null, [
       grant("settings.peopleData.manage", "Tenant"),
@@ -241,10 +210,7 @@ describe("role helpers", () => {
     expect(canManageCoreAccessProfiles(profileManager)).toBe(true);
   });
 
-  it("does not give platform admins tenant settings or profile management by tenant context alone", () => {
-    window.history.replaceState({}, "", "/core/settings");
-    window.sessionStorage.setItem(CORE_TENANT_CONTEXT_STORAGE_KEY, "tenant-1");
-
+  it("does not give platform admins tenant settings or profile management", () => {
     const user = makeUser(["PlatformAdmin"]);
 
     expect(canAccessCoreSettings(user)).toBe(false);
@@ -267,5 +233,3 @@ describe("role helpers", () => {
 
 
 });
-
-

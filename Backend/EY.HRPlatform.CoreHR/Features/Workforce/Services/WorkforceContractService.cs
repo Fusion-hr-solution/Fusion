@@ -1696,9 +1696,8 @@ public sealed class WorkforceContractService(
 
     private static WorkforceAccessContext BuildAccessContext(ClaimsPrincipal user)
     {
-        var isPlatformAdmin = user.IsInRole(PlatformRole.PlatformAdmin);
-        var isTenantReader = isPlatformAdmin
-            || user.HasCorePermission(CorePermissions.EmployeeView, PermissionScopes.Tenant);
+        var isTenantReader =
+            user.HasCorePermission(CorePermissions.EmployeeView, PermissionScopes.Tenant);
         var isDirectReportReader = !isTenantReader
             && (user.HasCorePermission(CorePermissions.TeamView, PermissionScopes.DirectReports)
                 || user.HasCorePermission(CorePermissions.EmployeeView, PermissionScopes.DirectReports));

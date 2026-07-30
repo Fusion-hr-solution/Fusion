@@ -19,7 +19,6 @@ import {
   PagePermissionNotice,
 } from "@repo/ds/shell";
 import { EmployeeProfilePageSkeleton } from "@/shell/route-skeletons";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
 import { canAccessEmployeeProfile } from "@/lib/employee-roster-access";
 import { useTenantSettings } from "@/features/settings/api/use-tenant-settings";
@@ -36,26 +35,18 @@ import {
 export default function EmployeeProfilePage() {
   const { user } = useAuth();
   const params = useParams<{ id?: string }>();
-  const { tenantId } = useTenantContext();
-  const isTenantContextReadOnly = !!tenantId;
-  const canManageEmployee =
-    canManageCoreEmployees(user) && !isTenantContextReadOnly;
-  const canManageReporting =
-    canManageCoreReporting(user) && !isTenantContextReadOnly;
-  const canManageAccess = canManageCoreAccess(user) && !isTenantContextReadOnly;
-  const canViewAccess =
-    canAccessCoreAccess(user) || canManageAccess || isTenantContextReadOnly;
-  const canUseOrgChart = canAccessCoreOrgChart(user) || isTenantContextReadOnly;
+  const canManageEmployee = canManageCoreEmployees(user);
+  const canManageReporting = canManageCoreReporting(user);
+  const canManageAccess = canManageCoreAccess(user);
+  const canViewAccess = canAccessCoreAccess(user) || canManageAccess;
+  const canUseOrgChart = canAccessCoreOrgChart(user);
   const canViewProfile = canAccessEmployeeProfile(user);
   const employeeKey =
     typeof params.id === "string" && params.id.trim().length > 0
       ? params.id
       : null;
 
-  const effectiveEmployeeKey =
-    (canViewProfile || isTenantContextReadOnly) && employeeKey
-      ? employeeKey
-      : null;
+  const effectiveEmployeeKey = canViewProfile && employeeKey ? employeeKey : null;
 
   const {
     data: details,
@@ -66,34 +57,24 @@ export default function EmployeeProfilePage() {
   const { data: reportingLines } =
     useEmployeeReportingLines(effectiveEmployeeKey);
   const isLoadedOwnProfile = !!details && user?.employeeId === details.id;
-  const fieldAudience =
-    canManageEmployee || isTenantContextReadOnly
-      ? "hrAdmin"
-      : isLoadedOwnProfile
-        ? "employee"
-        : "manager";
-  const fieldPolicy = useEmployeeFieldPolicy(
-    canViewProfile || isTenantContextReadOnly,
-    fieldAudience
-  );
-  const { data: settings } = useTenantSettings(
-    canViewProfile || isTenantContextReadOnly
-  );
+  const fieldAudience = canManageEmployee
+    ? "hrAdmin"
+    : isLoadedOwnProfile
+      ? "employee"
+      : "manager";
+  const fieldPolicy = useEmployeeFieldPolicy(canViewProfile, fieldAudience);
+  const { data: settings } = useTenantSettings(canViewProfile);
 
   // Register employee name in the top breadcrumb (Core > Employees > Jane Smith)
   useBreadcrumbLabel(employeeKey ?? "", details?.fullName);
 
-  const isInitialLoading =
-    (canViewProfile || isTenantContextReadOnly) &&
-    isLoading &&
-    !details &&
-    !error;
+  const isInitialLoading = canViewProfile && isLoading && !details && !error;
 
   if (isInitialLoading) {
     return <EmployeeProfilePageSkeleton />;
   }
 
-  const isViewable = canViewProfile || isTenantContextReadOnly;
+  const isViewable = canViewProfile;
 
   if (!isViewable) {
     return (
@@ -162,7 +143,6 @@ export default function EmployeeProfilePage() {
     reportingLines,
     fieldPolicy,
     user,
-    isTenantContextReadOnly,
     canManageEmployee,
     canManageReporting,
     canViewAccess,

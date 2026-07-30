@@ -1,6 +1,5 @@
-// @repo/ds/shell — Core + Performance shared shell (sidebar, app frame, page-layout kit).
-// Lives in @repo/ds (the Core+Perf-only package) so the two modules share one shell without
-// touching the cross-org @repo/ui AppSidebar.
+// @repo/ds/shell — shared Platform, Core, and Performance product shell
+// (sidebar, app frame, and page-layout kit).
 
 export { ModuleSidebar } from "./module-sidebar";
 export { FUSION_MODULES } from "./modules";

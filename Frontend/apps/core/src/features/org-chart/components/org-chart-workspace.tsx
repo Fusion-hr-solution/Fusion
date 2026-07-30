@@ -11,11 +11,8 @@ import {
   PageError,
   PagePermissionNotice,
 } from "@repo/ds/shell";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { OrgChartPageSkeleton } from "@/shell/route-skeletons";
 import { cn } from "@/lib/utils";
 import { useEmployeeFieldVisibility } from "@/features/employees/shared/employee-field-visibility";
@@ -76,9 +73,7 @@ export default function OrgChartWorkspace() {
   const rootUnitId = searchParams.get("rootUnitId");
 
   const { user } = useAuth();
-  const { tenantId, tenantSlug } = useTenantContext();
-  const isTenantContextReadOnly = !!tenantId;
-  const canAccess = canAccessCoreOrgChart(user) || isTenantContextReadOnly;
+  const canAccess = canAccessCoreOrgChart(user);
   const fieldVisibility = useEmployeeFieldVisibility(canAccess);
   const isPeople = lens === "people";
 
@@ -296,19 +291,16 @@ export default function OrgChartWorkspace() {
     (employeeId: string) => {
       const employeeKey = getEmployeeKey(employeeId);
       if (!employeeKey) return;
-      router.push(
-        buildTenantContextHref(`/employees/${employeeKey}`, tenantId, tenantSlug)
-      );
+      router.push(`/employees/${employeeKey}`);
     },
-    [getEmployeeKey, router, tenantId, tenantSlug]
+    [getEmployeeKey, router]
   );
 
   const handlePreviewManageReporting = useCallback(
     (employeeId: string) => {
-      if (isTenantContextReadOnly) return;
       setSheetEmployeeKey(getEmployeeKey(employeeId));
     },
-    [getEmployeeKey, isTenantContextReadOnly]
+    [getEmployeeKey]
   );
 
   const handlePreviewFocusBranch = useCallback(
@@ -634,11 +626,7 @@ export default function OrgChartWorkspace() {
         onPrint={handlePrint}
         isExporting={isExporting}
         isReassignMode={isReassignMode}
-        onToggleReassignMode={() => {
-          if (isTenantContextReadOnly) return;
-          setIsReassignMode((v) => !v);
-        }}
-        isTenantContextReadOnly={isTenantContextReadOnly}
+        onToggleReassignMode={() => setIsReassignMode((value) => !value)}
       />
 
       {error ? (
@@ -704,10 +692,7 @@ export default function OrgChartWorkspace() {
                 fitViewKey={fitViewKey}
                 isOverviewMode={rootEmployeeKey === null}
                 onCanvasApiReady={handleCanvasApiReady}
-                onReassignProposal={(proposal) => {
-                  if (isTenantContextReadOnly) return;
-                  setReassignProposal(proposal);
-                }}
+                onReassignProposal={setReassignProposal}
               />
             ) : (
               <OrgUnitCanvas
@@ -740,7 +725,6 @@ export default function OrgChartWorkspace() {
                 showJobTitle={fieldVisibility.showJobTitle}
                 onClose={() => setPreviewEmployeeId(null)}
                 onOpenProfile={handlePreviewOpenProfile}
-                isTenantContextReadOnly={isTenantContextReadOnly}
                 onManageReportingRelationship={handlePreviewManageReporting}
                 onFocusBranch={handlePreviewFocusBranch}
                 onViewManager={revealAndSelectEmployee}

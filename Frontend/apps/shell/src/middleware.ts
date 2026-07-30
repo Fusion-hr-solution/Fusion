@@ -42,6 +42,7 @@ export function middleware(request: NextRequest) {
   // Allow Next.js internals & static assets
   if (
     pathname.startsWith("/_next") ||
+    pathname.startsWith("/platform/_next") ||
     pathname.startsWith("/performance/_next") ||
     pathname.startsWith("/api") ||
     pathname.includes(".")

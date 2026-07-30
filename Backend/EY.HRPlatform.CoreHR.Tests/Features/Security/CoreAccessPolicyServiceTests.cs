@@ -59,17 +59,20 @@ public class CoreAccessPolicyServiceTests
     }
 
     [Fact]
-    public void PlatformAdmin_RemainsReadOnlyTenantViewer()
+    public void PlatformAdminRoleAlone_GrantsNoCustomerWorkspaceAccess()
     {
         var user = CreatePrincipal(roles: [PlatformRole.PlatformAdmin]);
 
-        Assert.True(_service.CanViewOverview(user));
-        Assert.True(_service.CanViewAccess(user));
-        Assert.True(_service.CanViewTenantEmployees(user));
+        Assert.False(_service.CanViewOverview(user));
+        Assert.False(_service.CanViewSetup(user));
+        Assert.False(_service.CanViewStructure(user));
+        Assert.False(_service.CanViewOrgChart(user));
+        Assert.False(_service.CanViewAccess(user));
+        Assert.False(_service.CanViewTenantEmployees(user));
         Assert.False(_service.CanViewSettings(user));
         Assert.False(_service.CanManageAccess(user));
         Assert.False(_service.CanManageEmployees(user));
-        Assert.Equal(PermissionScopes.Tenant, _service.GetEmployeeViewScope(user));
+        Assert.Null(_service.GetEmployeeViewScope(user));
     }
 
     [Fact]

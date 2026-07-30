@@ -57,13 +57,6 @@ vi.mock("@repo/auth", () => ({
   useAuth: mockUseAuth,
 }));
 
-vi.mock("@/shell/tenant-context/core-tenant-context-provider", () => ({
-  useTenantContext: () => ({
-    tenantId: null,
-    tenantSlug: null,
-  }),
-}));
-
 vi.mock("@/features/access/api/use-core-access", () => ({
   useAccessProfiles: mockUseAccessProfiles,
   useCorePermissionCatalog: mockUseCorePermissionCatalog,

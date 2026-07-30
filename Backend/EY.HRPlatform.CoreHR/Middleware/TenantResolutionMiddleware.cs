@@ -39,21 +39,9 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next, ILogger<Ten
 
         if (isAuthenticated)
         {
-            var jwtTenantId = context.User.GetTenantId();
-
-            // PlatformAdmin can override tenant context via header (for cross-tenant operations)
-            if (context.User.IsInRole(PlatformRole.PlatformAdmin) &&
-                context.Request.Headers.TryGetValue(TenantHeader, out var headerValue))
-            {
-                var headerString = headerValue.FirstOrDefault();
-                if (Guid.TryParse(headerString, out var headerTenantId) && headerTenantId != Guid.Empty)
-                {
-                    return headerTenantId;
-                }
-            }
-
-            // For non-PlatformAdmin users, only trust tenant from JWT claims (security: prevent privilege escalation)
-            return jwtTenantId;
+            // Authenticated customer context is established only by trusted claims.
+            // A caller-supplied header never overrides or manufactures that authority.
+            return context.User.GetTenantId();
         }
 
         // For unauthenticated requests (e.g., internal service-to-service calls), allow header-based resolution

@@ -91,6 +91,43 @@ describe("createPlatformApiClient", () => {
     expect(headers["Authorization"]).toBe("Bearer custom-token");
   });
 
+  it("does not infer a tenant header from browser auth state", async () => {
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("document", {});
+    vi.stubGlobal("localStorage", {
+      getItem: () =>
+        JSON.stringify({
+          accessToken: "jwt-abc",
+          refreshToken: "rt",
+          accessTokenExpiration: "2099-01-01",
+          user: {
+            tenantId: "customer-tenant",
+            roles: ["PlatformAdmin"],
+          },
+        }),
+    });
+
+    const api = createPlatformApiClient();
+    await api.get("/protected");
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers["X-Tenant-Id"]).toBeUndefined();
+  });
+
+  it("attaches a tenant header only from an explicit resolver", async () => {
+    const api = createPlatformApiClient({
+      getToken: () => null,
+      getTenantId: () => "customer-tenant",
+    });
+
+    await api.get("/tenant-scoped");
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers["X-Tenant-Id"]).toBe("customer-tenant");
+  });
+
   it("refreshes an expired stored session before sending the request", async () => {
     vi.stubGlobal("window", { dispatchEvent: vi.fn() });
     vi.stubGlobal("document", { cookie: "" });

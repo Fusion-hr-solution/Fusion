@@ -10,38 +10,18 @@ import {
 } from "@repo/ds/shell";
 import {
   useAuth,
-  PLATFORM_ADMIN_ROLE,
   canSeeCoreAccessNavigation,
   canSeeCoreOrgChartNavigation,
   canSeeCoreSettingsNavigation,
   canSeeCoreSetupNavigation,
-  canSeeOrganizationsNavigation,
 } from "@repo/auth";
 import { PEOPLE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
 import { useCoreSetupAccess } from "@/shell/setup-access";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import {
   canSeeEmployeeRosterNavigation,
   canSeeSelfEmployeeProfileNavigation,
   canSeeTeamWorkspaceNavigation,
 } from "@/lib/employee-roster-access";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
-
-function applyTenantContextHref(
-  section: ShellNavSection,
-  tenantId: string | null,
-  tenantSlug: string | null
-): ShellNavSection {
-  if (!tenantId) return section;
-  return {
-    ...section,
-    items: section.items.map((item) => ({
-      ...item,
-      // Module-relative (with tenant query); Next.js prepends the /core basePath.
-      navigateHref: buildTenantContextHref(item.href, tenantId, tenantSlug),
-    })),
-  };
-}
 
 function applySetupLock(section: ShellNavSection, disabledReason: string): ShellNavSection {
   return {
@@ -69,19 +49,16 @@ export function CoreSidebar() {
   const { user, logout, isLoading: isAuthLoading } = useAuth();
   const { isNavigationLocked, lockedNavigationReason, isAccessResolving } =
     useCoreSetupAccess();
-  const { tenantId, tenantSlug, tenantName } = useTenantContext();
-  const isInTenantContext = !!tenantId;
   // Auth known but the setup-state query is still in flight: lock state unknown.
   const isLockStateResolving = !isAuthLoading && isAccessResolving;
 
-  const canSeeSetup = canSeeCoreSetupNavigation(user) || isInTenantContext;
-  const canSeeAccess = canSeeCoreAccessNavigation(user) || isInTenantContext;
-  const canSeeSettings = canSeeCoreSettingsNavigation(user) || isInTenantContext;
-  const canSeeOrganizations = canSeeOrganizationsNavigation(user) && !isInTenantContext;
-  const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user) || isInTenantContext;
-  const canSeeOrgChart = canSeeCoreOrgChartNavigation(user) || isInTenantContext;
-  const canSeeMyProfile = canSeeSelfEmployeeProfileNavigation(user) && !isInTenantContext;
-  const canSeeMyTeam = canSeeTeamWorkspaceNavigation(user) && !isInTenantContext;
+  const canSeeSetup = canSeeCoreSetupNavigation(user);
+  const canSeeAccess = canSeeCoreAccessNavigation(user);
+  const canSeeSettings = canSeeCoreSettingsNavigation(user);
+  const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user);
+  const canSeeOrgChart = canSeeCoreOrgChartNavigation(user);
+  const canSeeMyProfile = canSeeSelfEmployeeProfileNavigation(user);
+  const canSeeMyTeam = canSeeTeamWorkspaceNavigation(user);
 
   const peopleItems = PEOPLE_NAV.items.filter((item) => {
     if (item.href === "/profile") return canSeeMyProfile;
@@ -94,7 +71,6 @@ export function CoreSidebar() {
     if (item.href === "/setup") return canSeeSetup;
     if (item.href === "/access") return canSeeAccess;
     if (item.href === "/settings") return canSeeSettings;
-    if (item.href === "/organizations") return canSeeOrganizations;
     return canSeeSetup;
   });
 
@@ -105,17 +81,15 @@ export function CoreSidebar() {
       ]
     : [{ ...PEOPLE_NAV, items: peopleItems }];
 
-  const sections = (
+  const sections =
     isNavigationLocked && lockedNavigationReason
       ? visibleSections.map((section) => applySetupLock(section, lockedNavigationReason))
       : isLockStateResolving
         ? visibleSections.map(applyPendingLock)
-        : visibleSections
-  ).map((section) => applyTenantContextHref(section, tenantId, tenantSlug));
+        : visibleSections;
 
-  const roleLabel = user?.roles.includes(PLATFORM_ADMIN_ROLE)
-    ? "Platform admin"
-    : user?.accessProfiles?.[0]?.name ?? user?.roles?.[0] ?? undefined;
+  const roleLabel =
+    user?.accessProfiles?.[0]?.name ?? user?.roles?.[0] ?? undefined;
 
   return (
     <ModuleSidebar
@@ -127,7 +101,6 @@ export function CoreSidebar() {
       pending={isAuthLoading}
       modules={FUSION_MODULES}
       currentModuleKey="core"
-      contextLabel={isInTenantContext ? `Tenant · ${tenantName ?? "Viewing"}` : undefined}
       userPanel={(collapsed) => (
         <ShellUserPanel
           collapsed={collapsed}

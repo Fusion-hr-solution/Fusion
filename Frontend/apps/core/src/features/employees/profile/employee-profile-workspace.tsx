@@ -22,7 +22,6 @@ import {
   type AuthUser,
 } from "@repo/auth";
 import { PageContainer } from "@repo/ds/shell";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +52,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import type { EmployeeFieldPolicyState } from "@/features/employees/shared/employee-field-visibility";
 import {
   getEmployeeFixSheet,
@@ -91,7 +89,6 @@ export interface EmployeeProfileWorkspaceProps {
   reportingLines?: EmployeeReportingLinesDto;
   fieldPolicy: EmployeeFieldPolicyState;
   user: AuthUser | null;
-  isTenantContextReadOnly: boolean;
   canManageEmployee: boolean;
   canManageReporting: boolean;
   canViewAccess: boolean;
@@ -324,14 +321,10 @@ function PersonSummaryCard({
 function ManagerChainBreadcrumb({
   managerChain,
   hierarchyStatus,
-  tenantId,
-  tenantSlug,
   canOpenProfiles,
 }: {
   managerChain: EmployeeHierarchyNodeDto[];
   hierarchyStatus: EmployeeHierarchyStatus;
-  tenantId: string | null;
-  tenantSlug: string | null;
   canOpenProfiles: boolean;
 }) {
   if (managerChain.length === 0) {
@@ -354,7 +347,7 @@ function ManagerChainBreadcrumb({
           `${employee.firstName} ${employee.lastName}`;
         const href =
           canOpenProfiles && employee.stableEmployeeKey
-            ? buildTenantContextHref(`/employees/${employee.stableEmployeeKey}`, tenantId, tenantSlug)
+            ? `/employees/${employee.stableEmployeeKey}`
             : null;
 
         return (
@@ -1337,7 +1330,6 @@ export function EmployeeProfileWorkspace({
   reportingLines,
   fieldPolicy,
   user,
-  isTenantContextReadOnly,
   canManageEmployee,
   canManageReporting,
   canViewAccess,
@@ -1348,7 +1340,6 @@ export function EmployeeProfileWorkspace({
 }: EmployeeProfileWorkspaceProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { tenantId, tenantSlug } = useTenantContext();
   const [activeTab, setActiveTab] = useState("profile");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editDialogTab, setEditDialogTab] = useState<string>("personal");
@@ -1361,11 +1352,7 @@ export function EmployeeProfileWorkspace({
 
   const isOwnProfile = user?.employeeId === profile.id;
   const canManageProfiles = canManageCoreAccessProfiles(user);
-  const profilesHref = buildTenantContextHref(
-    "/settings?tab=access-permissions",
-    tenantId,
-    tenantSlug
-  );
+  const profilesHref = "/settings?tab=access-permissions";
   const hireDate = formatDate(profile.hireDate);
   const tenure = getTenure(profile.hireDate);
   const displayName = getProfileDisplayName(profile);
@@ -1384,7 +1371,6 @@ export function EmployeeProfileWorkspace({
     (showHireDate || showJobTitle || showWorkLocation || showEmploymentType);
   const canEditOwnDetails =
     isOwnProfile &&
-    !isTenantContextReadOnly &&
     (canEditOwnPreferredName || (showPhone && canEditOwnPhone));
   const requestedSheet = searchParams.get("sheet");
 
@@ -1472,23 +1458,17 @@ export function EmployeeProfileWorkspace({
     : "Edit my details";
   const canOpenManagerProfile =
     !!profile.managerId &&
-    (isTenantContextReadOnly ||
-      canAccessCorePeople(user) ||
+    (canAccessCorePeople(user) ||
       canManageEmployee ||
       canManageReporting);
   const canOpenDirectReportProfiles =
-    isTenantContextReadOnly ||
     canAccessCorePeople(user) ||
     canAccessCoreTeam(user) ||
     canManageEmployee ||
     canManageReporting;
   const managerProfileHref =
     canOpenManagerProfile && managerNode?.stableEmployeeKey
-      ? buildTenantContextHref(
-          `/employees/${managerNode.stableEmployeeKey}`,
-          tenantId,
-          tenantSlug
-        )
+      ? `/employees/${managerNode.stableEmployeeKey}`
       : null;
   const managerSupportingText = managerNode?.jobTitle ? (
     <div className="min-w-0 space-y-0.5">
@@ -1751,13 +1731,7 @@ export function EmployeeProfileWorkspace({
   const scrollToDirectReportsSection = () => setActiveTab("manager");
 
   const focusInOrgChart = () => {
-    router.push(
-      buildTenantContextHref(
-        `/org-chart?focusEmployeeKey=${profile.stableEmployeeKey}`,
-        tenantId,
-        tenantSlug
-      )
-    );
+    router.push(`/org-chart?focusEmployeeKey=${profile.stableEmployeeKey}`);
   };
 
   return (
@@ -2254,10 +2228,7 @@ export function EmployeeProfileWorkspace({
                   <ManagerChainBreadcrumb
                     managerChain={reportingLines?.managerChain ?? []}
                     hierarchyStatus={profile.hierarchyStatus}
-                    tenantId={tenantId}
-                    tenantSlug={tenantSlug}
                     canOpenProfiles={
-                      isTenantContextReadOnly ||
                       canAccessCorePeople(user) ||
                       canManageEmployee ||
                       canManageReporting
@@ -2278,11 +2249,7 @@ export function EmployeeProfileWorkspace({
                           employee.fullName?.trim() ||
                           `${employee.firstName} ${employee.lastName}`;
                         const href = canOpenDirectReportProfiles
-                          ? buildTenantContextHref(
-                              `/employees/${employee.stableEmployeeKey}`,
-                              tenantId,
-                              tenantSlug
-                            )
+                          ? `/employees/${employee.stableEmployeeKey}`
                           : null;
                         const tertiary = employee.jobTitle ? (
                           <div className="flex flex-wrap items-center gap-2">

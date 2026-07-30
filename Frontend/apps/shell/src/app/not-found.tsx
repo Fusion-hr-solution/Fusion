@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@repo/ui";
 
 export default function NotFound() {
@@ -8,9 +9,9 @@ export default function NotFound() {
         <p className="text-muted-foreground mb-6">
           The page you&apos;re looking for doesn&apos;t exist.
         </p>
-        <a href="/">
-          <Button>Back to Home</Button>
-        </a>
+        <Button asChild>
+          <Link href="/">Back to Home</Link>
+        </Button>
       </div>
     </div>
   );

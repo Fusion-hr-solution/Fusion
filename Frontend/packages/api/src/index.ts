@@ -6,7 +6,6 @@ export type { PlatformApiClientConfig } from "./platform";
 export * from "./core-setup";
 export * from "./tenant-settings";
 export * from "./draft-structure";
-export * from "./platform-organizations";
 export * from "./invites";
 export * from "./core-access";
 export * from "./core-workforce";

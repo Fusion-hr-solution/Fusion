@@ -79,8 +79,6 @@ import type {
   WorkforceBulkInviteResponseDto,
 } from "@/app/(pages)/employees/employee-roster.types";
 import { canAccessEmployeeProfile } from "@/lib/employee-roster-access";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { useAccessProfiles } from "@/features/access/api/use-core-access";
 import {
   type BulkInviteResultSummary,
@@ -614,17 +612,12 @@ export default function AccessPeopleWorkspace() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, isLoading } = useAuth();
-  const { tenantId, tenantSlug } = useTenantContext();
 
   const canViewAccess = canAccessCoreAccess(user);
   const canManageAccess = canManageCoreAccess(user);
   const canManageProfiles = canManageCoreAccessProfiles(user);
   const canOpenEmployeeProfile = canAccessEmployeeProfile(user);
-  const profilesHref = buildTenantContextHref(
-    "/settings?tab=access-permissions",
-    tenantId,
-    tenantSlug
-  );
+  const profilesHref = "/settings?tab=access-permissions";
 
   const searchParam = searchParams.get("search") ?? "";
   const accessFilter = parseAccessFilter(searchParams.get("access"));
@@ -1189,11 +1182,7 @@ export default function AccessPeopleWorkspace() {
           const isResendingInvite =
             pendingRowAction?.employeeId === subject.employeeId &&
             pendingRowAction.kind === "resendInvite";
-          const employeeProfileHref = buildTenantContextHref(
-            `/employees/${subject.stableEmployeeKey}`,
-            tenantId,
-            tenantSlug
-          );
+          const employeeProfileHref = `/employees/${subject.stableEmployeeKey}`;
           const hasOperationalMenuItem =
             (canManageAccess &&
               (subject.accessState === "InvitePending" ||
@@ -1306,8 +1295,6 @@ export default function AccessPeopleWorkspace() {
     canOpenEmployeeProfile,
     hasMorePages,
     pendingRowAction,
-    tenantId,
-    tenantSlug,
   ]);
 
   if (isLoading) {

@@ -79,8 +79,6 @@ import {
   SETTINGS_SECTION_IDS,
   type SettingsSectionId,
 } from "@/features/settings/settings-registry";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import {
   ACTIVE_EMPLOYEE_FIELD_DEFINITIONS,
   buildEmployeeFieldConfigInput,
@@ -490,8 +488,7 @@ function AuditTable({ rows }: { rows: AuditRow[] }) {
 export default function SettingsWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { tenantId, tenantSlug, tenantName } = useTenantContext();
-  const setupHref = buildTenantContextHref("/setup", tenantId, tenantSlug);
+  const setupHref = "/setup";
   const requestedTab = searchParams.get("tab");
   const requestedSectionId = normalizeSettingsSectionId(requestedTab);
 
@@ -851,11 +848,7 @@ export default function SettingsWorkspace() {
     <PageContainer width="wide" className="space-y-6">
       <PageHeader
         title="Settings"
-        description={
-          tenantName
-            ? `Administration for ${tenantName}.`
-            : "Tenant administration, governance, and safe defaults."
-        }
+        description="Tenant administration, governance, and safe defaults."
         actions={
           sections.some((section) => section.id === SETTINGS_SECTION_IDS.structure) ? (
             <Button variant="outline" onClick={() => router.push(setupHref)}>
@@ -927,9 +920,7 @@ export default function SettingsWorkspace() {
                         Company name
                       </p>
                       <p className="mt-1 text-sm font-medium">
-                        {tenantName ??
-                          organizationSettings.displayName ??
-                          "Current organization"}
+                        {organizationSettings.displayName ?? "Current organization"}
                       </p>
                     </div>
                     <div>

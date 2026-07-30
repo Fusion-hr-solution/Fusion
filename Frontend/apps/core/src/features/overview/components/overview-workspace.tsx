@@ -8,12 +8,9 @@ import {
   Building2,
   CircleAlert,
   ClipboardList,
-  ExternalLink,
   Gauge,
-  Mail,
   Network,
   PartyPopper,
-  Pause,
   Plus,
   Settings2,
   ShieldCheck,
@@ -28,7 +25,6 @@ import {
   canAccessCoreAccess,
   canAccessCoreSettings,
   canAccessCoreSetup,
-  canAccessOrganizations,
   canManageCoreAccessProfiles,
   canSeeCoreSetupNavigation,
   type AuthUser,
@@ -51,16 +47,13 @@ import {
   CHART_PALETTE,
   type DonutDatum,
 } from "@repo/ds/shell";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   canAccessEmployeeRoster,
   canAccessSelfEmployeeProfile,
   canAccessTeamWorkspace,
 } from "@/lib/employee-roster-access";
-import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import { OverviewPageSkeleton } from "@/shell/route-skeletons";
-import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import {
   useEmployeeRoster,
   useWorkforceReadinessSummary,
@@ -70,8 +63,6 @@ import {
   useWorkforceTeam,
   type WorkforceMeContext,
 } from "@/features/overview/api/use-workforce-me";
-import { StatusBadge } from "@/app/(pages)/organizations/status-badge";
-import { useOrganizationList } from "@/features/organizations/api/use-organizations";
 import type { EmployeeRosterItem } from "@/app/(pages)/employees/employee-roster.types";
 
 // ── Shared helpers ──────────────────────────────────────────────────────────
@@ -510,268 +501,6 @@ function HRAdminDashboard() {
   );
 }
 
-function PlatformAdminTenantDashboard() {
-  const { tenantId, tenantSlug, tenantName, isLoading, isReady } = useTenantContext();
-  const toHref: HrefFn = (h) => buildTenantContextHref(h, tenantId, tenantSlug);
-
-  if (isLoading && !isReady) {
-    return <LoadingSkeleton />;
-  }
-
-  return (
-    <WorkforceDashboard
-      title={tenantName ?? "Tenant dashboard"}
-      description="Tenant workforce overview and data quality."
-      actions={
-        <Button asChild variant="outline">
-          <Link href={toHref("/setup")}>View setup</Link>
-        </Button>
-      }
-      toHref={toHref}
-    />
-  );
-}
-
-// ── Platform admin (platform operations) ────────────────────────────────────
-
-function buildMonthlyCounts(dates: string[]) {
-  const now = new Date();
-  const months = Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-    return {
-      key: `${d.getFullYear()}-${d.getMonth()}`,
-      name: d.toLocaleDateString("en-GB", { month: "short" }),
-      value: 0,
-    };
-  });
-  const idx = new Map(months.map((m, i) => [m.key, i]));
-  for (const ds of dates) {
-    const d = new Date(ds);
-    if (Number.isNaN(d.getTime())) continue;
-    const i = idx.get(`${d.getFullYear()}-${d.getMonth()}`);
-    const m = i !== undefined ? months[i] : undefined;
-    if (m) m.value++;
-  }
-  return months;
-}
-
-function PlatformAdminDashboard() {
-  const { data: recentData, isLoading: isDashboardLoading } = useOrganizationList({
-    skip: 0,
-    take: 40,
-  });
-  const { data: attentionData, isLoading: isAttentionLoading } = useOrganizationList({
-    skip: 0,
-    take: 5,
-    filterByStatus: ["invited", "suspended"],
-  });
-
-  const stats = recentData?.stats;
-  const allOrgs = recentData?.items ?? [];
-  const recentOrgs = allOrgs.slice(0, 6);
-  const orgGrowth = buildMonthlyCounts(allOrgs.map((o) => o.createdAt));
-  const attentionOrgs = attentionData?.items ?? [];
-  const totalAttention =
-    (stats?.invitedPending ?? 0) + (stats?.suspendedOrganizations ?? 0);
-
-  const statusData: DonutDatum[] = stats
-    ? [
-        { name: "Active", value: stats.activeOrganizations, color: CHART_TONES.success },
-        { name: "Draft", value: stats.draftOrganizations, color: CHART_TONES.muted },
-        { name: "Invited", value: stats.invitedPending, color: CHART_TONES.info },
-        { name: "Suspended", value: stats.suspendedOrganizations, color: CHART_TONES.danger },
-        { name: "Archived", value: stats.archivedOrganizations, color: CHART_TONES.warning },
-      ]
-    : [];
-
-  if (isDashboardLoading && !recentData) {
-    return <LoadingSkeleton />;
-  }
-
-  return (
-    <PageContainer width="wide" className="space-y-6">
-      <PageHeader
-        title="Platform dashboard"
-        description="Tenant organizations and platform operations."
-        actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <Button asChild>
-              <Link href="/organizations?create=1">
-                <Plus className="size-4" />
-                New organization
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/organizations">Open organizations</Link>
-            </Button>
-          </div>
-        }
-      />
-
-      <KpiGrid>
-        <KpiStat
-          label="Total organizations"
-          value={stats?.totalOrganizations ?? 0}
-          icon={Building2}
-          href="/organizations"
-        />
-        <KpiStat
-          label="Active"
-          value={stats?.activeOrganizations ?? 0}
-          tone="success"
-          href="/organizations?status=active"
-        />
-        <KpiStat
-          label="Draft"
-          value={stats?.draftOrganizations ?? 0}
-          hint="Not yet live"
-          href="/organizations?status=draft"
-        />
-        <KpiStat
-          label="Need attention"
-          value={totalAttention}
-          tone={totalAttention > 0 ? "warning" : "success"}
-          icon={TriangleAlert}
-          hint="Invited or suspended"
-          href="/organizations?status=suspended"
-        />
-      </KpiGrid>
-
-      <DashboardPanel>
-        <DashboardSection
-          title="Organization growth"
-          description="New organizations created over the last 12 months."
-        >
-          <ColumnChart data={orgGrowth} />
-        </DashboardSection>
-      </DashboardPanel>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <DashboardPanel className="lg:col-span-2">
-          <DashboardSection
-            title="Needs attention"
-            description="Organizations that are invited or suspended."
-            action={
-              <Link
-                href="/organizations"
-                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
-              >
-                All organizations <ArrowRight className="size-3.5" />
-              </Link>
-            }
-          >
-            {isAttentionLoading && !attentionData ? (
-              <div className="space-y-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full rounded-lg" />
-                ))}
-              </div>
-            ) : attentionOrgs.length > 0 ? (
-              <ul className="flex flex-col gap-1.5">
-                {attentionOrgs.map((org) => (
-                  <li key={org.id}>
-                    <Link
-                      href={`/organizations?detail=${org.id}`}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/10"
-                    >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate font-medium">{org.name}</span>
-                        <StatusBadge status={org.operationalStatus} />
-                      </span>
-                      <span className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
-                        {org.pendingInviteCount > 0 ? (
-                          <span>{org.pendingInviteCount} invites</span>
-                        ) : null}
-                        <ExternalLink className="size-3.5" />
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-muted/10 px-4 py-6 text-sm text-muted-foreground">
-                <UserCheck className="size-5 text-emerald-600" />
-                All organizations are in good standing.
-              </div>
-            )}
-          </DashboardSection>
-        </DashboardPanel>
-
-        <DashboardPanel>
-          <DashboardSection
-            title="Organization status"
-            description="Lifecycle distribution across tenants."
-          >
-            <DonutChart centerLabel="orgs" data={statusData} />
-          </DashboardSection>
-        </DashboardPanel>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <DashboardPanel className="lg:col-span-2">
-          <DashboardSection
-            title="Recently created organizations"
-            action={
-              <Link
-                href="/organizations"
-                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
-              >
-                View all <ArrowRight className="size-3.5" />
-              </Link>
-            }
-          >
-            {recentOrgs.length > 0 ? (
-              <ul className="divide-y divide-border">
-                {recentOrgs.map((org) => (
-                  <li key={org.id}>
-                    <Link
-                      href={`/organizations?detail=${org.id}`}
-                      className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary"
-                    >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate font-medium">{org.name}</span>
-                        <StatusBadge status={org.operationalStatus} />
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {new Date(org.createdAt).toLocaleDateString()}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-                No organizations created yet.
-              </div>
-            )}
-          </DashboardSection>
-        </DashboardPanel>
-
-        <DashboardPanel>
-          <DashboardSection title="Quick actions">
-            <div className="flex flex-col gap-2">
-              <QuickLink href="/organizations?create=1" icon={Plus}>
-                Create organization
-              </QuickLink>
-              <QuickLink href="/organizations?status=invited" icon={Mail}>
-                Review invited orgs
-              </QuickLink>
-              <QuickLink href="/organizations?status=suspended" icon={Pause}>
-                Manage suspended
-              </QuickLink>
-              <QuickLink href="/organizations" icon={Building2}>
-                Organizations table
-              </QuickLink>
-            </div>
-          </DashboardSection>
-        </DashboardPanel>
-      </div>
-    </PageContainer>
-  );
-}
-
-// ── Manager + Employee ───────────────────────────────────────────────────────
-
 function ManagerDashboard({ me }: { me: WorkforceMeContext }) {
   const emp = me.employee!;
   const { data: team, isLoading: isTeamLoading } = useWorkforceTeam(emp.employeeId);
@@ -1001,9 +730,7 @@ function EmployeeDashboard({ me }: { me: WorkforceMeContext }) {
 
 function CoreOperationsDashboard() {
   const { user } = useAuth();
-  const { tenantId, tenantSlug } = useTenantContext();
-  const moduleHref: HrefFn = (h) =>
-    tenantId ? buildTenantContextHref(h, tenantId, tenantSlug) : h;
+  const moduleHref: HrefFn = (h) => h;
 
   const workspaces = [
     canAccessCoreAccess(user)
@@ -1069,30 +796,20 @@ function getFallbackWorkspace(user: AuthUser | null): { href: string; label: str
 
 export default function OverviewWorkspace() {
   const { user, isLoading } = useAuth();
-  const { tenantId } = useTenantContext();
-  const isInTenantContext = !!tenantId;
   const canSeeOverview = canAccessCoreOverview(user);
   const isHrAdmin = canAccessEmployeeRoster(user);
-  const isPlatformAdmin = canAccessOrganizations(user);
 
   // Personal (self / team) dashboard is driven by the workforce hierarchy, not a static
   // profile: any workforce-linked user gets a dashboard, and having direct reports promotes
   // them from the self view to the team view (cascading up the org). `workforce/me` is
   // permissioned for own-profile/team scope, so it resolves without roster access.
-  const wantsPersonalDashboard =
-    !!user && !isPlatformAdmin && !isHrAdmin && !isInTenantContext;
+  const wantsPersonalDashboard = !!user && !isHrAdmin;
   const { data: me, isLoading: isMeLoading } = useWorkforceMe(wantsPersonalDashboard);
 
   if (isLoading) {
     return <LoadingSkeleton />;
   }
 
-  if (isInTenantContext && isPlatformAdmin) {
-    return <PlatformAdminTenantDashboard />;
-  }
-  if (isPlatformAdmin) {
-    return <PlatformAdminDashboard />;
-  }
   if (canSeeOverview && isHrAdmin) {
     return <HRAdminDashboard />;
   }

@@ -242,15 +242,29 @@ export function ModuleSidebar({
                   // Module-relative href; Next.js auto-prepends the app basePath.
                   const target = item.navigateHref ?? item.href;
                   const node = item.disabled ? (
-                    <div aria-disabled>{content}</div>
+                    <div
+                      aria-disabled
+                      aria-label={collapsed ? item.label : undefined}
+                    >
+                      {content}
+                    </div>
                   ) : item.pending ? (
                     // Access state resolving: looks enabled, navigates nowhere.
                     // Resolves to a Link (no visual change) or gains a lock icon.
-                    <div aria-disabled className="cursor-default">
+                    <div
+                      aria-disabled
+                      aria-label={collapsed ? item.label : undefined}
+                      className="cursor-default"
+                    >
                       {content}
                     </div>
                   ) : (
-                    <Link href={target}>{content}</Link>
+                    <Link
+                      href={target}
+                      aria-label={collapsed ? item.label : undefined}
+                    >
+                      {content}
+                    </Link>
                   );
 
                   if (collapsed || (item.disabled && item.disabledReason)) {
