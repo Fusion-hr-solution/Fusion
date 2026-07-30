@@ -1,10 +1,10 @@
-import { canAccessPlatform, type AuthUser } from "@repo/auth";
+import {
+  resolveCustomerWorkspaceAccessState,
+  type AuthUser,
+  type CustomerWorkspaceAccessState,
+} from "@repo/auth";
 
-export type CoreWorkspaceAccessState =
-  | "loading"
-  | "sign-in-required"
-  | "forbidden"
-  | "allowed";
+export type CoreWorkspaceAccessState = CustomerWorkspaceAccessState;
 
 export function buildCoreCallbackUrl(pathname: string, query: string): string {
   const appPath =
@@ -16,20 +16,9 @@ export function buildCoreCallbackUrl(pathname: string, query: string): string {
   return `${appPath}${query ? `?${query}` : ""}`;
 }
 
-export function resolveCoreWorkspaceAccessState({
-  isLoading,
-  user,
-}: {
+export function resolveCoreWorkspaceAccessState(input: {
   isLoading: boolean;
   user: AuthUser | null;
 }): CoreWorkspaceAccessState {
-  if (isLoading) {
-    return "loading";
-  }
-
-  if (!user) {
-    return "sign-in-required";
-  }
-
-  return canAccessPlatform(user) ? "forbidden" : "allowed";
+  return resolveCustomerWorkspaceAccessState(input);
 }

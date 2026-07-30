@@ -76,6 +76,11 @@ shell at `http://localhost:3000/platform`. The shell rewrite uses
 `PLATFORM_MFE_URL`, which defaults to `http://localhost:3007` for local
 development. Platform is a control plane, not a customer tenant module.
 
+Core HR and Performance are customer workspaces and refuse entry to a Platform
+Administrator account, which is never an eligible tenant member. Both gate on
+`resolveCustomerWorkspaceAccessState` from `@repo/auth`; everything past that
+gate stays permission-aware.
+
 > **Note:** Use standard `<a>` tags (not Next.js `<Link>`) for cross-app navigation, since each microfrontend is a separate Next.js application.
 
 ---

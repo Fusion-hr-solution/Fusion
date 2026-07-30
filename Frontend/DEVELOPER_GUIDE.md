@@ -554,7 +554,8 @@ export { InterviewFilter } from "./interview-filter";
 | 3004 | performance |
 | 3005 | recruitment |
 | 3006 | onboarding |
-| 3007+ | New MFEs |
+| 3007 | platform |
+| 3008+ | New MFEs |
 
 ---
 

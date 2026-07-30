@@ -85,6 +85,23 @@ Full authentication and user management:
 **Roles:** `Admin`, `HR`, `Employee`, `Manager`
 **Default seed user:** `admin@ey-hr.com` / `Admin@123456`
 
+#### Retained platform compatibility endpoints (dormant)
+
+Two Identity endpoints are kept for the upcoming tenant provisioning work and have
+no supported product route today:
+
+| Endpoint | Owning domain | Status |
+| --- | --- | --- |
+| `api/identity/platform-admin/organizations` | Platform Foundation | Dormant — no frontend consumer |
+| `api/identity/tenant-context` | Platform Foundation | Dormant — no frontend consumer |
+
+They are compatibility surfaces, not an approved API. Tenant provisioning must define
+its own contract from the locked specification rather than inherit these. Core HR does
+not own them and must not call them.
+
+Tenant, membership, and invitation persistence stays in the `identity` schema. Where it
+should ultimately live is a decision for the provisioning feature, not a settled one.
+
 ### Training Service (`:5201`)
 
 Full training catalog and learner progress management:

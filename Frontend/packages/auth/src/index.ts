@@ -55,6 +55,8 @@ export {
   canViewCoreAccessProfiles,
   canManageCoreAccessProfiles,
 } from "./roles";
+export { resolveCustomerWorkspaceAccessState } from "./customer-workspace-access";
+export type { CustomerWorkspaceAccessState } from "./customer-workspace-access";
 
 // Components
 export { SidebarUserPanel } from "./components/sidebar-user-panel";
