@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Sparkles } from "lucide-react";
 import type { TrainingCategory, TrainingLevel, SortOption, TrainingType } from "@/types";
 import type { TrainingCatalogProps } from "@/types/component-props";
 import { PageHeader } from "./page-header";
@@ -18,7 +18,7 @@ import { CatalogPagination } from "./catalog-pagination";
 import { FormatFilter } from "./format-filter";
 import { sortTrainings } from "./catalog-helpers";
 
-export function TrainingCatalog({ trainings, totalCount, page, pageSize }: TrainingCatalogProps) {
+export function TrainingCatalog({ trainings, totalCount, page, pageSize, semanticMode = false }: TrainingCatalogProps) {
   const t = useTranslations("catalog");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -67,8 +67,9 @@ export function TrainingCatalog({ trainings, totalCount, page, pageSize }: Train
   const filtered = useMemo(() => {
     let result = trainings;
     if (level) result = result.filter((t) => t.level === level);
-    return sortTrainings(result, sort);
-  }, [trainings, level, sort]);
+    // Semantic mode: preserve the endpoint's relevance ranking (level still filters client-side).
+    return semanticMode ? result : sortTrainings(result, sort);
+  }, [trainings, level, sort, semanticMode]);
 
   const clearAll = useCallback(() => {
     setLevel(null); setSort("rating"); setInputSearch("");
@@ -94,15 +95,24 @@ export function TrainingCatalog({ trainings, totalCount, page, pageSize }: Train
           <ActiveFilters category={urlCategory} level={level} search={inputSearch} onClearCategory={() => handleCategoryChange(null)} onClearLevel={() => setLevel(null)} onClearSearch={() => setInputSearch("")} onClearAll={clearAll} />
         </div>
 
+        {semanticMode && filtered.length > 0 && (
+          <div className="ey-animate-fade-up mt-5 flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/40 px-3.5 py-2.5" role="status">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 ey-text-accent" aria-hidden="true" />
+            <p className="text-xs leading-relaxed text-muted-foreground">{t("semantic.note")}</p>
+          </div>
+        )}
+
         <div className="mt-6 mb-5 flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             <span className="font-semibold text-foreground">{filtered.length}</span>{" "}
-            {t("results.onPage", { count: filtered.length })}
-            {totalCount > pageSize && (
+            {semanticMode
+              ? t("results.related", { count: filtered.length })
+              : t("results.onPage", { count: filtered.length })}
+            {!semanticMode && totalCount > pageSize && (
               <span className="ml-1 text-muted-foreground/70">{t("results.ofTotal", { total: totalCount })}</span>
             )}
           </p>
-          <SortSelect value={sort} onChange={setSort} />
+          <SortSelect value={sort} onChange={setSort} relevanceMode={semanticMode} />
         </div>
 
         {filtered.length > 0 ? (
@@ -114,7 +124,7 @@ export function TrainingCatalog({ trainings, totalCount, page, pageSize }: Train
             action={<button onClick={clearAll} className="mt-4 rounded-lg ey-bg-dark px-4 py-2 text-xs font-semibold text-white transition-all hover:ey-bg-dark-deep hover:shadow-md">{t("empty.clearFilters")}</button>} />
         )}
 
-        <CatalogPagination page={page} totalCount={totalCount} pageSize={pageSize} />
+        {!semanticMode && <CatalogPagination page={page} totalCount={totalCount} pageSize={pageSize} />}
       </section>
     </>
   );

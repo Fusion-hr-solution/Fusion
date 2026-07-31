@@ -138,6 +138,35 @@ export async function getTrainings(params?: {
   };
 }
 
+/**
+ * Semantic catalog search (AI-L-5) — the keyword-first FALLBACK (decision L5-2). The catalog
+ * calls this only when the substring search (`getTrainings`) returns 0 results for a non-empty
+ * query. The ai-service embeds the query and vector-searches the Course Vectors, returning full
+ * TrainingDto cards (same shape as `/catalog`) ranked by relevance, already floored server-side.
+ * Fail-soft: any error → [] so the keyword result (the honest empty state) survives if the
+ * ai-service is down. `category` is the backend category NAME (e.g. "Leadership & Management")
+ * and `trainingType` is "ELearning" | "OnSite" — both applied as metadata filters server-side.
+ */
+export async function getSemanticSearch(
+  q: string,
+  params?: { category?: string; trainingType?: TrainingType; limit?: number },
+): Promise<Training[]> {
+  try {
+    const data = await client.get<{ items: BackendTrainingDto[] }>("/ai/catalog/search", {
+      skipAuth: true,
+      params: {
+        q,
+        category: params?.category,
+        trainingType: params?.trainingType,
+        limit: params?.limit,
+      },
+    });
+    return data.items.map(mapBackendToTraining);
+  } catch {
+    return [];
+  }
+}
+
 export async function getTrainingById(id: string): Promise<Training> {
   const data = await client.get<BackendTrainingDetailDto>(`/training/catalog/${encodeURIComponent(id)}`, {
     skipAuth: true,

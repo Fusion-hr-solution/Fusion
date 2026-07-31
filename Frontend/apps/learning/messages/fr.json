@@ -447,11 +447,16 @@
       "allCategories": "Toutes"
     },
     "sort": {
-      "aria": "Trier les formations"
+      "aria": "Trier les formations",
+      "relevance": "Les plus pertinents"
     },
     "results": {
       "onPage": "{count, plural, one {formation} other {formations}} sur cette page",
-      "ofTotal": "(sur {total} au total)"
+      "ofTotal": "(sur {total} au total)",
+      "related": "{count, plural, one {cours similaire} other {cours similaires}}"
+    },
+    "semantic": {
+      "note": "Aucune correspondance exacte — voici des cours similaires."
     },
     "empty": {
       "title": "Aucune formation trouvée",
