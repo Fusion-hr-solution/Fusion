@@ -69,9 +69,9 @@ export function TenantContextProvider({
   const queryClient = useApiQueryClient();
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const [tenantId, setTenantIdState] = useState<string | null>(() =>
-    loadStoredTenantId()
-  );
+  // Starts null on server AND first client paint (hydration-safe); the
+  // post-auth effect below re-reads sessionStorage and activates the tenant.
+  const [tenantId, setTenantIdState] = useState<string | null>(null);
   const [tenantSlug, setTenantSlugState] = useState<string | null>(null);
   const [tenantSummary, setTenantSummary] = useState<TenantSummaryDto | null>(
     null

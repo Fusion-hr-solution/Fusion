@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
+import { Skeleton } from "../components/ui/skeleton";
 
 export interface ShellUserPanelLink {
   label: string;
@@ -26,6 +27,11 @@ export interface ShellUserPanelProps {
   links?: ShellUserPanelLink[];
   onSignOut?: () => void;
   signInHref?: string;
+  /**
+   * Auth state not yet known: renders an avatar + text skeleton instead of the
+   * signed-out "Sign in" fallback, so authenticated cold boots never flash it.
+   */
+  pending?: boolean;
 }
 
 /**
@@ -39,7 +45,26 @@ export function ShellUserPanel({
   links = [],
   onSignOut,
   signInHref = "/auth/signin",
+  pending = false,
 }: ShellUserPanelProps) {
+  if (pending) {
+    return (
+      <div
+        className={cn("flex items-center gap-2.5 p-1.5", collapsed && "justify-center")}
+        aria-busy
+        aria-label="Loading account"
+      >
+        <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+        {!collapsed ? (
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <Skeleton className="h-3.5 w-24" />
+            <Skeleton className="h-2.5 w-16" />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   if (!name) {
     return (
       <a

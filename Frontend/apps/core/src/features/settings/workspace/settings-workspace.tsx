@@ -49,6 +49,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SettingsPageSkeleton } from "@/shell/route-skeletons";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -296,20 +297,8 @@ function buildSettingsTabHref(
   return `?${params.toString()}`;
 }
 
-function SettingsPageSkeleton() {
-  return (
-    <PageContainer width="wide" className="space-y-6">
-      <div className="space-y-2">
-        <Skeleton className="h-8 w-56" />
-        <Skeleton className="h-4 w-136 max-w-full" />
-      </div>
-      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <Skeleton className="h-96 rounded-xl" />
-        <Skeleton className="h-136 rounded-xl" />
-      </div>
-    </PageContainer>
-  );
-}
+// Canonical definition lives in the route-skeleton registry (route loading
+// boundary + guard hold render the same skeleton for /settings).
 
 function SectionSkeleton() {
   return (

@@ -3,6 +3,7 @@ import { AlertTriangle, Inbox, Lock } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
+import { PageContainer, type PageContainerProps } from "./page";
 
 interface BaseStateProps {
   icon?: ComponentType<{ className?: string }>;
@@ -83,5 +84,83 @@ export function PageLoading({ rows = 5, className, label }: PageLoadingProps) {
         <Skeleton key={i} className="h-12 w-full" />
       ))}
     </div>
+  );
+}
+
+export interface PageListSkeletonProps {
+  /** Compact rows shown below the lead card. */
+  rows?: number;
+  className?: string;
+  label?: string;
+}
+
+/**
+ * Loading placeholder for a "door" list: one lead card + a few compact rows.
+ * Content-only (no container) so it drops in under a real PageHeader. The shape
+ * is fixed by design — never sized to the eventual record count — so it reads as
+ * a full list regardless of how many rows load.
+ */
+export function PageListSkeleton({ rows = 3, className, label }: PageListSkeletonProps) {
+  return (
+    <div className={cn("space-y-3", className)} aria-busy aria-label={label ?? "Loading list"}>
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
+          <div className="min-w-0 flex-1 space-y-2.5">
+            <Skeleton className="h-5 w-28 rounded-full" />
+            <Skeleton className="h-7 w-64 max-w-full" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+          <div className="flex items-center gap-8 lg:shrink-0">
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-12" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-12" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+            <Skeleton className="size-5 shrink-0 rounded" />
+          </div>
+        </div>
+      </div>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-4"
+        >
+          <div className="min-w-0 flex-1 space-y-2">
+            <Skeleton className="h-4 w-48 max-w-full" />
+            <Skeleton className="h-3 w-64 max-w-full" />
+          </div>
+          <Skeleton className="size-4 shrink-0 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export interface PageSkeletonProps {
+  /** Number of content skeleton rows below the header placeholder. */
+  rows?: number;
+  width?: PageContainerProps["width"];
+  label?: string;
+}
+
+/**
+ * Neutral in-frame page fallback: header-shaped placeholder + content rows.
+ * Title-less by design — never fakes a page name. Use for route-level
+ * loading boundaries and access-resolution holds inside the app shell.
+ */
+export function PageSkeleton({ rows = 6, width = "default", label }: PageSkeletonProps) {
+  return (
+    <PageContainer width={width}>
+      <div aria-busy aria-label={label ?? "Loading page"}>
+        <div className="mb-6 space-y-2">
+          <Skeleton className="h-7 w-48" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+        <PageLoading rows={rows} label={label} />
+      </div>
+    </PageContainer>
   );
 }

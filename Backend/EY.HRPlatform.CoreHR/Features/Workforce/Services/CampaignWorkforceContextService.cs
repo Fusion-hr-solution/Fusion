@@ -30,8 +30,8 @@ public sealed record CampaignRelationshipCandidate(
     Guid SubjectEmployeeId,
     Guid ManagerEmployeeId,
     ReportingRelationshipType Type,
-    Guid SubjectPositionAssignmentId,
-    Guid ManagerPositionAssignmentId,
+    Guid SubjectWorkAssignmentId,
+    Guid ManagerWorkAssignmentId,
     string Source);
 
 public sealed record CampaignWorkforceContext(
@@ -68,6 +68,22 @@ public interface ICampaignWorkforceContextService
 /// </summary>
 public sealed class CampaignWorkforceContextService(CoreHRDbContext dbContext) : ICampaignWorkforceContextService
 {
+    private sealed record ActivePrimaryWorkAssignment(
+        Guid WorkAssignmentId,
+        Guid EmploymentId,
+        Guid EmployeeId,
+        Guid OrgUnitId,
+        DateTime EffectiveFrom);
+
+    private sealed record EffectiveManagerRelationship(
+        Guid RelationshipId,
+        Guid SubjectEmployeeId,
+        Guid ManagerEmployeeId,
+        Guid SubjectWorkAssignmentId,
+        Guid ManagerWorkAssignmentId,
+        ReportingRelationshipType Type,
+        DateTime EffectiveFrom);
+
     public async Task<CampaignWorkforceContext> GetAsync(DateTime asOf, CancellationToken cancellationToken = default)
         => await GetAsync(asOf, null, cancellationToken);
 
@@ -83,78 +99,103 @@ public sealed class CampaignWorkforceContextService(CoreHRDbContext dbContext) :
             employeeQuery = employeeQuery.Where(employee => selectedIds.Contains(employee.Id));
 
         var employees = await employeeQuery.OrderBy(employee => employee.Id).ToListAsync(cancellationToken);
-        var memberships = await dbContext.EmployeeOrgMemberships.AsNoTracking()
-            .Where(membership => membership.EffectiveFrom <= at && (!membership.EffectiveTo.HasValue || membership.EffectiveTo > at))
-            .ToListAsync(cancellationToken);
-        var relationships = await dbContext.EmployeeReportingRelationships.AsNoTracking()
-            .Where(relationship => relationship.EffectiveFrom <= at &&
-                (!relationship.EffectiveTo.HasValue || relationship.EffectiveTo > at))
-            .OrderByDescending(relationship => relationship.EffectiveFrom)
+        var employeeIdsInScope = employees.Select(employee => employee.Id).ToArray();
+
+        var activeEmployments = await dbContext.Employments.AsNoTracking()
+            .Where(employment => employeeIdsInScope.Contains(employment.EmployeeId)
+                && employment.EffectiveFrom <= at
+                && (employment.EffectiveTo == null || at < employment.EffectiveTo))
+            .Select(employment => new
+            {
+                employment.EmployeeId,
+                employment.Id,
+                employment.EffectiveFrom
+            })
             .ToListAsync(cancellationToken);
 
-        var positionAssignments = await dbContext.EmployeePositionAssignments.AsNoTracking()
-            .Where(assignment => assignment.EffectiveFrom <= at &&
-                (!assignment.EffectiveTo.HasValue || assignment.EffectiveTo > at))
+        var primaryWorkAssignments = await dbContext.WorkAssignments.AsNoTracking()
+            .Where(w => employeeIdsInScope.Contains(w.EmployeeId)
+                && w.IsPrimary
+                && w.EffectiveFrom <= at
+                && (w.EffectiveTo == null || at < w.EffectiveTo))
+            .Select(w => new ActivePrimaryWorkAssignment(
+                w.Id,
+                w.EmploymentId,
+                w.EmployeeId,
+                w.OrgUnitId,
+                w.EffectiveFrom))
             .ToListAsync(cancellationToken);
+
+        var managerRelationships = await dbContext.ManagerRelationships.AsNoTracking()
+            .Where(m => m.EffectiveFrom <= at && (m.EffectiveTo == null || at < m.EffectiveTo))
+            .OrderByDescending(m => m.EffectiveFrom)
+            .Select(m => new EffectiveManagerRelationship(
+                m.Id,
+                m.SubjectEmployeeId,
+                m.ManagerEmployeeId,
+                m.SubjectWorkAssignmentId,
+                m.ManagerWorkAssignmentId,
+                m.Type,
+                m.EffectiveFrom))
+            .ToListAsync(cancellationToken);
+
         var orgUnits = await dbContext.OrgUnits.AsNoTracking().ToListAsync(cancellationToken);
-
-        var primaryRelationships = relationships
-            .Where(relationship => relationship.Type == ReportingRelationshipType.PrimaryManager)
+        var activeEmploymentCountByEmployee = activeEmployments
+            .GroupBy(employment => employment.EmployeeId)
+            .ToDictionary(group => group.Key, group => group.Count());
+        var activeEmploymentIds = activeEmployments.Select(employment => employment.Id).ToHashSet();
+        var primaryWorkAssignmentsByEmployee = primaryWorkAssignments
+            .Where(assignment => activeEmploymentIds.Contains(assignment.EmploymentId))
             .ToList();
-        var primaryManagers = primaryRelationships
-            .GroupBy(relationship => relationship.SubjectEmployeeId)
-            .ToDictionary(group => group.Key, group => group.First().ManagerEmployeeId);
-        var membershipsByEmployee = memberships.GroupBy(membership => membership.EmployeeId)
-            .ToDictionary(group => group.Key, group => group.Select(membership => membership.OrgUnitId).Distinct().Order().ToArray());
-        var primaryAssignmentsByEmployee = positionAssignments
-            .Where(assignment => assignment.IsPrimary)
+
+        var primaryAssignmentsByEmployee = primaryWorkAssignmentsByEmployee
             .GroupBy(assignment => assignment.EmployeeId)
             .ToDictionary(group => group.Key, group => group.OrderByDescending(assignment => assignment.EffectiveFrom).ToArray());
-        var candidatesByEmployee = relationships
-            .GroupBy(relationship => relationship.SubjectEmployeeId)
-            .ToDictionary(
-                group => group.Key,
-                group => (IReadOnlyList<CampaignRelationshipCandidate>)group
-                    .OrderBy(relationship => relationship.Type)
-                    .ThenBy(relationship => relationship.ManagerEmployeeId)
-                    .Select(relationship => new CampaignRelationshipCandidate(
-                        relationship.Id,
-                        relationship.SubjectEmployeeId,
-                        relationship.ManagerEmployeeId,
-                        relationship.Type,
-                        relationship.SubjectPositionAssignmentId,
-                        relationship.ManagerPositionAssignmentId,
-                        "CoreReportingRelationship"))
-                    .ToArray());
+        var currentPrimaryAssignmentByEmployee = primaryAssignmentsByEmployee
+            .Where(group => group.Value.Length == 1)
+            .ToDictionary(group => group.Key, group => group.Value[0]);
+
+        var orgUnitIdsByEmployee = primaryAssignmentsByEmployee.ToDictionary(
+            group => group.Key,
+            group => (IReadOnlyList<Guid>)group.Value
+                .Select(assignment => assignment.OrgUnitId)
+                .Distinct()
+                .Order()
+                .ToArray());
+
+        var currentPrimaryAssignmentById = currentPrimaryAssignmentByEmployee.Values
+            .ToDictionary(assignment => assignment.WorkAssignmentId);
+        var managerRelationshipsBySubjectAssignment = managerRelationships
+            .Where(relationship => currentPrimaryAssignmentById.ContainsKey(relationship.SubjectWorkAssignmentId))
+            .GroupBy(relationship => relationship.SubjectWorkAssignmentId)
+            .ToDictionary(group => group.Key, group => group.OrderByDescending(relationship => relationship.EffectiveFrom).ToArray());
+        var primaryManagerByEmployee = currentPrimaryAssignmentByEmployee.ToDictionary(
+            group => group.Key,
+            group => ResolvePrimaryManager(group.Value, managerRelationshipsBySubjectAssignment, currentPrimaryAssignmentByEmployee));
+        var candidatesByEmployee = currentPrimaryAssignmentByEmployee.ToDictionary(
+            group => group.Key,
+            group => BuildRelationshipCandidates(group.Key, group.Value, managerRelationshipsBySubjectAssignment));
+
         var parentByOrgUnit = orgUnits.ToDictionary(orgUnit => orgUnit.Id, orgUnit => orgUnit.ParentId);
 
         var members = employees.Select(employee =>
         {
-            var chain = new List<Guid>();
-            var visited = new HashSet<Guid> { employee.Id };
-            var current = employee.Id;
-            var hasCycle = false;
-            while (primaryManagers.TryGetValue(current, out var managerId))
-            {
-                if (!visited.Add(managerId)) { hasCycle = true; break; }
-                chain.Add(managerId);
-                current = managerId;
-            }
-
-            var orgUnitIds = membershipsByEmployee.GetValueOrDefault(employee.Id, []);
+            var isActive = activeEmploymentCountByEmployee.GetValueOrDefault(employee.Id) > 0;
+            var chain = BuildPrimaryManagementChain(employee.Id, currentPrimaryAssignmentByEmployee, primaryManagerByEmployee, out var hasCycle);
+            var orgUnitIds = orgUnitIdsByEmployee.GetValueOrDefault(employee.Id, []);
             var ancestorOrgUnitIds = GetAncestorOrgUnitIds(orgUnitIds, parentByOrgUnit, out var hasOrgCycle);
+            var primaryAssignmentCount = primaryAssignmentsByEmployee.GetValueOrDefault(employee.Id, []).Length;
             var remediationCodes = GetRemediationCodes(
-                employee.Status == EmployeeStatus.Active,
-                primaryAssignmentsByEmployee.GetValueOrDefault(employee.Id, []),
-                orgUnitIds,
+                isActive,
+                primaryAssignmentCount,
                 hasCycle,
                 hasOrgCycle);
 
             return new CampaignWorkforceMember(
                 employee.Id,
-                employee.Status == EmployeeStatus.Active,
+                isActive,
                 orgUnitIds,
-                primaryManagers.GetValueOrDefault(employee.Id),
+                primaryManagerByEmployee.GetValueOrDefault(employee.Id),
                 chain,
                 hasCycle,
                 employee.Version,
@@ -214,7 +255,7 @@ public sealed class CampaignWorkforceContextService(CoreHRDbContext dbContext) :
         if (baseline.IsActive != current.IsActive)
             changes.Add("EmploymentStatusChanged");
         if (!baseline.OrgUnitIds.SequenceEqual(current.OrgUnitIds))
-            changes.Add("OrgMembershipChanged");
+            changes.Add("PrimaryOrgAssignmentChanged");
         if (baseline.PrimaryManagerEmployeeId != current.PrimaryManagerEmployeeId)
             changes.Add("PrimaryManagerChanged");
         if (!baseline.PrimaryManagementChain.SequenceEqual(current.PrimaryManagementChain))
@@ -257,25 +298,89 @@ public sealed class CampaignWorkforceContextService(CoreHRDbContext dbContext) :
 
     private static List<string> GetRemediationCodes(
         bool isActive,
-        IReadOnlyCollection<Domain.Entities.EmployeePositionAssignment> primaryAssignments,
-        IReadOnlyCollection<Guid> orgUnitIds,
+        int primaryWorkAssignmentCount,
         bool hasPrimaryManagementCycle,
         bool hasOrgUnitCycle)
     {
         var codes = new List<string>();
         if (!isActive)
             codes.Add("InactiveEmployee");
-        if (primaryAssignments.Count == 0 || primaryAssignments.All(assignment => !assignment.PositionId.HasValue))
-            codes.Add("MissingCanonicalPrimaryPosition");
-        if (primaryAssignments.Count(assignment => assignment.PositionId.HasValue) > 1)
-            codes.Add("ConflictingPrimaryPositionAssignments");
-        if (orgUnitIds.Count == 0)
-            codes.Add("MissingPrimaryOrgMembership");
+        if (primaryWorkAssignmentCount == 0)
+            codes.Add("MissingPrimaryWorkAssignment");
+        if (primaryWorkAssignmentCount > 1)
+            codes.Add("ConflictingPrimaryWorkAssignments");
         if (hasPrimaryManagementCycle)
             codes.Add("PrimaryManagementCycle");
         if (hasOrgUnitCycle)
             codes.Add("OrgUnitHierarchyCycle");
         return codes;
+    }
+
+    private static Guid? ResolvePrimaryManager(
+        ActivePrimaryWorkAssignment assignment,
+        IReadOnlyDictionary<Guid, EffectiveManagerRelationship[]> managerRelationshipsBySubjectAssignment,
+        IReadOnlyDictionary<Guid, ActivePrimaryWorkAssignment> currentPrimaryAssignmentByEmployee)
+    {
+        if (!managerRelationshipsBySubjectAssignment.TryGetValue(assignment.WorkAssignmentId, out var relationships))
+            return null;
+
+        var primaryRelationship = relationships.FirstOrDefault(relationship =>
+            relationship.Type == ReportingRelationshipType.PrimaryManager
+            && currentPrimaryAssignmentByEmployee.TryGetValue(relationship.ManagerEmployeeId, out var managerAssignment)
+            && managerAssignment.WorkAssignmentId == relationship.ManagerWorkAssignmentId);
+
+        return primaryRelationship?.ManagerEmployeeId;
+    }
+
+    private static IReadOnlyList<CampaignRelationshipCandidate> BuildRelationshipCandidates(
+        Guid employeeId,
+        ActivePrimaryWorkAssignment assignment,
+        IReadOnlyDictionary<Guid, EffectiveManagerRelationship[]> managerRelationshipsBySubjectAssignment)
+    {
+        if (!managerRelationshipsBySubjectAssignment.TryGetValue(assignment.WorkAssignmentId, out var relationships))
+            return [];
+
+        return relationships
+            .Where(relationship => relationship.Type != ReportingRelationshipType.PrimaryManager)
+            .OrderBy(relationship => relationship.Type)
+            .ThenBy(relationship => relationship.ManagerEmployeeId)
+            .Select(relationship => new CampaignRelationshipCandidate(
+                relationship.RelationshipId,
+                employeeId,
+                relationship.ManagerEmployeeId,
+                relationship.Type,
+                relationship.SubjectWorkAssignmentId,
+                relationship.ManagerWorkAssignmentId,
+                "CoreManagerRelationship"))
+            .ToArray();
+    }
+
+    private static IReadOnlyList<Guid> BuildPrimaryManagementChain(
+        Guid employeeId,
+        IReadOnlyDictionary<Guid, ActivePrimaryWorkAssignment> currentPrimaryAssignmentByEmployee,
+        IReadOnlyDictionary<Guid, Guid?> primaryManagerByEmployee,
+        out bool hasCycle)
+    {
+        var chain = new List<Guid>();
+        var visited = new HashSet<Guid> { employeeId };
+        var current = employeeId;
+        hasCycle = false;
+
+        while (currentPrimaryAssignmentByEmployee.ContainsKey(current)
+            && primaryManagerByEmployee.TryGetValue(current, out var managerId)
+            && managerId.HasValue)
+        {
+            if (!visited.Add(managerId.Value))
+            {
+                hasCycle = true;
+                break;
+            }
+
+            chain.Add(managerId.Value);
+            current = managerId.Value;
+        }
+
+        return chain;
     }
 
     private static string ComputeSourceVersion(IReadOnlyList<CampaignWorkforceMember> members)

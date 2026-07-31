@@ -168,36 +168,65 @@ export interface EmployeeOrgUnitPageDto {
   hasPreviousPage: boolean;
 }
 
-export interface EmployeeProfileDto {
+export interface EmployeeDetailsEmploymentDto {
+  employmentId: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  status: "Active" | "Ended";
+  employmentType: string | null;
+}
+
+export interface EmployeeDetailsWorkAssignmentDto {
+  workAssignmentId: string;
+  employmentId: string;
+  orgUnitId: string;
+  orgUnitName: string | null;
+  orgUnitType: string | null;
+  jobTitle: string;
+  workLocation: string | null;
+  isPrimary: boolean;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+}
+
+export interface EmployeeDetailsManagerDto {
+  relationshipId: string;
+  managerEmployeeId: string;
+  managerWorkAssignmentId: string;
+  managerFirstName: string;
+  managerLastName: string;
+  managerEmail: string;
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  managerFullName: string;
+}
+
+export interface EmployeeDetailsHistorySummaryDto {
+  employmentCount: number;
+  workAssignmentCount: number;
+  managerRelationshipCount: number;
+}
+
+export interface EmployeeDetailsDto {
   id: string;
+  tenantId: string;
   stableEmployeeKey: string;
   employeeNumber?: string | null;
   firstName: string;
   lastName: string;
   preferredName: string | null;
-  displayName: string;
-  fullName: string;
   email: string;
   phone: string | null;
-  jobTitle: string | null;
-  workLocation: string | null;
-  employmentType: string | null;
-  hireDate: string;
-  status: EmployeeRosterStatus;
-  orgUnitId: string | null;
-  orgUnitName: string | null;
-  orgUnitType: string | null;
-  managerId: string | null;
-  managerFirstName: string | null;
-  managerLastName: string | null;
-  managerEmail: string | null;
-  managerFullName: string | null;
-  hierarchyStatus: EmployeeHierarchyStatus;
-  directReportCount: number;
+  currentEmployment: EmployeeDetailsEmploymentDto | null;
+  currentWorkAssignment: EmployeeDetailsWorkAssignmentDto | null;
+  currentManager: EmployeeDetailsManagerDto | null;
+  historySummary: EmployeeDetailsHistorySummaryDto;
   readiness: EmployeeReadinessSummaryDto;
   createdAt: string;
   updatedAt: string | null;
   version: number;
+  fullName: string;
+  displayName: string;
 }
 
 export type WorkforceAccountProvisioningState =

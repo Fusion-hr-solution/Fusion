@@ -3,6 +3,7 @@ using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
+using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Features.Workforce.Dtos;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
@@ -52,7 +53,7 @@ public interface IWorkforceContractService
     Task<WorkforceOrgUnitDetailDto?> GetOrgUnitDetailAsync(Guid orgUnitId, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Returns effective-today members of the org unit (via EmployeeOrgMembership), optionally including descendants,
+    /// Returns effective-today members of the org unit via canonical WorkAssignment, optionally including descendants,
     /// scope-filtered as with other workforce reads.
     /// </summary>
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetOrgUnitMembersAsync(Guid orgUnitId, bool includeDescendants, ClaimsPrincipal user, CancellationToken cancellationToken);
@@ -62,9 +63,9 @@ public sealed class WorkforceContractService(
     CoreHRDbContext dbContext,
     ITenantContext tenantContext,
     ITenantSettingsReadService tenantSettingsReadService,
-    IEmployeeReadModelPolicy employeeReadModelPolicy,
     IWorkforceAccountStatusReader workforceAccountStatusReader,
-    IWorkforceBulkProvisioner workforceBulkProvisioner) : IWorkforceContractService
+    IWorkforceBulkProvisioner workforceBulkProvisioner,
+    IWorkforceCanonicalResolver canonicalResolver) : IWorkforceContractService
 {
     private const int MaxSearchPageSize = 100;
     private const string AccessStateNotInvited = "NotInvited";
@@ -116,12 +117,11 @@ public sealed class WorkforceContractService(
     {
         var access = BuildAccessContext(user);
 
-        var employee = await ApplyVisibilityScope(
+        var employee = await (await ApplyVisibilityScopeAsync(
                 dbContext.Employees
-                    .AsNoTracking()
-                    .Include(current => current.Manager)
-                    .Include(current => current.OrgUnit),
-                access)
+                    .AsNoTracking(),
+                access,
+                cancellationToken))
             .FirstOrDefaultAsync(current => current.Id == employeeId, cancellationToken);
 
         if (employee is null)
@@ -144,12 +144,11 @@ public sealed class WorkforceContractService(
         }
 
         var access = BuildAccessContext(user);
-        var employees = await ApplyVisibilityScope(
+        var employees = await (await ApplyVisibilityScopeAsync(
                 dbContext.Employees
-                    .AsNoTracking()
-                    .Include(current => current.Manager)
-                    .Include(current => current.OrgUnit),
-                access)
+                    .AsNoTracking(),
+                access,
+                cancellationToken))
             .Where(current => employeeIds.Contains(current.Id))
             .OrderBy(current => current.LastName)
             .ThenBy(current => current.FirstName)
@@ -169,13 +168,11 @@ public sealed class WorkforceContractService(
         var currentPage = Math.Max(1, page);
         var currentPageSize = Math.Clamp(pageSize, 1, MaxSearchPageSize);
 
-        var query = ApplyVisibilityScope(
+        var query = await ApplyVisibilityScopeAsync(
                 dbContext.Employees
-                    .AsNoTracking()
-                    .Include(current => current.Manager)
-                    .Include(current => current.OrgUnit),
-                access)
-            .Where(current => current.Status == EmployeeStatus.Active);
+                    .AsNoTracking(),
+                access,
+                cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -188,19 +185,23 @@ public sealed class WorkforceContractService(
                 (current.FirstName + " " + current.LastName).ToLower().Contains(searchTerm));
         }
 
-        var totalCount = await query.CountAsync(cancellationToken);
         var employees = await query
             .OrderBy(current => current.LastName)
             .ThenBy(current => current.FirstName)
-            .Skip((currentPage - 1) * currentPageSize)
-            .Take(currentPageSize)
             .ToListAsync(cancellationToken);
 
-        var items = await BuildSummariesAsync(employees, access.Audience, cancellationToken);
+        var items = (await BuildSummariesAsync(employees, access.Audience, cancellationToken))
+            .Where(item => item.IsActive)
+            .ToList();
+        var totalCount = items.Count;
+        var pagedItems = items
+            .Skip((currentPage - 1) * currentPageSize)
+            .Take(currentPageSize)
+            .ToList();
 
         return new PagedResponse<WorkforceEmployeeSummaryDto>
         {
-            Items = items.ToList(),
+            Items = pagedItems,
             TotalCount = totalCount,
             Page = currentPage,
             PageSize = currentPageSize
@@ -226,25 +227,36 @@ public sealed class WorkforceContractService(
             return [];
         }
 
-        var query = ApplyVisibilityScope(
-                dbContext.Employees
-                    .AsNoTracking()
-                    .Include(current => current.Manager)
-                    .Include(current => current.OrgUnit),
-                access)
-            .Where(current => current.OrgUnitId.HasValue && targetOrgUnitIds.Contains(current.OrgUnitId.Value));
+        var now = DateTime.UtcNow;
+        var canonicalMemberIds = await dbContext.WorkAssignments
+            .AsNoTracking()
+            .Where(w => targetOrgUnitIds.Contains(w.OrgUnitId)
+                && w.IsPrimary
+                && w.EffectiveFrom <= now
+                && (w.EffectiveTo == null || now < w.EffectiveTo))
+            .Select(w => w.EmployeeId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
 
-        if (!includeInactive)
+        if (canonicalMemberIds.Count == 0)
         {
-            query = query.Where(current => current.Status == EmployeeStatus.Active);
+            return [];
         }
+
+        var query = await ApplyVisibilityScopeAsync(
+                dbContext.Employees
+                    .AsNoTracking(),
+                access,
+                cancellationToken);
+        query = query.Where(current => canonicalMemberIds.Contains(current.Id));
 
         var employees = await query
             .OrderBy(current => current.LastName)
             .ThenBy(current => current.FirstName)
             .ToListAsync(cancellationToken);
 
-        return await BuildSummariesAsync(employees, access.Audience, cancellationToken);
+        var items = await BuildSummariesAsync(employees, access.Audience, cancellationToken);
+        return includeInactive ? items : items.Where(item => item.IsActive).ToList();
     }
 
     private async Task<HashSet<Guid>> ResolveOrgUnitScopeAsync(
@@ -301,60 +313,27 @@ public sealed class WorkforceContractService(
                 .AsNoTracking()
                 .AsQueryable(),
             search,
-            employeeStatus,
             employeeKey);
-
-        var requiresAccountFiltering =
-            normalizedAccess is not null
-            || profileId.HasValue
-            || normalizedDeliveryState is not null;
-
-        List<Employee> pageEmployees;
-        IReadOnlyDictionary<Guid, WorkforceAccountStatusDto> statuses;
-        int totalCount;
-
-        if (requiresAccountFiltering)
-        {
-            var candidateEmployees = await query
-                .OrderBy(current => current.LastName)
-                .ThenBy(current => current.FirstName)
-                .ToListAsync(cancellationToken);
-
-            statuses = await LoadWorkforceAccountStatusesAsync(candidateEmployees, cancellationToken);
-            var filteredEmployees = candidateEmployees
-                .Where(employee => MatchesAccessFilters(
-                    statuses.GetValueOrDefault(employee.Id),
+        var candidateEmployees = await query
+            .OrderBy(current => current.LastName)
+            .ThenBy(current => current.FirstName)
+            .ToListAsync(cancellationToken);
+        var statuses = await LoadWorkforceAccountStatusesAsync(candidateEmployees, cancellationToken);
+        var summaries = await BuildAccessSubjectSummariesAsync(candidateEmployees, statuses, cancellationToken);
+        var filteredSummaries = summaries
+            .Where(summary =>
+                MatchesStatusFilter(summary, employeeStatus)
+                && MatchesAccessFilters(
+                    statuses.GetValueOrDefault(summary.EmployeeId),
                     normalizedAccess,
                     profileId,
                     normalizedDeliveryState))
-                .ToList();
+            .ToList();
 
-            totalCount = filteredEmployees.Count;
-            pageEmployees = filteredEmployees
-                .Skip((currentPage - 1) * currentPageSize)
-                .Take(currentPageSize)
-                .ToList();
-        }
-        else
-        {
-            totalCount = await query.CountAsync(cancellationToken);
-            pageEmployees = await query
-                .OrderBy(current => current.LastName)
-                .ThenBy(current => current.FirstName)
-                .Skip((currentPage - 1) * currentPageSize)
-                .Take(currentPageSize)
-                .ToListAsync(cancellationToken);
-            statuses = await LoadWorkforceAccountStatusesAsync(pageEmployees, cancellationToken);
-        }
-
-        var directReportCounts = await LoadDirectReportCountsAsync(
-            pageEmployees.Select(employee => employee.Id).ToList(),
-            cancellationToken);
-        var employees = pageEmployees
-            .Select(employee => BuildAccessSubjectSummary(
-                employee,
-                statuses.GetValueOrDefault(employee.Id),
-                directReportCounts.GetValueOrDefault(employee.Id)))
+        var totalCount = filteredSummaries.Count;
+        var employees = filteredSummaries
+            .Skip((currentPage - 1) * currentPageSize)
+            .Take(currentPageSize)
             .ToList();
 
         return new PagedResponse<WorkforceAccessSubjectSummaryDto>
@@ -583,37 +562,33 @@ public sealed class WorkforceContractService(
         ClaimsPrincipal user,
         CancellationToken cancellationToken)
     {
-        var now = DateTime.UtcNow;
         var targetOrgUnitIds = await ResolveOrgUnitScopeAsync([orgUnitId], includeDescendants, cancellationToken);
         if (targetOrgUnitIds.Count == 0)
         {
             return [];
         }
 
-        // Resolve effective-today member employee ids via EmployeeOrgMembership
-        var memberEmployeeIds = await dbContext.EmployeeOrgMemberships
-            .AsNoTracking()
-            .Where(membership =>
-                targetOrgUnitIds.Contains(membership.OrgUnitId)
-                && membership.EffectiveFrom <= now
-                && (!membership.EffectiveTo.HasValue || membership.EffectiveTo.Value > now))
-            .Select(membership => membership.EmployeeId)
-            .Distinct()
-            .ToListAsync(cancellationToken);
+        // Resolve effective-today member employee ids from canonical primary work assignments.
+        var memberEmployeeIds = new List<Guid>();
+        foreach (var unitId in targetOrgUnitIds)
+        {
+            var ids = await canonicalResolver.GetEmployeeIdsInOrgUnitAsync(unitId, null, cancellationToken);
+            memberEmployeeIds.AddRange(ids);
+        }
 
-        if (memberEmployeeIds.Count == 0)
+        var distinctMemberIds = memberEmployeeIds.Distinct().ToList();
+        if (distinctMemberIds.Count == 0)
         {
             return [];
         }
 
         var access = BuildAccessContext(user);
-        var employees = await ApplyVisibilityScope(
+        var employees = await (await ApplyVisibilityScopeAsync(
                 dbContext.Employees
-                    .AsNoTracking()
-                    .Include(current => current.Manager)
-                    .Include(current => current.OrgUnit),
-                access)
-            .Where(employee => memberEmployeeIds.Contains(employee.Id))
+                    .AsNoTracking(),
+                access,
+                cancellationToken))
+            .Where(employee => distinctMemberIds.Contains(employee.Id))
             .OrderBy(employee => employee.LastName)
             .ThenBy(employee => employee.FirstName)
             .ToListAsync(cancellationToken);
@@ -652,11 +627,25 @@ public sealed class WorkforceContractService(
             return [];
         }
 
+        var now = DateTime.UtcNow;
+        var reportIds = await dbContext.ManagerRelationships
+            .AsNoTracking()
+            .Where(m => m.ManagerEmployeeId == employeeId
+                && m.Type == ReportingRelationshipType.PrimaryManager
+                && m.EffectiveFrom <= now
+                && (m.EffectiveTo == null || now < m.EffectiveTo))
+            .Select(m => m.SubjectEmployeeId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (reportIds.Count == 0)
+        {
+            return [];
+        }
+
         var employees = await dbContext.Employees
             .AsNoTracking()
-            .Include(current => current.Manager)
-            .Include(current => current.OrgUnit)
-            .Where(current => current.ManagerId == employeeId)
+            .Where(current => reportIds.Contains(current.Id))
             .OrderBy(current => current.LastName)
             .ThenBy(current => current.FirstName)
             .ToListAsync(cancellationToken);
@@ -679,13 +668,16 @@ public sealed class WorkforceContractService(
 
         var normalizedMaxDepth = Math.Clamp(maxDepth, 1, 25);
 
-        // Load the active manager edges once, then walk the subtree in memory (bounded + cycle-guarded).
-        var managerEdges = await dbContext.Employees
+        // Load all active primary manager relationships once, then walk the subtree in memory (bounded + cycle-guarded).
+        var now = DateTime.UtcNow;
+        var managerEdges = await dbContext.ManagerRelationships
             .AsNoTracking()
-            .Where(current => current.Status == EmployeeStatus.Active && current.ManagerId.HasValue)
-            .Select(current => new { current.Id, ManagerId = current.ManagerId!.Value })
+            .Where(m => m.Type == ReportingRelationshipType.PrimaryManager
+                && m.EffectiveFrom <= now
+                && (m.EffectiveTo == null || now < m.EffectiveTo))
+            .Select(m => new { SubjectId = m.SubjectEmployeeId, ManagerId = m.ManagerEmployeeId })
             .ToListAsync(cancellationToken);
-        var reportsByManager = managerEdges.ToLookup(edge => edge.ManagerId, edge => edge.Id);
+        var reportsByManager = managerEdges.ToLookup(edge => edge.ManagerId, edge => edge.SubjectId);
 
         var subtreeIds = new List<Guid>();
         var visited = new HashSet<Guid> { employeeId };
@@ -700,15 +692,15 @@ public sealed class WorkforceContractService(
                 continue;
             }
 
-            foreach (var reportId in reportsByManager[currentId])
+            foreach (var subjectId in reportsByManager[currentId])
             {
-                if (!visited.Add(reportId))
+                if (!visited.Add(subjectId))
                 {
                     continue;
                 }
 
-                subtreeIds.Add(reportId);
-                frontier.Enqueue((reportId, depth + 1));
+                subtreeIds.Add(subjectId);
+                frontier.Enqueue((subjectId, depth + 1));
             }
         }
 
@@ -719,8 +711,6 @@ public sealed class WorkforceContractService(
 
         var employees = await dbContext.Employees
             .AsNoTracking()
-            .Include(current => current.Manager)
-            .Include(current => current.OrgUnit)
             .Where(current => subtreeIds.Contains(current.Id))
             .OrderBy(current => current.LastName)
             .ThenBy(current => current.FirstName)
@@ -735,40 +725,35 @@ public sealed class WorkforceContractService(
         CancellationToken cancellationToken)
     {
         var access = BuildAccessContext(user);
-        var employee = await ApplyVisibilityScope(
-                dbContext.Employees
-                    .AsNoTracking()
-                    .Include(current => current.Manager)
-                    .Include(current => current.OrgUnit),
-                access)
-            .FirstOrDefaultAsync(current => current.Id == employeeId, cancellationToken);
+        var subjectVisible = await (await ApplyVisibilityScopeAsync(
+                dbContext.Employees.AsNoTracking(),
+                access,
+                cancellationToken))
+            .AnyAsync(e => e.Id == employeeId, cancellationToken);
 
-        if (employee is null)
+        if (!subjectVisible)
         {
             return [];
         }
 
-        var chain = new List<Employee>();
-        var currentManagerId = employee.ManagerId;
-        var guard = new HashSet<Guid>();
-
-        while (currentManagerId.HasValue && guard.Add(currentManagerId.Value))
+        // Resolve manager chain (nearest-first) via canonical ManagerRelationship.
+        var chainIds = await canonicalResolver.GetManagerChainAsync(employeeId, null, 25, cancellationToken);
+        if (chainIds.Count == 0)
         {
-            var manager = await dbContext.Employees
-                .AsNoTracking()
-                .Include(current => current.Manager)
-                .Include(current => current.OrgUnit)
-                .FirstOrDefaultAsync(current => current.Id == currentManagerId.Value, cancellationToken);
-
-            if (manager is null)
-            {
-                break;
-            }
-
-            chain.Add(manager);
-            currentManagerId = manager.ManagerId;
+            return [];
         }
 
+        var managerLookup = await dbContext.Employees
+            .AsNoTracking()
+            .Where(e => chainIds.Contains(e.Id))
+            .ToDictionaryAsync(e => e.Id, cancellationToken);
+
+        // Build root-first list preserving canonical order, then reverse.
+        var chain = chainIds
+            .Select(id => managerLookup.GetValueOrDefault(id))
+            .Where(e => e is not null)
+            .Cast<Employee>()
+            .ToList();
         chain.Reverse();
         return await BuildSummariesAsync(chain, access.Audience, cancellationToken);
     }
@@ -809,12 +794,16 @@ public sealed class WorkforceContractService(
 
         // Direct active-member count per unit, plus a full-subtree rollup computed over the entire
         // hierarchy (independent of the render maxDepth so truncated branches still count).
-        var directMemberCounts = await dbContext.Employees
+        // Resolved from canonical primary work assignments as of today.
+        var nowForTree = DateTime.UtcNow;
+        var directMemberCounts = await dbContext.WorkAssignments
             .AsNoTracking()
-            .Where(employee => employee.Status == EmployeeStatus.Active && employee.OrgUnitId.HasValue)
-            .GroupBy(employee => employee.OrgUnitId!.Value)
-            .Select(group => new { OrgUnitId = group.Key, Count = group.Count() })
-            .ToDictionaryAsync(group => group.OrgUnitId, group => group.Count, cancellationToken);
+            .Where(w => w.IsPrimary
+                && w.EffectiveFrom <= nowForTree
+                && (w.EffectiveTo == null || nowForTree < w.EffectiveTo))
+            .GroupBy(w => w.OrgUnitId)
+            .Select(g => new { OrgUnitId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.OrgUnitId, g => g.Count, cancellationToken);
 
         var totalMemberCounts = new Dictionary<Guid, int>();
         int ComputeTotal(OrgUnit unit)
@@ -859,65 +848,270 @@ public sealed class WorkforceContractService(
         EmployeeReadAudience audience,
         CancellationToken cancellationToken)
     {
-        if (employees.Count == 0)
-        {
-            return [];
-        }
+        if (employees.Count == 0) return [];
 
         var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
         var structureInfo = await GetStructureInfoAsync(cancellationToken);
-        var employeeIds = employees.Select(employee => employee.Id).ToArray();
-        var directReportCounts = await dbContext.Employees
-            .AsNoTracking()
-            .Where(employee => employee.ManagerId.HasValue
-                && employee.Status == EmployeeStatus.Active
-                && employeeIds.Contains(employee.ManagerId.Value))
-            .GroupBy(employee => employee.ManagerId!.Value)
-            .Select(group => new { ManagerId = group.Key, Count = group.Count() })
-            .ToDictionaryAsync(group => group.ManagerId, group => group.Count, cancellationToken);
+        var employeeIds = employees.Select(e => e.Id).ToArray();
+        var now = DateTime.UtcNow;
 
-        var orgUnits = await dbContext.OrgUnits
+        // Active Employment facts (for isActive status, hire date, employment type)
+        var employmentFacts = await dbContext.Employments
             .AsNoTracking()
+            .Where(e => employeeIds.Contains(e.EmployeeId)
+                && e.EffectiveFrom <= now && (e.EffectiveTo == null || now < e.EffectiveTo))
+            .Select(e => new { e.EmployeeId, e.EffectiveFrom, e.EmploymentType })
             .ToListAsync(cancellationToken);
-        var orgLookup = orgUnits.ToDictionary(unit => unit.Id);
+        var employmentByEmployee = employmentFacts
+            .GroupBy(e => e.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.First());
+        var activeEmployeeIds = employmentByEmployee.Keys.ToHashSet();
 
-        return employees
-            .Select(employee =>
+        // Primary WorkAssignment facts (org unit, job title, work location)
+        var primaryAssignments = await dbContext.WorkAssignments
+            .AsNoTracking()
+            .Where(wa => employeeIds.Contains(wa.EmployeeId)
+                && wa.IsPrimary
+                && wa.EffectiveFrom <= now && (wa.EffectiveTo == null || now < wa.EffectiveTo))
+            .Select(wa => new { wa.EmployeeId, wa.OrgUnitId, wa.JobTitle, wa.WorkLocation })
+            .ToListAsync(cancellationToken);
+        var assignmentByEmployee = primaryAssignments
+            .GroupBy(wa => wa.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        // Direct report counts via primary ManagerRelationship
+        var directReportCounts = await dbContext.ManagerRelationships
+            .AsNoTracking()
+            .Where(m => employeeIds.Contains(m.ManagerEmployeeId)
+                && m.Type == ReportingRelationshipType.PrimaryManager
+                && m.EffectiveFrom <= now && (m.EffectiveTo == null || now < m.EffectiveTo))
+            .GroupBy(m => m.ManagerEmployeeId)
+            .Select(g => new { ManagerId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(g => g.ManagerId, g => g.Count, cancellationToken);
+
+        // Manager links via primary ManagerRelationship
+        var managerLinks = await dbContext.ManagerRelationships
+            .AsNoTracking()
+            .Where(m => employeeIds.Contains(m.SubjectEmployeeId)
+                && m.Type == ReportingRelationshipType.PrimaryManager
+                && m.EffectiveFrom <= now && (m.EffectiveTo == null || now < m.EffectiveTo))
+            .Select(m => new { m.SubjectEmployeeId, m.ManagerEmployeeId })
+            .ToListAsync(cancellationToken);
+        var managerIdByEmployee = managerLinks
+            .GroupBy(m => m.SubjectEmployeeId)
+            .ToDictionary(g => g.Key, g => g.First().ManagerEmployeeId);
+
+        // Manager identity and active status
+        var uniqueManagerIds = managerIdByEmployee.Values.Distinct().ToList();
+        Dictionary<Guid, Employee> managerLookup = [];
+        HashSet<Guid> activeManagerIds = [];
+        if (uniqueManagerIds.Count > 0)
+        {
+            managerLookup = await dbContext.Employees
+                .AsNoTracking()
+                .Where(e => uniqueManagerIds.Contains(e.Id))
+                .ToDictionaryAsync(e => e.Id, cancellationToken);
+
+            activeManagerIds = (await dbContext.Employments
+                .AsNoTracking()
+                .Where(e => uniqueManagerIds.Contains(e.EmployeeId)
+                    && e.EffectiveFrom <= now && (e.EffectiveTo == null || now < e.EffectiveTo))
+                .Select(e => e.EmployeeId)
+                .Distinct()
+                .ToListAsync(cancellationToken))
+                .ToHashSet();
+        }
+
+        var orgUnits = await dbContext.OrgUnits.AsNoTracking().ToListAsync(cancellationToken);
+        var orgLookup = orgUnits.ToDictionary(u => u.Id);
+
+        return employees.Select(employee =>
+        {
+            var directReportCount = directReportCounts.GetValueOrDefault(employee.Id);
+            var assignment = assignmentByEmployee.GetValueOrDefault(employee.Id);
+            var isActive = activeEmployeeIds.Contains(employee.Id);
+            var hireDate = employmentByEmployee.TryGetValue(employee.Id, out var emp) ? emp.EffectiveFrom : default;
+            var employmentType = emp?.EmploymentType;
+            var jobTitle = CanViewSummaryField(settings, "jobTitle", audience) ? assignment?.JobTitle : null;
+
+            // Manager summary
+            WorkforceManagerSummaryDto? managerSummary = null;
+            if (managerIdByEmployee.TryGetValue(employee.Id, out var canonicalManagerId)
+                && managerLookup.TryGetValue(canonicalManagerId, out var canonicalManager))
             {
-                var directReportCount = directReportCounts.GetValueOrDefault(employee.Id);
-                var profile = employeeReadModelPolicy.MapProfile(employee, settings, audience, directReportCount);
-                return new WorkforceEmployeeSummaryDto(
-                    employee.Id,
-                    employee.StableEmployeeKey,
-                    employee.EmployeeNumber,
-                    profile.FirstName,
-                    profile.LastName,
-                    profile.PreferredName,
-                    profile.DisplayName,
-                    profile.FullName,
-                    profile.Email,
-                    profile.JobTitle,
-                    profile.HireDate,
-                    profile.Status.ToString(),
-                    profile.Status == EmployeeStatus.Active,
-                    BuildOrgAssignment(employee.OrgUnitId, orgLookup, structureInfo.PublishedStructureVersion),
-                    employee.Manager is null
-                        ? null
-                        : new WorkforceManagerSummaryDto(
-                            employee.Manager.Id,
-                            !string.IsNullOrWhiteSpace(employee.Manager.PreferredName)
-                                ? $"{employee.Manager.PreferredName} {employee.Manager.LastName}"
-                                : employee.Manager.FullName,
-                            employee.Manager.Email,
-                            employee.Manager.Status == EmployeeStatus.Active),
-                    directReportCount,
-                    BuildDataQuality(profile.Readiness),
-                    profile.Version);
-            })
-            .ToList();
+                managerSummary = new WorkforceManagerSummaryDto(
+                    canonicalManager.Id,
+                    !string.IsNullOrWhiteSpace(canonicalManager.PreferredName)
+                        ? $"{canonicalManager.PreferredName} {canonicalManager.LastName}"
+                        : canonicalManager.FullName,
+                    canonicalManager.Email,
+                    activeManagerIds.Contains(canonicalManager.Id));
+            }
+
+            // Canonical hierarchy status
+            var hierarchyStatus = ResolveCanonicalHierarchyStatus(
+                employee.Id, managerIdByEmployee, managerLookup, activeManagerIds, directReportCount);
+
+            // Canonical readiness
+            var readiness = BuildCanonicalReadiness(
+                employee, settings, assignment?.OrgUnitId, assignment?.JobTitle, assignment?.WorkLocation,
+                employmentType, isActive, hierarchyStatus, directReportCount);
+
+            return new WorkforceEmployeeSummaryDto(
+                employee.Id,
+                employee.StableEmployeeKey,
+                employee.EmployeeNumber,
+                employee.FirstName,
+                employee.LastName,
+                employee.PreferredName,
+                employee.DisplayName,
+                employee.FullName,
+                employee.Email,
+                jobTitle,
+                hireDate,
+                isActive ? EmployeeStatus.Active.ToString() : EmployeeStatus.Inactive.ToString(),
+                isActive,
+                BuildOrgAssignment(assignment?.OrgUnitId, orgLookup, structureInfo.PublishedStructureVersion),
+                managerSummary,
+                directReportCount,
+                BuildDataQuality(readiness),
+                employee.Version);
+        }).ToList();
     }
 
-    private IQueryable<Employee> ApplyVisibilityScope(IQueryable<Employee> query, WorkforceAccessContext access)
+    private static string ResolveCanonicalHierarchyStatus(
+        Guid employeeId,
+        IReadOnlyDictionary<Guid, Guid> managerIdByEmployee,
+        IReadOnlyDictionary<Guid, Employee> managerLookup,
+        IReadOnlySet<Guid> activeManagerIds,
+        int directReportCount)
+    {
+        if (!managerIdByEmployee.TryGetValue(employeeId, out var managerId))
+        {
+            return directReportCount > 0
+                ? EmployeeHierarchyStatuses.Root
+                : EmployeeHierarchyStatuses.NoManagerAssigned;
+        }
+
+        if (!managerLookup.ContainsKey(managerId)) return EmployeeHierarchyStatuses.ManagerMissing;
+        return activeManagerIds.Contains(managerId)
+            ? EmployeeHierarchyStatuses.Healthy
+            : EmployeeHierarchyStatuses.ManagerInactive;
+    }
+
+    private static EmployeeReadinessSummaryDto BuildCanonicalReadiness(
+        Employee employee,
+        TenantSettingsDto settings,
+        Guid? orgUnitId,
+        string? jobTitle,
+        string? workLocation,
+        string? employmentType,
+        bool isActive,
+        string hierarchyStatus,
+        int directReportCount)
+    {
+        var stateIssues = new List<EmployeeReadinessIssueDto>();
+
+        // Required field checks on identity fields (still on Employee entity)
+        AddFieldIssueIfMissing(stateIssues, employee, settings, "firstName", !string.IsNullOrWhiteSpace(employee.FirstName),
+            EmployeeReadinessFixTargetKinds.ProfileIdentity, "First name is required");
+        AddFieldIssueIfMissing(stateIssues, employee, settings, "lastName", !string.IsNullOrWhiteSpace(employee.LastName),
+            EmployeeReadinessFixTargetKinds.ProfileIdentity, "Last name is required");
+        AddFieldIssueIfMissing(stateIssues, employee, settings, "email", !string.IsNullOrWhiteSpace(employee.Email),
+            EmployeeReadinessFixTargetKinds.ProfileIdentity, "Work email is required");
+        AddFieldIssueIfMissing(stateIssues, employee, settings, "phone", !string.IsNullOrWhiteSpace(employee.Phone),
+            EmployeeReadinessFixTargetKinds.ProfileIdentity, "Phone is required");
+
+        // Hire date: satisfied by having an active Employment record
+        AddFieldIssueIfMissing(stateIssues, employee, settings, "hireDate", isActive,
+            EmployeeReadinessFixTargetKinds.ProfileEmployment, "Hire date is required");
+
+        // Workforce fields from canonical WorkAssignment / Employment
+        AddFieldIssueIfMissing(stateIssues, employee, settings, "jobTitle", !string.IsNullOrWhiteSpace(jobTitle),
+            EmployeeReadinessFixTargetKinds.ProfileEmployment, "Job title is required");
+        AddFieldIssueIfMissing(stateIssues, employee, settings, "workLocation", !string.IsNullOrWhiteSpace(workLocation),
+            EmployeeReadinessFixTargetKinds.ProfileEmployment, "Work location is required");
+        AddFieldIssueIfMissing(stateIssues, employee, settings, "employmentType", !string.IsNullOrWhiteSpace(employmentType),
+            EmployeeReadinessFixTargetKinds.ProfileEmployment, "Employment type is required");
+
+        // Org unit
+        if (!orgUnitId.HasValue)
+        {
+            stateIssues.Add(new EmployeeReadinessIssueDto(
+                EmployeeReadinessIssueCodes.MissingOrgUnit, "Org unit is missing",
+                EmployeeReadinessIssueSeverities.Attention, "orgUnitId",
+                new EmployeeReadinessFixTargetDto(EmployeeReadinessFixTargetKinds.ProfileOrganization, employee.Id, employee.StableEmployeeKey, FieldKey: "orgUnitId")));
+        }
+
+        // Manager hierarchy
+        if (hierarchyStatus is EmployeeHierarchyStatuses.NoManagerAssigned
+            or EmployeeHierarchyStatuses.ManagerInactive
+            or EmployeeHierarchyStatuses.ManagerMissing)
+        {
+            var (code, label) = hierarchyStatus switch
+            {
+                EmployeeHierarchyStatuses.ManagerInactive => (EmployeeReadinessIssueCodes.ManagerInactive, "Assigned manager is inactive"),
+                EmployeeHierarchyStatuses.ManagerMissing => (EmployeeReadinessIssueCodes.ManagerMissing, "Manager record is missing"),
+                _ => (EmployeeReadinessIssueCodes.NoManagerAssigned, "Manager is missing"),
+            };
+            stateIssues.Add(new EmployeeReadinessIssueDto(
+                code, label, EmployeeReadinessIssueSeverities.Attention, "managerId",
+                new EmployeeReadinessFixTargetDto(EmployeeReadinessFixTargetKinds.ReportingRelationships, employee.Id, employee.StableEmployeeKey, FieldKey: "managerId")));
+        }
+
+        // Blocking issues: termination blocked by active direct reports
+        List<EmployeeReadinessIssueDto> blockingIssues = [];
+        if (isActive && directReportCount > 0)
+        {
+            blockingIssues.Add(new EmployeeReadinessIssueDto(
+                EmployeeReadinessIssueCodes.DeactivationBlocked,
+                directReportCount == 1
+                    ? "Employee cannot be terminated while 1 active direct report remains"
+                    : $"Employee cannot be terminated while {directReportCount} active direct reports remain",
+                EmployeeReadinessIssueSeverities.Blocker, null,
+                new EmployeeReadinessFixTargetDto(EmployeeReadinessFixTargetKinds.ProfileStatus, employee.Id, employee.StableEmployeeKey)));
+        }
+
+        return new EmployeeReadinessSummaryDto(stateIssues.Count, blockingIssues.Count, stateIssues, blockingIssues);
+    }
+
+    private static void AddFieldIssueIfMissing(
+        List<EmployeeReadinessIssueDto> issues,
+        Employee employee,
+        TenantSettingsDto settings,
+        string fieldKey,
+        bool hasValue,
+        string fixTargetKind,
+        string label)
+    {
+        if (hasValue) return;
+        if (!settings.EmployeeFieldConfig.TryGetValue(fieldKey, out var config) || !config.Required) return;
+
+        issues.Add(new EmployeeReadinessIssueDto(
+            EmployeeReadinessIssueCodes.MissingRequiredField, label,
+            EmployeeReadinessIssueSeverities.Attention, fieldKey,
+            new EmployeeReadinessFixTargetDto(fixTargetKind, employee.Id, employee.StableEmployeeKey, FieldKey: fieldKey)));
+    }
+
+    private static bool CanViewSummaryField(
+        TenantSettingsDto settings,
+        string fieldName,
+        EmployeeReadAudience audience)
+    {
+        if (!settings.EmployeeFieldConfig.TryGetValue(fieldName, out var config)) return true;
+        return audience switch
+        {
+            EmployeeReadAudience.HrAdmin => config.Visible,
+            EmployeeReadAudience.Manager => config.Visible && config.VisibleToManager,
+            EmployeeReadAudience.Employee => config.Visible && config.VisibleToEmployee,
+            _ => false,
+        };
+    }
+
+    private async Task<IQueryable<Employee>> ApplyVisibilityScopeAsync(
+        IQueryable<Employee> query,
+        WorkforceAccessContext access,
+        CancellationToken cancellationToken)
     {
         if (access.IsHrAdmin)
         {
@@ -932,7 +1126,19 @@ public sealed class WorkforceContractService(
         if (access.IsManager)
         {
             var linkedEmployeeId = access.LinkedEmployeeId.Value;
-            return query.Where(employee => employee.Id == linkedEmployeeId || employee.ManagerId == linkedEmployeeId);
+            var now = DateTime.UtcNow;
+            var reportIds = await dbContext.ManagerRelationships
+                .AsNoTracking()
+                .Where(m => m.ManagerEmployeeId == linkedEmployeeId
+                    && m.Type == ReportingRelationshipType.PrimaryManager
+                    && m.EffectiveFrom <= now
+                    && (m.EffectiveTo == null || now < m.EffectiveTo))
+                .Select(m => m.SubjectEmployeeId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            var visibleIds = new HashSet<Guid>(reportIds) { linkedEmployeeId };
+            return query.Where(employee => visibleIds.Contains(employee.Id));
         }
 
         return query.Where(employee => employee.Id == access.LinkedEmployeeId.Value);
@@ -1069,7 +1275,6 @@ public sealed class WorkforceContractService(
                 .AsNoTracking()
                 .AsQueryable(),
             search,
-            employeeStatus,
             employeeKey);
         var normalizedAccess = NormalizeAccessFilter(access);
         var normalizedDeliveryState = NormalizeDeliveryStateFilter(deliveryState);
@@ -1084,18 +1289,19 @@ public sealed class WorkforceContractService(
             .ToListAsync(cancellationToken);
 
         var statuses = await LoadWorkforceAccountStatusesAsync(candidateEmployees, cancellationToken);
-        if (requiresAccountFiltering)
-        {
-            candidateEmployees = candidateEmployees
-                .Where(employee => MatchesAccessFilters(
-                    statuses.GetValueOrDefault(employee.Id),
+        var summaries = await BuildAccessSubjectSummariesAsync(candidateEmployees, statuses, cancellationToken);
+        var allowedEmployeeIds = summaries
+            .Where(summary =>
+                MatchesStatusFilter(summary, employeeStatus)
+                && (!requiresAccountFiltering || MatchesAccessFilters(
+                    statuses.GetValueOrDefault(summary.EmployeeId),
                     normalizedAccess,
                     profileId,
-                    normalizedDeliveryState))
-                .ToList();
-        }
+                    normalizedDeliveryState)))
+            .Select(summary => summary.EmployeeId)
+            .ToHashSet();
 
-        return (candidateEmployees, statuses);
+        return (candidateEmployees.Where(employee => allowedEmployeeIds.Contains(employee.Id)).ToList(), statuses);
     }
 
     private async Task<IReadOnlyList<WorkforceAccessSubjectSummaryDto>> BuildAccessSubjectSummariesAsync(
@@ -1111,19 +1317,29 @@ public sealed class WorkforceContractService(
         var directReportCounts = await LoadDirectReportCountsAsync(
             employees.Select(employee => employee.Id).ToList(),
             cancellationToken);
+        var employeeIds = employees.Select(employee => employee.Id).ToList();
+        var activeEmployeeIdSet = (await dbContext.Employments
+                .AsNoTracking()
+                .Where(employment => employeeIds.Contains(employment.EmployeeId)
+                    && employment.Status == EmploymentStatus.Active
+                    && employment.EffectiveTo == null)
+                .Select(employment => employment.EmployeeId)
+                .Distinct()
+                .ToListAsync(cancellationToken))
+            .ToHashSet();
 
         return employees
             .Select(employee => BuildAccessSubjectSummary(
                 employee,
                 statuses.GetValueOrDefault(employee.Id),
-                directReportCounts.GetValueOrDefault(employee.Id)))
+                directReportCounts.GetValueOrDefault(employee.Id),
+                activeEmployeeIdSet.Contains(employee.Id)))
             .ToList();
     }
 
     private static IQueryable<Employee> ApplyAccessSubjectFilters(
         IQueryable<Employee> query,
         string? search,
-        string? employeeStatus,
         string? employeeKey)
     {
         if (!string.IsNullOrWhiteSpace(search))
@@ -1143,11 +1359,6 @@ public sealed class WorkforceContractService(
             query = query.Where(current => current.StableEmployeeKey == normalizedEmployeeKey);
         }
 
-        if (TryParseEmployeeStatusFilter(employeeStatus, out var statusFilter))
-        {
-            query = query.Where(current => current.Status == statusFilter);
-        }
-
         return query;
     }
 
@@ -1160,12 +1371,14 @@ public sealed class WorkforceContractService(
             return [];
         }
 
-        return await dbContext.Employees
+        var now = DateTime.UtcNow;
+        return await dbContext.ManagerRelationships
             .AsNoTracking()
-            .Where(employee => employee.ManagerId.HasValue
-                && employee.Status == EmployeeStatus.Active
-                && employeeIds.Contains(employee.ManagerId.Value))
-            .GroupBy(employee => employee.ManagerId!.Value)
+            .Where(relationship => employeeIds.Contains(relationship.ManagerEmployeeId)
+                && relationship.Type == ReportingRelationshipType.PrimaryManager
+                && relationship.EffectiveFrom <= now
+                && (relationship.EffectiveTo == null || now < relationship.EffectiveTo))
+            .GroupBy(relationship => relationship.ManagerEmployeeId)
             .Select(group => new { ManagerId = group.Key, Count = group.Count() })
             .ToDictionaryAsync(group => group.ManagerId, group => group.Count, cancellationToken);
     }
@@ -1173,7 +1386,8 @@ public sealed class WorkforceContractService(
     private WorkforceAccessSubjectSummaryDto BuildAccessSubjectSummary(
         Employee employee,
         WorkforceAccountStatusDto? account,
-        int directReportCount)
+        int directReportCount,
+        bool isActive)
     {
         var accessState = ClassifyAccessState(account);
 
@@ -1186,8 +1400,8 @@ public sealed class WorkforceContractService(
             employee.PreferredName,
             employee.DisplayName,
             employee.Email,
-            employee.Status.ToString(),
-            employee.Status == EmployeeStatus.Active,
+            isActive ? EmployeeStatus.Active.ToString() : EmployeeStatus.Inactive.ToString(),
+            isActive,
             directReportCount,
             accessState,
             GetAccessStateLabel(accessState),
@@ -1391,6 +1605,21 @@ public sealed class WorkforceContractService(
         return normalized is "Sent" or "Suppressed" or "Failed"
             ? normalized
             : null;
+    }
+
+    private static bool MatchesStatusFilter(WorkforceAccessSubjectSummaryDto summary, string? employeeStatus)
+    {
+        if (!TryParseEmployeeStatusFilter(employeeStatus, out var status))
+        {
+            return true;
+        }
+
+        return status switch
+        {
+            EmployeeStatus.Active => summary.IsActive,
+            EmployeeStatus.Inactive => !summary.IsActive,
+            _ => true,
+        };
     }
 
     private static bool TryParseEmployeeStatusFilter(string? employeeStatus, out EmployeeStatus status)

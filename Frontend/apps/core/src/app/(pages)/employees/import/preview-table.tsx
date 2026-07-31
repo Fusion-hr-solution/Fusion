@@ -14,11 +14,37 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { EmployeeImportPreviewRowDto } from "./employee-import.types";
+import type {
+  EmployeeImportPreviewRowDto,
+  EmployeeImportRowClassification,
+} from "./employee-import.types";
 import type {
   EmployeeImportIssueGroup,
   EmployeeImportValidationUiModel,
 } from "./employee-import-validation";
+
+function getClassificationLabel(c: EmployeeImportRowClassification): string {
+  switch (c) {
+    case "Create": return "New";
+    case "Unchanged": return "Unchanged";
+    case "ProfileCorrection": return "Profile";
+    case "EmploymentChange": return "Employment";
+    case "WorkAssignmentChange": return "Assignment";
+    case "ManagerChange": return "Manager";
+    case "Invalid": return "Invalid";
+    case "Conflicting": return "Conflict";
+  }
+}
+
+function getClassificationStyle(c: EmployeeImportRowClassification): string {
+  switch (c) {
+    case "Create": return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    case "Unchanged": return "bg-muted/50 text-muted-foreground border-border";
+    case "Invalid": return "bg-destructive/10 text-destructive border-destructive/20";
+    case "Conflicting": return "bg-amber-50 text-amber-700 border-amber-200";
+    default: return "bg-blue-50 text-blue-700 border-blue-200";
+  }
+}
 
 const PREVIEW_FIELD_COLUMNS = [
   { key: "employeeNumber", label: "Employee number" },
@@ -27,6 +53,8 @@ const PREVIEW_FIELD_COLUMNS = [
   { key: "email", label: "Email" },
   { key: "phone", label: "Phone" },
   { key: "hireDate", label: "Hire date" },
+  { key: "effectiveDate", label: "Effective date" },
+  { key: "resolvedEffectiveDate", label: "Resolved date" },
   { key: "jobTitle", label: "Job title" },
   { key: "workLocation", label: "Work location" },
   { key: "employmentType", label: "Employment type" },
@@ -54,6 +82,7 @@ export function EmployeeImportPreviewTable({
   activeIssueGroupKey,
   onSelectGroup,
 }: EmployeeImportPreviewTableProps) {
+  const hasClassification = rows.some((r) => r.classification !== null && r.classification !== undefined);
   const columns: ColumnDef<EmployeeImportPreviewRowDto>[] = [
     {
       accessorKey: "rowNumber",
@@ -105,6 +134,25 @@ export function EmployeeImportPreviewTable({
                     </button>
                   ))}
                 </div>
+              );
+            },
+          } satisfies ColumnDef<EmployeeImportPreviewRowDto>,
+        ]
+      : []),
+    ...(hasClassification
+      ? [
+          {
+            id: "classification",
+            header: "Change type",
+            cell: ({ row }) => {
+              const c = row.original.classification;
+              if (!c) return <span className="text-muted-foreground">-</span>;
+              return (
+                <span
+                  className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${getClassificationStyle(c)}`}
+                >
+                  {getClassificationLabel(c)}
+                </span>
               );
             },
           } satisfies ColumnDef<EmployeeImportPreviewRowDto>,

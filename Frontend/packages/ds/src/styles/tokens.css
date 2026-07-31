@@ -1,6 +1,9 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+    /* Native form controls (select option lists, date pickers, scrollbars) follow the
+       active theme; without this they stay light and render white-on-white in dark mode. */
+    color-scheme: light;
     --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --font-heading: "Space Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
@@ -39,6 +42,7 @@
 }
 
 .dark {
+    color-scheme: dark;
     --background: oklch(0.141 0.005 285.823);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.21 0.006 285.885);

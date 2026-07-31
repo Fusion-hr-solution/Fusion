@@ -233,6 +233,10 @@ const accessProfiles: AccessProfileSummaryDto[] = [
 ];
 
 const ALL_RESULTS_SELECTION_TIMEOUT_MS = 15_000;
+const ACCESS_WORKSPACE_RENDER_TIMEOUT_MS = 30_000;
+
+// Access workspace renders a large table and can exceed Vitest's default under CI contention.
+vi.setConfig({ testTimeout: ACCESS_WORKSPACE_RENDER_TIMEOUT_MS });
 
 function resetSearchParams() {
   Array.from(mockSearchParams.keys()).forEach((key) =>
@@ -374,35 +378,39 @@ describe("AccessPeopleWorkspace", () => {
     });
   });
 
-  it("renders the normal access workspace without import context or tabs", () => {
-    render(<AccessPeopleWorkspace />);
+  it(
+    "renders the normal access workspace without import context or tabs",
+    () => {
+      render(<AccessPeopleWorkspace />);
 
-    expect(
-      screen.queryByText(
-        /ready to activate access for recently imported employees/i
-      )
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("tab", { name: /access profiles/i })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("link", { name: /^people$/i })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /access profiles/i })
-    ).toHaveAttribute("href", "/settings?tab=access-permissions");
-    expect(
-      screen.getByPlaceholderText("Search by name or email")
-    ).toHaveValue("");
-    expect(
-      screen.getByRole("button", { name: "All employee statuses" })
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Advanced" })
-    ).not.toBeInTheDocument();
-    expect(screen.getByText("Alex Morgan")).toBeInTheDocument();
-    expect(screen.queryByText("E-001")).not.toBeInTheDocument();
-  });
+      expect(
+        screen.queryByText(
+          /ready to activate access for recently imported employees/i
+        )
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("tab", { name: /access profiles/i })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("link", { name: /^people$/i })
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: /access profiles/i })
+      ).toHaveAttribute("href", "/settings?tab=access-permissions");
+      expect(
+        screen.getByPlaceholderText("Search by name or email")
+      ).toHaveValue("");
+      expect(
+        screen.getByRole("button", { name: "All employee statuses" })
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Advanced" })
+      ).not.toBeInTheDocument();
+      expect(screen.getByText("Alex Morgan")).toBeInTheDocument();
+      expect(screen.queryByText("E-001")).not.toBeInTheDocument();
+    },
+    ACCESS_WORKSPACE_RENDER_TIMEOUT_MS
+  );
 
   it("plumbs query params into the roster search and auto-focuses an employeeKey deep link", async () => {
     setSearchParams({

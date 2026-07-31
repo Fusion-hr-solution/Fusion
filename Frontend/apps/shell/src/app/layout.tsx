@@ -7,6 +7,10 @@ import { Providers } from "./providers";
 export const metadata: Metadata = {
   title: "Frontend - Shell",
   description: "Main container application for the Frontend microfrontend architecture",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

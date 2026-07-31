@@ -83,8 +83,10 @@ export const employeeRosterQueryKeys = {
     ] as const,
   reportingLines: (employeeId: string) =>
     [...employeeRosterQueryKeys.all(), "reporting-lines", employeeId] as const,
-  profile: (employeeId: string) =>
-    [...employeeRosterQueryKeys.all(), "profile", employeeId] as const,
+  details: (employeeKey: string) =>
+    [...employeeRosterQueryKeys.all(), "details", "by-key", employeeKey] as const,
+  detailsById: (employeeId: string) =>
+    [...employeeRosterQueryKeys.all(), "details", "by-id", employeeId] as const,
   readinessSummary: () =>
     [...employeeRosterQueryKeys.all(), "readiness-summary"] as const,
   workforceAccounts: () =>
@@ -133,6 +135,9 @@ export const employeeImportQueryKeys = {
       ...employeeImportQueryKeys.session(sessionId),
       normalizeEmployeeImportPreviewQuery(query),
     ] as const,
+  applyOperations: () => [...employeeImportQueryKeys.all(), "apply"] as const,
+  applyOperation: (sessionId: string) =>
+    [...employeeImportQueryKeys.applyOperations(), sessionId] as const,
   history: () => [...employeeImportQueryKeys.all(), "history"] as const,
   historyPage: (query?: EmployeeImportHistoryQuery) =>
     [

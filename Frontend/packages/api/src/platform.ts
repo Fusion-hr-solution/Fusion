@@ -169,16 +169,16 @@ function isCoreBrowserPath(): boolean {
 }
 
 function getBrowserTenantId(): string | null {
-  if (!isCoreBrowserPath()) {
-    return null;
-  }
-
   const stored = loadBrowserAuth();
-  if (!stored?.user.roles.includes(PLATFORM_ADMIN_ROLE)) {
+  if (!stored?.user.tenantId) {
     return null;
   }
 
-  return loadBrowserTenantId();
+  if (isCoreBrowserPath() && stored.user.roles.includes(PLATFORM_ADMIN_ROLE)) {
+    return loadBrowserTenantId();
+  }
+
+  return stored.user.tenantId;
 }
 
 function isAccessTokenUsable(accessTokenExpiration: string): boolean {

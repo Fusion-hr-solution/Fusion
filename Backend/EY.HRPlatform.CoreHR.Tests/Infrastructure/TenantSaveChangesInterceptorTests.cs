@@ -88,7 +88,7 @@ public class TenantSaveChangesInterceptorTests
         var tenantContext = TestTenantContext.WithTenant(TenantA);
         await using var context = TestDbContextFactory.CreateWithInterceptor(tenantContext, dbName);
         var loaded = await context.Employees.IgnoreQueryFilters().FirstAsync();
-        loaded.UpdateDetails("Jane", "Doe", "jane.doe@example.com", "HR", "Manager");
+        loaded.UpdateProfile("Jane", "Doe", "jane.doe@example.com", null, loaded.Phone);
         await context.SaveChangesAsync();
 
         // Assert
@@ -113,7 +113,7 @@ public class TenantSaveChangesInterceptorTests
         var tenantContext = TestTenantContext.WithTenant(TenantB);
         await using var context = TestDbContextFactory.CreateWithInterceptor(tenantContext, dbName);
         var loaded = await context.Employees.IgnoreQueryFilters().FirstAsync();
-        loaded.UpdateDetails("Jane", "Doe", "jane.doe@example.com", null, null);
+        loaded.UpdateProfile("Jane", "Doe", "jane.doe@example.com", null, loaded.Phone);
 
         // Assert
         var exception = await Assert.ThrowsAsync<TenantAccessDeniedException>(

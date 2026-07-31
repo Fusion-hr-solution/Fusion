@@ -17,8 +17,9 @@ const {
   mockUseReactivateWorkforceAccount,
   mockUseResendWorkforceAccountInvite,
   mockUseSetPendingInviteAccessProfiles,
-  mockUseDeactivateEmployee,
-  mockUseReactivateEmployee,
+  mockUseTerminateEmployee,
+  mockUseRehireEmployee,
+  mockUseEmployeeOrgUnitOptions,
 } = vi.hoisted(() => ({
   mockPush: vi.fn(),
   mockInvalidateQueries: vi.fn(),
@@ -33,13 +34,18 @@ const {
   mockUseReactivateWorkforceAccount: vi.fn(),
   mockUseResendWorkforceAccountInvite: vi.fn(),
   mockUseSetPendingInviteAccessProfiles: vi.fn(),
-  mockUseDeactivateEmployee: vi.fn(() => ({
+  mockUseTerminateEmployee: vi.fn(() => ({
     mutateAsync: vi.fn(),
     isLoading: false,
   })),
-  mockUseReactivateEmployee: vi.fn(() => ({
+  mockUseRehireEmployee: vi.fn(() => ({
     mutateAsync: vi.fn(),
     isLoading: false,
+  })),
+  mockUseEmployeeOrgUnitOptions: vi.fn(() => ({
+    data: { items: [] },
+    isLoading: false,
+    error: null,
   })),
 }));
 
@@ -106,8 +112,9 @@ vi.mock(
 
 vi.mock("@/app/(pages)/employees/use-employees", () => ({
   useUpdateMyProfile: mockUseUpdateMyProfile,
-  useDeactivateEmployee: mockUseDeactivateEmployee,
-  useReactivateEmployee: mockUseReactivateEmployee,
+  useTerminateEmployee: mockUseTerminateEmployee,
+  useRehireEmployee: mockUseRehireEmployee,
+  useEmployeeOrgUnitOptions: mockUseEmployeeOrgUnitOptions,
 }));
 
 vi.mock("@/app/(pages)/employees/use-workforce-accounts", () => ({
@@ -134,7 +141,7 @@ vi.mock("./employee-access-management-sheet", () => ({
 }));
 
 import type {
-  EmployeeProfileDto,
+  EmployeeDetailsDto,
   EmployeeReadinessSummaryDto,
   EmployeeReportingLinesDto,
   WorkforceAccountStatusDto,
@@ -161,8 +168,9 @@ const completeReadiness: EmployeeReadinessSummaryDto = {
   hasBlockingIssues: false,
 };
 
-const baseProfile: EmployeeProfileDto = {
+const baseDetails: EmployeeDetailsDto = {
   id: "emp-1",
+  tenantId: "tenant-1",
   stableEmployeeKey: "E-EMP1",
   employeeNumber: "E-001",
   firstName: "Jordan",
@@ -172,21 +180,41 @@ const baseProfile: EmployeeProfileDto = {
   fullName: "Jordan Lee",
   email: "jordan.lee@example.com",
   phone: "+44 20 0000 0000",
-  jobTitle: "People Operations Manager",
-  workLocation: "London",
-  employmentType: "Full-time",
-  hireDate: "2022-04-05T00:00:00.000Z",
-  status: "Active",
-  orgUnitId: "ou-1",
-  orgUnitName: "People Operations",
-  orgUnitType: "Department",
-  managerId: "mgr-1",
-  managerFirstName: "Morgan",
-  managerLastName: "Hart",
-  managerEmail: "morgan.hart@example.com",
-  managerFullName: "Morgan Hart",
-  hierarchyStatus: "Healthy",
-  directReportCount: 2,
+  currentEmployment: {
+    employmentId: "employment-1",
+    effectiveFrom: "2022-04-05T00:00:00.000Z",
+    effectiveTo: null,
+    status: "Active",
+    employmentType: "Full-time",
+  },
+  currentWorkAssignment: {
+    workAssignmentId: "assignment-1",
+    employmentId: "employment-1",
+    orgUnitId: "ou-1",
+    orgUnitName: "People Operations",
+    orgUnitType: "Department",
+    jobTitle: "People Operations Manager",
+    workLocation: "London",
+    isPrimary: true,
+    effectiveFrom: "2022-04-05T00:00:00.000Z",
+    effectiveTo: null,
+  },
+  currentManager: {
+    relationshipId: "relationship-1",
+    managerEmployeeId: "mgr-1",
+    managerWorkAssignmentId: "assignment-9",
+    managerFirstName: "Morgan",
+    managerLastName: "Hart",
+    managerEmail: "morgan.hart@example.com",
+    managerFullName: "Morgan Hart",
+    effectiveFrom: "2022-04-05T00:00:00.000Z",
+    effectiveTo: null,
+  },
+  historySummary: {
+    employmentCount: 1,
+    workAssignmentCount: 1,
+    managerRelationshipCount: 1,
+  },
   readiness: completeReadiness,
   createdAt: "2024-05-10T12:00:00.000Z",
   updatedAt: "2024-06-10T09:30:00.000Z",
@@ -331,7 +359,7 @@ function renderWorkspace(
 ) {
   return render(
     <EmployeeProfileWorkspace
-      profile={baseProfile}
+      details={baseDetails}
       reportingLines={baseReportingLines}
       fieldPolicy={getEmployeeFieldPolicy(null, "hrAdmin")}
       user={
@@ -387,72 +415,70 @@ describe("EmployeeProfileWorkspace", () => {
   it(
     "renders the rewritten HR profile layout with linked reporting and working edit actions",
     async () => {
-    const user = userEvent.setup();
+      const user = userEvent.setup();
 
-    renderWorkspace({
-      profile: {
-        ...baseProfile,
-        hierarchyStatus: "NoManagerAssigned",
-        readiness: {
-          ...completeReadiness,
-          employeeStateIssueCount: 1,
-          hasEmployeeStateIssues: true,
-          employeeStateIssues: [
-            {
-              code: "NoManagerAssigned",
-              label: "No manager assigned",
-              severity: "Attention",
-              fieldKey: null,
-              fixTarget: {
-                kind: "ReportingRelationships",
-                employeeId: "emp-1",
-                importHistoryId: null,
+      renderWorkspace({
+        details: {
+          ...baseDetails,
+          currentManager: null,
+          readiness: {
+            ...completeReadiness,
+            employeeStateIssueCount: 1,
+            hasEmployeeStateIssues: true,
+            employeeStateIssues: [
+              {
+                code: "NoManagerAssigned",
+                label: "No manager assigned",
+                severity: "Attention",
                 fieldKey: null,
+                fixTarget: {
+                  kind: "ReportingRelationships",
+                  employeeId: "emp-1",
+                  importHistoryId: null,
+                  fieldKey: null,
+                },
               },
-            },
-          ],
+            ],
+          },
         },
-      },
-    });
+        reportingLines: {
+          ...baseReportingLines,
+          employee: {
+            ...baseReportingLines.employee,
+            managerId: null,
+            managerName: null,
+            hierarchyStatus: "NoManagerAssigned",
+          },
+          managerChain: [],
+        },
+      });
 
-    expect(screen.getByRole("tab", { name: "Profile" })).toBeTruthy();
-    expect(
-      screen.getByRole("tab", { name: "Organization & reporting" })
-    ).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Access" })).toBeTruthy();
-    expect(screen.getByText("Personal details")).toBeTruthy();
-    expect(screen.getByText("Work details")).toBeTruthy();
-    expect(screen.queryByText("Recent activity")).toBeNull();
+      expect(screen.getByRole("tab", { name: "Profile" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "Employment" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "Work assignment" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "Manager" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "Access" })).toBeTruthy();
+      expect(screen.getByText("Record health")).toBeTruthy();
+      expect(screen.getByText("Open fix")).toBeTruthy();
+      expect(screen.queryByText("Recent activity")).toBeNull();
 
-    await user.click(
-      screen.getByRole("tab", { name: "Organization & reporting" })
-    );
+      await user.click(screen.getByRole("tab", { name: "Manager" }));
 
-    const reportingPanel = screen.getByRole("tabpanel");
-    expect(
-      within(reportingPanel).getByText("Organization & reporting")
-    ).toBeTruthy();
-    expect(within(reportingPanel).getByText("Record completeness")).toBeTruthy();
-    expect(within(reportingPanel).getByText("Open fix")).toBeTruthy();
+      const managerPanel = screen.getByRole("tabpanel");
+      expect(within(managerPanel).getByText("Manager relationship")).toBeTruthy();
 
-    const managerLinks = screen.getAllByRole("link", { name: /Morgan Hart/i });
-    const managerHrefs = managerLinks.map((link) => link.getAttribute("href"));
-    expect(managerHrefs).toContain("/employees/E-MGR1");
+      const directReportLink = within(managerPanel).getByRole("link", {
+        name: /Taylor Singh/i,
+      });
+      expect(directReportLink.getAttribute("href")).toBe("/employees/E-EMP2");
 
-    const directReportLink = screen.getByRole("link", {
-      name: /Taylor Singh/i,
-    });
-    expect(directReportLink.getAttribute("href")).toBe("/employees/E-EMP2");
+      fireEvent.click(screen.getAllByRole("button", { name: "Edit record" })[0]!);
 
-    fireEvent.click(
-      screen.getAllByRole("button", { name: "Edit record" })[0]!
-    );
-
-    expect(screen.getByTestId("employee-edit-dialog")).toBeTruthy();
-    expect(screen.getByTestId("employee-edit-dialog").textContent).toBe(
-      "E-EMP1"
-    );
-    expect(screen.queryByText("No follow-up needed")).toBeNull();
+      expect(screen.getByTestId("employee-edit-dialog")).toBeTruthy();
+      expect(screen.getByTestId("employee-edit-dialog").textContent).toBe(
+        "E-EMP1"
+      );
+      expect(screen.queryByText("No follow-up needed")).toBeNull();
     },
     10000
   );
@@ -491,9 +517,9 @@ describe("EmployeeProfileWorkspace", () => {
     const user = userEvent.setup();
 
     renderWorkspace({
-      profile: {
-        ...baseProfile,
-        hierarchyStatus: "NoManagerAssigned",
+      details: {
+        ...baseDetails,
+        currentManager: null,
         readiness: {
           ...completeReadiness,
           employeeStateIssueCount: 1,
@@ -514,13 +540,19 @@ describe("EmployeeProfileWorkspace", () => {
           ],
         },
       },
+      reportingLines: {
+        ...baseReportingLines,
+        employee: {
+          ...baseReportingLines.employee,
+          managerId: null,
+          managerName: null,
+          hierarchyStatus: "NoManagerAssigned",
+        },
+        managerChain: [],
+      },
     });
 
     expect(screen.getAllByText("No manager").length).toBeGreaterThan(0);
-    await user.click(
-      screen.getByRole("tab", { name: "Organization & reporting" })
-    );
-
     await user.click(screen.getByRole("button", { name: "Open fix" }));
 
     expect(screen.getByTestId("employee-edit-dialog")).toBeTruthy();
@@ -530,10 +562,6 @@ describe("EmployeeProfileWorkspace", () => {
     const user = userEvent.setup();
 
     renderWorkspace({
-      profile: {
-        ...baseProfile,
-        directReportCount: 5,
-      },
       reportingLines: {
         ...baseReportingLines,
         employee: {
@@ -623,9 +651,7 @@ describe("EmployeeProfileWorkspace", () => {
       },
     });
 
-    await user.click(
-      screen.getByRole("tab", { name: "Organization & reporting" })
-    );
+    await user.click(screen.getByRole("tab", { name: "Manager" }));
 
     expect(screen.queryByText("Showing 4 of 5")).toBeNull();
     expect(screen.queryByText("Preview below")).toBeNull();
@@ -637,9 +663,8 @@ describe("EmployeeProfileWorkspace", () => {
 
   it("keeps deactivation blockers out of record completeness", () => {
     renderWorkspace({
-      profile: {
-        ...baseProfile,
-        directReportCount: 5,
+      details: {
+        ...baseDetails,
         readiness: {
           ...completeReadiness,
           blockingIssueCount: 1,
@@ -699,7 +724,7 @@ describe("EmployeeProfileWorkspace", () => {
     expect(screen.queryByRole("button", { name: "Manage access" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Change manager" })).toBeNull();
     expect(
-      screen.queryByRole("button", { name: "Change organization" })
+      screen.queryByRole("button", { name: "Edit work assignment" })
     ).toBeNull();
     expect(screen.queryByRole("link", { name: /Morgan Hart/i })).toBeNull();
 

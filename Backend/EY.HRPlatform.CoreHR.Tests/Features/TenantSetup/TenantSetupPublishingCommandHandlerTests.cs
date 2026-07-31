@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Commands.CompleteTenantSetup;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Commands.PublishTenantStructure;
@@ -107,7 +108,7 @@ public class TenantSetupPublishingCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WithRemovedLiveUnitAssignedToActiveEmployees_ThrowsInvalidTenantSetupStateException()
+    public async Task Handle_WithRemovedLiveUnitAssignedThroughCanonicalPrimaryWorkAssignment_ThrowsInvalidTenantSetupStateException()
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
@@ -135,15 +136,34 @@ public class TenantSetupPublishingCommandHandlerTests
             seedContext.OrgUnits.Add(legacyUnit);
             await seedContext.SaveChangesAsync();
 
-            var assignedEmployee = Employee.Create(
+            var employee = Employee.Create(
                 TenantId,
                 "Jordan",
-                "Employee",
-                "jordan.employee@example.com",
-                DateTime.UtcNow,
-                employeeNumber: "E-200");
-            assignedEmployee.AssignOrgUnit(legacyUnit.Id);
-            seedContext.Employees.Add(assignedEmployee);
+                "Canonical",
+                "jordan.canonical@example.com",
+                DateTime.UtcNow.AddYears(-1),
+                employeeNumber: "E-201");
+            var employment = Employment.Start(
+                TenantId,
+                employee.Id,
+                DateTime.UtcNow.AddYears(-1),
+                "FullTime",
+                WorkforceSourceType.Manual);
+            var assignment = WorkAssignment.Create(
+                TenantId,
+                employment.Id,
+                employee.Id,
+                legacyUnit.Id,
+                "Engineer",
+                "Tunis",
+                true,
+                employment.EffectiveFrom,
+                null,
+                WorkforceSourceType.Manual);
+
+            seedContext.Employees.Add(employee);
+            seedContext.Employments.Add(employment);
+            seedContext.WorkAssignments.Add(assignment);
             await seedContext.SaveChangesAsync();
 
             expectedVersion = state.Version;

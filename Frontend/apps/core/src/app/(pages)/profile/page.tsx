@@ -16,8 +16,8 @@ import {
   PageHeader,
   PageEmpty,
   PageError,
-  PageLoading,
 } from "@repo/ds/shell";
+import { MyProfilePageSkeleton } from "@/shell/route-skeletons";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { useTenantSettings } from "@/features/settings/api/use-tenant-settings";
 import { useEmployeeFieldPolicy } from "@/features/employees/shared/employee-field-visibility";
@@ -26,7 +26,7 @@ import {
   type EmployeeProfileWorkspaceProps,
 } from "@/features/employees/profile/employee-profile-workspace";
 import {
-  useEmployeeProfile,
+  useEmployeeDetailsById,
   useEmployeeReportingLines,
 } from "../employees/use-employees";
 
@@ -49,22 +49,17 @@ export default function MyProfilePage() {
   const { data: settings } = useTenantSettings(canViewProfile);
 
   const {
-    data: profile,
+    data: details,
     error,
     isLoading,
-  } = useEmployeeProfile(canViewProfile ? employeeId : null);
+  } = useEmployeeDetailsById(canViewProfile ? employeeId : null);
 
   const { data: reportingLines } = useEmployeeReportingLines(
-    canViewProfile ? employeeId : null
+    details?.stableEmployeeKey ?? null
   );
 
   if (authLoading) {
-    return (
-      <PageContainer className="space-y-6">
-        <PageHeader title="My Profile" description="Loading profile." />
-        <PageLoading rows={6} label="Loading your profile..." />
-      </PageContainer>
-    );
+    return <MyProfilePageSkeleton />;
   }
 
   if (!employeeId) {
@@ -80,13 +75,8 @@ export default function MyProfilePage() {
     );
   }
 
-  if (isLoading && !profile && !error) {
-    return (
-      <PageContainer className="space-y-6">
-        <PageHeader title="My Profile" description="Loading profile." />
-        <PageLoading rows={6} label="Loading your profile..." />
-      </PageContainer>
-    );
+  if (isLoading && !details && !error) {
+    return <MyProfilePageSkeleton />;
   }
 
   if (error) {
@@ -101,7 +91,7 @@ export default function MyProfilePage() {
     );
   }
 
-  if (!profile) {
+  if (!details) {
     return (
       <PageContainer className="space-y-6">
         <PageHeader title="My Profile" description="Profile unavailable." />
@@ -115,14 +105,14 @@ export default function MyProfilePage() {
   }
 
   const canEditOwnPreferredName =
-    user?.employeeId === profile.id &&
+    user?.employeeId === details.id &&
     settings?.selfService.canEditPreferredName !== false;
   const canEditOwnPhone =
-    user?.employeeId === profile.id &&
+    user?.employeeId === details.id &&
     settings?.selfService.canEditPhone !== false;
 
   const workspaceProps: EmployeeProfileWorkspaceProps = {
-    profile,
+    details,
     reportingLines,
     fieldPolicy,
     user,

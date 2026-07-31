@@ -20,7 +20,7 @@ function isSetupSummaryPath(currentPath: string) {
   return currentPath === SETUP_SUMMARY_PATH;
 }
 
-function isSetupAreaPath(currentPath: string) {
+export function isSetupAreaPath(currentPath: string) {
   return isSetupSummaryPath(currentPath) || isDraftStructurePath(currentPath);
 }
 

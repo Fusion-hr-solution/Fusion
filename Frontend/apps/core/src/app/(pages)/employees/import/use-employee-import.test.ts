@@ -245,7 +245,11 @@ describe("useUploadEmployeeImport", () => {
     const file = new File(["csv"], "employees.csv", { type: "text/csv" });
 
     await act(async () => {
-      await result.current.mutateAsync(file);
+      await result.current.mutateAsync({
+        file,
+        batchEffectiveDate: "2025-01-01T00:00:00.000Z",
+        importMode: "BusinessChange",
+      });
     });
 
     expect(mockPost).toHaveBeenCalledWith(
@@ -255,6 +259,8 @@ describe("useUploadEmployeeImport", () => {
 
     const [, body] = mockPost.mock.calls[0]!;
     expect(body.get("file")).toBe(file);
+    expect(body.get("batchEffectiveDate")).toBe("2025-01-01T00:00:00.000Z");
+    expect(body.get("importMode")).toBe("BusinessChange");
   });
 });
 

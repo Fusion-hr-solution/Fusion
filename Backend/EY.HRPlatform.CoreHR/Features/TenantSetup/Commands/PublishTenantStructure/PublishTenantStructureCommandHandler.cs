@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Dtos;
@@ -134,20 +135,14 @@ public sealed class PublishTenantStructureCommandHandler(
 
         if (retiredUnits.Count > 0)
         {
+            var asOf = DateTime.UtcNow;
             var retiredUnitIds = retiredUnits
                 .Select(unit => unit.Id)
                 .ToList();
 
             var activeAssignments = retiredUnitIds.Count == 0
                 ? []
-                : await dbContext.Employees
-                    .AsNoTracking()
-                    .Where(employee => employee.Status == Domain.Enums.EmployeeStatus.Active
-                        && employee.OrgUnitId.HasValue
-                        && retiredUnitIds.Contains(employee.OrgUnitId.Value))
-                    .GroupBy(employee => employee.OrgUnitId!.Value)
-                    .Select(group => new { OrgUnitId = group.Key, Count = group.Count() })
-                    .ToListAsync(cancellationToken);
+                : await LoadRetiredUnitAssignmentBlocksAsync(retiredUnitIds, asOf, cancellationToken);
 
             if (activeAssignments.Count > 0)
             {
@@ -240,4 +235,35 @@ public sealed class PublishTenantStructureCommandHandler(
             OrgUnit orgUnit => orgUnit.ParentId,
             _ => null,
         };
+
+    private async Task<List<OrgUnitAssignmentBlock>> LoadRetiredUnitAssignmentBlocksAsync(
+        IReadOnlyCollection<Guid> retiredUnitIds,
+        DateTime asOf,
+        CancellationToken cancellationToken)
+    {
+        var canonicalBlocks = await dbContext.WorkAssignments
+            .AsNoTracking()
+            .Where(assignment => assignment.IsPrimary
+                && retiredUnitIds.Contains(assignment.OrgUnitId)
+                && assignment.EffectiveFrom <= asOf
+                && (assignment.EffectiveTo == null || asOf < assignment.EffectiveTo))
+            .Join(
+                dbContext.Employments.AsNoTracking(),
+                assignment => assignment.EmploymentId,
+                employment => employment.Id,
+                (assignment, employment) => new { assignment.EmployeeId, assignment.OrgUnitId, Employment = employment })
+            .Where(x => x.Employment.Status == EmploymentStatus.Active
+                && x.Employment.EffectiveFrom <= asOf
+                && (x.Employment.EffectiveTo == null || asOf < x.Employment.EffectiveTo))
+            .Select(x => new { x.EmployeeId, x.OrgUnitId })
+            .ToListAsync(cancellationToken);
+
+        return canonicalBlocks
+            .Select(x => new OrgUnitAssignmentBlock(x.OrgUnitId))
+            .GroupBy(x => x.OrgUnitId)
+            .Select(group => new OrgUnitAssignmentBlock(group.Key, group.Count()))
+            .ToList();
+    }
 }
+
+internal sealed record OrgUnitAssignmentBlock(Guid OrgUnitId, int Count = 1);

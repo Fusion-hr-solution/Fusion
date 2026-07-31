@@ -14,12 +14,11 @@ import {
 } from "@repo/auth";
 import {
   PageContainer,
-  PageHeader,
   PageEmpty,
   PageError,
-  PageLoading,
   PagePermissionNotice,
 } from "@repo/ds/shell";
+import { EmployeeProfilePageSkeleton } from "@/shell/route-skeletons";
 import { useTenantContext } from "@/shell/tenant-context/core-tenant-context-provider";
 import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
 import { canAccessEmployeeProfile } from "@/lib/employee-roster-access";
@@ -30,7 +29,7 @@ import {
   type EmployeeProfileWorkspaceProps,
 } from "@/features/employees/profile/employee-profile-workspace";
 import {
-  useEmployeeProfile,
+  useEmployeeDetails,
   useEmployeeReportingLines,
 } from "../use-employees";
 
@@ -59,14 +58,14 @@ export default function EmployeeProfilePage() {
       : null;
 
   const {
-    data: profile,
+    data: details,
     error,
     isLoading,
-  } = useEmployeeProfile(effectiveEmployeeKey);
+  } = useEmployeeDetails(effectiveEmployeeKey);
 
   const { data: reportingLines } =
     useEmployeeReportingLines(effectiveEmployeeKey);
-  const isLoadedOwnProfile = !!profile && user?.employeeId === profile.id;
+  const isLoadedOwnProfile = !!details && user?.employeeId === details.id;
   const fieldAudience =
     canManageEmployee || isTenantContextReadOnly
       ? "hrAdmin"
@@ -82,24 +81,16 @@ export default function EmployeeProfilePage() {
   );
 
   // Register employee name in the top breadcrumb (Core > Employees > Jane Smith)
-  useBreadcrumbLabel(employeeKey ?? "", profile?.fullName);
+  useBreadcrumbLabel(employeeKey ?? "", details?.fullName);
 
   const isInitialLoading =
     (canViewProfile || isTenantContextReadOnly) &&
     isLoading &&
-    !profile &&
+    !details &&
     !error;
 
   if (isInitialLoading) {
-    return (
-      <PageContainer width="wide" className="space-y-6">
-        <PageHeader
-          title="Employee Profile"
-          description="Loading employee profile."
-        />
-        <PageLoading rows={6} label="Loading employee profile..." />
-      </PageContainer>
-    );
+    return <EmployeeProfilePageSkeleton />;
   }
 
   const isViewable = canViewProfile || isTenantContextReadOnly;
@@ -147,7 +138,7 @@ export default function EmployeeProfilePage() {
     );
   }
 
-  if (!profile) {
+  if (!details) {
     return (
       <PageContainer width="wide" className="space-y-6">
         <PageEmpty
@@ -160,14 +151,14 @@ export default function EmployeeProfilePage() {
   }
 
   const canEditOwnPreferredName =
-    user?.employeeId === profile.id &&
+    user?.employeeId === details.id &&
     settings?.selfService.canEditPreferredName !== false;
   const canEditOwnPhone =
-    user?.employeeId === profile.id &&
+    user?.employeeId === details.id &&
     settings?.selfService.canEditPhone !== false;
 
   const workspaceProps: EmployeeProfileWorkspaceProps = {
-    profile,
+    details,
     reportingLines,
     fieldPolicy,
     user,

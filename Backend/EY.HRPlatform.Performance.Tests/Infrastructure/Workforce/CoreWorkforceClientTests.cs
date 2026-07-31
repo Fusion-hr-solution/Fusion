@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using EY.HRPlatform.Performance.Infrastructure.Workforce;
 using EY.HRPlatform.SharedKernel.Api;
+using EY.HRPlatform.SharedKernel.Security;
 using Microsoft.AspNetCore.Http;
 
 namespace EY.HRPlatform.Performance.Tests.Infrastructure.Workforce;
@@ -59,13 +60,19 @@ public sealed class CoreWorkforceClientTests
         };
 
         var httpClient = new HttpClient(forwarder) { BaseAddress = new Uri("http://core.local/") };
-        var client = new CoreWorkforceClient(httpClient);
+        var client = new CoreWorkforceClient(httpClient, new NoOpInternalServiceRequestSigner());
         return (client, recorder);
     }
 
     private sealed class FakeHttpContextAccessor(HttpContext context) : IHttpContextAccessor
     {
         public HttpContext? HttpContext { get; set; } = context;
+    }
+
+    private sealed class NoOpInternalServiceRequestSigner : IInternalServiceRequestSigner
+    {
+        public Task SignAsync(HttpRequestMessage request, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private static HttpResponseMessage OkJson<T>(T value)
@@ -156,5 +163,25 @@ public sealed class CoreWorkforceClientTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => clientForError.ResolveEmployeesAsync([id1], CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task ResolveEmployeesAsOf_UsesInternalSnapshotEndpoint_AndParsesRawJson()
+    {
+        var employeeId = Guid.NewGuid();
+        var asOf = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc);
+        var summaries = new List<CoreEmployeeSummary>
+        {
+            new(employeeId, "E-abc123", "Alice Smith", "Alice", "alice@test.local", "Engineer", true, null, null),
+        };
+        var response = OkJson(summaries);
+
+        var (client, recorder) = BuildPipeline("Bearer test-token", response);
+
+        var result = await client.ResolveEmployeesAsOfAsync(asOf, [employeeId], CancellationToken.None);
+
+        Assert.Single(result);
+        Assert.NotNull(recorder.LastRequest);
+        Assert.Equal("/internal/corehr/workforce/snapshots/resolve", recorder.LastRequest!.RequestUri!.AbsolutePath);
     }
 }

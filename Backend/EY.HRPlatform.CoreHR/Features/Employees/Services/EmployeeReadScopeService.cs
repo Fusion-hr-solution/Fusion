@@ -27,8 +27,7 @@ public sealed class EmployeeReadScopeService : IEmployeeReadScopeService
             EmployeeReadAudience.HrAdmin => query,
             EmployeeReadAudience.Employee when requesterEmployeeId.HasValue =>
                 query.Where(employee => employee.Id == requesterEmployeeId.Value),
-            EmployeeReadAudience.Manager when requesterEmployeeId.HasValue =>
-                query.Where(employee => employee.ManagerId == requesterEmployeeId.Value),
+            EmployeeReadAudience.Manager => query.Where(_ => false),
             _ => query.Where(_ => false),
         };
     }
@@ -42,7 +41,7 @@ public sealed class EmployeeReadScopeService : IEmployeeReadScopeService
         {
             EmployeeReadAudience.HrAdmin => true,
             EmployeeReadAudience.Employee => requesterEmployeeId.HasValue && employee.Id == requesterEmployeeId.Value,
-            EmployeeReadAudience.Manager => requesterEmployeeId.HasValue && employee.ManagerId == requesterEmployeeId.Value,
+            EmployeeReadAudience.Manager => false,
             _ => false,
         };
     }

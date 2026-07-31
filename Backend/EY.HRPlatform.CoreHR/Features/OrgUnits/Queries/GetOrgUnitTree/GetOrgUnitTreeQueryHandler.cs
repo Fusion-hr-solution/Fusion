@@ -34,10 +34,18 @@ public sealed class GetOrgUnitTreeQueryHandler(
 
         // Direct active-member count per unit + a full-subtree rollup computed over the entire
         // hierarchy (independent of the render maxDepth so truncated branches still count).
-        var directMemberCounts = await dbContext.Employees
+        var now = DateTime.UtcNow;
+        var directMemberCounts = await dbContext.WorkAssignments
             .AsNoTracking()
-            .Where(e => e.Status == EmployeeStatus.Active && e.OrgUnitId.HasValue)
-            .GroupBy(e => e.OrgUnitId!.Value)
+            .Join(
+                dbContext.Employments.AsNoTracking(),
+                assignment => assignment.EmploymentId,
+                employment => employment.Id,
+                (assignment, employment) => new { assignment.OrgUnitId, Employment = employment })
+            .Where(x => x.Employment.Status == EmploymentStatus.Active
+                && x.Employment.EffectiveFrom <= now
+                && (x.Employment.EffectiveTo == null || now < x.Employment.EffectiveTo))
+            .GroupBy(x => x.OrgUnitId)
             .Select(g => new { OrgUnitId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(g => g.OrgUnitId, g => g.Count, cancellationToken);
 

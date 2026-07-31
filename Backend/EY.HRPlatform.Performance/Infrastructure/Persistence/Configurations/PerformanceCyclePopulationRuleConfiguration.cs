@@ -20,6 +20,7 @@ public class PerformanceCyclePopulationRuleConfiguration : IEntityTypeConfigurat
             .IsRequired();
 
         builder.Property(r => r.RefId).IsRequired();
+        builder.Property(r => r.Reason).HasMaxLength(500);
         builder.Property(r => r.CreatedBy).HasMaxLength(256);
         builder.Property(r => r.UpdatedBy).HasMaxLength(256);
 

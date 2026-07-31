@@ -16,11 +16,44 @@ public class AccessProfileServiceCompatibilityRoleTests
     }
 
     [Fact]
+    public void HrAdminTemplate_IncludesObjectivePlanningConfigurationManagement()
+    {
+        Assert.Contains(AccessProfileTemplates.HrAdmin.Grants, grant =>
+            grant.PermissionKey == PerformancePermissions.ObjectivePolicyManage
+            && grant.Scope == PermissionScopes.Tenant);
+    }
+
+    [Fact]
+    public void OrgAdminTemplate_IncludesObjectivePlanningConfigurationManagement()
+    {
+        Assert.Contains(AccessProfileTemplates.OrgAdmin.Grants, grant =>
+            grant.PermissionKey == PerformancePermissions.ObjectivePolicyManage
+            && grant.Scope == PermissionScopes.Tenant);
+    }
+
+    [Fact]
     public void ResolveCompatibilityRole_ManagerPermissions_ReturnsManager()
     {
         var role = _service.ResolveCompatibilityRole(AccessProfileTemplates.Manager.Grants);
 
         Assert.Equal(PlatformRole.Manager, role);
+    }
+
+    [Fact]
+    public void DemoProfiles_IncludeRoleAppropriateEvaluationPermissions()
+    {
+        Assert.Contains(AccessProfileTemplates.Employee.Grants, grant =>
+            grant.PermissionKey == PerformancePermissions.EvaluationSelfView
+            && grant.Scope == PermissionScopes.Self);
+        Assert.Contains(AccessProfileTemplates.Manager.Grants, grant =>
+            grant.PermissionKey == PerformancePermissions.EvaluationTeamView
+            && grant.Scope == PermissionScopes.DirectReports);
+        Assert.Contains(AccessProfileTemplates.HrAdmin.Grants, grant =>
+            grant.PermissionKey == PerformancePermissions.EvaluationManage
+            && grant.Scope == PermissionScopes.Tenant);
+        Assert.Contains(AccessProfileTemplates.HrAdmin.Grants, grant =>
+            grant.PermissionKey == PerformancePermissions.EvaluationOperate
+            && grant.Scope == PermissionScopes.Tenant);
     }
 
     [Fact]

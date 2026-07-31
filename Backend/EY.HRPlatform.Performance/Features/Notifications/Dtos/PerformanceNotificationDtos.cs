@@ -8,6 +8,9 @@ public sealed record PerformanceNotificationDto(
     string Title,
     string Message,
     Guid? CycleId,
+    string? SubjectType,
+    Guid? SubjectId,
+    string? NavigationRoute,
     DateTime CreatedAt,
     DateTime? ReadAt,
     bool IsRead);
@@ -21,6 +24,9 @@ public static class PerformanceNotificationMapper
             notification.Title,
             notification.Message,
             notification.CycleId,
+            notification.SubjectType,
+            notification.SubjectId,
+            notification.NavigationRoute,
             notification.CreatedAt,
             notification.ReadAt,
             notification.IsRead);

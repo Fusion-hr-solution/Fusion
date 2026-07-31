@@ -24,6 +24,38 @@ public sealed record CoreManagerSummary(
     string DisplayName,
     bool IsActive = true);
 
+public sealed record CoreCampaignWorkforceContext(
+    DateTime AsOf,
+    string SourceVersion,
+    IReadOnlyList<CoreCampaignWorkforceMember> Members);
+
+public sealed record CoreCampaignWorkforceMember(
+    Guid EmployeeId,
+    bool IsActive,
+    IReadOnlyList<Guid> OrgUnitIds,
+    Guid? PrimaryManagerEmployeeId,
+    IReadOnlyList<Guid> PrimaryManagementChain,
+    bool HasPrimaryChainCycle,
+    uint EmployeeVersion,
+    IReadOnlyList<Guid>? AncestorOrgUnitIds = null,
+    IReadOnlyList<CoreCampaignRelationshipCandidate>? RelationshipCandidates = null,
+    bool IsPacketAReady = false,
+    IReadOnlyList<string>? RemediationCodes = null)
+{
+    public IReadOnlyList<Guid> AncestorOrgUnitIds { get; init; } = AncestorOrgUnitIds ?? [];
+    public IReadOnlyList<CoreCampaignRelationshipCandidate> RelationshipCandidates { get; init; } = RelationshipCandidates ?? [];
+    public IReadOnlyList<string> RemediationCodes { get; init; } = RemediationCodes ?? [];
+}
+
+public sealed record CoreCampaignRelationshipCandidate(
+    Guid RelationshipId,
+    Guid SubjectEmployeeId,
+    Guid ManagerEmployeeId,
+    string Type,
+    Guid SubjectWorkAssignmentId,
+    Guid ManagerWorkAssignmentId,
+    string Source);
+
 /// <summary>
 /// Projection of the Core workforce org-unit detail (D-16 seam #2).
 /// Includes <see cref="ResponsibleManagerEmployeeId"/> so Performance can route
@@ -39,3 +71,17 @@ public sealed record CoreOrgUnitDetail(
     Guid? ParentId,
     Guid? ResponsibleManagerEmployeeId,
     bool IsActive);
+
+public sealed record CoreApplicabilityOrgUnit(Guid Id, string Name, string Code, Guid? ParentId);
+
+public sealed record CoreApplicabilityOptions(
+    IReadOnlyList<CoreApplicabilityOrgUnit> OrgUnits,
+    IReadOnlyList<string> JobTitles,
+    IReadOnlyList<string> WorkLocations,
+    IReadOnlyList<string> EmploymentTypes)
+{
+    public IReadOnlyList<CoreApplicabilityOrgUnit> OrgUnits { get; init; } = OrgUnits ?? [];
+    public IReadOnlyList<string> JobTitles { get; init; } = JobTitles ?? [];
+    public IReadOnlyList<string> WorkLocations { get; init; } = WorkLocations ?? [];
+    public IReadOnlyList<string> EmploymentTypes { get; init; } = EmploymentTypes ?? [];
+}

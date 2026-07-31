@@ -1,25 +1,22 @@
 import type { Metadata } from "next";
-import { AppShell, TopBar } from "@repo/ds/shell";
 import { Providers } from "./providers";
-import { PerformanceSidebar } from "@/components/performance-sidebar";
-import { PerformanceBreadcrumb } from "@/components/performance-breadcrumb";
 import "./globals.css";
 
+// Note: @repo/ui's ey-brand.css is intentionally NOT imported here — its HSL token set
+// (older preset b6GMQMg0f) would clobber the @repo/ds oklch preset tokens. Core/Perf theme
+// comes solely from @repo/ds/tokens.css.
+
 export const metadata: Metadata = {
-  title: "Performance - Frontend",
+  title: "Performance — Fusion",
   description: "Performance management and reviews microfrontend",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Design-system fonts (IBM Plex Sans + Space Grotesk) loaded at runtime so the
-            build has no font-CDN dependency. Font families/fallbacks live in @repo/ds tokens. */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font -- App Router head link, loaded once in the root layout */}
@@ -28,15 +25,8 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen antialiased font-sans">
-        <Providers>
-          <AppShell
-            sidebar={<PerformanceSidebar />}
-            header={<TopBar left={<PerformanceBreadcrumb />} />}
-          >
-            {children}
-          </AppShell>
-        </Providers>
+      <body className="min-h-screen antialiased bg-background text-foreground font-sans" suppressHydrationWarning>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

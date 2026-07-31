@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useDeferredValue, useEffect, useRef, useState, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
@@ -10,8 +10,11 @@ import {
   Mail,
   MoreHorizontal,
   Pencil,
+  Search,
   User,
+  X,
 } from "lucide-react";
+import type { ApiError } from "@repo/api";
 import {
   canAccessCorePeople,
   canAccessCoreTeam,
@@ -47,6 +50,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buildTenantContextHref } from "@/lib/tenant-navigation";
 import type { EmployeeFieldPolicyState } from "@/features/employees/shared/employee-field-visibility";
@@ -65,14 +70,15 @@ import { EmployeeEditDialog } from "@/app/(pages)/employees/[id]/employee-profil
 import { EmployeeAccessManagementSheet } from "./employee-access-management-sheet";
 import {
   useUpdateMyProfile,
-  useDeactivateEmployee,
-  useReactivateEmployee,
+  useTerminateEmployee,
+  useRehireEmployee,
+  useEmployeeOrgUnitOptions,
 } from "@/app/(pages)/employees/use-employees";
 import { useWorkforceAccountStatus } from "@/app/(pages)/employees/use-workforce-accounts";
 import type {
+  EmployeeDetailsDto,
   EmployeeHierarchyNodeDto,
   EmployeeHierarchyStatus,
-  EmployeeProfileDto,
   EmployeeReadinessIssueDto,
   EmployeeReportingLinesDto,
   WorkforceAccountStatusDto,
@@ -81,7 +87,7 @@ import type {
 // ── Props ─────────────────────────────────────────────────────────────────
 
 export interface EmployeeProfileWorkspaceProps {
-  profile: EmployeeProfileDto;
+  details: EmployeeDetailsDto;
   reportingLines?: EmployeeReportingLinesDto;
   fieldPolicy: EmployeeFieldPolicyState;
   user: AuthUser | null;
@@ -434,10 +440,12 @@ function getInitials(firstName: string, lastName: string): string {
 }
 
 function getProfileDisplayName(
-  profile: Pick<
-    EmployeeProfileDto,
-    "displayName" | "preferredName" | "lastName" | "fullName"
-  >
+  profile: {
+    displayName: string;
+    preferredName: string | null;
+    lastName: string;
+    fullName: string;
+  }
 ): string {
   if (hasTextValue(profile.displayName)) {
     return profile.displayName;
@@ -448,6 +456,51 @@ function getProfileDisplayName(
   }
 
   return profile.fullName;
+}
+
+function toProfileViewModel(
+  details: EmployeeDetailsDto,
+  reportingLines?: EmployeeReportingLinesDto
+) {
+  const currentEmployment = details.currentEmployment;
+  const currentWorkAssignment = details.currentWorkAssignment;
+  const currentManager = details.currentManager;
+  const status: "Active" | "Inactive" =
+    currentEmployment?.status === "Active" ? "Active" : "Inactive";
+
+  return {
+    id: details.id,
+    stableEmployeeKey: details.stableEmployeeKey,
+    employeeNumber: details.employeeNumber ?? null,
+    firstName: details.firstName,
+    lastName: details.lastName,
+    preferredName: details.preferredName,
+    displayName: details.displayName,
+    fullName: details.fullName,
+    email: details.email,
+    phone: details.phone,
+    jobTitle: currentWorkAssignment?.jobTitle ?? null,
+    workLocation: currentWorkAssignment?.workLocation ?? null,
+    employmentType: currentEmployment?.employmentType ?? null,
+    hireDate: currentEmployment?.effectiveFrom ?? details.createdAt,
+    status,
+    orgUnitId: currentWorkAssignment?.orgUnitId ?? null,
+    orgUnitName: currentWorkAssignment?.orgUnitName ?? null,
+    orgUnitType: currentWorkAssignment?.orgUnitType ?? null,
+    managerId: currentManager?.managerEmployeeId ?? null,
+    managerFirstName: currentManager?.managerFirstName ?? null,
+    managerLastName: currentManager?.managerLastName ?? null,
+    managerEmail: currentManager?.managerEmail ?? null,
+    managerFullName: currentManager?.managerFullName ?? null,
+    hierarchyStatus:
+      reportingLines?.employee.hierarchyStatus ??
+      (currentManager ? "Healthy" : "NoManagerAssigned"),
+    directReportCount: reportingLines?.directReportCount ?? 0,
+    readiness: details.readiness,
+    createdAt: details.createdAt,
+    updatedAt: details.updatedAt,
+    version: details.version,
+  };
 }
 
 function getRecordBadgeVariant(
@@ -898,10 +951,389 @@ function WorkforceAccountCard({
   );
 }
 
+// ── TerminateEmployeeDialog ─────────────────────────────────────────────────
+
+function TerminateEmployeeDialog({
+  open,
+  onOpenChange,
+  employeeId,
+  firstName,
+  expectedVersion,
+  onGoToManagerTab,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  employeeId: string;
+  firstName: string;
+  expectedVersion: number;
+  onGoToManagerTab?: () => void;
+}) {
+  const terminate = useTerminateEmployee();
+  const [effectiveDate, setEffectiveDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [note, setNote] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isDirectReportBlock, setIsDirectReportBlock] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setEffectiveDate(new Date().toISOString().slice(0, 10));
+    setNote("");
+    setSubmitError(null);
+    setIsDirectReportBlock(false);
+  }, [open, employeeId, expectedVersion]);
+
+  async function handleSubmit() {
+    if (!effectiveDate) return;
+    setSubmitError(null);
+    setIsDirectReportBlock(false);
+    try {
+      await terminate.mutateAsync({
+        employeeId,
+        expectedVersion,
+        effectiveDate: `${effectiveDate}T00:00:00.000Z`,
+        note: note.trim() || null,
+      });
+      toast.success("Employment terminated.");
+      onOpenChange(false);
+    } catch (error) {
+      const apiErr = error as ApiError | undefined;
+      const msg = apiErr?.errors?.[0] ?? apiErr?.message ?? "";
+      const lower = msg.toLowerCase();
+      if (lower.includes("directreport") || lower.includes("direct report") || lower.includes("terminationblocked")) {
+        setIsDirectReportBlock(true);
+        setSubmitError(
+          "This employee has active direct reports. Reassign them before terminating."
+        );
+      } else {
+        setSubmitError(msg || "Could not terminate. Try again.");
+      }
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!terminate.isLoading) onOpenChange(next);
+      }}
+    >
+      <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>Terminate {firstName}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Effective date</Label>
+            <Input
+              type="date"
+              value={effectiveDate}
+              onChange={(e) => setEffectiveDate(e.target.value)}
+              disabled={terminate.isLoading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>
+              Note{" "}
+              <span className="text-xs text-muted-foreground">(optional)</span>
+            </Label>
+            <textarea
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              rows={3}
+              maxLength={250}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              disabled={terminate.isLoading}
+              placeholder="Reason or note..."
+            />
+          </div>
+          {submitError ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="size-4" />
+              <AlertTitle>Cannot terminate</AlertTitle>
+              <AlertDescription className="space-y-2">
+                <p>{submitError}</p>
+                {isDirectReportBlock && onGoToManagerTab ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      onOpenChange(false);
+                      onGoToManagerTab();
+                    }}
+                  >
+                    Go to Manager tab
+                  </Button>
+                ) : null}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={terminate.isLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => void handleSubmit()}
+            disabled={!effectiveDate || terminate.isLoading}
+          >
+            {terminate.isLoading ? (
+              <>
+                <Spinner className="mr-1.5 size-4" />
+                Terminating...
+              </>
+            ) : (
+              "Terminate"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── RehireEmployeeDialog ────────────────────────────────────────────────────
+
+function RehireEmployeeDialog({
+  open,
+  onOpenChange,
+  employeeId,
+  firstName,
+  expectedVersion,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  employeeId: string;
+  firstName: string;
+  expectedVersion: number;
+}) {
+  const rehire = useRehireEmployee();
+  const [effectiveDate, setEffectiveDate] = useState(() =>
+    new Date().toISOString().slice(0, 10)
+  );
+  const [jobTitle, setJobTitle] = useState("");
+  const [orgSearch, setOrgSearch] = useState("");
+  const [selectedOrgUnit, setSelectedOrgUnit] = useState<{
+    id: string;
+    name: string;
+    code: string;
+  } | null>(null);
+  const [employmentType, setEmploymentType] = useState("");
+  const [workLocation, setWorkLocation] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const deferredOrgSearch = useDeferredValue(orgSearch);
+
+  const orgUnitOptions = useEmployeeOrgUnitOptions({
+    search: deferredOrgSearch,
+    enabled: open && orgSearch.length >= 1,
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    setEffectiveDate(new Date().toISOString().slice(0, 10));
+    setJobTitle("");
+    setOrgSearch("");
+    setSelectedOrgUnit(null);
+    setEmploymentType("");
+    setWorkLocation("");
+    setSubmitError(null);
+  }, [open, employeeId, expectedVersion]);
+
+  const canSubmit = !!effectiveDate && !!jobTitle.trim() && !!selectedOrgUnit;
+
+  async function handleSubmit() {
+    if (!canSubmit || !selectedOrgUnit) return;
+    setSubmitError(null);
+    try {
+      await rehire.mutateAsync({
+        employeeId,
+        expectedVersion,
+        effectiveDate: `${effectiveDate}T00:00:00.000Z`,
+        orgUnitId: selectedOrgUnit.id,
+        jobTitle: jobTitle.trim(),
+        employmentType: employmentType.trim() || null,
+        workLocation: workLocation.trim() || null,
+      });
+      toast.success("Employee rehired.");
+      onOpenChange(false);
+    } catch (error) {
+      const apiErr = error as ApiError | undefined;
+      const msg = apiErr?.errors?.[0] ?? apiErr?.message ?? "";
+      setSubmitError(msg || "Could not rehire. Try again.");
+    }
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!rehire.isLoading) onOpenChange(next);
+      }}
+    >
+      <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
+        <DialogHeader>
+          <DialogTitle>Rehire {firstName}</DialogTitle>
+        </DialogHeader>
+        <div className="max-h-[60vh] space-y-4 overflow-y-auto py-4">
+          <div className="space-y-2">
+            <Label>Effective date</Label>
+            <Input
+              type="date"
+              value={effectiveDate}
+              onChange={(e) => setEffectiveDate(e.target.value)}
+              disabled={rehire.isLoading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Job title</Label>
+            <Input
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              placeholder="Job title"
+              maxLength={100}
+              disabled={rehire.isLoading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Organization unit</Label>
+            {selectedOrgUnit ? (
+              <div className="flex items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <span className="flex-1">
+                  {selectedOrgUnit.name} · {selectedOrgUnit.code}
+                </span>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setSelectedOrgUnit(null);
+                    setOrgSearch("");
+                  }}
+                  disabled={rehire.isLoading}
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  <Input
+                    value={orgSearch}
+                    onChange={(e) => setOrgSearch(e.target.value)}
+                    placeholder="Search org unit..."
+                    className="pl-8"
+                    disabled={rehire.isLoading}
+                  />
+                </div>
+                {orgSearch.length >= 1 ? (
+                  <div className="max-h-40 divide-y overflow-y-auto rounded-md border border-input">
+                    {orgUnitOptions.isLoading ? (
+                      <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
+                        <Spinner className="size-4" />
+                        Searching...
+                      </div>
+                    ) : (orgUnitOptions.data?.items ?? []).length === 0 ? (
+                      <p className="px-3 py-2 text-sm text-muted-foreground">
+                        No units found.
+                      </p>
+                    ) : (
+                      (orgUnitOptions.data?.items ?? []).map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          className="w-full px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60"
+                          onClick={() => {
+                            setSelectedOrgUnit({
+                              id: opt.id,
+                              name: opt.name,
+                              code: opt.code,
+                            });
+                            setOrgSearch("");
+                          }}
+                        >
+                          <span className="font-medium">{opt.name}</span>
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            {opt.code}
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                ) : null}
+              </>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label>
+              Employment type{" "}
+              <span className="text-xs text-muted-foreground">(optional)</span>
+            </Label>
+            <Input
+              value={employmentType}
+              onChange={(e) => setEmploymentType(e.target.value)}
+              placeholder="e.g. Full-time"
+              maxLength={100}
+              disabled={rehire.isLoading}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>
+              Work location{" "}
+              <span className="text-xs text-muted-foreground">(optional)</span>
+            </Label>
+            <Input
+              value={workLocation}
+              onChange={(e) => setWorkLocation(e.target.value)}
+              placeholder="e.g. Remote, Tunis"
+              maxLength={100}
+              disabled={rehire.isLoading}
+            />
+          </div>
+          {submitError ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="size-4" />
+              <AlertTitle>Could not rehire</AlertTitle>
+              <AlertDescription>{submitError}</AlertDescription>
+            </Alert>
+          ) : null}
+        </div>
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={rehire.isLoading}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => void handleSubmit()}
+            disabled={!canSubmit || rehire.isLoading}
+          >
+            {rehire.isLoading ? (
+              <>
+                <Spinner className="mr-1.5 size-4" />
+                Rehiring...
+              </>
+            ) : (
+              "Rehire"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Main workspace ─────────────────────────────────────────────────────────
 
 export function EmployeeProfileWorkspace({
-  profile,
+  details,
   reportingLines,
   fieldPolicy,
   user,
@@ -922,9 +1354,10 @@ export function EmployeeProfileWorkspace({
   const [editDialogTab, setEditDialogTab] = useState<string>("personal");
   const [selfProfileSheetOpen, setSelfProfileSheetOpen] = useState(false);
   const [accessSheetOpen, setAccessSheetOpen] = useState(false);
-  const [showDeactivateEmployeeConfirm, setShowDeactivateEmployeeConfirm] =
-    useState(false);
+  const [showTerminateDialog, setShowTerminateDialog] = useState(false);
+  const [showRehireDialog, setShowRehireDialog] = useState(false);
   const lastHandledSheetRef = useRef<string | null>(null);
+  const profile = toProfileViewModel(details, reportingLines);
 
   const isOwnProfile = user?.employeeId === profile.id;
   const canManageProfiles = canManageCoreAccessProfiles(user);
@@ -1150,6 +1583,121 @@ export function EmployeeProfileWorkspace({
       value: <StatusBadge status={profile.status} />,
     },
   ];
+  const employmentDetails: DefinitionItem[] = [
+    {
+      label: "Status",
+      value: details.currentEmployment ? (
+        <StatusBadge
+          status={
+            details.currentEmployment.status === "Active" ? "Active" : "Inactive"
+          }
+        />
+      ) : (
+        <span className="font-normal text-muted-foreground">
+          No active employment
+        </span>
+      ),
+    },
+    {
+      label: "Effective from",
+      value: details.currentEmployment
+        ? formatDate(details.currentEmployment.effectiveFrom)
+        : "Not set",
+    },
+    {
+      label: "Effective to",
+      value: details.currentEmployment?.effectiveTo
+        ? formatDate(details.currentEmployment.effectiveTo)
+        : "Open-ended",
+    },
+    {
+      label: "Employment type",
+      value: hasTextValue(details.currentEmployment?.employmentType) ? (
+        details.currentEmployment?.employmentType
+      ) : (
+        <span className="font-normal text-muted-foreground">Not set</span>
+      ),
+    },
+    {
+      label: "History",
+      value: `${details.historySummary.employmentCount} employment record${details.historySummary.employmentCount === 1 ? "" : "s"}`,
+    },
+  ];
+  const assignmentDetails: DefinitionItem[] = [
+    {
+      label: "Organization unit",
+      value: hasTextValue(details.currentWorkAssignment?.orgUnitName) ? (
+        details.currentWorkAssignment?.orgUnitName
+      ) : (
+        <span className="font-normal text-muted-foreground">Not assigned</span>
+      ),
+    },
+    {
+      label: "Organization type",
+      value: hasTextValue(details.currentWorkAssignment?.orgUnitType) ? (
+        details.currentWorkAssignment?.orgUnitType
+      ) : (
+        <span className="font-normal text-muted-foreground">Not set</span>
+      ),
+    },
+    {
+      label: "Job title",
+      value: hasTextValue(details.currentWorkAssignment?.jobTitle) ? (
+        details.currentWorkAssignment?.jobTitle
+      ) : (
+        <span className="font-normal text-muted-foreground">Not set</span>
+      ),
+    },
+    {
+      label: "Work location",
+      hidden: !showWorkLocation,
+      value: hasTextValue(details.currentWorkAssignment?.workLocation) ? (
+        details.currentWorkAssignment?.workLocation
+      ) : (
+        <span className="font-normal text-muted-foreground">Not set</span>
+      ),
+    },
+    {
+      label: "Assignment effective from",
+      value: details.currentWorkAssignment
+        ? formatDate(details.currentWorkAssignment.effectiveFrom)
+        : "Not set",
+    },
+    {
+      label: "Assignment effective to",
+      value: details.currentWorkAssignment?.effectiveTo
+        ? formatDate(details.currentWorkAssignment.effectiveTo)
+        : "Open-ended",
+    },
+  ];
+  const managerDetails: DefinitionItem[] = [
+    {
+      label: "Current manager",
+      value: managerDisplayName,
+    },
+    {
+      label: "Manager email",
+      value: managerEmail ?? (
+        <span className="font-normal text-muted-foreground">Not set</span>
+      ),
+    },
+    {
+      label: "Manager relationship effective from",
+      value: details.currentManager
+        ? formatDate(details.currentManager.effectiveFrom)
+        : "Not set",
+    },
+    {
+      label: "Manager relationship effective to",
+      value: details.currentManager?.effectiveTo
+        ? formatDate(details.currentManager.effectiveTo)
+        : "Open-ended",
+    },
+    {
+      label: "History",
+      value: `${details.historySummary.managerRelationshipCount} manager relationship${details.historySummary.managerRelationshipCount === 1 ? "" : "s"}`,
+    },
+  ];
   const createdAtLabel = formatTimestamp(profile.createdAt);
   const updatedAtLabel =
     profile.updatedAt && profile.updatedAt !== profile.createdAt
@@ -1198,46 +1746,9 @@ export function EmployeeProfileWorkspace({
     setAccessSheetOpen(true);
   };
 
-  const deactivateEmployeeMutation = useDeactivateEmployee();
-  const reactivateEmployeeMutation = useReactivateEmployee();
-
-  async function handleDeactivateEmployee() {
-    try {
-      await deactivateEmployeeMutation.mutateAsync({
-        employeeId: profile.id,
-        expectedVersion: profile.version,
-      });
-      toast.success("Employee deactivated.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to deactivate employee."
-      );
-    } finally {
-      setShowDeactivateEmployeeConfirm(false);
-    }
-  }
-
-  async function handleReactivateEmployee() {
-    try {
-      await reactivateEmployeeMutation.mutateAsync({
-        employeeId: profile.id,
-        expectedVersion: profile.version,
-      });
-      toast.success("Employee reactivated.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to reactivate employee."
-      );
-    }
-  }
-
   const scrollToAccessSection = () => setActiveTab("access");
-  const scrollToReportingSection = () => setActiveTab("reporting");
-  const scrollToDirectReportsSection = () => setActiveTab("reporting");
+  const scrollToManagerSection = () => setActiveTab("manager");
+  const scrollToDirectReportsSection = () => setActiveTab("manager");
 
   const focusInOrgChart = () => {
     router.push(
@@ -1388,7 +1899,7 @@ export function EmployeeProfileWorkspace({
                           setEditDialogOpen(true);
                         }}
                       >
-                        Change organization
+                        Edit work assignment
                       </DropdownMenuItem>
                     ) : null}
                     {(canManageAccess || canManageReporting) &&
@@ -1402,27 +1913,17 @@ export function EmployeeProfileWorkspace({
                             ? "destructive"
                             : "default"
                         }
-                        disabled={
-                          deactivateEmployeeMutation.isLoading ||
-                          reactivateEmployeeMutation.isLoading
-                        }
                         onClick={() => {
                           if (profile.status === "Active") {
-                            if (activeDirectReportCount > 0) {
-                              toast.error(
-                                `This employee can't be deactivated while ${activeDirectReportCount} active direct report${activeDirectReportCount === 1 ? " still reports" : "s still report"} to them. Reassign or deactivate those reports first.`
-                              );
-                              return;
-                            }
-                            setShowDeactivateEmployeeConfirm(true);
+                            setShowTerminateDialog(true);
                           } else {
-                            void handleReactivateEmployee();
+                            setShowRehireDialog(true);
                           }
                         }}
                       >
                         {profile.status === "Active"
-                          ? "Deactivate employee"
-                          : "Reactivate employee"}
+                          ? "Terminate employment"
+                          : "Rehire"}
                       </DropdownMenuItem>
                     ) : null}
                   </DropdownMenuContent>
@@ -1454,7 +1955,7 @@ export function EmployeeProfileWorkspace({
                   (!hierarchyIsHealthy ? profile.hierarchyStatus : undefined)
                 }
                 href={managerProfileHref}
-                onClick={!managerProfileHref ? scrollToReportingSection : null}
+                onClick={!managerProfileHref ? scrollToManagerSection : null}
               />
               <SummaryStripItem
                 label="Direct reports"
@@ -1502,7 +2003,9 @@ export function EmployeeProfileWorkspace({
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="reporting">Organization &amp; reporting</TabsTrigger>
+          <TabsTrigger value="employment">Employment</TabsTrigger>
+          <TabsTrigger value="assignment">Work assignment</TabsTrigger>
+          <TabsTrigger value="manager">Manager</TabsTrigger>
           {canViewAccess ? <TabsTrigger value="access">Access</TabsTrigger> : null}
         </TabsList>
 
@@ -1510,7 +2013,7 @@ export function EmployeeProfileWorkspace({
           <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-foreground">
-                Personal details
+                Profile
               </h2>
               {canManageEmployee ? (
                 <Button
@@ -1532,7 +2035,65 @@ export function EmployeeProfileWorkspace({
           <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-foreground">
-                Work details
+                Record health
+              </h2>
+              {heroRecordBadgeLabel ? (
+                <Badge variant={recordBadgeVariant}>{heroRecordBadgeLabel}</Badge>
+              ) : null}
+            </div>
+            {isRecordComplete ? (
+              <p className="text-sm text-muted-foreground">
+                No follow-up needed.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {recordIssues.map((issue) => {
+                  const fixSheet = getEmployeeFixSheet(issue);
+                  const canOpenIssue =
+                    fixSheet === "reporting"
+                      ? canManageReporting
+                      : !!fixSheet && canManageEmployee;
+
+                  return (
+                    <div
+                      key={`${issue.code}:${issue.fieldKey ?? "none"}`}
+                      className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/10 p-4 sm:flex-row sm:items-start sm:justify-between"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-medium">{issue.label}</p>
+                          <Badge
+                            variant={getEmployeeReadinessBadgeVariant(issue)}
+                          >
+                            {issue.severity === "Blocker" ? "Blocker" : "Action"}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {getEmployeeReadinessBadgeLabel(issue)}
+                        </p>
+                      </div>
+                      {canOpenIssue ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenReadinessIssue(issue)}
+                        >
+                          Open fix
+                        </Button>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </TabsContent>
+
+        <TabsContent value="employment" className="grid gap-4 xl:grid-cols-2">
+          <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-foreground">
+                Employment
               </h2>
               {canEditEmploymentDetails ? (
                 <Button
@@ -1545,13 +2106,70 @@ export function EmployeeProfileWorkspace({
                   }}
                 >
                   <Pencil className="size-3.5" />
-                  <span className="sr-only">Edit work details</span>
+                  <span className="sr-only">Edit employment</span>
                 </Button>
               ) : null}
             </div>
+            <DefinitionGrid items={employmentDetails} />
+          </section>
+          <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-foreground">
+                Employment summary
+              </h2>
+            </div>
+            <DefinitionGrid
+              items={[
+                {
+                  label: "Hire date",
+                  hidden: !showHireDate,
+                  value: hireDate,
+                },
+                {
+                  label: "Tenure",
+                  hidden: !showHireDate,
+                  value: tenure,
+                },
+                {
+                  label: "Updated",
+                  value: updatedAtLabel ?? "No subsequent changes",
+                },
+              ]}
+            />
+          </section>
+        </TabsContent>
+
+        <TabsContent value="assignment" className="grid gap-4 xl:grid-cols-2">
+          <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-foreground">
+                Work assignment
+              </h2>
+              {canManageEmployee ? (
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className="size-7"
+                  onClick={() => {
+                    setEditDialogTab("organization");
+                    setEditDialogOpen(true);
+                  }}
+                >
+                  <Pencil className="size-3.5" />
+                  <span className="sr-only">Edit work assignment</span>
+                </Button>
+              ) : null}
+            </div>
+            <DefinitionGrid items={assignmentDetails} />
+          </section>
+          <section className="rounded-xl border border-border bg-card p-5 shadow-xs">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-foreground">
+                Current role
+              </h2>
+            </div>
             <DefinitionGrid items={workDetails} />
           </section>
-
         </TabsContent>
 
         {canViewAccess ? (
@@ -1567,13 +2185,13 @@ export function EmployeeProfileWorkspace({
           </TabsContent>
         ) : null}
 
-        <TabsContent value="reporting" className="flex flex-col gap-6">
+        <TabsContent value="manager" className="flex flex-col gap-6">
           <div>
             <Card className={WORKSPACE_CARD_CLASS_NAME}>
               <CardHeader className="px-6 pb-4 pt-5">
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="text-base">
-                    Organization &amp; reporting
+                    Manager
                   </CardTitle>
                   {canManageReporting ? (
                     <Button
@@ -1592,21 +2210,7 @@ export function EmployeeProfileWorkspace({
                 </div>
               </CardHeader>
               <CardContent className="space-y-6 px-6 pb-6">
-                <div className="grid gap-4 lg:grid-cols-3">
-                  <div className="space-y-2 rounded-2xl border border-border/60 bg-muted/10 p-4">
-                    <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-                      Organization unit
-                    </p>
-                    <div className="text-sm font-semibold text-foreground">
-                      {profile.orgUnitName ?? "Not assigned"}
-                    </div>
-                    {hasTextValue(profile.orgUnitType) ? (
-                      <p className="text-xs text-muted-foreground">
-                        {profile.orgUnitType}
-                      </p>
-                    ) : null}
-                  </div>
-
+                <div className="grid gap-4 lg:grid-cols-2">
                   <RelationshipCard
                     eyebrow="Manager"
                     title={managerDisplayName}
@@ -1632,6 +2236,15 @@ export function EmployeeProfileWorkspace({
                         : "No direct reports"}
                     </p>
                   </div>
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <h2 className="text-sm font-semibold text-foreground">
+                      Manager relationship
+                    </h2>
+                  </div>
+                  <DefinitionGrid items={managerDetails} />
                 </div>
 
                 <div className="space-y-2">
@@ -1703,59 +2316,6 @@ export function EmployeeProfileWorkspace({
             </Card>
           </div>
 
-          {!isRecordComplete ? (
-            <Card className={WORKSPACE_CARD_CLASS_NAME}>
-              <CardHeader className={WORKSPACE_CARD_HEADER_CLASS_NAME}>
-                <CardTitle className="text-base">Record completeness</CardTitle>
-                <CardAction>
-                  <Badge variant={recordBadgeVariant}>Incomplete record</Badge>
-                </CardAction>
-              </CardHeader>
-              <CardContent className={WORKSPACE_CARD_CONTENT_CLASS_NAME}>
-                <div className="space-y-3">
-                  {recordIssues.map((issue) => {
-                    const fixSheet = getEmployeeFixSheet(issue);
-                    const canOpenIssue =
-                      fixSheet === "reporting"
-                        ? canManageReporting
-                        : !!fixSheet && canManageEmployee;
-
-                    return (
-                      <div
-                        key={`${issue.code}:${issue.fieldKey ?? "none"}`}
-                        className="flex flex-col gap-3 rounded-xl border border-border/60 bg-muted/10 p-4 sm:flex-row sm:items-start sm:justify-between"
-                      >
-                        <div className="space-y-1.5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-sm font-medium">{issue.label}</p>
-                            <Badge
-                              variant={getEmployeeReadinessBadgeVariant(issue)}
-                            >
-                              {issue.severity === "Blocker"
-                                ? "Blocker"
-                                : "Action"}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {getEmployeeReadinessBadgeLabel(issue)}
-                          </p>
-                        </div>
-                        {canOpenIssue ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenReadinessIssue(issue)}
-                          >
-                            Open fix
-                          </Button>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
         </TabsContent>
       </Tabs>
 
@@ -1787,7 +2347,7 @@ export function EmployeeProfileWorkspace({
       />
 
       <EmployeeEditDialog
-        profile={profile}
+        details={details}
         employeeKey={profile.stableEmployeeKey}
         defaultTab={editDialogTab}
         showPhone={showPhone}
@@ -1804,16 +2364,21 @@ export function EmployeeProfileWorkspace({
         onOpenChange={setEditDialogOpen}
       />
 
-      <EmployeeConfirmDialog
-        open={showDeactivateEmployeeConfirm}
-        onOpenChange={setShowDeactivateEmployeeConfirm}
-        title="Deactivate employee?"
-        description="This employee will no longer appear as active."
-        confirmLabel="Deactivate employee"
-        confirmVariant="destructive"
-        loading={deactivateEmployeeMutation.isLoading}
-        loadingLabel="Deactivating..."
-        onConfirm={() => void handleDeactivateEmployee()}
+      <TerminateEmployeeDialog
+        open={showTerminateDialog}
+        onOpenChange={setShowTerminateDialog}
+        employeeId={profile.id}
+        firstName={profile.firstName}
+        expectedVersion={profile.version}
+        onGoToManagerTab={() => setActiveTab("manager")}
+      />
+
+      <RehireEmployeeDialog
+        open={showRehireDialog}
+        onOpenChange={setShowRehireDialog}
+        employeeId={profile.id}
+        firstName={profile.firstName}
+        expectedVersion={profile.version}
       />
     </PageContainer>
   );

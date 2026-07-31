@@ -1,6 +1,7 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.OrgUnits.Dtos;
+using EY.HRPlatform.CoreHR.Features.OrgUnits.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
@@ -12,7 +13,8 @@ namespace EY.HRPlatform.CoreHR.Features.OrgUnits.Commands.CreateOrgUnit;
 
 public sealed class CreateOrgUnitCommandHandler(
     CoreHRDbContext dbContext,
-    ITenantContext tenantContext) : ICommandHandler<CreateOrgUnitCommand, Result<OrgUnitDto>>
+    ITenantContext tenantContext,
+    IResponsibleManagerService responsibleManagerService) : ICommandHandler<CreateOrgUnitCommand, Result<OrgUnitDto>>
 {
     public async Task<Result<OrgUnitDto>> Handle(CreateOrgUnitCommand request, CancellationToken cancellationToken)
     {
@@ -59,6 +61,9 @@ public sealed class CreateOrgUnitCommandHandler(
             }
         }
 
+        // Validate the optional responsible manager (same-tenant, active employment).
+        await responsibleManagerService.ValidateAsync(request.ResponsibleManagerEmployeeId, cancellationToken);
+
         // Create org unit using domain factory
         var orgUnit = OrgUnit.Create(
             tenantId,
@@ -69,6 +74,9 @@ public sealed class CreateOrgUnitCommandHandler(
             request.ResponsibleManagerEmployeeId);
 
         dbContext.OrgUnits.Add(orgUnit);
+
+        // Audit the responsible-manager assignment in the same transaction as the create.
+        responsibleManagerService.StageChangeAudit(orgUnit.Id, previous: null, next: orgUnit.ResponsibleManagerEmployeeId);
 
         try
         {

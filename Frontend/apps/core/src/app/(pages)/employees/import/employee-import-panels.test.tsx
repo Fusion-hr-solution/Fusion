@@ -4,10 +4,15 @@ import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import type {
+  EmployeeImportApplyOperationDto,
   EmployeeImportSessionDto,
   EmployeeImportHistoryPageDto,
 } from "./employee-import.types";
-import { AppliedResultPanel, ImportHistoryPanel } from "./employee-import-panels";
+import {
+  AppliedResultPanel,
+  BatchActionPanel,
+  ImportHistoryPanel,
+} from "./employee-import-panels";
 
 const {
   mockCanAccessCoreAccess,
@@ -50,9 +55,10 @@ const historyItem = {
   sourceFileName: "employees-june.csv",
   sourceFileSizeBytes: 2048,
   sourceRowCount: 5,
-  validRowCount: 4,
+  validatedRowCount: 4,
   createdCount: 3,
-  skippedCount: 1,
+  unchangedRowCount: 1,
+  publishedRowCount: 3,
   status: "Applied",
   appliedAt: "2025-06-05T10:20:00.000Z",
   actorUserId: "user-1",
@@ -70,6 +76,22 @@ const historyPage: EmployeeImportHistoryPageDto = {
   totalCount: 1,
   pageCount: 1,
 };
+
+const validatedSession = {
+  id: "session-1",
+  sourceFileName: "employees-june.csv",
+  sourceRowCount: 5,
+  sourceFileSizeBytes: 2048,
+  expiresAt: "2025-06-06T10:20:00.000Z",
+  stage: "Validated",
+  canApply: true,
+  canValidate: true,
+  validationSummary: {
+    validRows: 5,
+    errorCount: 0,
+    warningCount: 0,
+  },
+} as unknown as EmployeeImportSessionDto;
 
 describe("ImportHistoryPanel", () => {
   vi.mocked(mockCanAccessCoreAccess).mockReturnValue(true);
@@ -101,12 +123,13 @@ describe("ImportHistoryPanel", () => {
 
     expect(screen.getByText("employees-june.csv")).toBeInTheDocument();
     expect(screen.getByText("Applied")).toBeInTheDocument();
-    expect(screen.getByText("3 created · 1 skipped · 5 rows")).toBeInTheDocument();
+    expect(screen.getByText("3 published · 1 unchanged · 5 rows")).toBeInTheDocument();
     expect(screen.getByText("Alex Morgan")).toBeInTheDocument();
     expect(screen.queryByText("session-1")).not.toBeInTheDocument();
     expect(screen.queryByText("user-1")).not.toBeInTheDocument();
   });
 
+  // TODO(deletion): This test is for the removed AppliedResultPanel — delete this test block.
   it("routes the import CTA to plain access without query context", () => {
     const appliedSession = {
       stage: "Applied",
@@ -135,5 +158,110 @@ describe("ImportHistoryPanel", () => {
 
     expect(link).toHaveAttribute("href", "/access");
     expect(link.getAttribute("href")).not.toContain("access=NotInvited");
+  });
+});
+
+describe("BatchActionPanel", () => {
+  it("shows a persistent queued indicator while the import is pending", () => {
+    const queuedOperation = {
+      id: "apply-1",
+      status: "Queued",
+      validatedRowCount: 5,
+      processedRowCount: 0,
+    } as EmployeeImportApplyOperationDto;
+
+    render(
+      <BatchActionPanel
+        session={validatedSession}
+        applyOperation={queuedOperation}
+        applyResult={null}
+        isValidating={false}
+        isUploading={false}
+        isDownloadingTemplate={false}
+        isApplying
+        applyError={null}
+        onValidate={vi.fn()}
+        onUpload={vi.fn()}
+        onDownloadTemplate={vi.fn()}
+        onApply={vi.fn(async () => true)}
+      />
+    );
+
+    expect(screen.getByText("Import queued")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "0"
+    );
+    expect(screen.getByText("Waiting to start")).toBeInTheDocument();
+    expect(screen.getByText("5 rows ready")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /importing employees/i })
+    ).toBeDisabled();
+  });
+
+  it("shows live running progress while rows are being imported", () => {
+    const runningOperation = {
+      id: "apply-2",
+      status: "Running",
+      validatedRowCount: 5,
+      processedRowCount: 3,
+    } as EmployeeImportApplyOperationDto;
+
+    render(
+      <BatchActionPanel
+        session={validatedSession}
+        applyOperation={runningOperation}
+        applyResult={null}
+        isValidating={false}
+        isUploading={false}
+        isDownloadingTemplate={false}
+        isApplying
+        applyError={null}
+        onValidate={vi.fn()}
+        onUpload={vi.fn()}
+        onDownloadTemplate={vi.fn()}
+        onApply={vi.fn(async () => true)}
+      />
+    );
+
+    expect(screen.getAllByText("Importing")).toHaveLength(2);
+    expect(screen.getByText("3 / 5")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "60"
+    );
+  });
+
+  it("shows finalizing once every row has been processed", () => {
+    const finalizingOperation = {
+      id: "apply-3",
+      status: "Running",
+      validatedRowCount: 5,
+      processedRowCount: 5,
+    } as EmployeeImportApplyOperationDto;
+
+    render(
+      <BatchActionPanel
+        session={validatedSession}
+        applyOperation={finalizingOperation}
+        applyResult={null}
+        isValidating={false}
+        isUploading={false}
+        isDownloadingTemplate={false}
+        isApplying
+        applyError={null}
+        onValidate={vi.fn()}
+        onUpload={vi.fn()}
+        onDownloadTemplate={vi.fn()}
+        onApply={vi.fn(async () => true)}
+      />
+    );
+
+    expect(screen.getByText("Finalizing")).toBeInTheDocument();
+    expect(screen.getByText("Committing")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute(
+      "aria-valuenow",
+      "100"
+    );
   });
 });

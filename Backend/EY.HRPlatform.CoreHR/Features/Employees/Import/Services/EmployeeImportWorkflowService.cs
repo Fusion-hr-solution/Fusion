@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Net.Mail;
 using System.Text;
@@ -7,12 +8,15 @@ using CsvHelper.Configuration;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Domain.Enums;
+using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
+using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Multitenancy;
+using EY.HRPlatform.SharedKernel.Results;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,6 +29,11 @@ public interface IEmployeeImportWorkflowService
         IReadOnlyCollection<string>? fields,
         CancellationToken cancellationToken);
     Task<EmployeeImportSessionDto> UploadAsync(IFormFile file, CancellationToken cancellationToken);
+    Task<EmployeeImportSessionDto> UploadAsync(
+        IFormFile file,
+        DateTime batchEffectiveDate,
+        EmployeeImportMode importMode,
+        CancellationToken cancellationToken);
     Task<EmployeeImportSessionDto> ValidateAsync(Guid sessionId, CancellationToken cancellationToken);
     Task<EmployeeImportSessionDto> ValidateAsync(
         Guid sessionId,
@@ -41,9 +50,15 @@ public interface IEmployeeImportWorkflowService
         string previewFilter,
         string? groupKey,
         CancellationToken cancellationToken);
-    Task<EmployeeImportApplyResultDto> ApplyAsync(
+    Task<EmployeeImportApplyOperationDto> ApplyAsync(
         Guid sessionId,
         EmployeeImportActorDto actor,
+        CancellationToken cancellationToken);
+    Task<EmployeeImportApplyOperationDto> GetApplyOperationAsync(
+        Guid sessionId,
+        CancellationToken cancellationToken);
+    Task ProcessApplyOperationAsync(
+        Guid operationId,
         CancellationToken cancellationToken);
     Task<EmployeeImportHistoryPageDto> GetHistoryAsync(
         int pageNumber,
@@ -54,17 +69,21 @@ public interface IEmployeeImportWorkflowService
         CancellationToken cancellationToken);
 }
 
-public sealed class EmployeeImportWorkflowService(
-    CoreHRDbContext dbContext,
-    ITenantContext tenantContext,
-    IEmployeeHierarchyService hierarchyService,
-    ITenantSettingsReadService? tenantSettingsReadService = null) : IEmployeeImportWorkflowService
+public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowService
 {
-    private readonly IEmployeeHierarchyService employeeHierarchyService = hierarchyService;
-    private readonly ITenantSettingsReadService tenantSettingsReader =
-        tenantSettingsReadService ?? new TenantSettingsReadService(dbContext);
+    // Cadence for the out-of-transaction progress writes (see ReportProgressAsync in the apply loop).
+    private static readonly TimeSpan ProgressReportInterval = TimeSpan.FromMilliseconds(250);
+    private readonly CoreHRDbContext dbContext;
+    private readonly ITenantContext tenantContext;
+    private readonly WorkforceResolutionScope resolutionScope;
+    private readonly ITenantSettingsReadService tenantSettingsReader;
+    private readonly IWorkforceCanonicalResolver canonicalResolver;
+    private readonly IWorkforceMutationService mutationService;
+    private readonly IServiceScopeFactory? scopeFactory;
+    private readonly ILogger<EmployeeImportWorkflowService>? logger;
 
     private const int MaxSourceFileNameLength = 260;
+    private const int MaxApplyFailureReasonLength = 2000;
     private const int MaxRowCount = 5000;
     private const int SampleRowCount = 12;
     private const int DefaultPreviewPageSize = 5;
@@ -141,11 +160,41 @@ public sealed class EmployeeImportWorkflowService(
             "Manager email",
             false,
             "Employee email of the reporting manager inside the same tenant.",
-            "alex.manager@contoso.com")
+            "alex.manager@contoso.com"),
+        new(
+            "effectiveDate",
+            "Effective date",
+            false,
+            "Optional row-level effective date (YYYY-MM-DD) that overrides the batch effective date for this row's business changes.",
+            "2024-04-01")
     ];
 
     private static readonly HashSet<string> CanonicalFieldKeys =
         CanonicalFields.Select(field => field.Key).ToHashSet(StringComparer.Ordinal);
+
+    public EmployeeImportWorkflowService(
+        CoreHRDbContext dbContext,
+        ITenantContext tenantContext,
+        ITenantSettingsReadService? tenantSettingsReadService = null,
+        IWorkforceCanonicalResolver? canonicalResolver = null,
+        IWorkforceMutationService? mutationService = null,
+        WorkforceResolutionScope? resolutionScope = null,
+        IServiceScopeFactory? scopeFactory = null,
+        ILogger<EmployeeImportWorkflowService>? logger = null)
+    {
+        this.dbContext = dbContext;
+        this.tenantContext = tenantContext;
+        this.resolutionScope = resolutionScope ?? new WorkforceResolutionScope();
+        tenantSettingsReader = tenantSettingsReadService ?? new TenantSettingsReadService(dbContext);
+        this.canonicalResolver = canonicalResolver ?? new WorkforceCanonicalResolver(dbContext, this.resolutionScope);
+        this.mutationService = mutationService ?? new WorkforceMutationService(
+            dbContext,
+            tenantContext,
+            this.canonicalResolver,
+            this.resolutionScope);
+        this.scopeFactory = scopeFactory;
+        this.logger = logger;
+    }
 
     public async Task<EmployeeImportSchemaDto> GetSchemaAsync(CancellationToken cancellationToken)
     {
@@ -167,7 +216,14 @@ public sealed class EmployeeImportWorkflowService(
         return (Encoding.UTF8.GetBytes($"{headerLine}\r\n"), "employee-import-template.csv");
     }
 
-    public async Task<EmployeeImportSessionDto> UploadAsync(IFormFile file, CancellationToken cancellationToken)
+    public Task<EmployeeImportSessionDto> UploadAsync(IFormFile file, CancellationToken cancellationToken)
+        => UploadAsync(file, DateTime.UtcNow, EmployeeImportMode.BusinessChange, cancellationToken);
+
+    public async Task<EmployeeImportSessionDto> UploadAsync(
+        IFormFile file,
+        DateTime batchEffectiveDate,
+        EmployeeImportMode importMode,
+        CancellationToken cancellationToken)
     {
         await EnsureImportAvailableAsync(cancellationToken);
         var sourceFileName = ValidateUpload(file);
@@ -190,8 +246,10 @@ public sealed class EmployeeImportWorkflowService(
             file.Length,
             JsonSerializer.Serialize(parsedFile.Headers, JsonOptions),
             JsonSerializer.Serialize(parsedFile.Rows, JsonOptions),
-            JsonSerializer.Serialize(previewRows, JsonOptions),
-            DateTime.UtcNow.Add(SessionLifetime));
+            "[]",
+            DateTime.UtcNow.Add(SessionLifetime),
+            batchEffectiveDate,
+            importMode);
 
         dbContext.EmployeeImportSessions.Add(session);
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -231,7 +289,7 @@ public sealed class EmployeeImportWorkflowService(
 
         var headers = Deserialize<List<string>>(session.SourceHeadersJson) ?? [];
         var sourceRows = Deserialize<List<EmployeeImportSourceRowDto>>(session.SourceRowsJson) ?? [];
-        var previewRows = Deserialize<List<EmployeeImportPreviewRowDto>>(session.PreviewRowsJson) ?? [];
+        var previewRows = BuildPreviewRows(sourceRows);
 
         return await BuildSessionDtoAsync(
             session,
@@ -275,6 +333,11 @@ public sealed class EmployeeImportWorkflowService(
             throw new ArgumentException("This employee import session has already been applied.", nameof(sessionId));
         }
 
+        if (session.Stage == EmployeeImportStage.Applying)
+        {
+            throw new ArgumentException("This employee import session is currently applying.", nameof(sessionId));
+        }
+
         if (session.Stage == EmployeeImportStage.Expired)
         {
             throw new ArgumentException("Upload expired. Upload the file again to continue.", nameof(sessionId));
@@ -283,7 +346,8 @@ public sealed class EmployeeImportWorkflowService(
         var sourceRows = Deserialize<List<EmployeeImportSourceRowDto>>(session.SourceRowsJson) ?? [];
         var headers = Deserialize<List<string>>(session.SourceHeadersJson) ?? [];
         var settings = await tenantSettingsReader.GetCurrentAsync(cancellationToken);
-        var validation = await ValidateRowsAsync(sourceRows, headers, settings, cancellationToken);
+        var validation = await ValidateRowsAsync(
+            sourceRows, headers, settings, session.BatchEffectiveDate, session.ImportMode, cancellationToken);
 
         session.SetValidationResult(
             JsonSerializer.Serialize(validation.NormalizedRows, JsonOptions),
@@ -291,7 +355,7 @@ public sealed class EmployeeImportWorkflowService(
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var previewRows = Deserialize<List<EmployeeImportPreviewRowDto>>(session.PreviewRowsJson) ?? [];
+        var previewRows = BuildPreviewRows(sourceRows);
 
         return await BuildSessionDtoAsync(
             session,
@@ -305,7 +369,7 @@ public sealed class EmployeeImportWorkflowService(
             groupKey);
     }
 
-    public async Task<EmployeeImportApplyResultDto> ApplyAsync(
+    public async Task<EmployeeImportApplyOperationDto> ApplyAsync(
         Guid sessionId,
         EmployeeImportActorDto actor,
         CancellationToken cancellationToken)
@@ -319,74 +383,188 @@ public sealed class EmployeeImportWorkflowService(
         await MarkExpiredIfNeededAsync(session, cancellationToken);
 
         if (session.Stage == EmployeeImportStage.Applied)
-        {
             throw new ArgumentException("This employee import session has already been applied.", nameof(sessionId));
-        }
 
         if (session.Stage == EmployeeImportStage.Expired)
-        {
             throw new ArgumentException("Upload expired. Upload the file again to continue.", nameof(sessionId));
-        }
+
+        if (session.Stage == EmployeeImportStage.Applying)
+            throw new ArgumentException("This employee import session is already applying.", nameof(sessionId));
 
         if (session.Stage != EmployeeImportStage.Validated)
-        {
             throw new ArgumentException("Validate the import before applying it.", nameof(sessionId));
-        }
 
         var validationIssues = ReadRequiredValidationIssues(session);
         if (validationIssues.Any(issue => issue.Severity.Equals("error", StringComparison.OrdinalIgnoreCase)))
-        {
             throw new ArgumentException("The import contains validation errors. Fix them before applying.", nameof(sessionId));
-        }
+
+        var activeOperationExists = await dbContext.EmployeeImportApplyOperations
+            .AnyAsync(
+                operation => operation.SessionId == sessionId
+                    && operation.Status != EmployeeImportApplyOperationStatus.Succeeded
+                    && operation.Status != EmployeeImportApplyOperationStatus.Failed,
+                cancellationToken);
+        if (activeOperationExists)
+            throw new ArgumentException("This employee import session is already applying.", nameof(sessionId));
 
         var normalizedRows = ReadNormalizedRows(session);
         if (normalizedRows.Count == 0)
-        {
             throw new ArgumentException("The import does not contain any valid employee rows to apply.", nameof(sessionId));
-        }
+        var sourceRows = ReadSourceRows(session);
 
+        var operation = EmployeeImportApplyOperation.Queue(
+            tenantContext.TenantId,
+            session.Id,
+            actor.UserId,
+            actor.FullName,
+            actor.Role,
+            sourceRows.Count,
+            normalizedRows.Count,
+            DateTime.UtcNow);
+        session.MarkApplying();
+
+        dbContext.EmployeeImportApplyOperations.Add(operation);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return BuildApplyOperationDto(operation);
+    }
+
+    public async Task<EmployeeImportApplyOperationDto> GetApplyOperationAsync(
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureImportAvailableAsync(cancellationToken);
+
+        _ = await dbContext.EmployeeImportSessions
+            .FirstOrDefaultAsync(current => current.Id == sessionId, cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(EmployeeImportSession), sessionId);
+
+        var operation = await dbContext.EmployeeImportApplyOperations
+            .AsNoTracking()
+            .Where(current => current.SessionId == sessionId)
+            .OrderByDescending(current => current.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(EmployeeImportApplyOperation), sessionId);
+
+        return BuildApplyOperationDto(operation);
+    }
+
+    public async Task ProcessApplyOperationAsync(
+        Guid operationId,
+        CancellationToken cancellationToken)
+    {
+        await EnsureImportAvailableAsync(cancellationToken);
+
+        var operation = await dbContext.EmployeeImportApplyOperations
+            .FirstOrDefaultAsync(current => current.Id == operationId, cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(EmployeeImportApplyOperation), operationId);
+
+        if (operation.Status is EmployeeImportApplyOperationStatus.Succeeded or EmployeeImportApplyOperationStatus.Failed)
+            return;
+
+        var session = await dbContext.EmployeeImportSessions
+            .FirstOrDefaultAsync(current => current.Id == operation.SessionId, cancellationToken)
+            ?? throw new EntityNotFoundException(nameof(EmployeeImportSession), operation.SessionId);
+
+        operation.MarkRunning(DateTime.UtcNow);
+        session.MarkApplying();
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            var result = await ApplyValidatedSessionAsync(session, operation, cancellationToken);
+            // Progress was written out-of-band during apply, bumping the row's concurrency token —
+            // refresh before the terminal transition so this save doesn't hit a stale-version conflict.
+            await dbContext.Entry(operation).ReloadAsync(cancellationToken);
+            operation.MarkSucceeded(
+                result.HistoryId,
+                result.SourceRowCount,
+                result.ValidatedRowCount,
+                result.CreatedCount,
+                result.PublishedRowCount,
+                result.AppliedAt);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            session.RestoreValidated();
+            await dbContext.Entry(operation).ReloadAsync(cancellationToken);
+            operation.MarkFailed(TrimFailureReason(ex.Message), DateTime.UtcNow);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private async Task<EmployeeImportApplyResultDto> ApplyValidatedSessionAsync(
+        EmployeeImportSession session,
+        EmployeeImportApplyOperation operation,
+        CancellationToken cancellationToken)
+    {
+        await MarkExpiredIfNeededAsync(session, cancellationToken);
+
+        if (session.Stage == EmployeeImportStage.Applied)
+            throw new ArgumentException("This employee import session has already been applied.", nameof(session));
+
+        if (session.Stage == EmployeeImportStage.Expired)
+            throw new ArgumentException("Upload expired. Upload the file again to continue.", nameof(session));
+
+        if (session.Stage is not EmployeeImportStage.Validated and not EmployeeImportStage.Applying)
+            throw new ArgumentException("Validate the import before applying it.", nameof(session));
+
+        var validationIssues = ReadRequiredValidationIssues(session);
+        if (validationIssues.Any(issue => issue.Severity.Equals("error", StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException("The import contains validation errors. Fix them before applying.", nameof(session));
+
+        var normalizedRows = ReadNormalizedRows(session);
+        if (normalizedRows.Count == 0)
+            throw new ArgumentException("The import does not contain any valid employee rows to apply.", nameof(session));
+
+        var headers = Deserialize<List<string>>(session.SourceHeadersJson) ?? [];
+        var sourceRows = ReadSourceRows(session);
         var settings = await tenantSettingsReader.GetCurrentAsync(cancellationToken);
 
-        var sourceRows = ReadSourceRows(session);
-        var importedEmails = normalizedRows
-            .Select(row => row.Email)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var createRows = normalizedRows.Where(r => r.Classification == EmployeeImportRowClassification.Create).ToList();
+        var unchangedRows = normalizedRows.Where(r => r.Classification == EmployeeImportRowClassification.Unchanged).ToList();
+        var changeRows = normalizedRows.Where(r => r.Classification is not (
+            EmployeeImportRowClassification.Create
+            or EmployeeImportRowClassification.Unchanged
+            or EmployeeImportRowClassification.Invalid
+            or EmployeeImportRowClassification.Conflicting)).ToList();
+        var processedRowCount = 0;
 
-        var duplicateEmails = await dbContext.Employees
-            .AsNoTracking()
-            .Where(employee => importedEmails.Contains(employee.Email))
-            .Select(employee => employee.Email)
-            .OrderBy(email => email)
-            .ToListAsync(cancellationToken);
-
-        var importedEmployeeNumbers = normalizedRows
-            .Where(row => !string.IsNullOrWhiteSpace(row.EmployeeNumber))
-            .Select(row => row.EmployeeNumber!)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        var duplicateEmployeeNumbers = importedEmployeeNumbers.Count == 0
-            ? []
-            : await dbContext.Employees
+        if (createRows.Count > 0)
+        {
+            var createEmails = createRows
+                .Where(r => !string.IsNullOrWhiteSpace(r.Email))
+                .Select(r => r.Email!)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var conflictingEmails = await dbContext.Employees
                 .AsNoTracking()
-                .Where(employee => employee.EmployeeNumber != null && importedEmployeeNumbers.Contains(employee.EmployeeNumber))
-                .Select(employee => employee.EmployeeNumber!)
-                .OrderBy(employeeNumber => employeeNumber)
+                .Where(e => createEmails.Contains(e.Email))
+                .Select(e => e.Email)
                 .ToListAsync(cancellationToken);
-
-        if (duplicateEmails.Count > 0)
-        {
-            throw new ArgumentException(
-                "One or more employee emails already exist in this tenant. Validate the file again before applying.",
-                nameof(sessionId));
+            if (conflictingEmails.Count > 0)
+                throw new ArgumentException(
+                    "One or more employee emails already exist in this tenant. Validate the file again before applying.");
         }
 
-        if (duplicateEmployeeNumbers.Count > 0)
-        {
-            throw new ArgumentException(
-                "One or more employee numbers already exist in this tenant. Validate the file again before applying.",
-                nameof(sessionId));
-        }
+        CheckSameFileManagerCycles(createRows, nameof(session));
 
+        // One batched query stands in for the per-row email-uniqueness check inside
+        // UpdateEmployeeProfileAsync: catch any changed-row email already owned by a *different*
+        // employee that isn't part of the preloaded working set. Same shape as the create check.
+        await CheckChangedEmailConflictsAsync(changeRows, cancellationToken);
+
+        var stopwatch = Stopwatch.StartNew();
+        await PreloadApplyStateAsync(normalizedRows, cancellationToken);
+        RebuildTrackedGraphIndexes();
+        var preloadMs = stopwatch.ElapsedMilliseconds;
+
+        // The preload above loaded the entire working set into the change tracker, so from here the
+        // tracked graph is authoritative — let the resolvers skip their per-row DB fallbacks.
+        resolutionScope.TrackedGraphOnly = true;
+
+        var originalAutoDetect = dbContext.ChangeTracker.AutoDetectChangesEnabled;
+        dbContext.ChangeTracker.AutoDetectChangesEnabled = false;
         var useTransaction = !string.Equals(
             dbContext.Database.ProviderName,
             "Microsoft.EntityFrameworkCore.InMemory",
@@ -395,105 +573,512 @@ public sealed class EmployeeImportWorkflowService(
             ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
             : null;
 
-        var employeesByEmail = new Dictionary<string, Employee>(StringComparer.OrdinalIgnoreCase);
+        // Progress is written on a SEPARATE, short-lived connection (not the apply transaction) so a
+        // poller sees ProcessedRowCount advance live — the old in-transaction write was invisible
+        // until the final commit. Throttled by time; falls back to the tracked entity when there is
+        // no scope factory or the provider can't ExecuteUpdate (in-memory tests).
+        var canReportExternally = scopeFactory is not null && useTransaction;
+        var lastProgressReportUtc = DateTime.MinValue;
 
-        foreach (var row in normalizedRows)
+        async Task ReportProgressAsync(bool force = false)
         {
-            var employee = Employee.Create(
-                tenantContext.TenantId,
-                row.FirstName,
-                row.LastName,
-                row.Email,
-                row.HireDate,
-                null,
-                row.JobTitle,
-                row.EmployeeNumber,
-                row.Phone,
-                row.WorkLocation,
-                row.EmploymentType);
+            if (processedRowCount <= 0)
+                return;
 
-            if (row.OrgUnitId.HasValue)
+            var now = DateTime.UtcNow;
+            if (!force && now - lastProgressReportUtc < ProgressReportInterval)
+                return;
+            lastProgressReportUtc = now;
+
+            if (canReportExternally)
             {
-                employee.AssignOrgUnit(row.OrgUnitId);
+                await using var progressScope = scopeFactory!.CreateAsyncScope();
+                var progressContext = progressScope.ServiceProvider.GetRequiredService<CoreHRDbContext>();
+                await progressContext.EmployeeImportApplyOperations
+                    .IgnoreQueryFilters()
+                    .Where(current => current.Id == operation.Id)
+                    .ExecuteUpdateAsync(
+                        setters => setters.SetProperty(current => current.ProcessedRowCount, processedRowCount),
+                        cancellationToken);
             }
-
-            employeesByEmail.Add(row.Email, employee);
-            dbContext.Employees.Add(employee);
+            else
+            {
+                operation.RecordProgress(processedRowCount);
+            }
         }
 
-        var pendingEmployeesById = employeesByEmail.Values
-            .ToDictionary(employee => employee.Id);
-
-        foreach (var row in normalizedRows.Where(current => !string.IsNullOrWhiteSpace(current.ManagerEmail)))
+        try
         {
-            var employee = employeesByEmail[row.Email];
-            var managerId = row.ExistingManagerId;
+            var createdEmployeesByEmail = new Dictionary<string, Employee>(StringComparer.OrdinalIgnoreCase);
 
-            if (!managerId.HasValue)
+            foreach (var row in createRows)
             {
-                if (!employeesByEmail.TryGetValue(row.ManagerEmail!, out var sameFileManager))
-                {
+                var hireDate = row.HireDate != default ? row.HireDate : row.ResolvedEffectiveDate;
+                var employee = Employee.Create(
+                    tenantContext.TenantId,
+                    row.FirstName,
+                    row.LastName,
+                    row.Email,
+                    hireDate,
+                    null,
+                    row.JobTitle,
+                    row.EmployeeNumber,
+                    row.Phone,
+                    row.WorkLocation,
+                    row.EmploymentType);
+
+                dbContext.Employees.Add(employee);
+                resolutionScope.Register(employee);
+                createdEmployeesByEmail[row.Email] = employee;
+
+                var empResult = await mutationService.StartEmploymentAsync(
+                    employee.Id,
+                    new StartEmploymentInput(hireDate, row.EmploymentType, WorkforceSourceType.Import, session.SourceFileName, session.Id),
+                    operation.ActorFullName,
+                    cancellationToken);
+                if (empResult.IsFailure)
                     throw new ArgumentException(
-                        "The saved import session is no longer valid. Validate the file again before applying.",
-                        nameof(sessionId));
+                        $"Row {row.RowNumber}: Could not start employment: {empResult.Error.Message} Validate the file again before applying.");
+                resolutionScope.Register(empResult.Value);
+
+                if (row.OrgUnitId.HasValue)
+                {
+                    var jobTitle = row.JobTitle ?? string.Empty;
+                    var waResult = await mutationService.ChangeWorkAssignmentAsync(
+                        employee.Id,
+                        new ChangeWorkAssignmentInput(
+                            row.OrgUnitId.Value,
+                            jobTitle,
+                            row.WorkLocation,
+                            row.ResolvedEffectiveDate,
+                            WorkforceSourceType.Import,
+                            session.SourceFileName,
+                            session.Id),
+                        operation.ActorFullName,
+                        cancellationToken);
+                    if (waResult.IsFailure)
+                        throw new ArgumentException(
+                            $"Row {row.RowNumber}: Could not create work assignment: {waResult.Error.Message} Validate the file again before applying.");
+                    resolutionScope.Register(waResult.Value);
                 }
 
-                managerId = sameFileManager.Id;
+                processedRowCount++;
+                await ReportProgressAsync();
             }
 
-            await employeeHierarchyService.EnsureManagerAssignmentIsValidAsync(
-                employee.Id,
-                managerId,
-                cancellationToken,
-                pendingEmployeesById);
-            employee.AssignManager(managerId);
+            foreach (var row in createRows.Where(r => !string.IsNullOrWhiteSpace(r.ManagerEmail)))
+            {
+                var employee = createdEmployeesByEmail[row.Email];
+                var managerId = row.ExistingManagerId;
+
+                if (!managerId.HasValue)
+                {
+                    if (!createdEmployeesByEmail.TryGetValue(row.ManagerEmail!, out var sameFileManager))
+                        throw new ArgumentException(
+                            "The saved import session is no longer valid. Validate the file again before applying.");
+                    managerId = sameFileManager.Id;
+                }
+
+                if (row.OrgUnitId.HasValue)
+                {
+                    var managerResult = await mutationService.ChangeManagerAsync(
+                        employee.Id,
+                        new ChangeManagerInput(
+                            managerId.Value,
+                            row.ResolvedEffectiveDate,
+                            WorkforceSourceType.Import,
+                            session.SourceFileName,
+                            session.Id),
+                        operation.ActorFullName,
+                        cancellationToken);
+                    if (managerResult.IsFailure)
+                        throw new ArgumentException(
+                            $"Row {row.RowNumber}: Could not assign manager: {managerResult.Error.Message} Validate the file again before applying.");
+                    resolutionScope.Register(managerResult.Value);
+                }
+            }
+
+            foreach (var row in changeRows)
+            {
+                var matchedId = row.MatchedEmployeeId!.Value;
+                var effectiveDate = row.ResolvedEffectiveDate;
+
+                if (row.ProfileChanged)
+                {
+                    var existingEmployee = await FindTrackedEmployeeAsync(matchedId, cancellationToken)
+                        ?? throw new ArgumentException(
+                            $"Row {row.RowNumber}: Matched employee {matchedId} no longer exists. Validate the file again before applying.");
+                    var phone = HeaderPresent(headers, "phone") ? row.Phone : existingEmployee.Phone;
+                    var profileResult = await mutationService.UpdateEmployeeProfileAsync(
+                        matchedId,
+                        new UpdateEmployeeProfileInput(
+                            row.FirstName,
+                            row.LastName,
+                            row.Email,
+                            existingEmployee.PreferredName,
+                            phone),
+                        operation.ActorFullName,
+                        cancellationToken);
+                    if (profileResult.IsFailure)
+                        throw new ArgumentException(
+                            $"Row {row.RowNumber}: Profile update failed: {profileResult.Error.Message} Validate the file again before applying.");
+                }
+
+                if (row.EmploymentChanged)
+                {
+                    var empResult = await mutationService.UpdateEmploymentDetailsAsync(
+                        matchedId,
+                        new UpdateEmploymentDetailsInput(
+                            row.EmploymentType,
+                            WorkforceSourceType.Import,
+                            session.SourceFileName,
+                            session.Id),
+                        operation.ActorFullName,
+                        cancellationToken);
+                    if (empResult.IsFailure)
+                        throw new ArgumentException(
+                            $"Row {row.RowNumber}: Employment update failed: {empResult.Error.Message} Validate the file again before applying.");
+                }
+
+                if (row.WorkAssignmentChanged)
+                {
+                    var existingAssignment = await ResolveTrackedPrimaryWorkAssignmentAsync(
+                        matchedId,
+                        effectiveDate,
+                        cancellationToken);
+                    var orgUnitId = row.OrgUnitId ?? existingAssignment?.OrgUnitId;
+                    var jobTitle = row.JobTitle ?? existingAssignment?.JobTitle;
+                    var workLocation = row.WorkLocation ?? existingAssignment?.WorkLocation;
+
+                    if (orgUnitId is null || jobTitle is null)
+                        throw new ArgumentException(
+                            $"Row {row.RowNumber}: Cannot apply work assignment change — org unit or job title is missing. Validate the file again before applying.");
+
+                    if (session.ImportMode == EmployeeImportMode.Correction)
+                    {
+                        var waResult = await mutationService.CorrectPrimaryWorkAssignmentAsync(
+                            matchedId,
+                            new CorrectWorkAssignmentInput(
+                                orgUnitId.Value,
+                                jobTitle,
+                                workLocation,
+                                WorkforceSourceType.Import,
+                                session.SourceFileName,
+                                session.Id),
+                            operation.ActorFullName,
+                            cancellationToken);
+                        if (waResult.IsFailure)
+                            throw new ArgumentException(
+                                $"Row {row.RowNumber}: Work assignment correction failed: {waResult.Error.Message} Validate the file again before applying.");
+                        resolutionScope.Register(waResult.Value);
+                    }
+                    else
+                    {
+                        var waResult = await mutationService.ChangeWorkAssignmentAsync(
+                            matchedId,
+                            new ChangeWorkAssignmentInput(
+                                orgUnitId.Value,
+                                jobTitle,
+                                workLocation,
+                                effectiveDate,
+                                WorkforceSourceType.Import,
+                                session.SourceFileName,
+                                session.Id),
+                            operation.ActorFullName,
+                            cancellationToken);
+                        if (waResult.IsFailure)
+                            throw new ArgumentException(
+                                $"Row {row.RowNumber}: Work assignment change failed: {waResult.Error.Message} Validate the file again before applying.");
+                        resolutionScope.Register(waResult.Value);
+                    }
+                }
+
+                if (row.ManagerChanged)
+                {
+                    var managerId = row.ExistingManagerId;
+                    if (!managerId.HasValue
+                        && !string.IsNullOrWhiteSpace(row.ManagerEmail)
+                        && createdEmployeesByEmail.TryGetValue(row.ManagerEmail!, out var sameFileNewEmployee))
+                    {
+                        managerId = sameFileNewEmployee.Id;
+                    }
+
+                    if (!managerId.HasValue)
+                        throw new ArgumentException(
+                            $"Row {row.RowNumber}: Cannot resolve manager '{row.ManagerEmail}'. Validate the file again before applying.");
+
+                    var managerResult = await mutationService.ChangeManagerAsync(
+                        matchedId,
+                        new ChangeManagerInput(
+                            managerId.Value,
+                            effectiveDate,
+                            WorkforceSourceType.Import,
+                            session.SourceFileName,
+                            session.Id),
+                        operation.ActorFullName,
+                        cancellationToken);
+                    if (managerResult.IsFailure)
+                        throw new ArgumentException(
+                            $"Row {row.RowNumber}: Manager change failed: {managerResult.Error.Message} Validate the file again before applying.");
+                    resolutionScope.Register(managerResult.Value);
+                }
+
+                processedRowCount++;
+                await ReportProgressAsync();
+            }
+
+            await ReportProgressAsync(force: true);
+            var loopMs = stopwatch.ElapsedMilliseconds;
+
+            dbContext.ChangeTracker.DetectChanges();
+
+            var appliedAt = DateTime.UtcNow;
+            var history = EmployeeImportHistory.CreateApplied(
+                tenantContext.TenantId,
+                session.Id,
+                session.SourceFileName,
+                session.SourceFileSizeBytes,
+                sourceRows.Count,
+                normalizedRows.Count,
+                createRows.Count,
+                unchangedRows.Count,
+                createRows.Count + changeRows.Count,
+                appliedAt,
+                operation.ActorUserId,
+                operation.ActorFullName,
+                operation.ActorRole);
+
+            var importFollowUpIssues = BuildImportFollowUpIssues(history.Id, createdEmployeesByEmail, createRows, settings);
+
+            dbContext.EmployeeImportHistories.Add(history);
+            if (importFollowUpIssues.Count > 0)
+                dbContext.EmployeeImportFollowUpIssues.AddRange(importFollowUpIssues);
+
+            session.MarkApplied(appliedAt);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            if (transaction is not null)
+                await transaction.CommitAsync(cancellationToken);
+
+            logger?.LogInformation(
+                "Employee import apply {SessionId}: {Rows} rows (create={Create}, change={Change}), "
+                + "trackedGraphOnly={Flag}, preload={PreloadMs}ms, loop={LoopMs}ms, commit={CommitMs}ms, total={TotalMs}ms.",
+                session.Id,
+                normalizedRows.Count,
+                createRows.Count,
+                changeRows.Count,
+                resolutionScope.TrackedGraphOnly,
+                preloadMs,
+                loopMs - preloadMs,
+                stopwatch.ElapsedMilliseconds - loopMs,
+                stopwatch.ElapsedMilliseconds);
+
+            return new EmployeeImportApplyResultDto(
+                session.Id,
+                history.Id,
+                session.SourceFileName,
+                sourceRows.Count,
+                normalizedRows.Count,
+                createRows.Count,
+                createRows.Count + changeRows.Count,
+                appliedAt,
+                session.Stage);
         }
-
-        var appliedAt = DateTime.UtcNow;
-        var history = EmployeeImportHistory.CreateApplied(
-            tenantContext.TenantId,
-            session.Id,
-            session.SourceFileName,
-            session.SourceFileSizeBytes,
-            sourceRows.Count,
-            normalizedRows.Count,
-            normalizedRows.Count,
-            0,
-            appliedAt,
-            actor.UserId,
-            actor.FullName,
-            actor.Role);
-
-        var importFollowUpIssues = BuildImportFollowUpIssues(
-            history.Id,
-            employeesByEmail,
-            normalizedRows,
-            settings);
-
-        dbContext.EmployeeImportHistories.Add(history);
-        if (importFollowUpIssues.Count > 0)
+        catch
         {
-            dbContext.EmployeeImportFollowUpIssues.AddRange(importFollowUpIssues);
+            if (transaction is not null)
+                await transaction.RollbackAsync(cancellationToken);
+            throw;
         }
-        session.MarkApplied(appliedAt);
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        if (transaction is not null)
+        finally
         {
-            await transaction.CommitAsync(cancellationToken);
+            resolutionScope.TrackedGraphOnly = false;
+            resolutionScope.ClearIndexes();
+            dbContext.ChangeTracker.AutoDetectChangesEnabled = originalAutoDetect;
+        }
+    }
+
+    private async Task CheckChangedEmailConflictsAsync(
+        IReadOnlyList<StoredNormalizedRow> changeRows,
+        CancellationToken cancellationToken)
+    {
+        var emailToMatchedId = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in changeRows)
+        {
+            if (!row.ProfileChanged || string.IsNullOrWhiteSpace(row.Email) || !row.MatchedEmployeeId.HasValue)
+                continue;
+            emailToMatchedId[row.Email!] = row.MatchedEmployeeId.Value;
         }
 
-        return new EmployeeImportApplyResultDto(
-            session.Id,
-            history.Id,
-            session.SourceFileName,
-            sourceRows.Count,
-            normalizedRows.Count,
-            normalizedRows.Count,
-            0,
-            appliedAt,
-            session.Stage);
+        if (emailToMatchedId.Count == 0)
+            return;
+
+        var emails = emailToMatchedId.Keys.ToList();
+        var existing = await dbContext.Employees
+            .AsNoTracking()
+            .Where(e => emails.Contains(e.Email))
+            .Select(e => new { e.Id, e.Email })
+            .ToListAsync(cancellationToken);
+
+        foreach (var employee in existing)
+        {
+            if (emailToMatchedId.TryGetValue(employee.Email, out var matchedId) && employee.Id != matchedId)
+                throw new ArgumentException(
+                    "One or more employee emails already exist in this tenant. Validate the file again before applying.");
+        }
+    }
+
+    private async Task PreloadApplyStateAsync(
+        IReadOnlyList<StoredNormalizedRow> normalizedRows,
+        CancellationToken cancellationToken)
+    {
+        var matchedEmployeeIds = normalizedRows
+            .Where(row => row.MatchedEmployeeId.HasValue)
+            .Select(row => row.MatchedEmployeeId!.Value);
+        var managerEmployeeIds = normalizedRows
+            .Where(row => row.ExistingManagerId.HasValue)
+            .Select(row => row.ExistingManagerId!.Value);
+        var employeeIds = matchedEmployeeIds
+            .Concat(managerEmployeeIds)
+            .Distinct()
+            .ToArray();
+
+        var orgUnitIds = normalizedRows
+            .Where(row => row.OrgUnitId.HasValue)
+            .Select(row => row.OrgUnitId!.Value)
+            .Distinct()
+            .ToArray();
+
+        if (employeeIds.Length > 0)
+        {
+            _ = await dbContext.Employees
+                .Where(employee => employeeIds.Contains(employee.Id))
+                .ToListAsync(cancellationToken);
+            _ = await dbContext.Employments
+                .Where(employment => employeeIds.Contains(employment.EmployeeId))
+                .ToListAsync(cancellationToken);
+            _ = await dbContext.WorkAssignments
+                .Where(assignment => employeeIds.Contains(assignment.EmployeeId))
+                .ToListAsync(cancellationToken);
+            _ = await dbContext.ManagerRelationships
+                .Where(relationship =>
+                    employeeIds.Contains(relationship.SubjectEmployeeId)
+                    || employeeIds.Contains(relationship.ManagerEmployeeId))
+                .ToListAsync(cancellationToken);
+        }
+
+        if (orgUnitIds.Length > 0)
+        {
+            _ = await dbContext.OrgUnits
+                .Where(orgUnit => orgUnitIds.Contains(orgUnit.Id))
+                .ToListAsync(cancellationToken);
+        }
+    }
+
+    private void RebuildTrackedGraphIndexes()
+    {
+        resolutionScope.ClearIndexes();
+
+        foreach (var employee in dbContext.Employees.Local)
+            resolutionScope.Register(employee);
+
+        foreach (var orgUnit in dbContext.OrgUnits.Local)
+            resolutionScope.Register(orgUnit);
+
+        foreach (var employment in dbContext.Employments.Local)
+            resolutionScope.Register(employment);
+
+        foreach (var assignment in dbContext.WorkAssignments.Local)
+            resolutionScope.Register(assignment);
+
+        foreach (var relationship in dbContext.ManagerRelationships.Local)
+            resolutionScope.Register(relationship);
+    }
+
+    private async Task<Employee?> FindTrackedEmployeeAsync(Guid employeeId, CancellationToken cancellationToken)
+    {
+        var local = resolutionScope.TrackedGraphOnly
+            ? resolutionScope.FindEmployee(employeeId)
+            : dbContext.Employees.Local.FirstOrDefault(employee => employee.Id == employeeId);
+        if (local is not null || resolutionScope.TrackedGraphOnly)
+            return local;
+        return await dbContext.Employees.FirstOrDefaultAsync(employee => employee.Id == employeeId, cancellationToken);
+    }
+
+    private async Task<PrimaryWorkAssignmentSnapshot?> ResolveTrackedPrimaryWorkAssignmentAsync(
+        Guid employeeId,
+        DateTime asOf,
+        CancellationToken cancellationToken)
+    {
+        var local = resolutionScope.TrackedGraphOnly
+            ? resolutionScope.ResolveActivePrimaryAssignment(employeeId, asOf)
+            : dbContext.WorkAssignments.Local
+                .Where(assignment =>
+                    assignment.EmployeeId == employeeId
+                    && assignment.IsPrimary
+                    && assignment.EffectiveFrom <= asOf
+                    && (assignment.EffectiveTo == null || asOf < assignment.EffectiveTo))
+                .OrderByDescending(assignment => assignment.EffectiveFrom)
+                .FirstOrDefault();
+
+        if (local is not null)
+        {
+            return new PrimaryWorkAssignmentSnapshot(
+                local.Id,
+                local.EmploymentId,
+                local.OrgUnitId,
+                local.JobTitle,
+                local.WorkLocation,
+                local.EffectiveFrom,
+                local.EffectiveTo);
+        }
+
+        if (resolutionScope.TrackedGraphOnly)
+            return null;
+
+        return await canonicalResolver.GetPrimaryWorkAssignmentAsync(employeeId, asOf, cancellationToken);
+    }
+
+    private static string TrimFailureReason(string message)
+        => string.IsNullOrWhiteSpace(message)
+            ? "Employee import apply failed."
+            : message.Length <= MaxApplyFailureReasonLength
+                ? message
+                : message[..MaxApplyFailureReasonLength];
+
+    private static List<EmployeeImportPreviewRowDto> BuildPreviewRows(
+        IReadOnlyCollection<EmployeeImportSourceRowDto> sourceRows)
+        => sourceRows.Select(CreatePreviewRow).ToList();
+
+    private static void CheckSameFileManagerCycles(IReadOnlyList<StoredNormalizedRow> createRows, string paramName)
+    {
+        var createEmailSet = createRows
+            .Where(r => !string.IsNullOrWhiteSpace(r.Email))
+            .Select(r => r.Email!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // Only track in-file same-file manager edges (ExistingManagerId is null = manager is another create row)
+        var inFileManagerMap = createRows
+            .Where(r => !string.IsNullOrWhiteSpace(r.Email)
+                && !string.IsNullOrWhiteSpace(r.ManagerEmail)
+                && r.ExistingManagerId is null
+                && createEmailSet.Contains(r.ManagerEmail!))
+            .ToDictionary(r => r.Email!, r => r.ManagerEmail!, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var startEmail in inFileManagerMap.Keys)
+        {
+            var chain = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var current = startEmail;
+
+            while (current is not null && inFileManagerMap.TryGetValue(current, out var managerEmail))
+            {
+                if (!chain.Add(current))
+                    throw new ArgumentException(
+                        "A manager reporting cycle was detected. The saved import session is no longer valid. Validate the file again before applying.",
+                        paramName);
+                current = managerEmail;
+            }
+        }
     }
 
     public async Task<EmployeeImportHistoryPageDto> GetHistoryAsync(
@@ -649,47 +1234,41 @@ public sealed class EmployeeImportWorkflowService(
 
     private static void EnsureTemplateHeaders(IReadOnlyList<string> actualHeaders)
     {
-        var expectedHeaders = CanonicalFields.Select(field => field.Key).ToArray();
-        var legacyHeaders = expectedHeaders
-            .Where(header => !string.Equals(header, "employeeNumber", StringComparison.Ordinal)
-                && !string.Equals(header, "phone", StringComparison.Ordinal)
-                && !string.Equals(header, "workLocation", StringComparison.Ordinal)
-                && !string.Equals(header, "employmentType", StringComparison.Ordinal))
-            .ToArray();
-        var legacyHeadersWithEmployeeNumber = expectedHeaders
-            .Where(header => !string.Equals(header, "phone", StringComparison.Ordinal)
-                && !string.Equals(header, "workLocation", StringComparison.Ordinal)
-                && !string.Equals(header, "employmentType", StringComparison.Ordinal))
-            .ToArray();
+        // Headers must be a subset of the canonical columns, presented in canonical order, with no
+        // duplicates, and must include the operationally required fields. This naturally supports
+        // optional columns (employee number, phone, work location, employment type, effective date)
+        // without enumerating every legacy combination.
+        var canonicalOrder = CanonicalFields
+            .Select((field, index) => (field.Key, index))
+            .ToDictionary(entry => entry.Key, entry => entry.index, StringComparer.Ordinal);
 
-        if (HeadersMatch(actualHeaders, expectedHeaders)
-            || HeadersMatch(actualHeaders, legacyHeaders)
-            || HeadersMatch(actualHeaders, legacyHeadersWithEmployeeNumber))
+        var cleaned = actualHeaders.Select(CleanHeader).ToList();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var lastOrder = -1;
+
+        foreach (var header in cleaned)
         {
-            return;
-        }
-
-        throw new ArgumentException(
-            "Use the official employee import template. Column headers must match exactly in the expected order.");
-    }
-
-    private static bool HeadersMatch(IReadOnlyList<string> actualHeaders, IReadOnlyList<string> expectedHeaders)
-    {
-        if (actualHeaders.Count != expectedHeaders.Count)
-        {
-            return false;
-        }
-
-        for (var index = 0; index < expectedHeaders.Count; index++)
-        {
-            if (!string.Equals(CleanHeader(actualHeaders[index]), expectedHeaders[index], StringComparison.Ordinal))
+            if (!canonicalOrder.TryGetValue(header, out var order)
+                || !seen.Add(header)
+                || order <= lastOrder)
             {
-                return false;
+                throw new ArgumentException(
+                    "Use the official employee import template. Column headers must match exactly in the expected order.");
             }
+
+            lastOrder = order;
         }
 
-        return true;
+        // Identity columns must always be present; hire-date completeness is enforced per row for
+        // creates so controlled-update files can omit columns they do not change.
+        if (!RequiredTemplateHeaderKeys.All(required => seen.Contains(required)))
+        {
+            throw new ArgumentException(
+                "Use the official employee import template. Column headers must match exactly in the expected order.");
+        }
     }
+
+    private static readonly string[] RequiredTemplateHeaderKeys = ["firstName", "lastName", "email"];
 
     private static async Task<ParsedCsvFile> ParseCsvAsync(IFormFile file, CancellationToken cancellationToken)
     {
@@ -756,6 +1335,7 @@ public sealed class EmployeeImportWorkflowService(
         row.Values.TryGetValue("employmentType", out var employmentType);
         row.Values.TryGetValue("orgUnitCode", out var orgUnitCode);
         row.Values.TryGetValue("managerEmail", out var managerEmail);
+        row.Values.TryGetValue("effectiveDate", out var effectiveDate);
 
         return new EmployeeImportPreviewRowDto(
             row.RowNumber,
@@ -769,13 +1349,16 @@ public sealed class EmployeeImportWorkflowService(
             NormalizeOptional(workLocation),
             NormalizeOptional(employmentType),
             NormalizeOrgUnitCode(orgUnitCode),
-            NormalizeEmail(managerEmail));
+            NormalizeEmail(managerEmail),
+            NormalizeOptional(effectiveDate));
     }
 
     private async Task<ValidationResult> ValidateRowsAsync(
         IReadOnlyCollection<EmployeeImportSourceRowDto> sourceRows,
         IReadOnlyList<string> sourceHeaders,
         TenantSettingsDto settings,
+        DateTime batchEffectiveDate,
+        EmployeeImportMode importMode,
         CancellationToken cancellationToken)
     {
         var issues = new List<StoredValidationIssue>();
@@ -942,6 +1525,22 @@ public sealed class EmployeeImportWorkflowService(
                 referencedManagerEmails.Add(managerEmail);
             }
 
+            DateTime? rowEffectiveDate = null;
+            var effectiveDateText = ReadValue(sourceRow, "effectiveDate");
+            if (!string.IsNullOrWhiteSpace(effectiveDateText))
+            {
+                if (TryParseHireDate(effectiveDateText, out var parsedEffectiveDate))
+                {
+                    rowEffectiveDate = parsedEffectiveDate;
+                }
+                else
+                {
+                    AddIssue(issues, issueKeys, sourceRow.RowNumber, "effectiveDate", "invalidEffectiveDate",
+                        "Effective date must use YYYY-MM-DD format.", value: effectiveDateText,
+                        rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
+                }
+            }
+
             candidates.Add(new CandidateRow(
                 sourceRow.RowNumber,
                 employeeNumber,
@@ -955,7 +1554,10 @@ public sealed class EmployeeImportWorkflowService(
                 workLocation,
                 employmentType,
                 orgUnitCode,
-                managerEmail));
+                managerEmail)
+            {
+                RowEffectiveDate = rowEffectiveDate
+            });
         }
 
         foreach (var occurrence in emailOccurrences.Where(entry => entry.Value.Count > 1))
@@ -1001,7 +1603,13 @@ public sealed class EmployeeImportWorkflowService(
         var existingEmployeesByEmail = await dbContext.Employees
             .AsNoTracking()
             .Where(employee => emailOccurrences.Keys.Contains(employee.Email) || referencedManagerEmails.Contains(employee.Email))
-            .Select(employee => new ExistingEmployeeReference(employee.Email, employee.Id, employee.Status == EmployeeStatus.Active))
+            .Select(employee => new ExistingEmployeeReference(
+                employee.Email,
+                employee.Id,
+                dbContext.Employments.Any(employment =>
+                    employment.EmployeeId == employee.Id
+                    && employment.Status == EmploymentStatus.Active
+                    && employment.EffectiveTo == null)))
             .ToListAsync(cancellationToken);
 
         var existingEmployeesByEmailLookup = existingEmployeesByEmail
@@ -1014,22 +1622,35 @@ public sealed class EmployeeImportWorkflowService(
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var existingEmployeeNumbers = employeeNumbers.Count == 0
-            ? []
+        // Match rows to existing employees by tenant-scoped employee number (never by email): a
+        // matched number is a controlled-update candidate, not a duplicate. Email remains identity.
+        var matchedEmployees = employeeNumbers.Count == 0
+            ? new List<ExistingEmployeeMatch>()
             : await dbContext.Employees
                 .AsNoTracking()
                 .Where(employee => employee.EmployeeNumber != null && employeeNumbers.Contains(employee.EmployeeNumber))
-                .Select(employee => employee.EmployeeNumber!)
-                .Distinct()
+                .Select(employee => new ExistingEmployeeMatch(
+                    employee.EmployeeNumber!, employee.Id, employee.Email,
+                    employee.FirstName, employee.LastName, employee.Phone))
                 .ToListAsync(cancellationToken);
-
-        var existingEmployeeNumberLookup = existingEmployeeNumbers
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var matchByNumber = matchedEmployees
+            .GroupBy(match => match.EmployeeNumber, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
 
         foreach (var candidate in candidates)
         {
+            if (!string.IsNullOrWhiteSpace(candidate.EmployeeNumber)
+                && matchByNumber.TryGetValue(candidate.EmployeeNumber, out var match))
+            {
+                candidate.MatchedEmployeeId = match.Id;
+                candidate.MatchedEmployee = match;
+            }
+
+            // Email is identity, not a match key: a row whose email belongs to a DIFFERENT existing
+            // employee is a hard conflict; a Create row colliding with any existing email is blocked.
             if (!string.IsNullOrWhiteSpace(candidate.Email)
-                && existingEmployeesByEmailLookup.ContainsKey(candidate.Email))
+                && existingEmployeesByEmailLookup.TryGetValue(candidate.Email, out var emailOwner)
+                && emailOwner.Id != candidate.MatchedEmployeeId)
             {
                 AddIssue(
                     issues,
@@ -1039,21 +1660,6 @@ public sealed class EmployeeImportWorkflowService(
                     "duplicateEmailInTenant",
                     $"Email '{candidate.Email}' already exists in this tenant.",
                     value: candidate.Email,
-                    rowErrorNumbers: rowErrorNumbers,
-                    issueCodesByRow: issueCodesByRow);
-            }
-
-            if (!string.IsNullOrWhiteSpace(candidate.EmployeeNumber)
-                && existingEmployeeNumberLookup.Contains(candidate.EmployeeNumber))
-            {
-                AddIssue(
-                    issues,
-                    issueKeys,
-                    candidate.RowNumber,
-                    "employeeNumber",
-                    "duplicateEmployeeNumberInTenant",
-                    $"Employee number '{candidate.EmployeeNumber}' already exists in this tenant.",
-                    value: candidate.EmployeeNumber,
                     rowErrorNumbers: rowErrorNumbers,
                     issueCodesByRow: issueCodesByRow);
             }
@@ -1128,6 +1734,120 @@ public sealed class EmployeeImportWorkflowService(
                 []);
         }
 
+        // Classify each valid row against canonical facts as of its resolved effective date, and
+        // apply batch-mode safety rules (correction batches never create; manager corrections blocked).
+        foreach (var candidate in candidates)
+        {
+            candidate.ResolvedEffectiveDate = candidate.RowEffectiveDate ?? batchEffectiveDate;
+
+            if (HasErrors(rowErrorNumbers, candidate.RowNumber))
+            {
+                candidate.Classification = EmployeeImportRowClassification.Invalid;
+                continue;
+            }
+
+            if (candidate.MatchedEmployeeId is not { } matchedId)
+            {
+                candidate.Classification = EmployeeImportRowClassification.Create;
+
+                // For new employees the work-assignment effective date must not precede the hire date
+                // (covers both a row-level override and a batch-date that lands before the hire date).
+                if (candidate.HireDate.HasValue && candidate.ResolvedEffectiveDate < candidate.HireDate.Value)
+                {
+                    AddIssue(issues, issueKeys, candidate.RowNumber, "effectiveDate", "effectiveDateBeforeHireDate",
+                        "The effective date must not be before the hire date.",
+                        rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
+                    candidate.Classification = EmployeeImportRowClassification.Invalid;
+                    continue;
+                }
+
+                if (importMode == EmployeeImportMode.Correction)
+                {
+                    AddIssue(issues, issueKeys, candidate.RowNumber, "employeeNumber", "createInCorrectionBatch",
+                        "Correction batches cannot create new workers. Use a business-change import for new hires.",
+                        rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
+                    candidate.Classification = EmployeeImportRowClassification.Conflicting;
+                }
+
+                continue;
+            }
+
+            var asOf = candidate.ResolvedEffectiveDate;
+            var employment = await canonicalResolver.GetCurrentEmploymentAsync(matchedId, asOf, cancellationToken);
+            var assignment = await canonicalResolver.GetPrimaryWorkAssignmentAsync(matchedId, asOf, cancellationToken);
+            var manager = await canonicalResolver.GetPrimaryManagerAsync(matchedId, asOf, cancellationToken);
+            var matchedEmployee = candidate.MatchedEmployee!;
+
+            // If no active employment as-of the effective date, check whether employment exists but
+            // hasn't started yet (gives a more specific error than "no active employment").
+            if (employment == null)
+            {
+                var earliestStart = await dbContext.Employments
+                    .AsNoTracking()
+                    .Where(e => e.EmployeeId == matchedId)
+                    .OrderBy(e => e.EffectiveFrom)
+                    .Select(e => (DateTime?)e.EffectiveFrom)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (earliestStart.HasValue && asOf < earliestStart.Value)
+                {
+                    AddIssue(issues, issueKeys, candidate.RowNumber, "effectiveDate", "effectiveDateBeforeEmploymentStart",
+                        $"Effective date ({asOf:yyyy-MM-dd}) is before this employee's employment start date ({earliestStart.Value:yyyy-MM-dd}).",
+                        value: asOf.ToString("yyyy-MM-dd"),
+                        rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
+                    candidate.Classification = EmployeeImportRowClassification.Invalid;
+                    continue;
+                }
+            }
+
+            candidate.ProfileChanged =
+                !ValuesEqual(candidate.FirstName, matchedEmployee.FirstName)
+                || !ValuesEqual(candidate.LastName, matchedEmployee.LastName)
+                || !ValuesEqual(candidate.Email, matchedEmployee.Email)
+                || (HeaderPresent(sourceHeaders, "phone") && !ValuesEqual(candidate.Phone, matchedEmployee.Phone));
+
+            candidate.EmploymentChanged = HeaderPresent(sourceHeaders, "employmentType")
+                && !ValuesEqual(candidate.EmploymentType, employment?.EmploymentType);
+
+            candidate.WorkAssignmentChanged =
+                (HeaderPresent(sourceHeaders, "orgUnitCode") && candidate.ResolvedOrgUnitId is { } orgId && orgId != assignment?.OrgUnitId)
+                || (HeaderPresent(sourceHeaders, "jobTitle") && !ValuesEqual(candidate.JobTitle, assignment?.JobTitle))
+                || (HeaderPresent(sourceHeaders, "workLocation") && !ValuesEqual(candidate.WorkLocation, assignment?.WorkLocation));
+
+            candidate.ManagerChanged = HeaderPresent(sourceHeaders, "managerEmail")
+                && !string.IsNullOrWhiteSpace(candidate.ManagerEmail)
+                && (candidate.ResolvedExistingManagerId is not { } existingManagerId
+                    || manager?.ManagerEmployeeId != existingManagerId);
+
+            if (importMode == EmployeeImportMode.Correction && candidate.ManagerChanged)
+            {
+                AddIssue(issues, issueKeys, candidate.RowNumber, "managerEmail", "managerCorrectionUnsupported",
+                    "Manager corrections are not supported in a correction batch. Use the change-manager action.",
+                    value: candidate.ManagerEmail, rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
+                candidate.Classification = EmployeeImportRowClassification.Conflicting;
+                continue;
+            }
+
+            candidate.Classification =
+                candidate.ManagerChanged ? EmployeeImportRowClassification.ManagerChange
+                : candidate.WorkAssignmentChanged ? EmployeeImportRowClassification.WorkAssignmentChange
+                : candidate.EmploymentChanged ? EmployeeImportRowClassification.EmploymentChange
+                : candidate.ProfileChanged ? EmployeeImportRowClassification.ProfileCorrection
+                : EmployeeImportRowClassification.Unchanged;
+
+            // Reject employment/assignment/manager changes when there is no active employment as of the effective date
+            if (employment == null
+                && candidate.Classification is EmployeeImportRowClassification.EmploymentChange
+                    or EmployeeImportRowClassification.WorkAssignmentChange
+                    or EmployeeImportRowClassification.ManagerChange)
+            {
+                AddIssue(issues, issueKeys, candidate.RowNumber, "effectiveDate", "noActiveEmploymentAtEffectiveDate",
+                    $"This employee has no active employment as of {candidate.ResolvedEffectiveDate:yyyy-MM-dd}. Use the rehire action to start a new employment period first.",
+                    rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
+                candidate.Classification = EmployeeImportRowClassification.Conflicting;
+            }
+        }
+
         var normalizedRows = candidates
             .Where(candidate => !HasErrors(rowErrorNumbers, candidate.RowNumber)
                 && (!IsFieldRequiredForImport(sourceHeaders, "firstName", settings, true)
@@ -1136,16 +1856,19 @@ public sealed class EmployeeImportWorkflowService(
                     || !string.IsNullOrWhiteSpace(candidate.LastName))
                 && (!IsFieldRequiredForImport(sourceHeaders, "email", settings, true)
                     || !string.IsNullOrWhiteSpace(candidate.Email))
-                && (!ResolveImportFieldRequired("phone", settings, false)
-                    || !string.IsNullOrWhiteSpace(candidate.Phone))
-                && (!ResolveImportFieldRequired("hireDate", settings, true)
-                    || candidate.HireDate.HasValue)
-                && (!ResolveImportFieldRequired("jobTitle", settings, false)
-                    || !string.IsNullOrWhiteSpace(candidate.JobTitle))
-                && (!ResolveImportFieldRequired("workLocation", settings, false)
-                    || !string.IsNullOrWhiteSpace(candidate.WorkLocation))
-                && (!ResolveImportFieldRequired("employmentType", settings, false)
-                    || !string.IsNullOrWhiteSpace(candidate.EmploymentType)))
+                // Field-completeness rules govern new-employee creation; controlled updates only
+                // touch the facts their row actually supplies.
+                && (candidate.MatchedEmployeeId is not null
+                    || ((!ResolveImportFieldRequired("phone", settings, false)
+                            || !string.IsNullOrWhiteSpace(candidate.Phone))
+                        && (!ResolveImportFieldRequired("hireDate", settings, true)
+                            || candidate.HireDate.HasValue)
+                        && (!ResolveImportFieldRequired("jobTitle", settings, false)
+                            || !string.IsNullOrWhiteSpace(candidate.JobTitle))
+                        && (!ResolveImportFieldRequired("workLocation", settings, false)
+                            || !string.IsNullOrWhiteSpace(candidate.WorkLocation))
+                        && (!ResolveImportFieldRequired("employmentType", settings, false)
+                            || !string.IsNullOrWhiteSpace(candidate.EmploymentType)))))
             .Select(candidate => new StoredNormalizedRow(
                 candidate.RowNumber,
                 candidate.EmployeeNumber,
@@ -1153,14 +1876,21 @@ public sealed class EmployeeImportWorkflowService(
                 candidate.LastName!,
                 candidate.Email!,
                 candidate.Phone,
-                candidate.HireDate!.Value,
+                candidate.HireDate ?? candidate.ResolvedEffectiveDate,
                 candidate.JobTitle,
                 candidate.WorkLocation,
                 candidate.EmploymentType,
                 candidate.OrgUnitCode,
                 candidate.ResolvedOrgUnitId,
                 candidate.ManagerEmail,
-                candidate.ResolvedExistingManagerId))
+                candidate.ResolvedExistingManagerId,
+                candidate.Classification,
+                candidate.ResolvedEffectiveDate,
+                candidate.MatchedEmployeeId,
+                candidate.ProfileChanged,
+                candidate.EmploymentChanged,
+                candidate.WorkAssignmentChanged,
+                candidate.ManagerChanged))
             .OrderBy(row => row.RowNumber)
             .ToList();
 
@@ -1356,6 +2086,11 @@ public sealed class EmployeeImportWorkflowService(
         string? groupKey = null)
     {
         var schema = await BuildSchemaAsync(cancellationToken);
+        var latestApplyOperation = await dbContext.EmployeeImportApplyOperations
+            .AsNoTracking()
+            .Where(operation => operation.SessionId == session.Id)
+            .OrderByDescending(operation => operation.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
 
         return BuildSessionDto(
             session,
@@ -1363,6 +2098,7 @@ public sealed class EmployeeImportWorkflowService(
             sourceRows,
             previewRows,
             schema,
+            latestApplyOperation is null ? null : BuildApplyOperationDto(latestApplyOperation),
             previewPageNumber,
             previewPageSize,
             previewFilter,
@@ -1375,6 +2111,7 @@ public sealed class EmployeeImportWorkflowService(
         IReadOnlyList<EmployeeImportSourceRowDto> sourceRows,
         IReadOnlyList<EmployeeImportPreviewRowDto> previewRows,
         EmployeeImportSchemaDto schema,
+        EmployeeImportApplyOperationDto? lastApplyOperation,
         int previewPageNumber = 1,
         int previewPageSize = DefaultPreviewPageSize,
         string previewFilter = "all",
@@ -1395,7 +2132,7 @@ public sealed class EmployeeImportWorkflowService(
         var validationSummary = BuildValidationSummary(
             sourceRows.Count,
             validationIssues,
-            session.Stage is EmployeeImportStage.Validated or EmployeeImportStage.Applied);
+            session.Stage is EmployeeImportStage.Validated or EmployeeImportStage.Applying or EmployeeImportStage.Applied);
         var filteredPreviewRows = FilterPreviewRows(
             previewRows,
             validationIssues,
@@ -1413,9 +2150,42 @@ public sealed class EmployeeImportWorkflowService(
             .Skip((currentPreviewPage - 1) * normalizedPreviewPageSize)
             .Take(normalizedPreviewPageSize)
             .ToList();
+
+        // Surface classification, resolved effective date, matched identity, and the full change set
+        // on the previewed rows once the batch has been validated.
+        var isValidatedStage = session.Stage is EmployeeImportStage.Validated or EmployeeImportStage.Applying or EmployeeImportStage.Applied;
+        if (isValidatedStage)
+        {
+            var normalizedByRow = ReadNormalizedRowsSafe(session)
+                .GroupBy(row => row.RowNumber)
+                .ToDictionary(group => group.Key, group => group.First());
+            var errorRowNumbers = validationIssues
+                .Where(issue => issue.Severity.Equals("error", StringComparison.OrdinalIgnoreCase))
+                .Select(issue => issue.RowNumber)
+                .ToHashSet();
+
+            previewWindow = previewWindow
+                .Select(row => normalizedByRow.TryGetValue(row.RowNumber, out var normalized)
+                    ? row with
+                    {
+                        Classification = normalized.Classification,
+                        ResolvedEffectiveDate = normalized.ResolvedEffectiveDate == default
+                            ? null
+                            : normalized.ResolvedEffectiveDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                        MatchedEmployeeId = normalized.MatchedEmployeeId,
+                        ChangedFacts = normalized.ChangedFacts
+                    }
+                    : row with
+                    {
+                        Classification = errorRowNumbers.Contains(row.RowNumber)
+                            ? EmployeeImportRowClassification.Invalid
+                            : row.Classification
+                    })
+                .ToList();
+        }
+
         var canValidate =
-            session.Stage != EmployeeImportStage.Expired &&
-            session.Stage != EmployeeImportStage.Applied;
+            session.Stage is EmployeeImportStage.PreviewReady or EmployeeImportStage.Validated;
         var canApply =
             session.Stage == EmployeeImportStage.Validated &&
             validationSummary.ErrorCount == 0;
@@ -1424,6 +2194,8 @@ public sealed class EmployeeImportWorkflowService(
             session.Id,
             session.Stage,
             session.Version,
+            session.BatchEffectiveDate,
+            session.ImportMode,
             session.SourceFileName,
             session.SourceFileSizeBytes,
             sourceRows.Count,
@@ -1437,6 +2209,7 @@ public sealed class EmployeeImportWorkflowService(
             currentPreviewPage < previewPageCount,
             validationSummary,
             validationIssues,
+            lastApplyOperation,
             session.AppliedAt,
             session.ExpiresAt,
             schema,
@@ -1512,6 +2285,11 @@ public sealed class EmployeeImportWorkflowService(
             session.NormalizedRowsJson,
             "The saved import session is no longer valid. Validate the file again before applying.");
 
+    private static List<StoredNormalizedRow> ReadNormalizedRowsSafe(EmployeeImportSession session)
+        => string.IsNullOrWhiteSpace(session.NormalizedRowsJson)
+            ? []
+            : Deserialize<List<StoredNormalizedRow>>(session.NormalizedRowsJson) ?? [];
+
     private static List<StoredValidationIssue> ReadValidationIssues(EmployeeImportSession session)
         => string.IsNullOrWhiteSpace(session.ValidationIssuesJson)
             ? []
@@ -1540,6 +2318,27 @@ public sealed class EmployeeImportWorkflowService(
         }
     }
 
+    private static EmployeeImportApplyOperationDto BuildApplyOperationDto(
+        EmployeeImportApplyOperation operation)
+        => new(
+            operation.Id,
+            operation.SessionId,
+            operation.Status,
+            operation.ActorUserId,
+            operation.ActorFullName,
+            operation.ActorRole,
+            operation.QueuedAt,
+            operation.StartedAt,
+            operation.CompletedAt,
+            operation.FailedAt,
+            operation.FailureReason,
+            operation.HistoryId,
+            operation.SourceRowCount,
+            operation.ValidatedRowCount,
+            operation.ProcessedRowCount,
+            operation.CreatedCount,
+            operation.PublishedRowCount);
+
     private static EmployeeImportHistoryListItemDto BuildHistoryListItemDto(EmployeeImportHistory history)
         => new(
             history.Id,
@@ -1547,9 +2346,10 @@ public sealed class EmployeeImportWorkflowService(
             history.SourceFileName,
             history.SourceFileSizeBytes,
             history.SourceRowCount,
-            history.ValidRowCount,
+            history.ValidatedRowCount,
             history.CreatedCount,
-            history.SkippedCount,
+            history.UnchangedRowCount,
+            history.PublishedRowCount,
             history.Status,
             history.AppliedAt,
             history.ActorUserId,
@@ -1569,9 +2369,10 @@ public sealed class EmployeeImportWorkflowService(
             history.SourceFileName,
             history.SourceFileSizeBytes,
             history.SourceRowCount,
-            history.ValidRowCount,
+            history.ValidatedRowCount,
             history.CreatedCount,
-            history.SkippedCount,
+            history.UnchangedRowCount,
+            history.PublishedRowCount,
             history.Status,
             history.AppliedAt,
             history.ActorUserId,
@@ -1592,34 +2393,45 @@ public sealed class EmployeeImportWorkflowService(
         TenantSettingsDto settings)
     {
         var normalizedRowsByEmail = normalizedRows.ToDictionary(row => row.Email, StringComparer.OrdinalIgnoreCase);
-        var directReportCounts = employeesByEmail.Values
-            .Where(employee => employee.ManagerId.HasValue)
-            .GroupBy(employee => employee.ManagerId!.Value)
-            .ToDictionary(group => group.Key, group => group.Count());
-
         var followUpIssues = new List<EmployeeImportFollowUpIssue>();
 
         foreach (var (email, employee) in employeesByEmail)
         {
             var row = normalizedRowsByEmail[email];
-            var directReportCount = directReportCounts.GetValueOrDefault(employee.Id);
-            var hierarchyStatus = EmployeeReadModelPolicy.ResolveHierarchyStatus(employee, directReportCount);
-            var readiness = EmployeeReadinessPolicy.BuildSummary(employee, settings, hierarchyStatus, directReportCount);
 
-            foreach (var issue in readiness.EmployeeStateIssues)
-            {
-                followUpIssues.Add(EmployeeImportFollowUpIssue.Create(
-                    tenantContext.TenantId,
-                    historyId,
-                    employee.Id,
-                    row.RowNumber,
-                    issue.Code,
-                    issue.FieldKey));
-            }
+            // Check required identity fields
+            if (IsFieldRequired(settings, "firstName") && string.IsNullOrWhiteSpace(row.FirstName))
+                followUpIssues.Add(MakeIssue(historyId, employee.Id, row.RowNumber, EmployeeReadinessIssueCodes.MissingRequiredField, "firstName"));
+            if (IsFieldRequired(settings, "lastName") && string.IsNullOrWhiteSpace(row.LastName))
+                followUpIssues.Add(MakeIssue(historyId, employee.Id, row.RowNumber, EmployeeReadinessIssueCodes.MissingRequiredField, "lastName"));
+            if (IsFieldRequired(settings, "email") && string.IsNullOrWhiteSpace(row.Email))
+                followUpIssues.Add(MakeIssue(historyId, employee.Id, row.RowNumber, EmployeeReadinessIssueCodes.MissingRequiredField, "email"));
+            if (IsFieldRequired(settings, "phone") && string.IsNullOrWhiteSpace(row.Phone))
+                followUpIssues.Add(MakeIssue(historyId, employee.Id, row.RowNumber, EmployeeReadinessIssueCodes.MissingRequiredField, "phone"));
+            if (IsFieldRequired(settings, "jobTitle") && string.IsNullOrWhiteSpace(row.JobTitle))
+                followUpIssues.Add(MakeIssue(historyId, employee.Id, row.RowNumber, EmployeeReadinessIssueCodes.MissingRequiredField, "jobTitle"));
+            if (IsFieldRequired(settings, "workLocation") && string.IsNullOrWhiteSpace(row.WorkLocation))
+                followUpIssues.Add(MakeIssue(historyId, employee.Id, row.RowNumber, EmployeeReadinessIssueCodes.MissingRequiredField, "workLocation"));
+            if (IsFieldRequired(settings, "employmentType") && string.IsNullOrWhiteSpace(row.EmploymentType))
+                followUpIssues.Add(MakeIssue(historyId, employee.Id, row.RowNumber, EmployeeReadinessIssueCodes.MissingRequiredField, "employmentType"));
+
+            // Org unit: resolved from import row
+            if (!row.OrgUnitId.HasValue)
+                followUpIssues.Add(MakeIssue(historyId, employee.Id, row.RowNumber, EmployeeReadinessIssueCodes.MissingOrgUnit, "orgUnitId"));
+
+            // Manager: resolved from import row (same-batch managers are pre-resolved during ValidateAsync)
+            if (!row.ExistingManagerId.HasValue)
+                followUpIssues.Add(MakeIssue(historyId, employee.Id, row.RowNumber, EmployeeReadinessIssueCodes.NoManagerAssigned, "managerId"));
         }
 
         return followUpIssues;
     }
+
+    private static bool IsFieldRequired(TenantSettingsDto settings, string fieldKey)
+        => settings.EmployeeFieldConfig.TryGetValue(fieldKey, out var config) && config.Required;
+
+    private EmployeeImportFollowUpIssue MakeIssue(Guid historyId, Guid employeeId, int rowNumber, string code, string? fieldKey)
+        => EmployeeImportFollowUpIssue.Create(tenantContext.TenantId, historyId, employeeId, rowNumber, code, fieldKey);
 
     private async Task<IReadOnlyList<EmployeeImportFollowUpIssueDto>> BuildUnresolvedFollowUpIssuesAsync(
         Guid historyId,
@@ -1632,66 +2444,83 @@ public sealed class EmployeeImportWorkflowService(
             .ThenBy(issue => issue.IssueCode)
             .ToListAsync(cancellationToken);
 
-        if (storedIssues.Count == 0)
-        {
-            return Array.Empty<EmployeeImportFollowUpIssueDto>();
-        }
+        if (storedIssues.Count == 0) return [];
 
-        var employeeIds = storedIssues
-            .Select(issue => issue.EmployeeId)
-            .Distinct()
-            .ToList();
+        var employeeIds = storedIssues.Select(issue => issue.EmployeeId).Distinct().ToList();
 
         var employees = await dbContext.Employees
             .AsNoTracking()
-            .Include(employee => employee.Manager)
-            .Include(employee => employee.OrgUnit)
-            .Where(employee => employeeIds.Contains(employee.Id))
+            .Where(e => employeeIds.Contains(e.Id))
             .ToListAsync(cancellationToken);
 
-        if (employees.Count == 0)
+        if (employees.Count == 0) return [];
+
+        var now = DateTime.UtcNow;
+
+        // Canonical WorkAssignment: has org unit?
+        var employeeIdsWithOrgUnit = (await dbContext.WorkAssignments
+            .AsNoTracking()
+            .Where(wa => employeeIds.Contains(wa.EmployeeId)
+                && wa.IsPrimary
+                && wa.EffectiveFrom <= now && (wa.EffectiveTo == null || now < wa.EffectiveTo))
+            .Select(wa => wa.EmployeeId)
+            .Distinct()
+            .ToListAsync(cancellationToken))
+            .ToHashSet();
+
+        // Canonical ManagerRelationship: has manager?
+        var managerLinks = await dbContext.ManagerRelationships
+            .AsNoTracking()
+            .Where(m => employeeIds.Contains(m.SubjectEmployeeId)
+                && m.Type == Domain.Enums.ReportingRelationshipType.PrimaryManager
+                && m.EffectiveFrom <= now && (m.EffectiveTo == null || now < m.EffectiveTo))
+            .Select(m => new { m.SubjectEmployeeId, m.ManagerEmployeeId })
+            .ToListAsync(cancellationToken);
+        var managerIdByEmployee = managerLinks
+            .GroupBy(m => m.SubjectEmployeeId)
+            .ToDictionary(g => g.Key, g => g.First().ManagerEmployeeId);
+
+        // Manager active status
+        var managerIds = managerIdByEmployee.Values.Distinct().ToList();
+        HashSet<Guid> activeManagerIds = [];
+        if (managerIds.Count > 0)
         {
-            return Array.Empty<EmployeeImportFollowUpIssueDto>();
+            activeManagerIds = (await dbContext.Employments
+                .AsNoTracking()
+                .Where(e => managerIds.Contains(e.EmployeeId)
+                    && e.EffectiveFrom <= now && (e.EffectiveTo == null || now < e.EffectiveTo))
+                .Select(e => e.EmployeeId)
+                .Distinct()
+                .ToListAsync(cancellationToken))
+                .ToHashSet();
         }
 
-        var settings = await tenantSettingsReader.GetCurrentAsync(cancellationToken);
-        var directReportCounts = await dbContext.Employees
-            .AsNoTracking()
-            .Where(employee => employee.ManagerId.HasValue
-                && employee.Status == EmployeeStatus.Active
-                && employeeIds.Contains(employee.ManagerId.Value))
-            .GroupBy(employee => employee.ManagerId!.Value)
-            .Select(group => new { ManagerId = group.Key, Count = group.Count() })
-            .ToDictionaryAsync(group => group.ManagerId, group => group.Count, cancellationToken);
-
-        var readinessByEmployeeId = employees.ToDictionary(
-            employee => employee.Id,
-            employee =>
-            {
-                var directReportCount = directReportCounts.GetValueOrDefault(employee.Id);
-                var hierarchyStatus = EmployeeReadModelPolicy.ResolveHierarchyStatus(employee, directReportCount);
-                return EmployeeReadinessPolicy.BuildSummary(employee, settings, hierarchyStatus, directReportCount);
-            });
-
-        var employeesById = employees.ToDictionary(employee => employee.Id);
+        var employeesById = employees.ToDictionary(e => e.Id);
         var unresolvedIssues = new List<EmployeeImportFollowUpIssueDto>();
 
         foreach (var storedIssue in storedIssues)
         {
-            if (!employeesById.TryGetValue(storedIssue.EmployeeId, out var employee)
-                || !readinessByEmployeeId.TryGetValue(storedIssue.EmployeeId, out var readiness))
-            {
-                continue;
-            }
+            if (!employeesById.TryGetValue(storedIssue.EmployeeId, out var employee)) continue;
 
-            var currentIssue = readiness.EmployeeStateIssues.FirstOrDefault(issue =>
-                issue.Code == storedIssue.IssueCode
-                && string.Equals(issue.FieldKey, storedIssue.FieldKey, StringComparison.Ordinal));
-
-            if (currentIssue is null)
+            var isResolved = storedIssue.IssueCode switch
             {
-                continue;
-            }
+                EmployeeReadinessIssueCodes.MissingOrgUnit => employeeIdsWithOrgUnit.Contains(storedIssue.EmployeeId),
+                EmployeeReadinessIssueCodes.NoManagerAssigned => managerIdByEmployee.ContainsKey(storedIssue.EmployeeId),
+                EmployeeReadinessIssueCodes.ManagerInactive => managerIdByEmployee.TryGetValue(storedIssue.EmployeeId, out var mgr) && activeManagerIds.Contains(mgr),
+                EmployeeReadinessIssueCodes.ManagerMissing => managerIdByEmployee.ContainsKey(storedIssue.EmployeeId),
+                _ => false,
+            };
+
+            if (isResolved) continue;
+
+            var (label, fixTargetKind) = storedIssue.IssueCode switch
+            {
+                EmployeeReadinessIssueCodes.MissingOrgUnit => ("Org unit is missing", EmployeeReadinessFixTargetKinds.ProfileOrganization),
+                EmployeeReadinessIssueCodes.NoManagerAssigned => ("Manager is missing", EmployeeReadinessFixTargetKinds.ReportingRelationships),
+                EmployeeReadinessIssueCodes.ManagerInactive => ("Assigned manager is inactive", EmployeeReadinessFixTargetKinds.ReportingRelationships),
+                EmployeeReadinessIssueCodes.ManagerMissing => ("Manager record is missing", EmployeeReadinessFixTargetKinds.ReportingRelationships),
+                _ => ("Required field is missing", EmployeeReadinessFixTargetKinds.ProfileIdentity),
+            };
 
             unresolvedIssues.Add(new EmployeeImportFollowUpIssueDto(
                 storedIssue.Id,
@@ -1699,10 +2528,10 @@ public sealed class EmployeeImportWorkflowService(
                 employee.Id,
                 employee.FullName,
                 employee.Email,
-                currentIssue.Code,
-                currentIssue.Label,
-                currentIssue.FieldKey,
-                currentIssue.FixTarget));
+                storedIssue.IssueCode,
+                label,
+                storedIssue.FieldKey,
+                new EmployeeReadinessFixTargetDto(fixTargetKind, employee.Id, employee.StableEmployeeKey, FieldKey: storedIssue.FieldKey)));
         }
 
         return unresolvedIssues;
@@ -1812,6 +2641,10 @@ public sealed class EmployeeImportWorkflowService(
                 => "invalidRelationship",
             "ambiguousManagerEmail" or "managerNotFound" or "managerInvalidInBatch" or "managerInactive"
                 => "invalidReportingReference",
+            "effectiveDateBeforeHireDate" or "effectiveDateBeforeEmploymentStart" or "noActiveEmploymentAtEffectiveDate" or "invalidEffectiveDate"
+                => "invalidEffectiveDateWindow",
+            "createInCorrectionBatch" or "managerCorrectionUnsupported"
+                => "importModeViolation",
             _ => "invalidReportingReference"
         };
 
@@ -1842,6 +2675,12 @@ public sealed class EmployeeImportWorkflowService(
             "selfManager" => "Replace the manager email with another employee or leave it blank.",
             "managerInvalidInBatch" => "Fix the referenced manager row first so this manager email resolves to a valid employee.",
             "managerCycle" => "Update the manager chain so it does not loop back to any employee in the same upload.",
+            "invalidEffectiveDate" => "Use YYYY-MM-DD format for the effective date.",
+            "effectiveDateBeforeHireDate" => "Use an effective date on or after the hire date for new employees.",
+            "effectiveDateBeforeEmploymentStart" => "Use an effective date on or after the employee's employment start date.",
+            "noActiveEmploymentAtEffectiveDate" => "Use the rehire action to start a new employment period before applying changes via import.",
+            "createInCorrectionBatch" => "Correction batches cannot create new employees. Use a business-change import for new hires.",
+            "managerCorrectionUnsupported" => "Manager corrections are not supported in a correction batch. Use the change-manager action.",
             _ => "Fix the CSV data for this row and validate the batch again."
         };
 
@@ -1874,6 +2713,16 @@ public sealed class EmployeeImportWorkflowService(
         hireDate = default;
         return false;
     }
+
+    private static bool HeaderPresent(IReadOnlyList<string> sourceHeaders, string fieldKey)
+        => sourceHeaders.Select(CleanHeader).Contains(fieldKey, StringComparer.Ordinal);
+
+    /// <summary>Trim-insensitive, null/empty-equivalent comparison used for change detection.</summary>
+    private static bool ValuesEqual(string? left, string? right)
+        => string.Equals(
+            string.IsNullOrWhiteSpace(left) ? null : left.Trim(),
+            string.IsNullOrWhiteSpace(right) ? null : right.Trim(),
+            StringComparison.Ordinal);
 
     private static string CleanHeader(string? header)
         => (header ?? string.Empty).Trim().TrimStart('\uFEFF');
@@ -1931,7 +2780,24 @@ public sealed class EmployeeImportWorkflowService(
         public string? ManagerEmail { get; } = managerEmail;
         public Guid? ResolvedOrgUnitId { get; set; }
         public Guid? ResolvedExistingManagerId { get; set; }
+        public DateTime? RowEffectiveDate { get; set; }
+        public DateTime ResolvedEffectiveDate { get; set; }
+        public Guid? MatchedEmployeeId { get; set; }
+        public ExistingEmployeeMatch? MatchedEmployee { get; set; }
+        public EmployeeImportRowClassification Classification { get; set; } = EmployeeImportRowClassification.Create;
+        public bool ProfileChanged { get; set; }
+        public bool EmploymentChanged { get; set; }
+        public bool WorkAssignmentChanged { get; set; }
+        public bool ManagerChanged { get; set; }
     }
+
+    private sealed record ExistingEmployeeMatch(
+        string EmployeeNumber,
+        Guid Id,
+        string Email,
+        string FirstName,
+        string LastName,
+        string? Phone);
 
     private sealed record StoredNormalizedRow(
         int RowNumber,
@@ -1947,7 +2813,28 @@ public sealed class EmployeeImportWorkflowService(
         string? OrgUnitCode,
         Guid? OrgUnitId,
         string? ManagerEmail,
-        Guid? ExistingManagerId);
+        Guid? ExistingManagerId,
+        EmployeeImportRowClassification Classification = EmployeeImportRowClassification.Create,
+        DateTime ResolvedEffectiveDate = default,
+        Guid? MatchedEmployeeId = null,
+        bool ProfileChanged = false,
+        bool EmploymentChanged = false,
+        bool WorkAssignmentChanged = false,
+        bool ManagerChanged = false)
+    {
+        public IReadOnlyList<string> ChangedFacts
+        {
+            get
+            {
+                var facts = new List<string>(4);
+                if (ProfileChanged) facts.Add("profile");
+                if (EmploymentChanged) facts.Add("employment");
+                if (WorkAssignmentChanged) facts.Add("workAssignment");
+                if (ManagerChanged) facts.Add("manager");
+                return facts;
+            }
+        }
+    }
 
     private sealed record StoredValidationIssue(
         int RowNumber,
