@@ -6,6 +6,8 @@ import { ModuleLayout, ThemeProvider, ThemeScript } from "@repo/ui";
 import { Toaster } from "sonner";
 import { LearningSidebar } from "@/components/learning-sidebar";
 import { LearningHeader } from "@/components/learning-header";
+import { AcademyAssistant } from "@/components/assistant/academy-assistant";
+import { AssistantScopeProvider } from "@/components/assistant/assistant-scope";
 import "@repo/ui/src/ey-brand.css";
 import "./globals.css";
 
@@ -29,10 +31,15 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           <ThemeProvider>
             <AuthProvider>
-              <ModuleLayout sidebar={<LearningSidebar />}>
-                <LearningHeader />
-                {children}
-              </ModuleLayout>
+              {/* AI-L-1: one module-wide Academy Assistant (ADR-0013). The provider lets the
+                  course player publish its active chapter; the assistant floats everywhere. */}
+              <AssistantScopeProvider>
+                <ModuleLayout sidebar={<LearningSidebar />}>
+                  <LearningHeader />
+                  {children}
+                </ModuleLayout>
+                <AcademyAssistant />
+              </AssistantScopeProvider>
               <Toaster
                 richColors
                 closeButton

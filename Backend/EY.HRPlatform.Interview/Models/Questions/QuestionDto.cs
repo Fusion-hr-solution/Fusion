@@ -16,6 +16,11 @@ public class QuestionDto
     public string Language { get; set; } = string.Empty;
     public string StarterCode { get; set; } = string.Empty;
     public string? ProjectFiles { get; set; }
+    /// <summary>Frontend Project questions: framework ("react" | "angular" | "next").</summary>
+    public string? Framework { get; set; }
+    /// <summary>Frontend Project questions: author grading tests (JSON). Author-facing DTO only —
+    /// NOT the candidate DTO (candidates never receive this).</summary>
+    public string? FrontendTestFiles { get; set; }
     public string EvaluationCriteria { get; set; } = string.Empty;
     public string? TestCases { get; set; }
 }

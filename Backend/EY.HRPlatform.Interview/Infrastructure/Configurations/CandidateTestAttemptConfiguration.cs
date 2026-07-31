@@ -45,6 +45,8 @@ public class CandidateTestAttemptConfiguration : IEntityTypeConfiguration<Candid
         builder.Property(x => x.TotalScore).HasPrecision(5, 2);
         builder.Property(x => x.MaxScore).HasPrecision(5, 2);
 
+        builder.Property(x => x.LastProctorHeartbeatUtc);
+
         builder.Property(x => x.CreatedAt).IsRequired();
         builder.Property(x => x.UpdatedAt).IsRequired(false);
 

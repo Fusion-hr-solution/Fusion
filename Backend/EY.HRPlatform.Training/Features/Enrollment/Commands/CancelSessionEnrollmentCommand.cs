@@ -1,5 +1,6 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
+using EY.HRPlatform.Training.Domain.Entities;
 using EY.HRPlatform.Training.Domain.Enums;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -55,9 +56,13 @@ public class CancelSessionEnrollmentCommandHandler : ICommandHandler<CancelSessi
         var wasFull = enrollment.Status == EnrollmentStatus.Enrolled;
         enrollment.Cancel();
 
-        // If this was a confirmed enrollment, promote the first waitlisted person
+        // If this was a confirmed enrollment: withdraw the learner's invite, then promote the first
+        // waitlisted person (who becomes a confirmed attendee → gets invited).
         if (wasFull)
         {
+            _db.CalendarSyncOutboxes.Add(
+                new CalendarSyncOutbox(CalendarSyncType.AttendeeRemoved, request.SessionId, request.EmployeeId));
+
             var nextWaitlisted = await _db.SessionEnrollments
                 .Where(e => e.SessionId == request.SessionId && e.Status == EnrollmentStatus.Waitlisted)
                 .OrderBy(e => e.WaitlistPosition)
@@ -66,6 +71,8 @@ public class CancelSessionEnrollmentCommandHandler : ICommandHandler<CancelSessi
             if (nextWaitlisted is not null)
             {
                 nextWaitlisted.PromoteFromWaitlist();
+                _db.CalendarSyncOutboxes.Add(
+                    new CalendarSyncOutbox(CalendarSyncType.WaitlistPromoted, request.SessionId, nextWaitlisted.EmployeeId));
             }
         }
 

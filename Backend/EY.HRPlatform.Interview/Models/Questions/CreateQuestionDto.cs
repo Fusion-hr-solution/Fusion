@@ -31,6 +31,12 @@ public class CreateQuestionDto
     public string StarterCode { get; set; } = string.Empty;
     /// <summary>Multi-file coding question: JSON { entry, files: [{ path, content }] }.</summary>
     public string? ProjectFiles { get; set; }
+    /// <summary>Frontend Project questions: the framework ("react" | "angular" | "next").</summary>
+    [MaxLength(40)]
+    public string? Framework { get; set; }
+    /// <summary>Frontend Project questions: the author's grading test suite, JSON
+    /// { files: [{ path, content }] }. Candidate-hidden — never returned in the candidate DTO.</summary>
+    public string? FrontendTestFiles { get; set; }
     public string EvaluationCriteria { get; set; } = string.Empty;
     public string? TestCases { get; set; }
 }

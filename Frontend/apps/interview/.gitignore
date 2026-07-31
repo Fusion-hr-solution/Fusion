@@ -1,3 +1,7 @@
 # Monaco editor assets are vendored from node_modules at predev/prebuild
 # (scripts/copy-monaco.mjs); generated, not source.
 /public/monaco/
+
+# MediaPipe proctoring assets: wasm vendored from node_modules + models downloaded
+# once (scripts/copy-mediapipe.mjs) at predev/prebuild; generated, not source.
+/public/mediapipe/

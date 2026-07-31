@@ -33,6 +33,9 @@ interface BackendTestDto {
   allowBacktracking: boolean;
   showProgressBar: boolean;
   randomizeOrder: boolean;
+  enableProctoring: boolean;
+  enableActivityMonitoring: boolean;
+  restrictCopyPaste: boolean;
   candidateCount: number;
   questionCount: number;
   createdAt: string;
@@ -47,6 +50,9 @@ interface UpsertTestRequest {
   allowBacktracking: boolean;
   showProgressBar: boolean;
   randomizeOrder: boolean;
+  enableProctoring: boolean;
+  enableActivityMonitoring: boolean;
+  restrictCopyPaste: boolean;
 }
 
 interface BackendQuestionDto {
@@ -64,6 +70,8 @@ interface BackendQuestionDto {
   language?: string;
   starterCode?: string;
   projectFiles?: string;
+  framework?: string;
+  frontendTestFiles?: string;
   evaluationCriteria?: string;
   testCases?: string;
 }
@@ -81,6 +89,8 @@ interface CreateQuestionRequest {
   language: string;
   starterCode: string;
   projectFiles?: string;
+  framework?: string;
+  frontendTestFiles?: string;
   evaluationCriteria: string;
   testCases?: string;
 }
@@ -153,6 +163,9 @@ function mapTest(dto: BackendTestDto): Test {
     allowBacktracking: dto.allowBacktracking ?? true,
     showProgressBar: dto.showProgressBar ?? true,
     randomizeOrder: dto.randomizeOrder ?? false,
+    enableProctoring: dto.enableProctoring ?? false,
+    enableActivityMonitoring: dto.enableActivityMonitoring ?? false,
+    restrictCopyPaste: dto.restrictCopyPaste ?? false,
     candidateCount: dto.candidateCount,
     questionCount: dto.questionCount,
     createdAt: dto.createdAt,
@@ -175,6 +188,8 @@ function mapQuestion(dto: BackendQuestionDto): Question {
     language: dto.language,
     starterCode: dto.starterCode,
     projectFiles: dto.projectFiles,
+    framework: dto.framework,
+    frontendTestFiles: dto.frontendTestFiles,
     evaluationCriteria: dto.evaluationCriteria,
     testCases: dto.testCases ? tryParseJson(dto.testCases) : undefined,
   };
@@ -224,6 +239,9 @@ function toCreateQuestionRequest(form: NewQuestionForm): CreateQuestionRequest {
     language: form.language,
     starterCode: form.starterCode,
     projectFiles: form.projectFiles && form.projectFiles.trim().length > 0 ? form.projectFiles : undefined,
+    framework: form.framework && form.framework.trim().length > 0 ? form.framework : undefined,
+    frontendTestFiles:
+      form.frontendTestFiles && form.frontendTestFiles.trim().length > 0 ? form.frontendTestFiles : undefined,
     evaluationCriteria: form.evaluationCriteria,
     testCases: form.testCases.length > 0 ? JSON.stringify(form.testCases) : undefined,
   };
@@ -348,6 +366,9 @@ interface PersistTestInput {
   allowBacktracking: boolean;
   showProgressBar: boolean;
   randomizeOrder: boolean;
+  enableProctoring: boolean;
+  enableActivityMonitoring: boolean;
+  restrictCopyPaste: boolean;
 }
 
 function toUpsertTestRequest(input: PersistTestInput): UpsertTestRequest {
@@ -361,6 +382,9 @@ function toUpsertTestRequest(input: PersistTestInput): UpsertTestRequest {
     allowBacktracking: input.allowBacktracking,
     showProgressBar: input.showProgressBar,
     randomizeOrder: input.randomizeOrder,
+    enableProctoring: input.enableProctoring,
+    enableActivityMonitoring: input.enableActivityMonitoring,
+    restrictCopyPaste: input.restrictCopyPaste,
   };
 }
 
@@ -425,6 +449,9 @@ export async function setTestStatus(test: Test, status: TestStatus): Promise<Tes
     allowBacktracking: test.allowBacktracking,
     showProgressBar: test.showProgressBar,
     randomizeOrder: test.randomizeOrder,
+    enableProctoring: test.enableProctoring,
+    enableActivityMonitoring: test.enableActivityMonitoring,
+    restrictCopyPaste: test.restrictCopyPaste,
   });
 }
 
@@ -449,5 +476,8 @@ export async function duplicateTest(test: Test): Promise<Test> {
     allowBacktracking: test.allowBacktracking,
     showProgressBar: test.showProgressBar,
     randomizeOrder: test.randomizeOrder,
+    enableProctoring: test.enableProctoring,
+    enableActivityMonitoring: test.enableActivityMonitoring,
+    restrictCopyPaste: test.restrictCopyPaste,
   });
 }

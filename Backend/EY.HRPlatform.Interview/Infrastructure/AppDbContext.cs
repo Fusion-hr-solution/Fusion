@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CandidateAttemptSettings> CandidateAttemptSettings => Set<CandidateAttemptSettings>();
     public DbSet<CandidateLinkSecuritySettings> CandidateLinkSecuritySettings => Set<CandidateLinkSecuritySettings>();
     public DbSet<CandidateProgressEvent> CandidateProgressEvents => Set<CandidateProgressEvent>();
+    public DbSet<CandidateProctoringEvent> CandidateProctoringEvents => Set<CandidateProctoringEvent>();
     public DbSet<CandidatePrivacyAction> CandidatePrivacyActions => Set<CandidatePrivacyAction>();
     public DbSet<CandidateRetentionSettings> CandidateRetentionSettings => Set<CandidateRetentionSettings>();
     public DbSet<CandidateRetentionRun> CandidateRetentionRuns => Set<CandidateRetentionRun>();

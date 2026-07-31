@@ -85,6 +85,9 @@ export function TestDashboard() {
       allowBacktracking: test.allowBacktracking,
       showProgressBar: test.showProgressBar,
       randomizeOrder: test.randomizeOrder,
+      enableProctoring: test.enableProctoring,
+      enableActivityMonitoring: test.enableActivityMonitoring,
+      restrictCopyPaste: test.restrictCopyPaste,
     });
     reorderQuestions(selectedQuestions);
     setStep(targetStep);

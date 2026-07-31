@@ -1,5 +1,6 @@
 using EY.HRPlatform.Interview.Features.Candidates;
 using EY.HRPlatform.Interview.Features.Grading;
+using EY.HRPlatform.Interview.Features.Grading.FrontendRunner;
 using EY.HRPlatform.Interview.Features.Grading.Graders;
 using EY.HRPlatform.Interview.Features.Grading.Groq;
 using EY.HRPlatform.Interview.Features.Grading.HumanReview;
@@ -10,6 +11,7 @@ using EY.HRPlatform.Interview.Features.Tests;
 using EY.HRPlatform.Interview.Infrastructure;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
@@ -51,6 +53,7 @@ public static class ServiceCollectionExtensions
             services.AddScoped<HumanReviewService>();
             services.AddDistributedMemoryCache();
             services.AddSingleton<ICodeRunThrottle, CodeRunThrottle>();
+            AddProctoringThrottle(services);
             return services;
         }
 
@@ -110,6 +113,16 @@ public static class ServiceCollectionExtensions
             });
         }
 
+        // Frontend Project auto-grading runs the candidate's app against the author's hidden tests in
+        // a sandboxed runner. Registered only when explicitly enabled + images are configured;
+        // otherwise Frontend Project questions fall through to human review.
+        if (configuration.GetValue($"{FrontendRunnerOptions.SectionName}:Enabled", false))
+        {
+            services.Configure<FrontendRunnerOptions>(configuration.GetSection(FrontendRunnerOptions.SectionName));
+            services.AddScoped<IFrontendProjectRunner, DockerFrontendProjectRunner>();
+            services.AddScoped<IGrader, FrontendProjectGrader>();
+        }
+
         var redisConnectionString = configuration["Redis:ConnectionString"];
         if (!string.IsNullOrWhiteSpace(redisConnectionString))
         {
@@ -144,8 +157,25 @@ public static class ServiceCollectionExtensions
         // optional IConnectionMultiplexer when Redis is configured; otherwise uses its
         // in-process fallback.
         services.AddSingleton<ICodeRunThrottle, CodeRunThrottle>();
+        AddProctoringThrottle(services);
 
         return services;
+    }
+
+    // Proctoring ingestion is cheap (a bulk insert) and fires on a ~10s heartbeat cadence, so the
+    // code-run throttle's 2s min-interval would 429 legitimate flushes (and drop the final batch at
+    // submit). It gets its own instance: no min-interval, generous caps, independent Redis keys.
+    private static void AddProctoringThrottle(IServiceCollection services)
+    {
+        services.AddKeyedSingleton<ICodeRunThrottle>(CodeRunThrottle.ProctoringKey, (sp, _) => new CodeRunThrottle(
+            sp.GetRequiredService<IConfiguration>(),
+            sp.GetRequiredService<ILogger<CodeRunThrottle>>(),
+            sp.GetService<IConnectionMultiplexer>(),
+            section: "Proctoring",
+            defaultMaxConcurrent: 64,
+            defaultMinIntervalSeconds: 0,
+            defaultMaxRunsPerMinute: 60,
+            defaultMaxRunSeconds: 10));
     }
 
     /// <summary>
@@ -161,10 +191,9 @@ public static class ServiceCollectionExtensions
             if (!isTesting)
                 throw new InvalidOperationException("Jwt:Secret is not configured.");
 
-            // Integration tests boot the full pipeline but never exercise the
-            // authenticated endpoints; a dummy key lets the scheme register without
-            // requiring real secrets.
-            jwtSecret = "interview-testing-signing-key-not-used-0123456789";
+            // Integration tests boot the full pipeline; this dummy key lets the scheme register
+            // without real secrets. Tests that call protected routes mint a token against it.
+            jwtSecret = TestingSigningKey;
         }
 
         services.AddAuthentication(options =>
@@ -187,6 +216,22 @@ public static class ServiceCollectionExtensions
             };
         });
 
-        services.AddAuthorization();
+        // SECURE BY DEFAULT. Without a fallback policy, any endpoint lacking [Authorize] is
+        // anonymous — which left the whole authoring/admin surface open (questions incl. their
+        // TestCases + hidden FrontendTestFiles answer keys, tests, invitations with candidate
+        // emails, GDPR privacy actions, retention, link-security). Requiring an authenticated
+        // caller by default means a new endpoint is protected unless it *explicitly* opts out with
+        // [AllowAnonymous] — which only the token-gated candidate surface does
+        // (CandidateAccessController).
+        services.AddAuthorization(options =>
+        {
+            options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build();
+        });
     }
+
+    /// <summary>Signing key used only when the Testing environment supplies no Jwt:Secret.
+    /// Integration tests mint bearer tokens against it to exercise protected routes.</summary>
+    internal const string TestingSigningKey = "interview-testing-signing-key-not-used-0123456789";
 }

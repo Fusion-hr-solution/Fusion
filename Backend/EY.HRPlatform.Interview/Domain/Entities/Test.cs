@@ -14,6 +14,10 @@ public class Test : AggregateRoot
     public bool AllowBacktracking { get; set; } = true;
     public bool ShowProgressBar { get; set; } = true;
     public bool RandomizeOrder { get; set; }
+    // Proctoring flags (all default off). Layer A = webcam; Layer B = browser-integrity.
+    public bool EnableProctoring { get; set; }        // Layer A — webcam detection (camera + consent)
+    public bool EnableActivityMonitoring { get; set; } // Layer B — tab/window switch, fullscreen, 2nd display
+    public bool RestrictCopyPaste { get; set; }        // Layer B — block + log clipboard in answer UI
     public int CandidateCount { get; set; }
     public ICollection<TestQuestion> TestQuestions { get; set; } = new List<TestQuestion>();
 

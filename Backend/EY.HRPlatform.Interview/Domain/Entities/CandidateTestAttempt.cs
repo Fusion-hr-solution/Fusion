@@ -18,6 +18,12 @@ public class CandidateTestAttempt : AggregateRoot
     public decimal? TotalScore { get; set; }
     public decimal? MaxScore { get; set; }
 
+    /// <summary>Last time a proctoring batch/heartbeat was received for this attempt. A stale or
+    /// missing value while proctoring is enabled signals the monitor "went dark" (camera/tab
+    /// closed, network cut) — surfaced to the reviewer as a heartbeat gap. Upserted on the attempt
+    /// (one column) rather than stored as one row per beat.</summary>
+    public DateTime? LastProctorHeartbeatUtc { get; set; }
+
     public CandidateInvitation Invitation { get; set; } = null!;
     public Test? Test { get; set; }
 
