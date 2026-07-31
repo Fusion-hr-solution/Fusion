@@ -24,5 +24,9 @@ export default defineConfig({
     globals: true,
     environment: "happy-dom",
     include: ["src/**/*.test.{ts,tsx}"],
+    // The workspace test task runs every app in parallel on a 2-core CI runner, so a plain
+    // synchronous render of a large workspace tree can sit just past the 5s default and fail
+    // for scheduling reasons alone (access-people-workspace, ~5.9s on CI, instant locally).
+    testTimeout: 20000,
   },
 });
