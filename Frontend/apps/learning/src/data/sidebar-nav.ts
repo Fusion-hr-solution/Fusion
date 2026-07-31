@@ -24,6 +24,7 @@ import {
   MessageSquare,
   FileBarChart,
   Upload,
+  Sparkles,
 } from "lucide-react";
 import type { NavSection } from "@repo/ui";
 
@@ -37,6 +38,7 @@ export const EMPLOYEE_NAV: NavSection = {
   items: [
     { label: "dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "catalog", href: "/", icon: BookOpen },
+    { label: "learningPath", href: "/path", icon: Sparkles },
     { label: "myTrainings", href: "/my-trainings", icon: GraduationCap },
     { label: "mySessions", href: "/my-sessions", icon: CalendarCheck2 },
     { label: "calendar", href: "/calendar", icon: CalendarDays },

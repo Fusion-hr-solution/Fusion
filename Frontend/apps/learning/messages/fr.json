@@ -130,6 +130,7 @@
     "items": {
       "dashboard": "Tableau de bord",
       "catalog": "Catalogue",
+      "learningPath": "Parcours",
       "myTrainings": "Mes Formations",
       "mySessions": "Mes Séances",
       "calendar": "Calendrier",
@@ -421,6 +422,44 @@
       "copyLink": "Copier le lien",
       "copied": "Lien de vérification copié.",
       "copyError": "Impossible de copier le lien."
+    }
+  },
+  "path": {
+    "header": {
+      "moduleTitle": "Formation",
+      "title": "Parcours d'apprentissage",
+      "description": "Dites-nous où vous voulez aller, et obtenez un parcours de formations personnalisé et ordonné pour y parvenir."
+    },
+    "input": {
+      "placeholder": "Décrivez votre objectif — ex. devenir manager en Fiscalité",
+      "aria": "Décrivez votre objectif d'apprentissage",
+      "submit": "Créer mon parcours",
+      "building": "Création…"
+    },
+    "examples": {
+      "label": "Essayez :",
+      "manager": "devenir manager et diriger une équipe",
+      "data": "progresser en analyse de données",
+      "speaking": "améliorer ma prise de parole en public"
+    },
+    "loading": "Recherche des meilleures formations pour votre objectif…",
+    "hint": {
+      "title": "Où voulez-vous aller ?",
+      "description": "Décrivez un objectif avec vos propres mots. Nous vous proposerons un parcours de formations ordonné pour y parvenir — commencez par l'étape de votre choix."
+    },
+    "result": {
+      "count": "{count, plural, one {# étape} other {# étapes}}",
+      "effort": "~{hours} h au total",
+      "whyLabel": "Pourquoi cette étape"
+    },
+    "empty": {
+      "title": "Pas encore de parcours clair pour cet objectif",
+      "description": "Essayez de reformuler votre objectif ou de l'élargir — vous avez peut-être déjà suivi les formations les plus pertinentes."
+    },
+    "error": {
+      "title": "Impossible de créer un parcours pour le moment",
+      "description": "Le service est indisponible. Veuillez réessayer dans un instant.",
+      "retry": "Réessayer"
     }
   },
   "catalog": {

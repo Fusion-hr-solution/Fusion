@@ -130,6 +130,7 @@
     "items": {
       "dashboard": "Dashboard",
       "catalog": "Catalog",
+      "learningPath": "Learning Path",
       "myTrainings": "My Trainings",
       "mySessions": "My Sessions",
       "calendar": "Calendar",
@@ -421,6 +422,44 @@
       "copyLink": "Copy link",
       "copied": "Verification link copied.",
       "copyError": "Could not copy the link."
+    }
+  },
+  "path": {
+    "header": {
+      "moduleTitle": "Learning",
+      "title": "Learning Path",
+      "description": "Tell us where you want to go, and get a personalized, ordered path of courses to get there."
+    },
+    "input": {
+      "placeholder": "Describe your goal — e.g. become a manager in Tax",
+      "aria": "Describe your learning goal",
+      "submit": "Build my path",
+      "building": "Building…"
+    },
+    "examples": {
+      "label": "Try:",
+      "manager": "become a manager and lead a team",
+      "data": "get better at data analysis",
+      "speaking": "improve my public speaking"
+    },
+    "loading": "Finding the best courses for your goal…",
+    "hint": {
+      "title": "Where do you want to go?",
+      "description": "Describe a goal in your own words. We'll suggest an ordered path of courses to help you get there — start any step you like."
+    },
+    "result": {
+      "count": "{count, plural, one {# step} other {# steps}}",
+      "effort": "~{hours}h total",
+      "whyLabel": "Why this step"
+    },
+    "empty": {
+      "title": "No clear path for that goal yet",
+      "description": "Try rephrasing your goal or making it broader — you may already have taken the most relevant courses."
+    },
+    "error": {
+      "title": "We couldn't build a path right now",
+      "description": "The service is unavailable. Please try again in a moment.",
+      "retry": "Try again"
     }
   },
   "catalog": {

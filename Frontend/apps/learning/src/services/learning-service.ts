@@ -138,6 +138,59 @@ export async function getTrainings(params?: {
   };
 }
 
+export interface LearningPathStep extends Training {
+  /** 1-based position in the suggested journey. */
+  order: number;
+  /** Grounded one-line "why this step" (goal + course title/description + level + position). */
+  rationale: string;
+}
+
+export interface LearningPathResult {
+  goal: string;
+  steps: LearningPathStep[];
+  /** One-sentence framing of the path, in the requested locale (null when there is no path). */
+  intro: string | null;
+  /** "llm" (LLM-curated order) | "fallback" (deterministic level-sort) | "none" (empty path). */
+  source: string;
+  /** Approximate total effort in hours across steps, or null when durations are unknown. */
+  effortTotal: number | null;
+}
+
+/**
+ * Learning-path generator (AI-L-8): a free-text goal → an ordered, personalized journey of
+ * real catalog courses. Authenticated — the ai-service excludes what the learner already has.
+ * Reuses `mapBackendToTraining`, adding each step's `order` + grounded `rationale`. An empty
+ * `steps` array is the honest "no path" signal; errors PROPAGATE so the caller can tell a
+ * service outage from an empty result.
+ */
+export async function getLearningPath(
+  goal: string,
+  opts?: { count?: number; locale?: string },
+): Promise<LearningPathResult> {
+  const data = await client.post<{
+    goal: string;
+    steps: (BackendTrainingDto & { order: number; rationale: string })[];
+    intro: string | null;
+    source: string;
+    effortTotal: number | null;
+  }>("/ai/learning-path", {
+    goal,
+    count: opts?.count,
+    locale: opts?.locale ?? "en",
+  });
+  return {
+    goal: data.goal,
+    intro: data.intro,
+    source: data.source,
+    effortTotal: data.effortTotal,
+    steps: data.steps.map((s) => ({
+      ...mapBackendToTraining(s),
+      order: s.order,
+      rationale: s.rationale,
+    })),
+  };
+}
+
 export async function getTrainingById(id: string): Promise<Training> {
   const data = await client.get<BackendTrainingDetailDto>(`/training/catalog/${encodeURIComponent(id)}`, {
     skipAuth: true,
