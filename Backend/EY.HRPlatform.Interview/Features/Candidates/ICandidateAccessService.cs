@@ -8,4 +8,5 @@ public interface ICandidateAccessService
     Task<CandidateAccessSessionDto> StartOrResumeAsync(StartCandidateAttemptDto request, CancellationToken cancellationToken);
     Task<CandidateAccessSubmissionDto> SubmitAsync(SubmitCandidateAttemptDto request, CancellationToken cancellationToken);
     Task<RunCodeResultDto> RunCodeAsync(RunCodeRequestDto request, CancellationToken cancellationToken);
+    Task<ProctoringIngestResultDto> SubmitProctoringEventsAsync(SubmitProctoringEventsDto request, CancellationToken cancellationToken);
 }

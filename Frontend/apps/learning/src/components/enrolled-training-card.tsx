@@ -75,10 +75,12 @@ export function EnrolledTrainingCard({
                 <Clock className="h-3.5 w-3.5" aria-hidden="true" />
                 {training.duration}
               </span>
-              <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
-                <Star className="h-3 w-3 ey-star" aria-hidden="true" />
-                {training.rating}
-              </span>
+              {training.rating != null && (
+                <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
+                  <Star className="h-3 w-3 ey-star" aria-hidden="true" />
+                  {training.rating.toFixed(1)}
+                </span>
+              )}
               {training.deadline && (
                 <span className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1">
                   <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />

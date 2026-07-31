@@ -18,7 +18,11 @@ public interface ICodeRunThrottle
 
 public sealed class CodeRunThrottle : ICodeRunThrottle
 {
-    private const string InflightKey = "coderun:inflight";
+    /// <summary>DI key for the looser, no-min-interval instance used by proctoring ingestion.</summary>
+    public const string ProctoringKey = "proctoring";
+
+    private readonly string _keyPrefix;
+    private readonly string _inflightKey;
 
     private readonly IConnectionMultiplexer? _redis;
     private readonly ILogger<CodeRunThrottle> _logger;
@@ -32,14 +36,30 @@ public sealed class CodeRunThrottle : ICodeRunThrottle
     private readonly SemaphoreSlim _localGate;
     private readonly ConcurrentDictionary<Guid, DateTime> _localLastRun = new();
 
-    public CodeRunThrottle(IConfiguration configuration, ILogger<CodeRunThrottle> logger, IConnectionMultiplexer? redis = null)
+    /// <summary>
+    /// A per-attempt rate limiter. Parameterized by <paramref name="section"/> so it can back more
+    /// than one purpose with independent config + Redis keys — code execution ("CodeRun", the tight
+    /// defaults) and proctoring ingestion ("Proctoring", registered with a looser, no-min-interval
+    /// profile). The default values are used unless overridden by <c>{section}:*</c> config.
+    /// </summary>
+    public CodeRunThrottle(
+        IConfiguration configuration,
+        ILogger<CodeRunThrottle> logger,
+        IConnectionMultiplexer? redis = null,
+        string section = "CodeRun",
+        int defaultMaxConcurrent = 8,
+        int defaultMinIntervalSeconds = 2,
+        int defaultMaxRunsPerMinute = 20,
+        int defaultMaxRunSeconds = 35)
     {
         _redis = redis;
         _logger = logger;
-        _maxConcurrent = configuration.GetValue("CodeRun:MaxConcurrent", 8);
-        _minIntervalSeconds = configuration.GetValue("CodeRun:MinIntervalSeconds", 2);
-        _maxRunsPerMinute = configuration.GetValue("CodeRun:MaxRunsPerMinute", 20);
-        _maxRunMs = configuration.GetValue("CodeRun:MaxRunSeconds", 35) * 1000L;
+        _keyPrefix = section.ToLowerInvariant();
+        _inflightKey = $"{_keyPrefix}:inflight";
+        _maxConcurrent = configuration.GetValue($"{section}:MaxConcurrent", defaultMaxConcurrent);
+        _minIntervalSeconds = configuration.GetValue($"{section}:MinIntervalSeconds", defaultMinIntervalSeconds);
+        _maxRunsPerMinute = configuration.GetValue($"{section}:MaxRunsPerMinute", defaultMaxRunsPerMinute);
+        _maxRunMs = configuration.GetValue($"{section}:MaxRunSeconds", defaultMaxRunSeconds) * 1000L;
         _localGate = new SemaphoreSlim(Math.Max(1, _maxConcurrent), Math.Max(1, _maxConcurrent));
     }
 
@@ -96,9 +116,9 @@ return 0";
 
         var keys = new RedisKey[]
         {
-            InflightKey,
-            $"coderun:iv:{attemptId}",
-            $"coderun:cnt:{attemptId}",
+            _inflightKey,
+            $"{_keyPrefix}:iv:{attemptId}",
+            $"{_keyPrefix}:cnt:{attemptId}",
         };
         var values = new RedisValue[]
         {
@@ -120,7 +140,7 @@ return 0";
             case 3:
                 throw TooManyRequests("Too many runs in a short time — try again shortly.");
             default:
-                return new RedisSlot(db, member);
+                return new RedisSlot(db, _inflightKey, member);
         }
     }
 
@@ -170,13 +190,13 @@ return 0";
     private static ApiException TooManyRequests(string message) =>
         new(message, StatusCodes.Status429TooManyRequests);
 
-    private sealed class RedisSlot(IDatabase db, string member) : IAsyncDisposable
+    private sealed class RedisSlot(IDatabase db, string inflightKey, string member) : IAsyncDisposable
     {
         public async ValueTask DisposeAsync()
         {
             try
             {
-                await db.SortedSetRemoveAsync(InflightKey, member);
+                await db.SortedSetRemoveAsync(inflightKey, member);
             }
             catch
             {

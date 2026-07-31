@@ -157,6 +157,23 @@ function mapProgressTimeline(dto: BackendCandidateProgressTimelineDto): Candidat
         state: milestone.state,
         occurredAtUtc: milestone.occurredAtUtc,
       })),
+      proctoring: attempt.proctoring
+        ? {
+            enabled: attempt.proctoring.enabled,
+            totalEvents: attempt.proctoring.totalEvents,
+            severity: attempt.proctoring.severity,
+            countsByType: attempt.proctoring.countsByType.map((item) => ({
+              type: item.type,
+              count: item.count,
+              severity: item.severity,
+            })),
+            firstEventAtUtc: attempt.proctoring.firstEventAtUtc,
+            lastEventAtUtc: attempt.proctoring.lastEventAtUtc,
+            lastHeartbeatAtUtc: attempt.proctoring.lastHeartbeatAtUtc,
+            heartbeatGapSeconds: attempt.proctoring.heartbeatGapSeconds,
+            wentDark: attempt.proctoring.wentDark,
+          }
+        : undefined,
     })),
   };
 }

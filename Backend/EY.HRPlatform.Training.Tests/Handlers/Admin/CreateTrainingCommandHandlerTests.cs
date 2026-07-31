@@ -15,7 +15,7 @@ public class CreateTrainingCommandHandlerTests
         context.Categories.Add(category);
         await context.SaveChangesAsync();
 
-        var handler = new CreateTrainingCommandHandler(context);
+        var handler = new CreateTrainingCommandHandler(context, new FakePdfTextExtractor());
         var command = new CreateTrainingCommand(
             "New Training", "Description", 10, false, "Bronze", "2 hours", category.Id,
             TrainingType.ELearning.ToString(), null, [], []);
@@ -37,7 +37,7 @@ public class CreateTrainingCommandHandlerTests
         context.Categories.Add(category);
         await context.SaveChangesAsync();
 
-        var handler = new CreateTrainingCommandHandler(context);
+        var handler = new CreateTrainingCommandHandler(context, new FakePdfTextExtractor());
         var chapters = new List<CreateTrainingChapterItem>
         {
             new("Chapter 1", "SingleContent", 0, [new("Article", 0, "Block 1", "Content", null, null, 30)]),
@@ -58,7 +58,7 @@ public class CreateTrainingCommandHandlerTests
     public async Task Handle_ReturnsFailure_WhenCategoryNotFound()
     {
         await using var context = TestDbContextFactory.Create();
-        var handler = new CreateTrainingCommandHandler(context);
+        var handler = new CreateTrainingCommandHandler(context, new FakePdfTextExtractor());
         var command = new CreateTrainingCommand(
             "Training", null, 10, false, "Bronze", null, Guid.NewGuid(),
             TrainingType.ELearning.ToString(), null, [], []);
@@ -77,7 +77,7 @@ public class CreateTrainingCommandHandlerTests
         context.Categories.Add(category);
         await context.SaveChangesAsync();
 
-        var handler = new CreateTrainingCommandHandler(context);
+        var handler = new CreateTrainingCommandHandler(context, new FakePdfTextExtractor());
         var command = new CreateTrainingCommand(
             "Training", null, 10, false, "InvalidLevel", null, category.Id,
             TrainingType.ELearning.ToString(), null, [], []);
@@ -96,7 +96,7 @@ public class CreateTrainingCommandHandlerTests
         context.Categories.Add(category);
         await context.SaveChangesAsync();
 
-        var handler = new CreateTrainingCommandHandler(context);
+        var handler = new CreateTrainingCommandHandler(context, new FakePdfTextExtractor());
         var chapters = new List<CreateTrainingChapterItem>
         {
             new("Bad Chapter", "SingleContent", 0, [new("InvalidType", 0, null, null, null, null, null)]),

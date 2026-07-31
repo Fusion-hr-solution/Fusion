@@ -18,7 +18,7 @@ public class UpdateExamQuestionCommandHandler : ICommandHandler<UpdateExamQuesti
         if (string.IsNullOrWhiteSpace(request.QuestionText))
             return Result.Failure(Error.Validation("Question.TextRequired", "Question text is required."));
 
-        if (!Enum.TryParse<QuestionType>(request.Type, true, out var questionType))
+        if (!Enum.TryParse<QuestionType>(request.Type, true, out var questionType) || !Enum.IsDefined(questionType))
             return Result.Failure(Error.Validation("Question.InvalidType",
                 $"Invalid question type '{request.Type}'. Valid values: SingleChoice, MultipleChoice, TrueFalse."));
 
@@ -47,6 +47,7 @@ public class UpdateExamQuestionCommandHandler : ICommandHandler<UpdateExamQuesti
             return Result.Failure(Error.NotFound("ExamQuestion", request.QuestionId));
 
         question.Update(request.QuestionText, questionType, request.Points);
+        question.SetExplanation(string.IsNullOrWhiteSpace(request.Explanation) ? null : request.Explanation.Trim());
 
         // Replace options wholesale.
         // Materialize to a snapshot so RemoveRange doesn't iterate a live collection.

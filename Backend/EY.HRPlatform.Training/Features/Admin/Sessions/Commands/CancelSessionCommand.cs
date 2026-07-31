@@ -1,5 +1,6 @@
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
+using EY.HRPlatform.Training.Domain.Entities;
 using EY.HRPlatform.Training.Domain.Enums;
 using EY.HRPlatform.Training.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +33,7 @@ public class CancelSessionCommandHandler : ICommandHandler<CancelSessionCommand,
             return Result.Failure(Error.Validation("Session.CannotCancelCompleted", "Cannot cancel a completed session."));
 
         session.Cancel(request.Reason.Trim());
+        _db.CalendarSyncOutboxes.Add(new CalendarSyncOutbox(CalendarSyncType.SessionCancelled, request.SessionId));
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }

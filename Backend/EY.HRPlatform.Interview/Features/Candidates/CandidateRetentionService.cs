@@ -197,6 +197,18 @@ public class CandidateRetentionService(
                                 .Select(i => i.Id)
                                 .ToListAsync(cancellationToken);
 
+                            // Proctoring events hang off the attempt (not the invitation), so resolve
+                            // the attempt ids and delete them before the attempts. Postgres would
+                            // cascade via the FK, but deleting explicitly keeps the intent obvious.
+                            var attemptIds = await dbContext.CandidateTestAttempts
+                                .AsNoTracking()
+                                .Where(a => invitationIds.Contains(a.InvitationId))
+                                .Select(a => a.Id)
+                                .ToListAsync(cancellationToken);
+
+                            await dbContext.CandidateProctoringEvents
+                                .Where(e => attemptIds.Contains(e.AttemptId))
+                                .ExecuteDeleteAsync(cancellationToken);
                             await dbContext.CandidateProgressEvents
                                 .Where(i => invitationIds.Contains(i.InvitationId))
                                 .ExecuteDeleteAsync(cancellationToken);
@@ -225,6 +237,15 @@ public class CandidateRetentionService(
                             var attemptsToDelete = await dbContext.CandidateTestAttempts
                                 .Where(i => invitationIds.Contains(i.InvitationId))
                                 .ToListAsync(cancellationToken);
+
+                            // The in-memory provider doesn't enforce FK cascade, so remove the
+                            // attempts' proctoring events explicitly before the attempts themselves.
+                            var attemptIds = attemptsToDelete.Select(a => a.Id).ToList();
+                            var proctoringToDelete = await dbContext.CandidateProctoringEvents
+                                .Where(e => attemptIds.Contains(e.AttemptId))
+                                .ToListAsync(cancellationToken);
+                            dbContext.CandidateProctoringEvents.RemoveRange(proctoringToDelete);
+
                             dbContext.CandidateTestAttempts.RemoveRange(attemptsToDelete);
 
                             dbContext.CandidateInvitations.RemoveRange(invitationsToDelete);

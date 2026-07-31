@@ -101,6 +101,9 @@ export interface BackendTrainingDto {
   costType: string;
   scheduledDate: string | null;
   createdAt: string;
+  /** Average learner rating (1..5, 2 decimals) from post-training feedback; null when unrated. */
+  averageRating: number | null;
+  ratingCount: number;
 }
 
 export interface BackendTrainingDetailDto extends BackendTrainingDto {
@@ -126,6 +129,9 @@ export interface BackendMyTrainingDto {
   completedAt: string | null;
   assignmentType: string;
   dueDate: string | null;
+  /** Average learner rating (1..5, 2 decimals) from post-training feedback; null when unrated. */
+  averageRating: number | null;
+  ratingCount: number;
 }
 
 export interface BackendPagedResponse<T> {
@@ -284,6 +290,7 @@ export interface BackendAdminExamQuestionDto {
   type: string;
   orderIndex: number;
   points: number;
+  explanation: string | null;
   options: BackendAdminExamOptionDto[];
 }
 
@@ -292,6 +299,34 @@ export interface BackendAdminExamOptionDto {
   optionText: string;
   isCorrect: boolean;
   orderIndex: number;
+}
+
+/* ── AI quiz generation (US-8.2.5) ── */
+
+export interface BackendQuizDraftOptionDto {
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface BackendQuizDraftQuestionDto {
+  text: string;
+  type: string;
+  points: number;
+  explanation: string | null;
+  order: number;
+  source: string;
+  options: BackendQuizDraftOptionDto[];
+}
+
+export interface BackendQuizDraftDto {
+  trainingId: string;
+  aiAvailable: boolean;
+  questions: BackendQuizDraftQuestionDto[];
+}
+
+export interface BackendQuizPublishResultDto {
+  examId: string;
+  publishedCount: number;
 }
 
 export interface BackendAdminTrainingDetailDto extends BackendAdminTrainingDto {

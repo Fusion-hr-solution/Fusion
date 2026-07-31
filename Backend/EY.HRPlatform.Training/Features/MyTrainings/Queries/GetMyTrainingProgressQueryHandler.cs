@@ -44,6 +44,13 @@ public class GetMyTrainingProgressQueryHandler : IQueryHandler<GetMyTrainingProg
                 assignment.Training.Chapters.Select(c => c.Id).Contains(cp.ChapterId),
                 cancellationToken);
 
+        var ratings = await _db.TrainingFeedbacks
+            .AsNoTracking()
+            .Where(f => f.TrainingId == request.TrainingId)
+            .GroupBy(f => f.TrainingId)
+            .Select(g => new { Count = g.Count(), Avg = g.Average(f => (double)f.OverallRating) })
+            .FirstOrDefaultAsync(cancellationToken);
+
         var dto = new MyTrainingDto
         {
             TrainingId = assignment.TrainingId,
@@ -61,7 +68,9 @@ public class GetMyTrainingProgressQueryHandler : IQueryHandler<GetMyTrainingProg
             StartedAt = progress?.StartedAt,
             CompletedAt = progress?.CompletedAt,
             AssignmentType = assignment.AssignmentType.ToString(),
-            DueDate = assignment.DueDate
+            DueDate = assignment.DueDate,
+            AverageRating = ratings is null ? null : Math.Round(ratings.Avg, 2),
+            RatingCount = ratings?.Count ?? 0
         };
 
         return Result.Success(dto);

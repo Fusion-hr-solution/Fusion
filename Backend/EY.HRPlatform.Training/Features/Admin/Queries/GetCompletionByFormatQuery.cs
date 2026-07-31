@@ -104,7 +104,15 @@ public class GetCompletionByFormatQueryHandler
         var curriculumLookup = mappings
             .GroupBy(m => (m.GradeId, m.ServiceLineId))
             .ToDictionary(g => g.Key, g => g.Select(m => m.TrainingId).ToHashSet());
-        var completedByEmployee = completed
+
+        // Curriculum completion is a cumulative state, so the rate's numerator must NOT be date-scoped
+        // (a training completed before the window is still "completed"); only participants/hours/feedback
+        // above are activity metrics that legitimately use the From/To window.
+        var completedAll = await _db.TrainingProgress.AsNoTracking()
+            .Where(p => p.Status == TrainingStatus.Completed && !p.Training.IsDeleted)
+            .Select(p => new { p.EmployeeId, p.TrainingId })
+            .ToListAsync(cancellationToken);
+        var completedByEmployee = completedAll
             .GroupBy(c => c.EmployeeId)
             .ToDictionary(g => g.Key, g => g.Select(c => c.TrainingId).ToHashSet());
 

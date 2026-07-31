@@ -18,7 +18,7 @@ public class AddExamQuestionCommandHandler : ICommandHandler<AddExamQuestionComm
         if (string.IsNullOrWhiteSpace(request.QuestionText))
             return Result.Failure<Guid>(Error.Validation("Question.TextRequired", "Question text is required."));
 
-        if (!Enum.TryParse<QuestionType>(request.Type, true, out var questionType))
+        if (!Enum.TryParse<QuestionType>(request.Type, true, out var questionType) || !Enum.IsDefined(questionType))
             return Result.Failure<Guid>(Error.Validation("Question.InvalidType",
                 $"Invalid question type '{request.Type}'. Valid values: SingleChoice, MultipleChoice, TrueFalse."));
 
@@ -46,7 +46,8 @@ public class AddExamQuestionCommandHandler : ICommandHandler<AddExamQuestionComm
             .Where(q => q.ExamId == request.ExamId)
             .MaxAsync(q => (int?)q.OrderIndex, cancellationToken) ?? -1;
 
-        var question = new ExamQuestion(request.QuestionText, questionType, request.ExamId, maxIndex + 1, request.Points);
+        var explanation = string.IsNullOrWhiteSpace(request.Explanation) ? null : request.Explanation.Trim();
+        var question = new ExamQuestion(request.QuestionText, questionType, request.ExamId, maxIndex + 1, request.Points, explanation);
 
         for (var i = 0; i < request.Options.Count; i++)
         {

@@ -44,6 +44,9 @@ export function useTestPersistence() {
       allowBacktracking: config.allowBacktracking,
       showProgressBar: config.showProgressBar,
       randomizeOrder: config.randomizeOrder,
+      enableProctoring: config.enableProctoring,
+      enableActivityMonitoring: config.enableActivityMonitoring,
+      restrictCopyPaste: config.restrictCopyPaste,
     });
 
     // Guard against any backend fallback to Draft when publishing.
@@ -62,6 +65,9 @@ export function useTestPersistence() {
             allowBacktracking: config.allowBacktracking,
             showProgressBar: config.showProgressBar,
             randomizeOrder: config.randomizeOrder,
+            enableProctoring: config.enableProctoring,
+            enableActivityMonitoring: config.enableActivityMonitoring,
+            restrictCopyPaste: config.restrictCopyPaste,
           })
         : saved;
 

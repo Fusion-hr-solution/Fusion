@@ -17,7 +17,7 @@ public class InterviewRoutesIntegrationTests
     {
         await using var factory = new InterviewApiFactory();
         await SeedQuestionAsync(factory.Services);
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -35,7 +35,7 @@ public class InterviewRoutesIntegrationTests
     public async Task PostTests_WhenStatusOmitted_DefaultsToDraft()
     {
         await using var factory = new InterviewApiFactory();
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -60,7 +60,7 @@ public class InterviewRoutesIntegrationTests
     {
         await using var factory = new InterviewApiFactory();
         var (testId, questionId) = await SeedTestWithQuestionAsync(factory.Services, withMapping: true);
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -77,7 +77,7 @@ public class InterviewRoutesIntegrationTests
     {
         await using var factory = new InterviewApiFactory();
         var (testId, _) = await SeedTestWithQuestionAsync(factory.Services, withMapping: true);
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -99,7 +99,7 @@ public class InterviewRoutesIntegrationTests
     public async Task PostTests_WhenDisciplineInvalid_Returns400WithFailureEnvelope()
     {
         await using var factory = new InterviewApiFactory();
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -125,7 +125,7 @@ public class InterviewRoutesIntegrationTests
     public async Task GetQuestions_WhenPaginationInvalid_Returns400WithEnvelope()
     {
         await using var factory = new InterviewApiFactory();
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });
@@ -144,7 +144,7 @@ public class InterviewRoutesIntegrationTests
     public async Task GetTests_WhenQuestionTypeInvalid_Returns400WithFailureEnvelope()
     {
         await using var factory = new InterviewApiFactory();
-        var client = factory.CreateClient(new WebApplicationFactoryClientOptions
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
         {
             BaseAddress = new Uri("https://localhost")
         });

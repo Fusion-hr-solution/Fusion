@@ -44,10 +44,18 @@ public class GetMyTrainingsQueryHandler : IQueryHandler<GetMyTrainingsQuery, Res
             .Select(g => new { TrainingId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(g => g.TrainingId, g => g.Count, cancellationToken);
 
+        var ratingsMap = await _db.TrainingFeedbacks
+            .AsNoTracking()
+            .Where(f => trainingIds.Contains(f.TrainingId))
+            .GroupBy(f => f.TrainingId)
+            .Select(g => new { TrainingId = g.Key, Count = g.Count(), Avg = g.Average(f => (double)f.OverallRating) })
+            .ToDictionaryAsync(g => g.TrainingId, cancellationToken);
+
         var result = assignments.Select(a =>
         {
             progressMap.TryGetValue(a.TrainingId, out var progress);
             completedChaptersMap.TryGetValue(a.TrainingId, out var completedChapters);
+            ratingsMap.TryGetValue(a.TrainingId, out var ratings);
 
             return new MyTrainingDto
             {
@@ -66,7 +74,9 @@ public class GetMyTrainingsQueryHandler : IQueryHandler<GetMyTrainingsQuery, Res
                 StartedAt = progress?.StartedAt,
                 CompletedAt = progress?.CompletedAt,
                 AssignmentType = a.AssignmentType.ToString(),
-                DueDate = a.DueDate
+                DueDate = a.DueDate,
+                AverageRating = ratings is null ? null : Math.Round(ratings.Avg, 2),
+                RatingCount = ratings?.Count ?? 0
             };
         }).ToList();
 

@@ -33,7 +33,7 @@ export function TrainingStatsStrip({
     },
     {
       icon: Star,
-      value: String(rating),
+      value: rating != null ? rating.toFixed(1) : "—",
       labelKey: "rating",
       className: "ey-star",
     },

@@ -48,6 +48,18 @@ public class TestConfiguration : IEntityTypeConfiguration<Test>
             .HasDefaultValue(false)
             .IsRequired();
 
+        builder.Property(t => t.EnableProctoring)
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(t => t.EnableActivityMonitoring)
+            .HasDefaultValue(false)
+            .IsRequired();
+
+        builder.Property(t => t.RestrictCopyPaste)
+            .HasDefaultValue(false)
+            .IsRequired();
+
         builder.Property(t => t.CandidateCount)
             .HasDefaultValue(0)
             .IsRequired();

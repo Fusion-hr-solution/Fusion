@@ -1,6 +1,7 @@
 import { Check, Clock3, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
+import { ProctoringReviewPanel } from "@/components/candidate-management/proctoring-review-panel";
 import type { TimelineTabProps } from "@/services/models/timeline_tab_model";
 
 export function TimelineTab({
@@ -321,6 +322,8 @@ export function TimelineTab({
                   );
                 })}
               </ol>
+
+              {attempt.proctoring ? <ProctoringReviewPanel proctoring={attempt.proctoring} /> : null}
             </div>
           ))}
         </section>

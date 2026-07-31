@@ -205,8 +205,11 @@ public class AdminReportsController : ControllerBase
                 request.GradeId, request.ServiceLineId, request.From, request.To)),
             cancellationToken);
 
+        // Format comparison has no training dimension — don't surface a "Training:" filter line (mirrors the Excel export).
         var bytes = _exporter.FormatComparisonToPdf(
-            result.Value!, ToFilterLines(request), DecodeCharts(request.Charts));
+            result.Value!,
+            BuildFilterLines(request.GradeLabel, request.ServiceLineLabel, null, request.From, request.To),
+            DecodeCharts(request.Charts));
 
         return File(bytes, PdfContentType, $"format-comparison-{DateTime.UtcNow:yyyy-MM-dd}.pdf");
     }

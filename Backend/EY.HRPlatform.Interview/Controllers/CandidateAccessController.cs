@@ -54,6 +54,20 @@ public class CandidateAccessController(ICandidateAccessService candidateAccessSe
         return Ok(ApiResponse<RunCodeResultDto>.Success(data));
     }
 
+    [HttpPost("proctoring-events")]
+    [ProducesResponseType(typeof(ApiResponse<ProctoringIngestResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> SubmitProctoringEvents(
+        [FromBody] SubmitProctoringEventsDto request,
+        CancellationToken cancellationToken)
+    {
+        request.ClientIpAddress = ResolveClientIpAddress();
+        request.UserAgent = Request.Headers.UserAgent.ToString();
+
+        var data = await candidateAccessService.SubmitProctoringEventsAsync(request, cancellationToken);
+        return Ok(ApiResponse<ProctoringIngestResultDto>.Success(data));
+    }
+
     private string? ResolveClientIpAddress()
     {
         return HttpContext.Connection.RemoteIpAddress?.ToString();

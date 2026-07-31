@@ -6,7 +6,9 @@
 export async function captureSvgChartsAsPng(container: HTMLElement | null): Promise<string[]> {
   if (!container || typeof window === "undefined") return [];
 
-  const svgs = Array.from(container.querySelectorAll("svg"));
+  // Only recharts chart surfaces — NOT every <svg> in the subtree (e.g. lucide icons), which would
+  // otherwise be rasterised and embedded in the PDF as bogus "charts".
+  const svgs = Array.from(container.querySelectorAll<SVGSVGElement>(".recharts-surface"));
   const out: string[] = [];
   for (const svg of svgs) {
     const png = await svgToPng(svg);

@@ -14,3 +14,4 @@ export * from "./enrollment-service";
 export * from "./certificate-service";
 export * from "./admin-certificate-service";
 export { getMyPendingFeedback, submitFeedback } from "./feedback-service";
+export * from "./assistant-stream";

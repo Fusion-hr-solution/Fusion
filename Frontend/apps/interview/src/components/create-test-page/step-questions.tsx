@@ -137,6 +137,19 @@ export function StepQuestions() {
   const [aiBatchOpen, setAiBatchOpen] = useState(false);
   const PAGE_SIZE = 8;
 
+  const frontendSelected = selectedQuestions.some((q) => q.type === "Frontend Project");
+
+  // A test may contain only one Frontend Project question (single-WebContainer limit). Guard the
+  // add with a message instead of silently no-op'ing in the store.
+  function tryAddQuestion(q: Question) {
+    if (q.type === "Frontend Project" && frontendSelected) {
+      setDeleteError("A test can include only one Frontend Project question.");
+      return;
+    }
+    setDeleteError(null);
+    addQuestion(q);
+  }
+
   function handleAiSaved(created: Question[]) {
     // Surface the new questions in the library and select them into the test.
     setQuestionLibrary((prev) => [...created, ...prev]);
@@ -483,7 +496,7 @@ export function StepQuestions() {
                     onClick={() => {
                       if (flagged) return;
                       setOpenCardMenuId(null);
-                      selected ? removeQuestion(q.id) : addQuestion(q);
+                      selected ? removeQuestion(q.id) : tryAddQuestion(q);
                     }}
                     className={cn(
                       "group relative flex cursor-pointer flex-col gap-2 overflow-visible rounded-2xl border-2 p-4 transition-all duration-150",
@@ -611,7 +624,7 @@ export function StepQuestions() {
                       <button
                         onClick={() => {
                           setOpenCardMenuId(null);
-                          selected ? removeQuestion(q.id) : addQuestion(q);
+                          selected ? removeQuestion(q.id) : tryAddQuestion(q);
                         }}
                         className={cn(
                           "flex items-center gap-1.5 rounded-lg px-3 py-1 text-[12px] font-semibold transition-all duration-150",

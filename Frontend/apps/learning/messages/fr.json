@@ -132,6 +132,7 @@
       "catalog": "Catalogue",
       "myTrainings": "Mes Formations",
       "mySessions": "Mes Séances",
+      "calendar": "Calendrier",
       "scanQr": "Scanner un QR",
       "cursus": "Mon Cursus",
       "certificates": "Certificats",
@@ -145,6 +146,7 @@
       "curriculum": "Curriculum",
       "trainingBudgets": "Budgets de formation",
       "sessions": "Séances",
+      "planning": "Planification",
       "attendance": "Présences",
       "certificateRegistry": "Registre des certificats",
       "feedback": "Avis",
@@ -164,6 +166,40 @@
       "certificatesShort": "Certif."
     }
   },
+  "calendar": {
+    "title": "Mon calendrier",
+    "description": "Vos séances et échéances de formation.",
+    "deadlineBadge": "Échéance",
+    "waitlistedBadge": "Liste d'attente",
+    "subscribe": {
+      "action": "S'abonner au calendrier",
+      "title": "S'abonner à votre calendrier de formation",
+      "description": "Ajoutez ce flux à Outlook, Google ou Apple Calendar pour voir vos séances se mettre à jour automatiquement.",
+      "generate": "Générer mon lien de calendrier",
+      "generating": "Génération…",
+      "webcal": "Lien d'abonnement (webcal)",
+      "https": "Lien d'abonnement (https)",
+      "instructions": "Outlook / Apple : ouvrez le lien webcal pour vous abonner. Google Agenda : Autres agendas → À partir de l'URL → collez le lien https.",
+      "warning": "Toute personne disposant de ce lien peut voir votre planning. Régénérez pour révoquer un lien partagé.",
+      "regenerate": "Régénérer le lien",
+      "copied": "Lien copié",
+      "copyError": "Impossible de copier le lien",
+      "error": "Impossible de générer votre lien de calendrier"
+    },
+    "planning": {
+      "title": "Planification des séances",
+      "description": "Toutes les séances de formation planifiées dans l'organisation.",
+      "filters": {
+        "serviceLine": "Service line",
+        "grade": "Grade",
+        "status": "Statut",
+        "room": "Salle",
+        "all": "Tous",
+        "reset": "Réinitialiser"
+      },
+      "capacity": "{enrolled}/{max} inscrits"
+    }
+  },
   "languageSwitcher": {
     "label": "Langue",
     "switchToEn": "Passer à l'anglais",
@@ -176,6 +212,7 @@
     "dark": "Sombre"
   },
   "common": {
+    "noRatings": "Pas encore d'avis",
     "status": {
       "in-progress": "En cours",
       "completed": "Terminée",
@@ -635,6 +672,61 @@
       "courseMaterials": "Supports de cours ({count})",
       "open": "Ouvrir",
       "noMaterials": "Aucun support de cours disponible pour le moment."
+    },
+    "ask": {
+      "title": "Assistant EY Academy",
+      "subtitle": "Des réponses issues de vos supports de cours, avec sources.",
+      "placeholder": "Posez votre question à l'assistant…",
+      "askButton": "Envoyer",
+      "asking": "Réflexion…",
+      "sources": "Sources",
+      "error": "Une erreur est survenue. Veuillez réessayer.",
+      "open": "Ouvrir l'assistant Academy",
+      "close": "Fermer",
+      "empty": "Posez une question sur ce chapitre. Les réponses proviennent de son contenu, avec des sources cliquables.",
+      "emptyGlobal": "Interrogez vos formations, échéances, certificats — ou tout contenu de vos cours.",
+      "expand": "Agrandir",
+      "collapse": "Réduire",
+      "toolSearch": "Recherche dans vos supports de cours…",
+      "toolTrainings": "Consultation de vos formations…",
+      "toolDue": "Vérification de vos échéances…",
+      "toolCursus": "Consultation de votre cursus…",
+      "toolCatalog": "Recherche dans le catalogue…",
+      "toolCertificates": "Récupération de vos certificats…",
+      "toolSessions": "Consultation de vos sessions…",
+      "toolNavigate": "Ouverture de la page…",
+      "toolEnrol": "Préparation de votre inscription…",
+      "toolComplete": "Mise à jour de votre progression…",
+      "navOpened": "Ouvert",
+      "confirmEnrol": "S’inscrire à « {title} » ?",
+      "confirmEnrolMeta": "{credits, plural, one {# crédit} other {# crédits}}",
+      "confirmComplete": "Marquer « {chapter} » comme terminé ?",
+      "confirmCompleteMeta": "{count, plural, one {# section restante} other {# sections restantes}}",
+      "approve": "Confirmer",
+      "decline": "Refuser",
+      "confirmApproved": "Confirmé",
+      "confirmDeclined": "Refusé",
+      "confirmExpired": "Cette confirmation n'est plus active — elle a peut-être été traitée ailleurs ou a expiré. Vérifiez dans Mes formations en cas de doute.",
+      "resumeCut": "La connexion a été perdue pendant la confirmation — vérifiez dans Mes formations si l’action a bien été appliquée.",
+      "feedbackPrompt": "Cette réponse vous a-t-elle aidé ?",
+      "thumbsUp": "Utile",
+      "thumbsDown": "Pas utile",
+      "feedbackThanks": "Merci pour votre retour.",
+      "feedbackError": "Impossible d'enregistrer votre retour — veuillez réessayer.",
+      "historyButton": "Historique",
+      "newChat": "Nouvelle conversation",
+      "historyEmpty": "Aucune conversation enregistrée pour l’instant.",
+      "historyUntitled": "Conversation",
+      "dest": {
+        "catalog": "Catalogue",
+        "dashboard": "Tableau de bord",
+        "cursus": "Mon Cursus",
+        "myTrainings": "Mes formations",
+        "mySessions": "Mes sessions",
+        "certificates": "Certificats",
+        "training": "Page du cours",
+        "learn": "Ouvrir le cours"
+      }
     }
   },
   "exam": {
@@ -703,6 +795,7 @@
       "uploadError": "Impossible de traiter le fichier.",
       "templateError": "Impossible de télécharger le modèle.",
       "applied": "Import terminé.",
+      "appliedWithErrors": "{failed, plural, one {Import terminé — # ligne en échec.} other {Import terminé — # lignes en échec.}}",
       "applyError": "Impossible de terminer l'import.",
       "errorLogError": "Impossible de télécharger le journal d'erreurs."
     },
@@ -1444,7 +1537,8 @@
     },
     "card": {
       "points": "{count, plural, one {# pt} other {# pts}}",
-      "optionsCount": "{count, plural, one {# option} other {# options}}"
+      "optionsCount": "{count, plural, one {# option} other {# options}}",
+      "explanation": "Explication"
     },
     "preview": {
       "title": "Aperçu : {title}",
@@ -1495,6 +1589,8 @@
       "cancel": "Annuler",
       "updateQuestion": "Mettre à jour la question",
       "addQuestion": "Ajouter une question",
+      "explanationLabel": "Explication (facultatif)",
+      "explanationPlaceholder": "Expliquez pourquoi la bonne réponse est correcte...",
       "unexpectedError": "Une erreur inattendue s'est produite."
     },
     "options": {
@@ -1521,6 +1617,60 @@
     "toast": {
       "confirmDeleteExam": "Supprimer cet examen et toutes ses questions ? Cette action est irréversible.",
       "confirmDeleteQuestion": "Supprimer la question « {text} » ?"
+    }
+  },
+  "adminQuiz": {
+    "title": "Générateur de quiz IA",
+    "generateWithAi": "Générer avec l'IA",
+    "description": "Générez des questions à choix multiples à partir du contenu de cette formation, vérifiez-les et modifiez-les, puis publiez-les dans l'examen.",
+    "loading": "Chargement du brouillon...",
+    "unavailable": "La génération de quiz par IA n'est pas configurée pour cet environnement.",
+    "countLabel": "Nombre de questions",
+    "generate": "Générer",
+    "regenerate": "Régénérer",
+    "generating": "Génération des questions...",
+    "generatingHint": "Cela peut prendre une à deux minutes pour un quiz complet — vous pouvez laisser cette fenêtre ouverte.",
+    "stageReading": "Lecture du contenu de la formation...",
+    "stageAnalyzing": "Analyse du contenu...",
+    "stageWriting": "Rédaction des questions...",
+    "stageFinalizing": "Finalisation du quiz...",
+    "generated": "{count, plural, one {# question générée} other {# questions générées}}",
+    "addManually": "Ajouter manuellement",
+    "emptyTitle": "Aucune question",
+    "emptyDescription": "Générez avec l'IA ou ajoutez des questions manuellement pour créer votre quiz.",
+    "questionsCount": "{count, plural, one {# question} other {# questions}}",
+    "invalidHint": "{count, plural, one {# question à corriger} other {# questions à corriger}}",
+    "untitled": "Question sans titre",
+    "emptyOption": "Option vide",
+    "points": "{count, plural, one {# pt} other {# pts}}",
+    "type": {
+      "SingleChoice": "Choix unique",
+      "MultipleChoice": "Choix multiple",
+      "TrueFalse": "Vrai / Faux"
+    },
+    "sourceAi": "IA",
+    "sourceManual": "Manuel",
+    "explanationLabel": "Explication",
+    "discard": "Supprimer",
+    "saveDraft": "Enregistrer le brouillon",
+    "publish": "Publier dans l'examen",
+    "publishExisting": "Ajouter à l'examen",
+    "confirmPublish": "Publier {count, plural, one {# question} other {# questions}} dans l'examen ?",
+    "confirmDiscard": "Supprimer ce brouillon ? Cette action est irréversible.",
+    "published": "{count, plural, one {# question publiée dans l'examen} other {# questions publiées dans l'examen}}",
+    "saved": "Brouillon enregistré.",
+    "discarded": "Brouillon supprimé.",
+    "genError": "Impossible de générer un quiz. Veuillez réessayer.",
+    "saveError": "Impossible d'enregistrer le brouillon.",
+    "publishError": "Impossible de publier le quiz.",
+    "discardError": "Impossible de supprimer le brouillon.",
+    "backfill": {
+      "title": "Extraire le texte des PDF existants",
+      "description": "Lit le texte des PDF déjà téléversés dans la base de données pour que le générateur de quiz IA puisse les utiliser. À exécuter une fois ; peut être relancé.",
+      "button": "Extraire le texte des PDF",
+      "running": "Extraction...",
+      "done": "Terminé — texte extrait de {updated} PDF sur {scanned} ; {skipped} ignoré(s).",
+      "error": "Impossible d'exécuter l'extraction du texte des PDF."
     }
   },
   "adminGrades": {

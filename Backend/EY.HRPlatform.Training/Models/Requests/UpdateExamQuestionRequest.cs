@@ -13,6 +13,10 @@ public class UpdateExamQuestionRequest
     [Range(1, 100)]
     public int Points { get; set; } = 1;
 
+    /// <summary>Optional rationale for the correct answer (US-8.2.5).</summary>
+    [MaxLength(2000)]
+    public string? Explanation { get; set; }
+
     [Required, MinLength(2)]
     public List<ExamOptionInput> Options { get; set; } = [];
 }
