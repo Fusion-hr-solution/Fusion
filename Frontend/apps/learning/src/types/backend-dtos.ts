@@ -112,6 +112,38 @@ export interface BackendTrainingDetailDto extends BackendTrainingDto {
   onSiteCourses: BackendOnSiteCourseDto[];
 }
 
+/** AI-L-6 recommendations endpoint (GET /ai/recommendations). */
+export interface BackendRecommendationReasonDto {
+  kind: string;
+  sourceTrainingId?: string;
+  sourceTitle?: string;
+  averageRating?: number;
+  ratingCount?: number;
+}
+
+export interface BackendRecommendationItemDto {
+  training: BackendTrainingDto;
+  tier: number;
+  score: number | null;
+  reason: BackendRecommendationReasonDto;
+  /** Stable key for the cached 'why this' prose (AI-L-6 R6); used by the swap poll. */
+  provenanceHash: string;
+  /** Generated 'why this' sentence, or null until it is generated (template used until then). */
+  prose: string | null;
+}
+
+export interface BackendRecommendationsDto {
+  items: BackendRecommendationItemDto[];
+  count: number;
+  profileConfigured: boolean;
+  generatedAt: string;
+}
+
+/** GET /ai/recommendations/prose — cached prose by provenance hash (the swap poll). */
+export interface BackendRecommendationsProseDto {
+  prose: Record<string, string>;
+}
+
 export interface BackendMyTrainingDto {
   trainingId: string;
   title: string;

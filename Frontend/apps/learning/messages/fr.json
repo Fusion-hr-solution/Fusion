@@ -308,6 +308,13 @@
     "continueAria": "Continuer {title}",
     "chapterOf": "Chapitre {current} sur {total}",
     "chaptersCount": "{count} chapitres",
+    "reason": {
+      "curriculum": "Dans votre cursus",
+      "mandatory": "Formation obligatoire",
+      "similarity": "Car vous avez suivi {source}",
+      "similarityGeneric": "D'après vos formations",
+      "rating": "Très bien notée par vos collègues"
+    },
     "progressOverview": {
       "title": "Aperçu de la progression",
       "complete": "Terminé",
