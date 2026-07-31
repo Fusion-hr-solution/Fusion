@@ -92,7 +92,7 @@ export function ContentBlockView({
   const typeLabel = t(`block.type.${block.type}`);
 
   return (
-    <div className="ey-animate-fade-up rounded-2xl border border-border/50 bg-card p-6 shadow-sm" style={{ animationDelay: `${index * 80}ms` }}>
+    <div id={`content-block-${block.id}`} className="ey-animate-fade-up scroll-mt-24 rounded-2xl border border-border/50 bg-card p-6 shadow-sm transition-shadow" style={{ animationDelay: `${index * 80}ms` }}>
       <div className="flex items-center gap-3 mb-4">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(var(--ey-blue-500))]/10 ring-1 ring-[hsl(var(--ey-blue-500))]/20">
           <TypeIcon className="h-4 w-4 text-[hsl(var(--ey-blue-500))]" aria-hidden="true" />

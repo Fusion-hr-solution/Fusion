@@ -1,0 +1,4 @@
+# Shell scripts + JS run inside Linux containers — force LF so `/bin/sh` doesn't choke on CRLF.
+*.sh text eol=lf
+entrypoint.sh text eol=lf
+*.js text eol=lf

@@ -116,6 +116,9 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
                 t.AllowBacktracking,
                 t.ShowProgressBar,
                 t.RandomizeOrder,
+                t.EnableProctoring,
+                t.EnableActivityMonitoring,
+                t.RestrictCopyPaste,
                 t.CandidateCount,
                 t.CreatedAt,
                 QuestionCount = t.TestQuestions.Count,
@@ -138,6 +141,9 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
                 AllowBacktracking = t.AllowBacktracking,
                 ShowProgressBar = t.ShowProgressBar,
                 RandomizeOrder = t.RandomizeOrder,
+                EnableProctoring = t.EnableProctoring,
+                EnableActivityMonitoring = t.EnableActivityMonitoring,
+                RestrictCopyPaste = t.RestrictCopyPaste,
                 CandidateCount = t.CandidateCount,
                 QuestionCount = t.QuestionCount,
                 CreatedAt = t.CreatedAt == default ? DateTime.UtcNow.ToString("O") : t.CreatedAt.ToString("O"),
@@ -193,6 +199,9 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
             AllowBacktracking = request.AllowBacktracking ?? true,
             ShowProgressBar = request.ShowProgressBar ?? true,
             RandomizeOrder = request.RandomizeOrder ?? false,
+            EnableProctoring = request.EnableProctoring ?? false,
+            EnableActivityMonitoring = request.EnableActivityMonitoring ?? false,
+            RestrictCopyPaste = request.RestrictCopyPaste ?? false,
             CandidateCount = 0
         };
 
@@ -222,6 +231,9 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
         test.AllowBacktracking = request.AllowBacktracking ?? test.AllowBacktracking;
         test.ShowProgressBar = request.ShowProgressBar ?? test.ShowProgressBar;
         test.RandomizeOrder = request.RandomizeOrder ?? test.RandomizeOrder;
+        test.EnableProctoring = request.EnableProctoring ?? test.EnableProctoring;
+        test.EnableActivityMonitoring = request.EnableActivityMonitoring ?? test.EnableActivityMonitoring;
+        test.RestrictCopyPaste = request.RestrictCopyPaste ?? test.RestrictCopyPaste;
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await InvalidateTestsCacheAsync(cancellationToken);
@@ -287,6 +299,9 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
             AllowBacktracking = test.AllowBacktracking,
             ShowProgressBar = test.ShowProgressBar,
             RandomizeOrder = test.RandomizeOrder,
+            EnableProctoring = test.EnableProctoring,
+            EnableActivityMonitoring = test.EnableActivityMonitoring,
+            RestrictCopyPaste = test.RestrictCopyPaste,
             CandidateCount = test.CandidateCount,
             QuestionCount = test.TestQuestions.Count,
             CreatedAt = test.CreatedAt == default ? DateTime.UtcNow.ToString("O") : test.CreatedAt.ToString("O")

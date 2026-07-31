@@ -24,4 +24,10 @@ public class CreateTestDto
     public bool? ShowProgressBar { get; set; }
 
     public bool? RandomizeOrder { get; set; }
+
+    public bool? EnableProctoring { get; set; }
+
+    public bool? EnableActivityMonitoring { get; set; }
+
+    public bool? RestrictCopyPaste { get; set; }
 }

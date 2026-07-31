@@ -1,6 +1,7 @@
 using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
+using EY.HRPlatform.Interview.Domain;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Infrastructure;
 using EY.HRPlatform.Interview.Models.Candidates;
@@ -93,11 +94,53 @@ public class CandidateManagementService(
                 cancellationToken)
             ?? throw new ApiException("Candidate timeline not found.", StatusCodes.Status404NotFound);
 
+        var nowUtc = DateTime.UtcNow;
+
         var events = await dbContext.CandidateProgressEvents
             .AsNoTracking()
             .Where(item => item.InvitationId == invitation.Id)
             .OrderBy(item => item.OccurredAtUtc)
             .ToListAsync(cancellationToken);
+
+        // Proctoring aggregation: ONE grouped query for all this candidate's attempts (counts +
+        // first/last per type), not a query per attempt. Plus the test's proctoring flags so the
+        // heartbeat "went dark" check only applies when proctoring was actually expected.
+        var attemptIds = invitation.Attempts.Select(item => item.Id).ToList();
+        // Project the GROUP BY aggregates into an anonymous type (the shape every relational
+        // provider reliably translates) and build the record in memory — projecting a GroupBy
+        // straight into a constructor can fail to translate on some providers.
+        var proctoringRows = attemptIds.Count == 0
+            ? []
+            : await dbContext.CandidateProctoringEvents
+                .AsNoTracking()
+                .Where(item => attemptIds.Contains(item.AttemptId))
+                .GroupBy(item => new { item.AttemptId, item.Type })
+                .Select(group => new
+                {
+                    group.Key.AttemptId,
+                    group.Key.Type,
+                    Count = group.Count(),
+                    First = group.Min(item => item.StartedAtUtc),
+                    Last = group.Max(item => item.ServerReceivedAtUtc),
+                })
+                .ToListAsync(cancellationToken);
+        var proctoringByAttempt = proctoringRows
+            .Select(row => new ProctoringTypeAggregate(row.AttemptId, row.Type, row.Count, row.First, row.Last))
+            .GroupBy(item => item.AttemptId)
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<ProctoringTypeAggregate>)group.ToList());
+
+        var testFlags = await dbContext.Tests
+            .AsNoTracking()
+            .Where(item => item.Id == parsedTestId)
+            .Select(item => new
+            {
+                item.EnableProctoring,
+                item.EnableActivityMonitoring,
+                item.RestrictCopyPaste,
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+        var proctoringEnabled = testFlags is not null &&
+            (testFlags.EnableProctoring || testFlags.EnableActivityMonitoring || testFlags.RestrictCopyPaste);
 
         var attemptNumbers = invitation.Attempts
             .Select(item => item.AttemptNumber)
@@ -165,6 +208,13 @@ public class CandidateManagementService(
                         ? "PendingStart"
                         : "Invited";
 
+            var proctoringGroupsForAttempt = attempt is not null
+                ? proctoringByAttempt.GetValueOrDefault(attempt.Id) ?? []
+                : [];
+            var proctoringSummary = attempt is not null
+                ? BuildProctoringSummary(attempt, startedAtUtc, submittedAtUtc, proctoringGroupsForAttempt, proctoringEnabled, nowUtc)
+                : null;
+
             attempts.Add(new CandidateAttemptTimelineDto
             {
                 AttemptNumber = attemptNumber,
@@ -181,6 +231,7 @@ public class CandidateManagementService(
                     BuildMilestone(CandidateProgressMilestones.InProgress, inProgressAtUtc),
                     BuildMilestone(CandidateProgressMilestones.Submitted, submittedAtUtc),
                 ],
+                Proctoring = proctoringSummary,
             });
         }
 
@@ -1101,6 +1152,82 @@ public class CandidateManagementService(
             Name = name,
             State = occurredAtUtc.HasValue ? "Completed" : "Pending",
             OccurredAtUtc = occurredAtUtc?.ToString("O"),
+        };
+    }
+
+    /// <summary>One row of the proctoring aggregate query: a per-(attempt, type) count with the
+    /// earliest event start and the latest server-received time.</summary>
+    private sealed record ProctoringTypeAggregate(
+        Guid AttemptId,
+        string Type,
+        int Count,
+        DateTime First,
+        DateTime Last);
+
+    private static CandidateAttemptProctoringSummaryDto? BuildProctoringSummary(
+        CandidateTestAttempt attempt,
+        DateTime? startedAtUtc,
+        DateTime? submittedAtUtc,
+        IReadOnlyList<ProctoringTypeAggregate> groups,
+        bool enabled,
+        DateTime nowUtc)
+    {
+        var totalEvents = groups.Sum(group => group.Count);
+        var lastHeartbeat = attempt.LastProctorHeartbeatUtc;
+
+        // Whether proctoring actually ran for THIS attempt: enabled on the test now, OR it left
+        // evidence (events or a heartbeat). Using this rather than the test's current flag keeps older
+        // attempts accurate after an author toggles proctoring off, and drives the DTO's Enabled below.
+        var proctoringWasActive = enabled || totalEvents > 0 || lastHeartbeat.HasValue;
+        if (!proctoringWasActive)
+        {
+            return null;
+        }
+
+        var countsByType = groups
+            .OrderByDescending(group => ProctoringSeverity.Rank(ProctoringSeverity.ForType(group.Type)))
+            .ThenByDescending(group => group.Count)
+            .Select(group => new ProctoringTypeCountDto
+            {
+                Type = group.Type,
+                Count = group.Count,
+                Severity = ProctoringSeverity.ForType(group.Type),
+            })
+            .ToList();
+
+        var severity = ProctoringSeverity.RollUp(groups.Select(group => ProctoringSeverity.ForType(group.Type)));
+
+        DateTime? firstEvent = groups.Count > 0 ? groups.Min(group => group.First) : null;
+        DateTime? lastEvent = groups.Count > 0 ? groups.Max(group => group.Last) : null;
+
+        var started = startedAtUtc ?? (attempt.StartedAtUtc != default ? attempt.StartedAtUtc : (DateTime?)null);
+        var end = submittedAtUtc ?? nowUtc;
+
+        // proctoringWasActive is guaranteed true here (we returned null otherwise), so the heartbeat
+        // gap is evaluated for every attempt where proctoring ran.
+        int? gapSeconds = null;
+        var wentDark = false;
+        if (started.HasValue)
+        {
+            // Measure the gap from the last heartbeat (or attempt start, if none ever arrived) to
+            // the attempt end. A large gap means the monitor went dark before the candidate finished.
+            var reference = lastHeartbeat ?? started.Value;
+            var gap = Math.Max(0, (end - reference).TotalSeconds);
+            gapSeconds = (int)Math.Round(gap);
+            wentDark = gap > ProctoringSeverity.HeartbeatGapThresholdSeconds;
+        }
+
+        return new CandidateAttemptProctoringSummaryDto
+        {
+            Enabled = proctoringWasActive,
+            TotalEvents = totalEvents,
+            Severity = severity,
+            CountsByType = countsByType,
+            FirstEventAtUtc = firstEvent?.ToString("O"),
+            LastEventAtUtc = lastEvent?.ToString("O"),
+            LastHeartbeatAtUtc = lastHeartbeat?.ToString("O"),
+            HeartbeatGapSeconds = gapSeconds,
+            WentDark = wentDark,
         };
     }
 

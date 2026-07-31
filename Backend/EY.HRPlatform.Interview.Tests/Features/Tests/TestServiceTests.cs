@@ -42,6 +42,83 @@ public class TestServiceTests
     }
 
     [Fact]
+    public async Task CreateAsync_PersistsProctoringFlags()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var request = new CreateTestDto
+        {
+            Title = "Proctored Screening",
+            Description = "Test with proctoring",
+            Discipline = "Engineering",
+            EnableProctoring = true,
+            EnableActivityMonitoring = true,
+            RestrictCopyPaste = true
+        };
+
+        var created = await service.CreateAsync(request, CancellationToken.None);
+
+        Assert.True(created.EnableProctoring);
+        Assert.True(created.EnableActivityMonitoring);
+        Assert.True(created.RestrictCopyPaste);
+
+        var persisted = db.Tests.Single();
+        Assert.True(persisted.EnableProctoring);
+        Assert.True(persisted.EnableActivityMonitoring);
+        Assert.True(persisted.RestrictCopyPaste);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenProctoringFlagsOmitted_DefaultsToFalse()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var created = await service.CreateAsync(
+            new CreateTestDto { Title = "Plain", Description = "d", Discipline = "Engineering" },
+            CancellationToken.None);
+
+        Assert.False(created.EnableProctoring);
+        Assert.False(created.EnableActivityMonitoring);
+        Assert.False(created.RestrictCopyPaste);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_TogglesProctoringFlags()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var service = CreateService(db);
+
+        var created = await service.CreateAsync(
+            new CreateTestDto { Title = "Toggle", Description = "d", Discipline = "Engineering" },
+            CancellationToken.None);
+
+        var updated = await service.UpdateAsync(
+            Guid.Parse(created.Id),
+            new UpdateTestDto
+            {
+                Title = "Toggle",
+                Description = "d",
+                Discipline = "Engineering",
+                Status = "Draft",
+                EnableProctoring = true,
+                EnableActivityMonitoring = true,
+                RestrictCopyPaste = true
+            },
+            CancellationToken.None);
+
+        Assert.True(updated.EnableProctoring);
+        Assert.True(updated.EnableActivityMonitoring);
+        Assert.True(updated.RestrictCopyPaste);
+
+        var persisted = db.Tests.Single();
+        Assert.True(persisted.EnableProctoring);
+        Assert.True(persisted.EnableActivityMonitoring);
+        Assert.True(persisted.RestrictCopyPaste);
+    }
+
+    [Fact]
     public async Task CreateAsync_WhenTitleMissing_Throws400()
     {
         await using var db = TestDbContextFactory.Create();

@@ -20,6 +20,7 @@ const INITIAL_CONFIG: WizardFormState["config"] = {
   showProgressBar: true,
   restrictCopyPaste: false,
   enableProctoring: false,
+  enableActivityMonitoring: false,
   enableTimeLimit: false,
   timeLimitMinutes: 60,
   maxAttempts: 1,
@@ -78,7 +79,14 @@ export const useWizardStore = create<WizardStore>()(
       updateConfig: (updates) =>
         set((s) => ({ config: { ...s.config, ...updates }, isDirty: true })),
       addQuestion: (q) =>
-        set((s) => ({ selectedQuestions: [...s.selectedQuestions, q], isDirty: true })),
+        set((s) => {
+          // At most one Frontend Project question per test — a browser tab can only run one
+          // WebContainer, and the candidate pre-warm assumes a single frontend environment.
+          if (q.type === "Frontend Project" && s.selectedQuestions.some((x) => x.type === "Frontend Project")) {
+            return s;
+          }
+          return { selectedQuestions: [...s.selectedQuestions, q], isDirty: true };
+        }),
       updateSelectedQuestion: (q) =>
         set((s) => ({
           selectedQuestions: s.selectedQuestions.map((existing) =>

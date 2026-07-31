@@ -27,6 +27,13 @@ public class GetTrainingByIdQueryHandler : IQueryHandler<GetTrainingByIdQuery, R
         if (training is null)
             return Result.Failure<TrainingDetailDto>(new Error("Training.NotFound", $"Training with id '{request.TrainingId}' was not found."));
 
+        var ratings = await _db.TrainingFeedbacks
+            .AsNoTracking()
+            .Where(f => f.TrainingId == request.TrainingId)
+            .GroupBy(f => f.TrainingId)
+            .Select(g => new { Count = g.Count(), Avg = g.Average(f => (double)f.OverallRating) })
+            .FirstOrDefaultAsync(cancellationToken);
+
         var dto = new TrainingDetailDto
         {
             Id = training.Id,
@@ -43,6 +50,8 @@ public class GetTrainingByIdQueryHandler : IQueryHandler<GetTrainingByIdQuery, R
             SponsoringServiceLineId = training.SponsoringServiceLineId,
             ScheduledDate = training.ScheduledDate,
             CreatedAt = training.CreatedAt,
+            AverageRating = ratings is null ? null : Math.Round(ratings.Avg, 2),
+            RatingCount = ratings?.Count ?? 0,
             Chapters = training.Chapters
                 .OrderBy(c => c.OrderIndex)
                 .Select(c => new ChapterDto

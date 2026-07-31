@@ -55,7 +55,8 @@ function mapBackendToTraining(dto: BackendTrainingDto): Training {
     instructor: "EY Learning Team",
     instructorRole: "Training Department",
     enrolledCount: 0,
-    rating: 4.5,
+    rating: dto.averageRating ?? null,
+    ratingCount: dto.ratingCount ?? 0,
     imageUrl: `/images/training-${mapCategory(dto.categoryName)}.jpg`,
     tags: [dto.categoryName.toLowerCase()],
     updatedAt: dto.createdAt.split("T")[0] ?? dto.createdAt,
@@ -81,7 +82,8 @@ function mapBackendToEnrolledTraining(dto: BackendMyTrainingDto): EnrolledTraini
     instructor: "EY Learning Team",
     instructorRole: "Training Department",
     enrolledCount: 0,
-    rating: 4.5,
+    rating: dto.averageRating ?? null,
+    ratingCount: dto.ratingCount ?? 0,
     imageUrl: `/images/training-${mapCategory(dto.categoryName)}.jpg`,
     tags: [dto.categoryName.toLowerCase()],
     updatedAt: dto.startedAt?.split("T")[0] ?? new Date().toISOString().split("T")[0]!,
@@ -326,6 +328,8 @@ export async function getTrainingProgress(trainingId: string): Promise<TrainingL
     costType: "Internal",
     scheduledDate: null,
     createdAt: new Date().toISOString(),
+    averageRating: null,
+    ratingCount: 0,
   });
 
   training.chapters = data.chapters

@@ -149,13 +149,19 @@ export function StepConfig() {
             />
             <SwitchRow
               label="Restrict copy/paste"
-              helper="Disables clipboard on coding questions"
+              helper="Blocks & logs clipboard in text answers; logs (never blocks) pastes in the code editor"
               checked={config.restrictCopyPaste}
               onChange={(v) => updateConfig({ restrictCopyPaste: v })}
             />
             <SwitchRow
+              label="Activity monitoring"
+              helper="Flags tab/window switching, fullscreen exit and second displays — no camera required"
+              checked={config.enableActivityMonitoring}
+              onChange={(v) => updateConfig({ enableActivityMonitoring: v })}
+            />
+            <SwitchRow
               label="Enable proctoring"
-              helper="Requires webcam — needs integration"
+              helper="Webcam detection of second person / absence / phone — asks candidate consent first"
               checked={config.enableProctoring}
               onChange={(v) => updateConfig({ enableProctoring: v })}
             >
@@ -163,7 +169,9 @@ export function StepConfig() {
                 <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-amber-100 bg-amber-50 px-3.5 py-3">
                   <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
                   <p className="text-[12px] leading-relaxed text-amber-700">
-                    Proctoring requires a third-party integration. Configure it in workspace Settings before enabling.
+                    Webcam proctoring runs entirely in the candidate&apos;s browser — only event metadata is
+                    recorded, never video. It requires explicit consent and may be restricted in some regions;
+                    confirm your legal basis before enabling.
                   </p>
                 </div>
               )}

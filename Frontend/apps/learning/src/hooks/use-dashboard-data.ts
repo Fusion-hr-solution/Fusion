@@ -46,7 +46,7 @@ export function useDashboardData(enrolledTrainings: EnrolledTraining[], training
   const enrolledIds = new Set(enrolledTrainings.map((t) => t.id));
   const recommended = trainings
     .filter((t) => !enrolledIds.has(t.id))
-    .sort((a, b) => b.rating - a.rating)
+    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
     .slice(0, 4);
 
   return { stats, categoryBreakdown, continueTrainings, recommended };

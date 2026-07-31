@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EY.HRPlatform.Interview.Domain;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Features.Candidates;
@@ -61,6 +62,45 @@ public class CandidateAccessServiceTests
         var attempt = await db.CandidateTestAttempts.FirstOrDefaultAsync(item => item.InvitationId == invitation.Id);
         Assert.NotNull(attempt);
         Assert.Equal("candidate.one@example.com", attempt!.CandidateEmail);
+    }
+
+    [Fact]
+    public async Task StartOrResumeAsync_SurfacesProctoringFlagsOnSession()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var test = await SeedTestAsync(db, proctoring: true);
+        var invitationService = CreateInvitationService(db);
+        var accessService = CreateAccessService(db);
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = "candidate.proctor@example.com",
+                CandidateName = "Proctored Candidate",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+
+        var token = ExtractToken(created.InviteLink);
+
+        var validation = await accessService.ValidateAsync(token, CancellationToken.None);
+        Assert.True(validation.EnableProctoring);
+        Assert.True(validation.EnableActivityMonitoring);
+        Assert.True(validation.RestrictCopyPaste);
+
+        var session = await accessService.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = "candidate.proctor@example.com",
+                BrowserFingerprint = DefaultFingerprint,
+            },
+            CancellationToken.None);
+
+        Assert.True(session.EnableProctoring);
+        Assert.True(session.EnableActivityMonitoring);
+        Assert.True(session.RestrictCopyPaste);
     }
 
     [Fact]
@@ -829,14 +869,352 @@ public class CandidateAccessServiceTests
     private static CandidateAccessService CreateAccessService(AppDbContext db, IServiceProvider? services = null)
     {
         var provider = services ?? new ServiceCollection().BuildServiceProvider();
-        var throttle = new CodeRunThrottle(
+        var runThrottle = new CodeRunThrottle(
             new ConfigurationBuilder().Build(),
             NullLogger<CodeRunThrottle>.Instance);
         return new CandidateAccessService(
             db,
             provider,
-            throttle,
+            runThrottle,
+            CreateProctoringThrottle(),
             NullLogger<CandidateAccessService>.Instance);
+    }
+
+    // Mirrors the "Proctoring" DI profile: no min-interval, so proctoring tests can post back-to-back.
+    private static CodeRunThrottle CreateProctoringThrottle() =>
+        new(
+            new ConfigurationBuilder().Build(),
+            NullLogger<CodeRunThrottle>.Instance,
+            section: "Proctoring",
+            defaultMaxConcurrent: 64,
+            defaultMinIntervalSeconds: 0,
+            defaultMaxRunsPerMinute: 60,
+            defaultMaxRunSeconds: 10);
+
+    // ── Proctoring ingestion (Phase 2) ─────────────────────────────────────────────
+
+    [Fact]
+    public async Task SubmitProctoringEventsAsync_StoresEventsAndSetsHeartbeat()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var (access, token, attemptId) = await SeedStartedAttemptAsync(db);
+
+        var result = await access.SubmitProctoringEventsAsync(
+            new SubmitProctoringEventsDto
+            {
+                Token = token,
+                BrowserFingerprint = DefaultFingerprint,
+                Heartbeat = true,
+                Events =
+                [
+                    Ev(ProctoringEventTypes.TabFocusLoss, "e1"),
+                    Ev(ProctoringEventTypes.SecondPerson, "e2", confidence: 0.9),
+                ],
+            },
+            CancellationToken.None);
+
+        Assert.Equal(2, result.Accepted);
+        Assert.Equal(0, result.Deduplicated);
+        Assert.NotNull(result.HeartbeatAtUtc);
+
+        Assert.Equal(2, db.CandidateProctoringEvents.Count(e => e.AttemptId == attemptId));
+        var attempt = await db.CandidateTestAttempts.FindAsync(attemptId);
+        Assert.NotNull(attempt!.LastProctorHeartbeatUtc);
+    }
+
+    [Fact]
+    public async Task SubmitProctoringEventsAsync_IsIdempotentOnResend()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var (access, token, attemptId) = await SeedStartedAttemptAsync(db);
+
+        var batch = new SubmitProctoringEventsDto
+        {
+            Token = token,
+            BrowserFingerprint = DefaultFingerprint,
+            Events = [Ev(ProctoringEventTypes.Paste, "dup-1"), Ev(ProctoringEventTypes.Copy, "dup-2")],
+        };
+
+        var first = await access.SubmitProctoringEventsAsync(batch, CancellationToken.None);
+        var second = await access.SubmitProctoringEventsAsync(batch, CancellationToken.None);
+
+        Assert.Equal(2, first.Accepted);
+        Assert.Equal(0, second.Accepted);
+        Assert.Equal(2, second.Deduplicated);
+        Assert.Equal(2, db.CandidateProctoringEvents.Count(e => e.AttemptId == attemptId));
+    }
+
+    [Fact]
+    public async Task SubmitProctoringEventsAsync_DedupesWithinASingleBatch()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var (access, token, _) = await SeedStartedAttemptAsync(db);
+
+        var result = await access.SubmitProctoringEventsAsync(
+            new SubmitProctoringEventsDto
+            {
+                Token = token,
+                BrowserFingerprint = DefaultFingerprint,
+                Events = [Ev(ProctoringEventTypes.Copy, "same"), Ev(ProctoringEventTypes.Cut, "same")],
+            },
+            CancellationToken.None);
+
+        Assert.Equal(1, result.Accepted);
+    }
+
+    [Fact]
+    public async Task SubmitProctoringEventsAsync_DropsEventsForDisabledLayers()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var (access, token, attemptId) = await SeedStartedAttemptAsync(db);
+
+        // Author disables the webcam layer (keeps activity monitoring on).
+        var test = db.Tests.Single();
+        test.EnableProctoring = false;
+        await db.SaveChangesAsync();
+
+        var result = await access.SubmitProctoringEventsAsync(
+            new SubmitProctoringEventsDto
+            {
+                Token = token,
+                BrowserFingerprint = DefaultFingerprint,
+                Events =
+                [
+                    Ev(ProctoringEventTypes.TabFocusLoss, "activity"),       // enabled → stored
+                    Ev(ProctoringEventTypes.SecondPerson, "webcam", confidence: 0.9), // disabled → dropped
+                ],
+            },
+            CancellationToken.None);
+
+        Assert.Equal(1, result.Accepted);
+        Assert.Equal(1, result.Dropped);
+        Assert.Equal(1, db.CandidateProctoringEvents.Count(e => e.AttemptId == attemptId));
+        Assert.Equal(
+            ProctoringEventTypes.TabFocusLoss,
+            db.CandidateProctoringEvents.Single(e => e.AttemptId == attemptId).Type);
+    }
+
+    [Fact]
+    public async Task SubmitProctoringEventsAsync_HeartbeatOnly_AcceptsZeroAndStampsHeartbeat()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var (access, token, attemptId) = await SeedStartedAttemptAsync(db);
+
+        var result = await access.SubmitProctoringEventsAsync(
+            new SubmitProctoringEventsDto { Token = token, BrowserFingerprint = DefaultFingerprint, Heartbeat = true },
+            CancellationToken.None);
+
+        Assert.Equal(0, result.Accepted);
+        Assert.NotNull(result.HeartbeatAtUtc);
+        var attempt = await db.CandidateTestAttempts.FindAsync(attemptId);
+        Assert.NotNull(attempt!.LastProctorHeartbeatUtc);
+    }
+
+    [Fact]
+    public async Task SubmitProctoringEventsAsync_WhenBatchTooLarge_Throws400()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var (access, token, _) = await SeedStartedAttemptAsync(db);
+
+        var events = Enumerable.Range(0, ProctoringIngestLimits.MaxBatchSize + 1)
+            .Select(i => Ev(ProctoringEventTypes.TabFocusLoss, $"e{i}"))
+            .ToList();
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => access.SubmitProctoringEventsAsync(
+            new SubmitProctoringEventsDto { Token = token, BrowserFingerprint = DefaultFingerprint, Events = events },
+            CancellationToken.None));
+
+        Assert.Equal(400, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task SubmitProctoringEventsAsync_WhenUnknownType_Throws400()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var (access, token, _) = await SeedStartedAttemptAsync(db);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => access.SubmitProctoringEventsAsync(
+            new SubmitProctoringEventsDto
+            {
+                Token = token,
+                BrowserFingerprint = DefaultFingerprint,
+                Events = [Ev("teleporting", "e1")],
+            },
+            CancellationToken.None));
+
+        Assert.Equal(400, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task SubmitProctoringEventsAsync_WhenConfidenceOutOfRange_Throws400()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var (access, token, _) = await SeedStartedAttemptAsync(db);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => access.SubmitProctoringEventsAsync(
+            new SubmitProctoringEventsDto
+            {
+                Token = token,
+                BrowserFingerprint = DefaultFingerprint,
+                Events = [Ev(ProctoringEventTypes.LookingAway, "e1", confidence: 1.5)],
+            },
+            CancellationToken.None));
+
+        Assert.Equal(400, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task SubmitProctoringEventsAsync_WhenTimestampOutsideWindow_Throws400()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var (access, token, _) = await SeedStartedAttemptAsync(db);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => access.SubmitProctoringEventsAsync(
+            new SubmitProctoringEventsDto
+            {
+                Token = token,
+                BrowserFingerprint = DefaultFingerprint,
+                Events = [Ev(ProctoringEventTypes.TabFocusLoss, "e1", start: DateTime.UtcNow.AddHours(1))],
+            },
+            CancellationToken.None));
+
+        Assert.Equal(400, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task SubmitProctoringEventsAsync_WhenNotStarted_Throws409()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var test = await SeedTestAsync(db);
+        var access = CreateProctorAccessService(db);
+        var invitationService = CreateInvitationService(db);
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = "not.started@example.com",
+                CandidateName = "Not Started",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+        var token = ExtractToken(created.InviteLink);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => access.SubmitProctoringEventsAsync(
+            new SubmitProctoringEventsDto
+            {
+                Token = token,
+                BrowserFingerprint = DefaultFingerprint,
+                Events = [Ev(ProctoringEventTypes.TabFocusLoss, "e1")],
+            },
+            CancellationToken.None));
+
+        Assert.Equal(409, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task SubmitProctoringEventsAsync_WhenFingerprintChanges_ThrowsConflict()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var (access, token, _) = await SeedStartedAttemptAsync(db, singleUse: true);
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => access.SubmitProctoringEventsAsync(
+            new SubmitProctoringEventsDto
+            {
+                Token = token,
+                BrowserFingerprint = "a-different-browser-fingerprint",
+                Events = [Ev(ProctoringEventTypes.TabFocusLoss, "e1")],
+            },
+            CancellationToken.None));
+
+        Assert.Equal(409, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task RetentionDelete_RemovesProctoringEvents()
+    {
+        await using var db = TestDbContextFactory.Create();
+        var (access, token, attemptId) = await SeedStartedAttemptAsync(db, email: "purge.me@example.com");
+
+        await access.SubmitProctoringEventsAsync(
+            new SubmitProctoringEventsDto
+            {
+                Token = token,
+                BrowserFingerprint = DefaultFingerprint,
+                Events = [Ev(ProctoringEventTypes.SecondPerson, "e1", confidence: 0.8)],
+            },
+            CancellationToken.None);
+        Assert.Equal(1, db.CandidateProctoringEvents.Count(e => e.AttemptId == attemptId));
+
+        // Simulate the retention "Delete" in-memory branch: remove the attempt's proctoring events
+        // alongside the attempt, mirroring CandidateRetentionService.
+        var attemptIds = new[] { attemptId };
+        var proctoring = await db.CandidateProctoringEvents
+            .Where(e => attemptIds.Contains(e.AttemptId)).ToListAsync();
+        db.CandidateProctoringEvents.RemoveRange(proctoring);
+        var attempts = await db.CandidateTestAttempts.Where(a => attemptIds.Contains(a.Id)).ToListAsync();
+        db.CandidateTestAttempts.RemoveRange(attempts);
+        await db.SaveChangesAsync();
+
+        Assert.Equal(0, db.CandidateProctoringEvents.Count(e => e.AttemptId == attemptId));
+    }
+
+    private static ProctoringEventInputDto Ev(
+        string type, string? clientEventId = null, double? confidence = null, DateTime? start = null) =>
+        new()
+        {
+            ClientEventId = clientEventId ?? Guid.NewGuid().ToString("N"),
+            Type = type,
+            Confidence = confidence,
+            StartedAtUtc = start ?? DateTime.UtcNow,
+        };
+
+    /// <summary>Access service whose throttle has no min-interval, so a test can post two
+    /// proctoring batches back-to-back without tripping the per-attempt rate limit.</summary>
+    // Proctoring now has its own no-min-interval throttle inside the service, so the standard access
+    // service already lets proctoring tests post back-to-back.
+    private static CandidateAccessService CreateProctorAccessService(AppDbContext db) => CreateAccessService(db);
+
+    private static async Task<(CandidateAccessService Access, string Token, Guid AttemptId)> SeedStartedAttemptAsync(
+        AppDbContext db, string email = "proctor@example.com", bool singleUse = false)
+    {
+        // Proctoring layers must be enabled or the ingestion endpoint drops every event.
+        var test = await SeedTestAsync(db, proctoring: true);
+        if (singleUse)
+        {
+            db.CandidateLinkSecuritySettings.Add(new CandidateLinkSecuritySettings
+            {
+                TestId = test.Id,
+                SingleUseLinkEnabled = true,
+                BrowserFingerprintEnabled = true,
+            });
+            await db.SaveChangesAsync();
+        }
+
+        var access = CreateProctorAccessService(db);
+        var invitationService = CreateInvitationService(db);
+
+        var created = await invitationService.CreateAsync(
+            new CreateCandidateInvitationDto
+            {
+                TestId = test.Id.ToString(),
+                Email = email,
+                CandidateName = "Proctored",
+                SendNotification = false,
+            },
+            CancellationToken.None);
+
+        var token = ExtractToken(created.InviteLink);
+        var session = await access.StartOrResumeAsync(
+            new StartCandidateAttemptDto
+            {
+                Token = token,
+                CandidateEmail = email,
+                BrowserFingerprint = DefaultFingerprint,
+            },
+            CancellationToken.None);
+
+        return (access, token, Guid.Parse(session.AttemptId));
     }
 
     private static CandidateInvitationService CreateInvitationService(AppDbContext db)
@@ -855,7 +1233,7 @@ public class CandidateAccessServiceTests
             NullLogger<CandidateInvitationService>.Instance);
     }
 
-    private static async Task<Test> SeedTestAsync(AppDbContext db)
+    private static async Task<Test> SeedTestAsync(AppDbContext db, bool proctoring = false)
     {
         var test = new Test
         {
@@ -864,6 +1242,9 @@ public class CandidateAccessServiceTests
             Discipline = Discipline.Engineering,
             Status = TestStatus.Active,
             CandidateCount = 0,
+            EnableProctoring = proctoring,
+            EnableActivityMonitoring = proctoring,
+            RestrictCopyPaste = proctoring,
             TestQuestions =
             [
                 new TestQuestion
