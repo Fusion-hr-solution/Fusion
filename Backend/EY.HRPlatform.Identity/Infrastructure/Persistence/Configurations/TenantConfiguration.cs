@@ -35,6 +35,23 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
         builder.Property(t => t.InternalNotes)
             .HasMaxLength(4000);
 
+        builder.Property(t => t.AdministratorActivationStatus)
+            .HasConversion<string>()
+            .HasMaxLength(48)
+            .IsRequired();
+
+        builder.Property(t => t.Locale)
+            .HasMaxLength(Tenant.LocaleMaxLength)
+            .IsRequired()
+            .HasDefaultValue(Tenant.DefaultLocale);
+
+        builder.Property(t => t.TimeZone)
+            .HasMaxLength(Tenant.TimeZoneMaxLength)
+            .IsRequired()
+            .HasDefaultValue(Tenant.DefaultTimeZone);
+
+        builder.HasIndex(t => t.AdministratorActivationStatus);
+
         builder.HasIndex(t => t.IsActive);
         builder.HasIndex(t => t.IsArchived);
         builder.HasIndex(t => t.Name)

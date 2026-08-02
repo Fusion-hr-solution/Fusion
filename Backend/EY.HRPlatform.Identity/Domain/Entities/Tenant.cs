@@ -1,3 +1,5 @@
+using EY.HRPlatform.Identity.Domain.Enums;
+
 namespace EY.HRPlatform.Identity.Domain.Entities;
 
 /// <summary>
@@ -16,6 +18,31 @@ public class Tenant
     public string? InternalNotes { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime? UpdatedAt { get; private set; }
+
+    /// <summary>
+    /// Canonical bootstrap lifecycle. Provisioning creates a tenant awaiting
+    /// administrator activation; successful bootstrap activation is the only
+    /// supported transition to Active. This is distinct from the suspend and
+    /// archive flags, which express separate administrative concerns.
+    /// </summary>
+    public TenantAdministratorActivationStatus AdministratorActivationStatus { get; private set; }
+        = TenantAdministratorActivationStatus.AwaitingAdministratorActivation;
+
+    /// <summary>Initial tenant locale, for example <c>en-US</c>.</summary>
+    public string Locale { get; private set; } = DefaultLocale;
+
+    /// <summary>Initial tenant IANA time zone, for example <c>Europe/Paris</c>.</summary>
+    public string TimeZone { get; private set; } = DefaultTimeZone;
+
+    /// <summary>Applied when a caller does not choose a locale.</summary>
+    public const string DefaultLocale = "en-US";
+
+    /// <summary>Applied to tenants that predate explicit time-zone selection.</summary>
+    public const string DefaultTimeZone = "UTC";
+
+    public const int LocaleMaxLength = 35;
+
+    public const int TimeZoneMaxLength = 100;
 
     /// <summary>
     /// Creates a new tenant with validation.
@@ -172,6 +199,53 @@ public class Tenant
         }
 
         UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Applies the initial locale and time zone chosen during provisioning.
+    /// </summary>
+    public void ApplyInitialSettings(string? locale, string timeZone)
+    {
+        Locale = NormalizeLocale(locale);
+        TimeZone = NormalizeTimeZone(timeZone);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Marks the tenant Active after its Initial Tenant Administrator completes
+    /// bootstrap activation. Called inside the activation transaction.
+    /// </summary>
+    public void CompleteAdministratorActivation()
+    {
+        if (AdministratorActivationStatus == TenantAdministratorActivationStatus.Active)
+            throw new InvalidOperationException("Tenant administrator activation is already complete.");
+
+        AdministratorActivationStatus = TenantAdministratorActivationStatus.Active;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public static string NormalizeLocale(string? locale)
+    {
+        if (string.IsNullOrWhiteSpace(locale))
+            return DefaultLocale;
+
+        var trimmed = locale.Trim();
+        if (trimmed.Length > LocaleMaxLength)
+            throw new ArgumentException($"Locale cannot exceed {LocaleMaxLength} characters.", nameof(locale));
+
+        return trimmed;
+    }
+
+    public static string NormalizeTimeZone(string timeZone)
+    {
+        if (string.IsNullOrWhiteSpace(timeZone))
+            throw new ArgumentException("Time zone is required.", nameof(timeZone));
+
+        var trimmed = timeZone.Trim();
+        if (trimmed.Length > TimeZoneMaxLength)
+            throw new ArgumentException($"Time zone cannot exceed {TimeZoneMaxLength} characters.", nameof(timeZone));
+
+        return trimmed;
     }
 
     private static void ValidateName(string name)

@@ -3,6 +3,7 @@ using System;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppIdentityDbContext))]
-    partial class AppIdentityDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260731094232_AddTenantMembershipAndBootstrapPersistence")]
+    partial class AddTenantMembershipAndBootstrapPersistence
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -288,6 +291,9 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
 
@@ -297,16 +303,18 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EmployeeId")
-                        .IsUnique()
-                        .HasFilter("\"EmployeeId\" IS NOT NULL");
-
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");
 
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "EmployeeId")
+                        .IsUnique()
+                        .HasFilter("\"EmployeeId\" IS NOT NULL");
 
                     b.ToTable("AspNetUsers", "identity");
                 });
@@ -987,6 +995,17 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                     b.Navigation("AccessProfile");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.ApplicationUser", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Identity.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.InvitationActivationContinuation", b =>
                 {
                     b.HasOne("EY.HRPlatform.Identity.Domain.Entities.InviteToken", "Invitation")
@@ -1053,7 +1072,7 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.HasOne("EY.HRPlatform.Identity.Domain.Entities.ApplicationUser", "User")
-                        .WithMany("TenantMemberships")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -1191,8 +1210,6 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.ApplicationUser", b =>
                 {
                     b.Navigation("AccessProfileAssignments");
-
-                    b.Navigation("TenantMemberships");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.InviteToken", b =>

@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 
@@ -16,9 +17,68 @@ public class InviteToken : ITenantEntity
 
     /// <summary>
     /// Cryptographically secure token (32-byte, base64url encoded).
-    /// Used in the invite link URL.
+    /// Used in the workforce invite link URL. Organization-bootstrap invitations
+    /// never use this scheme; they carry a selector plus digest instead.
     /// </summary>
-    public string Token { get; private set; } = string.Empty;
+    public string? Token { get; private set; }
+
+    /// <summary>
+    /// Explicit purpose, bound at creation. Purpose is never inferred from the
+    /// assigned role, so a bootstrap invitation cannot be activated through the
+    /// workforce route and a workforce invitation cannot bootstrap a tenant.
+    /// </summary>
+    public InvitationPurpose Purpose { get; private set; } = InvitationPurpose.WorkforceAccount;
+
+    /// <summary>
+    /// Non-secret random lookup handle for an organization-bootstrap credential.
+    /// Locating an invitation by selector reveals nothing usable on its own.
+    /// </summary>
+    public string? CredentialSelector { get; private set; }
+
+    /// <summary>
+    /// One-way digest of the bootstrap credential secret, verified in constant
+    /// time. The raw secret exists only inside the delivery link.
+    /// </summary>
+    public string? CredentialDigest { get; private set; }
+
+    /// <summary>When the current bootstrap credential was issued or last rotated.</summary>
+    public DateTime? CredentialIssuedAt { get; private set; }
+
+    /// <summary>
+    /// Set when this invitation was replaced by another for a different
+    /// administrator. Bounded to the direct relationship needed to explain the
+    /// current invitation; there is no general causation graph.
+    /// </summary>
+    public DateTime? SupersededAt { get; private set; }
+
+    /// <summary>Direct replacement created by a replace or reissue action.</summary>
+    public Guid? ReplacedByInvitationId { get; private set; }
+
+    /// <summary>Direct predecessor this invitation replaced.</summary>
+    public Guid? PredecessorInvitationId { get; private set; }
+
+    public bool IsSuperseded => SupersededAt.HasValue;
+
+    /// <summary>
+    /// Canonical state projected from the stored lifecycle facts, so the state and
+    /// the underlying timestamps can never disagree.
+    /// </summary>
+    public InvitationState State
+    {
+        get
+        {
+            if (IsUsed) return InvitationState.Accepted;
+
+            // Superseded outranks Revoked: once an invitation has been replaced,
+            // it is spent regardless of how it got there. Reporting a superseded
+            // predecessor as merely Revoked would keep advertising reissue and let
+            // one invitation fork a second successor.
+            if (IsSuperseded) return InvitationState.Superseded;
+            if (IsRevoked) return InvitationState.Revoked;
+            if (IsExpired) return InvitationState.Expired;
+            return InvitationState.Pending;
+        }
+    }
 
     /// <summary>
     /// Email address the invitation is sent to.
@@ -99,9 +159,9 @@ public class InviteToken : ITenantEntity
     public DateTime? RevokedAt { get; private set; }
 
     /// <summary>
-    /// Whether the token is still valid (not expired, not used, not revoked).
+    /// Whether the token is still valid (not expired, used, revoked, or superseded).
     /// </summary>
-    public bool IsValid => !IsExpired && !IsUsed && !IsRevoked;
+    public bool IsValid => !IsExpired && !IsUsed && !IsRevoked && !IsSuperseded;
 
     /// <summary>
     /// Whether the token has expired.
@@ -248,6 +308,107 @@ public class InviteToken : ITenantEntity
         DeliveryStatus = status.Trim();
         DeliveryMessage = string.IsNullOrWhiteSpace(message) ? null : message.Trim();
         DeliveryRecordedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Issues or rotates the hash-only organization-bootstrap credential. Only the
+    /// selector and digest are retained; the caller keeps the raw secret just long
+    /// enough to build the delivery link.
+    /// </summary>
+    public void IssueBootstrapCredential(string selector, string digest, DateTime? issuedAt = null)
+    {
+        if (Purpose != InvitationPurpose.OrganizationBootstrap)
+            throw new InvalidOperationException(
+                "Bootstrap credentials apply only to organization-bootstrap invitations.");
+
+        if (string.IsNullOrWhiteSpace(selector))
+            throw new ArgumentException("Credential selector is required.", nameof(selector));
+
+        if (string.IsNullOrWhiteSpace(digest))
+            throw new ArgumentException("Credential digest is required.", nameof(digest));
+
+        CredentialSelector = selector.Trim();
+        CredentialDigest = digest.Trim();
+        CredentialIssuedAt = issuedAt ?? DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Constant-time verification of a presented bootstrap credential digest.
+    /// </summary>
+    public bool MatchesCredentialDigest(string presentedDigest)
+    {
+        if (CredentialDigest is null || string.IsNullOrWhiteSpace(presentedDigest))
+            return false;
+
+        return CryptographicOperations.FixedTimeEquals(
+            System.Text.Encoding.UTF8.GetBytes(CredentialDigest),
+            System.Text.Encoding.UTF8.GetBytes(presentedDigest.Trim()));
+    }
+
+    /// <summary>
+    /// Marks this invitation superseded by a replacement and records the bounded
+    /// direct lineage in both directions.
+    /// </summary>
+    public void MarkSuperseded(Guid replacementInvitationId)
+    {
+        if (replacementInvitationId == Guid.Empty)
+            throw new ArgumentException("Replacement invitation ID is required.", nameof(replacementInvitationId));
+
+        if (IsUsed)
+            throw new InvalidOperationException("Cannot supersede an accepted invitation.");
+
+        if (IsSuperseded)
+            throw new InvalidOperationException("Invitation is already superseded.");
+
+        SupersededAt = DateTime.UtcNow;
+        ReplacedByInvitationId = replacementInvitationId;
+    }
+
+    /// <summary>Records the direct predecessor this invitation replaced.</summary>
+    public void RecordPredecessor(Guid predecessorInvitationId)
+    {
+        if (predecessorInvitationId == Guid.Empty)
+            throw new ArgumentException("Predecessor invitation ID is required.", nameof(predecessorInvitationId));
+
+        if (predecessorInvitationId == Id)
+            throw new ArgumentException("An invitation cannot be its own predecessor.", nameof(predecessorInvitationId));
+
+        PredecessorInvitationId = predecessorInvitationId;
+    }
+
+    /// <summary>
+    /// Permanently clears the legacy raw credential. Used by the cutover migration
+    /// so no reusable bootstrap secret survives at rest.
+    /// </summary>
+    public void ClearLegacyRawCredential() => Token = null;
+
+    /// <summary>
+    /// Creates an organization-bootstrap invitation. It deliberately carries no
+    /// legacy raw token; the caller issues a selector plus digest credential.
+    /// </summary>
+    public static InviteToken CreateOrganizationBootstrap(
+        string email,
+        Guid tenantId,
+        Guid createdByUserId,
+        int expiryDays = 7)
+    {
+        ValidateEmail(email);
+        ValidateTenantId(tenantId);
+        ValidateCreatedBy(createdByUserId);
+        ValidateExpiryDays(expiryDays);
+
+        return new InviteToken
+        {
+            Id = Guid.NewGuid(),
+            Token = null,
+            Purpose = InvitationPurpose.OrganizationBootstrap,
+            Email = email.Trim().ToLowerInvariant(),
+            TenantId = tenantId,
+            Role = PlatformRole.OrgAdmin,
+            ExpiresAt = DateTime.UtcNow.AddDays(expiryDays),
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = createdByUserId,
+        };
     }
 
     /// <summary>

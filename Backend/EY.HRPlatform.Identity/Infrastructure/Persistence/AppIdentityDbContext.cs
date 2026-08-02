@@ -1,4 +1,5 @@
 ﻿using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Infrastructure.Persistence.Configurations;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Persistence;
@@ -24,6 +25,13 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<InviteAccessProfile> InviteAccessProfiles => Set<InviteAccessProfile>();
     public DbSet<AccessAuditEvent> AccessAuditEvents => Set<AccessAuditEvent>();
     public DbSet<CanonicalSeedReceipt> CanonicalSeedReceipts => Set<CanonicalSeedReceipt>();
+    public DbSet<TenantMembership> TenantMemberships => Set<TenantMembership>();
+    public DbSet<TenantModuleEntitlement> TenantModuleEntitlements => Set<TenantModuleEntitlement>();
+    public DbSet<TenantProvisioningReceipt> TenantProvisioningReceipts => Set<TenantProvisioningReceipt>();
+    public DbSet<InvitationDeliveryAttempt> InvitationDeliveryAttempts => Set<InvitationDeliveryAttempt>();
+    public DbSet<InvitationActivationContinuation> InvitationActivationContinuations
+        => Set<InvitationActivationContinuation>();
+    public DbSet<TenantBootstrapAuditEvent> TenantBootstrapAuditEvents => Set<TenantBootstrapAuditEvent>();
 
     /// <summary>
     /// Runtime constructor with tenant context for production use.
@@ -91,16 +99,15 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
             entity.Property(u => u.JobTitle)
                 .HasMaxLength(100);
 
-            // User belongs to exactly one tenant
-            entity.HasOne(u => u.Tenant)
-                .WithMany()
-                .HasForeignKey(u => u.TenantId)
-                .OnDelete(DeleteBehavior.Restrict)
-                .IsRequired();
+            // The account carries no tenant. Participation is expressed only by
+            // TenantMembership, so there is no account-owned tenancy left to
+            // index, constrain, or accidentally read as authority. The membership
+            // relationship itself is configured once, in TenantMembershipConfiguration.
 
-            entity.HasIndex(u => u.TenantId);
-
-            entity.HasIndex(u => new { u.TenantId, u.EmployeeId })
+            // An account links to at most one workforce employee. This used to be
+            // scoped by the account's tenant column; the employee reference is
+            // already tenant-unique, so the constraint stands on its own.
+            entity.HasIndex(u => u.EmployeeId)
                 .IsUnique()
                 .HasFilter("\"EmployeeId\" IS NOT NULL");
         });
@@ -130,12 +137,24 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.ApplyConfiguration(new UserAccessProfileConfiguration());
         builder.ApplyConfiguration(new UserAccessProfileOrgUnitScopeConfiguration());
         builder.ApplyConfiguration(new InviteAccessProfileConfiguration());
+        builder.ApplyConfiguration(new TenantMembershipConfiguration());
+        builder.ApplyConfiguration(new TenantModuleEntitlementConfiguration());
+        builder.ApplyConfiguration(new TenantProvisioningReceiptConfiguration());
+        builder.ApplyConfiguration(new InvitationDeliveryAttemptConfiguration());
+        builder.ApplyConfiguration(new InvitationActivationContinuationConfiguration());
+        builder.ApplyConfiguration(new TenantBootstrapAuditEventConfiguration());
 
         // Global tenant query filters: automatically scope queries to the current tenant.
         // When CurrentTenantId is Empty (design-time/startup/no context), filters are disabled (fail-open).
         // Use IgnoreQueryFilters() for cross-tenant operations (auth, platform admin, anonymous invites).
+        // An account is visible in a tenant only through an Active membership.
+        // Deactivating a membership therefore removes the account from that
+        // tenant's queries without deleting anything.
         builder.Entity<ApplicationUser>()
-            .HasQueryFilter(u => CurrentTenantId == Guid.Empty || u.TenantId == CurrentTenantId);
+            .HasQueryFilter(u => CurrentTenantId == Guid.Empty
+                || u.TenantMemberships.Any(membership =>
+                    membership.TenantId == CurrentTenantId
+                    && membership.Status == TenantMembershipStatus.Active));
 
         builder.Entity<InviteToken>()
             .HasQueryFilter(i => CurrentTenantId == Guid.Empty || i.TenantId == CurrentTenantId);
@@ -156,6 +175,15 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
             .HasQueryFilter(assignment => CurrentTenantId == Guid.Empty || assignment.TenantId == CurrentTenantId);
 
         builder.Entity<AccessAuditEvent>()
+            .HasQueryFilter(auditEvent => CurrentTenantId == Guid.Empty || auditEvent.TenantId == CurrentTenantId);
+
+        builder.Entity<TenantMembership>()
+            .HasQueryFilter(membership => CurrentTenantId == Guid.Empty || membership.TenantId == CurrentTenantId);
+
+        builder.Entity<TenantModuleEntitlement>()
+            .HasQueryFilter(entitlement => CurrentTenantId == Guid.Empty || entitlement.TenantId == CurrentTenantId);
+
+        builder.Entity<TenantBootstrapAuditEvent>()
             .HasQueryFilter(auditEvent => CurrentTenantId == Guid.Empty || auditEvent.TenantId == CurrentTenantId);
     }
 }

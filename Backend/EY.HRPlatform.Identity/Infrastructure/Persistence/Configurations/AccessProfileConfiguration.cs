@@ -11,6 +11,12 @@ public class AccessProfileConfiguration : IEntityTypeConfiguration<AccessProfile
         builder.ToTable("AccessProfiles");
 
         builder.HasKey(profile => profile.Id);
+
+        // Alternate key so assignments can reference a profile through a
+        // tenant-safe composite foreign key. Without it a membership in one tenant
+        // could be assigned a profile belonging to another.
+        builder.HasAlternateKey(profile => new { profile.Id, profile.TenantId })
+            .HasName("AK_AccessProfiles_Id_TenantId");
         builder.Property(profile => profile.Version).IsRowVersion();
 
         builder.Property(profile => profile.Name)
@@ -42,10 +48,22 @@ public class AccessProfileConfiguration : IEntityTypeConfiguration<AccessProfile
             .HasForeignKey(grant => grant.AccessProfileId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // Tenant-safe and non-cascading: an assignment cannot reference a profile
+        // owned by another tenant, and deleting a profile must not silently erase
+        // the assignment history that records who held it.
         builder.HasMany(profile => profile.UserAssignments)
             .WithOne(assignment => assignment.AccessProfile)
-            .HasForeignKey(assignment => assignment.AccessProfileId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .HasForeignKey(assignment => new
+            {
+                assignment.AccessProfileId,
+                assignment.TenantId,
+            })
+            .HasPrincipalKey(profile => new
+            {
+                profile.Id,
+                profile.TenantId,
+            })
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(profile => profile.InviteAssignments)
             .WithOne(assignment => assignment.AccessProfile)
