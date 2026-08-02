@@ -67,9 +67,18 @@ public class InvitesController : ControllerBase
         if (!PlatformRole.All.Contains(request.Role))
             return BadRequest(ApiResponse<InviteDto>.Failure($"Invalid role: {request.Role}"));
 
-        // HRAdmin cannot invite as PlatformAdmin or HRAdmin
-        if (!User.IsInRole(PlatformRole.PlatformAdmin) &&
-            (request.Role == PlatformRole.PlatformAdmin || request.Role == PlatformRole.HRAdmin))
+        // A tenant invitation grants customer-tenant participation, and a Platform
+        // Administrator must hold zero customer memberships. No caller may issue
+        // one for that role, including a Platform Administrator.
+        if (request.Role == PlatformRole.PlatformAdmin)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden,
+                ApiResponse<InviteDto>.Failure(
+                    "Platform Administrators operate in the control plane and cannot be invited into a customer tenant."));
+        }
+
+        // HRAdmin cannot invite as HRAdmin
+        if (!User.IsInRole(PlatformRole.PlatformAdmin) && request.Role == PlatformRole.HRAdmin)
         {
             return StatusCode(StatusCodes.Status403Forbidden,
                 ApiResponse<InviteDto>.Failure("You do not have permission to invite users with this role."));
@@ -202,9 +211,7 @@ public class InvitesController : ControllerBase
         {
             Id = invite.Id,
             Email = invite.Email,
-            EmployeeId = invite.EmployeeId,
-            TenantId = invite.TenantId,
-            TenantName = invite.Tenant?.Name ?? string.Empty,
+            EmployeeId = invite.EmployeeId,            TenantName = invite.Tenant?.Name ?? string.Empty,
             Role = invite.Role,
             AccessProfiles = (await _accessProfileService.GetInviteAccessProfilesAsync(invite.Id)).ToList(),
             FirstName = invite.FirstName,
@@ -291,7 +298,6 @@ public class InvitesController : ControllerBase
                 EmployeeId = invite.EmployeeId,
                 FirstName = firstName.Trim(),
                 LastName = lastName.Trim(),
-                TenantId = invite.TenantId,
                 EmailConfirmed = true, // Invited users are pre-verified
                 HireDate = DateTime.UtcNow
             };
@@ -315,6 +321,24 @@ public class InvitesController : ControllerBase
                 var errors = roleResult.Errors.Select(e => e.Description).ToArray();
                 return BadRequest(ApiResponse<UserDto>.Failure(errors));
             }
+
+            // Defence in depth against a pre-existing invitation issued before the
+            // role was blocked at creation: accepting it must never produce a
+            // Platform Administrator with a customer membership.
+            if (string.Equals(invite.Role, PlatformRole.PlatformAdmin, StringComparison.Ordinal))
+            {
+                if (transaction is not null)
+                    await transaction.RollbackAsync();
+
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    ApiResponse<UserDto>.Failure(
+                        "This invitation cannot be accepted because Platform Administrators cannot hold customer tenant membership."));
+            }
+
+            // Membership is the tenancy authority, so it must exist before any
+            // tenant access is assigned to the new account.
+            _dbContext.TenantMemberships.Add(TenantMembership.Create(user.Id, invite.TenantId));
+            await _dbContext.SaveChangesAsync();
 
             await _accessProfileService.ApplyInviteProfilesAsync(invite, user);
 
@@ -340,7 +364,7 @@ public class InvitesController : ControllerBase
                 Department = user.Department,
                 JobTitle = user.JobTitle,
                 HireDate = user.HireDate,
-                TenantId = user.TenantId,
+                TenantId = invite.TenantId,
                 Roles = [invite.Role],
                 AccessProfiles = (await _accessProfileService.GetAssignedProfilesAsync(user)).ToList(),
             };
@@ -541,9 +565,9 @@ public class InvitesController : ControllerBase
 
     private bool CanAccessTenant(Guid tenantId)
     {
-        if (User.IsInRole(PlatformRole.PlatformAdmin))
-            return true;
-
+        // Inviting into a customer tenant is customer-workspace administration,
+        // so it requires the caller's own membership in that tenant. Platform
+        // Administrator status is control-plane authority and grants no bypass.
         var userTenantId = User.GetTenantId();
         return userTenantId.HasValue && userTenantId.Value == tenantId;
     }

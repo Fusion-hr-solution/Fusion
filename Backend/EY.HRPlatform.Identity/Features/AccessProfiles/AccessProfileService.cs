@@ -1,4 +1,5 @@
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Models.Requests;
 using EY.HRPlatform.Identity.Models.Responses;
@@ -11,6 +12,9 @@ namespace EY.HRPlatform.Identity.Features.AccessProfiles;
 public interface IAccessProfileService
 {
     Task EnsureSeedDataAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Seeds the standard access profiles for one tenant. A newly provisioned tenant has none until this runs.</summary>
+    Task EnsureTenantAccessProfilesAsync(Guid tenantId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CorePermissionCatalogItemDto>> GetPermissionCatalogAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AccessProfileSummaryDto>> GetProfilesAsync(Guid tenantId, CancellationToken cancellationToken = default);
     Task<AccessProfileSummaryDto?> GetProfileAsync(Guid tenantId, Guid profileId, CancellationToken cancellationToken = default);
@@ -34,6 +38,62 @@ public sealed class AccessProfileService(
     AppIdentityDbContext dbContext,
     UserManager<ApplicationUser> userManager) : IAccessProfileService
 {
+    /// <summary>
+    /// Resolves the Active membership that authorizes an access assignment.
+    /// Assignments are membership-bound, so an account with no Active membership in
+    /// the tenant cannot be granted tenant access at all.
+    /// </summary>
+    /// <summary>
+    /// The single customer tenant this account participates in, or null when it
+    /// has none — which is the normal state for a Platform Administrator.
+    /// </summary>
+    private async Task<Guid?> FindActiveTenantIdAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var tenantIds = await dbContext.TenantMemberships
+            .IgnoreQueryFilters()
+            .Where(membership => membership.UserId == userId
+                && membership.Status == TenantMembershipStatus.Active)
+            .Select(membership => membership.TenantId)
+            .Take(2)
+            .ToListAsync(cancellationToken);
+
+        // Zero or several is not an authoritative context, so report none.
+        return tenantIds.Count == 1 ? tenantIds[0] : null;
+    }
+
+    private async Task<Guid?> FindActiveMembershipIdAsync(
+        Guid tenantId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var membershipId = await dbContext.TenantMemberships
+            .IgnoreQueryFilters()
+            .Where(membership => membership.TenantId == tenantId
+                && membership.UserId == userId
+                && membership.Status == TenantMembershipStatus.Active)
+            .Select(membership => membership.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return membershipId == Guid.Empty ? null : membershipId;
+    }
+
+    private async Task<Guid> ResolveActiveMembershipIdAsync(
+        Guid tenantId,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var membershipId = await FindActiveMembershipIdAsync(tenantId, userId, cancellationToken);
+
+        if (membershipId is null)
+        {
+            throw new InvalidOperationException(
+                $"Account {userId} has no Active membership in tenant {tenantId}; "
+                + "tenant access cannot be assigned without one.");
+        }
+
+        return membershipId.Value;
+    }
+
     private static readonly string[] TenantRoles = [
         PlatformRole.HRAdmin,
         PlatformRole.OrgAdmin,
@@ -210,7 +270,9 @@ public sealed class AccessProfileService(
     {
         var users = await dbContext.Users
             .IgnoreQueryFilters()
-            .Where(user => user.TenantId == tenantId)
+            .Where(user => user.TenantMemberships.Any(membership =>
+                membership.TenantId == tenantId
+                && membership.Status == TenantMembershipStatus.Active))
             .OrderBy(user => user.FirstName)
             .ThenBy(user => user.LastName)
             .ToListAsync(cancellationToken);
@@ -255,7 +317,8 @@ public sealed class AccessProfileService(
 
         var users = await dbContext.Users
             .IgnoreQueryFilters()
-            .Where(item => item.TenantId == tenantId && normalizedUserIds.Contains(item.Id))
+            .Where(item => normalizedUserIds.Contains(item.Id)
+                && item.TenantMemberships.Any(m => m.TenantId == tenantId && m.Status == TenantMembershipStatus.Active))
             .ToListAsync(cancellationToken);
 
         if (users.Count != normalizedUserIds.Length)
@@ -295,9 +358,13 @@ public sealed class AccessProfileService(
             .ToListAsync(cancellationToken);
 
         dbContext.UserAccessProfiles.RemoveRange(existingAssignments);
-        dbContext.UserAccessProfiles.AddRange(
-            normalizedUserIds.SelectMany(currentUserId => normalizedIds.Select(profileId =>
-                UserAccessProfile.Create(tenantId, currentUserId, profileId))));
+
+        foreach (var currentUserId in normalizedUserIds)
+        {
+            var membershipId = await ResolveActiveMembershipIdAsync(tenantId, currentUserId, cancellationToken);
+            dbContext.UserAccessProfiles.AddRange(normalizedIds.Select(profileId =>
+                UserAccessProfile.Create(tenantId, currentUserId, profileId, membershipId)));
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -323,7 +390,7 @@ public sealed class AccessProfileService(
     {
         return new CurrentUserAccessDto
         {
-            TenantId = user.TenantId,
+            TenantId = await FindActiveTenantIdAsync(user.Id, cancellationToken) ?? Guid.Empty,
             AccessProfiles = (await GetAssignedProfilesAsync(user, cancellationToken)).ToList(),
             EffectivePermissions = (await GetEffectivePermissionsAsync(user, cancellationToken))
                 .Select(MapGrant)
@@ -333,8 +400,15 @@ public sealed class AccessProfileService(
 
     public async Task<IReadOnlyList<AccessProfileAssignmentSummaryDto>> GetAssignedProfilesAsync(ApplicationUser user, CancellationToken cancellationToken = default)
     {
+        var tenantId = await FindActiveTenantIdAsync(user.Id, cancellationToken);
+        if (tenantId is null)
+        {
+            // No customer membership means no tenant access to report.
+            return [];
+        }
+
         var assignments = await dbContext.UserAccessProfiles
-            .Where(assignment => assignment.TenantId == user.TenantId && assignment.UserId == user.Id)
+            .Where(assignment => assignment.TenantId == tenantId && assignment.UserId == user.Id)
             .Join(
                 dbContext.AccessProfiles,
                 assignment => assignment.AccessProfileId,
@@ -361,8 +435,14 @@ public sealed class AccessProfileService(
             return await BuildCompatibilityFallbackGrantsAsync(user, cancellationToken);
         }
 
+        var permissionTenantId = await FindActiveTenantIdAsync(user.Id, cancellationToken);
+        if (permissionTenantId is null)
+        {
+            return [];
+        }
+
         var grants = await dbContext.AccessProfileGrants
-            .Where(grant => grant.TenantId == user.TenantId && assignments.Contains(grant.AccessProfileId))
+            .Where(grant => grant.TenantId == permissionTenantId && assignments.Contains(grant.AccessProfileId))
             .ToListAsync(cancellationToken);
 
         return AggregateEffectivePermissions(grants.Select(grant =>
@@ -449,11 +529,13 @@ public sealed class AccessProfileService(
             .ToListAsync(cancellationToken);
 
         var assignedIds = existingAssignments.Select(assignment => assignment.AccessProfileId).ToHashSet();
+        var inviteMembershipId = await ResolveActiveMembershipIdAsync(invite.TenantId, user.Id, cancellationToken);
         foreach (var profileId in inviteProfiles)
         {
             if (assignedIds.Add(profileId))
             {
-                dbContext.UserAccessProfiles.Add(UserAccessProfile.Create(invite.TenantId, user.Id, profileId));
+                dbContext.UserAccessProfiles.Add(
+                    UserAccessProfile.Create(invite.TenantId, user.Id, profileId, inviteMembershipId));
             }
         }
 
@@ -541,6 +623,9 @@ public sealed class AccessProfileService(
                 string.Equals(grant.PermissionKey, required.PermissionKey, StringComparison.Ordinal)
                 && PermissionScopes.GetRank(grant.Scope) >= PermissionScopes.GetRank(required.Scope)));
 
+    public Task EnsureTenantAccessProfilesAsync(Guid tenantId, CancellationToken cancellationToken = default)
+        => EnsureTenantProfilesAsync(tenantId, cancellationToken);
+
     private async Task EnsureTenantProfilesAsync(Guid tenantId, CancellationToken cancellationToken)
     {
         var existingProfiles = await dbContext.AccessProfiles
@@ -581,8 +666,14 @@ public sealed class AccessProfileService(
                             .AnyAsync(a => a.TenantId == tenantId && a.UserId == assignment.UserId && a.AccessProfileId == existingTarget.Id, cancellationToken);
                         if (!alreadyAssigned)
                         {
+                            // Reuse the membership already bound to the assignment
+                            // being migrated so the account/tenant pair cannot drift.
                             dbContext.UserAccessProfiles.Add(
-                                UserAccessProfile.Create(tenantId, assignment.UserId, existingTarget.Id));
+                                UserAccessProfile.Create(
+                                    tenantId,
+                                    assignment.UserId,
+                                    existingTarget.Id,
+                                    assignment.TenantMembershipId));
                         }
                     }
                     dbContext.UserAccessProfiles.RemoveRange(assignments);
@@ -711,7 +802,9 @@ public sealed class AccessProfileService(
 
         var users = await dbContext.Users
             .IgnoreQueryFilters()
-            .Where(user => user.TenantId == tenantId)
+            .Where(user => user.TenantMemberships.Any(membership =>
+                membership.TenantId == tenantId
+                && membership.Status == TenantMembershipStatus.Active))
             .ToListAsync(cancellationToken);
 
         foreach (var user in users)
@@ -731,8 +824,9 @@ public sealed class AccessProfileService(
                 continue;
             }
 
+            var seedMembershipId = await ResolveActiveMembershipIdAsync(tenantId, user.Id, cancellationToken);
             dbContext.UserAccessProfiles.AddRange(desiredProfiles.Select(profileId =>
-                UserAccessProfile.Create(tenantId, user.Id, profileId)));
+                UserAccessProfile.Create(tenantId, user.Id, profileId, seedMembershipId)));
             await dbContext.SaveChangesAsync(cancellationToken);
             await SyncCompatibilityRolesAsync(user, cancellationToken);
         }
@@ -908,7 +1002,10 @@ public sealed class AccessProfileService(
     {
         var activeUsers = await dbContext.Users
             .IgnoreQueryFilters()
-            .Where(user => user.TenantId == tenantId && user.IsActive)
+            .Where(user => user.IsActive
+                && user.TenantMemberships.Any(membership =>
+                    membership.TenantId == tenantId
+                    && membership.Status == TenantMembershipStatus.Active))
             .ToListAsync(cancellationToken);
 
         var assignments = await dbContext.UserAccessProfiles
@@ -1018,8 +1115,14 @@ public sealed class AccessProfileService(
 
     private async Task<List<Guid>> EnsureAssignedProfileIdsAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
+        var tenantId = await FindActiveTenantIdAsync(user.Id, cancellationToken);
+        if (tenantId is null)
+        {
+            return [];
+        }
+
         var assignments = await dbContext.UserAccessProfiles
-            .Where(assignment => assignment.TenantId == user.TenantId && assignment.UserId == user.Id)
+            .Where(assignment => assignment.TenantId == tenantId && assignment.UserId == user.Id)
             .Select(assignment => assignment.AccessProfileId)
             .ToListAsync(cancellationToken);
 
@@ -1028,12 +1131,12 @@ public sealed class AccessProfileService(
             return assignments;
         }
 
-        await EnsureTenantProfilesAsync(user.TenantId, cancellationToken);
+        await EnsureTenantProfilesAsync(tenantId.Value, cancellationToken);
 
         if (await TryBackfillUserAssignmentsFromRolesAsync(user, cancellationToken))
         {
             return await dbContext.UserAccessProfiles
-                .Where(assignment => assignment.TenantId == user.TenantId && assignment.UserId == user.Id)
+                .Where(assignment => assignment.TenantId == tenantId && assignment.UserId == user.Id)
                 .Select(assignment => assignment.AccessProfileId)
                 .ToListAsync(cancellationToken);
         }
@@ -1043,9 +1146,18 @@ public sealed class AccessProfileService(
 
     private async Task<bool> TryBackfillUserAssignmentsFromRolesAsync(ApplicationUser user, CancellationToken cancellationToken)
     {
+        // Best-effort backfill: an account with no Active membership (a Platform
+        // Administrator, or one whose relationship has ended) has no tenant
+        // access to reconstruct.
+        var tenantId = await FindActiveTenantIdAsync(user.Id, cancellationToken);
+        if (tenantId is null)
+        {
+            return false;
+        }
+
         var seededProfiles = await dbContext.AccessProfiles
             .IgnoreQueryFilters()
-            .Where(profile => profile.TenantId == user.TenantId && profile.Type == AccessProfileTypes.SystemSeeded)
+            .Where(profile => profile.TenantId == tenantId && profile.Type == AccessProfileTypes.SystemSeeded)
             .ToListAsync(cancellationToken);
 
         var seededByName = seededProfiles.ToDictionary(profile => profile.Name, StringComparer.Ordinal);
@@ -1058,8 +1170,14 @@ public sealed class AccessProfileService(
             return false;
         }
 
+        var backfillMembershipId = await FindActiveMembershipIdAsync(tenantId.Value, user.Id, cancellationToken);
+        if (backfillMembershipId is null)
+        {
+            return false;
+        }
+
         dbContext.UserAccessProfiles.AddRange(desiredProfiles.Select(profileId =>
-            UserAccessProfile.Create(user.TenantId, user.Id, profileId)));
+            UserAccessProfile.Create(tenantId.Value, user.Id, profileId, backfillMembershipId.Value)));
         await dbContext.SaveChangesAsync(cancellationToken);
         await SyncCompatibilityRolesAsync(user, cancellationToken);
         return true;

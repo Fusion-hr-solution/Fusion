@@ -3,7 +3,12 @@ using Microsoft.AspNetCore.Identity;
 
 namespace EY.HRPlatform.Identity.Domain.Entities;
 
-public class ApplicationUser : IdentityUser<Guid>, ITenantEntity
+/// <summary>
+/// A global Identity Account. It is deliberately not an <c>ITenantEntity</c>:
+/// an account belongs to no tenant, and its participation in customer tenants is
+/// expressed only through <see cref="TenantMembership"/>.
+/// </summary>
+public class ApplicationUser : IdentityUser<Guid>
 {
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
@@ -16,15 +21,11 @@ public class ApplicationUser : IdentityUser<Guid>, ITenantEntity
     public DateTime? LastLoginAt { get; set; }
 
     /// <summary>
-    /// The tenant this user belongs to. Required for all users.
-    /// PlatformAdmin users can override their active context via X-Tenant-Id header.
+    /// Customer tenants this account participates in. Membership is the only
+    /// tenancy authority: the account row itself carries no tenant, so a Platform
+    /// Administrator simply has none and no code path can infer one.
     /// </summary>
-    public Guid TenantId { get; set; }
-    
-    /// <summary>
-    /// Navigation property to the user's tenant.
-    /// </summary>
-    public Tenant? Tenant { get; set; }
+    public List<TenantMembership> TenantMemberships { get; set; } = [];
 
     public List<UserAccessProfile> AccessProfileAssignments { get; set; } = [];
 

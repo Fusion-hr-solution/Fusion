@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.Identity.Features.Membership;
 using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
@@ -21,15 +22,18 @@ public class TokenService : ITokenService
     private readonly IConfiguration _configuration;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IAccessProfileService _accessProfileService;
+    private readonly ICustomerContextResolver _customerContextResolver;
 
     public TokenService(
         IConfiguration configuration,
         UserManager<ApplicationUser> userManager,
-        IAccessProfileService accessProfileService)
+        IAccessProfileService accessProfileService,
+        ICustomerContextResolver customerContextResolver)
     {
         _configuration = configuration;
         _userManager = userManager;
         _accessProfileService = accessProfileService;
+        _customerContextResolver = customerContextResolver;
     }
 
     public async Task<string> GenerateAccessTokenAsync(ApplicationUser user)
@@ -51,26 +55,38 @@ public class TokenService : ITokenService
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
-        // Step 4: Add tenant_id claim from User.TenantId (required FK)
-        if (user.TenantId == Guid.Empty)
-        {
-            throw new InvalidOperationException(
-                $"Cannot generate token for user {user.Id}: TenantId is not set. " +
-                "All users must be assigned to a tenant before authentication.");
-        }
-        claims.Add(new Claim(CustomClaimTypes.TenantId, user.TenantId.ToString()));
+        // Step 4: Derive customer tenant context from membership, never from the
+        // account row. Exactly one Active membership grants authority; zero or
+        // several grant none, so the token simply carries no customer claims and
+        // every downstream tenant check fails closed. A Platform Administrator
+        // authenticates successfully and reaches the control plane with no
+        // customer authority at all.
+        var customerContext = await _customerContextResolver.ResolveAsync(user);
 
-        if (user.EmployeeId.HasValue)
+        if (customerContext.Context is { } context)
         {
-            claims.Add(new Claim(CustomClaimTypes.EmployeeId, user.EmployeeId.Value.ToString()));
-        }
+            claims.Add(new Claim(CustomClaimTypes.TenantId, context.TenantId.ToString()));
+            claims.Add(new Claim(CustomClaimTypes.TenantMembershipId, context.MembershipId.ToString()));
 
-        var permissions = await _accessProfileService.GetEffectivePermissionsAsync(user);
-        foreach (var permission in permissions)
-        {
-            claims.Add(new Claim(
-                CustomClaimTypes.CorePermission,
-                CorePermissionClaimValue.Encode(permission.PermissionKey, permission.Scope)));
+            foreach (var module in context.EnabledModules)
+            {
+                claims.Add(new Claim(CustomClaimTypes.ModuleEntitlement, module.ToString()));
+            }
+
+            if (user.EmployeeId.HasValue)
+            {
+                claims.Add(new Claim(CustomClaimTypes.EmployeeId, user.EmployeeId.Value.ToString()));
+            }
+
+            // Tenant permissions are meaningful only inside a customer tenant, so
+            // they travel with the membership rather than with the account.
+            var permissions = await _accessProfileService.GetEffectivePermissionsAsync(user);
+            foreach (var permission in permissions)
+            {
+                claims.Add(new Claim(
+                    CustomClaimTypes.CorePermission,
+                    CorePermissionClaimValue.Encode(permission.PermissionKey, permission.Scope)));
+            }
         }
 
         // Step 5: Create the signing key from our secret

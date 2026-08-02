@@ -32,20 +32,20 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Get all active users. HRAdmin sees only their tenant's users (via query filter).
-    /// PlatformAdmin sees all users or filtered by X-Tenant-Id header (resolved by middleware).
+    /// Get the active users of the caller's own tenant.
     /// </summary>
     [HttpGet]
     [ProducesResponseType(typeof(ApiResponse<List<UserDto>>), StatusCodes.Status200OK)]
     public async Task<ActionResult<ApiResponse<List<UserDto>>>> GetAll()
     {
-        // PlatformAdmin without X-Tenant-Id header needs to see all tenants
-        // The middleware doesn't set tenant context when PlatformAdmin omits the header,
-        // so the fail-open filter returns all users. For non-PlatformAdmin, the middleware
-        // always sets tenant context from JWT, so the filter scopes automatically.
-        var query = _userManager.Users.Where(u => u.IsActive);
+        // Listing customer accounts requires a customer tenant context. A Platform
+        // Administrator has none, so this returns nothing rather than every tenant.
+        var callerTenantId = User.GetTenantId();
+        if (callerTenantId is null)
+            return Ok(ApiResponse<List<UserDto>>.Success([]));
 
-        var users = await query
+        var users = await _userManager.Users
+            .Where(u => u.IsActive)
             .Select(u => new UserDto
             {
                 Id = u.Id,
@@ -55,7 +55,7 @@ public class UsersController : ControllerBase
                 Department = u.Department,
                 JobTitle = u.JobTitle,
                 HireDate = u.HireDate,
-                TenantId = u.TenantId
+                TenantId = callerTenantId.Value
             })
             .ToListAsync();
 
@@ -70,12 +70,15 @@ public class UsersController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<UserDto>), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<UserDto>>> GetById(Guid id)
     {
-        var user = await _userManager.FindByIdAsync(id.ToString());
-        if (user is null)
+        // Reading a customer account requires a customer tenant context; the
+        // membership query filter then restricts the lookup to that tenant, so a
+        // caller outside it cannot resolve the account at all.
+        var callerTenantId = User.GetTenantId();
+        if (callerTenantId is null)
             return NotFound(ApiResponse<UserDto>.Failure("User not found."));
 
-        // Check tenant access
-        if (!CanAccessTenant(user.TenantId))
+        var user = await _userManager.FindByIdAsync(id.ToString());
+        if (user is null)
             return NotFound(ApiResponse<UserDto>.Failure("User not found."));
 
         var roles = await _userManager.GetRolesAsync(user);
@@ -89,7 +92,7 @@ public class UsersController : ControllerBase
             Department = user.Department,
             JobTitle = user.JobTitle,
             HireDate = user.HireDate,
-            TenantId = user.TenantId,
+            TenantId = callerTenantId.Value,
             Roles = roles.ToList()
         };
 
@@ -166,7 +169,6 @@ public class UsersController : ControllerBase
             Department = request.Department,
             JobTitle = request.JobTitle,
             HireDate = DateTime.SpecifyKind(request.HireDate, DateTimeKind.Utc),
-            TenantId = tenantId,
             EmailConfirmed = false
         };
 
@@ -187,6 +189,26 @@ public class UsersController : ControllerBase
             return BadRequest(ApiResponse<UserDto>.Failure(errors));
         }
 
+        // Membership is the tenancy authority. Platform Administrators operate in
+        // the control plane only and never receive a customer membership.
+        //
+        // An account without its membership cannot be granted tenant access and
+        // cannot be recreated (the email is taken), so a failure here removes the
+        // account rather than leaving that dead end behind.
+        if (role != PlatformRole.PlatformAdmin)
+        {
+            try
+            {
+                _dbContext.TenantMemberships.Add(TenantMembership.Create(user.Id, tenantId));
+                await _dbContext.SaveChangesAsync();
+            }
+            catch (Exception)
+            {
+                await _userManager.DeleteAsync(user);
+                throw;
+            }
+        }
+
         var dto = new UserDto
         {
             Id = user.Id,
@@ -195,7 +217,7 @@ public class UsersController : ControllerBase
             Department = user.Department,
             JobTitle = user.JobTitle,
             HireDate = user.HireDate,
-            TenantId = user.TenantId,
+            TenantId = tenantId,
             EmployeeId = user.EmployeeId,
             Roles = [role],
             TemporaryPassword = temporaryPassword // Only returned on creation
@@ -227,8 +249,9 @@ public class UsersController : ControllerBase
         if (user is null)
             return NotFound(ApiResponse.Failure("User not found."));
 
-        // Check tenant access
-        if (!CanAccessTenant(user.TenantId))
+        // Managing a customer account requires the caller's own customer tenant
+        // context; the membership query filter scopes the lookup to that tenant.
+        if (User.GetTenantId() is null)
             return NotFound(ApiResponse.Failure("User not found."));
 
         // HRAdmin cannot assign PlatformAdmin or HRAdmin roles
@@ -237,6 +260,24 @@ public class UsersController : ControllerBase
         {
             return StatusCode(StatusCodes.Status403Forbidden,
                 ApiResponse.Failure("You do not have permission to assign this role."));
+        }
+
+        // Platform Administrators hold zero customer memberships. Promoting an
+        // account that still participates in a tenant would create exactly the
+        // combination the control-plane boundary forbids, so it is refused rather
+        // than silently stripping the customer's access.
+        if (role == PlatformRole.PlatformAdmin)
+        {
+            var hasCustomerMembership = await _dbContext.TenantMemberships
+                .IgnoreQueryFilters()
+                .AnyAsync(membership => membership.UserId == user.Id);
+
+            if (hasCustomerMembership)
+            {
+                return StatusCode(StatusCodes.Status409Conflict,
+                    ApiResponse.Failure(
+                        "This account holds customer tenant membership and cannot be made a Platform Administrator. End its tenant membership first."));
+            }
         }
 
         var result = await _userManager.AddToRoleAsync(user, role);
@@ -265,8 +306,9 @@ public class UsersController : ControllerBase
         if (user is null)
             return NotFound(ApiResponse.Failure("User not found."));
 
-        // Check tenant access
-        if (!CanAccessTenant(user.TenantId))
+        // Managing a customer account requires the caller's own customer tenant
+        // context; the membership query filter scopes the lookup to that tenant.
+        if (User.GetTenantId() is null)
             return NotFound(ApiResponse.Failure("User not found."));
 
         // HRAdmin cannot remove PlatformAdmin or HRAdmin roles
@@ -333,11 +375,9 @@ public class UsersController : ControllerBase
     /// </summary>
     private bool CanAccessTenant(Guid tenantId)
     {
-        // PlatformAdmin can access any tenant
-        if (User.IsInRole(PlatformRole.PlatformAdmin))
-            return true;
-
-        // Others can only access their own tenant
+        // Customer-tenant access comes only from the caller's own membership.
+        // Platform Administrator status is control-plane authority and never
+        // opens a customer tenant, so there is deliberately no role bypass here.
         var userTenantId = User.GetTenantId();
         return userTenantId.HasValue && userTenantId.Value == tenantId;
     }

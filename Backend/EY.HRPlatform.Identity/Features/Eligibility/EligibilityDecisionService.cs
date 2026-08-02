@@ -1,3 +1,4 @@
+using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.EntityFrameworkCore;
@@ -72,7 +73,8 @@ public sealed class EligibilityDecisionService(AppIdentityDbContext dbContext) :
 
         var user = await dbContext.Users
             .IgnoreQueryFilters()
-            .SingleOrDefaultAsync(item => item.Id == request.ActorUserId && item.TenantId == request.TenantId, cancellationToken);
+            .SingleOrDefaultAsync(item => item.Id == request.ActorUserId
+                && item.TenantMemberships.Any(m => m.TenantId == request.TenantId && m.Status == TenantMembershipStatus.Active), cancellationToken);
         if (user is null || !user.IsActive || (user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow))
             return EligibilityDecision.Deny(EligibilityDenialReason.AccountInactive);
 

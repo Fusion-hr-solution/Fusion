@@ -39,21 +39,11 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next, ILogger<Ten
 
         if (isAuthenticated)
         {
-            var jwtTenantId = context.User.GetTenantId();
-
-            // PlatformAdmin can override tenant context via header (for cross-tenant operations)
-            if (context.User.IsInRole(PlatformRole.PlatformAdmin) &&
-                context.Request.Headers.TryGetValue(TenantHeader, out var headerValue))
-            {
-                var headerString = headerValue.FirstOrDefault();
-                if (Guid.TryParse(headerString, out var headerTenantId) && headerTenantId != Guid.Empty)
-                {
-                    return headerTenantId;
-                }
-            }
-
-            // For non-PlatformAdmin users, only trust tenant from JWT claims (security: prevent privilege escalation)
-            return jwtTenantId;
+            // Customer tenant context comes only from the trusted membership-derived
+            // claim. A caller-supplied header never establishes or overrides it,
+            // including for a Platform Administrator: control-plane authority is
+            // not a way into a customer tenant.
+            return context.User.GetTenantId();
         }
 
         // For unauthenticated requests (e.g., internal service-to-service calls), allow header-based resolution
@@ -86,7 +76,19 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next, ILogger<Ten
         if (endpoint.Metadata.GetMetadata<IAuthorizeData>() is null)
             return false;
 
-        // Authenticated request to a protected endpoint: require tenant context
+        // Control-plane endpoints are authorized by Platform Administrator role and
+        // operate across the platform rather than inside one customer tenant. A
+        // Platform Administrator holds no membership and therefore no tenant claim,
+        // so demanding customer tenant context here would make the control plane
+        // unreachable. Their customer-workspace denial is enforced by the absence
+        // of that claim everywhere else, not by this middleware.
+        if (IsPlatformControlPlaneRoute(context))
+            return false;
+
+        // Authenticated request to a tenant-scoped protected endpoint.
         return true;
     }
+
+    private static bool IsPlatformControlPlaneRoute(HttpContext context)
+        => context.Request.Path.StartsWithSegments("/api/identity/platform-admin", StringComparison.OrdinalIgnoreCase);
 }

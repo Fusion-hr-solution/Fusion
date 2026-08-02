@@ -42,6 +42,41 @@ public static class ClaimsPrincipalExtensions
     }
 
     /// <summary>
+    /// Membership that authorizes the customer tenant context, when one exists.
+    /// </summary>
+    public static Guid? GetTenantMembershipId(this ClaimsPrincipal principal)
+    {
+        var claim = principal.FindFirst(CustomClaimTypes.TenantMembershipId);
+        if (claim is null)
+            return null;
+
+        return Guid.TryParse(claim.Value, out var membershipId) && membershipId != Guid.Empty
+            ? membershipId
+            : null;
+    }
+
+    /// <summary>
+    /// Modules enabled for the caller's customer tenant. Empty when the caller
+    /// has no customer-workspace authority.
+    /// </summary>
+    public static IReadOnlyList<string> GetModuleEntitlements(this ClaimsPrincipal principal)
+        => principal.FindAll(CustomClaimTypes.ModuleEntitlement)
+            .Select(claim => claim.Value)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+    /// <summary>
+    /// Whether the caller's tenant has the named module enabled. Requires a
+    /// customer tenant context, so Platform Administrator status alone can never
+    /// satisfy it.
+    /// </summary>
+    public static bool HasModuleEntitlement(this ClaimsPrincipal principal, string module)
+        => principal.GetTenantId() is not null
+            && principal.GetModuleEntitlements()
+                .Any(value => string.Equals(value, module, StringComparison.Ordinal));
+
+    /// <summary>
     /// Extracts the linked employee ID from the "employee_id" claim if present.
     /// </summary>
     public static Guid? GetEmployeeId(this ClaimsPrincipal principal)

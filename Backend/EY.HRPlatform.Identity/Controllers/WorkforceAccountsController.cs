@@ -1,4 +1,5 @@
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Features.WorkforceAccounts;
 using EY.HRPlatform.Identity.Infrastructure.Services;
@@ -54,7 +55,7 @@ public sealed class WorkforceAccountsController(
         var now = DateTime.UtcNow;
         var userSnapshots = await dbContext.Users
             .IgnoreQueryFilters()
-            .Where(user => user.TenantId == tenantId && user.EmployeeId.HasValue)
+            .Where(user => user.TenantMemberships.Any(m => m.TenantId == tenantId && m.Status == TenantMembershipStatus.Active) && user.EmployeeId.HasValue)
             .Select(user => new
             {
                 EmployeeId = user.EmployeeId!.Value,
@@ -419,7 +420,7 @@ public sealed class WorkforceAccountsController(
 
         var userByEmail = await dbContext.Users
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(user => user.TenantId == tenantId && user.NormalizedEmail == normalizedEmailUpper, cancellationToken);
+            .FirstOrDefaultAsync(user => user.TenantMemberships.Any(m => m.TenantId == tenantId && m.Status == TenantMembershipStatus.Active) && user.NormalizedEmail == normalizedEmailUpper, cancellationToken);
 
         if (userByEmail is not null)
         {
@@ -432,7 +433,7 @@ public sealed class WorkforceAccountsController(
 
         var crossTenantUserExists = await dbContext.Users
             .IgnoreQueryFilters()
-            .AnyAsync(user => user.TenantId != tenantId && user.NormalizedEmail == normalizedEmailUpper, cancellationToken);
+            .AnyAsync(user => !user.TenantMemberships.Any(m => m.TenantId == tenantId && m.Status == TenantMembershipStatus.Active) && user.NormalizedEmail == normalizedEmailUpper, cancellationToken);
         if (crossTenantUserExists)
             return BuildConflictStatus(subject, "EmailAlreadyRegistered", "Email is already registered in another tenant.", "Use another email or contact platform support.");
 
@@ -507,7 +508,7 @@ public sealed class WorkforceAccountsController(
         CancellationToken cancellationToken)
         => await dbContext.Users
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(user => user.TenantId == tenantId && user.EmployeeId == employeeId, cancellationToken);
+            .FirstOrDefaultAsync(user => user.TenantMemberships.Any(m => m.TenantId == tenantId && m.Status == TenantMembershipStatus.Active) && user.EmployeeId == employeeId, cancellationToken);
 
     private async Task<InviteToken?> FindLatestInviteByEmployeeAsync(
         Guid tenantId,

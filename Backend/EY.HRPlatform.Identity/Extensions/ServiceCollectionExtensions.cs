@@ -3,6 +3,8 @@ using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Features.Eligibility;
+using EY.HRPlatform.Identity.Features.Membership;
+using EY.HRPlatform.Identity.Features.TenantProvisioning;
 using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
 using EY.HRPlatform.Identity.Features.WorkforceAccounts;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
@@ -118,6 +120,32 @@ public static class ServiceCollectionExtensions
         // 4. Register our custom services
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IPlatformOrganizationService, PlatformOrganizationService>();
+        services.AddScoped<ICustomerContextResolver, CustomerContextResolver>();
+        services.AddScoped<ITenantProvisioningService, TenantProvisioningService>();
+        services.AddScoped<IBootstrapInvitationRecoveryService, BootstrapInvitationRecoveryService>();
+        services.AddScoped<ITenantDetailProjection, TenantDetailProjection>();
+        services.AddScoped<ITenantOverviewProjection, TenantOverviewProjection>();
+        services.AddScoped<ITenantActivityProjection, TenantActivityProjection>();
+        services.AddScoped<IBootstrapActivationService, BootstrapActivationService>();
+        services.AddScoped<IBootstrapInvitationDelivery, BootstrapInvitationDelivery>();
+        // The logging sender prints the activation link, which carries the
+        // bootstrap secret, and reports Sent without sending. That is acceptable
+        // for local demonstration and nowhere else, so it is Development-only.
+        // Outside Development an unconfigured provider records a truthful Failed
+        // attempt rather than a false success.
+        var isDevelopment = string.Equals(
+            configuration["ASPNETCORE_ENVIRONMENT"] ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+            "Development",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (isDevelopment)
+        {
+            services.AddScoped<IBootstrapInvitationEmailSender, LoggingBootstrapInvitationEmailSender>();
+        }
+        else
+        {
+            services.AddScoped<IBootstrapInvitationEmailSender, UnconfiguredBootstrapInvitationEmailSender>();
+        }
         services.AddScoped<IAccessProfileService, AccessProfileService>();
         services.AddScoped<IEligibilityDecisionService, EligibilityDecisionService>();
         services.AddScoped<IAccessAuditService, AccessAuditService>();

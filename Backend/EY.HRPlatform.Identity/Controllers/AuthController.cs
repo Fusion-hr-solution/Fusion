@@ -1,5 +1,6 @@
 ﻿using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.Identity.Features.Membership;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Models.Requests;
@@ -21,19 +22,22 @@ public class AuthController : ControllerBase
     private readonly IAccessProfileService _accessProfileService;
     private readonly AppIdentityDbContext _dbContext;
     private readonly IConfiguration _configuration;
+    private readonly ICustomerContextResolver _customerContextResolver;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
         ITokenService tokenService,
         IAccessProfileService accessProfileService,
         AppIdentityDbContext dbContext,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        ICustomerContextResolver customerContextResolver)
     {
         _userManager = userManager;
         _tokenService = tokenService;
         _accessProfileService = accessProfileService;
         _dbContext = dbContext;
         _configuration = configuration;
+        _customerContextResolver = customerContextResolver;
     }
 
     /// <summary>
@@ -160,17 +164,20 @@ public class AuthController : ControllerBase
         // Get user roles
         var roles = await _userManager.GetRolesAsync(user);
 
-        // Build response
-        return new AuthResponse
-        {
-            UserId = user.Id,
-            TenantId = user.TenantId,
-            Email = user.Email!,
-            FullName = user.FullName,
-            Roles = roles.ToList(),
-            EmployeeId = user.EmployeeId,
-            AccessProfiles = (await _accessProfileService.GetAssignedProfilesAsync(user)).ToList(),
-            EffectivePermissions = (await _accessProfileService.GetEffectivePermissionsAsync(user))
+        // The session reports exactly what the token authorizes. Without a
+        // customer context there is no tenant, no entitlement and no tenant
+        // permission to report, so the client cannot render a workspace the
+        // backend would refuse.
+        var customerContext = await _customerContextResolver.ResolveAsync(user);
+        var context = customerContext.Context;
+
+        var accessProfiles = context is null
+            ? []
+            : (await _accessProfileService.GetAssignedProfilesAsync(user)).ToList();
+
+        var effectivePermissions = context is null
+            ? []
+            : (await _accessProfileService.GetEffectivePermissionsAsync(user))
                 .Select(grant => new EffectivePermissionGrantDto
                 {
                     PermissionKey = grant.PermissionKey,
@@ -180,7 +187,21 @@ public class AuthController : ControllerBase
                     HelperText = CorePermissionCatalog.Get(grant.PermissionKey).HelperText,
                     AllowedScopes = CorePermissionCatalog.Get(grant.PermissionKey).AllowedScopes.ToList(),
                 })
-                .ToList(),
+                .ToList();
+
+        // Build response
+        return new AuthResponse
+        {
+            UserId = user.Id,
+            TenantId = context?.TenantId,
+            TenantMembershipId = context?.MembershipId,
+            ModuleEntitlements = context?.EnabledModules.Select(module => module.ToString()).ToList() ?? [],
+            Email = user.Email!,
+            FullName = user.FullName,
+            Roles = roles.ToList(),
+            EmployeeId = context is null ? null : user.EmployeeId,
+            AccessProfiles = accessProfiles,
+            EffectivePermissions = effectivePermissions,
             AccessToken = accessToken,
             RefreshToken = refreshTokenString,
             AccessTokenExpiration = DateTime.UtcNow.AddMinutes(

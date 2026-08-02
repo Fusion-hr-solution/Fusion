@@ -1,4 +1,5 @@
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Features.PlatformOrganizations.Dtos;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
@@ -378,7 +379,8 @@ public sealed class PlatformOrganizationService(
 
         var userId = await (from u in db.Users.IgnoreQueryFilters().AsNoTracking()
                 join ur in db.UserRoles.AsNoTracking() on u.Id equals ur.UserId
-                where u.TenantId == tenantId && ur.RoleId == orgAdminRoleId
+                where ur.RoleId == orgAdminRoleId
+                    && u.TenantMemberships.Any(m => m.TenantId == tenantId && m.Status == TenantMembershipStatus.Active)
                 select (Guid?)u.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -409,9 +411,11 @@ public sealed class PlatformOrganizationService(
             .Select(r => r.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
-        var usersInTenants = await db.Users.IgnoreQueryFilters().AsNoTracking()
-            .Where(u => tenantIds.Contains(u.TenantId) && u.IsActive)
-            .Select(u => new { u.TenantId, u.Id, u.LastLoginAt })
+        var usersInTenants = await db.TenantMemberships.IgnoreQueryFilters().AsNoTracking()
+            .Where(m => tenantIds.Contains(m.TenantId)
+                && m.Status == TenantMembershipStatus.Active
+                && m.User!.IsActive)
+            .Select(m => new { m.TenantId, Id = m.UserId, m.User!.LastLoginAt })
             .ToListAsync(cancellationToken);
 
         var userCounts = usersInTenants.GroupBy(u => u.TenantId).ToDictionary(g => g.Key, g => g.Count());

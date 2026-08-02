@@ -31,8 +31,7 @@ public sealed class CoreAccessController(
 
         var user = new Domain.Entities.ApplicationUser
         {
-            Id = userId,
-            TenantId = tenantId.Value,
+            Id = userId,
             Email = User.GetEmail(),
             FirstName = User.GetFullName(),
             LastName = string.Empty,
