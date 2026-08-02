@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { BrainCircuit, Home, User } from "lucide-react";
 import {
   FUSION_MODULES,
+  filterModulesByEntitlement,
   ModuleSidebar,
   ShellUserPanel,
   type ShellNavSection,
@@ -99,7 +100,7 @@ export function CoreSidebar() {
       activePath={activePath}
       sections={sections}
       pending={isAuthLoading}
-      modules={FUSION_MODULES}
+      modules={filterModulesByEntitlement(FUSION_MODULES, user?.moduleEntitlements ?? [])}
       currentModuleKey="core"
       userPanel={(collapsed) => (
         <ShellUserPanel

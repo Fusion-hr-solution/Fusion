@@ -6,6 +6,8 @@ function createAuthUser(overrides: Partial<AuthUser>): AuthUser {
   return {
     userId: "user-1",
     tenantId: "tenant-1",
+  tenantMembershipId: "membership-1",
+  moduleEntitlements: ["CoreHR", "Performance"],
     email: "test@example.com",
     fullName: "Test User",
     roles: [],

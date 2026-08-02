@@ -9,6 +9,8 @@ function createUser(roles: string[]): AuthUser {
   return {
     userId: "user-1",
     tenantId: "tenant-1",
+  tenantMembershipId: "membership-1",
+  moduleEntitlements: ["CoreHR", "Performance"],
     email: "user@example.com",
     fullName: "Test User",
     roles,

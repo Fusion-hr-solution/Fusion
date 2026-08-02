@@ -269,7 +269,9 @@ export function InviteAcceptanceForm({ token }: { token: string | null }) {
       // 3. Persist session (localStorage + cookie)
       const user: AuthUser = {
         userId: authResponse.userId,
-        tenantId: authResponse.tenantId,
+        tenantId: authResponse.tenantId ?? null,
+        tenantMembershipId: authResponse.tenantMembershipId ?? null,
+        moduleEntitlements: authResponse.moduleEntitlements ?? [],
         employeeId: authResponse.employeeId ?? null,
         email: authResponse.email,
         fullName: authResponse.fullName,

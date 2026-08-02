@@ -5,6 +5,7 @@ import { Home, BarChart3, User } from "lucide-react";
 import { useAuth } from "@repo/auth";
 import {
   FUSION_MODULES,
+  filterModulesByEntitlement,
   ModuleSidebar,
   ShellUserPanel,
 } from "@repo/ds/shell";
@@ -23,7 +24,7 @@ export function PerformanceSidebar() {
       activePath={activePath}
       sections={[OVERVIEW_NAV]}
       pending={isAuthLoading}
-      modules={FUSION_MODULES}
+      modules={filterModulesByEntitlement(FUSION_MODULES, user?.moduleEntitlements ?? [])}
       currentModuleKey="performance"
       userPanel={(collapsed) => (
         <ShellUserPanel

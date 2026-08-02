@@ -101,6 +101,8 @@ describe("ImportHistoryPanel", () => {
     user: {
       userId: "user-1",
       tenantId: "tenant-1",
+  tenantMembershipId: "membership-1",
+  moduleEntitlements: ["CoreHR", "Performance"],
       email: "alex.morgan@example.com",
       fullName: "Alex Morgan",
       roles: ["HRAdmin"],

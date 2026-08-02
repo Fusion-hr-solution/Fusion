@@ -1,4 +1,5 @@
 import {
+  CUSTOMER_MODULES,
   resolveCustomerWorkspaceAccessState,
   type AuthUser,
   type CustomerWorkspaceAccessState,
@@ -20,5 +21,10 @@ export function resolveCoreWorkspaceAccessState(input: {
   isLoading: boolean;
   user: AuthUser | null;
 }): CoreWorkspaceAccessState {
-  return resolveCustomerWorkspaceAccessState(input);
+  // Direct entry is gated, not just navigation: reaching /core by URL still
+  // requires the tenant's Core HR entitlement.
+  return resolveCustomerWorkspaceAccessState({
+    ...input,
+    module: CUSTOMER_MODULES.coreHr,
+  });
 }
