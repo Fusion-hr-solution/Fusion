@@ -8,7 +8,7 @@ const developmentShellUrl =
 const nextConfig: NextConfig = {
   basePath: "/platform",
   outputFileTracingRoot: frontendWorkspaceRoot,
-  transpilePackages: ["@repo/auth", "@repo/ds"],
+  transpilePackages: ["@repo/api", "@repo/auth", "@repo/ds"],
   allowedDevOrigins: ["http://localhost:3000"],
   env: {
     NEXT_PUBLIC_SHELL_URL:

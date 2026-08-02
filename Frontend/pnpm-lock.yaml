@@ -493,12 +493,18 @@ importers:
 
   apps/platform:
     dependencies:
+      '@repo/api':
+        specifier: workspace:*
+        version: link:../../packages/api
       '@repo/auth':
         specifier: workspace:*
         version: link:../../packages/auth
       '@repo/ds':
         specifier: workspace:*
         version: link:../../packages/ds
+      '@tanstack/react-query':
+        specifier: ^5.90.5
+        version: 5.99.2(react@19.2.4)
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@19.2.4)

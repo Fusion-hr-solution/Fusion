@@ -12,8 +12,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@repo/api": "workspace:*",
     "@repo/auth": "workspace:*",
     "@repo/ds": "workspace:*",
+    "@tanstack/react-query": "^5.90.5",
     "lucide-react": "^0.469.0",
     "next": "^15.1.0",
     "react": "^19.0.0",

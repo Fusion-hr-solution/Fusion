@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { Shield } from "lucide-react";
 import { canAccessPlatform, useAuth } from "@repo/auth";
 import { ModuleSidebar, ShellUserPanel } from "@repo/ds/shell";
-import { PLATFORM_OVERVIEW_NAV } from "@/data/sidebar-nav";
+import { PLATFORM_NAV } from "@/data/sidebar-nav";
 import { buildShellUrl } from "@/lib/shell-url";
 
 export function PlatformSidebar() {
@@ -19,7 +19,7 @@ export function PlatformSidebar() {
       brandSubtitle="Administration"
       brandIcon={Shield}
       activePath={activePath}
-      sections={hasPlatformAccess ? [PLATFORM_OVERVIEW_NAV] : []}
+      sections={hasPlatformAccess ? [PLATFORM_NAV] : []}
       contextLabel={hasPlatformAccess ? "Platform access" : undefined}
       pending={isLoading}
       userPanel={(collapsed) => (
