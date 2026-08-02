@@ -20,14 +20,36 @@ export type CustomerWorkspaceAccessState =
   | "loading"
   | "sign-in-required"
   | "forbidden"
+  | "module-unavailable"
   | "allowed";
+
+/** Modules a customer workspace can require. */
+export const CUSTOMER_MODULES = {
+  coreHr: "CoreHR",
+  performance: "Performance",
+} as const;
+
+export type CustomerModule =
+  (typeof CUSTOMER_MODULES)[keyof typeof CUSTOMER_MODULES];
+
+export function hasModuleEntitlement(
+  user: AuthUser | null,
+  module: CustomerModule,
+): boolean {
+  // Entitlement is meaningful only inside a customer tenant, so an account
+  // without one never satisfies it regardless of what the array contains.
+  return Boolean(user?.tenantId) && (user?.moduleEntitlements ?? []).includes(module);
+}
 
 export function resolveCustomerWorkspaceAccessState({
   isLoading,
   user,
+  module,
 }: {
   isLoading: boolean;
   user: AuthUser | null;
+  /** When given, entry also requires this module to be enabled for the tenant. */
+  module?: CustomerModule;
 }): CustomerWorkspaceAccessState {
   if (isLoading) {
     return "loading";
@@ -37,5 +59,20 @@ export function resolveCustomerWorkspaceAccessState({
     return "sign-in-required";
   }
 
-  return canAccessPlatform(user) ? "forbidden" : "allowed";
+  if (canAccessPlatform(user)) {
+    return "forbidden";
+  }
+
+  // Customer authority comes from exactly one Active membership. Without a
+  // tenant the session carries no customer context at all — the zero, multiple,
+  // and inactive-membership cases all arrive here.
+  if (!user.tenantId) {
+    return "forbidden";
+  }
+
+  if (module && !hasModuleEntitlement(user, module)) {
+    return "module-unavailable";
+  }
+
+  return "allowed";
 }

@@ -55,7 +55,12 @@ export {
   canViewCoreAccessProfiles,
   canManageCoreAccessProfiles,
 } from "./roles";
-export { resolveCustomerWorkspaceAccessState } from "./customer-workspace-access";
+export {
+  resolveCustomerWorkspaceAccessState,
+  hasModuleEntitlement,
+  CUSTOMER_MODULES,
+} from "./customer-workspace-access";
+export type { CustomerModule } from "./customer-workspace-access";
 export type { CustomerWorkspaceAccessState } from "./customer-workspace-access";
 
 // Components

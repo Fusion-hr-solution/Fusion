@@ -28,7 +28,12 @@ export interface RefreshTokenRequest {
 
 export interface AuthResponse {
   userId: string;
-  tenantId: string;
+  /** Present only when the account has exactly one Active tenant membership. */
+  tenantId: string | null;
+  /** Membership that authorizes the customer tenant context. */
+  tenantMembershipId: string | null;
+  /** Modules enabled for that tenant. Empty without a customer context. */
+  moduleEntitlements: string[];
   email: string;
   fullName: string;
   roles: string[];
@@ -44,7 +49,15 @@ export interface AuthResponse {
 
 export interface AuthUser {
   userId: string;
-  tenantId: string;
+  /**
+   * Customer tenant, derived solely from exactly one Active membership. Null for
+   * a Platform Administrator, and null when membership cardinality is corrupted,
+   * so the UI can never render a workspace the backend would refuse.
+   */
+  tenantId: string | null;
+  tenantMembershipId: string | null;
+  /** Modules enabled for the customer tenant. Empty without a customer context. */
+  moduleEntitlements: string[];
   email: string;
   fullName: string;
   roles: string[];

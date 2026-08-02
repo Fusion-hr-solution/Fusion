@@ -69,7 +69,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               accessTokenExpiration: d.accessTokenExpiration,
               user: {
                 userId: d.userId,
-                tenantId: d.tenantId,
+                tenantId: d.tenantId ?? null,
+                tenantMembershipId: d.tenantMembershipId ?? null,
+                moduleEntitlements: d.moduleEntitlements ?? [],
                 email: d.email,
                 fullName: d.fullName,
                 roles: d.roles,
@@ -121,7 +123,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const d = await apiLogin(req);
         const authUser: AuthUser = {
           userId: d.userId,
-          tenantId: d.tenantId,
+          tenantId: d.tenantId ?? null,
+                tenantMembershipId: d.tenantMembershipId ?? null,
+                moduleEntitlements: d.moduleEntitlements ?? [],
           email: d.email,
           fullName: d.fullName,
           roles: d.roles,
@@ -155,7 +159,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const d = await apiRegister(req);
         const authUser: AuthUser = {
           userId: d.userId,
-          tenantId: d.tenantId,
+          tenantId: d.tenantId ?? null,
+                tenantMembershipId: d.tenantMembershipId ?? null,
+                moduleEntitlements: d.moduleEntitlements ?? [],
           email: d.email,
           fullName: d.fullName,
           roles: d.roles,
