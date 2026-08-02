@@ -3,9 +3,11 @@ using System.Text.Json.Serialization;
 using EY.HRPlatform.CoreHR.Extensions;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Middleware;
+using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.SharedKernel.Constants;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -45,7 +47,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+// Every authenticated Core HR endpoint requires the tenant's Core HR entitlement
+// on top of its own permission checks. The fallback policy applies it to
+// protected endpoints by default, so a new endpoint cannot forget it; endpoints
+// marked [AllowAnonymous] (health, internal service calls) are unaffected.
+builder.Services.AddModuleEntitlementAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .AddRequirements(new ModuleEntitlementRequirement(ModuleEntitlements.CoreHR))
+        .Build();
+});
 builder.Services.AddMultitenancy();
 builder.Services.AddCoreHRApplication(builder.Configuration);
 builder.Services.AddCoreHRPersistence(builder.Configuration);

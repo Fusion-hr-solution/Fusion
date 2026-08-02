@@ -1,10 +1,58 @@
+using System.Text;
+using EY.HRPlatform.SharedKernel.Auth;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.IdentityModel.Tokens;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Performance has no business endpoints yet. It still establishes its security
+// boundary now so that the first endpoint added here is protected by default
+// rather than accidentally public: anything that is not explicitly anonymous
+// requires an authenticated caller whose session carries a membership-derived
+// customer tenant and the Performance entitlement for that tenant.
+var jwtSecret = builder.Configuration["Jwt:Secret"]
+    ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtSecret)),
+            ClockSkew = TimeSpan.Zero
+        };
+    });
+
+builder.Services.AddModuleEntitlementAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .AddRequirements(new ModuleEntitlementRequirement(ModuleEntitlements.Performance))
+        .Build();
+});
 
 builder.Services.AddHealthChecks();
 
 var app = builder.Build();
 
-app.MapHealthChecks("/health/live");
-app.MapHealthChecks("/health/ready");
+app.UseAuthentication();
+app.UseAuthorization();
+
+// Liveness and readiness are infrastructure probes, not customer data, so they
+// stay anonymous and are the only endpoints exempt from the boundary above.
+app.MapHealthChecks("/health/live").AllowAnonymous();
+app.MapHealthChecks("/health/ready").AllowAnonymous();
 
 app.Run();
+
+/// <summary>Exposed so integration tests can host this boundary.</summary>
+public partial class Program;
