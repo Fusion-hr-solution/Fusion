@@ -28,7 +28,14 @@ export function AppShell({ sidebar, header, banner, children, contentClassName }
           </header>
         ) : null}
         {banner}
-        <main className={cn("flex-1 overflow-y-auto", contentClassName)}>{children}</main>
+        {/* `relative` makes this the containing block for its own descendants.
+            Without it an absolutely-positioned child — including anything using
+            Tailwind's `sr-only` — resolves against the page instead, escapes
+            this scroll container, and stretches the document so the whole shell
+            scrolls. */}
+        <main className={cn("relative flex-1 overflow-y-auto", contentClassName)}>
+          {children}
+        </main>
       </div>
     </div>
   );

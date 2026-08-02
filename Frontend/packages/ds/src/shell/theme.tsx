@@ -44,12 +44,34 @@ export function ThemeToggle({ className }: { className?: string }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // Avoid hydration mismatch: render a neutral icon until mounted.
   const ActiveIcon = !mounted
     ? Sun
     : resolvedTheme === "dark"
       ? Moon
       : Sun;
+
+  // The menu is deliberately not rendered on the server. Radix derives the
+  // trigger's id from useId, whose value depends on tree position, and under
+  // concurrent server rendering that id can differ from the one the client
+  // produces — a mismatch React cannot patch up, which leaves the trigger and
+  // its menu wired to different ids and breaks the aria-controls relationship.
+  //
+  // Nothing is lost: the resolved theme is only knowable in the browser, so this
+  // control has no meaningful server-rendered state. The placeholder keeps the
+  // same size and label so the top bar does not shift when the menu takes over.
+  if (!mounted) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label="Change theme"
+        disabled
+        className={cn("text-muted-foreground", className)}
+      >
+        <ActiveIcon className="size-4" />
+      </Button>
+    );
+  }
 
   return (
     <DropdownMenu>
@@ -68,7 +90,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         <DropdownMenuSeparator />
         {THEME_OPTIONS.map((option) => {
           const Icon = option.icon;
-          const active = mounted && theme === option.value;
+          const active = theme === option.value;
           return (
             <DropdownMenuItem
               key={option.value}

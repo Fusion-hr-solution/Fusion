@@ -58,7 +58,10 @@ export function ModuleSidebar({
   const currentModule = modules?.find((m) => m.key === currentModuleKey);
 
   useEffect(() => {
-    const query = window.matchMedia("(max-width: 767px)");
+    // At tablet widths a full navigation column turns a record into a narrow
+    // reading pane. The rail still preserves every destination and its labels
+    // remain available through the explicit expand control.
+    const query = window.matchMedia("(max-width: 1023px)");
     if (query.matches) setCollapsed(true);
 
     const handleChange = (event: MediaQueryListEvent) => {

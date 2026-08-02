@@ -21,3 +21,31 @@ export const FUSION_MODULES: ShellModule[] = [
   { key: "onboarding", label: "Onboarding", description: "New-hire journeys", icon: Handshake, href: "/onboarding" },
   { key: "interview", label: "Interview", description: "Candidate assessments", icon: Video, href: "/interview" },
 ];
+
+/**
+ * Modules whose visibility this feature governs through tenant entitlements.
+ * The remaining modules are owned by other teams and are deliberately untouched:
+ * they are not provisionable here, so filtering them would hide navigation on
+ * data this feature does not own.
+ */
+const ENTITLEMENT_GOVERNED_MODULES: Record<string, string> = {
+  core: "CoreHR",
+  performance: "Performance",
+};
+
+/**
+ * Hides Core HR and Performance when the tenant has no entitlement for them.
+ *
+ * This is visibility only. It removes a door the user cannot open, so the
+ * navigation tells the truth; the backend boundary is what actually refuses the
+ * request, and direct entry is gated separately.
+ */
+export function filterModulesByEntitlement(
+  modules: ShellModule[],
+  moduleEntitlements: readonly string[],
+): ShellModule[] {
+  return modules.filter((module) => {
+    const required = ENTITLEMENT_GOVERNED_MODULES[module.key];
+    return required === undefined || moduleEntitlements.includes(required);
+  });
+}

@@ -2,7 +2,7 @@
 // (sidebar, app frame, and page-layout kit).
 
 export { ModuleSidebar } from "./module-sidebar";
-export { FUSION_MODULES } from "./modules";
+export { FUSION_MODULES, filterModulesByEntitlement } from "./modules";
 export { ShellUserPanel } from "./shell-user-panel";
 export type { ShellUserPanelProps, ShellUserPanelLink } from "./shell-user-panel";
 export { AppShell } from "./app-shell";
@@ -18,6 +18,7 @@ export type { PageContainerProps, PageHeaderProps, PageToolbarProps } from "./pa
 export { TableFilterToolbar } from "./table-filter-toolbar";
 export { PageEmpty, PageError, PageListSkeleton, PageLoading, PagePermissionNotice, PageSkeleton } from "./page-states";
 export type { PageErrorProps, PageListSkeletonProps, PageLoadingProps, PageSkeletonProps } from "./page-states";
+export { AsyncButton } from "./async-button";
 export { StatusBadge } from "./status-badge";
 export type { StatusBadgeProps, StatusTone } from "./status-badge";
 export {
