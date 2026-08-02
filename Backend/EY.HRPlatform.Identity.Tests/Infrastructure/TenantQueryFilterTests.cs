@@ -11,18 +11,27 @@ public class TenantQueryFilterTests
     private static readonly Guid TenantA = Guid.NewGuid();
     private static readonly Guid TenantB = Guid.NewGuid();
 
-    private static ApplicationUser CreateUser(Guid tenantId, string email) => new()
+    /// <summary>
+    /// An account participates in a tenant only through an Active membership, so
+    /// the membership is what makes it visible to the tenant query filter.
+    /// </summary>
+    private static ApplicationUser CreateUser(Guid tenantId, string email)
     {
-        Id = Guid.NewGuid(),
-        UserName = email,
-        Email = email,
-        NormalizedEmail = email.ToUpperInvariant(),
-        NormalizedUserName = email.ToUpperInvariant(),
-        FirstName = "Test",
-        LastName = "User",
-        TenantId = tenantId,
-        SecurityStamp = Guid.NewGuid().ToString()
-    };
+        var user = new ApplicationUser
+        {
+            Id = Guid.NewGuid(),
+            UserName = email,
+            Email = email,
+            NormalizedEmail = email.ToUpperInvariant(),
+            NormalizedUserName = email.ToUpperInvariant(),
+            FirstName = "Test",
+            LastName = "User",
+            SecurityStamp = Guid.NewGuid().ToString()
+        };
+
+        user.TenantMemberships.Add(TenantMembership.Create(user.Id, tenantId));
+        return user;
+    }
 
     private static InviteToken CreateInvite(Guid tenantId, string email) =>
         InviteToken.Create(email, tenantId, PlatformRole.Employee, Guid.NewGuid());
@@ -47,7 +56,7 @@ public class TenantQueryFilterTests
 
         // Assert
         Assert.Single(users);
-        Assert.Equal(TenantA, users[0].TenantId);
+        Assert.Equal("a@test.com", users[0].Email);
     }
 
     [Fact]

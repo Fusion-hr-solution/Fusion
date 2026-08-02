@@ -188,6 +188,9 @@ public class CoreAccessControllerPermissionTests
         public Task EnsureSeedDataAsync(CancellationToken cancellationToken = default)
             => Task.CompletedTask;
 
+        public Task EnsureTenantAccessProfilesAsync(Guid tenantId, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
         public Task<IReadOnlyList<CorePermissionCatalogItemDto>> GetPermissionCatalogAsync(CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<CorePermissionCatalogItemDto>>([]);
 

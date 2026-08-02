@@ -1,5 +1,6 @@
 using EY.HRPlatform.DemoSeed;
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Extensions;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Auth;
@@ -41,7 +42,8 @@ public sealed class CanonicalIdentitySeederTests
         Assert.True(await users.CheckPasswordAsync(manager!, CanonicalDemoSeed.TenantPassword));
         Assert.Contains(PlatformRole.Manager, await users.GetRolesAsync(manager!));
         Assert.NotEmpty(db.UserAccessProfiles.Where(item => item.UserId == manager!.Id));
-        Assert.Equal(CanonicalDemoSeed.TenantId, manager!.TenantId);
+        Assert.Contains(db.TenantMemberships.Where(m => m.UserId == manager!.Id),
+            m => m.TenantId == CanonicalDemoSeed.TenantId && m.Status == TenantMembershipStatus.Active);
 
         var hrAdmin = await users.FindByEmailAsync("atlas.hr@atlas.example");
         var linkedEmployee = CanonicalDemoSeed.GetEmployeeByEmail("employee0002@atlas.example");
