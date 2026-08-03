@@ -7,6 +7,9 @@ node_modules
 
 # Next.js
 .next
+# Dev-server output, kept separate from `.next` so a production build cannot
+# overwrite what a running `next dev` is serving.
+.next-dev
 out
 
 # Turbo

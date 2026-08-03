@@ -2,10 +2,22 @@
   "extends": "@repo/tsconfig/nextjs.json",
   "compilerOptions": {
     "paths": {
-      "@/components/ui/*": ["../../packages/ds/src/components/ui/*"],
-      "@/*": ["./src/*"]
+      "@/components/ui/*": [
+        "../../packages/ds/src/components/ui/*"
+      ],
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "next-env.d.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "next-env.d.ts",
+    ".next-dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
 }
