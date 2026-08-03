@@ -1,4 +1,6 @@
 
+@import "@fontsource-variable/inter/wght.css";
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
