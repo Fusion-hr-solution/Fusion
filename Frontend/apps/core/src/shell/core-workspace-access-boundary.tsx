@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAuth } from "@repo/auth";
 import {
@@ -24,7 +24,21 @@ export function CoreWorkspaceAccessBoundary({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user, isLoading } = useAuth();
-  const state = resolveCoreWorkspaceAccessState({ user, isLoading });
+
+  // The session is restored by an effect in AuthProvider, which can run while
+  // React is still hydrating this subtree. Resolving access before that point
+  // would render the workspace against server HTML that still holds the
+  // skeleton, and React discards the whole tree and rebuilds it on the client.
+  //
+  // Holding the first client render equal to the server's keeps hydration
+  // intact. It only ever delays showing the workspace — an unresolved session
+  // stays on the skeleton — so the gate cannot open earlier than before.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+
+  const state = hydrated
+    ? resolveCoreWorkspaceAccessState({ user, isLoading })
+    : "loading";
 
   useEffect(() => {
     if (state !== "sign-in-required") {
