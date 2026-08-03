@@ -8,6 +8,9 @@ const AUTH_PATHS = ["/auth/signin", "/auth/signup"];
 // `/invite/*` is the primary public invite surface.
 // `/core/invite/*` remains public for compatibility with already-issued links.
 const PUBLIC_PATHS = [
+  // The recipient has no account yet — creating one is the point — so this
+  // surface authenticates on the invitation credential alone.
+  "/activate-invitation",
   "/invite", // Primary invite acceptance flow
   "/core/invite", // Invite acceptance flow must be anonymous
   "/interview/candidate/start", // Candidate test access from invitation email
