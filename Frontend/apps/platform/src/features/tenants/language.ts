@@ -96,6 +96,27 @@ const EVENT_TITLE: Record<string, string> = {
   BootstrapCompleted: "Administrator activated",
 };
 
+/**
+ * The outcomes the service records as success.
+ *
+ * There are two words, not one: most events settle as `Succeeded`, but a
+ * delivery attempt settles as `Sent` or `Failed`. Testing for `Succeeded` alone
+ * silently reported every delivered invitation as a bounce.
+ */
+const SUCCESS_OUTCOMES = new Set(["succeeded", "sent"]);
+
+/**
+ * Whether a recorded event represents a failure.
+ *
+ * An outcome this build does not recognise counts as a failure. That is the
+ * conservative direction: an unexplained event shown as a problem invites a
+ * look, whereas one shown as success is a false success — the thing the record
+ * must never claim.
+ */
+export function isFailureOutcome(outcome: string): boolean {
+  return !SUCCESS_OUTCOMES.has(outcome.trim().toLowerCase());
+}
+
 export function eventTitle(eventType: string, failed: boolean): string {
   if (eventType === "InvitationDeliveryAttempted") {
     return failed ? "Invitation delivery failed" : "Invitation sent";

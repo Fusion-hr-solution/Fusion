@@ -378,7 +378,7 @@ function RecordSkeleton() {
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="space-y-5">
-          <div className="space-y-4 rounded-xl border border-border bg-card px-5 py-5">
+          <div className="space-y-4 rounded-2xl border border-border bg-card px-5 py-5">
             <Skeleton className="h-4 w-40" />
             <Skeleton className="h-5 w-64 max-w-full" />
             <div className="flex gap-8">
@@ -387,12 +387,12 @@ function RecordSkeleton() {
             </div>
             <Skeleton className="h-10 w-full" />
           </div>
-          <div className="rounded-xl border border-border bg-card px-5 py-5">
+          <div className="rounded-2xl border border-border bg-card px-5 py-5">
             <Skeleton className="h-4 w-20" />
           </div>
         </div>
 
-        <div className="space-y-3 rounded-xl border border-border bg-card px-5 py-5">
+        <div className="space-y-3 rounded-2xl border border-border bg-card px-5 py-5">
           <Skeleton className="h-4 w-24" />
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-full" />

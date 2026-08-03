@@ -1,5 +1,5 @@
 import type { TenantActivityEntry } from "../api";
-import { eventActor, eventTitle } from "../language";
+import { eventActor, eventTitle, isFailureOutcome } from "../language";
 
 /**
  * Turning a bounded audit vocabulary into something a person reads.
@@ -23,7 +23,7 @@ export interface ActivityNarrative {
 }
 
 function failed(entry: TenantActivityEntry): boolean {
-  return entry.outcome.toLowerCase() !== "succeeded";
+  return isFailureOutcome(entry.outcome);
 }
 
 export function activityNarrative(entry: TenantActivityEntry): ActivityNarrative {

@@ -46,7 +46,7 @@ export function ModuleGrid({
     return (
       <div className="grid gap-2.5 sm:grid-cols-2">
         {Array.from({ length: 6 }).map((_, index) => (
-          <Skeleton key={index} className="h-[86px] rounded-lg" />
+          <Skeleton key={index} className="h-[86px] rounded-xl" />
         ))}
       </div>
     );
@@ -57,7 +57,7 @@ export function ModuleGrid({
   // entitlements the tenant will not actually have.
   if (error) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-border px-4 py-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border px-4 py-5">
         <p className="text-sm text-muted-foreground">
           Module entitlements could not be loaded, so a tenant cannot be
           provisioned yet.
@@ -102,7 +102,7 @@ function ModuleCard({
   return (
     <li
       className={cn(
-        "relative flex items-start gap-3 rounded-lg border p-3.5 transition-colors",
+        "relative flex items-start gap-3 rounded-xl border p-3.5 transition-colors",
         isSelectable && "cursor-pointer",
         isSelectable && isSelected
           ? "border-primary bg-primary/[0.05] inset-ring-1 inset-ring-primary/40"
@@ -119,7 +119,7 @@ function ModuleCard({
           which bubbled straight back into the row and toggled again, forever.
           A label forwards natively and cannot feed itself. */}
       {isSelectable ? (
-        <label htmlFor={inputId} className="absolute inset-0 cursor-pointer rounded-lg">
+        <label htmlFor={inputId} className="absolute inset-0 cursor-pointer rounded-xl">
           <span className="sr-only">{option.label}</span>
         </label>
       ) : null}

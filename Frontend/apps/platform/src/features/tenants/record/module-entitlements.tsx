@@ -131,7 +131,7 @@ export function ModuleCatalogue({
     return (
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 6 }).map((_, index) => (
-          <Skeleton key={index} className="h-28 rounded-xl" />
+          <Skeleton key={index} className="h-28 rounded-2xl" />
         ))}
       </div>
     );
@@ -166,7 +166,7 @@ function ModuleCard({ entitlement }: { entitlement: ModuleEntitlement }) {
   return (
     <li
       className={cn(
-        "flex flex-col gap-3 rounded-xl border p-4",
+        "flex flex-col gap-3 rounded-2xl border p-4",
         isGranted
           ? "border-border bg-card shadow-xs"
           : isUnavailable

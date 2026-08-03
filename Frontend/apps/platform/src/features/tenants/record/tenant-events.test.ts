@@ -23,14 +23,29 @@ describe("describeEvent", () => {
   it("splits a delivery attempt by its outcome", () => {
     // The same stored record is a sent invitation or a bounced one, and
     // "delivery attempted" tells the reader neither.
-    expect(describeEvent(anEvent("InvitationDeliveryAttempted", AT)).title).toBe(
-      "Invitation sent"
-    );
+    //
+    // `Sent` is the value the service actually records for a delivered
+    // invitation — not `Succeeded`, which every other event uses. Asserting
+    // against the fixture default instead of the real word is what let a
+    // delivered invitation display as a bounce.
+    expect(
+      describeEvent(anEvent("InvitationDeliveryAttempted", AT, { outcome: "Sent" }))
+        .title
+    ).toBe("Invitation sent");
     expect(
       describeEvent(
         anEvent("InvitationDeliveryAttempted", AT, { outcome: "Failed" })
       ).title
     ).toBe("Invitation delivery failed");
+  });
+
+  it("does not report a delivered invitation as a failure", () => {
+    const delivered = describeEvent(
+      anEvent("InvitationDeliveryAttempted", AT, { outcome: "Sent" })
+    );
+
+    expect(delivered.isFailure).toBe(false);
+    expect(delivered.title).not.toMatch(/fail/i);
   });
 
   it("marks only the events the platform must answer for as failures", () => {

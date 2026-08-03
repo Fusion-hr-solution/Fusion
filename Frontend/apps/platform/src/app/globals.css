@@ -6,11 +6,6 @@
 @source "../../../../packages/ds/src/**/*.{ts,tsx}";
 @source "../../../../packages/auth/src/**/*.{ts,tsx}";
 
-:root {
-  --font-sans: var(--platform-font-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--platform-font-heading), ui-sans-serif, system-ui, sans-serif;
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

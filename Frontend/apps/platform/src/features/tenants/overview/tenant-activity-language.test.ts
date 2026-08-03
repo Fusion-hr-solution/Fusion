@@ -18,8 +18,11 @@ const entry = (over: Partial<TenantActivityEntry> = {}): TenantActivityEntry => 
 
 describe("activityNarrative", () => {
   it("reads the same delivery record as sent or as failed", () => {
+    // A delivered invitation is recorded as `Sent`, not `Succeeded`. Testing the
+    // wrong word here hid a bug that displayed every delivered invitation in
+    // the feed as a bounce.
     const sent = activityNarrative(
-      entry({ eventType: "InvitationDeliveryAttempted", outcome: "Succeeded" })
+      entry({ eventType: "InvitationDeliveryAttempted", outcome: "Sent" })
     );
     const failed = activityNarrative(
       entry({ eventType: "InvitationDeliveryAttempted", outcome: "Failed" })

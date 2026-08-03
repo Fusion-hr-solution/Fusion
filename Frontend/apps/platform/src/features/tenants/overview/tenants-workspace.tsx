@@ -142,7 +142,7 @@ export function TenantsWorkspace() {
         onSelect={(filter: OverviewFilter) => update({ filter })}
       />
 
-      <section className="overflow-hidden rounded-xl border border-border bg-card">
+      <section className="overflow-hidden rounded-2xl border border-border bg-card">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-foreground">Tenant directory</h2>
 

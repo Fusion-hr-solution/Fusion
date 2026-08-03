@@ -452,7 +452,7 @@ function SectionCard({
   return (
     <section
       aria-labelledby={headingId}
-      className="rounded-xl border border-border bg-card shadow-xs"
+      className="rounded-2xl border border-border bg-card shadow-xs"
     >
       <div className="flex items-start gap-3 border-b border-border px-5 py-4">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">

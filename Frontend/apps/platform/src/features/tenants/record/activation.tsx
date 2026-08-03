@@ -227,6 +227,7 @@ export function ActivationAttention({
 export function InvitationRecord({ tenant }: { tenant: TenantDetail }) {
   const invitation = tenant.bootstrapInvitation;
   const phase = activationPhase(tenant);
+  const completedAt = activationCompletedAt(tenant.history);
 
   return (
     <ActivationPanel
@@ -242,7 +243,32 @@ export function InvitationRecord({ tenant }: { tenant: TenantDetail }) {
           />
         ) : undefined
       }
-    />
+    >
+      <div className="mt-5 border-t border-border/70 pt-4">
+        <div className="flex items-start gap-3">
+          <ShieldCheck
+            aria-hidden="true"
+            className={
+              phase === "active"
+                ? "mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+                : "mt-0.5 size-4 shrink-0 text-muted-foreground"
+            }
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">
+              {phase === "active" ? "Tenant access established" : "On activation"}
+            </p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {phase === "active"
+                ? `Active membership and tenant administrator access${
+                    completedAt ? ` since ${formatDate(completedAt)}` : ""
+                  }.`
+                : "Active membership and tenant administrator access will be created."}
+            </p>
+          </div>
+        </div>
+      </div>
+    </ActivationPanel>
   );
 }
 

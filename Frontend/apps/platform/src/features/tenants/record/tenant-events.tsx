@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@repo/ds/lib/utils";
 import type { TenantHistoryEntry } from "../api";
-import { eventActor, eventTitle, formatDateTime } from "../language";
+import { eventActor, eventTitle, formatDateTime, isFailureOutcome } from "../language";
 
 /** Titles come from `language.ts`; only the glyph is chosen here. */
 const EVENT_ICON: Record<string, LucideIcon> = {
@@ -46,7 +46,7 @@ interface DescribedEvent {
 }
 
 export function describeEvent(entry: TenantHistoryEntry): DescribedEvent {
-  const failed = entry.outcome.toLowerCase() !== "succeeded";
+  const failed = isFailureOutcome(entry.outcome);
   const title = eventTitle(entry.eventType, failed);
 
   return {

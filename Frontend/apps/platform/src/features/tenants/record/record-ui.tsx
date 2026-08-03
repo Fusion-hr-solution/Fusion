@@ -100,7 +100,7 @@ export function RecordSurface({
     <section
       aria-labelledby={id}
       className={cn(
-        "flex flex-col overflow-hidden rounded-xl border bg-card",
+        "flex flex-col overflow-hidden rounded-2xl border bg-card",
         emphasis
           ? isAttention
             ? "border-destructive/35 shadow-sm"
@@ -208,7 +208,7 @@ export function SupportingSurface({
         // A light tint only: at 25% the panel darkened enough to drop muted
         // text below AA, and the dashed border plus absent shadow already
         // separate this level from a solid card.
-        "flex flex-col rounded-xl border border-dashed border-border bg-muted/15 px-5 py-4"
+        "flex flex-col rounded-2xl border border-dashed border-border bg-muted/15 px-5 py-4"
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
