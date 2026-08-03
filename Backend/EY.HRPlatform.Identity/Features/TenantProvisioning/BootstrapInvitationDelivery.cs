@@ -44,7 +44,33 @@ public sealed class BootstrapInvitationDelivery(
         InvitationDeliveryAttempt attempt;
         try
         {
-            var outcome = await emailSender.SendAsync(email, link, cancellationToken);
+            // Assembled here, once, so provisioning, resend, replace and reissue
+            // all produce the same message from the same source of truth.
+            //
+            // Loaded inside the guarded block because failing to read it is
+            // itself a delivery failure. Outside it, a database error here threw
+            // past the handler and the invitation was left committed with no
+            // attempt recorded at all — neither sent nor visibly failed.
+            var context = await dbContext.InviteTokens
+                .IgnoreQueryFilters()
+                .Where(item => item.Id == invitationId)
+                .Select(item => new
+                {
+                    item.ExpiresAt,
+                    TenantName = dbContext.Tenants.IgnoreQueryFilters()
+                        .Where(tenant => tenant.Id == item.TenantId)
+                        .Select(tenant => tenant.Name)
+                        .FirstOrDefault(),
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var message = new BootstrapInvitationMessage(
+                TenantName: context?.TenantName ?? string.Empty,
+                Email: email,
+                ActivationLink: link,
+                ExpiresAtUtc: context?.ExpiresAt ?? DateTime.UtcNow);
+
+            var outcome = await emailSender.SendAsync(message, cancellationToken);
 
             attempt = outcome.Succeeded
                 ? InvitationDeliveryAttempt.Sent(invitationId, initiatedByAccountId)
@@ -100,46 +126,25 @@ public sealed record BootstrapDeliveryOutcome(bool Succeeded, string? FailureCod
 
 public interface IBootstrapInvitationEmailSender
 {
-    Task<BootstrapDeliveryOutcome> SendAsync(string email, string activationLink, CancellationToken cancellationToken);
+    Task<BootstrapDeliveryOutcome> SendAsync(
+        BootstrapInvitationMessage message, CancellationToken cancellationToken);
 }
 
 /// <summary>
-/// Development-only sender. It writes the activation link to the log so the
-/// local demonstration can pick it up from development mail capture — which is
-/// exactly why it must never be registered outside Development: the link
-/// contains the reusable bootstrap secret, and reporting Sent without sending
-/// would show a false success.
+/// Reserved development address suffix that always fails delivery.
+///
+/// Recovery from a bounced invitation is specified behaviour and is otherwise
+/// unreachable locally, because local delivery always succeeds. Making the
+/// failure reproducible produces a genuine Failed attempt against a real
+/// invitation rather than a record staged by hand. `.test` is reserved by
+/// RFC 2606, so it can never shadow a real domain.
 /// </summary>
-public sealed class LoggingBootstrapInvitationEmailSender(
-    ILogger<LoggingBootstrapInvitationEmailSender> logger) : IBootstrapInvitationEmailSender
+public static class BootstrapDeliveryProbe
 {
-    /// <summary>
-    /// Reserved development domain that always fails delivery.
-    ///
-    /// Recovery from a bounced invitation is a specified behaviour, and it is
-    /// otherwise unreachable locally because this sender always succeeds. Making
-    /// the failure reproducible here produces a genuine Failed attempt on a real
-    /// invitation, rather than a fabricated record staged for a screenshot.
-    /// `.test` is reserved by RFC 2606, so this can never shadow a real domain.
-    /// </summary>
     public const string UndeliverableDomain = "@bounce.test";
 
-    public Task<BootstrapDeliveryOutcome> SendAsync(
-        string email,
-        string activationLink,
-        CancellationToken cancellationToken)
-    {
-        if (email.EndsWith(UndeliverableDomain, StringComparison.OrdinalIgnoreCase))
-        {
-            logger.LogWarning(
-                "[development] Simulated delivery failure for reserved address {Email}", email);
-            return Task.FromResult(BootstrapDeliveryOutcome.Failed("delivery_rejected"));
-        }
-
-        logger.LogInformation(
-            "[development] Bootstrap invitation for {Email}: {ActivationLink}", email, activationLink);
-        return Task.FromResult(BootstrapDeliveryOutcome.Sent());
-    }
+    public static bool IsUndeliverable(string email)
+        => email.EndsWith(UndeliverableDomain, StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>
@@ -153,8 +158,7 @@ public sealed class UnconfiguredBootstrapInvitationEmailSender(
     ILogger<UnconfiguredBootstrapInvitationEmailSender> logger) : IBootstrapInvitationEmailSender
 {
     public Task<BootstrapDeliveryOutcome> SendAsync(
-        string email,
-        string activationLink,
+        BootstrapInvitationMessage message,
         CancellationToken cancellationToken)
     {
         logger.LogError(

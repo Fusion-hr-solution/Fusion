@@ -54,9 +54,6 @@ public static class IdentitySeeder
         dbContext.InvitationDeliveryAttempts.RemoveRange(
             await dbContext.InvitationDeliveryAttempts
                 .Where(attempt => invitationIds.Contains(attempt.InvitationId)).ToListAsync(cancellationToken));
-        dbContext.InvitationActivationContinuations.RemoveRange(
-            await dbContext.InvitationActivationContinuations
-                .Where(continuation => invitationIds.Contains(continuation.InvitationId)).ToListAsync(cancellationToken));
 
         dbContext.InviteTokens.RemoveRange(
             await dbContext.InviteTokens.IgnoreQueryFilters()

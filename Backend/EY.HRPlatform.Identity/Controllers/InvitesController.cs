@@ -1,4 +1,5 @@
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
@@ -190,6 +191,9 @@ public class InvitesController : ControllerBase
         var invite = await _dbContext.InviteTokens
             .IgnoreQueryFilters()
             .Include(i => i.Tenant)
+            // Purpose is bound at creation, so a bootstrap invitation can never be
+            // dispatched into the workforce route even if it ever carried a token.
+            .Where(i => i.Purpose == InvitationPurpose.WorkforceAccount)
             .FirstOrDefaultAsync(i => i.Token == token);
 
         if (invite is null)
@@ -246,6 +250,7 @@ public class InvitesController : ControllerBase
         var invite = await _dbContext.InviteTokens
             .IgnoreQueryFilters()
             .Include(i => i.Tenant)
+            .Where(i => i.Purpose == InvitationPurpose.WorkforceAccount)
             .FirstOrDefaultAsync(i => i.Token == token);
 
         if (invite is null)

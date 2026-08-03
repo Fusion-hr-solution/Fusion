@@ -1,5 +1,6 @@
 ﻿using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.Identity.Features.Accounts;
 using EY.HRPlatform.Identity.Features.Membership;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
@@ -18,26 +19,17 @@ namespace EY.HRPlatform.Identity.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly ITokenService _tokenService;
-    private readonly IAccessProfileService _accessProfileService;
     private readonly AppIdentityDbContext _dbContext;
-    private readonly IConfiguration _configuration;
-    private readonly ICustomerContextResolver _customerContextResolver;
+    private readonly IAuthSessionFactory _sessions;
 
     public AuthController(
         UserManager<ApplicationUser> userManager,
-        ITokenService tokenService,
-        IAccessProfileService accessProfileService,
         AppIdentityDbContext dbContext,
-        IConfiguration configuration,
-        ICustomerContextResolver customerContextResolver)
+        IAuthSessionFactory sessions)
     {
         _userManager = userManager;
-        _tokenService = tokenService;
-        _accessProfileService = accessProfileService;
         _dbContext = dbContext;
-        _configuration = configuration;
-        _customerContextResolver = customerContextResolver;
+        _sessions = sessions;
     }
 
     /// <summary>
@@ -141,71 +133,8 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Helper method: generates access token + refresh token + builds the response
+    /// One session-building path, shared with administrator activation.
     /// </summary>
-    private async Task<AuthResponse> GenerateAuthResponseAsync(ApplicationUser user)
-    {
-        // Generate both tokens
-        var accessToken = await _tokenService.GenerateAccessTokenAsync(user);
-        var refreshTokenString = _tokenService.GenerateRefreshToken();
-
-        // Save refresh token to database
-        var refreshToken = new RefreshToken
-        {
-            UserId = user.Id,
-            Token = refreshTokenString,
-            ExpiresAt = DateTime.UtcNow.AddDays(
-                int.Parse(_configuration["Jwt:RefreshTokenExpirationInDays"]!))
-        };
-
-        _dbContext.RefreshTokens.Add(refreshToken);
-        await _dbContext.SaveChangesAsync();
-
-        // Get user roles
-        var roles = await _userManager.GetRolesAsync(user);
-
-        // The session reports exactly what the token authorizes. Without a
-        // customer context there is no tenant, no entitlement and no tenant
-        // permission to report, so the client cannot render a workspace the
-        // backend would refuse.
-        var customerContext = await _customerContextResolver.ResolveAsync(user);
-        var context = customerContext.Context;
-
-        var accessProfiles = context is null
-            ? []
-            : (await _accessProfileService.GetAssignedProfilesAsync(user)).ToList();
-
-        var effectivePermissions = context is null
-            ? []
-            : (await _accessProfileService.GetEffectivePermissionsAsync(user))
-                .Select(grant => new EffectivePermissionGrantDto
-                {
-                    PermissionKey = grant.PermissionKey,
-                    Scope = grant.Scope,
-                    Label = CorePermissionCatalog.Get(grant.PermissionKey).Label,
-                    Group = CorePermissionCatalog.Get(grant.PermissionKey).Group,
-                    HelperText = CorePermissionCatalog.Get(grant.PermissionKey).HelperText,
-                    AllowedScopes = CorePermissionCatalog.Get(grant.PermissionKey).AllowedScopes.ToList(),
-                })
-                .ToList();
-
-        // Build response
-        return new AuthResponse
-        {
-            UserId = user.Id,
-            TenantId = context?.TenantId,
-            TenantMembershipId = context?.MembershipId,
-            ModuleEntitlements = context?.EnabledModules.Select(module => module.ToString()).ToList() ?? [],
-            Email = user.Email!,
-            FullName = user.FullName,
-            Roles = roles.ToList(),
-            EmployeeId = context is null ? null : user.EmployeeId,
-            AccessProfiles = accessProfiles,
-            EffectivePermissions = effectivePermissions,
-            AccessToken = accessToken,
-            RefreshToken = refreshTokenString,
-            AccessTokenExpiration = DateTime.UtcNow.AddMinutes(
-                int.Parse(_configuration["Jwt:ExpirationInMinutes"]!))
-        };
-    }
+    private Task<AuthResponse> GenerateAuthResponseAsync(ApplicationUser user)
+        => _sessions.CreateAsync(user);
 }

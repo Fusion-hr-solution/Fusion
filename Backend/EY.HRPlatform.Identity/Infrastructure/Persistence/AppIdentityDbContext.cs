@@ -29,8 +29,6 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
     public DbSet<TenantModuleEntitlement> TenantModuleEntitlements => Set<TenantModuleEntitlement>();
     public DbSet<TenantProvisioningReceipt> TenantProvisioningReceipts => Set<TenantProvisioningReceipt>();
     public DbSet<InvitationDeliveryAttempt> InvitationDeliveryAttempts => Set<InvitationDeliveryAttempt>();
-    public DbSet<InvitationActivationContinuation> InvitationActivationContinuations
-        => Set<InvitationActivationContinuation>();
     public DbSet<TenantBootstrapAuditEvent> TenantBootstrapAuditEvents => Set<TenantBootstrapAuditEvent>();
 
     /// <summary>
@@ -141,7 +139,6 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
         builder.ApplyConfiguration(new TenantModuleEntitlementConfiguration());
         builder.ApplyConfiguration(new TenantProvisioningReceiptConfiguration());
         builder.ApplyConfiguration(new InvitationDeliveryAttemptConfiguration());
-        builder.ApplyConfiguration(new InvitationActivationContinuationConfiguration());
         builder.ApplyConfiguration(new TenantBootstrapAuditEventConfiguration());
 
         // Global tenant query filters: automatically scope queries to the current tenant.

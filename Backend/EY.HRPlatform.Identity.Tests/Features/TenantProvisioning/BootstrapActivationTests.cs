@@ -1,6 +1,7 @@
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.Identity.Features.Accounts;
 using EY.HRPlatform.Identity.Features.TenantProvisioning;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Auth;
@@ -85,8 +86,15 @@ public sealed class BootstrapActivationTests : IAsyncLifetime
             .Where(a => a.TenantId == tenantId && a.Action == "access.assignment.granted").ToListAsync());
     }
 
+    // ── Existing-account conflict ────────────────────────
+    //
+    // Bootstrap creates the tenant's first administrator account. An address that
+    // already belongs to a Fusion account is refused whatever the state of that
+    // account, and the Platform Administrator resolves it by replacing the invited
+    // email. None of these cases is an eligibility question.
+
     [SkippableFact]
-    public async Task An_eligible_existing_account_may_accept()
+    public async Task An_existing_account_on_the_invited_address_blocks_activation()
     {
         Skip.IfNot(Available, "No PostgreSQL connection configured.");
         var (db, credential, tenantId, _) = await ProvisionAsync();
@@ -95,25 +103,54 @@ public sealed class BootstrapActivationTests : IAsyncLifetime
         var users = CreateUserManager(db);
         var existing = NewAccount(InvitedEmail);
         await users.CreateAsync(existing, "Existing@123456");
+        db.ChangeTracker.Clear();
 
         var result = await CreateService(db).ActivateAsync(new BootstrapActivationRequest
         {
             Credential = credential,
             Email = InvitedEmail,
+            Password = "Bootstrap@123456",
+            FirstName = "Ada",
+            LastName = "Admin",
         });
 
-        Assert.Equal(BootstrapActivationOutcome.Activated, result.Outcome);
-        Assert.Equal(existing.Id, result.AccountId);
+        Assert.Equal(BootstrapActivationOutcome.ExistingAccountConflict, result.Outcome);
+        await AssertNothingCommittedAsync(db, tenantId);
 
-        // The existing account is used, not duplicated.
+        // The existing account is untouched: not adopted, not duplicated.
         Assert.Single(await db.Users.IgnoreQueryFilters()
             .Where(u => u.NormalizedEmail == InvitedEmail.ToUpperInvariant()).ToListAsync());
     }
 
-    // ── Eligibility ──────────────────────────────────────
+    [SkippableFact]
+    public async Task An_unused_account_free_to_join_still_blocks_activation()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        var (db, credential, tenantId, _) = await ProvisionAsync();
+        await using var _db = db;
+
+        // Active, no membership, not a Platform Administrator, holds a working
+        // password — under the retired rule this account was eligible to adopt.
+        // It is now refused for the single reason that the address is taken.
+        var users = CreateUserManager(db);
+        await users.CreateAsync(NewAccount(InvitedEmail), "Existing@123456");
+        db.ChangeTracker.Clear();
+
+        var result = await CreateService(db).ActivateAsync(new BootstrapActivationRequest
+        {
+            Credential = credential,
+            Email = InvitedEmail,
+            Password = "Bootstrap@123456",
+            FirstName = "Ada",
+            LastName = "Admin",
+        });
+
+        Assert.Equal(BootstrapActivationOutcome.ExistingAccountConflict, result.Outcome);
+        await AssertNothingCommittedAsync(db, tenantId);
+    }
 
     [SkippableFact]
-    public async Task An_account_that_already_belongs_to_a_tenant_is_ineligible()
+    public async Task An_account_that_already_belongs_to_a_tenant_blocks_activation()
     {
         Skip.IfNot(Available, "No PostgreSQL connection configured.");
         var (db, credential, tenantId, _) = await ProvisionAsync();
@@ -123,21 +160,27 @@ public sealed class BootstrapActivationTests : IAsyncLifetime
         var existing = NewAccount(InvitedEmail);
         await users.CreateAsync(existing, "Existing@123456");
 
-        // Any membership of any status disqualifies: this MVP does not transfer
-        // or reactivate an account between customer tenants.
         var other = Tenant.Create(Guid.NewGuid(), "Other Tenant");
         db.Tenants.Add(other);
         db.TenantMemberships.Add(TenantMembership.Create(existing.Id, other.Id));
         await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
 
         var result = await CreateService(db).ActivateAsync(new BootstrapActivationRequest
         {
             Credential = credential,
             Email = InvitedEmail,
+            Password = "Bootstrap@123456",
+            FirstName = "Ada",
+            LastName = "Admin",
         });
 
-        Assert.Equal(BootstrapActivationOutcome.AccountIneligible, result.Outcome);
+        Assert.Equal(BootstrapActivationOutcome.ExistingAccountConflict, result.Outcome);
         await AssertNothingCommittedAsync(db, tenantId);
+
+        // The other tenant's membership is untouched.
+        Assert.Single(await db.TenantMemberships.IgnoreQueryFilters()
+            .Where(m => m.TenantId == other.Id).ToListAsync());
     }
 
     [SkippableFact]
@@ -156,35 +199,254 @@ public sealed class BootstrapActivationTests : IAsyncLifetime
         {
             Credential = credential,
             Email = InvitedEmail,
+            Password = "Bootstrap@123456",
+            FirstName = "Ada",
+            LastName = "Admin",
         });
 
         // Control-plane authority never converts into customer membership.
-        Assert.Equal(BootstrapActivationOutcome.AccountIneligible, result.Outcome);
+        Assert.Equal(BootstrapActivationOutcome.ExistingAccountConflict, result.Outcome);
         await AssertNothingCommittedAsync(db, tenantId);
     }
 
     [SkippableFact]
-    public async Task An_account_with_no_usable_credential_is_ineligible()
+    public async Task A_conflict_is_distinguishable_from_a_refused_invitation()
     {
         Skip.IfNot(Available, "No PostgreSQL connection configured.");
-        var (db, credential, tenantId, _) = await ProvisionAsync();
+        var (db, credential, tenantId, invitationId) = await ProvisionAsync();
         await using var _db = db;
 
-        // Active, no membership, not a Platform Administrator — but no password
-        // and no external login, so it could never sign in. Accepting it would
-        // strand the tenant with an administrator who cannot reach it.
-        db.Users.Add(NewAccount(InvitedEmail));
-        await db.SaveChangesAsync();
+        var users = CreateUserManager(db);
+        await users.CreateAsync(NewAccount(InvitedEmail), "Existing@123456");
         db.ChangeTracker.Clear();
+
+        var conflict = await CreateService(db).ActivateAsync(new BootstrapActivationRequest
+        {
+            Credential = credential,
+            Email = InvitedEmail,
+            Password = "Bootstrap@123456",
+            FirstName = "Ada",
+            LastName = "Admin",
+        });
+
+        Assert.Equal(BootstrapActivationOutcome.ExistingAccountConflict, conflict.Outcome);
+        Assert.NotEqual(BootstrapActivationOutcome.NotActivatable, conflict.Outcome);
+
+        // The invitation itself is still Pending and still recoverable — the
+        // Platform Administrator can replace the invited address.
+        var invitation = await db.InviteTokens.IgnoreQueryFilters()
+            .SingleAsync(i => i.Id == invitationId);
+        Assert.Equal(InvitationState.Pending, invitation.State);
+
+        var rejection = Assert.Single(await db.TenantBootstrapAuditEvents.IgnoreQueryFilters()
+            .Where(a => a.EventType == TenantBootstrapAuditEventType.ActivationRejected).ToListAsync());
+        Assert.Equal("existing_account_conflict", rejection.Reason);
+        Assert.DoesNotContain(InvitedEmail, rejection.Reason ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ── Correctable submission problems ──────────────────
+
+    [SkippableTheory]
+    [InlineData("short", "password")]
+    [InlineData("alllowercase", "password")]
+    public async Task A_password_policy_violation_names_the_password_field(
+        string password, string expectedField)
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        var (db, credential, tenantId, invitationId) = await ProvisionAsync();
+        await using var _db = db;
 
         var result = await CreateService(db).ActivateAsync(new BootstrapActivationRequest
         {
             Credential = credential,
             Email = InvitedEmail,
+            Password = password,
+            FirstName = "Ada",
+            LastName = "Admin",
         });
 
-        Assert.Equal(BootstrapActivationOutcome.AccountIneligible, result.Outcome);
+        // A weak password is a field the recipient can fix, not a refusal of the
+        // invitation and not the same answer as a taken address.
+        Assert.Equal(BootstrapActivationOutcome.InvalidAccountDetails, result.Outcome);
+        Assert.NotNull(result.FieldErrors);
+        Assert.All(result.FieldErrors!, error => Assert.Equal(expectedField, error.Field));
+
+        // The invitation stays valid so the corrected submission can succeed.
+        var invitation = await db.InviteTokens.IgnoreQueryFilters()
+            .SingleAsync(i => i.Id == invitationId);
+        Assert.Equal(InvitationState.Pending, invitation.State);
         await AssertNothingCommittedAsync(db, tenantId);
+
+        // Nothing was refused, so nothing is recorded as a rejection.
+        Assert.Empty(await db.TenantBootstrapAuditEvents.IgnoreQueryFilters()
+            .Where(a => a.EventType == TenantBootstrapAuditEventType.ActivationRejected).ToListAsync());
+    }
+
+    [SkippableTheory]
+    [InlineData(null, "Admin", "firstName")]
+    [InlineData("Ada", "   ", "lastName")]
+    public async Task A_missing_name_names_its_own_field(
+        string? firstName, string? lastName, string expectedField)
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        var (db, credential, tenantId, _) = await ProvisionAsync();
+        await using var _db = db;
+
+        var result = await CreateService(db).ActivateAsync(new BootstrapActivationRequest
+        {
+            Credential = credential,
+            Email = InvitedEmail,
+            Password = "Bootstrap@123456",
+            FirstName = firstName,
+            LastName = lastName,
+        });
+
+        Assert.Equal(BootstrapActivationOutcome.InvalidAccountDetails, result.Outcome);
+        Assert.Contains(result.FieldErrors!, error => error.Field == expectedField);
+        await AssertNothingCommittedAsync(db, tenantId);
+    }
+
+    [SkippableFact]
+    public async Task A_corrected_submission_succeeds_on_the_same_invitation()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        var (db, credential, tenantId, _) = await ProvisionAsync();
+        await using var _db = db;
+        var service = CreateService(db);
+
+        var rejected = await service.ActivateAsync(new BootstrapActivationRequest
+        {
+            Credential = credential, Email = InvitedEmail, Password = "weak",
+            FirstName = "Ada", LastName = "Admin",
+        });
+        Assert.Equal(BootstrapActivationOutcome.InvalidAccountDetails, rejected.Outcome);
+        db.ChangeTracker.Clear();
+
+        var accepted = await service.ActivateAsync(new BootstrapActivationRequest
+        {
+            Credential = credential, Email = InvitedEmail, Password = "Bootstrap@123456",
+            FirstName = "Ada", LastName = "Admin",
+        });
+
+        Assert.Equal(BootstrapActivationOutcome.Activated, accepted.Outcome);
+        Assert.Single(await db.TenantMemberships.IgnoreQueryFilters()
+            .Where(m => m.TenantId == tenantId).ToListAsync());
+    }
+
+    // ── Duplicate and concurrent submission ──────────────
+
+    [SkippableFact]
+    public async Task Repeating_the_same_submission_duplicates_nothing()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        var (db, credential, tenantId, _) = await ProvisionAsync();
+        await using var _db = db;
+        var service = CreateService(db);
+
+        var request = new BootstrapActivationRequest
+        {
+            Credential = credential, Email = InvitedEmail, Password = "Bootstrap@123456",
+            FirstName = "Ada", LastName = "Admin",
+        };
+
+        Assert.Equal(BootstrapActivationOutcome.Activated, (await service.ActivateAsync(request)).Outcome);
+        db.ChangeTracker.Clear();
+
+        // A recipient who resubmits — a double click, or a retry after an
+        // uncertain response — reaches the accepted invitation, not a second
+        // account creation attempt that would collide on the address.
+        var repeat = await service.ActivateAsync(request);
+        Assert.Equal(BootstrapActivationOutcome.AlreadyAccepted, repeat.Outcome);
+
+        Assert.Single(await db.Users.IgnoreQueryFilters()
+            .Where(u => u.NormalizedEmail == InvitedEmail.ToUpperInvariant()).ToListAsync());
+        Assert.Single(await db.TenantMemberships.IgnoreQueryFilters()
+            .Where(m => m.TenantId == tenantId).ToListAsync());
+        Assert.Single(await db.UserAccessProfiles.IgnoreQueryFilters()
+            .Where(a => a.TenantId == tenantId).ToListAsync());
+        Assert.Single(await db.TenantBootstrapAuditEvents.IgnoreQueryFilters()
+            .Where(a => a.TenantId == tenantId
+                && a.EventType == TenantBootstrapAuditEventType.BootstrapCompleted).ToListAsync());
+    }
+
+    [SkippableFact]
+    public async Task An_invitation_revoked_during_submission_fails_closed()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        var (db, credential, tenantId, invitationId) = await ProvisionAsync();
+        await using var _db = db;
+
+        // The form was rendered against a Pending invitation; the Platform
+        // Administrator revoked it before the recipient submitted. Submission
+        // revalidates rather than trusting the state the form was rendered from.
+        await new BootstrapInvitationRecoveryService(db, new NoOpDelivery())
+            .RevokeAsync(tenantId, invitationId, Actor);
+        db.ChangeTracker.Clear();
+
+        var result = await CreateService(db).ActivateAsync(new BootstrapActivationRequest
+        {
+            Credential = credential, Email = InvitedEmail, Password = "Bootstrap@123456",
+            FirstName = "Ada", LastName = "Admin",
+        });
+
+        Assert.Equal(BootstrapActivationOutcome.NotActivatable, result.Outcome);
+        await AssertNothingCommittedAsync(db, tenantId);
+
+        // No orphan account survives a refused activation.
+        Assert.Empty(await db.Users.IgnoreQueryFilters()
+            .Where(u => u.NormalizedEmail == InvitedEmail.ToUpperInvariant()).ToListAsync());
+    }
+
+    [SkippableFact]
+    public async Task Concurrent_submissions_of_the_same_link_activate_once()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        var (db, credential, tenantId, _) = await ProvisionAsync();
+        await using var _db = db;
+
+        await using var second = new AppIdentityDbContext(
+            new DbContextOptionsBuilder<AppIdentityDbContext>()
+                .UseNpgsql(db.Database.GetConnectionString()!).Options);
+
+        var request = new BootstrapActivationRequest
+        {
+            Credential = credential, Email = InvitedEmail, Password = "Bootstrap@123456",
+            FirstName = "Ada", LastName = "Admin",
+        };
+
+        var outcomes = await Task.WhenAll(
+            SafeActivateAsync(CreateService(db), request),
+            SafeActivateAsync(CreateService(second), request));
+
+        // The invitation row lock serializes the two attempts, so exactly one
+        // creates the account, membership, access and activation.
+        Assert.Single(outcomes, outcome => outcome == BootstrapActivationOutcome.Activated);
+
+        db.ChangeTracker.Clear();
+        Assert.Single(await db.Users.IgnoreQueryFilters()
+            .Where(u => u.NormalizedEmail == InvitedEmail.ToUpperInvariant()).ToListAsync());
+        Assert.Single(await db.TenantMemberships.IgnoreQueryFilters()
+            .Where(m => m.TenantId == tenantId).ToListAsync());
+        Assert.Single(await db.UserAccessProfiles.IgnoreQueryFilters()
+            .Where(a => a.TenantId == tenantId).ToListAsync());
+    }
+
+    /// <summary>
+    /// A losing concurrent attempt may surface as a database-level conflict rather
+    /// than a domain outcome. Either is acceptable; what matters is that it did
+    /// not activate.
+    /// </summary>
+    private static async Task<BootstrapActivationOutcome> SafeActivateAsync(
+        IBootstrapActivationService service, BootstrapActivationRequest request)
+    {
+        try
+        {
+            return (await service.ActivateAsync(request)).Outcome;
+        }
+        catch (Exception)
+        {
+            return BootstrapActivationOutcome.NotActivatable;
+        }
     }
 
     [SkippableFact]
@@ -222,6 +484,7 @@ public sealed class BootstrapActivationTests : IAsyncLifetime
         var request = new BootstrapActivationRequest
         {
             Credential = credential, Email = InvitedEmail, Password = "Bootstrap@123456",
+            FirstName = "Ada", LastName = "Admin",
         };
         Assert.Equal(BootstrapActivationOutcome.Activated, (await service.ActivateAsync(request)).Outcome);
         db.ChangeTracker.Clear();
@@ -377,12 +640,20 @@ public sealed class BootstrapActivationTests : IAsyncLifetime
     private static UserManager<ApplicationUser> CreateUserManager(AppIdentityDbContext db)
     {
         var store = new UserStore<ApplicationUser, IdentityRole<Guid>, AppIdentityDbContext, Guid>(db);
+
+        // The same policy the service registers. Without this the manager has no
+        // password validator at all, and a test asserting that a weak password is
+        // refused would pass against an implementation that accepts anything.
+        var options = new IdentityOptions();
+        AccountPasswordPolicy.Apply(options.Password);
+        options.User.RequireUniqueEmail = true;
+
         return new UserManager<ApplicationUser>(
             store,
-            Microsoft.Extensions.Options.Options.Create(new IdentityOptions()),
+            Microsoft.Extensions.Options.Options.Create(options),
             new PasswordHasher<ApplicationUser>(),
-            [],
-            [],
+            [new UserValidator<ApplicationUser>()],
+            [new PasswordValidator<ApplicationUser>()],
             new UpperInvariantLookupNormalizer(),
             new IdentityErrorDescriber(),
             null!,

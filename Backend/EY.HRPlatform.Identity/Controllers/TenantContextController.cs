@@ -1,4 +1,4 @@
-using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
+using EY.HRPlatform.Identity.Features.TenantContext;
 using EY.HRPlatform.Identity.Features.TenantContext.Dtos;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Models.Responses;
@@ -14,7 +14,6 @@ namespace EY.HRPlatform.Identity.Controllers;
 [Route("api/identity/tenant-context")]
 [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
 public class TenantContextController(
-    IPlatformOrganizationService platformOrganizations,
     ITenantContext tenantContext,
     AppIdentityDbContext dbContext) : ControllerBase
 {
@@ -36,19 +35,13 @@ public class TenantContextController(
         if (tenant is null)
             return NotFound(ApiResponse<TenantSummaryDto>.Failure("Tenant not found."));
 
-        var organization = await platformOrganizations.GetAsync(tenant.Id, cancellationToken);
-        if (organization is null)
-            return NotFound(ApiResponse.Failure("Tenant not found."));
-
-        var dto = new TenantSummaryDto(
+        return Ok(ApiResponse<TenantSummaryDto>.Success(new TenantSummaryDto(
             tenant.Id,
             tenant.Name,
             tenant.Slug,
-            organization.OperationalStatus,
+            TenantOperationalStatus.For(tenant),
             tenant.IsActive,
-            tenant.IsArchived);
-
-        return Ok(ApiResponse<TenantSummaryDto>.Success(dto));
+            tenant.IsArchived)));
     }
 
     [HttpGet("organization-status")]
@@ -57,17 +50,18 @@ public class TenantContextController(
     public async Task<ActionResult<ApiResponse<TenantOperationalStatusDto>>> GetOrganizationStatus(
         CancellationToken cancellationToken)
     {
-        var organization = await platformOrganizations.GetAsync(tenantContext.TenantId, cancellationToken);
-        if (organization is null)
+        var tenant = await dbContext.Tenants
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == tenantContext.TenantId, cancellationToken);
+
+        if (tenant is null)
             return NotFound(ApiResponse<TenantOperationalStatusDto>.Failure("Organization not found."));
 
-        var response = new TenantOperationalStatusDto(
-            organization.Id,
-            organization.OperationalStatus,
-            organization.IsActive,
-            organization.IsArchived);
-
-        return Ok(ApiResponse<TenantOperationalStatusDto>.Success(response));
+        return Ok(ApiResponse<TenantOperationalStatusDto>.Success(new TenantOperationalStatusDto(
+            tenant.Id,
+            TenantOperationalStatus.For(tenant),
+            tenant.IsActive,
+            tenant.IsArchived)));
     }
 
     /// <summary>
@@ -80,18 +74,19 @@ public class TenantContextController(
     public async Task<ActionResult<ApiResponse<TenantSummaryDto>>> GetTenantSummary(
         CancellationToken cancellationToken)
     {
-        var organization = await platformOrganizations.GetAsync(tenantContext.TenantId, cancellationToken);
-        if (organization is null)
+        var tenant = await dbContext.Tenants
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == tenantContext.TenantId, cancellationToken);
+
+        if (tenant is null)
             return NotFound(ApiResponse.Failure("Tenant not found."));
 
-        var dto = new TenantSummaryDto(
-            organization.Id,
-            organization.Name,
-            organization.Slug,
-            organization.OperationalStatus,
-            organization.IsActive,
-            organization.IsArchived);
-
-        return Ok(ApiResponse<TenantSummaryDto>.Success(dto));
+        return Ok(ApiResponse<TenantSummaryDto>.Success(new TenantSummaryDto(
+            tenant.Id,
+            tenant.Name,
+            tenant.Slug,
+            TenantOperationalStatus.For(tenant),
+            tenant.IsActive,
+            tenant.IsArchived)));
     }
 }

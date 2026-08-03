@@ -27,9 +27,26 @@ public enum BootstrapActivationOutcome
     /// <summary>Invalid, expired, revoked, superseded, wrong-purpose, or mismatched.</summary>
     NotActivatable = 2,
 
-    /// <summary>The matching account cannot receive this membership.</summary>
-    AccountIneligible = 3,
+    /// <summary>
+    /// A Fusion account already uses the invited address. Bootstrap creates the
+    /// first administrator account and never adopts an existing one, so this is a
+    /// refusal the Platform Administrator resolves by replacing the invited email.
+    /// </summary>
+    ExistingAccountConflict = 3,
+
+    /// <summary>
+    /// The submitted account details did not satisfy the service's own password or
+    /// name rules. Distinct from a refused invitation: the invitation stays valid
+    /// and the recipient can correct the field and submit again.
+    /// </summary>
+    InvalidAccountDetails = 4,
 }
+
+/// <summary>
+/// One correctable problem, named against the form field that caused it so the
+/// recipient is not told "something was wrong" about a whole submission.
+/// </summary>
+public sealed record BootstrapActivationFieldError(string Field, string Message);
 
 public sealed record BootstrapActivationRequest
 {
@@ -39,7 +56,6 @@ public sealed record BootstrapActivationRequest
     /// <summary>Proven email control. Must equal the invited address.</summary>
     public string Email { get; init; } = string.Empty;
 
-    /// <summary>Supplied only when creating a new account.</summary>
     public string? Password { get; init; }
 
     public string? FirstName { get; init; }
@@ -49,10 +65,53 @@ public sealed record BootstrapActivationRequest
 public sealed record BootstrapActivationResult(
     BootstrapActivationOutcome Outcome,
     Guid? TenantId = null,
-    Guid? AccountId = null);
+    Guid? AccountId = null,
+    IReadOnlyList<BootstrapActivationFieldError>? FieldErrors = null);
+
+/// <summary>
+/// What the recipient's link opens onto. Exactly one state renders the
+/// account-creation form; every other state is terminal or blocked and must say
+/// plainly what happened.
+/// </summary>
+public enum BootstrapEntryState
+{
+    /// <summary>Valid and Pending: the account-creation form opens directly.</summary>
+    AccountCreation = 0,
+
+    /// <summary>Unknown, malformed, wrong purpose, or a secret that does not verify.</summary>
+    Invalid = 1,
+
+    Expired = 2,
+    Revoked = 3,
+
+    /// <summary>Replaced by a newer invitation for this tenant.</summary>
+    Superseded = 4,
+
+    AlreadyAccepted = 5,
+
+    /// <summary>A Fusion account already uses the invited address.</summary>
+    ExistingAccountConflict = 6,
+}
+
+/// <summary>
+/// Tenant, address and expiry are populated only for
+/// <see cref="BootstrapEntryState.AccountCreation" />. A refused credential is
+/// told nothing about the tenant or the account behind it.
+/// </summary>
+public sealed record BootstrapEntry(
+    BootstrapEntryState State,
+    string? TenantName = null,
+    string? InvitedEmail = null,
+    DateTime? ExpiresAtUtc = null);
 
 public interface IBootstrapActivationService
 {
+    /// <summary>
+    /// Decides what the credential opens onto, without creating or changing
+    /// anything. A read must never mutate state.
+    /// </summary>
+    Task<BootstrapEntry> InspectAsync(string credential, CancellationToken cancellationToken = default);
+
     Task<BootstrapActivationResult> ActivateAsync(
         BootstrapActivationRequest request,
         CancellationToken cancellationToken = default);
@@ -71,6 +130,76 @@ public sealed class BootstrapActivationService(
     UserManager<ApplicationUser> userManager,
     IAccessProfileService accessProfiles) : IBootstrapActivationService
 {
+    public async Task<BootstrapEntry> InspectAsync(
+        string credential, CancellationToken cancellationToken = default)
+    {
+        if (!BootstrapCredential.TryParse(credential, out var selector, out var secret))
+        {
+            return new BootstrapEntry(BootstrapEntryState.Invalid);
+        }
+
+        var invitation = await dbContext.InviteTokens
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.CredentialSelector == selector, cancellationToken);
+
+        // Unknown selector, wrong purpose and a secret that does not verify are
+        // one answer, so a caller cannot probe for valid selectors.
+        if (invitation is null
+            || invitation.Purpose != InvitationPurpose.OrganizationBootstrap
+            || !BootstrapCredential.MatchesDigest(secret, invitation.CredentialDigest))
+        {
+            return new BootstrapEntry(BootstrapEntryState.Invalid);
+        }
+
+        var terminal = invitation.State switch
+        {
+            InvitationState.Accepted => BootstrapEntryState.AlreadyAccepted,
+            InvitationState.Expired => BootstrapEntryState.Expired,
+            InvitationState.Revoked => BootstrapEntryState.Revoked,
+            InvitationState.Superseded => BootstrapEntryState.Superseded,
+            _ => (BootstrapEntryState?)null,
+        };
+
+        if (terminal is not null)
+        {
+            return new BootstrapEntry(terminal.Value);
+        }
+
+        var tenant = await dbContext.Tenants
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(item => item.Id == invitation.TenantId, cancellationToken);
+
+        // A withdrawn or already-activated tenant cannot be reopened by an old
+        // link. The recipient learns only that the link no longer works.
+        if (tenant is null
+            || !tenant.IsActive
+            || tenant.IsArchived
+            || tenant.AdministratorActivationStatus == TenantAdministratorActivationStatus.Active)
+        {
+            return new BootstrapEntry(BootstrapEntryState.Revoked);
+        }
+
+        // Surfaced before the form rather than after a filled-in submission: the
+        // recipient cannot resolve this themselves, so asking them to type a name
+        // and choose a password first would waste the only effort they can make.
+        var addressIsTaken = await dbContext.Users
+            .IgnoreQueryFilters()
+            .AnyAsync(user => user.NormalizedEmail == invitation.Email.ToUpperInvariant(), cancellationToken);
+
+        if (addressIsTaken)
+        {
+            return new BootstrapEntry(BootstrapEntryState.ExistingAccountConflict);
+        }
+
+        return new BootstrapEntry(
+            BootstrapEntryState.AccountCreation,
+            tenant.Name,
+            invitation.Email,
+            invitation.ExpiresAt);
+    }
+
     public async Task<BootstrapActivationResult> ActivateAsync(
         BootstrapActivationRequest request,
         CancellationToken cancellationToken = default)
@@ -141,31 +270,43 @@ public sealed class BootstrapActivationService(
             return new BootstrapActivationResult(BootstrapActivationOutcome.NotActivatable);
         }
 
-        var existing = await dbContext.Users
+        // Bootstrap creates the tenant's first administrator account. It never
+        // adopts an account that already exists on the invited address, whatever
+        // that account's state, memberships or roles are — including a Platform
+        // Administrator. The Platform Administrator resolves this by replacing the
+        // invited email.
+        var addressIsTaken = await dbContext.Users
             .IgnoreQueryFilters()
-            .FirstOrDefaultAsync(user => user.NormalizedEmail == email.ToUpperInvariant(), cancellationToken);
+            .AnyAsync(user => user.NormalizedEmail == email.ToUpperInvariant(), cancellationToken);
 
-        ApplicationUser account;
-        if (existing is null)
+        if (addressIsTaken)
         {
-            var created = await CreateAccountAsync(request, email);
-            if (created is null)
-            {
-                return new BootstrapActivationResult(BootstrapActivationOutcome.AccountIneligible);
-            }
-
-            account = created;
+            await RecordRejectionAsync(invitation, "existing_account_conflict", cancellationToken);
+            return new BootstrapActivationResult(BootstrapActivationOutcome.ExistingAccountConflict);
         }
-        else
+
+        var creation = await CreateAccountAsync(request, email);
+
+        // The uniqueness check above is not a lock. Two submissions racing on the
+        // same address both pass it, and the loser is told the same thing a late
+        // recipient is told, rather than seeing a raw constraint failure.
+        if (creation.ConflictedOnAddress)
         {
-            if (!await IsEligibleAsync(existing, cancellationToken))
-            {
-                await RecordRejectionAsync(invitation, "account_ineligible", cancellationToken);
-                return new BootstrapActivationResult(BootstrapActivationOutcome.AccountIneligible);
-            }
-
-            account = existing;
+            await RecordRejectionAsync(invitation, "existing_account_conflict", cancellationToken);
+            return new BootstrapActivationResult(BootstrapActivationOutcome.ExistingAccountConflict);
         }
+
+        // A correctable submission problem leaves the invitation Pending: nothing
+        // is committed, and no rejection is recorded, because the recipient has not
+        // been refused — they have been asked to fix a field.
+        if (creation.Account is null)
+        {
+            return new BootstrapActivationResult(
+                BootstrapActivationOutcome.InvalidAccountDetails,
+                FieldErrors: creation.FieldErrors);
+        }
+
+        var account = creation.Account;
 
         // Exactly one new Active membership. Bootstrap never reactivates an old
         // membership or moves an account between tenants.
@@ -241,62 +382,104 @@ public sealed class BootstrapActivationService(
 
     private const string OrgAdminInternalKey = "org-admin";
 
+    private sealed record AccountCreation(
+        ApplicationUser? Account,
+        IReadOnlyList<BootstrapActivationFieldError> FieldErrors,
+        bool ConflictedOnAddress);
+
     /// <summary>
-    /// An existing account may be used only when it is genuinely free to join.
-    /// Any customer membership of any status disqualifies it: this MVP supports
-    /// one customer membership per account and does not transfer or reactivate.
+    /// Creates the new administrator account, keeping each rejection attached to
+    /// the field that caused it. A weak password and an address that was taken
+    /// mid-submission are different problems with different recoveries, so they
+    /// are never collapsed into one result.
     /// </summary>
-    private async Task<bool> IsEligibleAsync(ApplicationUser account, CancellationToken cancellationToken)
+    private async Task<AccountCreation> CreateAccountAsync(BootstrapActivationRequest request, string email)
     {
-        if (!account.IsActive)
+        var errors = new List<BootstrapActivationFieldError>();
+
+        var firstName = request.FirstName?.Trim() ?? string.Empty;
+        var lastName = request.LastName?.Trim() ?? string.Empty;
+
+        if (firstName.Length == 0)
         {
-            return false;
+            errors.Add(new BootstrapActivationFieldError("firstName", "Enter a first name."));
         }
 
-        if (await userManager.IsInRoleAsync(account, PlatformRole.PlatformAdmin))
+        if (lastName.Length == 0)
         {
-            return false;
+            errors.Add(new BootstrapActivationFieldError("lastName", "Enter a last name."));
         }
 
-        // The locked rule is an account that "can authenticate". Accepting one
-        // with no usable credential would consume the invitation and activate the
-        // tenant for an administrator who can never sign in.
-        var hasPassword = !string.IsNullOrEmpty(account.PasswordHash);
-        var hasExternalLogin = (await userManager.GetLoginsAsync(account)).Count > 0;
-        if (!hasPassword && !hasExternalLogin)
-        {
-            return false;
-        }
-
-        var hasAnyMembership = await dbContext.TenantMemberships
-            .IgnoreQueryFilters()
-            .AnyAsync(membership => membership.UserId == account.Id, cancellationToken);
-
-        return !hasAnyMembership;
-    }
-
-    private async Task<ApplicationUser?> CreateAccountAsync(BootstrapActivationRequest request, string email)
-    {
         if (string.IsNullOrWhiteSpace(request.Password))
         {
-            return null;
+            errors.Add(new BootstrapActivationFieldError("password", "Enter a password."));
+        }
+
+        if (errors.Count > 0)
+        {
+            return new AccountCreation(null, errors, false);
         }
 
         var account = new ApplicationUser
         {
             UserName = email,
             Email = email,
-            FirstName = request.FirstName?.Trim() ?? string.Empty,
-            LastName = request.LastName?.Trim() ?? string.Empty,
+            FirstName = firstName,
+            LastName = lastName,
             // Email control was proven by possession of the invitation link.
             EmailConfirmed = true,
             IsActive = true,
             HireDate = DateTime.UtcNow,
         };
 
-        var result = await userManager.CreateAsync(account, request.Password);
-        return result.Succeeded ? account : null;
+        IdentityResult result;
+        try
+        {
+            result = await userManager.CreateAsync(account, request.Password!);
+        }
+        catch (DbUpdateException exception)
+            when (exception.Entries.Any(entry => entry.Entity is ApplicationUser))
+        {
+            // Identity's duplicate validators run as a read before the insert, so
+            // two submissions racing on the same address can both pass them and
+            // the loser fails on the unique normalized-address index instead of
+            // returning DuplicateEmail. The caller already knows how to report
+            // that as a conflict; without this the race escaped as an unhandled
+            // exception and the anonymous endpoint answered it with a 500.
+            //
+            // The failed entity has to leave the change tracker, or a later
+            // SaveChanges on this scoped context retries the same doomed insert.
+            dbContext.Entry(account).State = EntityState.Detached;
+            return new AccountCreation(null, [], true);
+        }
+
+        if (result.Succeeded)
+        {
+            return new AccountCreation(account, [], false);
+        }
+
+        var conflicted = result.Errors.Any(error =>
+            error.Code is "DuplicateEmail" or "DuplicateUserName");
+
+        if (conflicted)
+        {
+            return new AccountCreation(null, [], true);
+        }
+
+        foreach (var error in result.Errors)
+        {
+            errors.Add(new BootstrapActivationFieldError(FieldFor(error.Code), error.Description));
+        }
+
+        return new AccountCreation(null, errors, false);
     }
+
+    /// <summary>
+    /// Maps an ASP.NET Identity error code onto the form field the recipient can
+    /// actually change. Password-policy codes all share the `Password` prefix.
+    /// </summary>
+    private static string FieldFor(string code)
+        => code.StartsWith("Password", StringComparison.Ordinal) ? "password" : "form";
 
     /// <summary>
     /// Records a bounded, sanitized rejection. The reason is a code, never the

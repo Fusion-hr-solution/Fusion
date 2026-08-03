@@ -2,10 +2,10 @@ using System.Diagnostics;
 using System.Text;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.Identity.Features.Accounts;
 using EY.HRPlatform.Identity.Features.Eligibility;
 using EY.HRPlatform.Identity.Features.Membership;
 using EY.HRPlatform.Identity.Features.TenantProvisioning;
-using EY.HRPlatform.Identity.Features.PlatformOrganizations.Services;
 using EY.HRPlatform.Identity.Features.WorkforceAccounts;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
@@ -85,11 +85,7 @@ public static class ServiceCollectionExtensions
         // 2. Register ASP.NET Core Identity
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
         {
-            options.Password.RequireDigit = true;
-            options.Password.RequireLowercase = true;
-            options.Password.RequireUppercase = true;
-            options.Password.RequireNonAlphanumeric = true;
-            options.Password.RequiredLength = 8;
+            AccountPasswordPolicy.Apply(options.Password);
             options.User.RequireUniqueEmail = true;
         })
             .AddEntityFrameworkStores<AppIdentityDbContext>()
@@ -119,7 +115,7 @@ public static class ServiceCollectionExtensions
 
         // 4. Register our custom services
         services.AddScoped<ITokenService, TokenService>();
-        services.AddScoped<IPlatformOrganizationService, PlatformOrganizationService>();
+        services.AddScoped<IAuthSessionFactory, AuthSessionFactory>();
         services.AddScoped<ICustomerContextResolver, CustomerContextResolver>();
         services.AddScoped<ITenantProvisioningService, TenantProvisioningService>();
         services.AddScoped<IBootstrapInvitationRecoveryService, BootstrapInvitationRecoveryService>();
@@ -128,19 +124,33 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITenantActivityProjection, TenantActivityProjection>();
         services.AddScoped<IBootstrapActivationService, BootstrapActivationService>();
         services.AddScoped<IBootstrapInvitationDelivery, BootstrapInvitationDelivery>();
-        // The logging sender prints the activation link, which carries the
-        // bootstrap secret, and reports Sent without sending. That is acceptable
-        // for local demonstration and nowhere else, so it is Development-only.
-        // Outside Development an unconfigured provider records a truthful Failed
-        // attempt rather than a false success.
+        // Local capture retains the rendered message and reports Sent without
+        // sending, and the files it writes carry the bootstrap credential. That is
+        // acceptable for local demonstration and nowhere else, so it is
+        // Development-only. Outside Development, SMTP sends when configured, and an
+        // unconfigured provider records a truthful Failed attempt rather than a
+        // false success.
+        services.Configure<BootstrapInvitationCaptureOptions>(
+            configuration.GetSection(BootstrapInvitationCaptureOptions.SectionName));
+        services.Configure<BootstrapInvitationEmailOptions>(
+            configuration.GetSection(BootstrapInvitationEmailOptions.SectionName));
+
         var isDevelopment = string.Equals(
             configuration["ASPNETCORE_ENVIRONMENT"] ?? Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
             "Development",
             StringComparison.OrdinalIgnoreCase);
 
-        if (isDevelopment)
+        var smtpConfigured = configuration
+            .GetSection(BootstrapInvitationEmailOptions.SectionName)
+            .GetValue<bool>(nameof(BootstrapInvitationEmailOptions.Enabled));
+
+        if (smtpConfigured)
         {
-            services.AddScoped<IBootstrapInvitationEmailSender, LoggingBootstrapInvitationEmailSender>();
+            services.AddScoped<IBootstrapInvitationEmailSender, SmtpBootstrapInvitationEmailSender>();
+        }
+        else if (isDevelopment)
+        {
+            services.AddScoped<IBootstrapInvitationEmailSender, CapturedBootstrapInvitationEmailSender>();
         }
         else
         {
