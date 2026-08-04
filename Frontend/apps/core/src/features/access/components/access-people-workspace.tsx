@@ -1408,7 +1408,7 @@ export default function AccessPeopleWorkspace() {
           ) : null}
         </section>
 
-        <section className="space-y-4 rounded-xl border bg-card p-4">
+        <section className="space-y-4 rounded-2xl border bg-card p-4">
           <AccessToolbar
             search={searchParam}
             onSearchChange={(value) => {

@@ -415,7 +415,7 @@ export function EmployeeAccessManagementSheet({
               <p className="text-sm font-medium">Access profile</p>
 
               {isProfilesLoading ? (
-                <Skeleton className="h-10 w-full rounded-lg" />
+                <Skeleton className="h-10 w-full rounded-xl" />
               ) : accessProfiles.length > 0 ? (
                 <Select
                   value={selectedInviteProfileId}
@@ -514,7 +514,7 @@ export function EmployeeAccessManagementSheet({
               <p className="text-sm font-medium">New access profile</p>
 
               {isProfilesLoading ? (
-                <Skeleton className="h-10 w-full rounded-lg" />
+                <Skeleton className="h-10 w-full rounded-xl" />
               ) : accessProfiles.length > 0 ? (
                 <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
                   <SelectTrigger>

@@ -1830,7 +1830,7 @@ export function SecondaryDetailsPanel({
             <Skeleton className="h-4 w-48" />
             <div className="grid gap-2">
               {Array.from({ length: 5 }).map((_, index) => (
-                <Skeleton key={index} className="h-10 w-full rounded-lg" />
+                <Skeleton key={index} className="h-10 w-full rounded-xl" />
               ))}
             </div>
           </div>

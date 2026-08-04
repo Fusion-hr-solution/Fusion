@@ -135,9 +135,9 @@ export function OrgChartPageSkeleton() {
         actions={<Skeleton className="h-9 w-32 shrink-0" />}
       />
       <div className="flex items-center gap-2 rounded-2xl border bg-card p-3">
-        <Skeleton className="h-9 w-56 rounded-lg" />
-        <Skeleton className="h-9 w-28 rounded-lg" />
-        <Skeleton className="h-9 w-24 rounded-lg" />
+        <Skeleton className="h-9 w-56 rounded-xl" />
+        <Skeleton className="h-9 w-28 rounded-xl" />
+        <Skeleton className="h-9 w-24 rounded-xl" />
       </div>
       <Skeleton className="h-[70vh] rounded-2xl" />
     </PageContainer>
