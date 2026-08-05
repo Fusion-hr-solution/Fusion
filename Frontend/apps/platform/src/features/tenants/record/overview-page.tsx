@@ -11,10 +11,12 @@ import {
   UsersRound,
 } from "lucide-react";
 import { Button } from "@repo/ds/components/ui/button";
+import { cn } from "@repo/ds";
 import type { TenantDetail } from "../api";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { ActivationAttention, ActivationCompleted } from "./activation";
 import { EntitlementState, useTenantEntitlements } from "./module-entitlements";
+import { useTenantContinuityHealth } from "../queries";
 import {
   RecordEmpty,
   RecordSurface,
@@ -27,12 +29,11 @@ import {
   NOT_CONNECTED,
 } from "../availability";
 import { useTenantRecord } from "./record-shell";
-import { NO_EVENTS, SupportAccessPanel } from "./support-access";
+import { NO_EVENTS } from "./support-access";
 import { EventTimeline } from "./tenant-events";
 import {
   coreSetupState,
   hasEstablishedAccess,
-  initialAdministratorEmail,
   recentEvents,
 } from "./tenant-record-facts";
 
@@ -82,7 +83,6 @@ export function TenantOverviewDestination() {
             takes the wider column and they move to the rail beside it. */}
         <div className="order-1 space-y-5 lg:order-2">
           <TenantFootprint />
-          <SupportAccessPanel id="support-access-summary-title" />
         </div>
         {/* No explicit row: `order` alone puts history first on wide screens.
             Pinning it to row 1 while the rail was ordered after it forced the
@@ -105,36 +105,81 @@ function AccessSummary({
   tenant: TenantDetail;
   accessHref: string;
 }) {
-  const administrator = initialAdministratorEmail(tenant);
-  const established = hasEstablishedAccess(tenant);
+  const health = useTenantContinuityHealth(tenant.tenantId);
+
+  // Three facts, chosen because each one can change what an operator does next:
+  // whether anyone can sign in, whether someone was deliberately blocked, and
+  // whether access is waiting on a person who has not accepted yet. The full
+  // administrator list stays on Access, one click away.
+  //
+  // Read from the continuity projection rather than bootstrap activation status,
+  // which only says how the tenant started and would keep reporting access long
+  // after the last administrator lost it.
+  const data = health.data;
+  const stranded = data?.recoveryStatus === "Required" || data?.recoveryStatus === "Failed";
 
   return (
     <RecordSurface
       id="access-summary-title"
       title="Administrators and access"
       icon={UsersRound}
+      tone={stranded ? "attention" : "neutral"}
       action={<DestinationLink href={accessHref} label="Access" />}
     >
-      <StatusGrid className="gap-y-4">
-        {/* The administrator is what the other two are about, so it takes the
-            full width and they sit beneath it as a pair. */}
-        <StatusBlock
-          wide
-          label="Initial administrator"
-          value={administrator ?? "None nominated"}
-          tone={administrator ? "default" : "muted"}
-        />
-        <StatusBlock
-          label="Membership"
-          value={established ? "Active" : "Not yet established"}
-          tone={established ? "positive" : "muted"}
-        />
-        <StatusBlock
-          label="Administration access"
-          value={established ? "Granted" : "Not yet granted"}
-          tone={established ? "positive" : "muted"}
-        />
-      </StatusGrid>
+      {health.isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-9 w-48" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      ) : !data ? (
+        <p className="text-sm text-muted-foreground">
+          Administrator access could not be loaded.
+        </p>
+      ) : (
+        <>
+          <p className="flex items-baseline gap-1.5">
+            <span
+              className={cn(
+                "text-3xl font-semibold leading-none tracking-tight",
+                stranded ? "text-destructive" : "text-foreground"
+              )}
+            >
+              {data.usableAdministrators}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {data.usableAdministrators === 1
+                ? "administrator can sign in"
+                : "administrators can sign in"}
+            </span>
+          </p>
+
+          {stranded ? (
+            <p className="mt-2 text-sm font-medium text-destructive">
+              Recovery required.
+            </p>
+          ) : null}
+
+          <StatusGrid className="mt-5">
+            <StatusBlock
+              label="Suspended"
+              value={data.suspendedAdministrators === 0 ? "None" : data.suspendedAdministrators}
+              tone={data.suspendedAdministrators > 0 ? "attention" : "muted"}
+            />
+            <StatusBlock
+              label="Pending invitations"
+              value={
+                data.pendingAdministratorInvitations === 0
+                  ? "None"
+                  : data.pendingAdministratorInvitations
+              }
+              tone={data.pendingAdministratorInvitations > 0 ? "default" : "muted"}
+              // An invitation is an intention, not administration. Said plainly
+              // so it is never mistaken for someone who can already sign in.
+              hint={data.pendingAdministratorInvitations > 0 ? "Not yet accepted" : undefined}
+            />
+          </StatusGrid>
+        </>
+      )}
     </RecordSurface>
   );
 }

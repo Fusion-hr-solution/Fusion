@@ -331,3 +331,61 @@ export function failureKind(error: unknown): FailureKind {
 export function failureMessage(error: unknown): string | null {
   return error instanceof ApiError ? (error.errors[0] ?? null) : null;
 }
+
+
+// ── Administrative continuity and recovery ─────────────
+
+export type RecoveryStatusValue =
+  | "NotRequired"
+  | "Required"
+  | "Pending"
+  | "Completed"
+  | "Failed";
+
+export interface RecoveryAttempt {
+  invitationId: string;
+  recipientEmail: string;
+  initiatedAt: string;
+  initiatedByUserId: string | null;
+  state: InvitationStateValue;
+  deliveryStatus: DeliveryOutcomeValue | null;
+}
+
+/**
+ * What Platform can see about a tenant's administration.
+ *
+ * Counts and status only — deliberately no administrator identities beyond what
+ * recovery itself requires, and no tenant business data.
+ */
+export interface TenantContinuityHealth {
+  usableAdministrators: number;
+  activeAdministrators: number;
+  suspendedAdministrators: number;
+  pendingAdministratorInvitations: number;
+  recoveryStatus: RecoveryStatusValue;
+  latestRecoveryAttempt: RecoveryAttempt | null;
+}
+
+export interface InitiateRecoveryInput {
+  tenantId: string;
+  recipientEmail: string;
+  verificationAcknowledged: boolean;
+  verificationReference?: string;
+}
+
+export function getTenantContinuityHealth(
+  tenantId: string,
+  signal?: AbortSignal
+): Promise<TenantContinuityHealth> {
+  return client.get<TenantContinuityHealth>(`${BASE}/${tenantId}/access`, { signal });
+}
+
+export function initiateAdministratorRecovery(
+  input: InitiateRecoveryInput
+): Promise<{ invitationId: string; deliveryFailed: boolean }> {
+  return client.post(`${BASE}/${input.tenantId}/administrator-recovery`, {
+    recipientEmail: input.recipientEmail,
+    verificationAcknowledged: input.verificationAcknowledged,
+    verificationReference: input.verificationReference,
+  });
+}

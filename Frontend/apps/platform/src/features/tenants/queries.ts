@@ -10,6 +10,8 @@ import type { RecoveryAction } from "./api";
 import {
   ACTIVITY_PREVIEW_LIMIT,
   getTenant,
+  getTenantContinuityHealth,
+  initiateAdministratorRecovery,
   listProvisionableModules,
   listRecentActivity,
   listTenants,
@@ -18,6 +20,7 @@ import {
   replaceInvitation,
   resendInvitation,
   revokeInvitation,
+  type InitiateRecoveryInput,
   type ProvisionTenantInput,
   type TenantOverviewQuery,
 } from "./api";
@@ -31,7 +34,29 @@ export const tenantKeys = {
   activity: (limit: number) =>
     ["platform", "tenants", "activity", limit] as const,
   moduleCatalogue: ["platform", "tenants", "module-catalogue"] as const,
+  continuity: (tenantId: string) =>
+    ["platform", "tenants", "continuity", tenantId] as const,
 };
+
+/**
+ * Recovery eligibility is decided on the server under the tenant lock, so this
+ * is never served from cache: an operator must not be offered a recovery action
+ * against a tenant that has since restored itself.
+ */
+export function useTenantContinuityHealth(tenantId: string) {
+  return useApiQuery(
+    tenantKeys.continuity(tenantId),
+    (signal) => getTenantContinuityHealth(tenantId, signal),
+    { staleTime: 0 }
+  );
+}
+
+export function useInitiateAdministratorRecovery() {
+  return useApiMutation(
+    (input: InitiateRecoveryInput) => initiateAdministratorRecovery(input),
+    { invalidateQueries: [{ queryKey: tenantKeys.all }] }
+  );
+}
 
 export function useTenantOverview(query: TenantOverviewQuery) {
   return useApiQuery(
