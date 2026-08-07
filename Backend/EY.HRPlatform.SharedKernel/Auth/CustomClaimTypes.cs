@@ -15,6 +15,14 @@ public static class CustomClaimTypes
     /// <summary>Membership that authorizes the customer tenant context.</summary>
     public const string TenantMembershipId = "tenant_membership_id";
 
+    /// <summary>
+    /// Revision of the membership's tenant access at the moment this token was
+    /// issued. The Gateway compares it against authoritative Identity state on
+    /// every request, so a token issued before a suspension or an authority
+    /// change stops being honoured immediately rather than when it expires.
+    /// </summary>
+    public const string MembershipAccessRevision = "membership_access_revision";
+
     /// <summary>One claim per module enabled for the customer tenant.</summary>
     public const string ModuleEntitlement = "module_entitlement";
     public const string EmployeeId = "employee_id";

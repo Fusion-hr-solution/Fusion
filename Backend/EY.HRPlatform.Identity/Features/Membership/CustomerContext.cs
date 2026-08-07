@@ -10,7 +10,8 @@ namespace EY.HRPlatform.Identity.Features.Membership;
 public sealed record CustomerContext(
     Guid TenantId,
     Guid MembershipId,
-    IReadOnlyList<TenantModule> EnabledModules)
+    IReadOnlyList<TenantModule> EnabledModules,
+    int AccessRevision = 1)
 {
     public bool HasModule(TenantModule module) => EnabledModules.Contains(module);
 }

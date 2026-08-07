@@ -18,7 +18,6 @@ public class IdentityApiFactory : WebApplicationFactory<Program>
         // Use UseSetting for configuration - these are applied before host builds
         builder.UseSetting("ConnectionStrings:IdentityDb", "Host=localhost;Port=5432;Database=identity_integration_tests;Username=postgres;Password=postgres");
         builder.UseSetting("Jwt:Secret", "integration-test-secret-please-change");
-        builder.UseSetting("Database:AutoSeed", "false");
         builder.UseSetting("Database:Provider", "inmemory");
         builder.UseSetting("Database:InMemoryName", _databaseName);
         builder.UseSetting("Application:PublicBaseUrl", "http://localhost:3000");

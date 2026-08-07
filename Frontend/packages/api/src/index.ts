@@ -8,4 +8,5 @@ export * from "./tenant-settings";
 export * from "./draft-structure";
 export * from "./invites";
 export * from "./core-access";
+export * from "./tenant-access";
 export * from "./core-workforce";

@@ -46,7 +46,7 @@ public sealed class BootstrapInvitationRecoveryService(
         // credential. The previous link stops working — that is the honest
         // consequence of hash-only storage, not an incidental side effect.
         var credential = BootstrapCredential.Issue();
-        invitation.IssueBootstrapCredential(
+        invitation.IssueCredential(
             credential.Selector, BootstrapCredential.Digest(credential.Secret));
 
         Audit(TenantBootstrapAuditEventType.InvitationResent, invitation, actorAccountId);
@@ -102,7 +102,7 @@ public sealed class BootstrapInvitationRecoveryService(
         var credential = BootstrapCredential.Issue();
         var replacement = InviteToken.CreateOrganizationBootstrap(
             email, tenantId, actorAccountId, ReissueExpiryDays);
-        replacement.IssueBootstrapCredential(
+        replacement.IssueCredential(
             credential.Selector, BootstrapCredential.Digest(credential.Secret));
         replacement.RecordPredecessor(invitation.Id);
 
@@ -136,7 +136,7 @@ public sealed class BootstrapInvitationRecoveryService(
         var credential = BootstrapCredential.Issue();
         var replacement = InviteToken.CreateOrganizationBootstrap(
             invitation.Email, tenantId, actorAccountId, ReissueExpiryDays);
-        replacement.IssueBootstrapCredential(
+        replacement.IssueCredential(
             credential.Selector, BootstrapCredential.Digest(credential.Secret));
         replacement.RecordPredecessor(invitation.Id);
 

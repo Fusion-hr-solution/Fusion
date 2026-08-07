@@ -1,6 +1,7 @@
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.Identity.Features.TenantAdministration;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.SharedKernel.Results;
@@ -317,25 +318,33 @@ public sealed class BootstrapActivationService(
         // A freshly provisioned tenant has no access profiles yet.
         await accessProfiles.EnsureTenantAccessProfilesAsync(tenant.Id, cancellationToken);
 
-        var orgAdminProfileId = await dbContext.AccessProfiles
+        var administratorDefinitionId = await dbContext.AccessProfiles
             .IgnoreQueryFilters()
             .Where(profile => profile.TenantId == tenant.Id
-                && profile.InternalKey == OrgAdminInternalKey)
+                && profile.InternalKey == TenantAdministratorAuthority.InternalKey)
             .Select(profile => profile.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (orgAdminProfileId == Guid.Empty)
+        if (administratorDefinitionId == Guid.Empty)
         {
             throw new InvalidOperationException(
-                $"Tenant {tenant.Id} has no {OrgAdminInternalKey} access profile; bootstrap cannot grant administration.");
+                $"Tenant {tenant.Id} has no {TenantAdministratorAuthority.InternalKey} definition; "
+                + "bootstrap cannot establish administration.");
         }
 
         // One correlation identifier ties the access audit and the bootstrap
         // outcome together.
         var correlationId = Guid.NewGuid();
 
-        dbContext.UserAccessProfiles.Add(
-            UserAccessProfile.ForMembership(membership, orgAdminProfileId));
+        // The canonical authority record — the same one later administrator
+        // management reads and writes. A tenant therefore has exactly one
+        // administrator concept from its first minute.
+        dbContext.TenantAdministratorAssignments.Add(
+            TenantAdministratorAssignment.Grant(
+                membership,
+                TenantAdministratorGrantActor.BootstrapActivation,
+                grantedByUserId: account.Id,
+                sourceInvitationId: invitation.Id));
 
         // The detailed permission change belongs in the existing access audit;
         // bootstrap history records only the outcome. Written inside the same
@@ -343,12 +352,14 @@ public sealed class BootstrapActivationService(
         dbContext.AccessAuditEvents.Add(AccessAuditEvent.Create(
             tenantId: tenant.Id,
             actorUserId: account.Id,
-            actorName: account.Email ?? string.Empty,
-            actorRole: PlatformRole.OrgAdmin,
-            action: "access.assignment.granted",
-            resourceType: "UserAccessProfile",
-            resourceId: orgAdminProfileId.ToString(),
-            summary: "Initial Tenant Administrator access granted through bootstrap activation.",
+            // Blank so the reader names the person; the raw address would be the
+            // only email in a feed that otherwise shows people.
+            actorName: string.Empty,
+            actorRole: TenantAdministratorAuthority.DisplayName,
+            action: AccessAuditActions.AuthorityRecognized,
+            resourceType: AccessAuditActions.ResourceTypeAdministrator,
+            resourceId: membership.Id.ToString(),
+            summary: "Initial Tenant Administrator authority established through bootstrap activation.",
             beforeJson: null,
             afterJson: null,
             correlationId: correlationId.ToString()));
@@ -379,8 +390,6 @@ public sealed class BootstrapActivationService(
         return new BootstrapActivationResult(
             BootstrapActivationOutcome.Activated, tenant.Id, account.Id);
     }
-
-    private const string OrgAdminInternalKey = "org-admin";
 
     private sealed record AccountCreation(
         ApplicationUser? Account,

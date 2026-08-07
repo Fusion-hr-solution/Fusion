@@ -261,6 +261,12 @@ export function ModuleSidebar({
                     >
                       {content}
                     </div>
+                  ) : item.shellRoute ? (
+                    // Leaves this app's basePath, so it is a document load by
+                    // nature; Link would rewrite it into a module-relative path.
+                    <a href={target} aria-label={collapsed ? item.label : undefined}>
+                      {content}
+                    </a>
                   ) : (
                     <Link
                       href={target}

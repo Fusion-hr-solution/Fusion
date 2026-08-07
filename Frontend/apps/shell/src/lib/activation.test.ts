@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   type PasswordRequirements,
+  ADMINISTRATOR_JOURNEY,
+  BOOTSTRAP_JOURNEY,
+  RECOVERY_JOURNEY,
   errorFor,
   formatExpiry,
   monogramFor,
@@ -235,5 +238,18 @@ describe("monogramFor", () => {
     expect(monogramFor(null)).toBe("");
     expect(monogramFor("   ")).toBe("");
     expect(monogramFor("!!!")).toBe("");
+  });
+});
+
+describe("bootstrap handoff", () => {
+  it("hands the new administrator to canonical tenant setup", () => {
+    // Tenant setup is a tenant-level destination, so the handoff must not carry
+    // a module prefix — and must not point at the retired Core setup route.
+    expect(BOOTSTRAP_JOURNEY.destination).toBe("/setup");
+  });
+
+  it("uses the purpose-specific administrator and recovery destinations", () => {
+    expect(ADMINISTRATOR_JOURNEY.destination).toBe("/core/access");
+    expect(RECOVERY_JOURNEY.destination).toBe("/setup");
   });
 });

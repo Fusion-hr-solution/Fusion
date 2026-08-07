@@ -1,9 +1,11 @@
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Extensions;
+using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Middleware;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using EY.HRPlatform.SharedKernel.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,21 +54,15 @@ using (var scope = app.Services.CreateScope())
     var userManager = scope.ServiceProvider
         .GetRequiredService<UserManager<ApplicationUser>>();
     
-    // Seed roles always; canonical demo data only when explicitly enabled.
-    var legacyAutoSeed = builder.Configuration.GetValue<bool>("Database:AutoSeed");
-    var seedDemoData = builder.Configuration.GetValue<bool>("Database:CanonicalSeed:Enabled");
-    var resetCanonicalTenant = builder.Configuration.GetValue<bool>("Database:CanonicalSeed:Reset");
-    if (app.Environment.IsDevelopment() && legacyAutoSeed && !seedDemoData)
-        throw new InvalidOperationException(
-            "Database:AutoSeed is retired. Use Database:CanonicalSeed:Enabled=true and scripts/fusion-demo.ps1.");
-    if (resetCanonicalTenant)
-    {
-        if (!app.Environment.IsDevelopment())
-            throw new InvalidOperationException("Canonical tenant reset is Development-only.");
-        await IdentitySeeder.ResetCanonicalTenantAsync(dbContext);
-    }
+    await IdentitySeeder.SeedAsync(dbContext, roleManager, userManager);
 
-    await IdentitySeeder.SeedAsync(dbContext, roleManager, userManager, seedDemoData, builder.Configuration);
+    // Runs after profile seeding, when both the pre-canonical and the canonical
+    // administrator definitions exist, so the permission broadening the migration
+    // applied is reviewable instead of silent.
+    await new TenantAdministratorGrantDeltaReport(
+            dbContext,
+            scope.ServiceProvider.GetRequiredService<ILogger<TenantAdministratorGrantDeltaReport>>())
+        .ReportAsync();
 }
 
 // Middleware pipeline (ORDER MATTERS!)
@@ -79,8 +75,13 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Docker"))
 // Health endpoint
 app.MapHealthChecks("/health").AllowAnonymous();
 
+// Before routing and model binding: the signature on internal routes is
+// body-bound, and a request stream can only be read once.
+app.UseInternalServiceBodyBuffering();
+
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
+app.UseMiddleware<TenantAuthorityRevisionMiddleware>();
 app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 app.MapControllers();

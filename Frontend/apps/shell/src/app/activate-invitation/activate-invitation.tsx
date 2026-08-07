@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Button, Input, Label, cn } from "@repo/ui";
+import { Button, Input, Label, cn } from "@repo/ds";
 import { persistAuth } from "@repo/auth";
 import {
   ArrowRight,
@@ -19,7 +19,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import {
+  BOOTSTRAP_JOURNEY,
+  journeyTerminalState,
   type ActivationEntry,
+  type ActivationJourney,
   type ActivationFieldError,
   type ActivationForm,
   type ActivationOutcome,
@@ -28,14 +31,8 @@ import {
   monogramFor,
   passwordChecks,
   scrubbedUrl,
-  terminalState,
   validateForm,
 } from "../../lib/activation";
-
-const ENDPOINT = "/api/identity/tenant-activation";
-
-/** Where the new administrator lands. Owned by Core, not by this page. */
-const SETUP_DESTINATION = "/core/setup";
 
 /**
  * The context panel is ink in both themes.
@@ -78,7 +75,17 @@ type Phase =
   | { kind: "form"; entry: ActivationEntry }
   | { kind: "terminal"; outcome: ActivationOutcome };
 
-export function ActivateInvitation() {
+/**
+ * The one administrator-account journey, shared by the tenant's first
+ * activation, an invitation from an existing administrator, and Platform
+ * recovery. The variant supplies the endpoint and the words; the credential
+ * handling, account creation, and session handoff are identical by design.
+ */
+export function ActivateInvitation({
+  journey = BOOTSTRAP_JOURNEY,
+}: {
+  journey?: ActivationJourney;
+} = {}) {
   const searchParams = useSearchParams();
 
   // Read once and held. Scrubbing the address bar changes the search params, so
@@ -94,7 +101,7 @@ export function ActivateInvitation() {
     async function inspect() {
       try {
         const response = await fetch(
-          `${ENDPOINT}?credential=${encodeURIComponent(credential)}`,
+          `${journey.inspectPath}?credential=${encodeURIComponent(credential)}`,
           { headers: { Accept: "application/json" }, cache: "no-store" }
         );
         const body = await response.json();
@@ -121,7 +128,7 @@ export function ActivateInvitation() {
     return () => {
       cancelled = true;
     };
-  }, [credential]);
+  }, [credential, journey.inspectPath]);
 
   // Read once, then removed from the address bar, history and anything the
   // recipient copies from it.
@@ -138,7 +145,7 @@ export function ActivateInvitation() {
   if (phase.kind === "terminal") {
     return (
       <FocusedFrame>
-        <Terminal outcome={phase.outcome} />
+        <Terminal outcome={phase.outcome} journey={journey} />
       </FocusedFrame>
     );
   }
@@ -146,13 +153,18 @@ export function ActivateInvitation() {
   return (
     <SplitFrame
       context={
-        phase.kind === "form" ? <TenantContext entry={phase.entry} /> : <ContextSkeleton />
+        phase.kind === "form" ? (
+          <TenantContext entry={phase.entry} journey={journey} />
+        ) : (
+          <ContextSkeleton />
+        )
       }
     >
       {phase.kind === "form" ? (
         <AccountForm
           entry={phase.entry}
           credential={credential}
+          journey={journey}
           onTerminal={(outcome) => setPhase({ kind: "terminal", outcome })}
         />
       ) : (
@@ -258,7 +270,13 @@ function Wordmark({ className }: { className?: string }) {
 /* Context panel                                                              */
 /* -------------------------------------------------------------------------- */
 
-function TenantContext({ entry }: { entry: ActivationEntry }) {
+function TenantContext({
+  entry,
+  journey,
+}: {
+  entry: ActivationEntry;
+  journey: ActivationJourney;
+}) {
   const tenantName = entry.tenantName ?? "";
   const expiry = formatExpiry(entry.expiresAt);
 
@@ -276,7 +294,7 @@ function TenantContext({ entry }: { entry: ActivationEntry }) {
           tenant is what the recipient is checking, so the tenant is the hero. */}
       <h1 className="mt-6 lg:mt-16">
         <span className={cn("block text-lg font-normal lg:text-xl", PANEL_MUTED)}>
-          Create administrator access for
+          {journey.contextLead}
         </span>
         <span className="mt-2 block break-words text-[2rem] font-semibold leading-[1.08] tracking-[-0.025em] lg:mt-3 lg:text-[3rem]">
           {tenantName}
@@ -284,8 +302,7 @@ function TenantContext({ entry }: { entry: ActivationEntry }) {
       </h1>
 
       <p className={cn("mt-6 max-w-[46ch] text-sm leading-7 lg:text-base", PANEL_MUTED)}>
-        You have been invited to become this tenant&apos;s first administrator.
-        Create your account to continue.
+        {journey.contextBody}
       </p>
 
       <TenantSigil tenantName={tenantName} />
@@ -377,8 +394,14 @@ const TERMINAL_ICON: Record<string, LucideIcon> = {
 /** Only the two states where activation actually succeeded read as resolved. */
 const RESOLVED = new Set(["already_accepted", "session_unavailable"]);
 
-function Terminal({ outcome }: { outcome: ActivationOutcome }) {
-  const state = terminalState(outcome);
+function Terminal({
+  outcome,
+  journey,
+}: {
+  outcome: ActivationOutcome;
+  journey: ActivationJourney;
+}) {
+  const state = journeyTerminalState(journey, outcome);
   const Icon = TERMINAL_ICON[outcome] ?? TriangleAlert;
   const resolved = RESOLVED.has(outcome);
 
@@ -443,10 +466,12 @@ function IconChip({
 function AccountForm({
   entry,
   credential,
+  journey,
   onTerminal,
 }: {
   entry: ActivationEntry;
   credential: string;
+  journey: ActivationJourney;
   onTerminal: (outcome: ActivationOutcome) => void;
 }) {
   const [form, setForm] = useState<ActivationForm>({
@@ -479,7 +504,7 @@ function AccountForm({
 
     setPending(true);
     try {
-      const response = await fetch(ENDPOINT, {
+      const response = await fetch(journey.acceptPath, {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({
@@ -514,7 +539,7 @@ function AccountForm({
 
         // A full document load, so the shell and Core start from the new
         // tenant-scoped session rather than from state this page was holding.
-        window.location.assign(SETUP_DESTINATION);
+        window.location.assign(journey.destination);
         return;
       }
 
@@ -543,6 +568,7 @@ function AccountForm({
         // submitting it. Terminal, not retryable — offering the form again would
         // send the recipient back to a link that cannot work.
         reason === "not_activatable" ||
+        reason === "not_acceptable" ||
         reason === "session_unavailable"
       ) {
         onTerminal(reason);
@@ -562,7 +588,7 @@ function AccountForm({
   return (
     <form onSubmit={submit} noValidate>
       <h2 className="text-[1.75rem] font-semibold leading-[1.2] tracking-[-0.02em] text-foreground">
-        Create your administrator account
+        {journey.formHeading}
       </h2>
 
       <InvitedAddress email={entry.invitedEmail} />

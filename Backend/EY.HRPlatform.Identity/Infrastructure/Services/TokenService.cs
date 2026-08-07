@@ -1,4 +1,4 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
@@ -67,6 +67,9 @@ public class TokenService : ITokenService
         {
             claims.Add(new Claim(CustomClaimTypes.TenantId, context.TenantId.ToString()));
             claims.Add(new Claim(CustomClaimTypes.TenantMembershipId, context.MembershipId.ToString()));
+            claims.Add(new Claim(
+                CustomClaimTypes.MembershipAccessRevision,
+                context.AccessRevision.ToString(System.Globalization.CultureInfo.InvariantCulture)));
 
             foreach (var module in context.EnabledModules)
             {

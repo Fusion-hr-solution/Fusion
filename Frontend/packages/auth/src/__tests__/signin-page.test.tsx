@@ -107,6 +107,61 @@ describe("SignInPage", () => {
       });
     });
 
+    it("routes a Tenant Administrator to setup without an intended destination", async () => {
+      mockedService.login.mockResolvedValue(makeAuthResponse());
+      mockedService.loadAuth
+        .mockReturnValueOnce(null)
+        .mockReturnValue(makeStoredAuth({
+          user: {
+            ...makeStoredAuth().user,
+            effectivePermissions: [{
+              permissionKey: "access.assignments.view",
+              scope: "Tenant",
+              label: "View administrator access",
+              group: "Access",
+              helperText: null,
+              allowedScopes: ["Tenant"],
+            }],
+          },
+        }));
+      renderSignInPage();
+
+      await userEvent.type(screen.getByLabelText(/email/i), "admin@example.com");
+      await userEvent.type(screen.getByLabelText(/password/i), "password123");
+      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+      await waitFor(() => expect(mockLocationAssign).toHaveBeenCalledWith("/setup"));
+    });
+
+    it("ignores an unsafe callback and uses the product fallback", async () => {
+      mockedService.login.mockResolvedValue(makeAuthResponse());
+      mockedService.loadAuth
+        .mockReturnValueOnce(null)
+        .mockReturnValue(makeStoredAuth({
+          user: {
+            ...makeStoredAuth().user,
+            effectivePermissions: [{
+              permissionKey: "access.assignments.view",
+              scope: "Tenant",
+              label: "View administrator access",
+              group: "Access",
+              helperText: null,
+              allowedScopes: ["Tenant"],
+            }],
+          },
+        }));
+      mockSearchParamGet.mockImplementation((key) =>
+        key === "callbackUrl" ? "/\\evil.example" : null
+      );
+      renderSignInPage();
+
+      await userEvent.type(screen.getByLabelText(/email/i), "admin@example.com");
+      await userEvent.type(screen.getByLabelText(/password/i), "password123");
+      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+      await waitFor(() => expect(mockLocationAssign).toHaveBeenCalledWith("/setup"));
+    });
+
     it("redirects to callbackUrl on successful login when provided", async () => {
       mockedService.login.mockResolvedValue(makeAuthResponse());
       mockSearchParamGet.mockImplementation((key) =>

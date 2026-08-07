@@ -5,7 +5,21 @@ import {
   resolveCoreWorkspaceAccessState,
 } from "./core-workspace-access";
 
-function createUser(roles: string[]): AuthUser {
+function grant(permissionKey: string): AuthUser["effectivePermissions"][number] {
+  return {
+    permissionKey,
+    scope: "Tenant",
+    label: permissionKey,
+    group: "Test",
+    helperText: null,
+    allowedScopes: ["Tenant"],
+  };
+}
+
+function createUser(
+  roles: string[],
+  overrides: Partial<AuthUser> = {}
+): AuthUser {
   return {
     userId: "user-1",
     tenantId: "tenant-1",
@@ -17,6 +31,7 @@ function createUser(roles: string[]): AuthUser {
     employeeId: null,
     accessProfiles: [],
     effectivePermissions: [],
+    ...overrides,
   };
 }
 
@@ -50,6 +65,44 @@ describe("resolveCoreWorkspaceAccessState", () => {
       })
     ).toBe("allowed");
   });
+
+  it("renders Core business routes as module unavailable without CoreHR entitlement", () => {
+    expect(resolveCoreWorkspaceAccessState({
+      isLoading: false,
+      user: createUser(["Employee"], { moduleEntitlements: [] }),
+      pathname: "/core/employees",
+    })).toBe("module-unavailable");
+  });
+
+  it("allows tenant-level setup without CoreHR entitlement when authorized", () => {
+    expect(resolveCoreWorkspaceAccessState({
+      isLoading: false,
+      user: createUser(["HRAdmin"], {
+        moduleEntitlements: [],
+        effectivePermissions: [grant("access.assignments.view")],
+      }),
+      pathname: "/setup",
+    })).toBe("allowed");
+  });
+
+  it("allows tenant-level Access without CoreHR entitlement when authorized", () => {
+    expect(resolveCoreWorkspaceAccessState({
+      isLoading: false,
+      user: createUser(["HRAdmin"], {
+        moduleEntitlements: [],
+        effectivePermissions: [grant("access.assignments.view")],
+      }),
+      pathname: "/core/access",
+    })).toBe("allowed");
+  });
+
+  it("denies tenant-level setup when its own permission is absent", () => {
+    expect(resolveCoreWorkspaceAccessState({
+      isLoading: false,
+      user: createUser(["Employee"], { moduleEntitlements: [] }),
+      pathname: "/setup",
+    })).toBe("forbidden");
+  });
 });
 
 describe("buildCoreCallbackUrl", () => {
@@ -60,6 +113,12 @@ describe("buildCoreCallbackUrl", () => {
   it("preserves nested Core paths and their query", () => {
     expect(buildCoreCallbackUrl("/employees/person-1", "tab=job")).toBe(
       "/core/employees/person-1?tab=job"
+    );
+  });
+
+  it("preserves the canonical tenant-level setup callback", () => {
+    expect(buildCoreCallbackUrl("/tenant-setup", "section=access")).toBe(
+      "/setup?section=access"
     );
   });
 });

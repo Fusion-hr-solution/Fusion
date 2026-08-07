@@ -1,4 +1,7 @@
 import type { StatusTone } from "@repo/ds/shell";
+// The record surfaces use their own narrower tone vocabulary; StatusBlock takes
+// this one, not the design system's badge tones.
+import type { StatusTone as RecordStatusTone } from "./record/record-ui";
 import type {
   DeliveryOutcomeValue,
   InvitationStateValue,
@@ -30,6 +33,24 @@ export const INVITATION_LABEL: Record<InvitationStateValue, string> = {
   Expired: "Expired",
   Revoked: "Revoked",
   Superseded: "Replaced",
+};
+
+/**
+ * What each invitation state means for the tenant, not merely whether it is
+ * still open.
+ *
+ * Acceptance is the outcome the whole invitation exists to produce, so it reads
+ * as resolved rather than as a problem. Expiry is the only state nobody chose —
+ * it is what happens when the invitation was simply left — so it is the one that
+ * asks for attention. Revocation and replacement were deliberate acts and settle
+ * quietly into history.
+ */
+export const INVITATION_TONE: Record<InvitationStateValue, RecordStatusTone> = {
+  Pending: "default",
+  Accepted: "positive",
+  Expired: "attention",
+  Revoked: "muted",
+  Superseded: "muted",
 };
 
 export const DELIVERY_LABEL: Record<DeliveryOutcomeValue, string> = {

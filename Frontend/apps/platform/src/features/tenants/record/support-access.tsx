@@ -1,31 +1,13 @@
-"use client";
-
-import { LifeBuoy } from "lucide-react";
-import { CapabilityList, UnavailableAction } from "../availability";
-import { SupportingSurface } from "./record-ui";
-
 /**
- * Provider-side access to a customer's own content is a governed capability
- * that does not exist yet.
+ * Shared wording for an empty tenant history.
  *
- * Its place is held on every destination that will eventually carry it, so the
- * record does not have to be rearranged when it arrives — and nothing about it
- * is simulated: no request, no approval, no session, no expiry. One component
- * so the three placements cannot come to describe it differently.
+ * What used to live here — a placeholder for provider-side access to customer
+ * content — has been removed. The locked experience forbids presenting an
+ * affordance for a workflow that does not exist: it read as something an
+ * operator might one day be granted, when in fact Platform gains no route into
+ * customer data at all. Administrator recovery, which is the only exception, is
+ * real and lives on the Access destination.
  */
-export function SupportAccessPanel({ id }: { id: string }) {
-  return (
-    <SupportingSurface
-      id={id}
-      title="Support access"
-      description="Customer-approved, scoped, time-limited provider access."
-      icon={LifeBuoy}
-      action={<UnavailableAction label="Request support access" icon={LifeBuoy} />}
-    >
-      <CapabilityList items={["Customer approval", "Scoped access", "Time limit"]} />
-    </SupportingSurface>
-  );
-}
 
 /** The absence of tenant history, worded once for the preview and the destination. */
 export const NO_EVENTS = {

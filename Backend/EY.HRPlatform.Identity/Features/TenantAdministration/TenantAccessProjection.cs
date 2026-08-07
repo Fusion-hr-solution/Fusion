@@ -1,0 +1,386 @@
+using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Domain.Enums;
+using EY.HRPlatform.Identity.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace EY.HRPlatform.Identity.Features.TenantAdministration;
+
+/// <summary>
+/// How the tenant's administrative continuity reads right now.
+/// <para>
+/// <see cref="ContinuityState"/> is derived from the same usable-administrator
+/// predicate the commands enforce, so the workspace can never encourage an action
+/// the server is about to refuse.
+/// </para>
+/// </summary>
+public enum ContinuityState
+{
+    /// <summary>More than one usable administrator. Nothing to raise.</summary>
+    Healthy = 0,
+
+    /// <summary>
+    /// Exactly one usable administrator remains. Worth surfacing, but it does not
+    /// block anything: this is a recommendation, not an onboarding gate.
+    /// </summary>
+    AtRisk,
+
+    /// <summary>No usable administrator. Only Platform-assisted recovery restores this.</summary>
+    RecoveryRequired,
+}
+
+public sealed record TenantAccessSummary(
+    /// <summary>
+    /// The tenant as the customer knows it. Carried here because the locked
+    /// consequence copy names the tenant, and a session token does not.
+    /// </summary>
+    string TenantName,
+    int ActiveAdministrators,
+    int SuspendedAdministrators,
+    int PendingInvitations,
+    int UsableAdministrators,
+    string Continuity);
+
+/// <summary>
+/// One established administrator, as the workspace lists them.
+/// <para>
+/// <see cref="BlockedReason"/> is populated when this person is the tenant's only
+/// usable administrator, so the maintenance experience can state why suspension
+/// and authority removal are unavailable <em>before</em> anyone tries.
+/// </para>
+/// </summary>
+public sealed record TenantAdministratorListItem(
+    Guid MembershipId,
+    Guid UserId,
+    string Name,
+    string Email,
+    string Status,
+    DateTime AccessEstablishedAt,
+    bool IsUsable,
+    string? BlockedReason,
+    uint Version);
+
+public sealed record AdministratorInvitationListItem(
+    Guid InvitationId,
+    string Email,
+    string State,
+    string Purpose,
+    DateTime IssuedAt,
+    DateTime ExpiresAt,
+    string? DeliveryStatus);
+
+public sealed record AccessActivityItem(
+    Guid Id,
+    DateTime OccurredAt,
+    string Action,
+    string ActorName,
+    string ActorRole,
+    string Summary,
+    string? ResourceId)
+{
+    /// <summary>Carried so the reader can name the person; never serialized.</summary>
+    internal Guid? ActorUserId { get; init; }
+}
+
+public sealed record AccessActivityPage(
+    IReadOnlyList<AccessActivityItem> Items,
+    DateTime? NextCursorOccurredAt,
+    Guid? NextCursorId);
+
+public interface ITenantAccessProjection
+{
+    Task<TenantAccessSummary> GetSummaryAsync(Guid tenantId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<TenantAdministratorListItem>> GetAdministratorsAsync(
+        Guid tenantId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AdministratorInvitationListItem>> GetInvitationsAsync(
+        Guid tenantId, bool includeHistorical = false, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<AccessActivityItem>> GetRecentActivityAsync(
+        Guid tenantId, int take = 5, CancellationToken cancellationToken = default);
+
+    Task<AccessActivityPage> GetActivityPageAsync(
+        Guid tenantId,
+        DateTime? cursorOccurredAt,
+        Guid? cursorId,
+        DateTime? from,
+        DateTime? to,
+        string? actionCategory,
+        int pageSize = 25,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Read models for the customer Access workspace.
+/// <para>
+/// Continuity is computed only through <see cref="UsableTenantAdministrator"/>.
+/// A second definition here would eventually disagree with the one the commands
+/// enforce, and the workspace would start offering actions that fail.
+/// </para>
+/// </summary>
+public sealed class TenantAccessProjection(AppIdentityDbContext dbContext) : ITenantAccessProjection
+{
+    /// <summary>
+    /// The locked reason a final administrator cannot be suspended or have their
+    /// authority removed. Shown before interaction rather than after a refusal.
+    /// </summary>
+    public const string FinalAdministratorReason =
+        "Another active administrator is required before this access can be suspended or removed.";
+
+    public async Task<TenantAccessSummary> GetSummaryAsync(
+        Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        var usable = await UsableTenantAdministrator.CountAsync(dbContext, tenantId, cancellationToken);
+
+        var tenantName = await dbContext.Tenants
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(tenant => tenant.Id == tenantId)
+            .Select(tenant => tenant.Name)
+            .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+
+        var byStatus = await dbContext.TenantAdministratorAssignments
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(assignment => assignment.TenantId == tenantId && assignment.RevokedAt == null)
+            .GroupBy(assignment => assignment.TenantMembership!.Status)
+            .Select(group => new { Status = group.Key, Count = group.Count() })
+            .ToListAsync(cancellationToken);
+
+        var pending = await dbContext.InviteTokens
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .CountAsync(item => item.TenantId == tenantId
+                && item.Purpose == InvitationPurpose.TenantAdministrator
+                && item.AcceptedAt == null
+                && !item.IsRevoked
+                && item.SupersededAt == null
+                && item.ExpiresAt > DateTime.UtcNow, cancellationToken);
+
+        return new TenantAccessSummary(
+            TenantName: tenantName,
+            ActiveAdministrators: byStatus
+                .Where(item => item.Status == TenantMembershipStatus.Active)
+                .Sum(item => item.Count),
+            SuspendedAdministrators: byStatus
+                .Where(item => item.Status == TenantMembershipStatus.Suspended)
+                .Sum(item => item.Count),
+            PendingInvitations: pending,
+            UsableAdministrators: usable,
+            Continuity: (usable switch
+            {
+                0 => ContinuityState.RecoveryRequired,
+                1 => ContinuityState.AtRisk,
+                _ => ContinuityState.Healthy,
+            }).ToString());
+    }
+
+    public async Task<IReadOnlyList<TenantAdministratorListItem>> GetAdministratorsAsync(
+        Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        // Usability is decided by the one authoritative predicate, evaluated in the
+        // database. Recomputing the same rule here would be a second definition of
+        // "usable" that could drift from the one the commands enforce — and the
+        // workspace would start offering actions the server refuses, or hide the
+        // final-administrator reason when it matters most.
+        var usableMembershipIds = await UsableTenantAdministrator
+            .ForTenant(dbContext, tenantId)
+            .AsNoTracking()
+            .Select(assignment => assignment.TenantMembershipId)
+            .ToListAsync(cancellationToken);
+
+        var usable = usableMembershipIds.ToHashSet();
+
+        // Only people who currently hold authority. Someone whose authority was
+        // removed is history, not an administrator with an empty role, so they
+        // belong in activity rather than in this operational list.
+        var administrators = await dbContext.TenantAdministratorAssignments
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(assignment => assignment.TenantId == tenantId && assignment.RevokedAt == null)
+            .Select(assignment => new
+            {
+                assignment.TenantMembershipId,
+                assignment.UserId,
+                assignment.GrantedAt,
+                Status = assignment.TenantMembership!.Status,
+                Version = assignment.TenantMembership!.Version,
+                FirstName = assignment.User!.FirstName,
+                LastName = assignment.User!.LastName,
+                Email = assignment.User!.Email,
+            })
+            .OrderBy(item => item.FirstName)
+            .ThenBy(item => item.LastName)
+            .ToListAsync(cancellationToken);
+
+        return administrators.Select(item =>
+        {
+            var isUsable = usable.Contains(item.TenantMembershipId);
+
+            return new TenantAdministratorListItem(
+                item.TenantMembershipId,
+                item.UserId,
+                $"{item.FirstName} {item.LastName}".Trim(),
+                item.Email ?? string.Empty,
+                item.Status.ToString(),
+                item.GrantedAt,
+                isUsable,
+                // A pending invitation does not satisfy continuity: nobody has
+                // accepted it, so it cannot administer anything yet.
+                isUsable && usable.Count == 1 ? FinalAdministratorReason : null,
+                item.Version);
+        }).ToList();
+    }
+
+    public async Task<IReadOnlyList<AdministratorInvitationListItem>> GetInvitationsAsync(
+        Guid tenantId, bool includeHistorical = false, CancellationToken cancellationToken = default)
+    {
+        var invitations = await dbContext.InviteTokens
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(item => item.TenantId == tenantId
+                && item.Purpose == InvitationPurpose.TenantAdministrator)
+            .OrderByDescending(item => item.CreatedAt)
+            .Take(includeHistorical ? 200 : 50)
+            .ToListAsync(cancellationToken);
+
+        return invitations
+            .Where(item => includeHistorical || item.State == InvitationState.Pending)
+            .Select(item => new AdministratorInvitationListItem(
+                item.Id,
+                item.Email,
+                item.State.ToString(),
+                item.Purpose.ToString(),
+                item.CredentialIssuedAt ?? item.CreatedAt,
+                item.ExpiresAt,
+                item.DeliveryStatus))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<AccessActivityItem>> GetRecentActivityAsync(
+        Guid tenantId, int take = 5, CancellationToken cancellationToken = default)
+        => await NameActorsAsync(
+            await ActivityQuery(tenantId)
+                .Take(Math.Clamp(take, 1, 25))
+                .ToListAsync(cancellationToken),
+            cancellationToken);
+
+    public async Task<AccessActivityPage> GetActivityPageAsync(
+        Guid tenantId,
+        DateTime? cursorOccurredAt,
+        Guid? cursorId,
+        DateTime? from,
+        DateTime? to,
+        string? actionCategory,
+        int pageSize = 25,
+        CancellationToken cancellationToken = default)
+    {
+        var size = Math.Clamp(pageSize, 1, 100);
+        var query = dbContext.AccessAuditEvents
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(item => item.TenantId == tenantId);
+
+        if (from is not null)
+        {
+            query = query.Where(item => item.OccurredAt >= from.Value);
+        }
+
+        if (to is not null)
+        {
+            query = query.Where(item => item.OccurredAt <= to.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(actionCategory))
+        {
+            query = query.Where(item => item.Action.StartsWith(actionCategory));
+        }
+
+        // Cursor on (OccurredAt, Id) so a page boundary between two events written
+        // in the same instant cannot drop or repeat one of them.
+        if (cursorOccurredAt is not null && cursorId is not null)
+        {
+            query = query.Where(item => item.OccurredAt < cursorOccurredAt.Value
+                || (item.OccurredAt == cursorOccurredAt.Value && item.Id.CompareTo(cursorId.Value) < 0));
+        }
+
+        var page = await query
+            .OrderByDescending(item => item.OccurredAt)
+            .ThenByDescending(item => item.Id)
+            .Take(size + 1)
+            .Select(item => new AccessActivityItem(
+                item.Id, item.OccurredAt, item.Action, item.ActorName,
+                item.ActorRole, item.Summary, item.ResourceId)
+            {
+                ActorUserId = item.ActorUserId,
+            })
+            .ToListAsync(cancellationToken);
+
+        var hasMore = page.Count > size;
+        var items = await NameActorsAsync(hasMore ? page[..size] : page, cancellationToken);
+        var last = items.Count > 0 ? items[^1] : null;
+
+        return new AccessActivityPage(
+            items,
+            hasMore ? last?.OccurredAt : null,
+            hasMore ? last?.Id : null);
+    }
+
+    /// <summary>
+    /// Replaces the stored placeholder with the acting person's name.
+    /// <para>
+    /// Commands hold a user id, not an account, so most events are written with
+    /// no name at all. Printing the placeholder would tell a reader we do not
+    /// know who acted while the account it points at is sitting in the same
+    /// database — so the feed reads people, and resolves them here.
+    /// </para>
+    /// </summary>
+    private async Task<List<AccessActivityItem>> NameActorsAsync(
+        List<AccessActivityItem> items,
+        CancellationToken cancellationToken)
+    {
+        var actorIds = items
+            .Where(item => item.ActorUserId.HasValue && item.ActorName == AccessAuditEvent.UnresolvedActor)
+            .Select(item => item.ActorUserId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (actorIds.Count == 0)
+        {
+            return items;
+        }
+
+        var names = await dbContext.Users
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(user => actorIds.Contains(user.Id))
+            .Select(user => new { user.Id, user.FirstName, user.LastName })
+            .ToDictionaryAsync(
+                user => user.Id,
+                user => $"{user.FirstName} {user.LastName}".Trim(),
+                cancellationToken);
+
+        return items
+            .Select(item => item.ActorUserId is { } actorId
+                && item.ActorName == AccessAuditEvent.UnresolvedActor
+                && names.TryGetValue(actorId, out var name)
+                && !string.IsNullOrWhiteSpace(name)
+                    ? item with { ActorName = name }
+                    : item)
+            .ToList();
+    }
+
+    private IQueryable<AccessActivityItem> ActivityQuery(Guid tenantId)
+        => dbContext.AccessAuditEvents
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(item => item.TenantId == tenantId)
+            .OrderByDescending(item => item.OccurredAt)
+            .ThenByDescending(item => item.Id)
+            .Select(item => new AccessActivityItem(
+                item.Id, item.OccurredAt, item.Action, item.ActorName,
+                item.ActorRole, item.Summary, item.ResourceId)
+            {
+                ActorUserId = item.ActorUserId,
+            });
+}

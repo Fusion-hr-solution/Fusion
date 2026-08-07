@@ -1,4 +1,4 @@
-import { canAccessPlatform } from "@repo/auth";
+import { canAccessPlatform, sanitizeInternalReturnPath } from "@repo/auth";
 import type { AuthUser } from "@repo/auth";
 
 export type PlatformAccessState =
@@ -17,7 +17,7 @@ export function buildPlatformCallbackUrl(
       : pathname.startsWith("/platform")
         ? pathname
         : `/platform${pathname}`;
-  return `${appPath}${query ? `?${query}` : ""}`;
+  return sanitizeInternalReturnPath(`${appPath}${query ? `?${query}` : ""}`) ?? "/platform";
 }
 
 export function resolvePlatformAccessState({

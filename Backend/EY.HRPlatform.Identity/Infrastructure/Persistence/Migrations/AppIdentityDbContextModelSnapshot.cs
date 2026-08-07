@@ -23,36 +23,6 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("EY.HRPlatform.DemoSeed.CanonicalSeedReceipt", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CompletedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ManifestHash")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("ManifestVersion")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "ManifestVersion")
-                        .IsUnique();
-
-                    b.ToTable("CanonicalSeedReceipts", "identity");
-                });
-
             modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.AccessAuditEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -471,27 +441,36 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PredecessorInvitationId");
 
-                    b.HasIndex("TenantId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_InviteTokens_TenantId_BootstrapPending")
-                        .HasFilter("\"Purpose\" = 'OrganizationBootstrap' AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false AND \"SupersededAt\" IS NULL");
-
                     b.HasIndex("Token")
                         .IsUnique()
                         .HasFilter("\"Token\" IS NOT NULL");
 
-                    b.HasIndex("TenantId", "Email")
-                        .IsUnique()
-                        .HasDatabaseName("IX_InviteTokens_TenantId_Email_Pending")
-                        .HasFilter("\"Purpose\" = 'WorkforceAccount' AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false");
-
-                    b.HasIndex("TenantId", "EmployeeId")
-                        .IsUnique()
-                        .HasDatabaseName("IX_InviteTokens_TenantId_EmployeeId_Pending")
-                        .HasFilter("\"EmployeeId\" IS NOT NULL AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false");
-
                     b.HasIndex("TenantId", "Purpose")
                         .HasDatabaseName("IX_InviteTokens_TenantId_Purpose");
+
+                    b.HasIndex(new[] { "TenantId" }, "IX_InviteTokens_TenantId");
+
+                    b.HasIndex(new[] { "TenantId" }, "IX_InviteTokens_TenantId_BootstrapPending")
+                        .IsUnique()
+                        .HasFilter("\"Purpose\" = 'OrganizationBootstrap' AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false AND \"SupersededAt\" IS NULL");
+
+                    b.HasIndex(new[] { "TenantId", "Email" }, "IX_InviteTokens_TenantId_Email_AdministrativePending")
+                        .IsUnique()
+                        .HasFilter("\"Purpose\" IN ('TenantAdministrator', 'TenantAdministratorRecovery') AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false AND \"SupersededAt\" IS NULL");
+
+                    b.HasIndex(new[] { "TenantId", "Email" }, "IX_InviteTokens_TenantId_Email_Pending")
+                        .IsUnique()
+                        .HasFilter("\"Purpose\" = 'WorkforceAccount' AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false");
+
+                    b.HasIndex(new[] { "TenantId", "EmployeeId" }, "IX_InviteTokens_TenantId_EmployeeId");
+
+                    b.HasIndex(new[] { "TenantId", "EmployeeId" }, "IX_InviteTokens_TenantId_EmployeeId_Pending")
+                        .IsUnique()
+                        .HasFilter("\"EmployeeId\" IS NOT NULL AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false");
+
+                    b.HasIndex(new[] { "TenantId" }, "IX_InviteTokens_TenantId_RecoveryPending")
+                        .IsUnique()
+                        .HasFilter("\"Purpose\" = 'TenantAdministratorRecovery' AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false AND \"SupersededAt\" IS NULL");
 
                     b.ToTable("InviteTokens", "identity");
                 });
@@ -604,6 +583,66 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                     b.ToTable("Tenants", "identity");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.TenantAdministratorAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("GrantedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("GrantedByActorType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
+                    b.Property<Guid?>("GrantedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RevocationReason")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RevokedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SourceInvitationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantMembershipId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SourceInvitationId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantMembershipId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_TenantAdministratorAssignments_MembershipActiveUnique")
+                        .HasFilter("\"RevokedAt\" IS NULL");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("TenantId", "RevokedAt")
+                        .HasDatabaseName("IX_TenantAdministratorAssignments_TenantId_RevokedAt");
+
+                    b.HasIndex("TenantMembershipId", "UserId", "TenantId");
+
+                    b.ToTable("TenantAdministratorAssignments", "identity");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.TenantBootstrapAuditEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -661,22 +700,46 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AccessRevision")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("DeactivatedAt")
+                    b.Property<DateTime?>("ReactivatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ReactivatedByUserId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)");
 
+                    b.Property<DateTime?>("SuspendedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("SuspendedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("SuspensionReason")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
@@ -693,6 +756,9 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                     b.HasIndex("UserId", "TenantId")
                         .IsUnique()
                         .HasDatabaseName("IX_TenantMemberships_UserId_TenantId");
+
+                    b.HasIndex("UserId", "TenantId", "Status", "AccessRevision")
+                        .HasDatabaseName("IX_TenantMemberships_AuthorityState");
 
                     b.ToTable("TenantMemberships", "identity");
                 });
@@ -999,6 +1065,26 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.TenantAdministratorAssignment", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Identity.Domain.Entities.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EY.HRPlatform.Identity.Domain.Entities.TenantMembership", "TenantMembership")
+                        .WithMany("AdministratorAssignments")
+                        .HasForeignKey("TenantMembershipId", "UserId", "TenantId")
+                        .HasPrincipalKey("Id", "UserId", "TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("TenantMembership");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.TenantMembership", b =>
                 {
                     b.HasOne("EY.HRPlatform.Identity.Domain.Entities.Tenant", "Tenant")
@@ -1158,6 +1244,8 @@ namespace EY.HRPlatform.Identity.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("EY.HRPlatform.Identity.Domain.Entities.TenantMembership", b =>
                 {
                     b.Navigation("AccessProfileAssignments");
+
+                    b.Navigation("AdministratorAssignments");
                 });
 #pragma warning restore 612, 618
         }

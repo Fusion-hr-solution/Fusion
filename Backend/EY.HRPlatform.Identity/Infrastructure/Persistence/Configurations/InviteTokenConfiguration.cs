@@ -89,12 +89,16 @@ public class InviteTokenConfiguration : IEntityTypeConfiguration<InviteToken>
         // for recovery: reissuing after expiry or revocation must mark the
         // predecessor Superseded in the same transaction as it creates the
         // replacement, rather than leaving two live rows for one tenant.
-        builder.HasIndex(i => i.TenantId)
+        //
+        // Declared through the named overload, as are the other filtered indexes
+        // over these same columns. EF keys an index by its property set, so the
+        // expression form would silently collapse them into one and quietly drop
+        // whichever was declared first.
+        builder.HasIndex([nameof(InviteToken.TenantId)], "IX_InviteTokens_TenantId_BootstrapPending")
             .IsUnique()
             .HasFilter(
                 $"\"Purpose\" = '{nameof(Domain.Enums.InvitationPurpose.OrganizationBootstrap)}' "
-                + "AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false AND \"SupersededAt\" IS NULL")
-            .HasDatabaseName("IX_InviteTokens_TenantId_BootstrapPending");
+                + "AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false AND \"SupersededAt\" IS NULL");
 
         builder.HasOne<InviteToken>()
             .WithMany()
@@ -102,25 +106,55 @@ public class InviteTokenConfiguration : IEntityTypeConfiguration<InviteToken>
             .OnDelete(DeleteBehavior.Restrict);
 
         // Index for listing invites by tenant
-        builder.HasIndex(i => i.TenantId);
+        builder.HasIndex([nameof(InviteToken.TenantId)], "IX_InviteTokens_TenantId");
 
-        builder.HasIndex(i => new { i.TenantId, i.EmployeeId });
+        builder.HasIndex(
+            [nameof(InviteToken.TenantId), nameof(InviteToken.EmployeeId)],
+            "IX_InviteTokens_TenantId_EmployeeId");
 
         // Filtered unique index to prevent duplicate pending invites per {TenantId, Email}.
         // Active invites = not accepted, not revoked. Scoped to workforce purpose so
         // bootstrap lineage (replace and reissue) is governed only by the bootstrap
         // index below and the two schemes cannot block each other.
-        builder.HasIndex(i => new { i.TenantId, i.Email })
+        builder.HasIndex(
+                [nameof(InviteToken.TenantId), nameof(InviteToken.Email)],
+                "IX_InviteTokens_TenantId_Email_Pending")
+            .IsUnique()
             .HasFilter(
                 $"\"Purpose\" = '{nameof(Domain.Enums.InvitationPurpose.WorkforceAccount)}' "
-                + "AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false")
-            .IsUnique()
-            .HasDatabaseName("IX_InviteTokens_TenantId_Email_Pending");
+                + "AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false");
 
-        builder.HasIndex(i => new { i.TenantId, i.EmployeeId })
-            .HasFilter("\"EmployeeId\" IS NOT NULL AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false")
+        // At most one pending administrative invitation per tenant and address.
+        //
+        // Like the bootstrap index above, the filter cannot test expiry: a partial
+        // index predicate must be immutable and expiry is a moving target. So an
+        // Expired administrative invitation still occupies this slot. That is
+        // reconciled deliberately rather than left as a trap — inviting the same
+        // address again is a reissue that supersedes the expired predecessor in
+        // one transaction, never a second live row and never a duplicate refusal.
+        builder.HasIndex(
+                [nameof(InviteToken.TenantId), nameof(InviteToken.Email)],
+                "IX_InviteTokens_TenantId_Email_AdministrativePending")
             .IsUnique()
-            .HasDatabaseName("IX_InviteTokens_TenantId_EmployeeId_Pending");
+            .HasFilter(
+                $"\"Purpose\" IN ('{nameof(Domain.Enums.InvitationPurpose.TenantAdministrator)}', "
+                + $"'{nameof(Domain.Enums.InvitationPurpose.TenantAdministratorRecovery)}') "
+                + "AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false AND \"SupersededAt\" IS NULL");
+
+        // At most one pending recovery per tenant, whatever the address. A second
+        // recovery while one is in flight would put two people on a path to the
+        // same tenant's administration.
+        builder.HasIndex([nameof(InviteToken.TenantId)], "IX_InviteTokens_TenantId_RecoveryPending")
+            .IsUnique()
+            .HasFilter(
+                $"\"Purpose\" = '{nameof(Domain.Enums.InvitationPurpose.TenantAdministratorRecovery)}' "
+                + "AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false AND \"SupersededAt\" IS NULL");
+
+        builder.HasIndex(
+                [nameof(InviteToken.TenantId), nameof(InviteToken.EmployeeId)],
+                "IX_InviteTokens_TenantId_EmployeeId_Pending")
+            .IsUnique()
+            .HasFilter("\"EmployeeId\" IS NOT NULL AND \"AcceptedAt\" IS NULL AND \"IsRevoked\" = false");
 
         // Foreign key to Tenant
         builder.HasOne(i => i.Tenant)

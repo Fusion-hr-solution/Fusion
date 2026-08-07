@@ -1,60 +1,34 @@
 "use client";
 
-import { UserPlus, UsersRound } from "lucide-react";
 import { InvitationRecord } from "./activation";
-import { SupportingSurface } from "./record-ui";
-import { CapabilityList, UnavailableAction } from "../availability";
+import { ContinuityHealth } from "./continuity-health";
 import { useTenantRecord } from "./record-shell";
-import { SupportAccessPanel } from "./support-access";
-import { hasEstablishedAccess } from "./tenant-record-facts";
 
 /**
- * Who can administer this tenant, and how they came to.
+ * Whether this tenant can administer itself, and how it got there.
  *
  * Access owns the Platform-side identity picture: the initial administrator's
- * invitation, every recovery it permits, and the access outcome activation
- * establishes. It also owns the governed route by which a provider operator
- * could one day reach customer content. It is not the Core HR employee directory
- * and never becomes one.
+ * invitation, every recovery it permits, and the continuity that results. It is
+ * not the Core HR employee directory and never becomes one.
  *
- * The quieter panels below are the areas a later capability fills. They are
- * visible because their ownership is settled — concealing them would mean
- * rebuilding this destination when they arrive — and they state plainly that
- * they do not work yet, so nothing here reads as a permission problem or as a
- * tenant left half-configured.
+ * Read-only apart from one exception. Routine administration — inviting,
+ * suspending, removing authority — belongs to the customer and happens in their
+ * own workspace. The only thing Platform may do here is restore administration
+ * to a tenant that has lost all of it, and even that hands control back to the
+ * customer rather than taking it.
+ *
+ * The placeholder panels that used to sit here are gone. Both now describe
+ * things that either exist for real or were never going to: administrator
+ * management is the customer's, and an unavailable support-access affordance
+ * implied a workflow Fusion does not have.
  */
 export function TenantAccessDestination() {
   const { tenant } = useTenantRecord();
-  const established = hasEstablishedAccess(tenant);
 
   return (
     <div className="space-y-5">
       <InvitationRecord tenant={tenant} />
-
-      <div className="grid gap-5 lg:grid-cols-2">
-        <SupportingSurface
-          id="administrators-title"
-          title="Additional administrators"
-          description={
-            established
-              ? "Further tenant administration will be managed here."
-              : "The invited administrator establishes the first tenant access on activation."
-          }
-          icon={UsersRound}
-          action={<UnavailableAction label="Invite administrator" icon={UserPlus} />}
-        >
-          <CapabilityList
-            items={[
-              "Additional administrators",
-              "Roles and permissions",
-              "Delegation and revocation",
-              "Administrator recovery",
-            ]}
-          />
-        </SupportingSurface>
-
-        <SupportAccessPanel id="support-access-title" />
-      </div>
+      <ContinuityHealth tenantId={tenant.tenantId} />
     </div>
   );
 }

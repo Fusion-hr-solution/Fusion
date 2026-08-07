@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useAuth } from "@repo/auth";
+import { canAccessPlatform, useAuth } from "@repo/auth";
 import {
   PageContainer,
   PageHeader,
@@ -37,7 +37,7 @@ export function CoreWorkspaceAccessBoundary({
   useEffect(() => setHydrated(true), []);
 
   const state = hydrated
-    ? resolveCoreWorkspaceAccessState({ user, isLoading })
+    ? resolveCoreWorkspaceAccessState({ user, isLoading, pathname })
     : "loading";
 
   useEffect(() => {
@@ -56,6 +56,25 @@ export function CoreWorkspaceAccessBoundary({
   }
 
   if (state === "forbidden") {
+    if (!canAccessPlatform(user)) {
+      return (
+        <PageContainer className="space-y-6">
+          <PageHeader
+            title="Access denied"
+            description="You do not have permission to open this area."
+          />
+          <PagePermissionNotice
+            title="This area is not available to your account"
+            description="Open another Fusion area you can use, or contact your administrator if you expected access."
+            action={
+              <Button asChild variant="outline">
+                <a href={buildShellUrl("/").toString()}>Open Fusion</a>
+              </Button>
+            }
+          />
+        </PageContainer>
+      );
+    }
     return (
       <PageContainer className="space-y-6">
         <PageHeader
@@ -75,5 +94,27 @@ export function CoreWorkspaceAccessBoundary({
     );
   }
 
-  return children;
+  if (state === "module-unavailable") {
+    return (
+      <PageContainer className="space-y-6">
+        <PageHeader
+          title="Core HR is not available"
+          description="This tenant does not currently have the Core HR module enabled."
+        />
+        <PagePermissionNotice
+          title="Module unavailable"
+          description="Contact your Fusion administrator if Core HR should be enabled for this tenant."
+          action={
+            <Button asChild variant="outline">
+              <a href={buildShellUrl("/").toString()}>Open Fusion</a>
+            </Button>
+          }
+        />
+      </PageContainer>
+    );
+  }
+
+  if (state === "allowed") return children;
+
+  return <PageSkeleton rows={4} label="Checking Core HR access" />;
 }

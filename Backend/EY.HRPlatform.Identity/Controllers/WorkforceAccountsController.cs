@@ -1,6 +1,7 @@
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.Identity.Features.TenantAdministration;
 using EY.HRPlatform.Identity.Features.WorkforceAccounts;
 using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
@@ -23,6 +24,7 @@ public sealed class WorkforceAccountsController(
     IAccessProfileService accessProfileService,
     ITenantContext tenantContext,
     IConfiguration configuration,
+    ITenantContinuityCommandExecutor continuity,
     IWorkforceInvitationEmailSender workforceInvitationEmailSender) : ControllerBase
 {
     private const string StateUnprovisioned = "Unprovisioned";
@@ -323,8 +325,41 @@ public sealed class WorkforceAccountsController(
         if (user is null)
             return NotFound(ApiResponse<WorkforceAccountStatusDto>.Failure("Account not found."));
 
-        user.IsActive = true;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        // Runs inside the tenant continuity boundary like every other command
+        // that can change whether this tenant has a usable administrator.
+        // Reactivation cannot remove one, but routing it here keeps the access
+        // revision bump and the audit in the same transaction as the change.
+        var reactivated = await continuity.ExecuteAsync<bool>(
+            tenantId,
+            User.GetUserId(),
+            async context =>
+            {
+                var account = await context.Db.Users.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(item => item.Id == user.Id, cancellationToken);
+
+                if (account is null)
+                {
+                    return ContinuityResult<bool>.Refused(ContinuityFailure.NotFound);
+                }
+
+                account.IsActive = true;
+                await InvalidateMembershipAsync(context, account.Id, cancellationToken);
+                return ContinuityResult<bool>.Ok(true);
+            },
+            cancellationToken);
+
+        if (!reactivated.Succeeded)
+        {
+            return NotFound(ApiResponse<WorkforceAccountStatusDto>.Failure("Account not found."));
+        }
+
+        dbContext.ChangeTracker.Clear();
+        user = await FindUserByEmployeeAsync(tenantId, employeeId, cancellationToken);
+
+        if (user is null)
+        {
+            return NotFound(ApiResponse<WorkforceAccountStatusDto>.Failure("Account not found."));
+        }
 
         return Ok(ApiResponse<WorkforceAccountStatusDto>.Success(await BuildUserStatusAsync(employeeId, user, cancellationToken)));
     }
@@ -346,10 +381,59 @@ public sealed class WorkforceAccountsController(
         if (user is null)
             return NotFound(ApiResponse.Failure("Account not found."));
 
-        user.IsActive = false;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        // Disabling a global account can make a Tenant Administrator unusable,
+        // so this passes through the continuity boundary. If this account is the
+        // tenant's last usable administrator the command is refused — a workforce
+        // route must not be a way around the invariant.
+        var deactivated = await continuity.ExecuteAsync<bool>(
+            tenantId,
+            User.GetUserId(),
+            async context =>
+            {
+                var account = await context.Db.Users.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(item => item.Id == user.Id, cancellationToken);
+
+                if (account is null)
+                {
+                    return ContinuityResult<bool>.Refused(ContinuityFailure.NotFound);
+                }
+
+                account.IsActive = false;
+                await InvalidateMembershipAsync(context, account.Id, cancellationToken);
+                return ContinuityResult<bool>.Ok(true);
+            },
+            cancellationToken);
+
+        if (deactivated.Failure == ContinuityFailure.FinalAdministrator)
+        {
+            return Conflict(ApiResponse.Failure(
+                "This account belongs to the tenant's only usable Tenant Administrator. "
+                + "Invite or restore another administrator first."));
+        }
+
+        if (!deactivated.Succeeded)
+        {
+            return NotFound(ApiResponse.Failure("Account not found."));
+        }
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Marks this account's tenant access as no longer current, so a token
+    /// issued before the change stops being honoured on the very next request.
+    /// </summary>
+    private static async Task InvalidateMembershipAsync(
+        TenantContinuityContext context, Guid userId, CancellationToken cancellationToken)
+    {
+        var membership = await context.Db.TenantMemberships.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(item => item.UserId == userId
+                && item.TenantId == context.TenantId, cancellationToken);
+
+        if (membership is not null)
+        {
+            context.InvalidateTenantAccess(membership);
+        }
     }
 
     private async Task<WorkforceAccountBulkProvisionResultDto> ProvisionInviteAsync(

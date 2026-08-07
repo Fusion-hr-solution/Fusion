@@ -2,6 +2,7 @@ using System.Security.Claims;
 using EY.HRPlatform.Identity.Controllers;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.Identity.Features.TenantAdministration;
 using EY.HRPlatform.Identity.Models.Requests;
 using EY.HRPlatform.Identity.Models.Responses;
 using EY.HRPlatform.Identity.Tests.TestHelpers;
@@ -161,6 +162,7 @@ public class CoreAccessControllerPermissionTests
         var controller = new CoreAccessController(
             new StubAccessProfileService(),
             new StubAccessAuditService(),
+            new PassThroughContinuityExecutor(),
             TestTenantContext.WithTenant(Guid.NewGuid()))
         {
             ControllerContext = new ControllerContext
@@ -261,6 +263,21 @@ public class CoreAccessControllerPermissionTests
 
         public string ResolveCompatibilityRole(IReadOnlyCollection<EffectivePermissionGrant> grants)
             => PlatformRole.Employee;
+    }
+
+    /// <summary>
+    /// These tests are about permission gating, which is decided before any
+    /// mutation runs. The executor is stubbed out so they do not need a database
+    /// to reach the decision they are actually asserting.
+    /// </summary>
+    private sealed class PassThroughContinuityExecutor : ITenantContinuityCommandExecutor
+    {
+        public Task<ContinuityResult<T>> ExecuteAsync<T>(
+            Guid tenantId,
+            Guid? actorUserId,
+            Func<TenantContinuityContext, Task<ContinuityResult<T>>> mutate,
+            CancellationToken cancellationToken = default)
+            => mutate(new TenantContinuityContext(null!, tenantId, actorUserId));
     }
 
     private sealed class StubAccessAuditService : IAccessAuditService

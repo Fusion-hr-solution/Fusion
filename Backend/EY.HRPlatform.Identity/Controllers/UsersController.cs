@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
@@ -15,6 +15,11 @@ namespace EY.HRPlatform.Identity.Controllers;
 [ApiController]
 [Route("api/identity/[controller]")]
 [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
+// Role grant and removal endpoints were removed with the canonical Tenant
+// Administrator authority. Global ASP.NET roles are now derived output of that
+// authority, so an endpoint that set them by hand could put a person's role and
+// their actual authority into disagreement — and did so outside the continuity
+// boundary that keeps a tenant administered.
 public class UsersController : ControllerBase
 {
     private readonly UserManager<ApplicationUser> _userManager;
@@ -148,6 +153,18 @@ public class UsersController : ControllerBase
                 "Core workforce access for employees and managers must be activated from a trusted employee record invitation."));
         }
 
+        // Tenant Administrator authority is established by accepting an
+        // administrative invitation, never by creating an account with a role
+        // attached. This route holds no continuity lock and issues no invitation,
+        // so allowing it here would be a second, unaudited way to make someone an
+        // administrator.
+        if (role is PlatformRole.OrgAdmin)
+        {
+            return BadRequest(ApiResponse<UserDto>.Failure(
+                "Tenant Administrator access is established by inviting an administrator, "
+                + "not by creating an account with that role."));
+        }
+
         // HRAdmin cannot assign PlatformAdmin or HRAdmin roles
         if (!User.IsInRole(PlatformRole.PlatformAdmin) &&
             (role == PlatformRole.PlatformAdmin || role == PlatformRole.HRAdmin))
@@ -231,101 +248,7 @@ public class UsersController : ControllerBase
             ApiResponse<UserDto>.Success(dto));
     }
 
-    /// <summary>
-    /// Assign a role to a user.
-    /// </summary>
-    [HttpPost("{id:guid}/roles/{role}")]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ApiResponse>> AssignRole(Guid id, string role)
-    {
-        // Validate role exists
-        if (!PlatformRole.All.Contains(role))
-            return BadRequest(ApiResponse.Failure($"Invalid role: {role}"));
 
-        var user = await _userManager.FindByIdAsync(id.ToString());
-        if (user is null)
-            return NotFound(ApiResponse.Failure("User not found."));
-
-        // Managing a customer account requires the caller's own customer tenant
-        // context; the membership query filter scopes the lookup to that tenant.
-        if (User.GetTenantId() is null)
-            return NotFound(ApiResponse.Failure("User not found."));
-
-        // HRAdmin cannot assign PlatformAdmin or HRAdmin roles
-        if (!User.IsInRole(PlatformRole.PlatformAdmin) &&
-            (role == PlatformRole.PlatformAdmin || role == PlatformRole.HRAdmin))
-        {
-            return StatusCode(StatusCodes.Status403Forbidden,
-                ApiResponse.Failure("You do not have permission to assign this role."));
-        }
-
-        // Platform Administrators hold zero customer memberships. Promoting an
-        // account that still participates in a tenant would create exactly the
-        // combination the control-plane boundary forbids, so it is refused rather
-        // than silently stripping the customer's access.
-        if (role == PlatformRole.PlatformAdmin)
-        {
-            var hasCustomerMembership = await _dbContext.TenantMemberships
-                .IgnoreQueryFilters()
-                .AnyAsync(membership => membership.UserId == user.Id);
-
-            if (hasCustomerMembership)
-            {
-                return StatusCode(StatusCodes.Status409Conflict,
-                    ApiResponse.Failure(
-                        "This account holds customer tenant membership and cannot be made a Platform Administrator. End its tenant membership first."));
-            }
-        }
-
-        var result = await _userManager.AddToRoleAsync(user, role);
-        if (!result.Succeeded)
-            return BadRequest(ApiResponse.Failure(
-                result.Errors.Select(e => e.Description).ToArray()));
-
-        // Fire-and-forget: provision/sync EmployeeProfile (name + email) in Training service
-        if (role == PlatformRole.Employee)
-            _ = _trainingClient.ProvisionEmployeeAsync(id, user.FullName, user.Email);
-
-        return Ok(ApiResponse.Success());
-    }
-
-    /// <summary>
-    /// Remove a role from a user.
-    /// </summary>
-    [HttpDelete("{id:guid}/roles/{role}")]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ApiResponse>> RemoveRole(Guid id, string role)
-    {
-        var user = await _userManager.FindByIdAsync(id.ToString());
-        if (user is null)
-            return NotFound(ApiResponse.Failure("User not found."));
-
-        // Managing a customer account requires the caller's own customer tenant
-        // context; the membership query filter scopes the lookup to that tenant.
-        if (User.GetTenantId() is null)
-            return NotFound(ApiResponse.Failure("User not found."));
-
-        // HRAdmin cannot remove PlatformAdmin or HRAdmin roles
-        if (!User.IsInRole(PlatformRole.PlatformAdmin) &&
-            (role == PlatformRole.PlatformAdmin || role == PlatformRole.HRAdmin))
-        {
-            return StatusCode(StatusCodes.Status403Forbidden,
-                ApiResponse.Failure("You do not have permission to remove this role."));
-        }
-
-        var result = await _userManager.RemoveFromRoleAsync(user, role);
-        if (!result.Succeeded)
-            return BadRequest(ApiResponse.Failure(
-                result.Errors.Select(e => e.Description).ToArray()));
-
-        return Ok(ApiResponse.Success());
-    }
 
     /// <summary>
     /// One-time backfill: re-syncs every existing Employee user's name + email into the Training

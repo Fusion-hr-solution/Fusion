@@ -111,10 +111,31 @@ public sealed class InternalServiceRequestAuthorizer(
             return false;
 
         request.EnableBuffering();
+
+        // The signature covers the body, so the body has to be re-readable here.
+        // If model binding already consumed a non-buffered stream, rewinding is
+        // impossible and this would hash nothing — which would let a caller sign
+        // an empty body and then send any payload it liked. Refuse instead.
+        //
+        // UseInternalServiceBodyBuffering() prevents this by enabling buffering
+        // before routing; this check is what makes forgetting it a loud failure
+        // rather than a silent hole.
+        if (!request.Body.CanSeek)
+        {
+            return false;
+        }
+
         request.Body.Position = 0;
         using var buffer = new MemoryStream();
         await request.Body.CopyToAsync(buffer, cancellationToken);
         request.Body.Position = 0;
+
+        if (buffer.Length == 0 && request.ContentLength > 0)
+        {
+            // Declared content that is no longer readable: same hazard as above.
+            return false;
+        }
+
         var bodyHash = Convert.ToHexStringLower(SHA256.HashData(buffer.ToArray()));
         var payload = string.Join('\n', caller, keyId, timestampText, nonce, request.Method, request.Path, bodyHash);
         var expected = HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(payload));

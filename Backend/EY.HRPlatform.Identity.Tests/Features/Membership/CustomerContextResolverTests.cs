@@ -84,19 +84,19 @@ public sealed class CustomerContextResolverTests
     }
 
     [Fact]
-    public async Task Inactive_membership_produces_no_customer_context()
+    public async Task Suspended_membership_produces_no_customer_context()
     {
         var (db, resolver, user) = await ArrangeAsync((context, account) =>
         {
             var membership = TenantMembership.Create(account.Id, TenantA);
-            membership.Deactivate();
+            membership.Suspend(actorUserId: null, reason: "Test suspension.");
             context.TenantMemberships.Add(membership);
         });
 
         await using var _ = db;
         var result = await resolver.ResolveAsync(user);
 
-        // Ending the relationship revokes tenant authority without deleting history.
+        // Suspension blocks tenant access without deleting the membership or its history.
         Assert.False(result.IsAuthoritative);
         Assert.Equal(CustomerContextDenial.NoActiveMembership, result.Denial);
     }

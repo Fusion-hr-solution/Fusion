@@ -111,7 +111,7 @@ public class TenantSaveChangesInterceptorTests
         var tenantCtx = TestTenantContext.WithTenant(TenantA);
         await using var ctx = TestDbContextFactory.CreateWithInterceptor(tenantCtx, dbName);
         var stored = await ctx.TenantMemberships.FirstAsync(item => item.Id == membershipId);
-        stored.Deactivate();
+        stored.Suspend(actorUserId: null);
 
         var saved = await ctx.SaveChangesAsync();
         Assert.Equal(1, saved);

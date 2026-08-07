@@ -1,30 +1,62 @@
 import {
   CUSTOMER_MODULES,
+  canAccessCoreAccess,
+  canViewTenantAdministration,
   resolveCustomerWorkspaceAccessState,
+  sanitizeInternalReturnPath,
   type AuthUser,
   type CustomerWorkspaceAccessState,
 } from "@repo/auth";
 
 export type CoreWorkspaceAccessState = CustomerWorkspaceAccessState;
 
+export function isTenantLevelCoreRoute(pathname: string): boolean {
+  const path = pathname.replace(/^\/core/, "") || "/";
+  return (
+    path === "/tenant-setup" ||
+    pathname === "/setup" ||
+    path === "/access" ||
+    path.startsWith("/access/")
+  );
+}
+
 export function buildCoreCallbackUrl(pathname: string, query: string): string {
+  const canonicalPath =
+    pathname === "/tenant-setup" || pathname === "/core/tenant-setup"
+      ? "/setup"
+      : pathname;
   const appPath =
-    pathname === "/"
+    canonicalPath === "/"
       ? "/core"
-      : pathname.startsWith("/core")
-        ? pathname
-        : `/core${pathname}`;
-  return `${appPath}${query ? `?${query}` : ""}`;
+      : canonicalPath.startsWith("/core") || canonicalPath === "/setup"
+        ? canonicalPath
+        : `/core${canonicalPath}`;
+  return sanitizeInternalReturnPath(`${appPath}${query ? `?${query}` : ""}`) ?? "/core";
 }
 
 export function resolveCoreWorkspaceAccessState(input: {
   isLoading: boolean;
   user: AuthUser | null;
+  pathname?: string;
 }): CoreWorkspaceAccessState {
-  // Direct entry is gated, not just navigation: reaching /core by URL still
-  // requires the tenant's Core HR entitlement.
-  return resolveCustomerWorkspaceAccessState({
-    ...input,
-    module: CUSTOMER_MODULES.coreHr,
+  const baseState = resolveCustomerWorkspaceAccessState({
+    isLoading: input.isLoading,
+    user: input.user,
+    module: input.pathname && isTenantLevelCoreRoute(input.pathname)
+      ? undefined
+      : CUSTOMER_MODULES.coreHr,
   });
+  if (baseState !== "allowed" || !input.pathname) return baseState;
+
+  const path = input.pathname.replace(/^\/core/, "") || "/";
+  if (
+    (path === "/tenant-setup" || input.pathname === "/setup") &&
+    !canViewTenantAdministration(input.user)
+  ) {
+    return "forbidden";
+  }
+  if ((path === "/access" || path.startsWith("/access/")) && !canAccessCoreAccess(input.user)) {
+    return "forbidden";
+  }
+  return "allowed";
 }

@@ -258,12 +258,9 @@ function OperationsSummary({
       icon={Activity}
       action={<DestinationLink href={operationsHref} label="Operations" />}
     >
-      <StatusGrid columns={1} className="gap-y-4">
-        <StatusBlock
-          label="Core HR setup"
-          value={setup ?? NOT_CONNECTED}
-          tone={setup ? "default" : "muted"}
-        />
+      {/* Side by side, so this card carries the same density as the two beside
+          it instead of a tall single column. */}
+      <StatusGrid>
         <StatusBlock
           // "Last": once an invitation is revoked or expired its delivery is
           // history, and an unqualified label would read as current.
@@ -282,6 +279,15 @@ function OperationsSummary({
                 ? "default"
                 : "muted"
           }
+        />
+        <StatusBlock
+          label="Core HR setup"
+          value={setup ?? NOT_CONNECTED}
+          // Without this the value reads as a fault on the tenant rather than a
+          // source Platform does not report from. The destination says the same
+          // thing; the summary should not drop the half that explains it.
+          hint={setup ? undefined : "Core HR owns this state."}
+          tone={setup ? "default" : "muted"}
         />
       </StatusGrid>
     </RecordSurface>

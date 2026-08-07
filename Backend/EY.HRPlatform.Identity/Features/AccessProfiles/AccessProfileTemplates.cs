@@ -88,52 +88,31 @@ public static class AccessProfileTemplates
             new(CorePermissions.AccessProfilesManageV2, PermissionScopes.Tenant),
         ]);
 
+    /// <summary>
+    /// The canonical Tenant Administrator definition for one tenant.
+    /// <para>
+    /// Its grants depend on the tenant's module entitlements, so it is composed per
+    /// tenant at seed and re-seed time rather than declared as a static template.
+    /// </para>
+    /// </summary>
+    public static SeededAccessProfileTemplate BuildTenantAdministrator(IEnumerable<string> enabledModuleKeys)
+        => new(
+            TenantAdministratorAuthority.InternalKey,
+            TenantAdministratorAuthority.DisplayName,
+            TenantAdministratorAuthority.Description,
+            TenantAdministratorAuthority.BuildGrants(enabledModuleKeys));
+
+    /// <summary>
+    /// Statically declared seeded profiles. The Tenant Administrator definition is
+    /// entitlement-dependent and is composed through
+    /// <see cref="BuildTenantAdministrator"/> instead.
+    /// </summary>
     public static IReadOnlyList<SeededAccessProfileTemplate> All => [Employee, Manager, HrAdmin, OrgAdmin];
 
     public static SeededAccessProfileTemplate? GetByInternalKey(string internalKey)
         => All.FirstOrDefault(t =>
             string.Equals(t.InternalKey, internalKey, StringComparison.Ordinal));
 
-    private static string PlatformRoleToInternalKey(string role) => role switch
-    {
-        PlatformRole.HRAdmin => "hr-admin",
-        PlatformRole.OrgAdmin => "org-admin",
-        _ => role.ToLowerInvariant()
-    };
-
-    public static IReadOnlyList<EffectivePermissionGrant> BuildLegacyFallbackGrants(IEnumerable<string> roles)
-    {
-        var effective = new Dictionary<string, EffectivePermissionGrant>(StringComparer.Ordinal);
-
-        foreach (var role in roles)
-        {
-            var internalKey = PlatformRoleToInternalKey(role);
-            var template = All.FirstOrDefault(candidate =>
-                string.Equals(candidate.Name, role, StringComparison.Ordinal)
-                || string.Equals(candidate.InternalKey, role, StringComparison.Ordinal)
-                || string.Equals(candidate.InternalKey, internalKey, StringComparison.Ordinal));
-            if (template is null)
-            {
-                continue;
-            }
-
-            foreach (var grant in template.Grants)
-            {
-                if (!effective.TryGetValue(grant.PermissionKey, out var current))
-                {
-                    effective[grant.PermissionKey] = grant;
-                    continue;
-                }
-
-                effective[grant.PermissionKey] =
-                    PermissionScopes.GetRank(grant.Scope) > PermissionScopes.GetRank(current.Scope)
-                        ? grant
-                        : current;
-            }
-        }
-
-        return effective.Values.ToList();
-    }
 
     /// <summary>
     /// Maps legacy/old profile names to their target internal key for migration.

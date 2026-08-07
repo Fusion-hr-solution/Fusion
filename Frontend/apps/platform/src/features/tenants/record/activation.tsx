@@ -13,7 +13,13 @@ import {
 } from "lucide-react";
 import { Button } from "@repo/ds/components/ui/button";
 import type { BootstrapInvitationSummary, TenantDetail } from "../api";
-import { DELIVERY_LABEL, INVITATION_LABEL, daysUntil, formatDate } from "../language";
+import {
+  DELIVERY_LABEL,
+  INVITATION_LABEL,
+  INVITATION_TONE,
+  daysUntil,
+  formatDate,
+} from "../language";
 import { ActivationProgression, type ActivationPhase } from "./activation-progression";
 import {
   FactTile,
@@ -358,7 +364,7 @@ export function InvitationFacts({
       <StatusBlock
         label="Invitation"
         value={INVITATION_LABEL[invitation.state]}
-        tone={isPending ? "default" : "attention"}
+        tone={INVITATION_TONE[invitation.state]}
       />
 
       {isPending ? (

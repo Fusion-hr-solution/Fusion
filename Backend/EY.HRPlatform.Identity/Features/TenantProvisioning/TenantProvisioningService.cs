@@ -74,7 +74,7 @@ public sealed class TenantProvisioningService(
                 tenant.Id,
                 actorAccountId,
                 BootstrapInvitationExpiryDays);
-            invitation.IssueBootstrapCredential(
+            invitation.IssueCredential(
                 credential.Selector,
                 BootstrapCredential.Digest(credential.Secret));
             dbContext.InviteTokens.Add(invitation);

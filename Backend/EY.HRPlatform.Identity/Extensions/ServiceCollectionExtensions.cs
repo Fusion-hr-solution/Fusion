@@ -5,6 +5,7 @@ using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Features.Accounts;
 using EY.HRPlatform.Identity.Features.Eligibility;
 using EY.HRPlatform.Identity.Features.Membership;
+using EY.HRPlatform.Identity.Features.TenantAdministration;
 using EY.HRPlatform.Identity.Features.TenantProvisioning;
 using EY.HRPlatform.Identity.Features.WorkforceAccounts;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
@@ -124,6 +125,16 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITenantActivityProjection, TenantActivityProjection>();
         services.AddScoped<IBootstrapActivationService, BootstrapActivationService>();
         services.AddScoped<IBootstrapInvitationDelivery, BootstrapInvitationDelivery>();
+
+        // Tenant administration and access.
+        services.AddScoped<ITenantContinuityCommandExecutor, TenantContinuityCommandExecutor>();
+        services.AddScoped<ITenantAdministratorLifecycleService, TenantAdministratorLifecycleService>();
+        services.AddScoped<IAdministratorInvitationService, AdministratorInvitationService>();
+        services.AddScoped<IAdministrativeInvitationDelivery, AdministrativeInvitationDelivery>();
+        services.AddScoped<IAdministrativeInvitationAcceptanceService, AdministrativeInvitationAcceptanceService>();
+        services.AddScoped<ITenantAccessProjection, TenantAccessProjection>();
+        services.AddScoped<ITenantContinuityHealthProjection, TenantContinuityHealthProjection>();
+        services.AddScoped<IPlatformAdministratorRecoveryService, PlatformAdministratorRecoveryService>();
         // Local capture retains the rendered message and reports Sent without
         // sending, and the files it writes carry the bootstrap credential. That is
         // acceptable for local demonstration and nowhere else, so it is

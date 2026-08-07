@@ -14,6 +14,8 @@ import {
   Label,
 } from "@repo/ui";
 import { useAuth } from "../auth-context";
+import { loadAuth } from "../auth-service";
+import { resolvePostSignInDestination } from "../routing";
 
 export interface SignInPageProps {
   /** Called after successful login or when already authenticated. Defaults to callbackUrl/next or "/" */
@@ -22,13 +24,8 @@ export interface SignInPageProps {
   signUpUrl?: string;
 }
 
-function isSafeInternalRedirect(path: string | null): path is string {
-  return Boolean(path && path.startsWith("/") && !path.startsWith("//"));
-}
-
-function resolveRedirectTarget(searchParams: Pick<URLSearchParams, "get">): string {
-  const candidate = searchParams.get("callbackUrl") ?? searchParams.get("next");
-  return isSafeInternalRedirect(candidate) ? candidate : "/";
+function intendedDestination(searchParams: Pick<URLSearchParams, "get">): string | null {
+  return searchParams.get("callbackUrl") ?? searchParams.get("next");
 }
 
 function navigateToRedirectTarget(target: string, mode: "push" | "replace") {
@@ -43,8 +40,8 @@ export function SignInPage({
   onSuccess,
 }: SignInPageProps) {
   const searchParams = useSearchParams();
-  const { login, isLoading: authLoading, isAuthenticated } = useAuth();
-  const redirectTarget = resolveRedirectTarget(searchParams);
+  const { login, user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const intended = intendedDestination(searchParams);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,10 +54,16 @@ export function SignInPage({
       if (onSuccess) {
         onSuccess();
       } else {
-        navigateToRedirectTarget(redirectTarget, "replace");
+        navigateToRedirectTarget(
+          resolvePostSignInDestination({
+            intendedDestination: intended,
+            user,
+          }) ?? "/",
+          "replace"
+        );
       }
     }
-  }, [authLoading, isAuthenticated, onSuccess, redirectTarget]);
+  }, [authLoading, intended, isAuthenticated, onSuccess, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +79,13 @@ export function SignInPage({
         if (onSuccess) {
           onSuccess();
         } else {
-          navigateToRedirectTarget(redirectTarget, "push");
+          navigateToRedirectTarget(
+            resolvePostSignInDestination({
+              intendedDestination: intended,
+              user: loadAuth()?.user ?? null,
+            }) ?? "/",
+            "push"
+          );
         }
       }
     } finally {

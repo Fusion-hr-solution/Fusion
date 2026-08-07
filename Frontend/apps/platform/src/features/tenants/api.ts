@@ -337,6 +337,7 @@ export function failureMessage(error: unknown): string | null {
 
 export type RecoveryStatusValue =
   | "NotRequired"
+  | "AwaitingAdministratorActivation"
   | "Required"
   | "Pending"
   | "Completed"

@@ -45,6 +45,12 @@ export type ActivationOutcome =
    * recipient to try again at a link that will never work again.
    */
   | "not_activatable"
+
+  /**
+   * The administrator and recovery journeys' equivalent of `not_activatable`:
+   * revalidation under the lock found the invitation no longer acceptable.
+   */
+  | "not_acceptable"
   | "unavailable";
 
 export interface TerminalState {
@@ -251,4 +257,132 @@ export function scrubbedUrl(href: string): string | null {
   } catch {
     return null;
   }
+}
+
+
+/**
+ * What differs between the three ways someone arrives at an administrator
+ * account: the tenant's first activation, an invitation from an existing
+ * administrator, and Platform-assisted recovery.
+ *
+ * They share one journey deliberately. The recipient's task is identical —
+ * prove the link, create an account, land in the tenant — and giving each its
+ * own authentication design would mean three places for a security-relevant
+ * flow to drift apart. Only the words and the endpoint change.
+ */
+export interface ActivationJourney {
+  /** Read-only inspection of the credential (GET, with `?credential=`). */
+  inspectPath: string;
+
+  /** Account creation and session handoff (POST). */
+  acceptPath: string;
+
+  /** Where the new administrator lands once the session is established. */
+  destination: string;
+
+  /** The line above the tenant name on the context panel. */
+  contextLead: string;
+
+  /** Why this person is here, in one sentence. */
+  contextBody: string;
+
+  /** The form heading. */
+  formHeading: string;
+
+  /**
+   * Copy for stopping points where this journey has to say something different
+   * from the tenant's first activation. Anything omitted falls through to the
+   * shared wording.
+   */
+  terminalOverrides?: Partial<Record<ActivationOutcome, TerminalState>>;
+}
+
+/** The tenant's first administrator, from Platform provisioning. */
+export const BOOTSTRAP_JOURNEY: ActivationJourney = {
+  inspectPath: "/api/identity/tenant-activation",
+  acceptPath: "/api/identity/tenant-activation",
+  // Canonical tenant-level setup, reached only after the tenant-scoped session
+  // exists — this is the handoff, not a success screen.
+  destination: "/setup",
+  contextLead: "Create administrator access for",
+  contextBody:
+    "You have been invited to become this tenant's first administrator. Create your account to continue.",
+  formHeading: "Create your administrator account",
+};
+
+/** An additional administrator, invited by an existing one. */
+export const ADMINISTRATOR_JOURNEY: ActivationJourney = {
+  inspectPath: "/api/identity/tenant-access/invitations/inspect",
+  acceptPath: "/api/identity/tenant-access/invitations/accept",
+  destination: "/core/access",
+  contextLead: "Create administrator access for",
+  contextBody:
+    "You have been invited to administer this tenant. Create your account to continue.",
+  formHeading: "Create your administrator account",
+  terminalOverrides: {
+    expired: {
+      title: "This invitation has expired",
+      detail:
+        "No account was created. Contact the Tenant Administrator who invited you to request another invitation.",
+    },
+    revoked: {
+      title: "This invitation was revoked",
+      detail: "It can no longer be accepted, and no account was created.",
+    },
+    existing_account: {
+      title: "An account already exists for this address",
+      detail:
+        "This email already belongs to a Fusion account and cannot complete this new-account invitation. " +
+        "Contact the administrator who invited you so they can send it to a different address.",
+    },
+  },
+};
+
+/**
+ * Platform-assisted recovery, when a tenant has lost every administrator.
+ *
+ * The recipient needs to understand two things the ordinary journey does not
+ * say: that this restores administration the customer controls, and that
+ * Platform operators get nothing from it.
+ */
+export const RECOVERY_JOURNEY: ActivationJourney = {
+  inspectPath: "/api/identity/tenant-access/invitations/inspect",
+  acceptPath: "/api/identity/tenant-access/invitations/accept",
+  destination: "/setup",
+  contextLead: "Recover administrator access for",
+  contextBody:
+    "This tenant has no administrator who can sign in. Completing this restores customer-controlled " +
+    "administration. Fusion Platform operators do not receive access to this tenant.",
+  formHeading: "Create your administrator account",
+  terminalOverrides: {
+    expired: {
+      title: "This recovery invitation has expired",
+      detail:
+        "No account was created and administrator access has not been recovered. Contact Fusion support to start recovery again.",
+    },
+    revoked: {
+      title: "This recovery invitation was cancelled",
+      detail:
+        "No account was created and administrator access has not been recovered.",
+    },
+    already_accepted: {
+      title: "Administrator access has already been recovered",
+      detail: "This tenant is administered again.",
+      action: { label: "Sign in", href: "/auth/signin" },
+    },
+    existing_account: {
+      title: "An account already exists for this address",
+      detail:
+        "Recovery creates a new administrator account, so it cannot use an address that is already registered. " +
+        "Contact Fusion support so recovery can be sent to a different address.",
+    },
+  },
+};
+
+/** The stopping-point copy for one journey, with its overrides applied. */
+export function journeyTerminalState(
+  journey: ActivationJourney,
+  outcome: ActivationOutcome
+): TerminalState {
+  return journey.terminalOverrides?.[outcome] ?? terminalState(outcome);
 }

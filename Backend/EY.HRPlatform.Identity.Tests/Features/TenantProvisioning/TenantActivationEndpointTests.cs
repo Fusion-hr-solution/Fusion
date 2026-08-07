@@ -322,7 +322,7 @@ public sealed class TenantActivationEndpointTests : IAsyncLifetime
         var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
         Assert.Single(await db.Users.IgnoreQueryFilters().ToListAsync());
         Assert.Single(await db.TenantMemberships.IgnoreQueryFilters().ToListAsync());
-        Assert.Single(await db.UserAccessProfiles.IgnoreQueryFilters().ToListAsync());
+        Assert.Single(await db.TenantAdministratorAssignments.IgnoreQueryFilters().ToListAsync());
     }
 
     [SkippableFact]
@@ -346,7 +346,7 @@ public sealed class TenantActivationEndpointTests : IAsyncLifetime
         using var scope = factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppIdentityDbContext>();
         Assert.Empty(await db.TenantMemberships.IgnoreQueryFilters().ToListAsync());
-        Assert.Empty(await db.UserAccessProfiles.IgnoreQueryFilters().ToListAsync());
+        Assert.Empty(await db.TenantAdministratorAssignments.IgnoreQueryFilters().ToListAsync());
     }
 
     [SkippableFact]
@@ -464,7 +464,6 @@ public sealed class TenantActivationEndpointTests : IAsyncLifetime
             builder.UseSetting("Jwt:Audience", "fusion-tests");
             builder.UseSetting("Jwt:ExpirationInMinutes", "30");
             builder.UseSetting("Jwt:RefreshTokenExpirationInDays", "7");
-            builder.UseSetting("Database:AutoSeed", "false");
             builder.UseSetting("Application:PublicBaseUrl", "http://localhost:3000");
             builder.UseSetting(
                 $"{BootstrapInvitationCaptureOptions.SectionName}:Directory",

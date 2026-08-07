@@ -2,6 +2,7 @@ using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
 using EY.HRPlatform.Identity.Features.Accounts;
+using EY.HRPlatform.Identity.Features.TenantAdministration;
 using EY.HRPlatform.Identity.Features.TenantProvisioning;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Auth;
@@ -68,10 +69,14 @@ public sealed class BootstrapActivationTests : IAsyncLifetime
         var tenant = await db.Tenants.IgnoreQueryFilters().SingleAsync(t => t.Id == tenantId);
         Assert.Equal(TenantAdministratorActivationStatus.Active, tenant.AdministratorActivationStatus);
 
-        // Access is membership-bound, not account-bound.
-        var access = Assert.Single(await db.UserAccessProfiles.IgnoreQueryFilters()
+        // Authority is the canonical assignment, membership-bound rather than
+        // account-bound, and it is the same record later administrator management
+        // reads — bootstrap does not establish a separate administrator concept.
+        var authority = Assert.Single(await db.TenantAdministratorAssignments.IgnoreQueryFilters()
             .Where(a => a.TenantId == tenantId).ToListAsync());
-        Assert.Equal(membership.Id, access.TenantMembershipId);
+        Assert.Equal(membership.Id, authority.TenantMembershipId);
+        Assert.True(authority.IsActive);
+        Assert.Equal(TenantAdministratorGrantActor.BootstrapActivation, authority.GrantedByActorType);
 
         var invitation = await db.InviteTokens.IgnoreQueryFilters().SingleAsync(i => i.TenantId == tenantId);
         Assert.Equal(InvitationState.Accepted, invitation.State);
@@ -83,7 +88,8 @@ public sealed class BootstrapActivationTests : IAsyncLifetime
         // The detailed permission change is recorded in the existing access audit,
         // not only as a bootstrap outcome.
         Assert.Single(await db.AccessAuditEvents.IgnoreQueryFilters()
-            .Where(a => a.TenantId == tenantId && a.Action == "access.assignment.granted").ToListAsync());
+            .Where(a => a.TenantId == tenantId
+                && a.Action == AccessAuditActions.AuthorityRecognized).ToListAsync());
     }
 
     // ── Existing-account conflict ────────────────────────
@@ -362,7 +368,7 @@ public sealed class BootstrapActivationTests : IAsyncLifetime
             .Where(u => u.NormalizedEmail == InvitedEmail.ToUpperInvariant()).ToListAsync());
         Assert.Single(await db.TenantMemberships.IgnoreQueryFilters()
             .Where(m => m.TenantId == tenantId).ToListAsync());
-        Assert.Single(await db.UserAccessProfiles.IgnoreQueryFilters()
+        Assert.Single(await db.TenantAdministratorAssignments.IgnoreQueryFilters()
             .Where(a => a.TenantId == tenantId).ToListAsync());
         Assert.Single(await db.TenantBootstrapAuditEvents.IgnoreQueryFilters()
             .Where(a => a.TenantId == tenantId
@@ -427,7 +433,7 @@ public sealed class BootstrapActivationTests : IAsyncLifetime
             .Where(u => u.NormalizedEmail == InvitedEmail.ToUpperInvariant()).ToListAsync());
         Assert.Single(await db.TenantMemberships.IgnoreQueryFilters()
             .Where(m => m.TenantId == tenantId).ToListAsync());
-        Assert.Single(await db.UserAccessProfiles.IgnoreQueryFilters()
+        Assert.Single(await db.TenantAdministratorAssignments.IgnoreQueryFilters()
             .Where(a => a.TenantId == tenantId).ToListAsync());
     }
 
@@ -498,7 +504,7 @@ public sealed class BootstrapActivationTests : IAsyncLifetime
 
         Assert.Single(await db.TenantMemberships.IgnoreQueryFilters()
             .Where(m => m.TenantId == tenantId).ToListAsync());
-        Assert.Single(await db.UserAccessProfiles.IgnoreQueryFilters()
+        Assert.Single(await db.TenantAdministratorAssignments.IgnoreQueryFilters()
             .Where(a => a.TenantId == tenantId).ToListAsync());
         Assert.Single(await db.TenantBootstrapAuditEvents.IgnoreQueryFilters()
             .Where(a => a.TenantId == tenantId
@@ -598,7 +604,7 @@ public sealed class BootstrapActivationTests : IAsyncLifetime
     {
         Assert.Empty(await db.TenantMemberships.IgnoreQueryFilters()
             .Where(m => m.TenantId == tenantId).ToListAsync());
-        Assert.Empty(await db.UserAccessProfiles.IgnoreQueryFilters()
+        Assert.Empty(await db.TenantAdministratorAssignments.IgnoreQueryFilters()
             .Where(a => a.TenantId == tenantId).ToListAsync());
 
         var tenant = await db.Tenants.IgnoreQueryFilters().SingleAsync(t => t.Id == tenantId);

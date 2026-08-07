@@ -5,6 +5,13 @@ namespace EY.HRPlatform.Identity.Domain.Entities;
 
 public class AccessAuditEvent : BaseEntity, ITenantEntity
 {
+    /// <summary>
+    /// Stored when a command supplied no actor name. Most commands hold a user id
+    /// rather than an account, so this is the normal stored value and readers
+    /// resolve the person from <see cref="ActorUserId"/> instead of printing it.
+    /// </summary>
+    public const string UnresolvedActor = "Unknown";
+
     private AccessAuditEvent() { }
 
     public Guid TenantId { get; private set; }
@@ -47,8 +54,8 @@ public class AccessAuditEvent : BaseEntity, ITenantEntity
             TenantId = tenantId,
             OccurredAt = DateTime.UtcNow,
             ActorUserId = actorUserId,
-            ActorName = string.IsNullOrWhiteSpace(actorName) ? "Unknown" : actorName.Trim(),
-            ActorRole = string.IsNullOrWhiteSpace(actorRole) ? "Unknown" : actorRole.Trim(),
+            ActorName = string.IsNullOrWhiteSpace(actorName) ? UnresolvedActor : actorName.Trim(),
+            ActorRole = string.IsNullOrWhiteSpace(actorRole) ? UnresolvedActor : actorRole.Trim(),
             Action = action.Trim(),
             ResourceType = resourceType.Trim(),
             ResourceId = string.IsNullOrWhiteSpace(resourceId) ? null : resourceId.Trim(),

@@ -1,4 +1,5 @@
 using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.Identity.Features.TenantAdministration;
 using EY.HRPlatform.Identity.Models.Requests;
 using EY.HRPlatform.Identity.Models.Responses;
 using EY.HRPlatform.SharedKernel.Auth;
@@ -16,6 +17,7 @@ namespace EY.HRPlatform.Identity.Controllers;
 public sealed class CoreAccessController(
     IAccessProfileService accessProfileService,
     IAccessAuditService accessAuditService,
+    ITenantContinuityCommandExecutor continuity,
     ITenantContext tenantContext) : ControllerBase
 {
     [HttpGet("me")]
@@ -31,7 +33,8 @@ public sealed class CoreAccessController(
 
         var user = new Domain.Entities.ApplicationUser
         {
-            Id = userId,
+            Id = userId,
+
             Email = User.GetEmail(),
             FirstName = User.GetFullName(),
             LastName = string.Empty,
@@ -298,11 +301,28 @@ public sealed class CoreAccessController(
         {
             var before = (await accessProfileService.GetUserAssignmentsAsync(tenantId.Value, cancellationToken))
                 .FirstOrDefault(assignment => assignment.UserId == userId);
-            var response = await accessProfileService.SetUserAccessProfilesAsync(
+            // Reassigning access profiles can change what a person can do in this
+            // tenant, so it is serialized with every other authority-affecting
+            // command. Without this, two administrators could each reassign the
+            // other's profiles concurrently and the continuity check would never
+            // see the combined result.
+            var outcome = await continuity.ExecuteAsync(
                 tenantId.Value,
-                userId,
-                request.AccessProfileIds,
+                User.GetUserId(),
+                async _ => ContinuityResult<UserAccessAssignmentDto>.Ok(
+                    await accessProfileService.SetUserAccessProfilesAsync(
+                        tenantId.Value, userId, request.AccessProfileIds, cancellationToken)),
                 cancellationToken);
+
+            if (!outcome.Succeeded)
+            {
+                return Conflict(ApiResponse<UserAccessAssignmentDto>.Failure(
+                    outcome.Failure == ContinuityFailure.FinalAdministrator
+                        ? "This change would leave the tenant without a usable Tenant Administrator."
+                        : outcome.Reason ?? "That change could not be applied."));
+            }
+
+            var response = outcome.Value!;
 
             await accessAuditService.RecordAsync(
                 tenantId.Value,
@@ -347,11 +367,23 @@ public sealed class CoreAccessController(
             var before = (await accessProfileService.GetUserAssignmentsAsync(tenantId.Value, cancellationToken))
                 .Where(assignment => request.UserIds.Contains(assignment.UserId))
                 .ToList();
-            var response = await accessProfileService.SetUserAccessProfilesBulkAsync(
+            var outcome = await continuity.ExecuteAsync(
                 tenantId.Value,
-                request.UserIds,
-                request.AccessProfileIds,
+                User.GetUserId(),
+                async _ => ContinuityResult<IReadOnlyList<UserAccessAssignmentDto>>.Ok(
+                    await accessProfileService.SetUserAccessProfilesBulkAsync(
+                        tenantId.Value, request.UserIds, request.AccessProfileIds, cancellationToken)),
                 cancellationToken);
+
+            if (!outcome.Succeeded)
+            {
+                return Conflict(ApiResponse<IReadOnlyList<UserAccessAssignmentDto>>.Failure(
+                    outcome.Failure == ContinuityFailure.FinalAdministrator
+                        ? "This change would leave the tenant without a usable Tenant Administrator."
+                        : outcome.Reason ?? "That change could not be applied."));
+            }
+
+            var response = outcome.Value!;
 
             await accessAuditService.RecordAsync(
                 tenantId.Value,

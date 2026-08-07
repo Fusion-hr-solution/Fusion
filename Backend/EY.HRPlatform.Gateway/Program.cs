@@ -1,5 +1,6 @@
 using System.Text;
 using EY.HRPlatform.Gateway.Middleware;
+using EY.HRPlatform.SharedKernel.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 
@@ -38,6 +39,40 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+// The Gateway asks Identity whether an authenticated customer token still carries
+// tenant authority. It signs those calls with the same rotating-HMAC scheme the
+// other internal service-to-service calls already use.
+var internalServiceAuthentication = builder.Configuration
+    .GetSection(InternalServiceAuthenticationOptions.SectionName)
+    .Get<InternalServiceAuthenticationOptions>() ?? new InternalServiceAuthenticationOptions();
+// Validated at startup rather than discovered per request. The authority check
+// fails closed, so a missing signing key would take down every authenticated
+// customer request with an opaque "authority unavailable" — a configuration
+// mistake presenting as a total outage. Refusing to start says what is wrong.
+if (string.IsNullOrWhiteSpace(internalServiceAuthentication.CallerName)
+    || string.IsNullOrWhiteSpace(internalServiceAuthentication.ActiveKeyId)
+    || !internalServiceAuthentication.Keys.TryGetValue(
+        internalServiceAuthentication.ActiveKeyId, out var activeKey)
+    || string.IsNullOrWhiteSpace(activeKey))
+{
+    throw new InvalidOperationException(
+        $"{InternalServiceAuthenticationOptions.SectionName} must configure CallerName, ActiveKeyId, "
+        + "and the matching signing key. The Gateway validates tenant access with Identity on every "
+        + "authenticated customer request and denies the request when it cannot, so without this "
+        + "configuration no customer request can succeed.");
+}
+
+builder.Services.AddSingleton<IInternalServiceRequestSigner>(
+    _ => new InternalServiceRequestSigner(internalServiceAuthentication));
+
+builder.Services.AddHttpClient("identity-authority", client =>
+{
+    // Short: this call sits on the hot path of every authenticated customer
+    // request, and a slow answer must fail closed quickly rather than hold the
+    // request open.
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
+
 // CORS — allow Next.js frontend
 builder.Services.AddCors(options =>
 {
@@ -62,6 +97,11 @@ app.MapHealthChecks("/health").AllowAnonymous();
 app.UseCors("AllowFrontend");
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseAuthentication();
+
+// After authentication so the token's claims are available, and before the proxy
+// so a request that lost its authority never reaches a downstream service.
+app.UseMiddleware<TenantAuthorityGateMiddleware>();
+
 app.UseAuthorization();
 app.MapReverseProxy();
 

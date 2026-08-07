@@ -497,12 +497,17 @@ public sealed class TenantMembershipMigrationTests : IAsyncLifetime
     private static async Task SeedAccessAssignmentAsync(AppIdentityDbContext dbContext, Guid tenantId, Guid accountId)
     {
         var profileId = Guid.NewGuid();
-        var profileName = $"Org Admin {profileId.ToString()[..8]}";
+
+        // Seeded as the administrator profile a real tenant of this era carried.
+        // Anonymising the name would describe a tenant with members and no
+        // identifiable administrator, which the canonical-authority migration
+        // deliberately refuses to convert.
+        const string profileName = "Org Admin";
         await dbContext.Database.ExecuteSqlRawAsync($"""
             INSERT INTO identity."AccessProfiles"
-                ("Id","TenantId","Name","NormalizedName","Description","Type","IsSystemProtected","CreatedAt")
+                ("Id","TenantId","Name","NormalizedName","Description","Type","IsSystemProtected","InternalKey","CreatedAt")
             VALUES ('{profileId}', '{tenantId}', '{profileName}', '{profileName.ToUpperInvariant()}',
-                    'test', 'SystemSeeded', true, now());
+                    'test', 'SystemSeeded', true, 'org-admin', now());
             """);
 
         await dbContext.Database.ExecuteSqlRawAsync($"""

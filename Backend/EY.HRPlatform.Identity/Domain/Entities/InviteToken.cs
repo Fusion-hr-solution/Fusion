@@ -311,15 +311,20 @@ public class InviteToken : ITenantEntity
     }
 
     /// <summary>
-    /// Issues or rotates the hash-only organization-bootstrap credential. Only the
-    /// selector and digest are retained; the caller keeps the raw secret just long
-    /// enough to build the delivery link.
+    /// Issues or rotates the hash-only credential. Only the selector and digest are
+    /// retained; the caller keeps the raw secret just long enough to build the
+    /// delivery link.
+    /// <para>
+    /// Rotating replaces the selector, so the previously delivered link stops
+    /// resolving the moment this commits. That is what makes a resend invalidate
+    /// the old link rather than merely extending it.
+    /// </para>
     /// </summary>
-    public void IssueBootstrapCredential(string selector, string digest, DateTime? issuedAt = null)
+    public void IssueCredential(string selector, string digest, DateTime? issuedAt = null)
     {
-        if (Purpose != InvitationPurpose.OrganizationBootstrap)
+        if (!InvitationPurposes.IsCredentialBearing(Purpose))
             throw new InvalidOperationException(
-                "Bootstrap credentials apply only to organization-bootstrap invitations.");
+                $"Hash-only credentials do not apply to {Purpose} invitations.");
 
         if (string.IsNullOrWhiteSpace(selector))
             throw new ArgumentException("Credential selector is required.", nameof(selector));
@@ -404,6 +409,45 @@ public class InviteToken : ITenantEntity
             Purpose = InvitationPurpose.OrganizationBootstrap,
             Email = email.Trim().ToLowerInvariant(),
             TenantId = tenantId,
+            Role = PlatformRole.OrgAdmin,
+            ExpiresAt = DateTime.UtcNow.AddDays(expiryDays),
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = createdByUserId,
+        };
+    }
+
+    /// <summary>
+    /// Creates an administrative or recovery invitation for a tenant that is
+    /// already active. Like bootstrap it carries no legacy raw token; the caller
+    /// issues a selector plus digest credential.
+    /// </summary>
+    public static InviteToken CreateAdministrative(
+        string email,
+        Guid tenantId,
+        Guid createdByUserId,
+        InvitationPurpose purpose,
+        int expiryDays = 7)
+    {
+        if (!InvitationPurposes.IsAdministrative(purpose))
+            throw new ArgumentException(
+                $"{purpose} is not an administrative invitation purpose.", nameof(purpose));
+
+        ValidateEmail(email);
+        ValidateTenantId(tenantId);
+        ValidateCreatedBy(createdByUserId);
+        ValidateExpiryDays(expiryDays);
+
+        return new InviteToken
+        {
+            Id = Guid.NewGuid(),
+            Token = null,
+            Purpose = purpose,
+            Email = email.Trim().ToLowerInvariant(),
+            TenantId = tenantId,
+
+            // Role is legacy compatibility data on this entity. Authority comes
+            // from the canonical Tenant Administrator assignment created at
+            // acceptance, never from this field.
             Role = PlatformRole.OrgAdmin,
             ExpiresAt = DateTime.UtcNow.AddDays(expiryDays),
             CreatedAt = DateTime.UtcNow,

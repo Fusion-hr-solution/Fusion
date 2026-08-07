@@ -3,6 +3,7 @@ using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using EY.HRPlatform.SharedKernel.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,7 +43,19 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddHealthChecks();
 
+// Customer traffic reaches this service only through the Gateway, which is where
+// withdrawn tenant access is enforced per request. Refuse to start somewhere it
+// could be reached around that.
+GatewayOnlyBindingGuard.Verify(
+    "Performance",
+    builder.Configuration["Urls"] ?? builder.Configuration["ASPNETCORE_URLS"],
+    builder.Configuration);
+
 var app = builder.Build();
+
+// Before routing and model binding: signatures on internal routes are
+// body-bound, and a request stream can only be read once.
+app.UseInternalServiceBodyBuffering();
 
 app.UseAuthentication();
 app.UseAuthorization();

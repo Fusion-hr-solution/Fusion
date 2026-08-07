@@ -1,7 +1,10 @@
-import { canAccessPlatform } from "@repo/auth";
+import { resolveDefaultProductDestination } from "@repo/auth";
 import type { AuthUser } from "@repo/auth";
 
-export type ShellEntryState = "loading" | "platform" | "home";
+export type ShellEntryState =
+  | { kind: "loading" }
+  | { kind: "redirect"; destination: string }
+  | { kind: "no-usable-context" };
 
 export function resolveShellEntryState({
   isLoading,
@@ -11,8 +14,11 @@ export function resolveShellEntryState({
   user: AuthUser | null;
 }): ShellEntryState {
   if (isLoading) {
-    return "loading";
+    return { kind: "loading" };
   }
 
-  return canAccessPlatform(user) ? "platform" : "home";
+  const destination = resolveDefaultProductDestination(user);
+  return destination
+    ? { kind: "redirect", destination }
+    : { kind: "no-usable-context" };
 }

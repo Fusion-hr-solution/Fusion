@@ -2,18 +2,30 @@ import { describe, expect, it } from "vitest";
 import type { AuthUser } from "@repo/auth";
 import { resolveShellEntryState } from "./shell-entry";
 
-function makeUser(roles: string[]): AuthUser {
+function grant(permissionKey: string): AuthUser["effectivePermissions"][number] {
+  return {
+    permissionKey,
+    scope: "Tenant",
+    label: permissionKey,
+    group: "Test",
+    helperText: null,
+    allowedScopes: ["Tenant"],
+  };
+}
+
+function makeUser(roles: string[], overrides: Partial<AuthUser> = {}): AuthUser {
   return {
     userId: "user-1",
-    tenantId: "",
-  tenantMembershipId: "membership-1",
-  moduleEntitlements: ["CoreHR", "Performance"],
+    tenantId: "tenant-1",
+    tenantMembershipId: "membership-1",
+    moduleEntitlements: ["CoreHR", "Performance"],
     email: "user@example.com",
     fullName: "Test User",
     roles,
     employeeId: null,
     accessProfiles: [],
     effectivePermissions: [],
+    ...overrides,
   };
 }
 
@@ -22,35 +34,58 @@ describe("resolveShellEntryState", () => {
     expect(
       resolveShellEntryState({
         isLoading: true,
-        user: makeUser(["PlatformAdmin"]),
+        user: makeUser(["PlatformAdmin"], {
+          tenantId: null,
+          tenantMembershipId: null,
+          moduleEntitlements: [],
+        }),
       }),
-    ).toBe("loading");
+    ).toEqual({ kind: "loading" });
   });
 
   it("routes platform administrators to the control plane", () => {
     expect(
       resolveShellEntryState({
         isLoading: false,
-        user: makeUser(["PlatformAdmin"]),
+        user: makeUser(["PlatformAdmin"], {
+          tenantId: null,
+          tenantMembershipId: null,
+          moduleEntitlements: [],
+        }),
       }),
-    ).toBe("platform");
+    ).toEqual({ kind: "redirect", destination: "/platform" });
   });
 
-  it("preserves the current home for tenant users", () => {
+  it("routes Tenant Administrators to tenant setup", () => {
     expect(
       resolveShellEntryState({
         isLoading: false,
-        user: makeUser(["HRAdmin"]),
+        user: makeUser(["HRAdmin"], {
+          effectivePermissions: [grant("access.assignments.view")],
+        }),
       }),
-    ).toBe("home");
+    ).toEqual({ kind: "redirect", destination: "/setup" });
   });
 
-  it("does not manufacture a Platform card for other accounts", () => {
+  it("routes another tenant user to a usable product destination", () => {
     expect(
       resolveShellEntryState({
         isLoading: false,
-        user: makeUser([]),
+        user: makeUser([], {
+          effectivePermissions: [grant("core.employee.view")],
+        }),
       }),
-    ).toBe("home");
+    ).toEqual({ kind: "redirect", destination: "/core/employees" });
+  });
+
+  it("shows an explicit state instead of the developer catalogue without usable access", () => {
+    expect(resolveShellEntryState({
+      isLoading: false,
+      user: makeUser([], {
+        tenantId: null,
+        tenantMembershipId: null,
+        moduleEntitlements: [],
+      }),
+    })).toEqual({ kind: "no-usable-context" });
   });
 });

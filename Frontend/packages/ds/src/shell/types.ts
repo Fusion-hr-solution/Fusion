@@ -8,6 +8,12 @@ export interface ShellNavItem {
   href: string;
   /** Full link target if it differs from `${basePath}${href}` (e.g. with tenant-context query). */
   navigateHref?: string;
+  /**
+   * Target sits outside this app's basePath — a tenant-level destination rather
+   * than a module one. Rendered as a plain anchor, because `Link` would prefix
+   * the basePath and silently point at a different page.
+   */
+  shellRoute?: boolean;
   icon: LucideIcon;
   badge?: string | number;
   disabled?: boolean;

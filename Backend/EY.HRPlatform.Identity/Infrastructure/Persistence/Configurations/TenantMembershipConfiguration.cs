@@ -21,6 +21,29 @@ public class TenantMembershipConfiguration : IEntityTypeConfiguration<TenantMemb
         builder.Property(membership => membership.CreatedAt)
             .IsRequired();
 
+        // Maps Version onto the PostgreSQL xmin system column, the same way the
+        // other concurrency-checked entities in this platform do. PostgreSQL
+        // maintains it per row, so no column is added.
+        builder.Property(membership => membership.Version).IsRowVersion();
+
+        builder.Property(membership => membership.AccessRevision)
+            .IsRequired()
+            .HasDefaultValue(1);
+
+        builder.Property(membership => membership.SuspensionReason)
+            .HasMaxLength(256);
+
+        // Answers the per-request authority check from one index: the Gateway
+        // presents an account, a tenant, a membership, and a revision, and this
+        // covers every column that decision reads.
+        builder.HasIndex(membership => new
+        {
+            membership.UserId,
+            membership.TenantId,
+            membership.Status,
+            membership.AccessRevision,
+        }).HasDatabaseName("IX_TenantMemberships_AuthorityState");
+
         // At most one membership per account/tenant pair.
         builder.HasIndex(membership => new { membership.UserId, membership.TenantId })
             .IsUnique()

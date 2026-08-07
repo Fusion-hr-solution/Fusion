@@ -288,6 +288,25 @@ export function canManageCoreAccess(user: AuthUser | null): boolean {
   );
 }
 
+/**
+ * Reading the tenant's administrators, invitations, and access activity.
+ *
+ * Deliberately narrower than {@link canAccessCoreAccess}: that also accepts the
+ * workforce-invitation permissions, which say nothing about who may see how the
+ * tenant is administered.
+ */
+export function canViewTenantAdministration(user: AuthUser | null): boolean {
+  return (
+    hasCorePermission(user, CORE_PERMISSION.accessAssignmentsView, "Tenant") ||
+    hasCorePermission(user, CORE_PERMISSION.accessAssignmentsManage, "Tenant")
+  );
+}
+
+/** Inviting, suspending, reactivating, and changing Tenant Administrator authority. */
+export function canManageTenantAdministration(user: AuthUser | null): boolean {
+  return hasCorePermission(user, CORE_PERMISSION.accessAssignmentsManage, "Tenant");
+}
+
 export function canSeeCoreAccessNavigation(user: AuthUser | null): boolean {
   return canAccessCoreAccess(user) || canViewCoreAccessProfiles(user);
 }

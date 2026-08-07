@@ -31,6 +31,8 @@ export {
   hasAnyRole,
   canAccessPlatform,
   hasCorePermission,
+  canViewTenantAdministration,
+  canManageTenantAdministration,
   hasAnyCorePermission,
   canAccessCoreSetup,
   canAccessCoreSettings,
@@ -62,9 +64,18 @@ export {
 } from "./customer-workspace-access";
 export type { CustomerModule } from "./customer-workspace-access";
 export type { CustomerWorkspaceAccessState } from "./customer-workspace-access";
+export {
+  getTrustedShellOrigin,
+  sanitizeInternalReturnPath,
+  resolveDefaultProductDestination,
+  resolvePostSignInDestination,
+} from "./routing";
 
 // Components
-export { SidebarUserPanel } from "./components/sidebar-user-panel";
+export {
+  SidebarUserPanel,
+  getSidebarAccountLabel,
+} from "./components/sidebar-user-panel";
 export { SignInPage } from "./components/signin-page";
 export type { SignInPageProps } from "./components/signin-page";
 export { SignUpPage } from "./components/signup-page";
