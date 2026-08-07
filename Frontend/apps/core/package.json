@@ -18,7 +18,6 @@
     "@repo/api": "workspace:*",
     "@repo/auth": "workspace:*",
     "@repo/ds": "workspace:*",
-    "@repo/ui": "workspace:*",
     "@tanstack/react-query": "^5.90.5",
     "@tanstack/react-table": "^8.21.3",
     "@xyflow/react": "^12.10.2",

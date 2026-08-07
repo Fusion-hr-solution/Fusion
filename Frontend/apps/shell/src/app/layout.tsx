@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { TopLoader } from "@repo/ui";
-import "@repo/ui/src/ey-brand.css";
+import { Suspense } from "react";
 import "./globals.css";
+import { PageProgressBar } from "../components/page-progress-bar";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
@@ -20,8 +20,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased">
-        <TopLoader />
+      <body className="min-h-screen bg-background text-foreground font-sans antialiased">
+        <Suspense fallback={null}>
+          <PageProgressBar />
+        </Suspense>
         <Providers>{children}</Providers>
       </body>
     </html>

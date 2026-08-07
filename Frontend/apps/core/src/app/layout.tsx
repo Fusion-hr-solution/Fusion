@@ -4,9 +4,8 @@ import "./globals.css";
 import { PageProgressBar } from "../components/page-progress-bar";
 import { Providers } from "./providers";
 
-// Note: @repo/ui's ey-brand.css is intentionally NOT imported here — its HSL token set
-// (older preset b6GMQMg0f) would clobber the @repo/ds oklch preset tokens. Core/Perf theme
-// comes solely from @repo/ds/tokens.css.
+// Core theme comes solely from @repo/ds/tokens.css (oklch tokens). Do not import a
+// competing HSL token sheet here — it would clobber the @repo/ds preset tokens.
 
 export const metadata: Metadata = {
   title: "Core HR — Fusion",

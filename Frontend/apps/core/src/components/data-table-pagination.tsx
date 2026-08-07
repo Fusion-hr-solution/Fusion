@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { PAGE_SIZE_OPTIONS, type PageSize } from "@repo/ui";
+import { PAGE_SIZE_OPTIONS, type PageSize } from "@/lib/table-config";
 import { Button } from "@/components/ui/button";
 import {
   Select,

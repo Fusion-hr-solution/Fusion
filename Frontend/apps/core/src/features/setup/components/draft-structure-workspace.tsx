@@ -32,7 +32,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useSetupReadiness } from "@/features/setup/api/use-setup";
-import { shouldAutoActivateSetup } from "@/features/setup/setup-entry-routing";
 import { DraftUnitDialog } from "@/app/(pages)/setup/draft-structure/create-draft-unit-dialog";
 import { DraftOrgUnitKindManager } from "@/app/(pages)/setup/draft-structure/draft-org-unit-kind-manager";
 import { DraftStructureImportPanel } from "@/app/(pages)/setup/draft-structure/draft-structure-import-panel";
@@ -119,9 +118,7 @@ export default function DraftStructureWorkspace() {
   const canPublishFromDraft = !!setupState?.isDraftCycleActive;
   const canReopenFromDraft =
     !!setupState?.hasPublishedStructure && !setupState.isDraftCycleActive;
-  const shouldStartSetupFromDraft = shouldAutoActivateSetup(
-    setupState?.canStartSetup
-  );
+  const shouldStartSetupFromDraft = !!setupState?.canStartSetup;
   const pageTitle = !isDraftLocked
     ? setupState?.requiresRepublish
       ? "Draft changes"

@@ -1,0 +1,260 @@
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import "@testing-library/jest-dom/vitest";
+import { render, screen, within } from "@testing-library/react";
+import type { AuthUser } from "@repo/auth";
+import { SETUP_CAPABILITIES } from "./catalog";
+import type {
+  CapabilityState,
+  ComposedCapability,
+  LaunchpadVariant,
+} from "./compose";
+
+const mocks = vi.hoisted(() => ({
+  auth: {
+    user: null as AuthUser | null,
+    isLoading: false,
+  },
+  setupHook: vi.fn(),
+  summaryHook: vi.fn(),
+  rosterHook: vi.fn(),
+}));
+
+vi.mock("@repo/auth", () => ({
+  useAuth: () => mocks.auth,
+  canAccessCoreSetup: (user: AuthUser | null) => user?.userId === "admin",
+  canAccessCorePeople: (user: AuthUser | null) => user?.userId === "admin",
+  canViewTenantAdministration: (user: AuthUser | null) =>
+    user?.userId === "admin",
+}));
+
+vi.mock("@/shell/setup-access", () => ({
+  useCoreSetupAccess: mocks.setupHook,
+}));
+
+vi.mock("@/features/tenant-access/api/use-tenant-access", () => ({
+  useTenantAccessSummary: mocks.summaryHook,
+}));
+
+vi.mock("@/app/(pages)/employees/use-employees", () => ({
+  useEmployeeRoster: mocks.rosterHook,
+}));
+
+import SetupLaunchpad, {
+  LaunchpadSkeleton,
+  LaunchpadView,
+} from "./setup-launchpad";
+
+function entry(
+  key: string,
+  state: CapabilityState,
+  isActionable = false,
+  overrides: Partial<ComposedCapability> = {}
+): ComposedCapability {
+  const capability = SETUP_CAPABILITIES.find((item) => item.key === key);
+  if (!capability) throw new Error(`Missing capability ${key}`);
+  return {
+    capability,
+    state,
+    blockedBy: null,
+    detail: null,
+    isActionable,
+    ...overrides,
+  };
+}
+
+const ADMIN_ACCESS = entry("administrator-access", "available", true);
+const TENANT_CONFIGURATION = entry("tenant-configuration", "planned");
+const WORKFORCE_ACCESS = entry("workforce-access", "planned");
+
+function renderView({
+  variant = "fresh",
+  recommendation = entry("organization", "not-started", true),
+  entries = [
+    ADMIN_ACCESS,
+    TENANT_CONFIGURATION,
+    entry("workforce", "blocked", false, { blockedBy: "Organization" }),
+    WORKFORCE_ACCESS,
+  ],
+}: {
+  variant?: LaunchpadVariant;
+  recommendation?: ComposedCapability | null;
+  entries?: ComposedCapability[];
+} = {}) {
+  return render(
+    <LaunchpadView
+      tenantName="Demo Path 2"
+      variant={variant}
+      recommendation={recommendation}
+      entries={entries}
+      onRetry={vi.fn()}
+    />
+  );
+}
+
+describe("Tenant Setup launchpad presentation", () => {
+  it("renders the fresh welcome, Organization recommendation, and foundation grid", () => {
+    renderView();
+
+    expect(
+      screen.getByRole("heading", { name: "Welcome to Demo Path 2" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Your tenant is ready. Start building the foundation your organization will use."
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Set up your organization" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Start organization setup/i })
+    ).toHaveAttribute("href", "/setup");
+    expect(
+      screen.getByRole("heading", { name: "Tenant foundation" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("heading", { name: "Set up your organization" })
+    ).toHaveLength(1);
+  });
+
+  it("renders the underway and mature copy from authoritative variants", () => {
+    const { rerender } = render(
+      <LaunchpadView
+        tenantName="Demo Path 2"
+        variant="underway"
+        recommendation={entry("organization", "in-progress", true)}
+        entries={[ADMIN_ACCESS]}
+        onRetry={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText("Continue building and managing your tenant foundation.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Continue organization setup" })
+    ).toBeInTheDocument();
+
+    rerender(
+      <LaunchpadView
+        tenantName="Demo Path 2"
+        variant="mature"
+        recommendation={null}
+        entries={[entry("organization", "ready", true)]}
+        onRetry={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByText("Review and manage the foundation your tenant uses.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Review organization/i })
+    ).toBeInTheDocument();
+  });
+
+  it("promotes Workforce after Organization is ready without duplicating it", () => {
+    renderView({
+      variant: "underway",
+      recommendation: entry("workforce", "not-started", true),
+      entries: [entry("organization", "ready", true), ADMIN_ACCESS],
+    });
+
+    expect(
+      screen.getByRole("heading", { name: "Add your workforce" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Add workforce/i })
+    ).toHaveAttribute("href", "/employees");
+    expect(
+      screen.getAllByRole("heading", { name: "Add your workforce" })
+    ).toHaveLength(1);
+  });
+
+  it("keeps unavailable capabilities readable and non-interactive", () => {
+    renderView({
+      recommendation: null,
+      entries: [
+        TENANT_CONFIGURATION,
+        WORKFORCE_ACCESS,
+        entry("performance", "planned"),
+      ],
+    });
+
+    const configuration = screen
+      .getByRole("heading", { name: "Tenant configuration" })
+      .closest("article");
+    expect(configuration).not.toBeNull();
+    expect(
+      within(configuration as HTMLElement).getByText(
+        "Not available in this build"
+      )
+    ).toBeInTheDocument();
+    expect(
+      within(configuration as HTMLElement).queryByRole("link")
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Performance" })
+    ).toBeInTheDocument();
+  });
+
+  it("keeps safe navigation available when another capability status fails", () => {
+    renderView({
+      variant: "indeterminate",
+      recommendation: null,
+      entries: [
+        ADMIN_ACCESS,
+        entry("organization", "unknown"),
+        entry("workforce", "unknown", true),
+      ],
+    });
+
+    expect(
+      screen.getByText("Review and manage your tenant foundation.")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Manage access/i })
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Status unavailable")).toHaveLength(2);
+    expect(
+      screen.getAllByRole("button", { name: "Retry status" })
+    ).toHaveLength(2);
+    expect(
+      screen.getByRole("link", { name: /Add workforce/i })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a hierarchy-shaped loading skeleton", () => {
+    render(<LaunchpadSkeleton />);
+
+    expect(
+      screen.getByLabelText("Loading tenant setup")
+    ).toHaveAttribute("aria-busy", "true");
+  });
+});
+
+describe("Tenant Setup authorization boundary", () => {
+  beforeEach(() => {
+    mocks.auth.user = null;
+    mocks.auth.isLoading = false;
+    mocks.setupHook.mockReset();
+    mocks.summaryHook.mockReset();
+    mocks.rosterHook.mockReset();
+  });
+
+  it("renders no capability data and invokes no capability reads when unauthorized", () => {
+    render(<SetupLaunchpad />);
+
+    expect(
+      screen.getByRole("heading", { name: "Tenant Setup" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("You do not have access to this page")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Administrator access")).not.toBeInTheDocument();
+    expect(mocks.setupHook).not.toHaveBeenCalled();
+    expect(mocks.summaryHook).not.toHaveBeenCalled();
+    expect(mocks.rosterHook).not.toHaveBeenCalled();
+  });
+});

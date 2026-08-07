@@ -23,7 +23,14 @@ export const PEOPLE_NAV: ShellNavSection = {
 export const ADMIN_NAV: ShellNavSection = {
   title: "Administration",
   items: [
-    { label: "Setup", href: "/setup", icon: ClipboardList },
+    // Tenant-level destination: the launchpad lives outside the Core basePath.
+    {
+      label: "Setup",
+      href: "/tenant-setup",
+      navigateHref: "/setup",
+      shellRoute: true,
+      icon: ClipboardList,
+    },
     { label: "Access", href: "/access", icon: ShieldCheck },
     { label: "Settings", href: "/settings", icon: Settings2 },
   ],

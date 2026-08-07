@@ -23,7 +23,7 @@ import {
   canManageCoreAccessProfiles,
   useAuth,
 } from "@repo/auth";
-import { PAGE_SIZE_OPTIONS, type PageSize } from "@repo/ui";
+import { PAGE_SIZE_OPTIONS, type PageSize } from "@/lib/table-config";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,

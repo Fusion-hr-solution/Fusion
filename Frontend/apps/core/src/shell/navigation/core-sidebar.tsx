@@ -7,53 +7,32 @@ import {
   filterModulesByEntitlement,
   ModuleSidebar,
   ShellUserPanel,
-  type ShellNavSection,
 } from "@repo/ds/shell";
 import {
   useAuth,
   canSeeCoreAccessNavigation,
   canSeeCoreOrgChartNavigation,
   canSeeCoreSettingsNavigation,
-  canSeeCoreSetupNavigation,
+  canViewTenantAdministration,
+  getSidebarAccountLabel,
 } from "@repo/auth";
 import { PEOPLE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
-import { useCoreSetupAccess } from "@/shell/setup-access";
 import {
   canSeeEmployeeRosterNavigation,
   canSeeSelfEmployeeProfileNavigation,
   canSeeTeamWorkspaceNavigation,
 } from "@/lib/employee-roster-access";
 
-function applySetupLock(section: ShellNavSection, disabledReason: string): ShellNavSection {
-  return {
-    ...section,
-    items: section.items.map((item) =>
-      item.href === "/setup" ? item : { ...item, disabled: true, disabledReason }
-    ),
-  };
-}
-
-// Setup-lock state still resolving: lockable items look enabled but are inert,
-// so they never flash interactive→locked. Setup itself is always navigable.
-function applyPendingLock(section: ShellNavSection): ShellNavSection {
-  return {
-    ...section,
-    items: section.items.map((item) =>
-      item.href === "/setup" ? item : { ...item, pending: true }
-    ),
-  };
-}
+// Navigation is no longer gated on setup completion. A destination that has a
+// real prerequisite says so itself, in its own words, at the point the user tries
+// to act — which is both more useful and more truthful than disabling most of the
+// product behind one generic sentence.
 
 export function CoreSidebar() {
   const pathname = usePathname();
   const activePath = pathname.replace(/^\/core/, "") || "/";
   const { user, logout, isLoading: isAuthLoading } = useAuth();
-  const { isNavigationLocked, lockedNavigationReason, isAccessResolving } =
-    useCoreSetupAccess();
-  // Auth known but the setup-state query is still in flight: lock state unknown.
-  const isLockStateResolving = !isAuthLoading && isAccessResolving;
-
-  const canSeeSetup = canSeeCoreSetupNavigation(user);
+  const canSeeSetup = canViewTenantAdministration(user);
   const canSeeAccess = canSeeCoreAccessNavigation(user);
   const canSeeSettings = canSeeCoreSettingsNavigation(user);
   const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user);
@@ -69,7 +48,7 @@ export function CoreSidebar() {
     return true;
   });
   const adminItems = ADMIN_NAV.items.filter((item) => {
-    if (item.href === "/setup") return canSeeSetup;
+    if (item.href === "/tenant-setup") return canSeeSetup;
     if (item.href === "/access") return canSeeAccess;
     if (item.href === "/settings") return canSeeSettings;
     return canSeeSetup;
@@ -82,15 +61,7 @@ export function CoreSidebar() {
       ]
     : [{ ...PEOPLE_NAV, items: peopleItems }];
 
-  const sections =
-    isNavigationLocked && lockedNavigationReason
-      ? visibleSections.map((section) => applySetupLock(section, lockedNavigationReason))
-      : isLockStateResolving
-        ? visibleSections.map(applyPendingLock)
-        : visibleSections;
-
-  const roleLabel =
-    user?.accessProfiles?.[0]?.name ?? user?.roles?.[0] ?? undefined;
+  const roleLabel = user ? getSidebarAccountLabel(user) : undefined;
 
   return (
     <ModuleSidebar
@@ -98,7 +69,7 @@ export function CoreSidebar() {
       brandSubtitle="Workforce system of record"
       brandIcon={BrainCircuit}
       activePath={activePath}
-      sections={sections}
+      sections={visibleSections}
       pending={isAuthLoading}
       modules={filterModulesByEntitlement(FUSION_MODULES, user?.moduleEntitlements ?? [])}
       currentModuleKey="core"
@@ -111,7 +82,7 @@ export function CoreSidebar() {
           links={[
             // Raw anchors → include basePath explicitly. "Home" goes to the platform shell.
             ...(canSeeMyProfile ? [{ label: "My profile", href: "/core/profile", icon: User }] : []),
-            { label: "Platform home", href: "/", icon: Home },
+            { label: "Fusion home", href: "/", icon: Home },
           ]}
           onSignOut={async () => {
             await logout();

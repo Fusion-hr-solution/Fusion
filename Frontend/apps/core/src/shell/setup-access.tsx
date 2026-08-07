@@ -9,12 +9,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { usePathname, useRouter } from "next/navigation";
 import { coreSetupQueryKeys, type TenantSetupStateDto } from "@repo/api";
 import { useApiQueryClient } from "@repo/api/query";
-import { canSeeCoreSetupNavigation, useAuth } from "@repo/auth";
-import { PageContainer, PageHeader, PageLoading } from "@repo/ds/shell";
-import { getRoutePageSkeleton } from "@/shell/route-skeletons";
+import {
+  CUSTOMER_MODULES,
+  canSeeCoreSetupNavigation,
+  hasModuleEntitlement,
+  useAuth,
+} from "@repo/auth";
 import {
   useActivateSetup,
   usePublishStructure,
@@ -22,14 +24,6 @@ import {
   useSetupState,
   type VersionedSetupMutationArgs,
 } from "@/features/setup/api/use-setup";
-import {
-  isSetupAreaPath,
-  resolveSetupEntryRouteAction,
-  SETUP_SUMMARY_PATH,
-} from "@/features/setup/setup-entry-routing";
-
-const SETUP_LOCK_REASON = "Complete setup to unlock the rest of Core.";
-
 type SetupTransitionKind = "activating" | "publishing" | "reopening";
 
 interface CoreSetupAccessContextValue {
@@ -39,9 +33,6 @@ interface CoreSetupAccessContextValue {
   /** Auth is hydrating or the setup-state query is in flight — access decisions are not yet known. */
   isAccessResolving: boolean;
   isSetupStateLoading: boolean;
-  isSetupLocked: boolean;
-  isNavigationLocked: boolean;
-  lockedNavigationReason: string | null;
   setupTransitionKind: SetupTransitionKind | null;
   startSetup: () => Promise<TenantSetupStateDto>;
   publishSetup: (
@@ -59,9 +50,6 @@ const CoreSetupAccessContext = createContext<CoreSetupAccessContextValue>({
   setupError: null,
   isAccessResolving: false,
   isSetupStateLoading: false,
-  isSetupLocked: false,
-  isNavigationLocked: false,
-  lockedNavigationReason: null,
   setupTransitionKind: null,
   startSetup: async () => {
     throw new Error("Setup access is unavailable.");
@@ -74,15 +62,6 @@ const CoreSetupAccessContext = createContext<CoreSetupAccessContextValue>({
   },
   refreshSetupAccess: async () => {},
 });
-
-function getCorePathname(pathname: string): string {
-  const nextPath = pathname.replace(/^\/core/, "");
-  return nextPath || "/";
-}
-
-function isSetupComplete(setupState: TenantSetupStateDto | undefined): boolean {
-  return !!setupState?.hasPublishedStructure;
-}
 
 function haveEquivalentSetupSnapshots(
   left: TenantSetupStateDto | undefined,
@@ -103,18 +82,6 @@ function haveEquivalentSetupSnapshots(
   );
 }
 
-function SetupRedirectFallback() {
-  return (
-    <PageContainer width="wide" className="space-y-6">
-      <PageHeader
-        title="Setup"
-        description="Complete organization setup before using the rest of the workspace."
-      />
-      <PageLoading rows={6} label="Opening setup..." />
-    </PageContainer>
-  );
-}
-
 export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const queryClient = useApiQueryClient();
@@ -125,6 +92,7 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
   const shouldCheckSetupAccess =
     !isAuthLoading &&
     isAuthenticated &&
+    hasModuleEntitlement(user, CUSTOMER_MODULES.coreHr) &&
     canSeeCoreSetupNavigation(user);
   const {
     data: setupState,
@@ -211,21 +179,12 @@ export function CoreSetupAccessProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo<CoreSetupAccessContextValue>(() => {
-    const isSetupLocked =
-      shouldCheckSetupAccess &&
-      !isSetupAccessPending &&
-      !effectiveSetupError &&
-      !isSetupComplete(effectiveSetupState);
-
     return {
       shouldCheckSetupAccess,
       setupState: effectiveSetupState,
       setupError: effectiveSetupError,
       isAccessResolving: isAuthLoading || isSetupAccessPending,
       isSetupStateLoading,
-      isSetupLocked,
-      isNavigationLocked: shouldCheckSetupAccess && isSetupLocked,
-      lockedNavigationReason: isSetupLocked ? SETUP_LOCK_REASON : null,
       setupTransitionKind,
       startSetup,
       publishSetup,
@@ -257,43 +216,15 @@ export function useCoreSetupAccess() {
   return useContext(CoreSetupAccessContext);
 }
 
+/**
+ * Renders tenant pages without gating them on setup completion.
+ *
+ * The previous behaviour redirected every route back to setup until the org
+ * structure was published, which meant a new administrator could not reach
+ * Access to invite a colleague until they had finished the work alone. A
+ * destination that genuinely depends on another foundation now says so in its
+ * own words, where the user tries to act.
+ */
 export function CoreSetupRouteGuard({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { shouldCheckSetupAccess, isAccessResolving, isSetupLocked } =
-    useCoreSetupAccess();
-  const currentPath = getCorePathname(pathname);
-  const routeAction = resolveSetupEntryRouteAction({
-    currentPath,
-    shouldCheckSetupAccess,
-    isSetupLocked,
-  });
-  const shouldHoldRoute = routeAction === "redirect-to-setup-summary";
-
-  useEffect(() => {
-    if (routeAction !== "redirect-to-setup-summary") {
-      return;
-    }
-
-    router.replace(SETUP_SUMMARY_PATH);
-  }, [routeAction, router]);
-
-  // The setup area is always permitted — render immediately, even while
-  // access is still resolving.
-  if (isSetupAreaPath(currentPath)) {
-    return <>{children}</>;
-  }
-
-  // Fail closed: until auth + setup state are known, hold non-setup routes on
-  // the route's own dedicated skeleton — the same one the page renders while
-  // its data loads — so the hold and the page read as ONE loading state.
-  if (isAccessResolving) {
-    return <>{getRoutePageSkeleton(currentPath)}</>;
-  }
-
-  if (shouldHoldRoute) {
-    return <SetupRedirectFallback />;
-  }
-
   return <>{children}</>;
 }

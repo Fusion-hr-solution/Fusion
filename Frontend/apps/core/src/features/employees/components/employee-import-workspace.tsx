@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { canImportCoreEmployees, useAuth } from "@repo/auth";
-import { type PageSize } from "@repo/ui";
+import { type PageSize } from "@/lib/table-config";
 import { toast } from "sonner";
 import {
   PageContainer,

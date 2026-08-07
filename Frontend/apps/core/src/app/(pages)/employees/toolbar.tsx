@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Building2, ListFilter, Search, UserRound, X } from "lucide-react";
-import { SEARCH_DEBOUNCE_MS } from "@repo/ui";
+import { SEARCH_DEBOUNCE_MS } from "@/lib/table-config";
 import { TableFilterToolbar } from "@repo/ds/shell";
 import { Button } from "@/components/ui/button";
 import {

@@ -17,7 +17,7 @@ import {
   DEFAULT_PAGE_SIZE,
   PAGE_SIZE_OPTIONS,
   type PageSize,
-} from "@repo/ui";
+} from "@/lib/table-config";
 import {
   PageContainer,
   PageHeader,

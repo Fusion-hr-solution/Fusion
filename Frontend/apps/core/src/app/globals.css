@@ -5,5 +5,4 @@
 
 /* Scan the shared design system + shared chrome packages so their classes compile. */
 @source "../../../../packages/ds/src/**/*.{ts,tsx}";
-@source "../../../../packages/ui/src/**/*.{ts,tsx}";
 @source "../../../../packages/auth/src/**/*.{ts,tsx}";

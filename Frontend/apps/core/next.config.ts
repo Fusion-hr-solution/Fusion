@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   outputFileTracingRoot: frontendWorkspaceRoot,
   basePath: "/core",
-  transpilePackages: ["@repo/api", "@repo/ui", "@repo/auth", "@repo/ds"],
+  transpilePackages: ["@repo/api", "@repo/auth", "@repo/ds"],
   async rewrites() {
     const gateway = process.env.CORE_GATEWAY_URL ?? "http://localhost:5000";
     return [

@@ -2,72 +2,55 @@
 
 import { useEffect } from "react";
 import { useAuth } from "@repo/auth";
-import { Button } from "@repo/ui";
-import { MfeCard } from "@/components";
-import { APP_NAME, APP_DESCRIPTION, MICROFRONTENDS } from "@/config/constants";
 import { resolveShellEntryState } from "@/lib/shell-entry";
 
 export default function HomePage() {
-  const { user, isLoading } = useAuth();
-  const entryState = resolveShellEntryState({ user, isLoading });
+  const { user, isLoading, logout } = useAuth();
+  const state = resolveShellEntryState({ user, isLoading });
+  const destination = state.kind === "redirect" ? state.destination : null;
 
   useEffect(() => {
-    if (entryState === "platform") {
-      window.location.replace("/platform");
+    if (destination) {
+      window.location.replace(destination);
     }
-  }, [entryState]);
+  }, [destination]);
 
-  if (entryState !== "home") {
-    return <ShellHomeSkeleton />;
+  if (state.kind !== "no-usable-context") {
+    return <ShellEntrySkeleton />;
   }
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <section className="mb-16 text-center">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-6xl">
-          {APP_NAME}
-        </h1>
-        <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-          {APP_DESCRIPTION}
+    <main className="mx-auto flex min-h-screen max-w-xl items-center px-6 py-16">
+      <section className="w-full rounded-xl border bg-card p-8 text-card-foreground">
+        <p className="text-sm font-medium text-muted-foreground">Fusion account</p>
+        <h1 className="mt-2 text-2xl font-semibold">No workspace is available</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          Your account is signed in, but it does not currently have access to a
+          Fusion workspace. Contact your administrator if you expected access.
         </p>
-        <div className="mt-8 flex justify-center gap-4">
-          <Button size="lg">Get Started</Button>
-          <Button variant="outline" size="lg">
-            Documentation
-          </Button>
-        </div>
+        <button
+          type="button"
+          className="mt-6 rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={async () => {
+            await logout();
+            window.location.assign("/auth/signin");
+          }}
+        >
+          Sign out
+        </button>
       </section>
-
-      <section>
-        <h2 className="text-2xl font-semibold mb-6 text-center">
-          Microfrontend Applications
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          {MICROFRONTENDS.map((mfe) => (
-            <MfeCard key={mfe.title} mfe={mfe} />
-          ))}
-        </div>
-      </section>
-    </div>
+    </main>
   );
 }
 
-function ShellHomeSkeleton() {
+function ShellEntrySkeleton() {
   return (
     <main
-      className="container mx-auto px-4 py-12"
+      className="mx-auto flex min-h-screen max-w-xl items-center px-6 py-16"
       aria-busy="true"
-      aria-label="Loading your Fusion workspace"
+      aria-label="Opening your Fusion workspace"
     >
-      <div className="flex animate-pulse flex-col items-center gap-4">
-        <div className="h-12 w-1/3 rounded bg-muted" />
-        <div className="h-4 w-2/3 rounded bg-muted" />
-        <div className="mt-8 grid w-full max-w-6xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <div key={index} className="h-52 rounded-lg bg-muted" />
-          ))}
-        </div>
-      </div>
+      <div className="h-48 w-full animate-pulse rounded-xl bg-muted" />
     </main>
   );
 }
