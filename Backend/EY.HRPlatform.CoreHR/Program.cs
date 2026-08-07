@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using OpenTelemetry.Metrics;
 using Serilog;
+using EY.HRPlatform.SharedKernel.Security;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -70,6 +71,14 @@ builder.Services.AddOpenTelemetry()
         metrics.AddPrometheusExporter();
     });
 
+// Customer traffic reaches this service only through the Gateway, which is where
+// withdrawn tenant access is enforced per request. Refuse to start somewhere it
+// could be reached around that.
+GatewayOnlyBindingGuard.Verify(
+    "Core HR",
+    builder.Configuration["Urls"] ?? builder.Configuration["ASPNETCORE_URLS"],
+    builder.Configuration);
+
 var app = builder.Build();
 
 if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
@@ -78,32 +87,6 @@ if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
     var dbContext = scope.ServiceProvider.GetRequiredService<CoreHRDbContext>();
     await dbContext.Database.MigrateAsync();
     
-    // Seed canonical demo data only when explicitly enabled.
-    var legacyAutoSeed = builder.Configuration.GetValue<bool>("Database:AutoSeed");
-    var canonicalSeedEnabled = builder.Configuration.GetValue<bool>("Database:CanonicalSeed:Enabled");
-    var resetCanonicalTenant = builder.Configuration.GetValue<bool>("Database:CanonicalSeed:Reset");
-    if (app.Environment.IsDevelopment() && legacyAutoSeed && !canonicalSeedEnabled)
-        throw new InvalidOperationException(
-            "Database:AutoSeed is retired. Use Database:CanonicalSeed:Enabled=true and scripts/fusion-demo.ps1.");
-
-    if (canonicalSeedEnabled)
-    {
-        var demoTenantId = builder.Configuration.GetValue<Guid?>("Database:DemoTenantId") 
-            ?? EY.HRPlatform.DemoSeed.CanonicalDemoSeed.TenantId;
-        
-        // Set tenant context for seeding (required by TenantSaveChangesInterceptor)
-        var tenantContext = scope.ServiceProvider.GetRequiredService<TenantContext>();
-        tenantContext.SetTenant(demoTenantId);
-
-        if (resetCanonicalTenant)
-        {
-            if (!app.Environment.IsDevelopment())
-                throw new InvalidOperationException("Canonical tenant reset is Development-only.");
-            await CoreHRSeeder.ResetAsync(dbContext, demoTenantId);
-        }
-        
-        await CoreHRSeeder.SeedAsync(dbContext, demoTenantId);
-    }
 }
 
 if (app.Environment.IsDevelopment())
@@ -130,6 +113,10 @@ app.UseSerilogRequestLogging(options =>
         diagnosticContext.Set("TenantId", tenantContext?.TenantIdOrDefault?.ToString());
     };
 });
+
+// Before routing and model binding: signatures on internal routes are
+// body-bound, and a request stream can only be read once.
+app.UseInternalServiceBodyBuffering();
 
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>(); // after auth (claims populated), resolves tenant from claim/header

@@ -3,7 +3,6 @@ using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-using EY.HRPlatform.DemoSeed;
 
 namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 
@@ -54,7 +53,6 @@ public class CoreHRDbContext : DbContext
     public DbSet<TenantSetupState> TenantSetupStates => Set<TenantSetupState>();
     public DbSet<TenantSetupActivity> TenantSetupActivities => Set<TenantSetupActivity>();
     public DbSet<SettingsAuditEvent> SettingsAuditEvents => Set<SettingsAuditEvent>();
-    public DbSet<CanonicalSeedReceipt> CanonicalSeedReceipts => Set<CanonicalSeedReceipt>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -68,14 +66,6 @@ public class CoreHRDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        modelBuilder.Entity<CanonicalSeedReceipt>(entity =>
-        {
-            entity.ToTable("CanonicalSeedReceipts");
-            entity.HasKey(receipt => receipt.Id);
-            entity.HasIndex(receipt => new { receipt.TenantId, receipt.ManifestVersion }).IsUnique();
-            entity.Property(receipt => receipt.ManifestVersion).HasMaxLength(200).IsRequired();
-            entity.Property(receipt => receipt.ManifestHash).HasMaxLength(128).IsRequired();
-        });
 
         modelBuilder.HasDefaultSchema("corehr");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(CoreHRDbContext).Assembly);

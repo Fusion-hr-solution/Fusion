@@ -31,7 +31,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../EY.HRPlatform.SharedKernel/EY.HRPlatform.SharedKernel.csproj" />
-    <ProjectReference Include="../EY.HRPlatform.DemoSeed/EY.HRPlatform.DemoSeed.csproj" />
   </ItemGroup>
 
   <ItemGroup>
