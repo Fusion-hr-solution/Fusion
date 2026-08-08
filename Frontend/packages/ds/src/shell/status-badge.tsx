@@ -11,9 +11,9 @@ export type StatusTone = "neutral" | "info" | "success" | "warning" | "danger" |
 
 const TONE_CLASSES: Record<StatusTone, string> = {
   neutral: "border-border bg-muted text-foreground/80",
-  info: "border-transparent bg-blue-500/12 text-blue-700 dark:text-blue-300",
-  success: "border-transparent bg-emerald-500/12 text-emerald-700 dark:text-emerald-300",
-  warning: "border-transparent bg-primary/15 text-primary",
+  info: "border-transparent bg-info-subtle text-info",
+  success: "border-transparent bg-success-subtle text-success",
+  warning: "border-transparent bg-warning-subtle text-warning",
   danger: "border-transparent bg-destructive/12 text-destructive",
   muted: "border-border bg-transparent text-muted-foreground",
 };

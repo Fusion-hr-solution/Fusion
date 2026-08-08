@@ -37,7 +37,7 @@ export function PageHeader({ title, description, actions, eyebrow, className }: 
     <div className={cn("mb-6 flex flex-wrap items-start justify-between gap-4", className)}>
       <div className="min-w-0">
         {eyebrow ? <div className="mb-1">{eyebrow}</div> : null}
-        <h1 className="text-[1.4rem] font-semibold leading-tight tracking-tight text-foreground">{title}</h1>
+        <h1 className="type-page-title text-foreground">{title}</h1>
         {description ? (
           typeof description === "string" ? (
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{description}</p>

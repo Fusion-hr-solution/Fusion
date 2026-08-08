@@ -7,10 +7,10 @@ type KpiTone = "default" | "warning" | "danger" | "success" | "info";
 
 const VALUE_TONE: Record<KpiTone, string> = {
   default: "text-foreground",
-  warning: "text-primary",
+  warning: "text-warning",
   danger: "text-destructive",
-  success: "text-emerald-600 dark:text-emerald-400",
-  info: "text-blue-600 dark:text-blue-400",
+  success: "text-success",
+  info: "text-info",
 };
 
 export interface KpiStatProps {
@@ -38,7 +38,7 @@ export function KpiStat({
   const body = (
     <>
       <div className="flex items-start justify-between gap-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <p className="type-eyebrow text-muted-foreground">
           {label}
         </p>
         {Icon ? (
@@ -49,7 +49,7 @@ export function KpiStat({
           <ArrowUpRight className="size-4 shrink-0 text-muted-foreground/50 transition-colors group-hover/kpi:text-primary" />
         ) : null}
       </div>
-      <p className={cn("mt-2 text-2xl font-semibold tabular-nums leading-none", VALUE_TONE[tone])}>
+      <p className={cn("type-metric mt-2", VALUE_TONE[tone])}>
         {value}
       </p>
       {hint ? (
@@ -111,7 +111,7 @@ export function DashboardSection({
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div className="min-w-0">
             {title ? (
-              <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+              <h2 className="type-subsection-title text-foreground">{title}</h2>
             ) : null}
             {description ? (
               <p className="text-xs text-muted-foreground">{description}</p>

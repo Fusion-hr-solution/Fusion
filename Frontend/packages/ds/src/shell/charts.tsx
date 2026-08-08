@@ -24,10 +24,10 @@ export const CHART_PALETTE = [
 
 export const CHART_TONES = {
   primary: "var(--primary)",
-  success: "oklch(0.696 0.17 162.48)",
-  warning: "var(--primary)",
+  success: "var(--success)",
+  warning: "var(--warning)",
   danger: "var(--destructive)",
-  info: "oklch(0.6 0.118 264.376)",
+  info: "var(--info)",
   muted: "var(--muted-foreground)",
 } as const;
 
@@ -92,7 +92,7 @@ export function DonutChart({
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-semibold tabular-nums leading-none">
+          <span className="type-metric">
             {computedTotal}
           </span>
           {centerLabel ? (
