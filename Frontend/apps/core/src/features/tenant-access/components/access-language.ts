@@ -1,4 +1,9 @@
-import type { AdministratorInvitationState, TenantAdministratorStatus } from "@repo/api";
+import type {
+  AdministratorInvitationState,
+  ContinuityState,
+  TenantAdministratorStatus,
+} from "@repo/api";
+import type { StatusTone } from "@repo/ds/shell";
 
 /**
  * The one terminology source for Access.
@@ -34,6 +39,34 @@ export const INVITATION_STATE_TONE: Record<AdministratorInvitationState, AccessT
   Expired: "muted",
   Revoked: "muted",
   Superseded: "muted",
+};
+
+/**
+ * Administrative continuity — the one judgment the rows cannot show. Whether the
+ * tenant is safely administered is computed by the service from active, suspended,
+ * and usable counts; the page leads with it rather than making an administrator
+ * infer it from the list.
+ */
+export const CONTINUITY_LABEL: Record<ContinuityState, string> = {
+  Healthy: "Secure",
+  AtRisk: "At risk",
+  RecoveryRequired: "No administrator",
+};
+
+export const CONTINUITY_TONE: Record<ContinuityState, StatusTone> = {
+  Healthy: "success",
+  AtRisk: "warning",
+  RecoveryRequired: "danger",
+};
+
+/**
+ * Shown only when continuity actually needs attention. Named consequence and a
+ * recovery path — never a caption on the healthy, ordinary case.
+ */
+export const CONTINUITY_ADVISORY: Record<ContinuityState, string | null> = {
+  Healthy: null,
+  AtRisk: "One administrator is a single point of failure. Invite another so access can't be lost with them.",
+  RecoveryRequired: "No one can administer this tenant. Invite an administrator to restore access.",
 };
 
 /**

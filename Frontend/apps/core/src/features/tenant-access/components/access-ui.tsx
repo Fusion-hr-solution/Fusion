@@ -10,6 +10,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  Avatar,
+  AvatarFallback,
   cn,
 } from "@repo/ds";
 import { Mail } from "lucide-react";
@@ -24,10 +26,13 @@ import type { AccessTone } from "./access-language";
  * so the colour is reinforcement rather than the message.
  */
 
+// Tones resolve to the design system's semantic state colors, so a status dot
+// here is the same green/amber a badge or a chart uses elsewhere — one state
+// language, not a per-screen palette.
 const DOT_TONE: Record<AccessTone, string> = {
   neutral: "bg-muted-foreground",
-  positive: "bg-emerald-600 dark:bg-emerald-500",
-  caution: "bg-amber-500",
+  positive: "bg-success",
+  caution: "bg-warning",
   muted: "bg-muted-foreground/40",
 };
 
@@ -48,44 +53,56 @@ export function StatusMark({
   className?: string;
 }) {
   return (
-    <span className={cn("inline-flex items-center gap-2 text-sm", TEXT_TONE[tone], className)}>
+    <span className={cn("type-label inline-flex items-center gap-2", TEXT_TONE[tone], className)}>
       <span aria-hidden className={cn("size-1.5 shrink-0 rounded-full", DOT_TONE[tone])} />
       {children}
     </span>
   );
 }
 
+export function initialsOf(name?: string): string {
+  return (name ?? "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 /**
- * Identity mark. A person gets their initials; an invitation gets an envelope,
- * because an invited address is not yet a person in this tenant and should not
- * be dressed as one.
+ * Identity mark. A person gets their initials on the design system's avatar; an
+ * invitation gets a dashed envelope, because an invited address is not yet a
+ * person in this tenant and should not be dressed as one.
  */
-export function IdentityMark({ name, invitation }: { name?: string; invitation?: boolean }) {
+export function IdentityMark({
+  name,
+  invitation,
+  size = "default",
+}: {
+  name?: string;
+  invitation?: boolean;
+  size?: "default" | "lg";
+}) {
   if (invitation) {
     return (
       <span
         aria-hidden
-        className="flex size-9 shrink-0 items-center justify-center rounded-full border border-dashed text-muted-foreground"
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-full border border-dashed text-muted-foreground",
+          size === "lg" ? "size-10" : "size-9"
+        )}
       >
         <Mail className="size-4" />
       </span>
     );
   }
 
-  const initials = (name ?? "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-
   return (
-    <span
-      aria-hidden
-      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground"
-    >
-      {initials || "—"}
-    </span>
+    <Avatar size={size} className={size === "lg" ? "size-10" : "size-9"}>
+      <AvatarFallback className="type-label bg-muted text-muted-foreground">
+        {initialsOf(name) || "—"}
+      </AvatarFallback>
+    </Avatar>
   );
 }
 

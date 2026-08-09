@@ -78,44 +78,44 @@ export function InvitationRow({ invitation, canManage, onChanged }: InvitationRo
 
   return (
     <>
-      <div className="flex items-center gap-3 px-4 py-3">
+      <div className="group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/40">
         <IdentityMark invitation />
 
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{invitation.email}</p>
-          <p className="truncate text-sm text-muted-foreground">
+          <p className="truncate type-label text-foreground">{invitation.email}</p>
+          <p className="truncate type-meta text-muted-foreground">
             Invited {formatDay(invitation.issuedAt)}
           </p>
           {invitation.deliveryStatus === "Failed" ? (
-            <p className="mt-0.5 text-sm text-amber-700 dark:text-amber-500">
+            <p className="mt-0.5 type-meta text-warning">
               The email could not be delivered. Resend it.
             </p>
           ) : null}
           {problem ? (
-            <p role="alert" className="mt-0.5 text-sm text-destructive">
+            <p role="alert" className="mt-0.5 type-meta text-destructive">
               {problem}
             </p>
           ) : null}
-          <div className="mt-1 sm:hidden">
+          <div className="mt-1.5 sm:hidden">
             <StatusMark tone={INVITATION_STATE_TONE[invitation.state]}>
               {INVITATION_STATE_LABEL[invitation.state]}
             </StatusMark>
           </div>
         </div>
 
-        <div className="hidden w-44 shrink-0 sm:block">
+        <div className="hidden w-32 shrink-0 sm:block">
           <StatusMark tone={INVITATION_STATE_TONE[invitation.state]}>
             {INVITATION_STATE_LABEL[invitation.state]}
           </StatusMark>
         </div>
 
-        <p className="hidden w-40 shrink-0 whitespace-nowrap text-sm text-muted-foreground lg:block">
+        <p className="hidden w-40 shrink-0 whitespace-nowrap type-meta text-muted-foreground lg:block">
           {isPending ? `Expires ${formatDay(invitation.expiresAt)}` : ""}
         </p>
 
         {/* Fixed width, where there is room, so the metadata column lines up
             with the administrator rows above. */}
-        <div className="flex shrink-0 items-center justify-end gap-1 lg:w-32">
+        <div className="flex shrink-0 items-center justify-end gap-1 lg:w-28">
           {canManage && isPending ? (
             <>
               <AsyncButton
