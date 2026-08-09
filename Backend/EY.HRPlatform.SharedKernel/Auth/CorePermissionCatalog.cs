@@ -43,6 +43,8 @@ public static class CorePermissions
     public const string StructureView = "core.structure.view";
     public const string StructureManage = "core.structure.manage";
     public const string StructurePublish = "core.structure.publish";
+    public const string OrganizationView = "core.organization.view";
+    public const string OrganizationManage = "core.organization.manage";
 
     public const string EmployeeView = "core.employee.view";
     public const string EmployeeManage = "core.employee.manage";
@@ -84,6 +86,8 @@ public static class CorePermissions
             StructureView,
             StructureManage,
             StructurePublish,
+            OrganizationView,
+            OrganizationManage,
             EmployeeView,
             EmployeeManage,
             EmployeeImport,
@@ -148,6 +152,8 @@ public static class CorePermissionCatalog
             new(CorePermissions.StructureView, "View structure", "Setup & Structure", [PermissionScopes.Tenant]),
             new(CorePermissions.StructureManage, "Manage structure", "Setup & Structure", [PermissionScopes.Tenant]),
             new(CorePermissions.StructurePublish, "Publish structure", "Setup & Structure", [PermissionScopes.Tenant]),
+            new(CorePermissions.OrganizationView, "View organization", "Organization", [PermissionScopes.Tenant]),
+            new(CorePermissions.OrganizationManage, "Manage organization", "Organization", [PermissionScopes.Tenant]),
             new(CorePermissions.EmployeeView, "View employees", "Employees", [PermissionScopes.Self, PermissionScopes.DirectReports, PermissionScopes.Tenant], "Controls access to employee profiles and roster surfaces."),
             new(CorePermissions.EmployeeManage, "Manage employees", "Employees", [PermissionScopes.Tenant]),
             new(CorePermissions.EmployeeImport, "Import employees", "Employees", [PermissionScopes.Tenant]),

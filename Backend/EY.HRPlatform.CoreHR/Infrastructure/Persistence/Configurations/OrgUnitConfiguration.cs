@@ -16,6 +16,10 @@ public class OrgUnitConfiguration : IEntityTypeConfiguration<OrgUnit>
 
         builder.Property(o => o.TenantId).IsRequired();
 
+        builder.Property(o => o.IsRoot)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         // Code is normalized to uppercase at the domain boundary.
         builder.Property(o => o.Code)
             .HasMaxLength(50)
@@ -38,10 +42,6 @@ public class OrgUnitConfiguration : IEntityTypeConfiguration<OrgUnit>
         builder.Property(o => o.CreatedBy).HasMaxLength(256);
         builder.Property(o => o.UpdatedBy).HasMaxLength(256);
 
-        // Responsible manager is stored as an id-only reference (no FK constraint).
-        builder.Property(o => o.ResponsibleManagerEmployeeId)
-            .IsRequired(false);
-
         // Self-referencing parent relationship.
         // Restrict: cannot delete an org unit that has children.
         builder.HasOne(o => o.Parent)
@@ -59,14 +59,16 @@ public class OrgUnitConfiguration : IEntityTypeConfiguration<OrgUnit>
             .IsUnique()
             .HasDatabaseName("IX_OrgUnits_TenantId_Code");
 
-        // Name must be unique within tenant
-        builder.HasIndex(o => new { o.TenantId, o.Name })
-            .IsUnique()
-            .HasDatabaseName("IX_OrgUnits_TenantId_Name");
+        // Names are labels, not identity keys, and may repeat within a tenant.
 
         // Index for hierarchy queries
         builder.HasIndex(o => o.ParentId)
             .HasDatabaseName("IX_OrgUnits_ParentId");
+
+        builder.HasIndex(o => new { o.TenantId, o.IsRoot })
+            .IsUnique()
+            .HasFilter("\"IsRoot\" = true")
+            .HasDatabaseName("UX_OrgUnits_TenantId_Root");
 
         // DomainEvents from AggregateRoot must be explicitly ignored
         builder.Ignore(o => o.DomainEvents);

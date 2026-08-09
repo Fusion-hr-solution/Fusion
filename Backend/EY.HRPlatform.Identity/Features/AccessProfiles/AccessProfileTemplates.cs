@@ -39,7 +39,7 @@ public static class AccessProfileTemplates
         [
             new(CorePermissions.OverviewView, PermissionScopes.Tenant),
             new(CorePermissions.SetupView, PermissionScopes.Tenant),
-            new(CorePermissions.StructureView, PermissionScopes.Tenant),
+            new(CorePermissions.OrganizationView, PermissionScopes.Tenant),
             new(CorePermissions.EmployeeView, PermissionScopes.Tenant),
             new(CorePermissions.EmployeeManage, PermissionScopes.Tenant),
             new(CorePermissions.EmployeeImport, PermissionScopes.Tenant),
@@ -63,9 +63,8 @@ public static class AccessProfileTemplates
             new(CorePermissions.OverviewView, PermissionScopes.Tenant),
             new(CorePermissions.SetupView, PermissionScopes.Tenant),
             new(CorePermissions.SetupManage, PermissionScopes.Tenant),
-            new(CorePermissions.StructureView, PermissionScopes.Tenant),
-            new(CorePermissions.StructureManage, PermissionScopes.Tenant),
-            new(CorePermissions.StructurePublish, PermissionScopes.Tenant),
+            new(CorePermissions.OrganizationView, PermissionScopes.Tenant),
+            new(CorePermissions.OrganizationManage, PermissionScopes.Tenant),
             new(CorePermissions.EmployeeView, PermissionScopes.Tenant),
             new(CorePermissions.EmployeeManage, PermissionScopes.Tenant),
             new(CorePermissions.EmployeeImport, PermissionScopes.Tenant),
@@ -145,4 +144,3 @@ public static class AccessProfileTemplates
         "Access Administrator",
     };
 }
-

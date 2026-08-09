@@ -44,6 +44,10 @@ public class CoreHRDbContext : DbContext
 
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
     public DbSet<OrgUnit> OrgUnits => Set<OrgUnit>();
+    public DbSet<OrgUnitEffectiveState> OrgUnitEffectiveStates => Set<OrgUnitEffectiveState>();
+    public DbSet<OrganizationChange> OrganizationChanges => Set<OrganizationChange>();
+    public DbSet<OrganizationalUnitType> OrganizationalUnitTypes => Set<OrganizationalUnitType>();
+    public DbSet<OrgUnitCodeReservation> OrgUnitCodeReservations => Set<OrgUnitCodeReservation>();
     public DbSet<DraftOrgUnit> DraftOrgUnits => Set<DraftOrgUnit>();
     public DbSet<DraftStructureImportSession> DraftStructureImportSessions => Set<DraftStructureImportSession>();
     public DbSet<EmployeeImportSession> EmployeeImportSessions => Set<EmployeeImportSession>();
@@ -92,6 +96,15 @@ public class CoreHRDbContext : DbContext
 
         modelBuilder.Entity<OrgUnit>()
             .HasQueryFilter(o => CurrentTenantId != Guid.Empty && o.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<OrgUnitEffectiveState>()
+            .HasQueryFilter(state => CurrentTenantId != Guid.Empty && state.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<OrganizationChange>()
+            .HasQueryFilter(change => CurrentTenantId != Guid.Empty && change.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<OrgUnitCodeReservation>()
+            .HasQueryFilter(reservation => CurrentTenantId != Guid.Empty && reservation.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<DraftOrgUnit>()
             .HasQueryFilter(o => CurrentTenantId != Guid.Empty && o.TenantId == CurrentTenantId);

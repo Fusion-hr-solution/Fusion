@@ -22,41 +22,6 @@ public class WorkforceOrgUnitContractTests
     private static readonly Guid TenantId = Guid.NewGuid();
     private const string SettingsJson = """{"employeeFieldConfig":{"jobTitle":{"visible":true,"required":false,"visibleToEmployee":true,"visibleToManager":true}},"orgUnitTypes":["Department","Team"]}""";
 
-    // ────────────────────────────────────────────────────────────────────────
-    // Seam #2a: GetOrgUnitDetailAsync returns ResponsibleManagerEmployeeId
-    // ────────────────────────────────────────────────────────────────────────
-
-    [Fact]
-    public async Task GetOrgUnitDetailAsync_ReturnsResponsibleManagerEmployeeId_WhenOwnerSet()
-    {
-        var dbName = Guid.NewGuid().ToString();
-        var tenantContext = TestTenantContext.WithTenant(TenantId);
-        var responsibleManagerId = Guid.NewGuid();
-        Guid orgUnitId;
-
-        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
-        {
-            seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
-
-            var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null, responsibleManagerId);
-            seedContext.OrgUnits.Add(orgUnit);
-            await seedContext.SaveChangesAsync();
-            orgUnitId = orgUnit.Id;
-        }
-
-        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var service = CreateService(context, tenantContext);
-
-        var detail = await service.GetOrgUnitDetailAsync(orgUnitId, CancellationToken.None);
-
-        Assert.NotNull(detail);
-        Assert.Equal(orgUnitId, detail!.OrgUnitId);
-        Assert.Equal(responsibleManagerId, detail.ResponsibleManagerEmployeeId);
-        Assert.Equal("Engineering", detail.Name);
-        Assert.Equal("Department", detail.Type);
-        Assert.True(detail.IsActive);
-    }
-
     [Fact]
     public async Task GetOrgUnitDetailAsync_ReturnsNull_WhenOrgUnitNotFound()
     {
@@ -101,7 +66,6 @@ public class WorkforceOrgUnitContractTests
         var detail = await service.GetOrgUnitDetailAsync(orgUnitId, CancellationToken.None);
 
         Assert.NotNull(detail);
-        Assert.Null(detail!.ResponsibleManagerEmployeeId);
     }
 
     // ────────────────────────────────────────────────────────────────────────

@@ -180,6 +180,25 @@ docker-compose up -d
 
 See [docker/README.md](docker/README.md) for more details.
 
+### Canonical Organization development reset
+
+Feature 4 Change 1 replaces the former draft/publish organization setup with one
+effective-dated Organization model. Local development data from the former setup
+must not be migrated into invented Organization history. To recreate the disposable
+Docker database before exercising this capability, stop the stack and remove its
+local volume, then start Postgres and apply CoreHR migrations:
+
+```bash
+docker compose down -v
+docker compose up -d postgres
+cd Backend
+dotnet ef database update --project EY.HRPlatform.CoreHR --startup-project EY.HRPlatform.CoreHR
+```
+
+This command deletes local Docker database volumes. It is for development only.
+The former Draft Structure, import, and publish/reopen routes are no longer a
+source of Organization truth; Change 2 removes their replaced frontend surfaces.
+
 ### Option B: Local Development
 
 #### 1. Backend

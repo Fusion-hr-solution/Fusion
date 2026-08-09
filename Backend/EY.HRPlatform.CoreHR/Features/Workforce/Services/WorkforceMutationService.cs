@@ -301,7 +301,7 @@ public sealed class WorkforceMutationService(
             return Result.Failure<WorkAssignment>(Error.Validation(
                 "WorkAssignment.OrgUnitNotFound",
                 "The work assignment organization unit was not found in this tenant."));
-        if (!orgUnit.IsActive)
+        if (!await IsOrgUnitActiveOnAsync(orgUnit.Id, DateOnly.FromDateTime(effectiveDate), orgUnit.IsActive, cancellationToken))
             return Result.Failure<WorkAssignment>(Error.Validation(
                 "WorkAssignment.OrgUnitInactive", "Cannot assign an inactive organization unit."));
 
@@ -347,7 +347,7 @@ public sealed class WorkforceMutationService(
             return Result.Failure<WorkAssignment>(Error.Validation(
                 "WorkAssignment.OrgUnitNotFound",
                 "The work assignment organization unit was not found in this tenant."));
-        if (!orgUnit.IsActive)
+        if (!await IsOrgUnitActiveOnAsync(orgUnit.Id, DateOnly.FromDateTime(DateTime.UtcNow), orgUnit.IsActive, cancellationToken))
             return Result.Failure<WorkAssignment>(Error.Validation(
                 "WorkAssignment.OrgUnitInactive",
                 "Cannot assign an inactive organization unit."));
@@ -445,6 +445,22 @@ public sealed class WorkforceMutationService(
         if (local is not null || _resolutionScope.TrackedGraphOnly)
             return local;
         return await dbContext.OrgUnits.FirstOrDefaultAsync(o => o.Id == orgUnitId, cancellationToken);
+    }
+
+    private async Task<bool> IsOrgUnitActiveOnAsync(Guid orgUnitId, DateOnly asOf, bool legacyIsActive, CancellationToken cancellationToken)
+    {
+        var state = await dbContext.OrgUnitEffectiveStates
+            .Where(item => item.OrgUnitId == orgUnitId
+                && item.EffectiveFrom <= asOf
+                && (item.EffectiveTo == null || asOf < item.EffectiveTo))
+            .Select(item => (OrgUnitLifecycleState?)item.LifecycleState)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (state.HasValue)
+            return state == OrgUnitLifecycleState.Active;
+
+        var hasCanonicalTimeline = await dbContext.OrgUnitEffectiveStates
+            .AnyAsync(item => item.OrgUnitId == orgUnitId, cancellationToken);
+        return hasCanonicalTimeline ? false : legacyIsActive;
     }
 
     private async Task<Employment?> ResolveActiveEmploymentAsync(Guid employeeId, DateTime asOf, CancellationToken cancellationToken)

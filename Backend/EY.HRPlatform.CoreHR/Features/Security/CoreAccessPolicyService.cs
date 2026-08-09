@@ -12,6 +12,8 @@ public interface ICoreAccessPolicyService
     bool CanPublishStructure(ClaimsPrincipal user);
     bool CanViewStructure(ClaimsPrincipal user);
     bool CanManageStructure(ClaimsPrincipal user);
+    bool CanViewOrganization(ClaimsPrincipal user) => false;
+    bool CanManageOrganization(ClaimsPrincipal user) => false;
     bool CanViewSettings(ClaimsPrincipal user);
     bool CanManageSettings(ClaimsPrincipal user);
     bool CanViewOrganizationSettings(ClaimsPrincipal user);
@@ -55,16 +57,20 @@ public sealed class CoreAccessPolicyService : ICoreAccessPolicyService
         => user.HasCorePermission(CorePermissions.SetupManage, PermissionScopes.Tenant)
             || user.HasCorePermission(CorePermissions.StructureManage, PermissionScopes.Tenant);
 
-    public bool CanPublishStructure(ClaimsPrincipal user)
-        => user.HasCorePermission(CorePermissions.StructurePublish, PermissionScopes.Tenant);
+    // Temporary Change 1 compatibility boundary. Change 2 removes the legacy
+    // endpoints entirely; they cannot read, publish, or mutate Organization truth.
+    public bool CanPublishStructure(ClaimsPrincipal user) => false;
 
-    public bool CanViewStructure(ClaimsPrincipal user)
-        => user.HasCorePermission(CorePermissions.StructureView, PermissionScopes.Tenant)
-            || user.HasCorePermission(CorePermissions.StructureManage, PermissionScopes.Tenant)
-            || user.HasCorePermission(CorePermissions.StructurePublish, PermissionScopes.Tenant);
+    public bool CanViewStructure(ClaimsPrincipal user) => false;
 
-    public bool CanManageStructure(ClaimsPrincipal user)
-        => user.HasCorePermission(CorePermissions.StructureManage, PermissionScopes.Tenant);
+    public bool CanManageStructure(ClaimsPrincipal user) => false;
+
+    public bool CanViewOrganization(ClaimsPrincipal user)
+        => user.HasCorePermission(CorePermissions.OrganizationView, PermissionScopes.Tenant)
+            || user.HasCorePermission(CorePermissions.OrganizationManage, PermissionScopes.Tenant);
+
+    public bool CanManageOrganization(ClaimsPrincipal user)
+        => user.HasCorePermission(CorePermissions.OrganizationManage, PermissionScopes.Tenant);
 
     public bool CanViewSettings(ClaimsPrincipal user)
         => CanViewOrganizationSettings(user)

@@ -3,7 +3,7 @@ using EY.HRPlatform.CoreHR.Infrastructure.Persistence.Interceptors;
 using EY.HRPlatform.CoreHR.Features.DraftStructure.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
-using EY.HRPlatform.CoreHR.Features.OrgUnits.Services;
+using EY.HRPlatform.CoreHR.Features.Organization;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Features.TenantSetup.Services;
 using EY.HRPlatform.CoreHR.Features.Security;
@@ -55,7 +55,6 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri(EnsureTrailingSlash(baseUrl));
         });
 
-        services.AddScoped<IDraftStructureImportWorkflowService, DraftStructureImportWorkflowService>();
         services.AddScoped<IEmployeeDetailsReadModelService, EmployeeDetailsReadModelService>();
         services.AddScoped<ICoreAccessPolicyService, CoreAccessPolicyService>();
         services.AddScoped<ITenantSettingsReadService, TenantSettingsReadService>();
@@ -69,7 +68,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<WorkforceResolutionScope>();
         services.AddScoped<IWorkforceCanonicalResolver, WorkforceCanonicalResolver>();
         services.AddScoped<IWorkforceMutationService, WorkforceMutationService>();
-        services.AddScoped<IResponsibleManagerService, ResponsibleManagerService>();
+        services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddHostedService<EmployeeImportApplyBackgroundService>();
 
         services.AddHttpClient<IWorkforceBulkProvisioner, WorkforceBulkProvisioner>(client =>

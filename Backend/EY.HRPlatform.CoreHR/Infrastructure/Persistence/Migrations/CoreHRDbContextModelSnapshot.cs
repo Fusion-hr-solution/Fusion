@@ -808,15 +808,17 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .HasColumnType("boolean")
                         .HasDefaultValue(true);
 
+                    b.Property<bool>("IsRoot")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
                     b.Property<Guid?>("ParentId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("ResponsibleManagerEmployeeId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("TenantId")
@@ -852,11 +854,229 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_OrgUnits_TenantId_Code");
 
-                    b.HasIndex("TenantId", "Name")
+                    b.HasIndex("TenantId", "IsRoot")
                         .IsUnique()
-                        .HasDatabaseName("IX_OrgUnits_TenantId_Name");
+                        .HasDatabaseName("UX_OrgUnits_TenantId_Root")
+                        .HasFilter("\"IsRoot\" = true");
 
                     b.ToTable("OrgUnits", "corehr");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.OrgUnitCodeReservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("NormalizedCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("OrgUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrgUnitId");
+
+                    b.HasIndex("TenantId", "NormalizedCode")
+                        .IsUnique()
+                        .HasDatabaseName("UX_OrgUnitCodeReservations_TenantId_NormalizedCode");
+
+                    b.ToTable("OrgUnitCodeReservations", "corehr");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.OrgUnitEffectiveState", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateOnly>("EffectiveFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("EffectiveTo")
+                        .HasColumnType("date");
+
+                    b.Property<int>("LifecycleState")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid>("OrgUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("OrganizationalUnitTypeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ParentOrgUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrganizationalUnitTypeId");
+
+                    b.HasIndex("ParentOrgUnitId");
+
+                    b.HasIndex("OrgUnitId", "EffectiveFrom")
+                        .IsUnique()
+                        .HasDatabaseName("UX_OrgUnitEffectiveStates_OrgUnitId_EffectiveFrom");
+
+                    b.HasIndex("TenantId", "EffectiveFrom")
+                        .HasDatabaseName("IX_OrgUnitEffectiveStates_TenantId_EffectiveFrom");
+
+                    b.HasIndex("TenantId", "ParentOrgUnitId")
+                        .HasDatabaseName("IX_OrgUnitEffectiveStates_TenantId_ParentOrgUnitId");
+
+                    b.ToTable("OrgUnitEffectiveStates", "corehr");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.OrganizationChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateOnly>("EffectiveDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("OrgUnitId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrgUnitId", "EffectiveDate")
+                        .HasDatabaseName("IX_OrganizationChanges_OrgUnitId_EffectiveDate");
+
+                    b.HasIndex("TenantId", "EffectiveDate", "IsCancelled")
+                        .HasDatabaseName("IX_OrganizationChanges_TenantId_EffectiveDate_IsCancelled");
+
+                    b.ToTable("OrganizationChanges", "corehr");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.OrganizationalUnitType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsBuiltIn")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsBuiltIn", "NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_OrganizationalUnitTypes_BuiltIn_NormalizedName")
+                        .HasFilter("\"IsBuiltIn\" = true");
+
+                    b.HasIndex("TenantId", "NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("UX_OrganizationalUnitTypes_TenantId_NormalizedName");
+
+                    b.ToTable("OrganizationalUnitTypes", "corehr");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.SettingsAuditEvent", b =>
@@ -1276,36 +1496,6 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.ToTable("WorkforceAuditEntries", "corehr");
                 });
 
-            modelBuilder.Entity("EY.HRPlatform.DemoSeed.CanonicalSeedReceipt", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CompletedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ManifestHash")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
-
-                    b.Property<string>("ManifestVersion")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<Guid>("TenantId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TenantId", "ManifestVersion")
-                        .IsUnique();
-
-                    b.ToTable("CanonicalSeedReceipts", "corehr");
-                });
-
             modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.DraftOrgUnit", b =>
                 {
                     b.HasOne("EY.HRPlatform.CoreHR.Domain.Entities.DraftOrgUnit", "Parent")
@@ -1362,6 +1552,54 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.Navigation("Parent");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.OrgUnitCodeReservation", b =>
+                {
+                    b.HasOne("EY.HRPlatform.CoreHR.Domain.Entities.OrgUnit", "OrgUnit")
+                        .WithMany("CodeReservations")
+                        .HasForeignKey("OrgUnitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrgUnit");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.OrgUnitEffectiveState", b =>
+                {
+                    b.HasOne("EY.HRPlatform.CoreHR.Domain.Entities.OrgUnit", "OrgUnit")
+                        .WithMany("EffectiveStates")
+                        .HasForeignKey("OrgUnitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EY.HRPlatform.CoreHR.Domain.Entities.OrganizationalUnitType", "OrganizationalUnitType")
+                        .WithMany()
+                        .HasForeignKey("OrganizationalUnitTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EY.HRPlatform.CoreHR.Domain.Entities.OrgUnit", "ParentOrgUnit")
+                        .WithMany()
+                        .HasForeignKey("ParentOrgUnitId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("OrgUnit");
+
+                    b.Navigation("OrganizationalUnitType");
+
+                    b.Navigation("ParentOrgUnit");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.OrganizationChange", b =>
+                {
+                    b.HasOne("EY.HRPlatform.CoreHR.Domain.Entities.OrgUnit", "OrgUnit")
+                        .WithMany("OrganizationChanges")
+                        .HasForeignKey("OrgUnitId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OrgUnit");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.TenantSetupActivity", b =>
                 {
                     b.HasOne("EY.HRPlatform.CoreHR.Domain.Entities.TenantSetupState", "TenantSetupState")
@@ -1392,6 +1630,15 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                         .HasForeignKey("OrgUnitId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.OrgUnit", b =>
+                {
+                    b.Navigation("CodeReservations");
+
+                    b.Navigation("EffectiveStates");
+
+                    b.Navigation("OrganizationChanges");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.CoreHR.Domain.Entities.TenantSetupState", b =>

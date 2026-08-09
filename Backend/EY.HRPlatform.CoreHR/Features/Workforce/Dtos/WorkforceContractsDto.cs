@@ -166,8 +166,7 @@ public sealed record WorkforceOrgUnitTreeDto(
 
 /// <summary>
 /// Detailed org-unit projection returned by the workforce contract's org-unit-by-id read (D-16 seam #2).
-/// Includes the responsible manager/owner so downstream workflows can resolve collective ownership
-/// without modelling org structure itself.
+/// Resolves the stable Organizational Unit identity without assigning structural ownership.
 /// </summary>
 public sealed record WorkforceOrgUnitDetailDto(
     Guid OrgUnitId,
@@ -176,7 +175,6 @@ public sealed record WorkforceOrgUnitDetailDto(
     string Name,
     string Type,
     Guid? ParentId,
-    Guid? ResponsibleManagerEmployeeId,
     bool IsActive);
 
 public sealed record WorkforceEmployeeSearchResponseDto(

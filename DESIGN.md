@@ -297,6 +297,30 @@ If removing explanatory text makes the interface confusing, first ask whether th
 
 The user should not need to read instructions to operate an ordinary Fusion screen.
 
+## 3.7 Choose the natural interaction, not the convenient CRUD representation
+
+Choose the interaction that most naturally lets the user understand and complete the task—not the easiest CRUD representation to implement.
+
+Forms, tables, cards, selects, and dialogs are tools, not default answers. Before choosing one, establish the decision being made, the relationships that must remain visible, the needed precision, the frequency and consequence of the action, and whether visible choices or direct manipulation would make the task clearer.
+
+Use the interaction that fits the work. For example:
+
+- Organization structure should make reporting relationships spatially legible through visual hierarchy and support direct manipulation where it is safe and useful.
+- Repeated, comparable records may call for a table or bulk selection.
+- Frequent, lightweight changes may call for inline editing.
+- Finding a known item may call for command/search.
+- Time-bound work may call for timeline manipulation.
+
+Do not flatten these tasks into a form or table simply because those components are available. Preserve familiar, accessible conventions when they fit; invent a new pattern only when it makes the task genuinely clearer.
+
+## 3.8 Immediate understanding and spatial clarity
+
+Fusion should feel immediately understandable, rich, impressive, and natural. These are outcomes of a well-designed task flow—not decoration or novelty.
+
+Where relationships, sequence, ownership, position, or containment matter, the layout and interaction MUST make them visible. A user should be able to understand the relevant spatial model before reading a detailed explanation: who reports to whom, what belongs together, what changed, what can move, and where an action will take effect.
+
+Richness comes from showing the right context, relationships, and controls at the right moment. It does not mean showing every possible detail at once.
+
 ---
 
 # 4. Typography philosophy
@@ -686,6 +710,8 @@ Data-heavy interfaces are first-class Fusion experiences, not fallback layouts.
 
 Repeated structured entities SHOULD generally use a table/list rather than a grid of oversized cards when comparison is important.
 
+This rule does not make a table the default for every collection. When hierarchy, sequence, relationships, or direct manipulation are central to the task, use the representation that makes those qualities visible instead.
+
 ## Dense information
 
 Progressive disclosure is preferred to horizontal sprawl.
@@ -962,9 +988,13 @@ Avoid:
 
 If a sentence can be removed without reducing understanding, confidence, safety, or recovery, remove it.
 
-## 25.2 Product voice, not AI voice
+## 25.2 Natural product voice through the journey
 
 Avoid assistant-like, generated, promotional, or conversational filler.
+
+Fusion may speak directly and naturally to the user when contextual guidance, a transition, feedback, or recovery genuinely helps them move through a journey. That voice should be plain, specific, and proportional to the moment: acknowledge what happened, clarify what matters now, and make the next useful action clear.
+
+Do not mistake natural language for chatty language. The product should not narrate obvious steps, simulate a conversation, or use enthusiasm to compensate for weak interaction design.
 
 Do not write product UI in the style of:
 
@@ -979,7 +1009,7 @@ Do not write product UI in the style of:
 
 Avoid inflated adjectives and vague claims such as `powerful`, `seamless`, `smart`, `intuitive`, `robust`, or `effortless` unless they convey necessary factual meaning.
 
-Do not address the user conversationally when a direct label, state, or action is clearer.
+Do not address the user conversationally when a direct label, state, or action is clearer. When a human sentence does add useful context, write it as the product speaking clearly at the right moment—not as an assistant performing friendliness.
 
 Warmth should come from clarity, considerate wording, and respectful handling of people—not chatty filler.
 
@@ -1318,6 +1348,7 @@ Before considering a screen complete, review it against these questions.
 - Is the title clearly dominant?
 - Is supporting information visibly secondary?
 - Is the main task obvious?
+- Are hierarchy, sequence, ownership, and containment spatially clear where they matter?
 
 ## Composition
 
@@ -1331,6 +1362,8 @@ Before considering a screen complete, review it against these questions.
 - Is there a clear primary action?
 - Are destructive actions treated appropriately?
 - Are secondary actions visually secondary?
+- Does the interaction fit the user's task better than the most convenient CRUD control would?
+- Would visible choices, inline editing, bulk selection, search/command, timeline editing, or direct manipulation make the work clearer?
 
 ## Data
 
@@ -1358,6 +1391,7 @@ Before considering a screen complete, review it against these questions.
 - Does the copy sound like product language rather than AI, marketing, support, or tutorial language?
 - Are we repeating information already visible elsewhere on the screen?
 - Are consequential details explicit while obvious details remain unstated?
+- When the journey benefits from a human sentence, does it give specific, timely guidance without becoming chatty or assistant-like?
 
 ## Visual character
 
@@ -1366,6 +1400,7 @@ Before considering a screen complete, review it against these questions.
 - Does it avoid generic shadcn composition?
 - Does it avoid generic AI/SaaS styling?
 - Is personality coming from disciplined design rather than decoration?
+- Does it feel immediately understandable, rich, impressive, and natural because the task and its relationships are clear?
 
 ---
 
@@ -1381,4 +1416,3 @@ This north star was synthesized from patterns and principles visible in:
 - **Material Design** — consistent interaction states and accessibility-aware state communication.
 
 These systems are references for reasoning, not visual templates. Fusion should borrow proven principles while maintaining its own identity.
-

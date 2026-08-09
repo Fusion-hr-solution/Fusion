@@ -32,6 +32,9 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
         UpdateTenantSettingsCommand request,
         CancellationToken cancellationToken)
     {
+        if (request.OrgUnitTypes is not null || request.DraftStructureSchema is not null)
+            throw new ArgumentException(
+                "Organization Types are managed through the canonical Organization API; Draft Structure settings are retired.");
         ValidateRequest(request);
         var requestedSchema = BuildRequestedSchema(request);
 

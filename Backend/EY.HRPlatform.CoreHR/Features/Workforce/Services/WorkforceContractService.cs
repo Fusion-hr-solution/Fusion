@@ -48,7 +48,7 @@ public interface IWorkforceContractService
     Task<WorkforceBulkInviteResponseDto> BulkInviteAsync(WorkforceBulkInviteRequest request, ClaimsPrincipal user, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Returns the org-unit detail including ResponsibleManagerEmployeeId, scope-filtered. Null when not found or not visible.
+    /// Returns the org-unit detail, scope-filtered. Null when not found or not visible.
     /// </summary>
     Task<WorkforceOrgUnitDetailDto?> GetOrgUnitDetailAsync(Guid orgUnitId, CancellationToken cancellationToken);
 
@@ -552,7 +552,6 @@ public sealed class WorkforceContractService(
             orgUnit.Name,
             orgUnit.Type,
             orgUnit.ParentId,
-            orgUnit.ResponsibleManagerEmployeeId,
             orgUnit.IsActive);
     }
 

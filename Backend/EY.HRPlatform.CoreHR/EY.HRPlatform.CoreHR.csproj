@@ -39,4 +39,8 @@
     </AssemblyAttribute>
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Remove="Features\OrgUnits\**\*.cs" />
+  </ItemGroup>
+
 </Project>

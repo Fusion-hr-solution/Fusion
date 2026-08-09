@@ -15,6 +15,12 @@ public class OrgUnit : AggregateRoot, ITenantEntity
     public uint Version { get; private set; }
 
     /// <summary>
+    /// Identifies the one permanent tenant root. The root identity is reserved even
+    /// when its first effective state is scheduled in the future.
+    /// </summary>
+    public bool IsRoot { get; private set; }
+
+    /// <summary>
     /// Unique code within tenant. Normalized to uppercase.
     /// </summary>
     public string Code { get; private set; } = string.Empty;
@@ -49,7 +55,9 @@ public class OrgUnit : AggregateRoot, ITenantEntity
     /// Stored as an id-only reference (no FK constraint) to match the id-only reference posture.
     /// Null when no responsible manager has been designated.
     /// </summary>
-    public Guid? ResponsibleManagerEmployeeId { get; private set; }
+    public ICollection<OrgUnitEffectiveState> EffectiveStates { get; private set; } = new List<OrgUnitEffectiveState>();
+    public ICollection<OrganizationChange> OrganizationChanges { get; private set; } = new List<OrganizationChange>();
+    public ICollection<OrgUnitCodeReservation> CodeReservations { get; private set; } = new List<OrgUnitCodeReservation>();
 
     public static OrgUnit Create(
         Guid tenantId,
@@ -88,8 +96,43 @@ public class OrgUnit : AggregateRoot, ITenantEntity
             Type = type.Trim(),
             ParentId = parentId,
             IsActive = true,
-            ResponsibleManagerEmployeeId = responsibleManagerEmployeeId == Guid.Empty ? null : responsibleManagerEmployeeId,
         };
+    }
+
+    public static OrgUnit CreateCanonical(Guid tenantId, string code, bool isRoot)
+    {
+        var unit = Create(tenantId, code, name: code, type: "Unit", parentId: null);
+        unit.IsRoot = isRoot;
+        return unit;
+    }
+
+    public void CorrectCode(string code)
+    {
+        if (string.IsNullOrWhiteSpace(code))
+            throw new ArgumentException("Code cannot be empty.", nameof(code));
+
+        if (code.Length > 50)
+            throw new ArgumentException("Code cannot exceed 50 characters.", nameof(code));
+
+        Code = code.Trim().ToUpperInvariant();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    public void Touch()
+        => UpdatedAt = DateTime.UtcNow;
+
+    /// <summary>
+    /// Transitional read projection for workforce consumers that still materialize
+    /// this identity row. It is written only from canonical effective state and is
+    /// never an Organization mutation surface.
+    /// </summary>
+    internal void SynchronizeCurrentProjection(string name, string type, Guid? parentId, bool isActive)
+    {
+        Name = name;
+        Type = type;
+        ParentId = parentId;
+        IsActive = isActive;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public static OrgUnit CreateSeeded(
@@ -126,7 +169,6 @@ public class OrgUnit : AggregateRoot, ITenantEntity
         Name = name.Trim();
         Type = type.Trim();
         ParentId = parentId;
-        ResponsibleManagerEmployeeId = responsibleManagerEmployeeId == Guid.Empty ? null : responsibleManagerEmployeeId;
         UpdatedAt = DateTime.UtcNow;
     }
 

@@ -59,6 +59,21 @@ public class CoreAccessPolicyServiceTests
     }
 
     [Fact]
+    public void Organization_management_is_capability_based_and_not_granted_by_manager_role()
+    {
+        var manager = CreatePrincipal(roles: [PlatformRole.Manager]);
+        var viewer = CreatePrincipal(null, (CorePermissions.OrganizationView, PermissionScopes.Tenant));
+        var managerCapability = CreatePrincipal(null, (CorePermissions.OrganizationManage, PermissionScopes.Tenant));
+
+        Assert.False(_service.CanViewOrganization(manager));
+        Assert.False(_service.CanManageOrganization(manager));
+        Assert.True(_service.CanViewOrganization(viewer));
+        Assert.False(_service.CanManageOrganization(viewer));
+        Assert.True(_service.CanViewOrganization(managerCapability));
+        Assert.True(_service.CanManageOrganization(managerCapability));
+    }
+
+    [Fact]
     public void PlatformAdminRoleAlone_GrantsNoCustomerWorkspaceAccess()
     {
         var user = CreatePrincipal(roles: [PlatformRole.PlatformAdmin]);
