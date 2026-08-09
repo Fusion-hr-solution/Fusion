@@ -21,7 +21,30 @@ public sealed record OrganizationHierarchyNodeDto(
 
 public sealed record OrganizationHierarchyDto(DateOnly AsOf, IReadOnlyList<OrganizationHierarchyNodeDto> Roots);
 
-public sealed record OrganizationReadinessDto(bool IsReady, string? Reason);
+public sealed record OrganizationReadinessDto(
+    bool IsReady,
+    string? Reason,
+    bool HasPermanentRoot,
+    Guid? PermanentRootId,
+    DateOnly? PermanentRootFirstEffectiveDate,
+    bool IsPermanentRootEffective);
+
+public enum OrganizationBusinessEventKind
+{
+    Created = 1,
+    Renamed = 2,
+    TypeChanged = 3,
+    Moved = 4,
+    Inactivated = 5,
+}
+
+public sealed record OrganizationUnitReferenceDto(Guid Id, string Name, string Code);
+public sealed record OrganizationTypeReferenceDto(Guid Id, string Name);
+public sealed record OrganizationBusinessEventContextDto(
+    string Name,
+    OrganizationTypeReferenceDto Type,
+    OrganizationUnitReferenceDto? Parent,
+    OrgUnitLifecycleState LifecycleState);
 
 public sealed record OrganizationChangeDto(
     Guid Id,
@@ -31,7 +54,10 @@ public sealed record OrganizationChangeDto(
     DateOnly EffectiveDate,
     OrganizationChangeKind Kind,
     string? Summary,
-    bool IsCancelled);
+    bool IsCancelled,
+    IReadOnlyList<OrganizationBusinessEventKind> BusinessEventKinds,
+    OrganizationBusinessEventContextDto? Before,
+    OrganizationBusinessEventContextDto? After);
 
 public sealed record OrganizationalUnitTypeDto(Guid Id, string DisplayName, bool IsBuiltIn);
 

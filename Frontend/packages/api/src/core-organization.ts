@@ -1,5 +1,6 @@
 export type OrganizationLifecycleState = "Active" | "Inactive" | number;
 export type OrganizationChangeKind = "Create" | "Change" | "Move" | "Inactivate" | "Correction" | "CodeCorrection" | number;
+export type OrganizationBusinessEventKind = "Created" | "Renamed" | "TypeChanged" | "Moved" | "Inactivated" | number;
 
 export interface OrganizationUnitStateDto {
   id: string;
@@ -34,11 +35,36 @@ export interface OrganizationChangeDto {
   kind: OrganizationChangeKind;
   summary: string | null;
   isCancelled: boolean;
+  businessEventKinds: OrganizationBusinessEventKind[];
+  before: OrganizationBusinessEventContextDto | null;
+  after: OrganizationBusinessEventContextDto | null;
+}
+
+export interface OrganizationUnitReferenceDto {
+  id: string;
+  name: string;
+  code: string;
+}
+
+export interface OrganizationTypeReferenceDto {
+  id: string;
+  name: string;
+}
+
+export interface OrganizationBusinessEventContextDto {
+  name: string;
+  type: OrganizationTypeReferenceDto;
+  parent: OrganizationUnitReferenceDto | null;
+  lifecycleState: OrganizationLifecycleState;
 }
 
 export interface OrganizationReadinessDto {
   isReady: boolean;
   reason: string | null;
+  hasPermanentRoot: boolean;
+  permanentRootId: string | null;
+  permanentRootFirstEffectiveDate: string | null;
+  isPermanentRootEffective: boolean;
 }
 
 export interface OrganizationalUnitTypeDto {

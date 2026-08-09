@@ -28,7 +28,7 @@ public sealed class OrganizationControllerAuthorizationTests
     {
         var service = new Mock<IOrganizationService>();
         service.Setup(item => item.GetReadinessAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new OrganizationReadinessDto(true, null));
+            .ReturnsAsync(new OrganizationReadinessDto(true, null, true, Guid.NewGuid(), DateOnly.FromDateTime(DateTime.UtcNow), true));
         var policy = new Mock<ICoreAccessPolicyService>();
         policy.Setup(item => item.CanViewOrganization(It.IsAny<ClaimsPrincipal>())).Returns(true);
         var controller = CreateController(service.Object, policy.Object);

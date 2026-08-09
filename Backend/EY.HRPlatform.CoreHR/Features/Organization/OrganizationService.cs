@@ -75,47 +75,138 @@ public sealed class OrganizationService(
     }
 
     public async Task<IReadOnlyList<OrganizationChangeDto>> GetUpcomingChangesAsync(CancellationToken cancellationToken)
-    {
-        var changes = await dbContext.OrganizationChanges
-            .Where(change => !change.IsCancelled && change.EffectiveDate > Today)
-            .Include(change => change.OrgUnit)
-            .OrderBy(change => change.EffectiveDate)
-            .ThenBy(change => change.CreatedAt)
-            .ToListAsync(cancellationToken);
-        return changes.Select(change => new OrganizationChangeDto(
-            change.Id, change.OrgUnitId, change.OrgUnit.Name, change.OrgUnit.Code,
-            change.EffectiveDate, change.Kind, change.Summary, change.IsCancelled)).ToList();
-    }
+        => await BuildBusinessChangeDtosAsync(
+            change => change.EffectiveDate > Today,
+            ascending: true,
+            cancellationToken: cancellationToken);
 
     public async Task<IReadOnlyList<OrganizationChangeDto>> GetHistoryAsync(Guid orgUnitId, CancellationToken cancellationToken)
     {
-        var changes = await dbContext.OrganizationChanges
-            .Where(change => change.OrgUnitId == orgUnitId)
-            .Include(change => change.OrgUnit)
-            .OrderByDescending(change => change.EffectiveDate)
-            .ThenByDescending(change => change.CreatedAt)
-            .ToListAsync(cancellationToken);
-        if (changes.Count == 0 && !await dbContext.OrgUnits.AnyAsync(unit => unit.Id == orgUnitId, cancellationToken))
+        if (!await dbContext.OrgUnits.AnyAsync(unit => unit.Id == orgUnitId, cancellationToken))
             throw new EntityNotFoundException("Organizational Unit", orgUnitId);
-        return changes.Select(change => new OrganizationChangeDto(
-            change.Id, change.OrgUnitId, change.OrgUnit.Code, change.OrgUnit.Code,
-            change.EffectiveDate, change.Kind, change.Summary, change.IsCancelled)).ToList();
+        return await BuildBusinessChangeDtosAsync(
+            change => change.OrgUnitId == orgUnitId,
+            ascending: false,
+            cancellationToken: cancellationToken);
     }
 
     public async Task<OrganizationReadinessDto> GetReadinessAsync(CancellationToken cancellationToken)
     {
+        var root = await dbContext.OrgUnits.SingleOrDefaultAsync(unit => unit.IsRoot, cancellationToken);
+        var rootFirstEffectiveDate = root is null
+            ? null
+            : await dbContext.OrgUnitEffectiveStates
+                .Where(state => state.OrgUnitId == root.Id)
+                .MinAsync(state => (DateOnly?)state.EffectiveFrom, cancellationToken);
+        var rootIsEffective = rootFirstEffectiveDate is not null && rootFirstEffectiveDate <= Today;
         try
         {
             var states = await GetActiveStatesAsync(Today, cancellationToken);
             await ValidateHierarchyAsync(Today, states, cancellationToken);
-            return states.Count == 0
-                ? new OrganizationReadinessDto(false, "The permanent root is not yet effective.")
-                : new OrganizationReadinessDto(true, null);
+            var isReady = rootIsEffective && states.Count != 0;
+            return new OrganizationReadinessDto(
+                isReady,
+                isReady ? null : root is null ? "The permanent root has not been created." : "The permanent root is not yet effective.",
+                root is not null,
+                root?.Id,
+                rootFirstEffectiveDate,
+                rootIsEffective);
         }
         catch (ArgumentException exception)
         {
-            return new OrganizationReadinessDto(false, exception.Message);
+            return new OrganizationReadinessDto(false, exception.Message, root is not null, root?.Id, rootFirstEffectiveDate, rootIsEffective);
         }
+    }
+
+    private async Task<IReadOnlyList<OrganizationChangeDto>> BuildBusinessChangeDtosAsync(
+        Func<OrganizationChange, bool> include,
+        bool ascending,
+        CancellationToken cancellationToken)
+    {
+        var operations = await dbContext.OrganizationChanges
+            .Where(change => !change.IsCancelled)
+            .Include(change => change.OrgUnit)
+            .OrderBy(change => change.EffectiveDate)
+            .ThenBy(change => change.CreatedAt)
+            .ThenBy(change => change.Id)
+            .ToListAsync(cancellationToken);
+        var states = await dbContext.OrgUnitEffectiveStates
+            .Include(state => state.OrgUnit)
+            .Include(state => state.OrganizationalUnitType)
+            .ToListAsync(cancellationToken);
+        var stateTimelines = states.GroupBy(state => state.OrgUnitId)
+            .ToDictionary(group => group.Key, group => group.OrderBy(state => state.EffectiveFrom).ToList());
+        var types = states.Select(state => state.OrganizationalUnitType)
+            .GroupBy(type => type.Id).ToDictionary(group => group.Key, group => group.First());
+        var result = new List<OrganizationChangeDto>();
+
+        foreach (var unitOperations in operations.GroupBy(change => change.OrgUnitId))
+        {
+            StateAccumulator? state = null;
+            foreach (var change in unitOperations)
+            {
+                var patch = JsonSerializer.Deserialize<OrganizationPatch>(change.PayloadJson, JsonOptions) ?? OrganizationPatch.Empty;
+                var beforeState = state;
+                state = change.Kind == OrganizationChangeKind.CodeCorrection ? state : ApplyPatch(state, patch, change.Kind);
+                var eventKinds = GetBusinessEventKinds(change.Kind, patch);
+                if (eventKinds.Count == 0 || !include(change))
+                    continue;
+                result.Add(new OrganizationChangeDto(
+                    change.Id,
+                    change.OrgUnitId,
+                    state?.Name ?? change.OrgUnit.Name,
+                    change.OrgUnit.Code,
+                    change.EffectiveDate,
+                    change.Kind,
+                    change.Summary,
+                    change.IsCancelled,
+                    eventKinds,
+                    ToEventContext(beforeState, change.EffectiveDate, stateTimelines, types),
+                    ToEventContext(state, change.EffectiveDate, stateTimelines, types)));
+            }
+        }
+
+        return ascending
+            ? result.OrderBy(change => change.EffectiveDate).ThenBy(change => change.Id).ToList()
+            : result.OrderByDescending(change => change.EffectiveDate).ThenByDescending(change => change.Id).ToList();
+    }
+
+    private static IReadOnlyList<OrganizationBusinessEventKind> GetBusinessEventKinds(OrganizationChangeKind operationKind, OrganizationPatch patch)
+        => operationKind switch
+        {
+            OrganizationChangeKind.Create => [OrganizationBusinessEventKind.Created],
+            OrganizationChangeKind.Move => [OrganizationBusinessEventKind.Moved],
+            OrganizationChangeKind.Inactivate => [OrganizationBusinessEventKind.Inactivated],
+            OrganizationChangeKind.Change => new[]
+            {
+                patch.NameChanged ? OrganizationBusinessEventKind.Renamed : (OrganizationBusinessEventKind?)null,
+                patch.TypeIdChanged ? OrganizationBusinessEventKind.TypeChanged : null,
+            }.Where(kind => kind is not null).Select(kind => kind!.Value).ToList(),
+            _ => [],
+        };
+
+    private static OrganizationBusinessEventContextDto? ToEventContext(
+        StateAccumulator? state,
+        DateOnly effectiveDate,
+        IReadOnlyDictionary<Guid, List<OrgUnitEffectiveState>> stateTimelines,
+        IReadOnlyDictionary<Guid, OrganizationalUnitType> types)
+    {
+        if (state is null || !types.TryGetValue(state.TypeId, out var type))
+            return null;
+        OrganizationUnitReferenceDto? parent = null;
+        if (state.ParentId is Guid parentId
+            && stateTimelines.TryGetValue(parentId, out var parentTimeline))
+        {
+            var parentState = parentTimeline.LastOrDefault(item => item.EffectiveFrom <= effectiveDate
+                && (item.EffectiveTo is null || effectiveDate < item.EffectiveTo));
+            if (parentState is not null)
+                parent = new OrganizationUnitReferenceDto(parentId, parentState.Name, parentState.OrgUnit.Code);
+        }
+        return new OrganizationBusinessEventContextDto(
+            state.Name,
+            new OrganizationTypeReferenceDto(type.Id, type.DisplayName),
+            parent,
+            state.LifecycleState);
     }
 
     public async Task<IReadOnlyList<OrganizationalUnitTypeDto>> GetTypesAsync(CancellationToken cancellationToken)

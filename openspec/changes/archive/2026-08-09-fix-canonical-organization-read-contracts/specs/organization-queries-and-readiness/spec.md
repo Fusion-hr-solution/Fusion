@@ -1,22 +1,4 @@
-# organization-queries-and-readiness Specification
-
-## Purpose
-
-Defines tenant-scoped as-of Organization queries, scheduled-change/history contracts, and derived readiness.
-## Requirements
-### Requirement: Coherent as-of Organization queries
-
-Core HR SHALL expose tenant-scoped Organization queries for a supplied calendar date: resolved hierarchy, unit detail, and Organization-scoped search. Before any root exists, or before a scheduled root becomes effective, the hierarchy query SHALL return a valid empty active hierarchy. From root effectiveness onward, each response SHALL resolve hierarchy, parent/path, lifecycle, type, details, and search context from the same date and SHALL provide structural data sufficient for later Chart and Outline representations.
-
-#### Scenario: Duplicate-name-safe search
-
-- **WHEN** Organization search returns two units with the same name
-- **THEN** each result includes stable code and/or resolved hierarchy path sufficient to distinguish it
-
-#### Scenario: Future detail is coherent
-
-- **WHEN** a caller requests hierarchy and unit detail as of a future date with scheduled changes
-- **THEN** both responses resolve the same future parent/type/name/lifecycle truth
+## MODIFIED Requirements
 
 ### Requirement: Upcoming changes and business-history queries
 
@@ -52,12 +34,3 @@ The system SHALL derive Organization readiness from persisted canonical state: a
 
 - **WHEN** a tenant has an active valid permanent root and no other active units
 - **THEN** the readiness contract reports the root as currently effective and resolves Ready
-
-### Requirement: Query authorization and tenant isolation
-
-Organization hierarchy, detail, search, history, upcoming-change, type, and readiness queries SHALL fail closed without the resolved tenant and SHALL require Organization.View or Organization.Manage. A caller SHALL not infer another tenant's units, types, history, readiness, or scheduled changes.
-
-#### Scenario: Cross-tenant unit detail
-
-- **WHEN** a caller requests a unit identifier owned by another tenant
-- **THEN** the query returns no Organization data and does not disclose the unit's existence through a successful response

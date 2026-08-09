@@ -3,9 +3,7 @@
 ## Purpose
 
 Defines effective-dated Organization operations, stable scheduled-operation identity, cancellation, correction, and concurrency behavior.
-
 ## Requirements
-
 ### Requirement: Effective-dated creation and Change
 
 Creating a root or non-root Organizational Unit SHALL create stable identity and an effective state at an explicit calendar date. Ordinary Change SHALL create new business truth from its date while preserving prior business truth, and may change only name and/or type. Non-root creation SHALL require an active valid parent on its effective date. Future changes SHALL NOT alter today's result.
@@ -85,9 +83,23 @@ Every successful mutation affecting an Organizational Unit SHALL advance the agg
 
 ### Requirement: Meaningful business history
 
-The system SHALL provide human-readable business history derived from effective-state differences, including created, renamed, type changed, moved, and inactivated events. Future changes SHALL be identifiable as scheduled. Business history SHALL remain distinct from technical/compliance audit history.
+The system SHALL provide human-readable business history derived from effective-state differences, including Created, Renamed, Type changed, Moved, and Inactivated events. Every business-history item SHALL expose structured business-event kind data and typed before/after context without requiring a client to parse a summary or reconstruct parent/type/name data through additional reads. The context SHALL accurately distinguish affected-unit display name from business code and SHALL include applicable prior/resulting name, type, parent identity/display context, and lifecycle state. Future changes SHALL be identifiable as scheduled. Business history SHALL remain distinct from technical/compliance audit history: Correction and code-only Correction SHALL remain audit-visible but SHALL NOT appear as false business-effective History events, while corrected historical as-of truth SHALL resolve normally.
 
 #### Scenario: Move history context
 
 - **WHEN** a unit is moved from one parent to another
-- **THEN** its history identifies the effective date and before/after parent context rather than raw state-row values
+- **THEN** its History item identifies the Moved business event kind, effective date, previous parent identity/display context, and resulting parent identity/display context
+- **AND** the client does not parse a raw persistence payload or summary to obtain that meaning
+
+#### Scenario: Rename and type change remain distinct
+
+- **WHEN** an ordinary Change renames a unit, changes its type, or changes both values
+- **THEN** History exposes Renamed and/or Type changed as the precise structured business-event kinds
+- **AND** each applicable before/after value is present
+
+#### Scenario: Historical Correction is not a business event
+
+- **WHEN** a caller corrects a historical Organization state with a required reason
+- **THEN** historical as-of resolution reflects the repaired truth
+- **AND** Organization business History contains no Created, Renamed, Type changed, Moved, or Inactivated event created solely by that Correction
+- **AND** technical correction evidence remains available through audit mechanisms outside business History
