@@ -25,7 +25,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
   Input,
   Skeleton,
@@ -41,18 +40,21 @@ import { PageHeader, PagePermissionNotice } from "@repo/ds/shell";
 import {
   AlertTriangle,
   ArrowRight,
+  ArrowLeftRight,
+  Ban,
   CalendarDays,
-  ChevronDown,
   ChevronRight,
   Clock3,
   History,
   ListTree,
   MoreHorizontal,
   Network,
+  Pencil,
   Plus,
   RotateCcw,
   Search,
   Settings2,
+  Wrench,
   X,
 } from "lucide-react";
 import {
@@ -90,13 +92,13 @@ import {
 } from "../model/workspace-state";
 import { OrganizationOutline } from "./organization-outline";
 import {
-  CorrectionSheet,
+  CorrectionPanel,
   CreateTypeDialog,
   InactivateDialog,
-  ManageTypesSheet,
+  ManageTypesPanel,
   MoveReviewDialog,
   RootEstablishment,
-  UnitFormSheet,
+  UnitFormPanel,
   UpcomingChangesSheet,
 } from "./organization-surfaces";
 
@@ -152,7 +154,7 @@ function StructureSkeleton() {
   );
 }
 
-function Inspector({
+function InspectorContent({
   selectedId,
   asOf,
   today,
@@ -190,10 +192,6 @@ function Inspector({
   const recentEvents = businessEvents.slice(0, 3);
 
   return (
-    <aside
-      className="min-h-0 w-[340px] shrink-0 border-l bg-background max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-xl"
-      aria-label="Selected Organizational Unit inspector"
-    >
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
           <div className="min-w-0">
@@ -281,23 +279,33 @@ function Inspector({
                   </div>
                 </dl>
                 {canManage && !readOnly ? (
-                  <div className="mt-5 flex flex-wrap items-center gap-2">
-                    <Button size="sm" onClick={() => onEdit(unit)}>
+                  <div className="mt-5 flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1 px-2 text-xs"
+                      onClick={() => onEdit(unit)}
+                    >
+                      <Pencil className="h-3.5 w-3.5 shrink-0" />
                       Edit
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
+                      className="gap-1 px-2 text-xs"
                       onClick={() => onAddChild(unit.id)}
                     >
+                      <Plus className="h-3.5 w-3.5 shrink-0" />
                       Add child
                     </Button>
                     {!root ? (
                       <Button
                         size="sm"
                         variant="outline"
+                        className="gap-1 px-2 text-xs"
                         onClick={() => onMove(unit.id)}
                       >
+                        <ArrowLeftRight className="h-3.5 w-3.5 shrink-0" />
                         Move
                       </Button>
                     ) : null}
@@ -306,24 +314,27 @@ function Inspector({
                         <Button
                           size="sm"
                           variant="outline"
+                          className="gap-1 px-2 text-xs"
                           aria-label="More actions"
                         >
+                          <MoreHorizontal className="h-3.5 w-3.5 shrink-0" />
                           More
-                          <ChevronDown className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
-                        {!root ? (
-                          <>
-                            <DropdownMenuItem onSelect={() => onInactivate(unit)}>
-                              Inactivate unit
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                          </>
-                        ) : null}
+                      <DropdownMenuContent align="end" className="w-52">
                         <DropdownMenuItem onSelect={() => onCorrect(unit, asOf)}>
+                          <Wrench className="h-4 w-4" />
                           Correct recorded data
                         </DropdownMenuItem>
+                        {!root ? (
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onSelect={() => onInactivate(unit)}
+                          >
+                            <Ban className="h-4 w-4" />
+                            Inactivate unit
+                          </DropdownMenuItem>
+                        ) : null}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
@@ -484,7 +495,6 @@ function Inspector({
           </TabsContent>
         </Tabs>
       </div>
-    </aside>
   );
 }
 
@@ -979,28 +989,74 @@ export default function OrganizationWorkspace() {
                 </div>
               )}
             </main>
-            {model && urlState.selectedId && inspectorOpen ? (
-              <Inspector
-                selectedId={urlState.selectedId}
-                asOf={urlState.asOf}
-                today={today}
-                canManage={canManage}
-                readOnly={readOnly}
-                model={model}
-                onClose={() => {
-                  patchLocal({ inspectorOpen: false });
-                  navigate({ selectedId: null });
-                }}
-                onEdit={(unit) =>
-                  patchLocal({ unitForm: { kind: "edit", unit } })
-                }
-                onAddChild={addChild}
-                onMove={(id) => stageMove(id, null)}
-                onInactivate={(unit) => patchLocal({ inactivateUnit: unit })}
-                onCorrect={(unit, date) =>
-                  patchLocal({ correction: { unit, date } })
-                }
-              />
+            {model &&
+            (unitForm !== null ||
+              manageTypes ||
+              correction !== null ||
+              (urlState.selectedId && inspectorOpen)) ? (
+              <aside
+                className="min-h-0 w-[360px] shrink-0 border-l bg-background max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-xl"
+                aria-label="Organization panel"
+              >
+                {unitForm !== null ? (
+                  <UnitFormPanel
+                    mode={unitForm}
+                    today={today}
+                    model={model}
+                    types={types.data ?? []}
+                    createdTypeId={createdTypeId}
+                    mutations={mutations}
+                    onClose={() =>
+                      patchLocal({ unitForm: null, createdTypeId: null })
+                    }
+                    onCreateType={() => patchLocal({ createType: true })}
+                    onSaved={(id, effectiveDate) => {
+                      if (effectiveDate === today) select(id);
+                    }}
+                  />
+                ) : correction !== null ? (
+                  <CorrectionPanel
+                    unit={correction.unit}
+                    effectiveDate={correction.date}
+                    model={model}
+                    types={types.data ?? []}
+                    mutations={mutations}
+                    onClose={() => patchLocal({ correction: null })}
+                    onDone={() => void hierarchy.refetch()}
+                  />
+                ) : manageTypes ? (
+                  <ManageTypesPanel
+                    types={types.data ?? []}
+                    mutations={mutations}
+                    onClose={() => patchLocal({ manageTypes: false })}
+                    onCreateType={() => patchLocal({ createType: true })}
+                  />
+                ) : urlState.selectedId && inspectorOpen ? (
+                  <InspectorContent
+                    selectedId={urlState.selectedId}
+                    asOf={urlState.asOf}
+                    today={today}
+                    canManage={canManage}
+                    readOnly={readOnly}
+                    model={model}
+                    onClose={() => {
+                      patchLocal({ inspectorOpen: false });
+                      navigate({ selectedId: null });
+                    }}
+                    onEdit={(unit) =>
+                      patchLocal({ unitForm: { kind: "edit", unit } })
+                    }
+                    onAddChild={addChild}
+                    onMove={(id) => stageMove(id, null)}
+                    onInactivate={(unit) =>
+                      patchLocal({ inactivateUnit: unit })
+                    }
+                    onCorrect={(unit, date) =>
+                      patchLocal({ correction: { unit, date } })
+                    }
+                  />
+                ) : null}
+              </aside>
             ) : null}
           </div>
         </>
@@ -1008,22 +1064,6 @@ export default function OrganizationWorkspace() {
 
       {model ? (
         <>
-          <UnitFormSheet
-            open={unitForm !== null}
-            mode={unitForm}
-            today={today}
-            model={model}
-            types={types.data ?? []}
-            createdTypeId={createdTypeId}
-            mutations={mutations}
-            onOpenChange={(open) => {
-              if (!open) patchLocal({ unitForm: null, createdTypeId: null });
-            }}
-            onCreateType={() => patchLocal({ createType: true })}
-            onSaved={(id, effectiveDate) => {
-              if (effectiveDate === today) select(id);
-            }}
-          />
           <CreateTypeDialog
             open={createType}
             mutations={mutations}
@@ -1032,13 +1072,6 @@ export default function OrganizationWorkspace() {
               patchLocal({ createdTypeId: type.id });
               void types.refetch();
             }}
-          />
-          <ManageTypesSheet
-            open={manageTypes}
-            types={types.data ?? []}
-            mutations={mutations}
-            onOpenChange={(open) => patchLocal({ manageTypes: open })}
-            onCreateType={() => patchLocal({ createType: true })}
           />
           {moveProposal ? (
             <MoveReviewDialog
@@ -1066,18 +1099,6 @@ export default function OrganizationWorkspace() {
             }}
             onDone={() => navigate({ selectedId: null })}
             onSelectDescendant={select}
-          />
-          <CorrectionSheet
-            open={correction !== null}
-            unit={correction?.unit ?? null}
-            effectiveDate={correction?.date ?? urlState.asOf}
-            model={model}
-            types={types.data ?? []}
-            mutations={mutations}
-            onOpenChange={(open) => {
-              if (!open) patchLocal({ correction: null });
-            }}
-            onDone={() => void hierarchy.refetch()}
           />
         </>
       ) : null}

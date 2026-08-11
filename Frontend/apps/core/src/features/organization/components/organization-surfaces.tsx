@@ -20,7 +20,6 @@ import {
   Sheet,
   SheetContent,
   SheetDescription,
-  SheetFooter,
   SheetHeader,
   SheetTitle,
   Textarea,
@@ -34,6 +33,7 @@ import {
   Plus,
   Search,
   Trash2,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -460,26 +460,24 @@ export function RootEstablishment({
   );
 }
 
-export function UnitFormSheet({
-  open,
+export function UnitFormPanel({
   mode,
   today,
   model,
   types,
   createdTypeId,
   mutations,
-  onOpenChange,
+  onClose,
   onCreateType,
   onSaved,
 }: {
-  open: boolean;
   mode: UnitFormMode;
   today: string;
   model: OrganizationHierarchyModel;
   types: OrganizationalUnitTypeDto[];
   createdTypeId: string | null;
   mutations: OrganizationMutations;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   onCreateType: () => void;
   onSaved: (id: string, effectiveDate: string) => void;
 }) {
@@ -501,7 +499,7 @@ export function UnitFormSheet({
   const [effectiveDate, setEffectiveDate] = useState(today);
   const proposedHierarchy = useOrganizationHierarchy(
     effectiveDate,
-    open && !editing && effectiveDate !== today
+    !editing && effectiveDate !== today
   );
   const parentModel = useMemo(
     () =>
@@ -520,7 +518,7 @@ export function UnitFormSheet({
     setTypeId(mode?.kind === "edit" ? mode.unit.typeId : "");
     setParentId(mode?.kind === "add" ? (mode.parentId ?? "") : "");
     setEffectiveDate(today);
-  }, [initialName, mode, open, today]);
+  }, [initialName, mode, today]);
 
   useEffect(() => {
     if (createdTypeId) setTypeId(createdTypeId);
@@ -553,7 +551,7 @@ export function UnitFormSheet({
         );
         onSaved(saved.id, effectiveDate);
       }
-      onOpenChange(false);
+      onClose();
     } catch {
       /* mutation state stays in place */
     }
@@ -567,28 +565,24 @@ export function UnitFormSheet({
     : contextualParent
       ? `Add unit under ${contextualParent.name}`
       : "Add unit";
-  const description = editing
-    ? isRoot
-      ? "Update your organization's name."
-      : "Update the unit's name or type."
-    : contextualParent
-      ? `New unit reporting to ${contextualParent.name}.`
-      : "Add a unit to your organization.";
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
-      <SheetContent
-        className="sm:max-w-md"
-        onInteractOutside={(event) => event.preventDefault()}
-      >
-        <SheetHeader>
-          <SheetTitle>{title}</SheetTitle>
-          <SheetDescription className="sr-only">{description}</SheetDescription>
-        </SheetHeader>
-        <form
-          id="organization-unit-form"
-          onSubmit={submit}
-          className="space-y-5 px-4 pb-4"
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
+        <p className="min-w-0 truncate text-base font-semibold">{title}</p>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Close"
+          onClick={onClose}
         >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      <form
+        id="organization-unit-form"
+        onSubmit={submit}
+        className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4"
+      >
           <div className="space-y-1.5">
             <Label htmlFor="unit-name">Name</Label>
             <Input
@@ -661,12 +655,8 @@ export function UnitFormSheet({
           />
           <FormError error={mutation.error} />
         </form>
-        <SheetFooter className="mt-0 flex-row justify-end border-t">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
+        <div className="flex justify-end gap-2 border-t px-5 py-3">
+          <Button type="button" variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button
@@ -690,9 +680,8 @@ export function UnitFormSheet({
                   ? "Schedule change"
                   : "Schedule unit"}
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </div>
+    </div>
   );
 }
 
@@ -760,17 +749,15 @@ export function CreateTypeDialog({
   );
 }
 
-export function ManageTypesSheet({
-  open,
+export function ManageTypesPanel({
   types,
   mutations,
-  onOpenChange,
+  onClose,
   onCreateType,
 }: {
-  open: boolean;
   types: OrganizationalUnitTypeDto[];
   mutations: OrganizationMutations;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   onCreateType: () => void;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
@@ -778,26 +765,37 @@ export function ManageTypesSheet({
   const builtIn = types.filter((type) => type.isBuiltIn);
   const custom = types.filter((type) => !type.isBuiltIn);
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
-      <SheetContent
-        className="sm:max-w-lg"
-        onInteractOutside={(event) => event.preventDefault()}
-      >
-        <SheetHeader>
-          <SheetTitle>Manage unit types</SheetTitle>
-          <SheetDescription>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-center justify-between gap-3 border-b px-5 py-4">
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold">Manage unit types</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
             The vocabulary you use to describe units.
-          </SheetDescription>
-        </SheetHeader>
-        <div className="flex-1 space-y-6 overflow-y-auto px-4 pb-4">
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Close"
+          onClick={onClose}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-4">
           <section>
             <div className="mb-2.5">
               <h3 className="text-sm font-semibold">Built-in types</h3>
               <p className="text-xs text-muted-foreground">Provided by Fusion.</p>
             </div>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm text-foreground">
+            <div className="flex flex-wrap gap-1.5">
               {builtIn.map((type) => (
-                <span key={type.id}>{type.displayName}</span>
+                <span
+                  key={type.id}
+                  className="rounded-md border bg-muted/40 px-2.5 py-1 text-sm"
+                >
+                  {type.displayName}
+                </span>
               ))}
             </div>
           </section>
@@ -906,9 +904,8 @@ export function ManageTypesSheet({
           <FormError
             error={mutations.renameType.error ?? mutations.deleteType.error}
           />
-        </div>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </div>
   );
 }
 
@@ -1301,23 +1298,21 @@ export function UpcomingChangesSheet({
   );
 }
 
-export function CorrectionSheet({
-  open,
+export function CorrectionPanel({
   unit,
   effectiveDate,
   model,
   types,
   mutations,
-  onOpenChange,
+  onClose,
   onDone,
 }: {
-  open: boolean;
   unit: OrganizationUnitStateDto | null;
   effectiveDate: string;
   model: OrganizationHierarchyModel;
   types: OrganizationalUnitTypeDto[];
   mutations: OrganizationMutations;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   onDone: () => void;
 }) {
   const [name, setName] = useState(unit?.name ?? "");
@@ -1331,7 +1326,7 @@ export function CorrectionSheet({
   const isRoot = unit?.parentId === null;
   const proposedHierarchy = useOrganizationHierarchy(
     effectiveDate,
-    open && effectiveDate !== model.asOf
+    effectiveDate !== model.asOf
   );
   const correctionModel = useMemo(
     () =>
@@ -1351,7 +1346,7 @@ export function CorrectionSheet({
       unit?.lifecycleState === "Inactive" ? "Inactive" : "Active"
     );
     setReason("");
-  }, [open, unit]);
+  }, [unit]);
   const initialLifecycle =
     unit?.lifecycleState === "Inactive" ? "Inactive" : "Active";
   const codeChanged = unit ? code.trim() !== unit.code : false;
@@ -1391,30 +1386,37 @@ export function CorrectionSheet({
         });
       }
       toast.success("Recorded data corrected");
-      onOpenChange(false);
+      onClose();
       onDone();
     } catch {
       return;
     }
   }
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
-      <SheetContent
-        className="sm:max-w-md"
-        onInteractOutside={(event) => event.preventDefault()}
-      >
-        <SheetHeader>
-          <SheetTitle>Correct recorded data</SheetTitle>
-          <SheetDescription>
-            Fix details that were recorded incorrectly, effective {effectiveDate}
-            .
-          </SheetDescription>
-        </SheetHeader>
-        <form
-          id="correct-state"
-          onSubmit={submit}
-          className="space-y-5 px-4 pb-4"
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex items-start justify-between gap-3 border-b px-5 py-4">
+        <div className="min-w-0">
+          <p className="truncate text-base font-semibold">
+            Correct recorded data
+          </p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            Effective {effectiveDate}
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Close"
+          onClick={onClose}
         >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      <form
+        id="correct-state"
+        onSubmit={submit}
+        className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4"
+      >
           <div className="space-y-1.5">
             <Label htmlFor="correct-name">Name</Label>
             <Input
@@ -1501,8 +1503,8 @@ export function CorrectionSheet({
             }
           />
         </form>
-        <SheetFooter className="mt-0 flex-row justify-end border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <div className="flex justify-end gap-2 border-t px-5 py-3">
+          <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
           <Button
@@ -1517,8 +1519,7 @@ export function CorrectionSheet({
           >
             Correct data
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </div>
+    </div>
   );
 }
