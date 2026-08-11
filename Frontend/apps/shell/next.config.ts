@@ -15,6 +15,18 @@ const nextConfig: NextConfig = {
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   outputFileTracingRoot: frontendWorkspaceRoot,
   transpilePackages: ["@repo/ds", "@repo/auth", "@repo/api"],
+  async redirects() {
+    // `/setup` is retired in favour of the canonical `/getting-started`. A
+    // context-preserving compatibility redirect keeps old links and activation
+    // handoffs working; it maps once, never loops, and restores no setup-era UI.
+    return [
+      {
+        source: "/setup",
+        destination: "/getting-started",
+        permanent: false,
+      },
+    ];
+  },
   async rewrites() {
     const gatewayUrl = process.env.GATEWAY_URL || "http://localhost:5000";
     const coreUrl = process.env.CORE_MFE_URL || "http://localhost:3002";
@@ -37,15 +49,13 @@ const nextConfig: NextConfig = {
         source: "/interview/:path*",
         destination: "http://localhost:3001/interview/:path*",
       },
-      // Tenant setup is a tenant-level destination, not a Core HR one, so its
-      // canonical URL carries no module prefix. It is served from the Core app
-      // because the tenant shell — sidebar, breadcrumbs, tenant session — exists
-      // only there; moving it would be a routing migration for naming alone.
-      // Change 3 owns the final tenant-readiness routing. The Core app keeps
-      // this bounded compatibility rewrite until that integration lands.
+      // Getting Started is a tenant-level foundation destination, not a Core HR
+      // one, so its canonical URL carries no module prefix. It is served from the
+      // Core app because the tenant shell — sidebar, breadcrumbs, tenant session
+      // — exists only there. Legacy `/setup` redirects here (see `redirects`).
       {
-        source: "/setup",
-        destination: `${coreUrl}/core/tenant-setup`,
+        source: "/getting-started",
+        destination: `${coreUrl}/core/getting-started`,
       },
       {
         source: "/core/:path*",

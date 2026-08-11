@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Button,
@@ -15,7 +15,14 @@ import {
 } from "@repo/ui";
 import { useAuth } from "../auth-context";
 import { loadAuth } from "../auth-service";
-import { resolvePostSignInDestination } from "../routing";
+import type { AuthUser } from "../types";
+import {
+  landingRequiresOrganizationReadiness,
+  resolvePostSignInDestination,
+  sanitizeInternalReturnPath,
+  type OrganizationReadinessSignal,
+} from "../routing";
+import { fetchOrganizationReadySignal } from "../organization-ready-landing";
 
 export interface SignInPageProps {
   /** Called after successful login or when already authenticated. Defaults to callbackUrl/next or "/" */
@@ -48,22 +55,43 @@ export function SignInPage({
   const [errors, setErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (!authLoading && isAuthenticated) {
+  // Resolve the landing for the just-authenticated user. A safe callback decides
+  // the destination on its own and needs no readiness read; only the
+  // Tenant Administrator foundation fallback consults canonical Organization
+  // readiness, which fails closed to Getting Started when it cannot be read.
+  const finishSignIn = useCallback(
+    async (nextUser: AuthUser | null, mode: "push" | "replace") => {
       if (onSuccess) {
         onSuccess();
-      } else {
-        navigateToRedirectTarget(
-          resolvePostSignInDestination({
-            intendedDestination: intended,
-            user,
-          }) ?? "/",
-          "replace"
-        );
+        return;
       }
+
+      let organizationReady: OrganizationReadinessSignal;
+      if (
+        !sanitizeInternalReturnPath(intended) &&
+        landingRequiresOrganizationReadiness(nextUser)
+      ) {
+        organizationReady = await fetchOrganizationReadySignal();
+      }
+
+      navigateToRedirectTarget(
+        resolvePostSignInDestination({
+          intendedDestination: intended,
+          user: nextUser,
+          organizationReady,
+        }) ?? "/",
+        mode
+      );
+    },
+    [intended, onSuccess]
+  );
+
+  // Redirect an already-authenticated visitor away from the sign-in form.
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      void finishSignIn(user, "replace");
     }
-  }, [authLoading, intended, isAuthenticated, onSuccess, user]);
+  }, [authLoading, isAuthenticated, user, finishSignIn]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,21 +100,10 @@ export function SignInPage({
 
     try {
       const result = await login({ email, password });
-
       if (result) {
         setErrors(result);
       } else {
-        if (onSuccess) {
-          onSuccess();
-        } else {
-          navigateToRedirectTarget(
-            resolvePostSignInDestination({
-              intendedDestination: intended,
-              user: loadAuth()?.user ?? null,
-            }) ?? "/",
-            "push"
-          );
-        }
+        await finishSignIn(loadAuth()?.user ?? null, "push");
       }
     } finally {
       setIsSubmitting(false);

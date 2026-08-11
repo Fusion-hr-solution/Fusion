@@ -74,7 +74,18 @@ describe("resolveCoreWorkspaceAccessState", () => {
     })).toBe("module-unavailable");
   });
 
-  it("allows tenant-level setup without CoreHR entitlement when authorized", () => {
+  it("allows tenant-level Getting Started without CoreHR entitlement when authorized", () => {
+    expect(resolveCoreWorkspaceAccessState({
+      isLoading: false,
+      user: createUser(["HRAdmin"], {
+        moduleEntitlements: [],
+        effectivePermissions: [grant("access.assignments.view")],
+      }),
+      pathname: "/getting-started",
+    })).toBe("allowed");
+  });
+
+  it("still honours the legacy /setup tenant-level route when authorized", () => {
     expect(resolveCoreWorkspaceAccessState({
       isLoading: false,
       user: createUser(["HRAdmin"], {
@@ -96,11 +107,11 @@ describe("resolveCoreWorkspaceAccessState", () => {
     })).toBe("allowed");
   });
 
-  it("denies tenant-level setup when its own permission is absent", () => {
+  it("denies tenant-level Getting Started when its own permission is absent", () => {
     expect(resolveCoreWorkspaceAccessState({
       isLoading: false,
       user: createUser(["Employee"], { moduleEntitlements: [] }),
-      pathname: "/setup",
+      pathname: "/getting-started",
     })).toBe("forbidden");
   });
 });
@@ -116,9 +127,12 @@ describe("buildCoreCallbackUrl", () => {
     );
   });
 
-  it("preserves the canonical tenant-level setup callback", () => {
+  it("canonicalizes the tenant-level foundation callback to Getting Started", () => {
+    expect(buildCoreCallbackUrl("/getting-started", "section=access")).toBe(
+      "/getting-started?section=access"
+    );
     expect(buildCoreCallbackUrl("/tenant-setup", "section=access")).toBe(
-      "/setup?section=access"
+      "/getting-started?section=access"
     );
   });
 });

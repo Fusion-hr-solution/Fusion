@@ -2,8 +2,8 @@ import {
   canAccessCoreAccess,
   canAccessCoreOverview,
   canAccessCorePeople,
-  canAccessCoreSetup,
   canAccessCoreSettings,
+  canAccessCoreSetup,
   canAccessCoreTeam,
   canAccessOwnCoreProfile,
   canManageCoreAccessProfiles,
@@ -26,7 +26,7 @@ export function resolveInviteAcceptanceDestination(
   }
 
   if (canAccessCoreSetup(user)) {
-    return "/setup";
+    return "/getting-started";
   }
 
   if (canAccessCoreSettings(user)) {

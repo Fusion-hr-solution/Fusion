@@ -24,9 +24,8 @@ import {
   canAccessCoreOverview,
   canAccessCoreAccess,
   canAccessCoreSettings,
-  canAccessCoreSetup,
   canManageCoreAccessProfiles,
-  canSeeCoreSetupNavigation,
+  canViewTenantAdministration,
   type AuthUser,
   useAuth,
 } from "@repo/auth";
@@ -273,10 +272,10 @@ function WorkforceDashboard({
             description="Where your people sit across the organization."
             action={
               <Link
-                href={toHref("/org-chart")}
+                href={toHref("/organization")}
                 className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
               >
-                Org chart <ArrowRight className="size-3.5" />
+                Organization <ArrowRight className="size-3.5" />
               </Link>
             }
           >
@@ -477,11 +476,11 @@ function WorkforceDashboard({
               <QuickLink href={toHref("/access")} icon={ShieldCheck}>
                 Manage access
               </QuickLink>
-              <QuickLink href={toHref("/org-chart")} icon={Network}>
-                Open org chart
+              <QuickLink href={toHref("/organization")} icon={Network}>
+                Open organization
               </QuickLink>
-              <QuickLink href={toHref("/setup")} icon={ClipboardList}>
-                Setup &amp; structure
+              <QuickLink href={toHref("/getting-started")} icon={ClipboardList}>
+                Getting started
               </QuickLink>
             </div>
           </DashboardSection>
@@ -625,8 +624,8 @@ function ManagerDashboard({ me }: { me: WorkforceMeContext }) {
               <QuickLink href="/team" icon={Users}>
                 Open my team
               </QuickLink>
-              <QuickLink href="/org-chart" icon={Network}>
-                Org chart
+              <QuickLink href="/organization" icon={Network}>
+                Organization
               </QuickLink>
               <QuickLink href="/profile" icon={User}>
                 My profile
@@ -738,8 +737,8 @@ function CoreOperationsDashboard() {
       : canManageCoreAccessProfiles(user)
         ? { href: moduleHref("/settings?tab=access-permissions"), title: "Settings", icon: ShieldCheck }
         : null,
-    canSeeCoreSetupNavigation(user)
-      ? { href: moduleHref("/setup"), title: "Setup", icon: ClipboardList }
+    canViewTenantAdministration(user)
+      ? { href: moduleHref("/getting-started"), title: "Getting started", icon: ClipboardList }
       : null,
     canAccessCoreSettings(user)
       ? { href: moduleHref("/settings"), title: "Settings", icon: Settings2 }
@@ -786,7 +785,7 @@ function getFallbackWorkspace(user: AuthUser | null): { href: string; label: str
   if (canAccessCoreAccess(user)) return { href: "/access", label: "Access" };
   if (canManageCoreAccessProfiles(user))
     return { href: "/settings?tab=access-permissions", label: "Settings" };
-  if (canAccessCoreSetup(user)) return { href: "/setup", label: "Setup" };
+  if (canViewTenantAdministration(user)) return { href: "/getting-started", label: "Getting started" };
   if (canAccessCoreSettings(user)) return { href: "/settings", label: "Settings" };
   if (canAccessEmployeeRoster(user)) return { href: "/employees", label: "Employees" };
   if (canAccessTeamWorkspace(user)) return { href: "/team", label: "My Team" };

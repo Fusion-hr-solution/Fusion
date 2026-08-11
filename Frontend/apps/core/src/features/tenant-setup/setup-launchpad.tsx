@@ -67,7 +67,7 @@ export default function SetupLaunchpad() {
     return (
       <PageContainer className="space-y-6">
         <header className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Tenant Setup</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Getting started</h1>
         </header>
         <PagePermissionNotice
           title="You do not have access to this page"
@@ -170,7 +170,7 @@ export function LaunchpadView({
   onRetry: (key: string) => void;
 }) {
   const heading =
-    variant === "fresh" ? `Welcome to ${tenantName}` : "Tenant Setup";
+    variant === "fresh" ? `Welcome to ${tenantName}` : "Getting started";
   const description =
     variant === "fresh"
       ? "Your tenant is ready. Start building the foundation your organization will use."

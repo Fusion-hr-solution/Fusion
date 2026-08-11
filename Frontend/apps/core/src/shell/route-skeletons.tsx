@@ -256,6 +256,7 @@ export function getRoutePageSkeleton(corePath: string): ReactNode {
   if (corePath === "/access/profiles")
     return <TitledPageLoading title="Access profiles" rows={4} label="Opening access profile settings" />;
   if (corePath.startsWith("/access")) return <AccessPageSkeleton />;
-  if (corePath === "/setup") return <SetupPageSkeleton />;
+  if (corePath === "/getting-started" || corePath === "/setup")
+    return <SetupPageSkeleton />;
   return <PageSkeleton label="Loading page" />;
 }

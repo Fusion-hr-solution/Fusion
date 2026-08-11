@@ -301,9 +301,11 @@ export interface ActivationJourney {
 export const BOOTSTRAP_JOURNEY: ActivationJourney = {
   inspectPath: "/api/identity/tenant-activation",
   acceptPath: "/api/identity/tenant-activation",
-  // Canonical tenant-level setup, reached only after the tenant-scoped session
-  // exists — this is the handoff, not a success screen.
-  destination: "/setup",
+  // Canonical tenant-foundation orientation, reached only after the
+  // tenant-scoped session exists — this is the handoff, not a success screen.
+  // Getting Started reads canonical Organization readiness and shows the
+  // truthful state; a brand-new tenant is not yet Ready.
+  destination: "/getting-started",
   contextLead: "Create administrator access for",
   contextBody:
     "You have been invited to become this tenant's first administrator. Create your account to continue.",
@@ -348,7 +350,7 @@ export const ADMINISTRATOR_JOURNEY: ActivationJourney = {
 export const RECOVERY_JOURNEY: ActivationJourney = {
   inspectPath: "/api/identity/tenant-access/invitations/inspect",
   acceptPath: "/api/identity/tenant-access/invitations/accept",
-  destination: "/setup",
+  destination: "/getting-started",
   contextLead: "Recover administrator access for",
   contextBody:
     "This tenant has no administrator who can sign in. Completing this restores customer-controlled " +

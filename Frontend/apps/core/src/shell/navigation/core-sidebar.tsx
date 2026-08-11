@@ -48,7 +48,7 @@ export function CoreSidebar() {
     return true;
   });
   const adminItems = ADMIN_NAV.items.filter((item) => {
-    if (item.href === "/tenant-setup") return canSeeSetup;
+    if (item.href === "/getting-started") return canSeeSetup;
     if (item.href === "/access") return canSeeAccess;
     if (item.href === "/settings") return canSeeSettings;
     return canSeeSetup;

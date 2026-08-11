@@ -242,14 +242,15 @@ describe("monogramFor", () => {
 });
 
 describe("bootstrap handoff", () => {
-  it("hands the new administrator to canonical tenant setup", () => {
-    // Tenant setup is a tenant-level destination, so the handoff must not carry
-    // a module prefix — and must not point at the retired Core setup route.
-    expect(BOOTSTRAP_JOURNEY.destination).toBe("/setup");
+  it("hands the new administrator to canonical tenant-foundation orientation", () => {
+    // Tenant foundation is a tenant-level destination, so the handoff carries no
+    // module prefix — and points at the readiness-aware Getting Started route,
+    // not the retired /setup or Core setup routes.
+    expect(BOOTSTRAP_JOURNEY.destination).toBe("/getting-started");
   });
 
   it("uses the purpose-specific administrator and recovery destinations", () => {
     expect(ADMINISTRATOR_JOURNEY.destination).toBe("/core/access");
-    expect(RECOVERY_JOURNEY.destination).toBe("/setup");
+    expect(RECOVERY_JOURNEY.destination).toBe("/getting-started");
   });
 });

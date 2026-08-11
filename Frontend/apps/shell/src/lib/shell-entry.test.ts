@@ -56,15 +56,40 @@ describe("resolveShellEntryState", () => {
     ).toEqual({ kind: "redirect", destination: "/platform" });
   });
 
-  it("routes Tenant Administrators to tenant setup", () => {
+  it("holds the destination while a required readiness read resolves", () => {
     expect(
       resolveShellEntryState({
         isLoading: false,
+        readinessPending: true,
         user: makeUser(["HRAdmin"], {
           effectivePermissions: [grant("access.assignments.view")],
         }),
       }),
-    ).toEqual({ kind: "redirect", destination: "/setup" });
+    ).toEqual({ kind: "loading" });
+  });
+
+  it("lands a Tenant Administrator on Getting Started while Organization is not Ready", () => {
+    expect(
+      resolveShellEntryState({
+        isLoading: false,
+        organizationReady: false,
+        user: makeUser(["HRAdmin"], {
+          effectivePermissions: [grant("access.assignments.view")],
+        }),
+      }),
+    ).toEqual({ kind: "redirect", destination: "/getting-started" });
+  });
+
+  it("lands a Tenant Administrator on Core Home once Organization is Ready", () => {
+    expect(
+      resolveShellEntryState({
+        isLoading: false,
+        organizationReady: true,
+        user: makeUser(["HRAdmin"], {
+          effectivePermissions: [grant("access.assignments.view")],
+        }),
+      }),
+    ).toEqual({ kind: "redirect", destination: "/core" });
   });
 
   it("routes another tenant user to a usable product destination", () => {

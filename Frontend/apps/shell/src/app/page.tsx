@@ -1,12 +1,21 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAuth } from "@repo/auth";
+import { useAuth, useOrganizationReadyLanding } from "@repo/auth";
 import { resolveShellEntryState } from "@/lib/shell-entry";
 
 export default function HomePage() {
   const { user, isLoading, logout } = useAuth();
-  const state = resolveShellEntryState({ user, isLoading });
+  const { pending, organizationReady } = useOrganizationReadyLanding({
+    user,
+    isLoading,
+  });
+  const state = resolveShellEntryState({
+    user,
+    isLoading,
+    organizationReady,
+    readinessPending: pending,
+  });
   const destination = state.kind === "redirect" ? state.destination : null;
 
   useEffect(() => {

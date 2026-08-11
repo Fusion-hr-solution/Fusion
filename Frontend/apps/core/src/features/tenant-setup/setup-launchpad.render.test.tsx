@@ -248,7 +248,7 @@ describe("Tenant Setup authorization boundary", () => {
     render(<SetupLaunchpad />);
 
     expect(
-      screen.getByRole("heading", { name: "Tenant Setup" })
+      screen.getByRole("heading", { name: "Getting started" })
     ).toBeInTheDocument();
     expect(
       screen.getByText("You do not have access to this page")

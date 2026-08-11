@@ -23,11 +23,13 @@ export const PEOPLE_NAV: ShellNavSection = {
 export const ADMIN_NAV: ShellNavSection = {
   title: "Administration",
   items: [
-    // Tenant-level destination: the launchpad lives outside the Core basePath.
+    // Temporary tenant-foundation orientation, reached at the shell-canonical
+    // `/getting-started` (it lives outside the Core basePath). Not a permanent
+    // primary destination — offered while administrators establish the tenant.
     {
-      label: "Setup",
-      href: "/tenant-setup",
-      navigateHref: "/setup",
+      label: "Getting started",
+      href: "/getting-started",
+      navigateHref: "/getting-started",
       shellRoute: true,
       icon: ClipboardList,
     },

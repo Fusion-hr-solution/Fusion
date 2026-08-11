@@ -82,12 +82,12 @@ describe("resolveInviteAcceptanceDestination", () => {
     ).toBe("/");
   });
 
-  it("sends setup-only users to Setup", () => {
+  it("sends setup-capable users without a dashboard or Access to Getting Started", () => {
     expect(
       resolveInviteAcceptanceDestination(createAuthUser({
         effectivePermissions: [grant("core.setup.view", "Tenant")],
       }))
-    ).toBe("/setup");
+    ).toBe("/getting-started");
   });
 
   it("does not grant a Platform Administrator a Core destination", () => {

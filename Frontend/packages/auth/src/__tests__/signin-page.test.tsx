@@ -15,6 +15,13 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+// Keep the readiness read deterministic and offline: a fresh admin tenant is
+// not yet Ready, so the foundation fallback resolves to Getting Started.
+vi.mock("../organization-ready-landing", () => ({
+  fetchOrganizationReadySignal: vi.fn().mockResolvedValue(false),
+  useOrganizationReadyLanding: () => ({ pending: false, organizationReady: undefined }),
+}));
+
 // Mock auth-service
 vi.mock("../auth-service", async () => {
   const actual = await vi.importActual<typeof authService>("../auth-service");
@@ -107,7 +114,7 @@ describe("SignInPage", () => {
       });
     });
 
-    it("routes a Tenant Administrator to setup without an intended destination", async () => {
+    it("routes a Tenant Administrator to Getting Started without an intended destination", async () => {
       mockedService.login.mockResolvedValue(makeAuthResponse());
       mockedService.loadAuth
         .mockReturnValueOnce(null)
@@ -130,7 +137,7 @@ describe("SignInPage", () => {
       await userEvent.type(screen.getByLabelText(/password/i), "password123");
       await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
-      await waitFor(() => expect(mockLocationAssign).toHaveBeenCalledWith("/setup"));
+      await waitFor(() => expect(mockLocationAssign).toHaveBeenCalledWith("/getting-started"));
     });
 
     it("ignores an unsafe callback and uses the product fallback", async () => {
@@ -159,7 +166,7 @@ describe("SignInPage", () => {
       await userEvent.type(screen.getByLabelText(/password/i), "password123");
       await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
-      await waitFor(() => expect(mockLocationAssign).toHaveBeenCalledWith("/setup"));
+      await waitFor(() => expect(mockLocationAssign).toHaveBeenCalledWith("/getting-started"));
     });
 
     it("redirects to callbackUrl on successful login when provided", async () => {
