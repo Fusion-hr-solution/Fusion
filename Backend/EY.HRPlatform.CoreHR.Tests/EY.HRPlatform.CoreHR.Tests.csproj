@@ -27,7 +27,6 @@
   <ItemGroup>
     <Compile Remove="Features\OrgUnits\**\*.cs" />
     <Compile Remove="Features\TenantSettings\UpdateTenantSettingsCommandHandlerTests.cs" />
-    <Compile Remove="Features\Employees\OrgUnitsControllerAuthorizationTests.cs" />
   </ItemGroup>
 
 </Project>

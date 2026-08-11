@@ -2,17 +2,23 @@ using EY.HRPlatform.Identity.Controllers;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.Identity.Features.Accounts;
+using EY.HRPlatform.Identity.Features.Membership;
 using EY.HRPlatform.Identity.Features.TenantAdministration;
 using EY.HRPlatform.Identity.Features.TenantProvisioning;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
+using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Middleware;
 using EY.HRPlatform.Identity.Tests.TestHelpers;
 using EY.HRPlatform.SharedKernel.Auth;
 using EY.HRPlatform.SharedKernel.Security;
+using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 
 namespace EY.HRPlatform.Identity.Tests.Features.TenantAdministration;
 
@@ -46,6 +52,98 @@ public sealed class AuthorityStateContractTests : IAsyncLifetime
 
         Assert.True(state.Valid);
         Assert.Null(state.Reason);
+    }
+
+    [SkippableFact]
+    public async Task A_fresh_tenant_administrator_receives_and_serializes_canonical_Organization_grants()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        var world = await ArrangeAsync();
+        var users = RelationalTestDatabase.CreateUserManager(world.Db);
+        var administrator = await world.Db.Users.IgnoreQueryFilters()
+            .SingleAsync(user => user.Id == world.FirstAccountId);
+        var accessProfiles = new AccessProfileService(world.Db, users);
+
+        var permissions = await accessProfiles.GetEffectivePermissionsAsync(administrator);
+        Assert.Contains(permissions, grant => grant.PermissionKey == CorePermissions.OrganizationView
+            && grant.Scope == PermissionScopes.Tenant);
+        Assert.Contains(permissions, grant => grant.PermissionKey == CorePermissions.OrganizationManage
+            && grant.Scope == PermissionScopes.Tenant);
+
+        var configuration = TokenConfiguration();
+        var context = new CustomerContextResolver(world.Db, users);
+        var tokenService = new TokenService(configuration, users, accessProfiles, context);
+        var token = await tokenService.GenerateAccessTokenAsync(administrator);
+        var claims = new JwtSecurityTokenHandler().ReadJwtToken(token).Claims
+            .Where(claim => claim.Type == CustomClaimTypes.CorePermission)
+            .Select(claim => CorePermissionClaimValue.TryDecode(claim.Value, out var grant) ? grant : null)
+            .OfType<EffectivePermissionGrant>()
+            .ToList();
+
+        Assert.Contains(claims, grant => grant.PermissionKey == CorePermissions.OrganizationView
+            && grant.Scope == PermissionScopes.Tenant);
+        Assert.Contains(claims, grant => grant.PermissionKey == CorePermissions.OrganizationManage
+            && grant.Scope == PermissionScopes.Tenant);
+
+        var session = await new AuthSessionFactory(
+            users, tokenService, accessProfiles, world.Db, configuration, context).CreateAsync(administrator);
+        Assert.Contains(session.EffectivePermissions, grant => grant.PermissionKey == CorePermissions.OrganizationView
+            && grant.Scope == PermissionScopes.Tenant);
+        Assert.Contains(session.EffectivePermissions, grant => grant.PermissionKey == CorePermissions.OrganizationManage
+            && grant.Scope == PermissionScopes.Tenant);
+    }
+
+    [SkippableFact]
+    public async Task Reseeding_repairs_canonical_administrator_grants_without_widening_Manager_Employee_or_Platform_access()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        var world = await ArrangeAsync();
+        var users = RelationalTestDatabase.CreateUserManager(world.Db);
+        var accessProfiles = new AccessProfileService(world.Db, users);
+
+        var definition = await world.Db.AccessProfiles.IgnoreQueryFilters()
+            .Include(profile => profile.Grants)
+            .SingleAsync(profile => profile.TenantId == world.TenantId
+                && profile.InternalKey == TenantAdministratorAuthority.InternalKey);
+        var obsoleteOrganizationGrants = definition.Grants
+            .Where(grant => grant.PermissionKey is CorePermissions.OrganizationView or CorePermissions.OrganizationManage)
+            .ToList();
+        world.Db.AccessProfileGrants.RemoveRange(obsoleteOrganizationGrants);
+        await world.Db.SaveChangesAsync();
+
+        await accessProfiles.EnsureSeedDataAsync();
+        world.Db.ChangeTracker.Clear();
+
+        var refreshedDefinition = await world.Db.AccessProfiles.IgnoreQueryFilters()
+            .Include(profile => profile.Grants)
+            .SingleAsync(profile => profile.TenantId == world.TenantId
+                && profile.InternalKey == TenantAdministratorAuthority.InternalKey);
+        Assert.Contains(refreshedDefinition.Grants, grant => grant.PermissionKey == CorePermissions.OrganizationView
+            && grant.Scope == PermissionScopes.Tenant);
+        Assert.Contains(refreshedDefinition.Grants, grant => grant.PermissionKey == CorePermissions.OrganizationManage
+            && grant.Scope == PermissionScopes.Tenant);
+
+        var manager = await AddProfiledMemberAsync(world, users, "manager@atlas.example", "manager");
+        var employee = await AddProfiledMemberAsync(world, users, "employee@atlas.example", "employee");
+        var platformAdministrator = new ApplicationUser
+        {
+            Id = Guid.NewGuid(), UserName = "platform@fusion.example", Email = "platform@fusion.example",
+            FirstName = "Platform", LastName = "Administrator", IsActive = true, EmailConfirmed = true,
+        };
+        Assert.True((await users.CreateAsync(platformAdministrator, "Platform@123456")).Succeeded);
+        world.Db.Roles.Add(new IdentityRole<Guid>
+        {
+            Name = PlatformRole.PlatformAdmin,
+            NormalizedName = PlatformRole.PlatformAdmin.ToUpperInvariant(),
+        });
+        await world.Db.SaveChangesAsync();
+        Assert.True((await users.AddToRoleAsync(platformAdministrator, PlatformRole.PlatformAdmin)).Succeeded);
+
+        Assert.DoesNotContain(await accessProfiles.GetEffectivePermissionsAsync(manager),
+            grant => grant.PermissionKey is CorePermissions.OrganizationView or CorePermissions.OrganizationManage);
+        Assert.DoesNotContain(await accessProfiles.GetEffectivePermissionsAsync(employee),
+            grant => grant.PermissionKey is CorePermissions.OrganizationView or CorePermissions.OrganizationManage);
+        Assert.Empty(await accessProfiles.GetEffectivePermissionsAsync(platformAdministrator));
     }
 
     [SkippableFact]
@@ -256,6 +354,36 @@ public sealed class AuthorityStateContractTests : IAsyncLifetime
         db.ChangeTracker.Clear();
         return db.TenantMemberships.IgnoreQueryFilters()
             .Where(item => item.Id == membershipId).Select(item => item.AccessRevision).SingleAsync();
+    }
+
+    private static IConfiguration TokenConfiguration()
+        => new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Jwt:Secret"] = "a-test-secret-that-is-long-enough-for-hmac-sha256-signing",
+            ["Jwt:Issuer"] = "fusion-tests",
+            ["Jwt:Audience"] = "fusion-tests",
+            ["Jwt:ExpirationInMinutes"] = "30",
+            ["Jwt:RefreshTokenExpirationInDays"] = "7",
+        }).Build();
+
+    private static async Task<ApplicationUser> AddProfiledMemberAsync(
+        World world, UserManager<ApplicationUser> users, string email, string profileKey)
+    {
+        var account = new ApplicationUser
+        {
+            Id = Guid.NewGuid(), UserName = email, Email = email,
+            FirstName = profileKey, LastName = "User", IsActive = true, EmailConfirmed = true,
+        };
+        Assert.True((await users.CreateAsync(account, "Member@123456")).Succeeded);
+        var membership = TenantMembership.Create(account.Id, world.TenantId);
+        world.Db.TenantMemberships.Add(membership);
+        await world.Db.SaveChangesAsync();
+        var profileId = await world.Db.AccessProfiles.IgnoreQueryFilters()
+            .Where(profile => profile.TenantId == world.TenantId && profile.InternalKey == profileKey)
+            .Select(profile => profile.Id).SingleAsync();
+        world.Db.UserAccessProfiles.Add(UserAccessProfile.Create(world.TenantId, account.Id, profileId, membership.Id));
+        await world.Db.SaveChangesAsync();
+        return account;
     }
 
     private sealed class StubAuthorizer(bool authorized) : IInternalServiceRequestAuthorizer

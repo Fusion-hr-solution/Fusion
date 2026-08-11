@@ -21,6 +21,16 @@ public static class TenantAdministratorAuthority
         "Broad administration within the tenant across its enabled Fusion modules. "
         + "Grants no Platform access and no permission to change tenant entitlements.";
 
+    // Core HR is mandatory for every customer tenant. These grants are named
+    // explicitly rather than relying only on the broader Core HR contribution:
+    // Organization is a locked Tenant Administrator responsibility and its
+    // authority must remain stable if that contribution is later partitioned.
+    private static readonly EffectivePermissionGrant[] MandatoryOrganizationGrants =
+    [
+        new(CorePermissions.OrganizationView, PermissionScopes.Tenant),
+        new(CorePermissions.OrganizationManage, PermissionScopes.Tenant),
+    ];
+
     /// <summary>
     /// Composes the Tenant Administrator grant set for a tenant.
     /// <para>
@@ -58,6 +68,14 @@ public static class TenantAdministratorAuthority
                 }
 
                 grants.Add(new EffectivePermissionGrant(definition.Key, scope));
+            }
+        }
+
+        foreach (var grant in MandatoryOrganizationGrants)
+        {
+            if (seen.Add(grant.PermissionKey))
+            {
+                grants.Add(grant);
             }
         }
 

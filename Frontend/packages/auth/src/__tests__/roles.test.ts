@@ -16,6 +16,8 @@ import {
   canSeeCoreTeamNavigation,
   canViewCoreAccessProfiles,
   canManageCoreAccessProfiles,
+  canViewCoreOrganization,
+  canManageCoreOrganization,
 } from "../roles";
 import type { AuthUser } from "../types";
 
@@ -51,6 +53,30 @@ function grant(
 }
 
 describe("role helpers", () => {
+  it("authorizes Organization only from tenant-scoped canonical grants", () => {
+    const viewer = makeUser([], null, [grant("core.organization.view", "Tenant")]);
+    const manager = makeUser([], null, [grant("core.organization.manage", "Tenant")]);
+    const orgUnitManager = makeUser([], null, [grant("core.organization.manage", "OrgUnit")]);
+    const legacy = makeUser(["HRAdmin"], null, [
+      grant("core.structure.manage", "Tenant"),
+      grant("core.orgchart.view", "Tenant"),
+      grant("core.setup.manage", "Tenant"),
+    ]);
+    const platformOnly = makeUser(["PlatformAdmin"]);
+
+    expect(canViewCoreOrganization(viewer)).toBe(true);
+    expect(canManageCoreOrganization(viewer)).toBe(false);
+    expect(canViewCoreOrganization(manager)).toBe(true);
+    expect(canManageCoreOrganization(manager)).toBe(true);
+    expect(canViewCoreOrganization(orgUnitManager)).toBe(false);
+    expect(canManageCoreOrganization(orgUnitManager)).toBe(false);
+    expect(canViewCoreOrganization(legacy)).toBe(false);
+    expect(canManageCoreOrganization(legacy)).toBe(false);
+    expect(canViewCoreOrganization(platformOnly)).toBe(false);
+    expect(canManageCoreOrganization(platformOnly)).toBe(false);
+    expect(canViewCoreOrganization(null)).toBe(false);
+  });
+
   it("grants Platform access only to authenticated platform administrators", () => {
     expect(canAccessPlatform(null)).toBe(false);
     expect(canAccessPlatform(makeUser([]))).toBe(false);

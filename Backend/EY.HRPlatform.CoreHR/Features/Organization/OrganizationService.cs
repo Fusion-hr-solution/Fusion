@@ -46,11 +46,10 @@ public sealed class OrganizationService(
         var byId = resolved.ToDictionary(item => item.OrgUnitId);
         var path = new Stack<string>();
         var cursor = state;
-        while (true)
+        while (cursor.ParentOrgUnitId is Guid parentId && byId.TryGetValue(parentId, out var parent))
         {
-            path.Push(cursor.Name);
-            if (cursor.ParentOrgUnitId is not Guid parentId || !byId.TryGetValue(parentId, out cursor!))
-                break;
+            path.Push(parent.Name);
+            cursor = parent;
         }
         var context = resolved.ToDictionary(item => item.OrgUnitId, item => new OrganizationUnitStateDto(
             item.OrgUnitId, item.OrgUnit.Code, item.Name, item.OrganizationalUnitTypeId,

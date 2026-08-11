@@ -25,7 +25,9 @@ interface BrowserStoredAuth {
   accessTokenExpiration: string;
   user: {
     userId: string;
-    tenantId: string;
+    tenantId: string | null;
+    tenantMembershipId: string | null;
+    moduleEntitlements: string[];
     email: string;
     fullName: string;
     roles: string[];
@@ -49,7 +51,9 @@ interface BrowserStoredAuth {
 
 interface RefreshResponse {
   userId: string;
-  tenantId: string;
+  tenantId: string | null;
+  tenantMembershipId: string | null;
+  moduleEntitlements: string[];
   email: string;
   fullName: string;
   roles: string[];
@@ -100,7 +104,9 @@ function persistBrowserAuth(auth: RefreshResponse): void {
     accessTokenExpiration: auth.accessTokenExpiration,
     user: {
       userId: auth.userId,
-      tenantId: auth.tenantId,
+      tenantId: auth.tenantId ?? null,
+      tenantMembershipId: auth.tenantMembershipId ?? null,
+      moduleEntitlements: auth.moduleEntitlements ?? [],
       email: auth.email,
       fullName: auth.fullName,
       roles: auth.roles,

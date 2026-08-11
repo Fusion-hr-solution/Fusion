@@ -163,6 +163,9 @@ describe("createPlatformApiClient", () => {
           JSON.stringify({
             data: {
               userId: "user-1",
+              tenantId: "tenant-1",
+              tenantMembershipId: "membership-1",
+              moduleEntitlements: ["CoreHR"],
               email: "jane@example.com",
               fullName: "Jane Doe",
               roles: ["HRAdmin"],
@@ -193,7 +196,12 @@ describe("createPlatformApiClient", () => {
     const [, protectedInit] = fetchSpy.mock.calls[1] as [string, RequestInit];
     const headers = protectedInit.headers as Record<string, string>;
     expect(headers["Authorization"]).toBe("Bearer fresh-token");
-    expect(JSON.parse(storage.ey_hr_auth!).user.employeeId).toBe("employee-1");
+    expect(JSON.parse(storage.ey_hr_auth!).user).toMatchObject({
+      tenantId: "tenant-1",
+      tenantMembershipId: "membership-1",
+      moduleEntitlements: ["CoreHR"],
+      employeeId: "employee-1",
+    });
   });
 
   it("retries once after a 401 by refreshing the stored session", async () => {
@@ -237,6 +245,9 @@ describe("createPlatformApiClient", () => {
           JSON.stringify({
             data: {
               userId: "user-1",
+              tenantId: "tenant-1",
+              tenantMembershipId: "membership-1",
+              moduleEntitlements: ["CoreHR"],
               email: "jane@example.com",
               fullName: "Jane Doe",
               roles: ["HRAdmin"],
@@ -264,6 +275,11 @@ describe("createPlatformApiClient", () => {
     const [, retryInit] = fetchSpy.mock.calls[2] as [string, RequestInit];
     const headers = retryInit.headers as Record<string, string>;
     expect(headers["Authorization"]).toBe("Bearer fresh-token");
+    expect(JSON.parse(storage.ey_hr_auth!).user).toMatchObject({
+      tenantId: "tenant-1",
+      tenantMembershipId: "membership-1",
+      moduleEntitlements: ["CoreHR"],
+    });
   });
 });
 

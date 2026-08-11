@@ -1,5 +1,3 @@
-import type { DraftStructureSchemaDto } from "./draft-structure";
-
 export interface FieldConfigDto {
   visible: boolean;
   required: boolean;
@@ -50,8 +48,6 @@ export interface ProvisioningSettingsInputDto {
 
 export interface TenantSettingsDto {
   version: number | null;
-  draftStructureSchema: DraftStructureSchemaDto;
-  orgUnitTypes: string[];
   employeeFieldConfig: Record<string, FieldConfigDto>;
   branding: BrandingSettingsDto;
   selfService: SelfServiceSettingsDto;
@@ -59,8 +55,6 @@ export interface TenantSettingsDto {
 }
 
 export interface UpdateTenantSettingsRequest {
-  orgUnitTypes?: string[] | null;
-  draftStructureSchema?: DraftStructureSchemaDto | null;
   employeeFieldConfig?: Record<string, FieldConfigInputDto> | null;
   branding?: BrandingSettingsInputDto | null;
   selfService?: SelfServiceSettingsInputDto | null;
@@ -132,13 +126,6 @@ export interface PeopleDataSettingsDto {
   downstreamConsumers: string[];
 }
 
-export interface StructureSettingsDto {
-  version: number | null;
-  draftStructureSchema: DraftStructureSchemaDto;
-  draftStatus: string;
-  operationalHandoff: string;
-}
-
 export interface ProvisioningSettingsResponseDto {
   version: number | null;
   provisioning: ProvisioningSettingsDto;
@@ -151,7 +138,6 @@ export const tenantSettingsPaths = {
   overview: () => "/corehr/settings/overview",
   organization: () => "/corehr/settings/organization",
   peopleData: () => "/corehr/settings/people-data",
-  structure: () => "/corehr/settings/structure",
   provisioning: () => "/corehr/settings/provisioning",
   audit: () => "/corehr/settings/governance/audit",
 } as const;
@@ -163,7 +149,6 @@ export const tenantSettingsQueryKeys = {
   overview: () => [...tenantSettingsQueryKeys.all(), "overview"] as const,
   organization: () => [...tenantSettingsQueryKeys.all(), "organization"] as const,
   peopleData: () => [...tenantSettingsQueryKeys.all(), "people-data"] as const,
-  structure: () => [...tenantSettingsQueryKeys.all(), "structure"] as const,
   provisioning: () => [...tenantSettingsQueryKeys.all(), "provisioning"] as const,
   audit: () => [...tenantSettingsQueryKeys.all(), "audit"] as const,
 } as const;

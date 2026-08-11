@@ -26,6 +26,22 @@ public sealed class OrganizationServiceTests
     }
 
     [Fact]
+    public async Task Unit_detail_path_contains_each_ancestor_and_the_unit_once()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
+        var service = new OrganizationService(db, TestTenantContext.WithTenant(tenantId));
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var root = await service.CreateRootAsync(new CreateOrganizationRootRequest("ORG", "Fusion", today), default);
+        var division = await service.CreateUnitAsync(new CreateOrganizationUnitRequest("OPS", "Operations", OrganizationalUnitTypeCatalog.DivisionId, root.Id, today), default);
+        var team = await service.CreateUnitAsync(new CreateOrganizationUnitRequest("ENG", "Engineering", OrganizationalUnitTypeCatalog.TeamId, division.Id, today), default);
+
+        var detail = await service.GetUnitAsync(team.Id, today, default);
+
+        Assert.Equal("Fusion / Operations / Engineering", detail.Path);
+    }
+
+    [Fact]
     public async Task Scheduled_operations_on_the_same_date_remain_individually_cancellable()
     {
         var tenantId = Guid.NewGuid();

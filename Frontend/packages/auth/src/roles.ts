@@ -25,6 +25,8 @@ const CORE_PERMISSION = {
   employeeImport: "core.employee.import",
   reportingManage: "core.reporting.manage",
   orgChartView: "core.orgchart.view",
+  organizationView: "core.organization.view",
+  organizationManage: "core.organization.manage",
   accessView: "core.access.view",
   accessManage: "core.access.manage",
   accessAssignmentsView: "access.assignments.view",
@@ -262,6 +264,18 @@ export function canAccessCoreOrgChart(user: AuthUser | null): boolean {
     hasCorePermission(user, CORE_PERMISSION.orgChartView, "Tenant") ||
     hasCorePermission(user, CORE_PERMISSION.orgChartView, "DirectReports")
   );
+}
+
+/** Canonical tenant Organization access; intentionally excludes legacy Structure/setup grants. */
+export function canViewCoreOrganization(user: AuthUser | null): boolean {
+  return (
+    hasCorePermission(user, CORE_PERMISSION.organizationView, "Tenant") ||
+    hasCorePermission(user, CORE_PERMISSION.organizationManage, "Tenant")
+  );
+}
+
+export function canManageCoreOrganization(user: AuthUser | null): boolean {
+  return hasCorePermission(user, CORE_PERMISSION.organizationManage, "Tenant");
 }
 
 export function canSeeCoreOrgChartNavigation(user: AuthUser | null): boolean {
