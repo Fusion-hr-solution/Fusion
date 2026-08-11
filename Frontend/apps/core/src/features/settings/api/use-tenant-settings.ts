@@ -3,7 +3,6 @@
 import { useCallback, useMemo } from "react";
 import {
   createPlatformApiClient,
-  draftStructureQueryKeys,
   tenantSettingsQueryKeys,
   tenantSettingsPaths,
   type OrganizationSettingsDto,
@@ -12,7 +11,6 @@ import {
   type SettingsAuditEventDto,
   type SettingsOverviewDto,
   type SettingsSectionDto,
-  type StructureSettingsDto,
   type TenantSettingsDto,
   type UpdateTenantSettingsRequest,
 } from "@repo/api";
@@ -36,11 +34,6 @@ interface UpdateOrganizationSettingsArgs {
 interface UpdatePeopleDataSettingsArgs {
   expectedVersion: number | null;
   input: Pick<UpdateTenantSettingsRequest, "employeeFieldConfig" | "selfService">;
-}
-
-interface UpdateStructureSettingsArgs {
-  expectedVersion: number | null;
-  input: Pick<UpdateTenantSettingsRequest, "draftStructureSchema">;
 }
 
 interface UpdateProvisioningSettingsArgs {
@@ -139,23 +132,6 @@ export function usePeopleDataSettings(enabled = true) {
   });
 }
 
-export function useStructureSettings(enabled = true) {
-  const { isAuthenticated } = useAuth();
-  const client = useMemo(() => createPlatformApiClient(), []);
-
-  const queryFn = useCallback(
-    (signal: AbortSignal) =>
-      client.get<StructureSettingsDto>(tenantSettingsPaths.structure(), {
-        signal,
-      }),
-    [client]
-  );
-
-  return useApiQuery(tenantSettingsQueryKeys.structure(), queryFn, {
-    enabled: isAuthenticated && enabled,
-  });
-}
-
 export function useProvisioningSettings(enabled = true) {
   const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
@@ -205,10 +181,6 @@ export function useUpdateTenantSettings(opts?: {
         headers: buildIfMatchHeaders(expectedVersion),
       }),
     {
-      invalidateQueries: [
-        { queryKey: draftStructureQueryKeys.workspace(), exact: true },
-        { queryKey: draftStructureQueryKeys.importSchema(), exact: true },
-      ],
       onSuccess: async (data) => {
         queryClient.setQueryData(tenantSettingsQueryKeys.current(), data);
         await queryClient.invalidateQueries({
@@ -275,43 +247,6 @@ export function useUpdatePeopleDataSettings(opts?: {
     {
       onSuccess: async (data) => {
         queryClient.setQueryData(tenantSettingsQueryKeys.peopleData(), data);
-        await Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: tenantSettingsQueryKeys.current(),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: tenantSettingsQueryKeys.overview(),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: tenantSettingsQueryKeys.audit(),
-          }),
-        ]);
-        await opts?.onSuccess?.(data);
-      },
-    }
-  );
-}
-
-export function useUpdateStructureSettings(opts?: {
-  onSuccess?: (data: StructureSettingsDto) => void;
-}) {
-  const client = useMemo(() => createPlatformApiClient(), []);
-  const queryClient = useApiQueryClient();
-
-  return useApiMutation<StructureSettingsDto, UpdateStructureSettingsArgs>(
-    ({ expectedVersion, input }) =>
-      client.patch<StructureSettingsDto>(
-        tenantSettingsPaths.structure(),
-        input,
-        { headers: buildIfMatchHeaders(expectedVersion) }
-      ),
-    {
-      invalidateQueries: [
-        { queryKey: draftStructureQueryKeys.workspace(), exact: true },
-        { queryKey: draftStructureQueryKeys.importSchema(), exact: true },
-      ],
-      onSuccess: async (data) => {
-        queryClient.setQueryData(tenantSettingsQueryKeys.structure(), data);
         await Promise.all([
           queryClient.invalidateQueries({
             queryKey: tenantSettingsQueryKeys.current(),

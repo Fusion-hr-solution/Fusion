@@ -27,6 +27,13 @@ vi.mock("@repo/api", () => ({
     post: mockPost,
     put: mockPut,
   }),
+  createCoreOrganizationApi: (client: { get: typeof mockGet }) => ({
+    hierarchy: (asOf: string, signal: AbortSignal) =>
+      client.get("/corehr/organization/hierarchy", {
+        params: { asOf },
+        signal,
+      }),
+  }),
 }));
 
 vi.mock("@repo/auth", () => ({
@@ -384,15 +391,7 @@ describe("useWorkforceReadinessSummary", () => {
 
 describe("useEmployeeManagerOptions", () => {
   it("searches active employees for manager options", async () => {
-    mockGet.mockResolvedValue({
-      items: [],
-      totalCount: 0,
-      page: 1,
-      pageSize: 100,
-      totalPages: 0,
-      hasNextPage: false,
-      hasPreviousPage: false,
-    });
+    mockGet.mockResolvedValue({ asOf: "2026-08-10", roots: [] });
 
     renderHook(
       () =>
@@ -479,16 +478,9 @@ describe("useEmployeeOrgUnitOptions", () => {
     await waitFor(() => expect(mockGet).toHaveBeenCalled());
 
     expect(mockGet).toHaveBeenCalledWith(
-      "/corehr/org-units",
+      "/corehr/organization/hierarchy",
       expect.objectContaining({
-        params: expect.objectContaining({
-          search: "Eng",
-          isActive: true,
-          sortBy: "Name",
-          sortDir: "Asc",
-          page: 1,
-          pageSize: 100,
-        }),
+        params: { asOf: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) },
         signal: expect.any(AbortSignal),
       })
     );

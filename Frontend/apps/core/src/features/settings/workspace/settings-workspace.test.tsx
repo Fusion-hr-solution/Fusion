@@ -215,14 +215,14 @@ describe("SettingsWorkspace", () => {
   });
 
   it.each(["structure", "organization-structure"])(
-    "redirects %s deep links to setup",
+    "redirects %s deep links to Organization",
     async (tab) => {
       setSearchParams({ tab });
 
       renderWorkspace();
 
       await waitFor(() => {
-        expect(mockReplace).toHaveBeenCalledWith("/setup", { scroll: false });
+        expect(mockReplace).toHaveBeenCalledWith("/organization", { scroll: false });
       });
     }
   );

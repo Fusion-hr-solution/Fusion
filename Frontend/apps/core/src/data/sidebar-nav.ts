@@ -16,7 +16,7 @@ export const PEOPLE_NAV: ShellNavSection = {
     { label: "My Profile", href: "/profile", icon: User },
     { label: "My Team", href: "/team", icon: Users },
     { label: "Employees", href: "/employees", icon: Users },
-    { label: "Org Chart", href: "/org-chart", icon: Network },
+    { label: "Organization", href: "/organization", icon: Network },
   ],
 };
 

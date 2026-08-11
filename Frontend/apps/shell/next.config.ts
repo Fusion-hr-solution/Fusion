@@ -41,7 +41,8 @@ const nextConfig: NextConfig = {
       // canonical URL carries no module prefix. It is served from the Core app
       // because the tenant shell — sidebar, breadcrumbs, tenant session — exists
       // only there; moving it would be a routing migration for naming alone.
-      // `/core/setup` remains the Core HR organization-structure workspace.
+      // Change 3 owns the final tenant-readiness routing. The Core app keeps
+      // this bounded compatibility rewrite until that integration lands.
       {
         source: "/setup",
         destination: `${coreUrl}/core/tenant-setup`,

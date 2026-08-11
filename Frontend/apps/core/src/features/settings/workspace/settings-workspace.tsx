@@ -488,7 +488,7 @@ function AuditTable({ rows }: { rows: AuditRow[] }) {
 export default function SettingsWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const setupHref = "/setup";
+  const organizationHref = "/organization";
   const requestedTab = searchParams.get("tab");
   const requestedSectionId = normalizeSettingsSectionId(requestedTab);
 
@@ -530,7 +530,7 @@ export default function SettingsWorkspace() {
     }
 
     if (requestedSectionId === SETTINGS_SECTION_IDS.structure) {
-      router.replace(setupHref, { scroll: false });
+      router.replace(organizationHref, { scroll: false });
       return;
     }
 
@@ -551,7 +551,7 @@ export default function SettingsWorkspace() {
     router,
     searchParams,
     sectionsQuery.isLoading,
-    setupHref,
+    organizationHref,
   ]);
 
   const activeSection = activeSectionId ? sectionMap.get(activeSectionId) : undefined;
@@ -851,8 +851,8 @@ export default function SettingsWorkspace() {
         description="Tenant administration, governance, and safe defaults."
         actions={
           sections.some((section) => section.id === SETTINGS_SECTION_IDS.structure) ? (
-            <Button variant="outline" onClick={() => router.push(setupHref)}>
-              Open setup
+            <Button variant="outline" onClick={() => router.push(organizationHref)}>
+              Open Organization
             </Button>
           ) : null
         }

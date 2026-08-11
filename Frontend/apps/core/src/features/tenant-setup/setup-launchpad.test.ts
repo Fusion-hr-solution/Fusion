@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AuthUser } from "@repo/auth";
-import type { TenantSetupStateDto } from "@repo/api";
+import type { OrganizationReadinessDto } from "@repo/api";
 import { findCatalogDefects, type SetupCapability } from "./catalog";
 import {
   capabilitiesInGroup,
@@ -26,29 +26,28 @@ const ADMIN = {
     "core.setup.manage",
     "core.structure.publish",
     "core.employee.view",
+    "core.organization.manage",
     "access.assignments.manage"
   ),
   moduleEntitlements: ["core"],
 } as unknown as AuthUser;
 
-function setupState(overrides: Partial<TenantSetupStateDto>): TenantSetupStateDto {
+function setupState(overrides: Partial<OrganizationReadinessDto>): OrganizationReadinessDto {
   return {
-    version: 1,
-    currentPhase: "notStarted",
-    canStartSetup: true,
-    isDraftCycleActive: false,
-    hasDraftStructure: false,
-    hasPublishedStructure: false,
-    requiresRepublish: false,
-    recentActivities: [],
+    isReady: false,
+    reason: "The organization has not been established.",
+    hasPermanentRoot: false,
+    permanentRootId: null,
+    permanentRootFirstEffectiveDate: null,
+    isPermanentRootEffective: false,
     ...overrides,
-  } as unknown as TenantSetupStateDto;
+  };
 }
 
 function compose(overrides: {
   user?: AuthUser | null;
   entitlements?: string[];
-  setupState?: TenantSetupStateDto | null | undefined;
+  setupState?: OrganizationReadinessDto | null | undefined;
   workforceTotalCount?: number | null | undefined;
   capabilities?: SetupCapability[];
 }) {
@@ -143,13 +142,13 @@ describe("composed capability state", () => {
     expect(byKey(compose({}), "organization").state).toBe("not-started");
 
     expect(
-      byKey(compose({ setupState: setupState({ isDraftCycleActive: true }) }), "organization")
+      byKey(compose({ setupState: setupState({ hasPermanentRoot: true, permanentRootFirstEffectiveDate: "2026-09-01" }) }), "organization")
         .state
     ).toBe("in-progress");
 
     expect(
       byKey(
-        compose({ setupState: setupState({ hasPublishedStructure: true }) }),
+        compose({ setupState: setupState({ isReady: true, hasPermanentRoot: true, isPermanentRootEffective: true }) }),
         "organization"
       ).state
     ).toBe("ready");
@@ -175,7 +174,7 @@ describe("composed capability state", () => {
 
   it("unblocks a dependent capability once its prerequisite is ready", () => {
     const composed = compose({
-      setupState: setupState({ hasPublishedStructure: true }),
+      setupState: setupState({ isReady: true, hasPermanentRoot: true, isPermanentRootEffective: true }),
     });
 
     const workforce = byKey(composed, "workforce");
@@ -186,14 +185,14 @@ describe("composed capability state", () => {
   it("uses the canonical workforce total without displaying invented progress", () => {
     const empty = byKey(
       compose({
-        setupState: setupState({ hasPublishedStructure: true }),
+        setupState: setupState({ isReady: true, hasPermanentRoot: true, isPermanentRootEffective: true }),
         workforceTotalCount: 0,
       }),
       "workforce"
     );
     const meaningful = byKey(
       compose({
-        setupState: setupState({ hasPublishedStructure: true }),
+        setupState: setupState({ isReady: true, hasPermanentRoot: true, isPermanentRootEffective: true }),
         workforceTotalCount: 3,
       }),
       "workforce"
@@ -206,7 +205,7 @@ describe("composed capability state", () => {
   it("retains the safe workforce route when its progress read fails", () => {
     const workforce = byKey(
       compose({
-        setupState: setupState({ hasPublishedStructure: true }),
+        setupState: setupState({ isReady: true, hasPermanentRoot: true, isPermanentRootEffective: true }),
         workforceTotalCount: null,
       }),
       "workforce"
@@ -280,7 +279,7 @@ describe("recommended next step", () => {
 
   it("omits the recommendation when nothing meaningful remains", () => {
     const composed = compose({
-      setupState: setupState({ hasPublishedStructure: true }),
+      setupState: setupState({ isReady: true, hasPermanentRoot: true, isPermanentRootEffective: true }),
       workforceTotalCount: 2,
     });
 
@@ -300,7 +299,7 @@ describe("recommended next step", () => {
   it("recommends workforce after organization is ready and the roster is empty", () => {
     const recommendation = recommendedNextStep(
       compose({
-        setupState: setupState({ hasPublishedStructure: true }),
+        setupState: setupState({ isReady: true, hasPermanentRoot: true, isPermanentRootEffective: true }),
         workforceTotalCount: 0,
       })
     );
@@ -313,15 +312,15 @@ describe("launchpad variant", () => {
   it("derives fresh, underway, mature, and indeterminate from owning data", () => {
     const fresh = compose({ workforceTotalCount: 0 });
     const organizationUnderway = compose({
-      setupState: setupState({ isDraftCycleActive: true }),
+      setupState: setupState({ hasPermanentRoot: true, permanentRootFirstEffectiveDate: "2026-09-01" }),
       workforceTotalCount: 0,
     });
     const workforceUnderway = compose({
-      setupState: setupState({ hasPublishedStructure: true }),
+      setupState: setupState({ isReady: true, hasPermanentRoot: true, isPermanentRootEffective: true }),
       workforceTotalCount: 0,
     });
     const mature = compose({
-      setupState: setupState({ hasPublishedStructure: true }),
+      setupState: setupState({ isReady: true, hasPermanentRoot: true, isPermanentRootEffective: true }),
       workforceTotalCount: 1,
     });
     const indeterminate = compose({

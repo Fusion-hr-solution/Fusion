@@ -1,8 +1,5 @@
-import DraftStructureWorkspace from "@/features/setup/components/draft-structure-workspace";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default function DraftStructurePage() {
-  return <DraftStructureWorkspace />;
+export default function LegacyStructureHandoffPage() {
+  redirect("/organization");
 }
-

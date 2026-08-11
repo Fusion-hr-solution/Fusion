@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { createPlatformApiClient } from "@repo/api";
+import {
+  createCoreOrganizationApi,
+  createPlatformApiClient,
+  type OrganizationHierarchyNodeDto,
+} from "@repo/api";
 import {
   keepPreviousData,
   useApiMutation,
@@ -38,9 +42,7 @@ function useCanAccessProfile(): boolean {
 }
 
 const EMPLOYEE_ROSTER_PATH = "/corehr/employees";
-const ORG_UNIT_OPTIONS_PATH = "/corehr/org-units";
 const MANAGER_OPTIONS_PAGE_SIZE = 100;
-const ORG_UNIT_OPTIONS_PAGE_SIZE = 100;
 const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 
 interface ChangeEmployeeManagerInput {
@@ -308,24 +310,44 @@ export function useEmployeeOrgUnitOptions({
 }): UseApiQueryResult<EmployeeOrgUnitPageDto> {
   const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
+  const organizationApi = useMemo(() => createCoreOrganizationApi(client), [client]);
   const canAccess = useCanAccessRoster();
   const normalizedSearch = search.trim();
 
-  const queryFn = useCallback(
-    (signal: AbortSignal) =>
-      client.get<EmployeeOrgUnitPageDto>(ORG_UNIT_OPTIONS_PATH, {
-        signal,
-        params: {
-          search: normalizedSearch || undefined,
+  const queryFn = useCallback(async (signal: AbortSignal): Promise<EmployeeOrgUnitPageDto> => {
+    const asOf = new Date().toISOString().slice(0, 10);
+    const hierarchy = await organizationApi.hierarchy(asOf, signal);
+    const items: EmployeeOrgUnitPageDto["items"] = [];
+    const append = (node: OrganizationHierarchyNodeDto) => {
+      const unit = node.unit;
+      if (
+        String(unit.lifecycleState) === "Active" &&
+        (!normalizedSearch || `${unit.name} ${unit.code}`.toLowerCase().includes(normalizedSearch.toLowerCase()))
+      ) {
+        items.push({
+          id: unit.id,
+          code: unit.code,
+          name: unit.name,
+          type: unit.typeName,
+          parentId: unit.parentId,
+          parentName: unit.parentName,
           isActive: true,
-          sortBy: "Name",
-          sortDir: "Asc",
-          page: 1,
-          pageSize: ORG_UNIT_OPTIONS_PAGE_SIZE,
-        },
-      }),
-    [client, normalizedSearch]
-  );
+        });
+      }
+      node.children.forEach(append);
+    };
+    hierarchy.roots.forEach(append);
+    items.sort((left, right) => left.name.localeCompare(right.name));
+    return {
+      items,
+      totalCount: items.length,
+      page: 1,
+      pageSize: items.length,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPreviousPage: false,
+    };
+  }, [normalizedSearch, organizationApi]);
 
   return useApiQuery(
     employeeRosterQueryKeys.orgUnitOptions(normalizedSearch),

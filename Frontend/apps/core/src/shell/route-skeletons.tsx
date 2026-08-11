@@ -243,38 +243,6 @@ export function SetupPageSkeleton() {
   );
 }
 
-export function DraftStructureWorkbenchSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-4 xl:grid-cols-[1.55fr_0.9fr]">
-        <div className="space-y-3">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-[36rem] w-full" />
-        </div>
-        <div className="space-y-3">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-[36rem] w-full" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function DraftStructurePageSkeleton() {
-  // Title stays a skeleton on purpose: the real title is state-dependent
-  // ("Draft structure" / "Live structure" / ...), unknown until setup state
-  // loads. Geometry matches PageHeader/PageSkeleton so the swap is seamless.
-  return (
-    <PageContainer width="wide" className="space-y-6">
-      <div className="space-y-2">
-        <Skeleton className="h-7 w-48" />
-        <Skeleton className="h-4 w-80 max-w-full" />
-      </div>
-      <DraftStructureWorkbenchSkeleton />
-    </PageContainer>
-  );
-}
-
 /** The dedicated loading skeleton for a core route (module-relative path). */
 export function getRoutePageSkeleton(corePath: string): ReactNode {
   if (corePath === "/") return <OverviewPageSkeleton />;
@@ -283,13 +251,11 @@ export function getRoutePageSkeleton(corePath: string): ReactNode {
   if (corePath.startsWith("/employees/")) return <EmployeeProfilePageSkeleton />;
   if (corePath === "/profile") return <MyProfilePageSkeleton />;
   if (corePath === "/team") return <TeamPageSkeleton />;
-  if (corePath === "/org-chart") return <OrgChartPageSkeleton />;
+  if (corePath === "/organization" || corePath === "/org-chart") return <OrgChartPageSkeleton />;
   if (corePath === "/settings") return <SettingsPageSkeleton />;
   if (corePath === "/access/profiles")
     return <TitledPageLoading title="Access profiles" rows={4} label="Opening access profile settings" />;
   if (corePath.startsWith("/access")) return <AccessPageSkeleton />;
-  if (corePath.startsWith("/setup/draft-structure"))
-    return <DraftStructurePageSkeleton />;
   if (corePath === "/setup") return <SetupPageSkeleton />;
   return <PageSkeleton label="Loading page" />;
 }

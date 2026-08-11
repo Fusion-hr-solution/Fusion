@@ -3,6 +3,7 @@ import {
   canAccessCorePeople,
   canAccessCoreSetup,
   canViewTenantAdministration,
+  canViewCoreOrganization,
 } from "@repo/auth";
 
 /**
@@ -70,11 +71,11 @@ export const SETUP_CAPABILITIES: SetupCapability[] = [
       "Define the structure your workforce and future HR processes will build on.",
     group: "foundation",
     availability: "implemented",
-    route: "/setup",
-    actionLabel: "Start organization setup",
+    route: "/organization",
+    actionLabel: "Open Organization",
     prerequisites: [],
     order: 30,
-    isAuthorized: canAccessCoreSetup,
+    isAuthorized: canViewCoreOrganization,
   },
   {
     key: "workforce",
@@ -84,9 +85,9 @@ export const SETUP_CAPABILITIES: SetupCapability[] = [
     availability: "implemented",
     route: "/employees",
     actionLabel: "Add workforce",
-    // The employee roster is genuinely unusable until a published structure
-    // exists to place people into, so this is a real dependency rather than a
-    // sequencing preference.
+    // The employee roster needs the official Organization hierarchy to place
+    // people into, so this is a real dependency rather than a sequencing
+    // preference.
     prerequisites: ["organization"],
     order: 40,
     isAuthorized: canAccessCorePeople,

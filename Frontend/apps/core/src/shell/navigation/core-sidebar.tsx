@@ -11,7 +11,7 @@ import {
 import {
   useAuth,
   canSeeCoreAccessNavigation,
-  canSeeCoreOrgChartNavigation,
+  canViewCoreOrganization,
   canSeeCoreSettingsNavigation,
   canViewTenantAdministration,
   getSidebarAccountLabel,
@@ -36,7 +36,7 @@ export function CoreSidebar() {
   const canSeeAccess = canSeeCoreAccessNavigation(user);
   const canSeeSettings = canSeeCoreSettingsNavigation(user);
   const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user);
-  const canSeeOrgChart = canSeeCoreOrgChartNavigation(user);
+  const canSeeOrganization = canViewCoreOrganization(user);
   const canSeeMyProfile = canSeeSelfEmployeeProfileNavigation(user);
   const canSeeMyTeam = canSeeTeamWorkspaceNavigation(user);
 
@@ -44,7 +44,7 @@ export function CoreSidebar() {
     if (item.href === "/profile") return canSeeMyProfile;
     if (item.href === "/team") return canSeeMyTeam;
     if (item.href === "/employees") return canSeeEmployeeRoster;
-    if (item.href === "/org-chart") return canSeeOrgChart;
+    if (item.href === "/organization") return canSeeOrganization;
     return true;
   });
   const adminItems = ADMIN_NAV.items.filter((item) => {

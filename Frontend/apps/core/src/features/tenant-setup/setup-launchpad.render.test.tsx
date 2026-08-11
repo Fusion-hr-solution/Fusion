@@ -26,10 +26,11 @@ vi.mock("@repo/auth", () => ({
   canAccessCorePeople: (user: AuthUser | null) => user?.userId === "admin",
   canViewTenantAdministration: (user: AuthUser | null) =>
     user?.userId === "admin",
+  canViewCoreOrganization: (user: AuthUser | null) => user?.userId === "admin",
 }));
 
-vi.mock("@/shell/setup-access", () => ({
-  useCoreSetupAccess: mocks.setupHook,
+vi.mock("@/features/organization/api/use-organization", () => ({
+  useOrganizationReadiness: mocks.setupHook,
 }));
 
 vi.mock("@/features/tenant-access/api/use-tenant-access", () => ({
@@ -108,8 +109,8 @@ describe("Tenant Setup launchpad presentation", () => {
       screen.getByRole("heading", { name: "Set up your organization" })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /Start organization setup/i })
-    ).toHaveAttribute("href", "/setup");
+      screen.getByRole("link", { name: /Open Organization/i })
+    ).toHaveAttribute("href", "/organization");
     expect(
       screen.getByRole("heading", { name: "Tenant foundation" })
     ).toBeInTheDocument();

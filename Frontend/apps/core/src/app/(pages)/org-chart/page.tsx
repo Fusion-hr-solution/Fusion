@@ -1,7 +1,7 @@
-import OrgChartWorkspace from "@/features/org-chart/components/org-chart-workspace";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 export default function OrgChartPage() {
-  return <OrgChartWorkspace />;
+  redirect("/organization");
 }

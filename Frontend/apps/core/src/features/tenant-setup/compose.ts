@@ -1,5 +1,5 @@
 import type { AuthUser } from "@repo/auth";
-import type { TenantSetupStateDto } from "@repo/api";
+import type { OrganizationReadinessDto } from "@repo/api";
 import {
   SETUP_CAPABILITIES,
   type CapabilityGroup,
@@ -39,7 +39,7 @@ export interface ComposeInput {
   user: AuthUser | null;
   entitlements: string[];
   /** Owned by Core HR. `undefined` while loading, `null` when it failed to load. */
-  setupState: TenantSetupStateDto | null | undefined;
+  setupState: OrganizationReadinessDto | null | undefined;
   /** Canonical employee total. `undefined` while loading, `null` when unavailable. */
   workforceTotalCount: number | null | undefined;
   capabilities?: SetupCapability[];
@@ -53,7 +53,7 @@ export type LaunchpadVariant =
 
 /** Core HR owns this truth; the launchpad only reads it. */
 function organizationStateOf(
-  setupState: TenantSetupStateDto | null | undefined
+  setupState: OrganizationReadinessDto | null | undefined
 ): { state: CapabilityState; detail: string | null } {
   if (setupState === undefined) {
     return { state: "unknown", detail: null };
@@ -63,16 +63,17 @@ function organizationStateOf(
     return { state: "unknown", detail: null };
   }
 
-  if (setupState.hasPublishedStructure && !setupState.requiresRepublish) {
-    return { state: "ready", detail: "Structure published" };
+  if (setupState.isReady) {
+    return { state: "ready", detail: "Organization ready" };
   }
 
-  if (setupState.requiresRepublish) {
-    return { state: "in-progress", detail: "Draft changes not yet published" };
-  }
-
-  if (setupState.isDraftCycleActive || setupState.hasDraftStructure) {
-    return { state: "in-progress", detail: "Draft in progress" };
+  if (setupState.hasPermanentRoot) {
+    return {
+      state: "in-progress",
+      detail: setupState.permanentRootFirstEffectiveDate
+        ? `Scheduled for ${setupState.permanentRootFirstEffectiveDate}`
+        : "Organization established",
+    };
   }
 
   return { state: "not-started", detail: null };

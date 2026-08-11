@@ -23,7 +23,8 @@ import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
 import { useEmployeeRoster } from "@/app/(pages)/employees/use-employees";
 import { useTenantAccessSummary } from "@/features/tenant-access/api/use-tenant-access";
-import { useCoreSetupAccess } from "@/shell/setup-access";
+import { useOrganizationReadiness } from "@/features/organization/api/use-organization";
+import { canViewCoreOrganization } from "@repo/auth";
 import {
   composeSetupCapabilities,
   deriveLaunchpadVariant,
@@ -82,12 +83,9 @@ export default function SetupLaunchpad() {
 }
 
 export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
-  const {
-    setupState,
-    setupError,
-    isSetupStateLoading,
-    refreshSetupAccess,
-  } = useCoreSetupAccess();
+  const organizationReadiness = useOrganizationReadiness(
+    canViewCoreOrganization(user)
+  );
   const accessSummary = useTenantAccessSummary(
     canViewTenantAdministration(user)
   );
@@ -98,11 +96,11 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
     : workforce.isLoading
       ? undefined
       : workforce.data?.totalCount ?? null;
-  const effectiveSetupState = setupError
+  const effectiveSetupState = organizationReadiness.error
     ? null
-    : isSetupStateLoading
+    : organizationReadiness.isLoading
       ? undefined
-      : setupState ?? null;
+      : organizationReadiness.data ?? null;
 
   const composed = useMemo(
     () =>
@@ -116,7 +114,7 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
   );
 
   const isInitialLoading =
-    isSetupStateLoading ||
+    organizationReadiness.isLoading ||
     accessSummary.isLoading ||
     workforce.isLoading;
 
@@ -145,8 +143,8 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
       recommendation={recommendation}
       entries={entries}
       onRetry={(key) => {
-        if (key === "organization" || setupError) {
-          void refreshSetupAccess();
+        if (key === "organization" || organizationReadiness.error) {
+          void organizationReadiness.refetch();
           return;
         }
 
@@ -235,7 +233,7 @@ function RecommendationPanel({ entry }: { entry: ComposedCapability }) {
   const action = isOrganization
     ? entry.state === "in-progress"
       ? "Continue organization setup"
-      : "Start organization setup"
+      : "Open Organization"
     : "Add workforce";
 
   return (
@@ -356,7 +354,7 @@ function actionLabel(entry: ComposedCapability): string {
   if (key === "organization") {
     if (entry.state === "ready") return "Review organization";
     if (entry.state === "in-progress") return "Continue organization setup";
-    return "Start organization setup";
+    return "Open Organization";
   }
   if (key === "workforce") {
     return entry.state === "ready" ? "Manage workforce" : "Add workforce";
