@@ -26,9 +26,28 @@ The implementation SHALL use a clean-slate development migration/reset posture f
 
 ### Requirement: Bounded temporary compatibility
 
-Any compatibility retained before Change 2 SHALL be read-only or a forwarding adapter to canonical Organization commands, SHALL be marked as temporary, and SHALL name `deliver-organization-workspace` as its removal owner. Compatibility SHALL NOT retain a mutable draft model, a publish authority, or an alternate Organization query truth.
+The temporary compatibility period for Draft Structure and TenantSetup Organization authority SHALL be closed before new Organization Import persistence is introduced. Active runtime source, EF model/snapshot, tests, shared contracts, and frontend routes SHALL NOT contain a mutable draft hierarchy, draft import session, DraftStructureSchema setting, setup-phase readiness, published-structure version, or publish/approve/reopen authority. A live consumer of retired state SHALL be removed when the concept is redundant or migrated only when an observable behavior has a canonical Organization equivalent. Historical migration and designer files SHALL remain immutable as database history.
 
-#### Scenario: Legacy read adapter
+#### Scenario: Remaining live dependency is reconciled
 
-- **WHEN** a temporary legacy OrgUnit read endpoint remains for the old frontend
-- **THEN** it projects only canonical current Organization truth and cannot return a divergent draft/published structure
+- **WHEN** a current runtime contract still queries retired setup state only to return unconsumed `PublishedStructureVersion` or `IsStructureOperational` fields
+- **THEN** those redundant fields and the query are removed and the remaining workforce contract is regression-tested before the retired type is deleted
+- **AND** Fusion does not invent a replacement version or readiness field with no canonical consumer need
+
+#### Scenario: Active legacy residue is removed
+
+- **WHEN** repository stale-authority searches run after this change
+- **THEN** no active backend, frontend, shared API, EF current model/snapshot, or test source references DraftOrgUnit, DraftStructureImportSession, Draft Structure mutation/import, TenantSetup publish/approve/reopen, draft readiness, or `/setup/draft-structure`
+- **AND** Organization Import cannot bind to a retired entity or authority
+
+#### Scenario: Historical migrations remain valid
+
+- **WHEN** a clean database replays CoreHR migrations
+- **THEN** historical migrations may retain legacy type/table names as immutable history
+- **AND** the current EF model and latest snapshot do not recreate those retired tables
+
+#### Scenario: Independent Employee Import remains separate
+
+- **WHEN** legacy Organization authority is removed
+- **THEN** Employee Import remains operational and independent
+- **AND** its stepper, preview, partial apply, and workflow semantics do not become Organization Import behavior
