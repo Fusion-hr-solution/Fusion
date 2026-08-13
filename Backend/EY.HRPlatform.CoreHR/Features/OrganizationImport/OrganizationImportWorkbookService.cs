@@ -16,7 +16,13 @@ public interface IOrganizationImportWorkbookService
 public sealed class OrganizationImportWorkbookService(IOrganizationService organizationService)
     : IOrganizationImportWorkbookService
 {
-    private static readonly string[] Headers =
+    // The native workbook contract. These are the single source of truth for both
+    // generation and the inspector's native-workbook recognition, so a Fusion
+    // template/export is auto-recognized instead of prompting a sheet choice.
+    public const string CanonicalSheetName = "Organization";
+    public const string SupportSheetName = "Type values";
+
+    public static readonly string[] CanonicalHeaders =
         ["Fusion OrgUnit ID", "Business Code", "Name", "Type", "Parent Business Code"];
 
     public async Task<OrganizationImportWorkbook> CreateTemplateAsync(CancellationToken cancellationToken)
@@ -70,13 +76,13 @@ public sealed class OrganizationImportWorkbookService(IOrganizationService organ
             {
                 Id = workbookPart.GetIdOfPart(organizationPart),
                 SheetId = 1,
-                Name = "Organization",
+                Name = CanonicalSheetName,
             });
             sheets.Append(new Sheet
             {
                 Id = workbookPart.GetIdOfPart(typesPart),
                 SheetId = 2,
-                Name = "Type values",
+                Name = SupportSheetName,
                 State = SheetStateValues.Hidden,
             });
             workbookPart.Workbook.Save();
@@ -88,13 +94,13 @@ public sealed class OrganizationImportWorkbookService(IOrganizationService organ
     {
         var sheetData = new SheetData();
         var header = new Row { RowIndex = 1 };
-        for (var index = 0; index < Headers.Length; index++)
-            header.Append(TextCell(index + 1, 1, Headers[index], styleIndex: 1));
+        for (var index = 0; index < CanonicalHeaders.Length; index++)
+            header.Append(TextCell(index + 1, 1, CanonicalHeaders[index], styleIndex: 1));
         sheetData.Append(header);
         for (var rowIndex = 0; rowIndex < rows.Count; rowIndex++)
         {
             var row = new Row { RowIndex = (uint)(rowIndex + 2) };
-            for (var column = 0; column < Headers.Length; column++)
+            for (var column = 0; column < CanonicalHeaders.Length; column++)
                 row.Append(TextCell(column + 1, rowIndex + 2, column < rows[rowIndex].Count ? rows[rowIndex][column] : null));
             sheetData.Append(row);
         }

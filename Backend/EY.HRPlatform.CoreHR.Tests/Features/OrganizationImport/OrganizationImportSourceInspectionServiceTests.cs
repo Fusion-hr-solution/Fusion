@@ -71,6 +71,87 @@ public sealed class OrganizationImportSourceInspectionServiceTests
     }
 
     [Fact]
+    public async Task InspectWorkbook_FilledNativeTemplate_AutoSelectsOrganizationWithoutChoice()
+    {
+        // Filled template: canonical Organization sheet plus a visible "Type values"
+        // support sheet (the shape produced once Excel has round-tripped the file).
+        await using var stream = new MemoryStream(CreateWorkbook(
+            (OrganizationImportWorkbookService.CanonicalSheetName, false, new[]
+            {
+                OrganizationImportWorkbookService.CanonicalHeaders,
+                new[] { "", "HQ", "Head Office", "Company", "" },
+            }),
+            (OrganizationImportWorkbookService.SupportSheetName, false, new[]
+            {
+                new[] { "Organization type" }, new[] { "Company" }, new[] { "Division" },
+            })));
+
+        var result = Assert.IsType<OrganizationSourceReady>(await _service.InspectAsync(
+            stream, "Fusion-organization-template.xlsx", null, null, CancellationToken.None));
+
+        Assert.Equal(OrganizationImportWorkbookService.CanonicalSheetName, result.Source.SelectedSheetName);
+        Assert.Equal("Head Office", result.Source.Table.Rows[0][2]);
+    }
+
+    [Fact]
+    public async Task InspectWorkbook_NativeExport_AutoSelectsOrganizationWithoutChoice()
+    {
+        await using var stream = new MemoryStream(CreateWorkbook(
+            (OrganizationImportWorkbookService.CanonicalSheetName, false, new[]
+            {
+                OrganizationImportWorkbookService.CanonicalHeaders,
+                new[] { "11111111-1111-1111-1111-111111111111", "HQ", "Head Office", "Company", "" },
+            }),
+            (OrganizationImportWorkbookService.SupportSheetName, false, new[]
+            {
+                new[] { "Organization type" }, new[] { "Company" },
+            })));
+
+        var result = Assert.IsType<OrganizationSourceReady>(await _service.InspectAsync(
+            stream, "Fusion-organization-2026-08-13.xlsx", null, null, CancellationToken.None));
+
+        Assert.Equal(OrganizationImportWorkbookService.CanonicalSheetName, result.Source.SelectedSheetName);
+    }
+
+    [Fact]
+    public async Task InspectWorkbook_NativeExportWithAdditiveRow_AutoSelectsOrganizationWithoutChoice()
+    {
+        await using var stream = new MemoryStream(CreateWorkbook(
+            (OrganizationImportWorkbookService.CanonicalSheetName, false, new[]
+            {
+                OrganizationImportWorkbookService.CanonicalHeaders,
+                new[] { "11111111-1111-1111-1111-111111111111", "HQ", "Head Office", "Company", "" },
+                new[] { "", "OPS", "Operations", "Division", "HQ" },
+            }),
+            (OrganizationImportWorkbookService.SupportSheetName, false, new[]
+            {
+                new[] { "Organization type" }, new[] { "Company" }, new[] { "Division" },
+            })));
+
+        var result = Assert.IsType<OrganizationSourceReady>(await _service.InspectAsync(
+            stream, "Fusion-organization-2026-08-13.xlsx", null, null, CancellationToken.None));
+
+        Assert.Equal(OrganizationImportWorkbookService.CanonicalSheetName, result.Source.SelectedSheetName);
+        Assert.Equal(2, result.Source.Table.Rows.Count);
+        Assert.Equal("Operations", result.Source.Table.Rows[1][2]);
+    }
+
+    [Fact]
+    public async Task InspectWorkbook_ByoNamedOrganizationWithoutNativeHeaders_StillRequiresChoice()
+    {
+        // A sheet merely named "Organization" is not a native workbook. With a second
+        // plausible data sheet the targeted chooser must still appear.
+        await using var stream = new MemoryStream(CreateWorkbook(
+            (OrganizationImportWorkbookService.CanonicalSheetName, false, new[] { new[] { "Name" }, new[] { "Root" } }),
+            ("People", false, new[] { new[] { "Name" }, new[] { "Ada" } })));
+
+        var result = Assert.IsType<OrganizationSheetSelectionRequired>(await _service.InspectAsync(
+            stream, "structure.xlsx", null, null, CancellationToken.None));
+
+        Assert.Equal([OrganizationImportWorkbookService.CanonicalSheetName, "People"], result.Choice.CandidateSheetNames);
+    }
+
+    [Fact]
     public async Task Inspect_RejectsSignatureMismatchWithoutEchoingSourceContent()
     {
         await using var stream = new MemoryStream(Encoding.UTF8.GetBytes("highly-sensitive-cell"));

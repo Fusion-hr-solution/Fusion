@@ -153,15 +153,27 @@ public sealed class OrganizationImportSourceInspectionService : IOrganizationImp
         }
 
         if (candidates.Count == 0) throw Rejected("NoUsableTable", "The workbook does not contain a usable visible table.");
-        if (selectedSheetName is null && candidates.Count > 1)
+
+        // A Fusion-native template/export pairs the canonical Organization sheet with
+        // support sheets such as "Type values". Recognize that contract by the
+        // Organization sheet's exact header signature and select it directly, so a
+        // support sheet is never mistaken for a second data sheet and never turns
+        // intake into a sheet-chooser prompt. A shared "Organization" name alone is
+        // not enough — the header signature is what identifies a genuine native file.
+        var nativeOrganization = candidates.FirstOrDefault(candidate => IsNativeOrganizationSheet(candidate.Name, candidate.Table));
+        var isNative = nativeOrganization != default;
+
+        if (selectedSheetName is null && candidates.Count > 1 && !isNative)
         {
             return new OrganizationSheetSelectionRequired(new OrganizationSourceChoice(
                 fileName, "xlsx", bytes.LongLength, sha256, candidates.Select(candidate => candidate.Name).ToList()));
         }
 
-        var selected = selectedSheetName is null
-            ? candidates[0]
-            : candidates.FirstOrDefault(candidate => candidate.Name.Equals(selectedSheetName, StringComparison.Ordinal));
+        var selected = selectedSheetName is not null
+            ? candidates.FirstOrDefault(candidate => candidate.Name.Equals(selectedSheetName, StringComparison.Ordinal))
+            : isNative
+                ? nativeOrganization
+                : candidates[0];
         if (selected == default) throw Rejected("InvalidSheetSelection", "Choose one of the available worksheets.");
 
         EnsureRetainedTextBound(selected.Table);
@@ -174,6 +186,20 @@ public sealed class OrganizationImportSourceInspectionService : IOrganizationImp
             selected.Range,
             selected.Table,
             bytes));
+    }
+
+    private static bool IsNativeOrganizationSheet(string sheetName, OrganizationSourceTable table)
+    {
+        if (!sheetName.Equals(OrganizationImportWorkbookService.CanonicalSheetName, StringComparison.OrdinalIgnoreCase))
+            return false;
+        var expected = OrganizationImportWorkbookService.CanonicalHeaders;
+        if (table.Columns.Count != expected.Length) return false;
+        for (var index = 0; index < expected.Length; index++)
+        {
+            if (!string.Equals(table.Columns[index].SourceLabel?.Trim(), expected[index], StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+        return true;
     }
 
     private static (OrganizationSourceTable Table, string Range)? ReadWorksheet(
