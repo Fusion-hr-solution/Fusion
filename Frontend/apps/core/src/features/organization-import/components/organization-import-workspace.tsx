@@ -226,7 +226,11 @@ function NewImportWorkspace() {
       statusRef.current?.focus();
   }, [source.kind]);
 
-  async function inspect(file: File, token: string, selectedSheetName?: string) {
+  async function inspect(
+    file: File,
+    token: string,
+    selectedSheetName?: string
+  ) {
     setSource({ kind: "uploading", file, token });
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => resolve())
@@ -347,9 +351,14 @@ function NewImportWorkspace() {
       />
 
       {activeList?.length ? (
-        <section aria-labelledby="active-imports-title" className="border-y py-4">
+        <section
+          aria-labelledby="active-imports-title"
+          className="border-y py-4"
+        >
           <h2 id="active-imports-title" className="mb-3 text-sm font-semibold">
-            {activeList.length === 1 ? "Import in progress" : "Imports in progress"}
+            {activeList.length === 1
+              ? "Import in progress"
+              : "Imports in progress"}
           </h2>
           <div className="divide-y">
             {activeList.map((item) => (
@@ -410,7 +419,10 @@ function NewImportWorkspace() {
         />
       </section>
 
-      <section aria-label="Import utilities" className="space-y-3 border-t pt-5">
+      <section
+        aria-label="Import utilities"
+        className="space-y-3 border-t pt-5"
+      >
         <p className="text-sm font-medium">Need a file to start from?</p>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" onClick={() => void download("template")}>
@@ -466,7 +478,12 @@ function UploadSurface({
   const temporary = source.kind === "temporary";
   const fileName = source.kind === "idle" ? null : source.file.name;
 
-  const columnRole = busy || sheetChoice ? "status" : rejected || temporary ? "alert" : undefined;
+  const columnRole =
+    busy || sheetChoice
+      ? "status"
+      : rejected || temporary
+        ? "alert"
+        : undefined;
 
   return (
     <div
@@ -490,7 +507,9 @@ function UploadSurface({
         !idle && "bg-background",
         busy && !dragActive && "border-primary/35",
         sheetChoice && !dragActive && "border-primary/35",
-        rejected && !dragActive && "border-destructive/40 bg-destructive/[0.03]",
+        rejected &&
+          !dragActive &&
+          "border-destructive/40 bg-destructive/[0.03]",
         temporary && !dragActive && "border-warning/45 bg-warning/[0.04]",
         dragActive && "border-dashed border-primary bg-primary/[0.05]"
       )}
