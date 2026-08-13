@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "wait-on -t 60000 tcp:3001 tcp:3002 tcp:3003 tcp:3004 tcp:3005 tcp:3006 tcp:3007 && next dev --port 3000",
+    "dev:turbo": "wait-on -t 60000 tcp:3001 tcp:3002 tcp:3003 tcp:3004 tcp:3005 tcp:3006 tcp:3007 && next dev --port 3000 --turbopack",
     "build": "next build",
     "start": "next start --port 3000",
     "lint": "next lint",
