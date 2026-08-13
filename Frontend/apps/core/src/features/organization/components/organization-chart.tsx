@@ -58,12 +58,12 @@ const OrganizationNode = memo(function OrganizationNode({ data }: NodeProps<Orga
         // every node in read-only as-of views); re-enable so the card stays
         // selectable/inspectable and its disclosure stays operable.
         "group pointer-events-auto relative h-[78px] w-[244px] rounded-lg border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.05)] transition-[border-color,box-shadow,opacity,background-color] duration-150",
-        data.root && "border-l-[3px] border-l-primary/60 bg-primary/[0.03]",
+        data.root && "border-l-[3px] border-l-primary/60 bg-[color-mix(in_oklab,var(--primary)_4%,var(--card))]",
         !data.selected && !data.validDrop && !data.invalidDrop && "hover:border-foreground/25 hover:shadow-md",
         data.selected && "border-primary shadow-md ring-2 ring-primary/25",
         data.moving && "opacity-55 ring-2 ring-primary/40",
-        data.validDrop && "border-primary bg-primary/[0.06] ring-2 ring-primary/35",
-        data.invalidDrop && "border-destructive bg-destructive/[0.05] ring-2 ring-destructive/25"
+        data.validDrop && "border-primary bg-[color-mix(in_oklab,var(--primary)_7%,var(--card))] ring-2 ring-primary/35",
+        data.invalidDrop && "border-destructive bg-[color-mix(in_oklab,var(--destructive)_6%,var(--card))] ring-2 ring-destructive/25"
       )}
     >
       <Handle type="target" position={Position.Top} className={hiddenHandle} />
@@ -319,7 +319,14 @@ export default function OrganizationChart({
         className="bg-transparent"
       >
         <FocusSelected selectedId={selectedId} />
-        <Background variant={BackgroundVariant.Dots} gap={28} size={0.7} color="var(--border)" />
+        {/* Fine single grid that rides the viewport transform, so panning and
+            zooming read as movement through space. */}
+        <Background
+          variant={BackgroundVariant.Lines}
+          gap={16}
+          lineWidth={1}
+          color="color-mix(in oklab, var(--border) 50%, transparent)"
+        />
         <Controls position="bottom-right" showInteractive={false} />
         {nodes.length > 30 ? (
           <MiniMap

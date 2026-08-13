@@ -55,6 +55,7 @@ import {
   RotateCcw,
   Search,
   Settings2,
+  Upload,
   Wrench,
   X,
 } from "lucide-react";
@@ -705,21 +706,7 @@ export default function OrganizationWorkspace() {
             <button className="border-b-2 border-primary pb-2.5 text-sm font-semibold">
               Structure
             </button>
-            <span
-              className="pb-2.5 text-sm text-muted-foreground/70"
-              aria-disabled="true"
-            >
-              Reporting <span className="ml-1 text-[10px]">Coming soon</span>
-            </span>
           </nav>
-          {readiness.data?.hasPermanentRoot && canManage ? (
-            <Button asChild variant="ghost" size="sm" className="mb-1.5">
-              <Link href="/organization/import">
-                Import structure
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
-          ) : null}
         </div>
         {readOnly ? (
           <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border bg-muted/35 px-3.5 py-1.5 text-sm">
@@ -883,7 +870,7 @@ export default function OrganizationWorkspace() {
               <ToggleGroupItem
                 value="chart"
                 aria-label="Chart view"
-                className="gap-1.5 px-3 text-sm data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-sm"
               >
                 <Network className="h-4 w-4" />
                 Chart
@@ -891,7 +878,7 @@ export default function OrganizationWorkspace() {
               <ToggleGroupItem
                 value="outline"
                 aria-label="Outline view"
-                className="gap-1.5 px-3 text-sm data-[state=on]:bg-background data-[state=on]:shadow-sm"
+                className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-sm"
               >
                 <ListTree className="h-4 w-4" />
                 Outline
@@ -907,6 +894,16 @@ export default function OrganizationWorkspace() {
                   <Plus className="h-4 w-4" />
                   Add unit
                 </Button>
+                <Button asChild variant="outline">
+                  <Link href="/organization/import">
+                    <Upload className="h-4 w-4" />
+                    Import structure
+                  </Link>
+                </Button>
+                <div
+                  className="ml-1 h-6 w-px self-center bg-border"
+                  aria-hidden
+                />
                 <Button
                   variant="ghost"
                   size="sm"

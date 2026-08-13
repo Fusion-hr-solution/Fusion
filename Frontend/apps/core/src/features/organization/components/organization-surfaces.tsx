@@ -28,12 +28,14 @@ import {
 } from "@repo/ds";
 import {
   AlertTriangle,
+  ArrowRight,
   CalendarClock,
   Check,
   ChevronsUpDown,
   Plus,
   Search,
   Trash2,
+  UploadCloud,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -367,35 +369,31 @@ export function RootEstablishment({
 
   return (
     <div className="mx-auto grid min-h-[520px] max-w-4xl grid-cols-[minmax(0,1fr)_minmax(320px,420px)] items-center gap-14 px-8 py-12 max-lg:grid-cols-1">
-      <div>
-        <span className="text-sm font-medium text-primary">
-          Start your organization structure
-        </span>
-        <h2 className="mt-3 max-w-lg text-3xl font-semibold tracking-tight text-balance">
-          Give the official hierarchy its anchor.
-        </h2>
-        <p className="mt-4 max-w-lg text-sm leading-6 text-muted-foreground">
-          This is the top level of your organization. We’ve suggested your
-          organization name and code, adjust them if needed before continuing.
-        </p>
-        <Button asChild variant="outline" className="mt-6">
-          <Link href="/organization/import">
-            Import an existing structure
-          </Link>
-        </Button>
-        <div className="mt-8 flex items-start gap-3 border-t pt-5 text-sm">
-          <div className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-            <Check className="h-4 w-4" />
-          </div>
-          <p>
-            <span className="font-medium">Your starting point.</span>
-            <br />
-            <span className="text-muted-foreground">
-              Once established, you can add divisions, departments, teams, and
-              other units beneath it.
-            </span>
+      <div className="space-y-8">
+        <div>
+          <span className="text-sm font-medium text-primary">
+            Start your organization structure
+          </span>
+          <h2 className="mt-3 max-w-lg text-3xl font-semibold tracking-tight text-balance">
+            Give the official hierarchy its anchor.
+          </h2>
+          <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
+            This is the top level of your organization; everything else lives
+            beneath it.
           </p>
         </div>
+        <Link
+          href="/organization/import"
+          className="group flex items-center gap-4 rounded-2xl border bg-card p-4 pr-5 transition-colors hover:border-primary/40 hover:bg-primary/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+            <UploadCloud className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1 font-semibold">
+            Import an existing structure
+          </span>
+          <ArrowRight className="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+        </Link>
       </div>
       <form
         onSubmit={submit}
