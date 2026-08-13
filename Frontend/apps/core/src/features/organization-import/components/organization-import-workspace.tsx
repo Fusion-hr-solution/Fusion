@@ -8,10 +8,9 @@ import {
   useState,
   type ChangeEvent,
   type DragEvent,
+  type ReactNode,
 } from "react";
 import {
-  Alert,
-  AlertDescription,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -20,13 +19,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertTitle,
-  Badge,
   Button,
   Input,
   Label,
-  Progress,
-  Separator,
+  Spinner,
   cn,
 } from "@repo/ds";
 import {
@@ -36,19 +32,18 @@ import {
   PageSkeleton,
 } from "@repo/ds/shell";
 import {
-  AlertTriangle,
   ArrowLeft,
-  CalendarDays,
   CheckCircle2,
-  Download,
+  FileDown,
+  FileOutput,
   FileSpreadsheet,
-  History,
   RotateCcw,
   Trash2,
   UploadCloud,
 } from "lucide-react";
 import {
   translateOrganizationImportError,
+  type OrganizationImportActiveSummaryDto,
   type OrganizationImportIntakeResult,
   type OrganizationImportSessionDto,
 } from "@repo/api";
@@ -59,6 +54,8 @@ import {
 } from "@repo/auth";
 import { toast } from "sonner";
 import { todayCalendarDate } from "@/features/organization/model/workspace-state";
+import { useOrganizationReadiness } from "@/features/organization/api/use-organization";
+import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
 import {
   useActiveOrganizationImports,
   useOrganizationImportApi,
@@ -94,7 +91,7 @@ export default function OrganizationImportWorkspace({
   if (!canView)
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="Import organization structure" />
+        <PageHeader title="Import structure" />
         <PagePermissionNotice
           title="Organization access required"
           description="You do not have permission to view this tenant’s Organization."
@@ -104,7 +101,7 @@ export default function OrganizationImportWorkspace({
   if (!canManage)
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="Import organization structure" />
+        <PageHeader title="Import structure" />
         <PagePermissionNotice
           title="Organization management access required"
           description="You can view Organization, but importing its structure requires management access."
@@ -123,7 +120,13 @@ export default function OrganizationImportWorkspace({
   );
 }
 
-function TaskHeader({ description }: { description: string }) {
+function TaskHeader({
+  description,
+  actions,
+}: {
+  description: string;
+  actions?: ReactNode;
+}) {
   return (
     <div className="space-y-4">
       <Button
@@ -134,13 +137,60 @@ function TaskHeader({ description }: { description: string }) {
       >
         <Link href="/organization">
           <ArrowLeft className="h-4 w-4" />
-          Organization
+          Back to Structure
         </Link>
       </Button>
       <PageHeader
-        title="Import organization structure"
+        title="Import structure"
         description={description}
+        actions={actions}
       />
+    </div>
+  );
+}
+
+function EffectiveDateControl({
+  id,
+  value,
+  today,
+  disabled,
+  align = "left",
+  onChange,
+}: {
+  id: string;
+  value: string;
+  today: string;
+  disabled?: boolean;
+  align?: "left" | "right";
+  onChange: (value: string) => void;
+}) {
+  const meaning =
+    value === today ? "Today" : value > today ? "Scheduled" : "Past-dated";
+  const right = align === "right";
+  return (
+    <div className={right ? "sm:text-right" : undefined}>
+      <Label htmlFor={id}>Effective date</Label>
+      <div
+        className={cn(
+          "mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5",
+          right && "sm:justify-end"
+        )}
+      >
+        <Input
+          id={id}
+          type="date"
+          value={value}
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+          className="w-[190px]"
+        />
+        <span className="text-sm text-muted-foreground">
+          {meaning}
+          {value && !Number.isNaN(new Date(`${value}T00:00:00`).getTime())
+            ? ` · ${formatHumanDate(value)}`
+            : ""}
+        </span>
+      </div>
     </div>
   );
 }
@@ -150,12 +200,22 @@ function NewImportWorkspace() {
   const api = useOrganizationImportApi();
   const mutations = useOrganizationImportMutations();
   const active = useActiveOrganizationImports();
+  const readiness = useOrganizationReadiness();
   const inputRef = useRef<HTMLInputElement>(null);
   const statusRef = useRef<HTMLDivElement>(null);
-  const [effectiveDate, setEffectiveDate] = useState(() => todayCalendarDate());
+  const today = todayCalendarDate();
+  const [effectiveDate, setEffectiveDate] = useState(today);
   const intendedDateRef = useRef(effectiveDate);
   const [source, setSource] = useState<SourceState>({ kind: "idle" });
   const [dragActive, setDragActive] = useState(false);
+  // While a source is in hand, hold the in-progress list at its pre-upload
+  // state so the session we are about to create never flashes into it before
+  // the route hands off.
+  const [frozenActive, setFrozenActive] = useState<
+    OrganizationImportActiveSummaryDto[] | null
+  >(null);
+  const hasCanonicalStructure = readiness.data?.hasPermanentRoot === true;
+  const activeList = source.kind === "idle" ? active.data : frozenActive;
 
   useEffect(() => {
     if (
@@ -166,11 +226,7 @@ function NewImportWorkspace() {
       statusRef.current?.focus();
   }, [source.kind]);
 
-  async function inspect(
-    file: File,
-    token: string,
-    selectedSheetName?: string
-  ) {
+  async function inspect(file: File, token: string, selectedSheetName?: string) {
     setSource({ kind: "uploading", file, token });
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => resolve())
@@ -224,13 +280,14 @@ function NewImportWorkspace() {
 
   function choose(file: File | undefined) {
     if (!file) return;
+    setFrozenActive(active.data ?? []);
     const token = crypto.randomUUID();
     if (file.size > MAX_SOURCE_BYTES) {
       setSource({
         kind: "rejected",
         file,
         token,
-        message: "Choose a file no larger than 10 MB.",
+        message: "This file is larger than the 10 MB upload limit.",
       });
       return;
     }
@@ -240,12 +297,6 @@ function NewImportWorkspace() {
   function onInput(event: ChangeEvent<HTMLInputElement>) {
     choose(event.target.files?.[0]);
     event.target.value = "";
-  }
-
-  function onDrop(event: DragEvent<HTMLDivElement>) {
-    event.preventDefault();
-    setDragActive(false);
-    choose(event.dataTransfer.files?.[0]);
   }
 
   async function download(kind: "template" | "export") {
@@ -272,25 +323,36 @@ function NewImportWorkspace() {
     }
   }
 
-  const selected = source.kind === "idle" ? null : source;
+  const onDateChange = (value: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      setEffectiveDate(value);
+      return;
+    }
+    intendedDateRef.current = value;
+    setEffectiveDate(value);
+  };
   return (
     <PageContainer width="wide" className="space-y-8 pb-14">
-      <TaskHeader description="Bring a source into Fusion without changing Organization yet." />
+      <TaskHeader
+        description="Bring an existing organization structure into Fusion."
+        actions={
+          <EffectiveDateControl
+            id="organization-import-date"
+            value={effectiveDate}
+            today={today}
+            align="right"
+            onChange={onDateChange}
+          />
+        }
+      />
 
-      {active.data?.length ? (
-        <section
-          aria-labelledby="active-imports-title"
-          className="border-y py-4"
-        >
-          <div className="mb-3 flex items-center gap-2">
-            <History className="h-4 w-4 text-muted-foreground" />
-            <h2 id="active-imports-title" className="text-sm font-semibold">
-              Active imports
-            </h2>
-            <Badge variant="secondary">{active.data.length}</Badge>
-          </div>
+      {activeList?.length ? (
+        <section aria-labelledby="active-imports-title" className="border-y py-4">
+          <h2 id="active-imports-title" className="mb-3 text-sm font-semibold">
+            {activeList.length === 1 ? "Import in progress" : "Imports in progress"}
+          </h2>
           <div className="divide-y">
-            {active.data.map((item) => (
+            {activeList.map((item) => (
               <div
                 key={item.id}
                 className="flex items-center gap-4 py-3 max-sm:items-start"
@@ -301,8 +363,8 @@ function NewImportWorkspace() {
                     {item.originalFileName}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Effective {item.effectiveDate} ·{" "}
-                    {item.rowCount.toLocaleString()} rows · Updated by{" "}
+                    Effective {formatHumanDate(item.effectiveDate)} · updated{" "}
+                    {formatRelativeTime(item.updatedAt ?? item.createdAt)} by{" "}
                     {item.lastUpdatedByDisplayName}
                   </p>
                 </div>
@@ -315,88 +377,29 @@ function NewImportWorkspace() {
         </section>
       ) : null}
 
-      <section
-        aria-labelledby="effective-date-title"
-        className="grid gap-2 border-b pb-6 sm:grid-cols-[220px_1fr] sm:items-end"
-      >
-        <div>
-          <Label id="effective-date-title" htmlFor="organization-import-date">
-            Effective date
-          </Label>
-          <Input
-            id="organization-import-date"
-            type="date"
-            value={effectiveDate}
-            onChange={(event) => {
-              const value = event.target.value;
-              if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
-              intendedDateRef.current = value;
-              setEffectiveDate(value);
-            }}
-            className="mt-2"
-          />
-        </div>
-        <p className="pb-2 text-sm text-muted-foreground">
-          This date applies to the whole import and controls the
-          current-structure export.
-        </p>
-      </section>
-
       <section aria-labelledby="source-title" className="space-y-4">
-        <div>
-          <h2 id="source-title" className="text-lg font-semibold">
-            Source file
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            CSV or XLSX, up to 10 MB.
-          </p>
-        </div>
-        {!selected ? (
-          <div
-            role="region"
-            aria-label="Organization source drop area"
-            onDragEnter={(event) => {
-              event.preventDefault();
-              setDragActive(true);
-            }}
-            onDragOver={(event) => event.preventDefault()}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={onDrop}
-            className={cn(
-              "grid min-h-64 place-items-center rounded-2xl border-2 border-dashed bg-muted/15 px-6 text-center transition-colors",
-              dragActive && "border-primary bg-primary/[0.04]"
-            )}
-          >
-            <div className="max-w-sm">
-              <div className="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-primary/10 text-primary">
-                <UploadCloud className="h-6 w-6" />
-              </div>
-              <p className="mt-4 font-semibold">
-                Drop your organization source here
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                or choose a file from this device
-              </p>
-              <Button
-                className="mt-5"
-                onClick={() => inputRef.current?.click()}
-              >
-                Choose file
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <SourceObject
-            source={selected}
-            statusRef={statusRef}
-            onRetry={() => void inspect(selected.file, selected.token)}
-            onSheet={(sheet) =>
-              void inspect(selected.file, selected.token, sheet)
-            }
-            onReplace={() => inputRef.current?.click()}
-            onRemove={() => setSource({ kind: "idle" })}
-          />
-        )}
+        <h2 id="source-title" className="text-lg font-semibold">
+          Upload your file
+        </h2>
+        <UploadSurface
+          source={source}
+          dragActive={dragActive}
+          onDragActiveChange={setDragActive}
+          onFile={choose}
+          onBrowse={() => inputRef.current?.click()}
+          statusRef={statusRef}
+          onRetry={() => {
+            if (source.kind !== "idle") void inspect(source.file, source.token);
+          }}
+          onSheet={(sheet) => {
+            if (source.kind !== "idle")
+              void inspect(source.file, source.token, sheet);
+          }}
+          onRemove={() => {
+            setFrozenActive(null);
+            setSource({ kind: "idle" });
+          }}
+        />
         <input
           ref={inputRef}
           aria-label="Choose an organization source file"
@@ -407,134 +410,193 @@ function NewImportWorkspace() {
         />
       </section>
 
-      <section
-        aria-label="Import utilities"
-        className="flex flex-wrap items-center gap-3 border-t pt-5"
-      >
-        <Button variant="outline" onClick={() => void download("template")}>
-          <Download className="h-4 w-4" />
-          Download Fusion template
-        </Button>
-        <Button variant="ghost" onClick={() => void download("export")}>
-          <Download className="h-4 w-4" />
-          Export current structure
-        </Button>
-        <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground max-sm:w-full">
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          No Organization changes are made during source intake.
-        </span>
+      <section aria-label="Import utilities" className="space-y-3 border-t pt-5">
+        <p className="text-sm font-medium">Need a file to start from?</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" onClick={() => void download("template")}>
+            <FileDown className="h-4 w-4" />
+            Download Fusion template
+          </Button>
+          {hasCanonicalStructure ? (
+            <Button variant="outline" onClick={() => void download("export")}>
+              <FileOutput className="h-4 w-4" />
+              Export current structure
+            </Button>
+          ) : null}
+          <p className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground">
+            <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+            Nothing changes until you review and commit.
+          </p>
+        </div>
       </section>
     </PageContainer>
   );
 }
 
-function SourceObject({
+// One upload surface for every state. The outer drop region keeps a constant
+// footprint (min height, centered stack, 2px border) so idle → processing →
+// rejected → ready change *inside* it rather than swapping in differently
+// shaped cards. Only the icon, primary line, action slot, and the lower
+// informational line change; geometry does not.
+function UploadSurface({
   source,
+  dragActive,
+  onDragActiveChange,
+  onFile,
+  onBrowse,
   statusRef,
   onRetry,
   onSheet,
-  onReplace,
   onRemove,
 }: {
-  source: Exclude<SourceState, { kind: "idle" }>;
+  source: SourceState;
+  dragActive: boolean;
+  onDragActiveChange: (active: boolean) => void;
+  onFile: (file: File | undefined) => void;
+  onBrowse: () => void;
   statusRef: React.RefObject<HTMLDivElement | null>;
   onRetry: () => void;
   onSheet: (sheet: string) => void;
-  onReplace: () => void;
   onRemove: () => void;
 }) {
+  const idle = source.kind === "idle";
   const busy = source.kind === "uploading" || source.kind === "inspecting";
+  const sheetChoice = source.kind === "sheet-choice";
+  const rejected = source.kind === "rejected";
+  const temporary = source.kind === "temporary";
+  const fileName = source.kind === "idle" ? null : source.file.name;
+
+  const columnRole = busy || sheetChoice ? "status" : rejected || temporary ? "alert" : undefined;
+
   return (
-    <div className="rounded-2xl border bg-background p-5 shadow-sm">
-      <div className="flex items-start gap-4">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-          <FileSpreadsheet className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-semibold">{source.file.name}</p>
-          <p className="text-xs text-muted-foreground">
-            {formatBytes(source.file.size)}
-          </p>
-        </div>
-        {!busy ? (
-          <Button variant="ghost" size="sm" onClick={onReplace}>
-            Replace
-          </Button>
-        ) : null}
-        {!busy ? (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Remove selected file"
-            onClick={onRemove}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        ) : null}
-      </div>
-      {busy ? (
-        <div className="mt-5" role="status" aria-live="polite">
-          <div className="mb-2 flex justify-between text-sm">
-            <span>
-              {source.kind === "uploading"
-                ? "Uploading source"
-                : "Inspecting workbook structure"}
-            </span>
-            <span className="text-muted-foreground">Please wait</span>
-          </div>
-          <Progress value={source.kind === "uploading" ? 38 : 72} />
-        </div>
-      ) : source.kind === "sheet-choice" ? (
-        <div
-          ref={statusRef}
-          tabIndex={-1}
-          className="mt-5 border-t pt-4 outline-none"
-          role="status"
-          aria-live="polite"
-        >
-          <p className="text-sm font-semibold">
-            Choose the worksheet that contains the structure
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {source.sheets.map((sheet) => (
-              <Button
-                key={sheet}
-                variant="outline"
-                onClick={() => onSheet(sheet)}
-              >
-                {sheet}
-              </Button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <Alert
-          ref={statusRef}
-          tabIndex={-1}
-          variant={source.kind === "rejected" ? "destructive" : "default"}
-          className="mt-5 outline-none"
-          role="alert"
-        >
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>
-            {source.kind === "rejected"
-              ? "This source could not be accepted"
-              : "Inspection was interrupted"}
-          </AlertTitle>
-          <AlertDescription className="mt-1">
-            {source.message}
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3 block"
-              onClick={onRetry}
-            >
-              <RotateCcw className="h-4 w-4" />
-              Retry
-            </Button>
-          </AlertDescription>
-        </Alert>
+    <div
+      role="region"
+      aria-label="Organization source drop area"
+      onDragEnter={(event: DragEvent<HTMLDivElement>) => {
+        if (busy) return;
+        event.preventDefault();
+        onDragActiveChange(true);
+      }}
+      onDragOver={(event: DragEvent<HTMLDivElement>) => event.preventDefault()}
+      onDragLeave={() => onDragActiveChange(false)}
+      onDrop={(event: DragEvent<HTMLDivElement>) => {
+        event.preventDefault();
+        onDragActiveChange(false);
+        if (!busy) onFile(event.dataTransfer.files?.[0]);
+      }}
+      className={cn(
+        "grid min-h-64 place-items-center rounded-2xl border-2 px-6 py-6 text-center transition-colors",
+        idle && "border-dashed border-border bg-muted/15",
+        !idle && "bg-background",
+        busy && !dragActive && "border-primary/35",
+        sheetChoice && !dragActive && "border-primary/35",
+        rejected && !dragActive && "border-destructive/40 bg-destructive/[0.03]",
+        temporary && !dragActive && "border-warning/45 bg-warning/[0.04]",
+        dragActive && "border-dashed border-primary bg-primary/[0.05]"
       )}
+    >
+      <div
+        ref={idle ? undefined : statusRef}
+        tabIndex={idle ? undefined : -1}
+        role={columnRole}
+        aria-live={busy || sheetChoice ? "polite" : undefined}
+        className="flex w-full max-w-sm flex-col items-center outline-none"
+      >
+        <div
+          className={cn(
+            "grid h-12 w-12 shrink-0 place-items-center rounded-xl transition-colors",
+            !rejected && !temporary && "bg-primary/10 text-primary",
+            busy && "ring-1 ring-primary/25",
+            rejected && "bg-destructive/10 text-destructive",
+            temporary && "bg-warning/10 text-warning"
+          )}
+        >
+          {idle ? (
+            <UploadCloud className="h-6 w-6" />
+          ) : (
+            <FileSpreadsheet className="h-6 w-6" />
+          )}
+        </div>
+
+        <p className="mt-4 w-full truncate px-2 font-semibold">
+          {idle
+            ? dragActive
+              ? "Drop file to upload"
+              : "Drop your XLSX or CSV here"
+            : fileName}
+        </p>
+
+        {idle ? (
+          <Button className="mt-5" onClick={onBrowse}>
+            Browse files
+          </Button>
+        ) : busy ? (
+          <div className="mt-5 flex h-9 items-center justify-center text-primary">
+            <Spinner className="size-5" aria-hidden />
+          </div>
+        ) : sheetChoice && source.kind === "sheet-choice" ? (
+          <div className="mt-4 w-full">
+            <p className="text-sm font-medium">
+              Which sheet contains the organization structure?
+            </p>
+            <div className="mt-3 flex flex-wrap justify-center gap-2">
+              {source.sheets.map((sheet) => (
+                <Button
+                  key={sheet}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onSheet(sheet)}
+                >
+                  {sheet}
+                </Button>
+              ))}
+            </div>
+          </div>
+        ) : rejected ? (
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            <Button variant="outline" size="sm" onClick={onBrowse}>
+              Choose another file
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onRemove}>
+              <Trash2 className="h-4 w-4" />
+              Remove
+            </Button>
+          </div>
+        ) : (
+          <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+            <Button variant="outline" size="sm" onClick={onRetry}>
+              <RotateCcw className="h-4 w-4" />
+              Try again
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onRemove}>
+              <Trash2 className="h-4 w-4" />
+              Remove
+            </Button>
+          </div>
+        )}
+
+        <div className="mt-4 min-h-4 max-w-xs text-xs">
+          {idle ? (
+            <p className="text-muted-foreground">XLSX · CSV · up to 10 MB</p>
+          ) : busy ? (
+            <p className="text-muted-foreground">Inspecting file…</p>
+          ) : rejected && source.kind === "rejected" ? (
+            <p className="text-destructive">{source.message}</p>
+          ) : temporary && source.kind === "temporary" ? (
+            <p className="text-muted-foreground">
+              {source.message} Your file hasn’t been rejected.
+            </p>
+          ) : sheetChoice && source.kind === "sheet-choice" ? (
+            <button
+              type="button"
+              onClick={onBrowse}
+              className="text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:underline"
+            >
+              Choose another file
+            </button>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
@@ -543,8 +605,10 @@ function DurableImportWorkspace({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const sessionQuery = useOrganizationImportSession(sessionId);
   const mutations = useOrganizationImportMutations();
+  const today = todayCalendarDate();
   const [date, setDate] = useState("");
   const [discardOpen, setDiscardOpen] = useState(false);
+  useBreadcrumbLabel(sessionId, sessionQuery.data?.source.originalFileName);
   useEffect(() => {
     if (sessionQuery.data) setDate(sessionQuery.data.effectiveDate);
   }, [sessionQuery.data]);
@@ -552,14 +616,14 @@ function DurableImportWorkspace({ sessionId }: { sessionId: string }) {
   if (sessionQuery.isLoading)
     return (
       <PageContainer width="wide">
-        <TaskHeader description="Loading the accepted source." />
-        <PageSkeleton rows={4} label="Loading accepted source" />
+        <TaskHeader description="Loading your import." />
+        <PageSkeleton rows={4} label="Loading import" />
       </PageContainer>
     );
   if (sessionQuery.error)
     return (
       <PageContainer className="space-y-6">
-        <TaskHeader description="The accepted source could not be loaded." />
+        <TaskHeader description="This import could not be loaded." />
         <PagePermissionNotice
           title="Import not available"
           description={
@@ -612,110 +676,78 @@ function DurableImportWorkspace({ sessionId }: { sessionId: string }) {
     }
   }
 
+  const source = session.source;
+  const savedAt = session.updatedAt ?? session.createdAt;
   return (
-    <PageContainer width="wide" className="space-y-8 pb-14">
-      <TaskHeader description="This source is saved and ready for the next import phase." />
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <section aria-labelledby="accepted-source-title" className="min-w-0">
-          <div className="flex items-start gap-4 border-b pb-6">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-success-subtle text-success">
-              <FileSpreadsheet className="h-6 w-6" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2
-                  id="accepted-source-title"
-                  className="truncate text-lg font-semibold"
-                >
-                  {session.source.originalFileName}
-                </h2>
-                <Badge>Accepted source</Badge>
-              </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {session.source.sourceFormat.toUpperCase()} ·{" "}
-                {formatBytes(session.source.byteLength)} ·{" "}
-                {session.source.rowCount.toLocaleString()} data rows ·{" "}
-                {session.source.columnCount} columns
-              </p>
-            </div>
+    <PageContainer className="space-y-8 pb-14">
+      <TaskHeader description="This import is in progress. Nothing changes until you review and commit." />
+
+      <section
+        aria-labelledby="source-ready-title"
+        className="rounded-2xl border bg-background p-6 shadow-sm"
+      >
+        <div className="flex items-start gap-4">
+          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-success-subtle text-success">
+            <FileSpreadsheet className="h-6 w-6" />
           </div>
-          <dl className="grid gap-x-8 gap-y-5 py-6 sm:grid-cols-2">
-            <Metadata
-              label="Worksheet"
-              value={session.source.selectedSheetName}
-            />
-            <Metadata
-              label="Source range"
-              value={session.source.selectedRange}
-            />
-            <Metadata label="Started by" value={session.startedByDisplayName} />
-            <Metadata
-              label="Last updated by"
-              value={session.lastUpdatedByDisplayName}
-            />
-          </dl>
-          {session.source.table?.columns.length ? (
-            <div className="border-t pt-5">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Source labels
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {session.source.table.columns.map((column) => (
-                  <Badge key={column.index} variant="secondary">
-                    {column.sourceLabel || `Column ${column.index + 1}`}
-                  </Badge>
-                ))}
-              </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h2
+                id="source-ready-title"
+                className="truncate text-lg font-semibold"
+              >
+                {source.originalFileName}
+              </h2>
+              <span className="inline-flex items-center gap-1 rounded-full bg-success-subtle px-2.5 py-0.5 text-xs font-medium text-success">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                Source ready
+              </span>
             </div>
-          ) : null}
-        </section>
-        <aside className="space-y-6 border-l pl-8 max-lg:border-l-0 max-lg:border-t max-lg:pl-0 max-lg:pt-6">
-          <div>
-            <Label htmlFor="durable-effective-date">Effective date</Label>
-            <div className="relative mt-2">
-              <CalendarDays className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="durable-effective-date"
-                type="date"
-                className="pl-9"
-                value={date}
-                disabled={mutations.changeDate.isLoading}
-                onChange={(event) => void changeDate(event.target.value)}
-              />
-            </div>
-          </div>
-          <Separator />
-          <div className="space-y-2 text-sm">
-            <p className="font-medium">Canonical context</p>
-            <p className="text-muted-foreground">
-              {session.baseline.hasPermanentRootIdentity
-                ? "A permanent Organization root exists."
-                : "No permanent Organization root exists yet."}
+            <p className="mt-1 text-sm text-muted-foreground">
+              {source.sourceFormat.toUpperCase()} ·{" "}
+              {formatBytes(source.byteLength)} ·{" "}
+              {source.rowCount.toLocaleString()} data rows ·{" "}
+              {source.columnCount} columns
+              {source.sourceFormat === "xlsx" && source.selectedSheetName
+                ? ` · ${source.selectedSheetName}`
+                : ""}
             </p>
-            <p className="text-muted-foreground">
-              {session.baseline.hasRootAsOfEffectiveDate
-                ? "A structure exists on this effective date."
-                : "No structure exists on this effective date."}
+            <p className="mt-3 text-xs text-muted-foreground">
+              Saved automatically · updated {formatRelativeTime(savedAt)} by{" "}
+              {session.lastUpdatedByDisplayName}
             </p>
           </div>
-          <Button
-            variant="outline"
-            className="w-full text-destructive hover:text-destructive"
-            onClick={() => setDiscardOpen(true)}
-          >
-            <Trash2 className="h-4 w-4" />
-            Discard import
-          </Button>
-        </aside>
+        </div>
+        <div className="mt-6 border-t pt-6">
+          <EffectiveDateControl
+            id="durable-effective-date"
+            value={date}
+            today={today}
+            disabled={mutations.changeDate.isLoading}
+            onChange={(value) => void changeDate(value)}
+          />
+        </div>
+      </section>
+
+      <div className="flex justify-start">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-destructive hover:text-destructive"
+          onClick={() => setDiscardOpen(true)}
+        >
+          <Trash2 className="h-4 w-4" />
+          Discard import
+        </Button>
       </div>
+
       <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Discard this import?</AlertDialogTitle>
             <AlertDialogDescription>
-              The accepted source and its parsed cells will be removed. Source
-              metadata remains for audit context, and this import cannot be
-              resumed.
+              Your Organization won’t be changed. This import will no longer be
+              available to continue.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -744,7 +776,7 @@ function DiscardedImport({
       <TaskHeader description="This import is no longer active." />
       <PagePermissionNotice
         title="Import discarded"
-        description={`${session.source.originalFileName} can no longer be resumed. Its source payload has been removed.`}
+        description={`${session.source.originalFileName} can no longer be resumed. Its source has been removed.`}
         action={
           <Button asChild>
             <Link href="/organization/import">Start another import</Link>
@@ -752,17 +784,6 @@ function DiscardedImport({
         }
       />
     </PageContainer>
-  );
-}
-
-function Metadata({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="mt-1 text-sm font-medium">{value}</dd>
-    </div>
   );
 }
 
@@ -779,4 +800,28 @@ function formatBytes(value: number) {
   if (value < 1024) return `${value} B`;
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatHumanDate(value: string) {
+  const date = new Date(`${value.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatRelativeTime(value: string | null) {
+  if (!value) return "just now";
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return "just now";
+  const minutes = Math.round((Date.now() - then) / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+  return formatHumanDate(value);
 }

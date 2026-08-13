@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
   replace: vi.fn(),
   activeData: [] as OrganizationImportActiveSummaryDto[],
   sessionQuery: null as Record<string, unknown> | null,
+  readiness: { hasPermanentRoot: true } as { hasPermanentRoot: boolean },
   intake: { mutateAsync: vi.fn(), isLoading: false },
   changeDate: { mutateAsync: vi.fn(), isLoading: false },
   discard: { mutateAsync: vi.fn(), isLoading: false },
@@ -42,6 +43,12 @@ vi.mock("@repo/api", () => ({
   }),
 }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+vi.mock("@/features/organization/api/use-organization", () => ({
+  useOrganizationReadiness: () => ({ data: mocks.readiness }),
+}));
+vi.mock("@/shell/breadcrumb-overrides", () => ({
+  useBreadcrumbLabel: () => undefined,
+}));
 vi.mock("../api/use-organization-import", () => ({
   useOrganizationImportApi: () => ({
     downloadTemplate: mocks.downloadTemplate,
@@ -106,6 +113,7 @@ beforeEach(() => {
   mocks.authLoading = false;
   mocks.activeData = [];
   mocks.sessionQuery = null;
+  mocks.readiness = { hasPermanentRoot: true };
   mocks.replace.mockReset();
   mocks.intake.mutateAsync.mockReset();
   mocks.changeDate.mutateAsync.mockReset();
@@ -142,7 +150,7 @@ describe("OrganizationImportWorkspace access and composition", () => {
     expect(screen.getByRole("link", { name: "Back to Organization" })).toHaveAttribute("href", "/organization");
   });
 
-  it("keeps the first viewport in task, active, date, source, utility order", () => {
+  it("keeps the first viewport in task, date, active, source, utility order", () => {
     mocks.activeData = [{
       id: "active-1",
       effectiveDate: "2026-08-12",
@@ -156,16 +164,19 @@ describe("OrganizationImportWorkspace access and composition", () => {
       updatedAt: "2026-08-12T11:00:00Z",
     }];
     render(<OrganizationImportWorkspace />);
-    const task = screen.getByRole("heading", { name: "Import organization structure" });
-    const active = screen.getByRole("heading", { name: "Active imports" });
+    const task = screen.getByRole("heading", { name: "Import structure" });
+    const active = screen.getByRole("heading", { name: "Import in progress" });
+    // Effective date now lives in the page header (context), before the body sections.
     const date = document.getElementById("organization-import-date")!;
-    const source = screen.getByRole("heading", { name: "Source file" });
+    const source = screen.getByRole("heading", { name: "Upload your file" });
     const utilities = screen.getByRole("region", { name: "Import utilities" });
-    expect(task.compareDocumentPosition(active) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(active.compareDocumentPosition(date) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(date.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(task.compareDocumentPosition(date) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(date.compareDocumentPosition(active) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(active.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(source.compareDocumentPosition(utilities) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByRole("link", { name: "Resume" })).toHaveAttribute("href", "/organization/import/active-1");
+    // Active work carries real recency, not just actor identity.
+    expect(screen.getByText(/updated .* by Lin Admin/i)).toBeInTheDocument();
   });
 });
 
@@ -195,7 +206,7 @@ describe("OrganizationImportWorkspace source intake", () => {
     render(<OrganizationImportWorkspace />);
     const file = new File(["xlsx"], "organization.xlsx");
     fireEvent.change(screen.getByLabelText("Choose an organization source file"), { target: { files: [file] } });
-    await screen.findByText("Choose the worksheet that contains the structure");
+    await screen.findByText("Which sheet contains the organization structure?");
     fireEvent.click(screen.getByRole("button", { name: "South" }));
     await waitFor(() => expect(mocks.intake.mutateAsync).toHaveBeenCalledTimes(2));
     expect(mocks.intake.mutateAsync.mock.calls[1]![0]).toMatchObject({
@@ -246,24 +257,82 @@ describe("OrganizationImportWorkspace source intake", () => {
     await waitFor(() => expect(mocks.exportStructure).toHaveBeenCalledWith("2026-12-15"));
   });
 
-  it("rejects an oversized picker selection locally and keeps recovery contextual", async () => {
+  it("rejects an oversized picker selection locally with source-fix recovery, not Retry", async () => {
     render(<OrganizationImportWorkspace />);
     const file = new File([new Uint8Array(10 * 1024 * 1024 + 1)], "large.csv", { type: "text/csv" });
     fireEvent.change(screen.getByLabelText("Choose an organization source file"), { target: { files: [file] } });
-    expect(await screen.findByText("Choose a file no larger than 10 MB.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
+    expect(
+      await screen.findByText("This file is larger than the 10 MB upload limit.")
+    ).toBeInTheDocument();
+    // Deterministic source defect: fix/replace the file, never Retry the same bytes.
+    expect(screen.getByRole("button", { name: "Choose another file" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
     expect(mocks.intake.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("accepts a structurally valid but unrelated employee CSV and hands off to a durable session", async () => {
+    mocks.intake.mutateAsync.mockResolvedValue(sourceReady());
+    render(<OrganizationImportWorkspace />);
+    const employeeCsv = new File(
+      [
+        "employeeNumber,firstName,lastName,email,orgUnitCode,managerEmail\n1,Ada,Byron,ada@x.io,ENG,mgr@x.io",
+      ],
+      "employees.csv",
+      { type: "text/csv" }
+    );
+    fireEvent.change(screen.getByLabelText("Choose an organization source file"), {
+      target: { files: [employeeCsv] },
+    });
+    // Phase 1 introduces no semantic Organization gate: a usable table is accepted.
+    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/organization/import/session-1"));
+  });
+
+  it("classifies deterministic source rejection into fix-the-file recovery", async () => {
+    mocks.intake.mutateAsync.mockRejectedValue(new Error("rejected"));
+    render(<OrganizationImportWorkspace />);
+    const file = new File(["oops"], "organization.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("Choose an organization source file"), { target: { files: [file] } });
+    // Recovery is fix-the-file, in place: the source object keeps the file name
+    // and offers Choose another file, never Retry.
+    expect(await screen.findByRole("button", { name: "Choose another file" })).toBeInTheDocument();
+    expect(screen.getByText("organization.csv")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
+  });
+
+  it("classifies a temporary failure into a source-preserving Retry", async () => {
+    mocks.intake.mutateAsync.mockRejectedValue(new Error("service down"));
+    render(<OrganizationImportWorkspace />);
+    const file = new File(["Name\nRoot"], "organization.csv", { type: "text/csv" });
+    fireEvent.change(screen.getByLabelText("Choose an organization source file"), { target: { files: [file] } });
+    // Technical failure keeps the source in place and offers Retry, not a fix.
+    expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.getByText(/service down/)).toBeInTheDocument();
+    expect(screen.getByText("organization.csv")).toBeInTheDocument();
+  });
+
+  it("hides Export current structure when no canonical Organization exists yet", () => {
+    mocks.readiness = { hasPermanentRoot: false };
+    render(<OrganizationImportWorkspace />);
+    expect(screen.getByRole("button", { name: "Download Fusion template" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Export current structure" })
+    ).not.toBeInTheDocument();
   });
 });
 
 describe("OrganizationImportWorkspace durable route", () => {
-  it("renders persisted source context and both canonical root facts", () => {
+  it("renders a truthful Source ready workspace without phase or semantic leakage", () => {
     mocks.sessionQuery = { data: sourceReady().session, isLoading: false, error: null, refetch: vi.fn() };
     render(<OrganizationImportWorkspace sessionId="session-1" />);
     expect(screen.getByText("organization.csv")).toBeInTheDocument();
-    expect(screen.getByText("A permanent Organization root exists.")).toBeInTheDocument();
-    expect(screen.getByText("No structure exists on this effective date.")).toBeInTheDocument();
+    expect(screen.getByText("Source ready")).toBeInTheDocument();
+    // No implementation-phase or semantic-acceptance language leaks into the product.
+    expect(screen.queryByText("Accepted source")).not.toBeInTheDocument();
+    expect(screen.queryByText(/next import phase|Details/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/permanent Organization root/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/proposal|mapping|conflict/i)).not.toBeInTheDocument();
   });
 
@@ -306,7 +375,7 @@ describe("OrganizationImportWorkspace durable route", () => {
   it("renders durable loading and recoverable not-available states", () => {
     mocks.sessionQuery = { data: null, isLoading: true, error: null, refetch: vi.fn() };
     const view = render(<OrganizationImportWorkspace sessionId="session-1" />);
-    expect(screen.getByText("Loading the accepted source.")).toBeInTheDocument();
+    expect(screen.getByText("Loading your import.")).toBeInTheDocument();
 
     const refetch = vi.fn();
     mocks.sessionQuery = { data: null, isLoading: false, error: new Error("not found"), refetch };
