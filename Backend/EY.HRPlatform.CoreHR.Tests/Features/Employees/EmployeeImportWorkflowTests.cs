@@ -271,11 +271,9 @@ public class EmployeeImportWorkflowTests
     }
 
     [Fact]
-    public async Task UploadAsync_RequiresSetupToBeComplete()
+    public async Task UploadAsync_RequiresEstablishedOrganization()
     {
         var dbName = Guid.NewGuid().ToString();
-        await SeedActivatedSetupAsync(dbName);
-
         await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(TenantId), dbName);
         var service = new EmployeeImportWorkflowService(context, TestTenantContext.WithTenant(TenantId));
         var file = CreateCsvFile(
@@ -285,8 +283,9 @@ public class EmployeeImportWorkflowTests
             Sarah,Chen,sarah.chen@contoso.com,2024-01-15,Senior Engineer,ENG-PLATFORM,alex.manager@contoso.com
             """);
 
-        await Assert.ThrowsAsync<InvalidTenantSetupStateException>(() =>
+        var exception = await Assert.ThrowsAsync<ArgumentException>(() =>
             service.UploadAsync(file, CancellationToken.None));
+        Assert.Contains("Establish Organization", exception.Message);
     }
 
     [Fact]
@@ -1282,10 +1281,12 @@ public class EmployeeImportWorkflowTests
     private static async Task SeedPublishedSetupAsync(string dbName)
     {
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var setupState = TenantSetupState.CreateActivated(TenantId);
-        setupState.Approve(Guid.NewGuid(), "HR Admin", "HRAdmin", false);
-        setupState.Publish();
-        seedContext.TenantSetupStates.Add(setupState);
+        seedContext.OrgUnits.Add(OrgUnit.Create(
+            TenantId,
+            ($"ROOT-{Guid.NewGuid():N}")[..20],
+            "Established organization",
+            "Company",
+            null));
         await seedContext.SaveChangesAsync();
     }
 
@@ -1293,13 +1294,6 @@ public class EmployeeImportWorkflowTests
     {
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
         seedContext.TenantSettings.Add(EY.HRPlatform.CoreHR.Domain.Entities.TenantSettings.Create(TenantId, overridesJson));
-        await seedContext.SaveChangesAsync();
-    }
-
-    private static async Task SeedActivatedSetupAsync(string dbName)
-    {
-        await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        seedContext.TenantSetupStates.Add(TenantSetupState.CreateActivated(TenantId));
         await seedContext.SaveChangesAsync();
     }
 

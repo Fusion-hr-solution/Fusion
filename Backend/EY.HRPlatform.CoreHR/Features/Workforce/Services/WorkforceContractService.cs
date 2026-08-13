@@ -78,7 +78,6 @@ public sealed class WorkforceContractService(
         CancellationToken cancellationToken)
     {
         var access = BuildAccessContext(user);
-        var structureInfo = await GetStructureInfoAsync(cancellationToken);
         WorkforceEmployeeSummaryDto? employee = null;
 
         if (access.LinkedEmployeeId.HasValue)
@@ -105,9 +104,7 @@ public sealed class WorkforceContractService(
                 .ToArray(),
             employee,
             managerScope,
-            employee is not null,
-            structureInfo.PublishedStructureVersion,
-            structureInfo.IsOperational);
+            employee is not null);
     }
 
     public async Task<WorkforceEmployeeSummaryDto?> GetEmployeeAsync(
@@ -761,7 +758,6 @@ public sealed class WorkforceContractService(
         bool includeInactive,
         CancellationToken cancellationToken)
     {
-        var structureInfo = await GetStructureInfoAsync(cancellationToken);
         var orgUnits = await dbContext.OrgUnits
             .AsNoTracking()
             .Where(unit => includeInactive || unit.IsActive)
@@ -770,7 +766,7 @@ public sealed class WorkforceContractService(
         var orgLookup = orgUnits.ToDictionary(unit => unit.Id);
 
         return orgUnits
-            .Select(unit => BuildOrgUnitSummary(unit, orgLookup, structureInfo.PublishedStructureVersion))
+            .Select(unit => BuildOrgUnitSummary(unit, orgLookup))
             .ToList();
     }
 
@@ -780,7 +776,6 @@ public sealed class WorkforceContractService(
         bool includeInactive,
         CancellationToken cancellationToken)
     {
-        var structureInfo = await GetStructureInfoAsync(cancellationToken);
         var units = await dbContext.OrgUnits
             .AsNoTracking()
             .Where(unit => includeInactive || unit.IsActive)
@@ -822,7 +817,7 @@ public sealed class WorkforceContractService(
         {
             if (!orgLookup.TryGetValue(rootId.Value, out var root))
             {
-                return new WorkforceOrgUnitTreeDto([], structureInfo.PublishedStructureVersion);
+                return new WorkforceOrgUnitTreeDto([]);
             }
 
             roots = [root];
@@ -836,10 +831,10 @@ public sealed class WorkforceContractService(
 
         var normalizedMaxDepth = Math.Clamp(maxDepth, 1, 25);
         var nodes = roots
-            .Select(root => BuildOrgUnitTreeNode(root, childrenByParentId, orgLookup, directMemberCounts, totalMemberCounts, structureInfo.PublishedStructureVersion, 0, normalizedMaxDepth))
+            .Select(root => BuildOrgUnitTreeNode(root, childrenByParentId, orgLookup, directMemberCounts, totalMemberCounts, 0, normalizedMaxDepth))
             .ToList();
 
-        return new WorkforceOrgUnitTreeDto(nodes, structureInfo.PublishedStructureVersion);
+        return new WorkforceOrgUnitTreeDto(nodes);
     }
 
     private async Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> BuildSummariesAsync(
@@ -850,7 +845,6 @@ public sealed class WorkforceContractService(
         if (employees.Count == 0) return [];
 
         var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
-        var structureInfo = await GetStructureInfoAsync(cancellationToken);
         var employeeIds = employees.Select(e => e.Id).ToArray();
         var now = DateTime.UtcNow;
 
@@ -970,7 +964,7 @@ public sealed class WorkforceContractService(
                 hireDate,
                 isActive ? EmployeeStatus.Active.ToString() : EmployeeStatus.Inactive.ToString(),
                 isActive,
-                BuildOrgAssignment(assignment?.OrgUnitId, orgLookup, structureInfo.PublishedStructureVersion),
+                BuildOrgAssignment(assignment?.OrgUnitId, orgLookup),
                 managerSummary,
                 directReportCount,
                 BuildDataQuality(readiness),
@@ -1166,8 +1160,7 @@ public sealed class WorkforceContractService(
 
     private WorkforceOrgAssignmentDto? BuildOrgAssignment(
         Guid? orgUnitId,
-        IReadOnlyDictionary<Guid, OrgUnit> orgLookup,
-        int publishedStructureVersion)
+        IReadOnlyDictionary<Guid, OrgUnit> orgLookup)
     {
         if (!orgUnitId.HasValue || !orgLookup.TryGetValue(orgUnitId.Value, out var orgUnit))
         {
@@ -1184,14 +1177,12 @@ public sealed class WorkforceContractService(
                 : null,
             BuildOrgPath(orgUnit, orgLookup),
             GetOrgLevel(orgUnit, orgLookup),
-            orgUnit.IsActive,
-            publishedStructureVersion);
+            orgUnit.IsActive);
     }
 
     private WorkforceOrgUnitSummaryDto BuildOrgUnitSummary(
         OrgUnit orgUnit,
-        IReadOnlyDictionary<Guid, OrgUnit> orgLookup,
-        int publishedStructureVersion)
+        IReadOnlyDictionary<Guid, OrgUnit> orgLookup)
         => new(
             orgUnit.Id,
             orgUnit.Code,
@@ -1202,8 +1193,7 @@ public sealed class WorkforceContractService(
                 : null,
             BuildOrgPath(orgUnit, orgLookup),
             GetOrgLevel(orgUnit, orgLookup),
-            orgUnit.IsActive,
-            publishedStructureVersion);
+            orgUnit.IsActive);
 
     private WorkforceOrgUnitTreeNodeDto BuildOrgUnitTreeNode(
         OrgUnit orgUnit,
@@ -1211,7 +1201,6 @@ public sealed class WorkforceContractService(
         IReadOnlyDictionary<Guid, OrgUnit> orgLookup,
         IReadOnlyDictionary<Guid, int> directMemberCounts,
         IReadOnlyDictionary<Guid, int> totalMemberCounts,
-        int publishedStructureVersion,
         int depth,
         int maxDepth)
     {
@@ -1221,7 +1210,7 @@ public sealed class WorkforceContractService(
         var children = depth + 1 >= maxDepth || childUnits.Count == 0
             ? []
             : childUnits
-                .Select(child => BuildOrgUnitTreeNode(child, childrenByParentId, orgLookup, directMemberCounts, totalMemberCounts, publishedStructureVersion, depth + 1, maxDepth))
+                .Select(child => BuildOrgUnitTreeNode(child, childrenByParentId, orgLookup, directMemberCounts, totalMemberCounts, depth + 1, maxDepth))
                 .ToList();
 
         return new WorkforceOrgUnitTreeNodeDto(
@@ -1235,7 +1224,6 @@ public sealed class WorkforceContractService(
             BuildOrgPath(orgUnit, orgLookup),
             GetOrgLevel(orgUnit, orgLookup),
             orgUnit.IsActive,
-            publishedStructureVersion,
             directMemberCounts.GetValueOrDefault(orgUnit.Id, 0),
             totalMemberCounts.GetValueOrDefault(orgUnit.Id, 0),
             children);
@@ -1647,17 +1635,6 @@ public sealed class WorkforceContractService(
         }
 
         return $"{prefix} {value.Value:MMM d}";
-    }
-
-    private async Task<(int PublishedStructureVersion, bool IsOperational)> GetStructureInfoAsync(CancellationToken cancellationToken)
-    {
-        var setupState = await dbContext.TenantSetupStates
-            .AsNoTracking()
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return (
-            setupState?.PublishedStructureVersion ?? 0,
-            setupState?.CurrentPhase >= TenantSetupPhase.StructurallyPublished);
     }
 
     private static string BuildOrgPath(OrgUnit orgUnit, IReadOnlyDictionary<Guid, OrgUnit> orgLookup)

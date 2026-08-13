@@ -14,7 +14,6 @@ export interface WorkforceOrgAssignmentDto {
   path: string;
   level: number;
   isActive: boolean;
-  publishedStructureVersion: number;
 }
 
 export interface WorkforceDataQualityDto {
@@ -98,8 +97,6 @@ export interface WorkforceCurrentUserContextDto {
   employee: WorkforceEmployeeSummaryDto | null;
   managerScope: WorkforceManagerScopeDto | null;
   isWorkforceLinked: boolean;
-  publishedStructureVersion: number;
-  isStructureOperational: boolean;
 }
 
 export interface WorkforceEmployeeResolveRequest {
@@ -115,7 +112,6 @@ export interface WorkforceOrgUnitSummaryDto {
   path: string;
   level: number;
   isActive: boolean;
-  publishedStructureVersion: number;
 }
 
 export interface WorkforceOrgUnitTreeNodeDto {
@@ -127,7 +123,6 @@ export interface WorkforceOrgUnitTreeNodeDto {
   path: string;
   level: number;
   isActive: boolean;
-  publishedStructureVersion: number;
   /** Active employees assigned directly to this unit. */
   memberCount: number;
   /** Active employees in this unit and all descendant units. */
@@ -137,7 +132,6 @@ export interface WorkforceOrgUnitTreeNodeDto {
 
 export interface WorkforceOrgUnitTreeDto {
   roots: WorkforceOrgUnitTreeNodeDto[];
-  publishedStructureVersion: number;
 }
 
 export interface WorkforceEmployeePageDto {

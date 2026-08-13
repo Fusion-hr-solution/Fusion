@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import Link from "next/link";
 import {
   Alert,
   AlertDescription,
@@ -311,7 +312,7 @@ export function RootEstablishment({
   const suggestedName = tenantName?.trim() ?? "";
   const [name, setName] = useState(suggestedName);
   const nameTouched = useRef(false);
-  const [code, setCode] = useState(organizationCodeSuggestion(suggestedName));
+  const [code, setCode] = useState(() => organizationCodeSuggestion(suggestedName));
   const codeTouched = useRef(false);
   const [effectiveDate, setEffectiveDate] = useState(today);
 
@@ -377,6 +378,11 @@ export function RootEstablishment({
           This is the top level of your organization. We’ve suggested your
           organization name and code, adjust them if needed before continuing.
         </p>
+        <Button asChild variant="outline" className="mt-6">
+          <Link href="/organization/import">
+            Import an existing structure
+          </Link>
+        </Button>
         <div className="mt-8 flex items-start gap-3 border-t pt-5 text-sm">
           <div className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
             <Check className="h-4 w-4" />

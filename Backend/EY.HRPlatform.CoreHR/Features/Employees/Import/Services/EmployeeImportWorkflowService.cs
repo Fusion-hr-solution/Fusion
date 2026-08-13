@@ -1130,14 +1130,14 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
 
     private async Task EnsureImportAvailableAsync(CancellationToken cancellationToken)
     {
-        var setupState = await dbContext.TenantSetupStates
+        var hasPermanentRoot = await dbContext.OrgUnits
             .AsNoTracking()
-            .FirstOrDefaultAsync(cancellationToken);
+            .AnyAsync(unit => unit.ParentId == null, cancellationToken);
 
-        if (setupState is null || setupState.CurrentPhase < TenantSetupPhase.StructurallyPublished)
+        if (!hasPermanentRoot)
         {
-            throw new InvalidTenantSetupStateException(
-                "Complete setup before importing employees.");
+            throw new ArgumentException(
+                "Establish Organization before importing employees.");
         }
     }
 

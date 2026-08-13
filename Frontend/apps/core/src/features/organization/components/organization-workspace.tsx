@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useDeferredValue,
@@ -711,10 +712,13 @@ export default function OrganizationWorkspace() {
               Reporting <span className="ml-1 text-[10px]">Coming soon</span>
             </span>
           </nav>
-          {readiness.data?.hasPermanentRoot ? (
-            <span className="pb-2.5 text-xs text-muted-foreground">
-              Import structure · Coming next
-            </span>
+          {readiness.data?.hasPermanentRoot && canManage ? (
+            <Button asChild variant="ghost" size="sm" className="mb-1.5">
+              <Link href="/organization/import">
+                Import structure
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
           ) : null}
         </div>
         {readOnly ? (

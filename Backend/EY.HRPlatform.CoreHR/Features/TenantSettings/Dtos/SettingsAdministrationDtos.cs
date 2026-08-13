@@ -53,12 +53,6 @@ public sealed record PeopleDataSettingsDto(
     SelfServiceSettings SelfService,
     IReadOnlyList<string> DownstreamConsumers);
 
-public sealed record StructureSettingsDto(
-    uint? Version,
-    DraftStructureSchemaDto DraftStructureSchema,
-    string DraftStatus,
-    string OperationalHandoff);
-
 public sealed record ProvisioningSettingsDto(
     uint? Version,
     ProvisioningSettings Provisioning,

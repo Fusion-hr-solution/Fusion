@@ -16,8 +16,7 @@ public sealed record WorkforceOrgAssignmentDto(
     string? ParentStableOrgUnitKey,
     string Path,
     int Level,
-    bool IsActive,
-    int PublishedStructureVersion);
+    bool IsActive);
 
 public sealed record WorkforceDataQualityDto(
     string State,
@@ -93,9 +92,7 @@ public sealed record WorkforceCurrentUserContextDto(
     IReadOnlyList<string> Roles,
     WorkforceEmployeeSummaryDto? Employee,
     WorkforceManagerScopeDto? ManagerScope,
-    bool IsWorkforceLinked,
-    int PublishedStructureVersion,
-    bool IsStructureOperational);
+    bool IsWorkforceLinked);
 
 public sealed record WorkforceEmployeeResolveRequest(
     IReadOnlyList<Guid> EmployeeIds);
@@ -143,8 +140,7 @@ public sealed record WorkforceOrgUnitSummaryDto(
     string? ParentStableKey,
     string Path,
     int Level,
-    bool IsActive,
-    int PublishedStructureVersion);
+    bool IsActive);
 
 public sealed record WorkforceOrgUnitTreeNodeDto(
     Guid Id,
@@ -155,14 +151,12 @@ public sealed record WorkforceOrgUnitTreeNodeDto(
     string Path,
     int Level,
     bool IsActive,
-    int PublishedStructureVersion,
     int MemberCount,
     int TotalMemberCount,
     IReadOnlyList<WorkforceOrgUnitTreeNodeDto> Children);
 
 public sealed record WorkforceOrgUnitTreeDto(
-    IReadOnlyList<WorkforceOrgUnitTreeNodeDto> Roots,
-    int PublishedStructureVersion);
+    IReadOnlyList<WorkforceOrgUnitTreeNodeDto> Roots);
 
 /// <summary>
 /// Detailed org-unit projection returned by the workforce contract's org-unit-by-id read (D-16 seam #2).

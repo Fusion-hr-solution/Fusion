@@ -99,7 +99,7 @@ public class TenantSettingsController(
         var before = await GetSettingsAsync(cancellationToken);
         var updated = await UpdateSettingsAsync(
             ifMatch,
-            new UpdateTenantSettingsRequest(null, null, null, request.Branding, null, null),
+            new UpdateTenantSettingsRequest(null, request.Branding, null, null),
             cancellationToken);
 
         await auditService.RecordAsync(
@@ -146,7 +146,7 @@ public class TenantSettingsController(
         var before = await GetSettingsAsync(cancellationToken);
         var updated = await UpdateSettingsAsync(
             ifMatch,
-            new UpdateTenantSettingsRequest(null, null, request.EmployeeFieldConfig, null, request.SelfService, null),
+            new UpdateTenantSettingsRequest(request.EmployeeFieldConfig, null, request.SelfService, null),
             cancellationToken);
 
         await auditService.RecordAsync(
@@ -162,53 +162,6 @@ public class TenantSettingsController(
 
         SetEtag(updated.Version);
         return Ok(ApiResponse<PeopleDataSettingsDto>.Success(MapPeopleData(updated)));
-    }
-
-    [HttpGet("structure")]
-    [ProducesResponseType(typeof(ApiResponse<StructureSettingsDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetStructure(CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanViewStructureSettings(User))
-        {
-            return Forbid();
-        }
-
-        var settings = await GetSettingsAsync(cancellationToken);
-        SetEtag(settings.Version);
-        return Ok(ApiResponse<StructureSettingsDto>.Success(MapStructure(settings)));
-    }
-
-    [HttpPatch("structure")]
-    [ProducesResponseType(typeof(ApiResponse<StructureSettingsDto>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> PatchStructure(
-        [FromBody] UpdateStructureSettingsRequest request,
-        [FromHeader(Name = "If-Match")] string? ifMatch,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManageStructureSettings(User))
-        {
-            return Forbid();
-        }
-
-        var before = await GetSettingsAsync(cancellationToken);
-        var updated = await UpdateSettingsAsync(
-            ifMatch,
-            new UpdateTenantSettingsRequest(null, request.DraftStructureSchema, null, null, null, null),
-            cancellationToken);
-
-        await auditService.RecordAsync(
-            SettingsSectionIds.Structure,
-            "settings.structure.updated",
-            "TenantSettings",
-            null,
-            "Organization structure settings updated.",
-            MapStructure(before),
-            MapStructure(updated),
-            User,
-            cancellationToken);
-
-        SetEtag(updated.Version);
-        return Ok(ApiResponse<StructureSettingsDto>.Success(MapStructure(updated)));
     }
 
     [HttpGet("provisioning")]
@@ -240,7 +193,7 @@ public class TenantSettingsController(
         var before = await GetSettingsAsync(cancellationToken);
         var updated = await UpdateSettingsAsync(
             ifMatch,
-            new UpdateTenantSettingsRequest(null, null, null, null, null, request.Provisioning),
+            new UpdateTenantSettingsRequest(null, null, null, request.Provisioning),
             cancellationToken);
 
         await auditService.RecordAsync(
@@ -295,10 +248,8 @@ public class TenantSettingsController(
 
         var command = new UpdateTenantSettingsCommand(
             expectedVersion,
-            request.OrgUnitTypes,
             request.EmployeeFieldConfig,
             request.Branding,
-            request.DraftStructureSchema,
             request.SelfService,
             request.Provisioning);
 
@@ -336,10 +287,8 @@ public class TenantSettingsController(
         uint? expectedVersion = TryParseVersion(ifMatch, out var version) ? version : null;
         var result = await sender.Send(new UpdateTenantSettingsCommand(
             expectedVersion,
-            request.OrgUnitTypes,
             request.EmployeeFieldConfig,
             request.Branding,
-            request.DraftStructureSchema,
             request.SelfService,
             request.Provisioning), cancellationToken);
 
@@ -361,13 +310,6 @@ public class TenantSettingsController(
             settings.EmployeeFieldConfig,
             settings.SelfService,
             ["Employee profiles", "Employee import validation", "Self-service profile forms"]);
-
-    private static StructureSettingsDto MapStructure(TenantSettingsDto settings)
-        => new(
-            settings.Version,
-            settings.DraftStructureSchema,
-            "Governed by Setup draft state",
-            "Use Setup for schema changes and Org Chart for operational reporting maintenance.");
 
     private static ProvisioningSettingsDto MapProvisioning(TenantSettingsDto settings)
         => new(
@@ -405,8 +347,6 @@ public class TenantSettingsController(
             yield return SettingsSectionIds.Organization;
         if (request.EmployeeFieldConfig is not null || request.SelfService is not null)
             yield return SettingsSectionIds.PeopleData;
-        if (request.OrgUnitTypes is not null || request.DraftStructureSchema is not null)
-            yield return SettingsSectionIds.Structure;
         if (request.Provisioning is not null)
             yield return SettingsSectionIds.Provisioning;
     }
@@ -437,6 +377,5 @@ public sealed record UpdatePeopleDataSettingsRequest(
     Dictionary<string, FieldConfigInput>? EmployeeFieldConfig,
     SelfServiceSettingsInput? SelfService);
 
-public sealed record UpdateStructureSettingsRequest(DraftStructureSchemaDto? DraftStructureSchema);
 
 public sealed record UpdateProvisioningSettingsRequest(ProvisioningSettingsInput? Provisioning);

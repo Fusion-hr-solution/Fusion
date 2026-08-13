@@ -13,18 +13,6 @@ public sealed record TenantSettingsDto
     public uint? Version { get; init; }
 
     /// <summary>
-    /// Draft-structure schema and controlled org-unit kinds for this tenant.
-    /// </summary>
-    public DraftStructureSchemaDto DraftStructureSchema { get; init; } = DraftStructureSchemaDto.Defaults;
-
-    /// <summary>
-    /// Legacy compatibility view of draft-structure kinds as labels.
-    /// </summary>
-    public List<string> OrgUnitTypes => DraftStructureSchema.OrgUnitKinds
-        .Select(kind => kind.DisplayLabel)
-        .ToList();
-
-    /// <summary>
     /// Field visibility and requirement configuration for employee records.
     /// </summary>
     public Dictionary<string, FieldConfig> EmployeeFieldConfig { get; init; } = DefaultEmployeeFieldConfig;

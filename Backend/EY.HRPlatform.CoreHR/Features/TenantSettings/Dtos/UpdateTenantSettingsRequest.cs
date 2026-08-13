@@ -5,8 +5,6 @@ namespace EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 /// All properties are nullable to support true partial updates.
 /// </summary>
 public sealed record UpdateTenantSettingsRequest(
-    List<string>? OrgUnitTypes,
-    DraftStructureSchemaDto? DraftStructureSchema,
     Dictionary<string, FieldConfigInput>? EmployeeFieldConfig,
     BrandingSettingsInput? Branding,
     SelfServiceSettingsInput? SelfService,

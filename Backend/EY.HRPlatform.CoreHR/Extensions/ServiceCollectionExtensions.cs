@@ -1,11 +1,10 @@
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence.Interceptors;
-using EY.HRPlatform.CoreHR.Features.DraftStructure.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 using EY.HRPlatform.CoreHR.Features.Organization;
+using EY.HRPlatform.CoreHR.Features.OrganizationImport;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
-using EY.HRPlatform.CoreHR.Features.TenantSetup.Services;
 using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.SharedKernel.Multitenancy;
@@ -30,18 +29,6 @@ public static class ServiceCollectionExtensions
             internalServiceAuthentication));
         services.AddSingleton<IInternalServiceRequestSigner>(_ => new InternalServiceRequestSigner(
             internalServiceAuthentication));
-
-        services.AddHttpClient<IIdentityTenantStatusReader, IdentityTenantStatusReader>(client =>
-        {
-            var baseUrl = configuration["ServiceUrls:IdentityApiBaseUrl"];
-            if (string.IsNullOrWhiteSpace(baseUrl))
-            {
-                throw new InvalidOperationException(
-                    "ServiceUrls:IdentityApiBaseUrl is not configured. Set it via environment variable or appsettings.");
-            }
-
-            client.BaseAddress = new Uri(EnsureTrailingSlash(baseUrl));
-        });
 
         services.AddHttpClient<IWorkforceAccountStatusReader, IdentityWorkforceAccountStatusReader>(client =>
         {
@@ -69,6 +56,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IWorkforceCanonicalResolver, WorkforceCanonicalResolver>();
         services.AddScoped<IWorkforceMutationService, WorkforceMutationService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddScoped<IOrganizationImportSourceInspectionService, OrganizationImportSourceInspectionService>();
+        services.AddScoped<IOrganizationImportWorkbookService, OrganizationImportWorkbookService>();
+        services.AddScoped<IOrganizationImportService, OrganizationImportService>();
         services.AddHostedService<EmployeeImportApplyBackgroundService>();
 
         services.AddHttpClient<IWorkforceBulkProvisioner, WorkforceBulkProvisioner>(client =>

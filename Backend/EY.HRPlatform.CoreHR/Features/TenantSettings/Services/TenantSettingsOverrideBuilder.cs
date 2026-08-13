@@ -4,10 +4,6 @@ using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 
 namespace EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 
-/// <summary>
-/// Builds the JSONB override string from update requests.
-/// Complements TenantSettingsMerger (read-side) with write-side logic.
-/// </summary>
 public static class TenantSettingsOverrideBuilder
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -16,173 +12,66 @@ public static class TenantSettingsOverrideBuilder
         WriteIndented = false
     };
 
-    /// <summary>
-    /// Builds a new override JSON string by merging the update request into existing overrides.
-    /// Returns null if the result would be empty (no overrides needed).
-    /// </summary>
     public static string? Build(
         string? existingOverridesJson,
-        List<string>? orgUnitTypes,
         Dictionary<string, FieldConfigInput>? employeeFieldConfig,
         BrandingSettingsInput? branding,
-        DraftStructureSchemaDto? draftStructureSchema = null,
         SelfServiceSettingsInput? selfService = null,
         ProvisioningSettingsInput? provisioning = null)
     {
-        // Start from existing overrides or empty object
         var root = string.IsNullOrWhiteSpace(existingOverridesJson)
             ? new JsonObject()
             : JsonNode.Parse(existingOverridesJson)?.AsObject() ?? new JsonObject();
 
-        // Update orgUnitTypes if provided
-        if (draftStructureSchema is not null)
-        {
-            root["draftStructureSchema"] = JsonSerializer.SerializeToNode(draftStructureSchema, JsonOptions);
-            root["orgUnitTypes"] = JsonSerializer.SerializeToNode(
-                draftStructureSchema.OrgUnitKinds.Select(kind => kind.DisplayLabel).ToList(),
-                JsonOptions);
-        }
-        else if (orgUnitTypes is not null)
-        {
-            root["orgUnitTypes"] = JsonSerializer.SerializeToNode(orgUnitTypes, JsonOptions);
-            root["draftStructureSchema"] = JsonSerializer.SerializeToNode(
-                new DraftStructureSchemaDto
-                {
-                    OrgUnitKinds = orgUnitTypes
-                        .Where(type => !string.IsNullOrWhiteSpace(type))
-                        .Select(type => new OrgUnitKindDto(NormalizeKey(type), type.Trim()))
-                        .GroupBy(kind => kind.Key, StringComparer.OrdinalIgnoreCase)
-                        .Select(group => group.First())
-                        .ToList(),
-                    Attributes = []
-                },
-                JsonOptions);
-        }
+        // Retired Organization setup keys are never carried forward by an active settings write.
+        root.Remove("draftStructureSchema");
+        root.Remove("orgUnitTypes");
 
-        // Merge employeeFieldConfig if provided
         if (employeeFieldConfig is not null)
         {
             var existing = root["employeeFieldConfig"]?.AsObject() ?? new JsonObject();
             foreach (var (key, value) in employeeFieldConfig)
             {
-                // Skip if no values are provided
-                if (!value.Visible.HasValue && !value.Required.HasValue &&
-                    !value.VisibleToEmployee.HasValue && !value.VisibleToManager.HasValue)
+                if (!value.Visible.HasValue && !value.Required.HasValue
+                    && !value.VisibleToEmployee.HasValue && !value.VisibleToManager.HasValue)
                     continue;
 
-                var fieldObj = existing[key]?.AsObject() ?? new JsonObject();
-
-                if (value.Visible.HasValue)
-                    fieldObj["visible"] = value.Visible.Value;
-                if (value.Required.HasValue)
-                    fieldObj["required"] = value.Required.Value;
-                if (value.VisibleToEmployee.HasValue)
-                    fieldObj["visibleToEmployee"] = value.VisibleToEmployee.Value;
-                if (value.VisibleToManager.HasValue)
-                    fieldObj["visibleToManager"] = value.VisibleToManager.Value;
-
-                // Only add if we actually have properties
-                if (fieldObj.Count > 0)
-                    existing[key] = fieldObj;
+                var field = existing[key]?.AsObject() ?? new JsonObject();
+                if (value.Visible.HasValue) field["visible"] = value.Visible.Value;
+                if (value.Required.HasValue) field["required"] = value.Required.Value;
+                if (value.VisibleToEmployee.HasValue) field["visibleToEmployee"] = value.VisibleToEmployee.Value;
+                if (value.VisibleToManager.HasValue) field["visibleToManager"] = value.VisibleToManager.Value;
+                existing[key] = field;
             }
-
-            // Only set employeeFieldConfig if it has content
-            if (existing.Count > 0)
-                root["employeeFieldConfig"] = existing;
+            if (existing.Count > 0) root["employeeFieldConfig"] = existing;
         }
 
-        // Merge branding if provided
         if (branding is not null)
         {
             var existing = root["branding"]?.AsObject() ?? new JsonObject();
-
-            if (branding.LogoUrl is not null)
-                existing["logoUrl"] = branding.LogoUrl;
-            if (branding.PrimaryColor is not null)
-                existing["primaryColor"] = branding.PrimaryColor;
-
-            // Only set branding if it has content
-            if (existing.Count > 0)
-                root["branding"] = existing;
+            if (branding.LogoUrl is not null) existing["logoUrl"] = branding.LogoUrl;
+            if (branding.PrimaryColor is not null) existing["primaryColor"] = branding.PrimaryColor;
+            if (existing.Count > 0) root["branding"] = existing;
         }
 
         if (selfService is not null)
         {
             var existing = root["selfService"]?.AsObject() ?? new JsonObject();
-
-            if (selfService.CanEditPreferredName.HasValue)
-                existing["canEditPreferredName"] = selfService.CanEditPreferredName.Value;
-            if (selfService.CanEditPhone.HasValue)
-                existing["canEditPhone"] = selfService.CanEditPhone.Value;
-
-            if (existing.Count > 0)
-                root["selfService"] = existing;
+            if (selfService.CanEditPreferredName.HasValue) existing["canEditPreferredName"] = selfService.CanEditPreferredName.Value;
+            if (selfService.CanEditPhone.HasValue) existing["canEditPhone"] = selfService.CanEditPhone.Value;
+            if (existing.Count > 0) root["selfService"] = existing;
         }
 
         if (provisioning is not null)
         {
             var existing = root["provisioning"]?.AsObject() ?? new JsonObject();
-
-            if (provisioning.DefaultAccessProfileId.HasValue)
-                existing["defaultAccessProfileId"] = provisioning.DefaultAccessProfileId.Value;
-            if (provisioning.InviteExpiryDays.HasValue)
-                existing["inviteExpiryDays"] = provisioning.InviteExpiryDays.Value;
-            if (provisioning.ResendCooldownHours.HasValue)
-                existing["resendCooldownHours"] = provisioning.ResendCooldownHours.Value;
-            if (provisioning.PendingInviteBehavior is not null)
-                existing["pendingInviteBehavior"] = provisioning.PendingInviteBehavior;
-
-            if (existing.Count > 0)
-                root["provisioning"] = existing;
+            if (provisioning.DefaultAccessProfileId.HasValue) existing["defaultAccessProfileId"] = provisioning.DefaultAccessProfileId.Value;
+            if (provisioning.InviteExpiryDays.HasValue) existing["inviteExpiryDays"] = provisioning.InviteExpiryDays.Value;
+            if (provisioning.ResendCooldownHours.HasValue) existing["resendCooldownHours"] = provisioning.ResendCooldownHours.Value;
+            if (provisioning.PendingInviteBehavior is not null) existing["pendingInviteBehavior"] = provisioning.PendingInviteBehavior;
+            if (existing.Count > 0) root["provisioning"] = existing;
         }
 
-        // Prune empty objects and return null if nothing remains
-        PruneEmptyObjects(root);
-
-        if (root.Count == 0)
-            return null;
-
-        return root.ToJsonString(JsonOptions);
-    }
-
-    /// <summary>
-    /// Removes any top-level keys that are empty objects.
-    /// </summary>
-    private static void PruneEmptyObjects(JsonObject root)
-    {
-        var keysToRemove = root
-            .Where(kvp => kvp.Value is JsonObject obj && obj.Count == 0)
-            .Select(kvp => kvp.Key)
-            .ToList();
-
-        foreach (var key in keysToRemove)
-        {
-            root.Remove(key);
-        }
-    }
-
-    private static string NormalizeKey(string value)
-    {
-        var trimmed = value.Trim().ToLowerInvariant();
-        var buffer = new System.Text.StringBuilder(trimmed.Length);
-        var previousWasSeparator = false;
-
-        foreach (var character in trimmed)
-        {
-            if (char.IsLetterOrDigit(character))
-            {
-                buffer.Append(character);
-                previousWasSeparator = false;
-                continue;
-            }
-
-            if (previousWasSeparator)
-                continue;
-
-            buffer.Append('-');
-            previousWasSeparator = true;
-        }
-
-        return buffer.ToString().Trim('-');
+        return root.Count == 0 ? null : root.ToJsonString(JsonOptions);
     }
 }

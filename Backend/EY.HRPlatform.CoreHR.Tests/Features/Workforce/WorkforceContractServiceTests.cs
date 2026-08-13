@@ -68,7 +68,7 @@ public class WorkforceContractServiceTests
     }
 
     [Fact]
-    public async Task GetPublishedOrgUnitsAsync_ReturnsStableKeysPathsAndPublishedVersion()
+    public async Task GetPublishedOrgUnitsAsync_ReturnsStableKeysAndPaths()
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
@@ -76,12 +76,6 @@ public class WorkforceContractServiceTests
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             seedContext.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
-
-            var state = TenantSetupState.CreateActivated(TenantId);
-            state.Approve(Guid.NewGuid(), "Approver", PlatformRole.HRAdmin, false);
-            state.Publish();
-            state.Complete();
-            seedContext.TenantSetupStates.Add(state);
 
             var root = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
             seedContext.OrgUnits.Add(root);
@@ -101,7 +95,6 @@ public class WorkforceContractServiceTests
         var platformTeam = orgUnits.Single(unit => unit.StableKey == "ENG-PLT");
         Assert.Equal("ENG", platformTeam.ParentStableKey);
         Assert.Equal("Engineering / Platform Team", platformTeam.Path);
-        Assert.Equal(1, platformTeam.PublishedStructureVersion);
     }
 
     [Fact]
@@ -689,12 +682,6 @@ public class WorkforceContractServiceTests
         await using (var seed = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             seed.TenantSettings.Add(DomainTenantSettings.Create(TenantId, SettingsJson));
-
-            var state = TenantSetupState.CreateActivated(TenantId);
-            state.Approve(Guid.NewGuid(), "Approver", PlatformRole.HRAdmin, false);
-            state.Publish();
-            state.Complete();
-            seed.TenantSetupStates.Add(state);
 
             var root = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
             seed.OrgUnits.Add(root);

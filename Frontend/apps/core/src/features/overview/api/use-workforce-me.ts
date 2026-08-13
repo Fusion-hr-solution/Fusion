@@ -65,8 +65,6 @@ export interface WorkforceMeContext {
   employee: WorkforceEmployeeSummary | null;
   managerScope: WorkforceManagerScope | null;
   isWorkforceLinked: boolean;
-  publishedStructureVersion: number;
-  isStructureOperational: boolean;
 }
 
 const WORKFORCE_PATH = "/corehr/workforce";

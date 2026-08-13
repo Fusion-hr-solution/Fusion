@@ -2,7 +2,6 @@ using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.OrgUnits.Dtos;
 using EY.HRPlatform.CoreHR.Features.OrgUnits.Services;
-using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Multitenancy;
@@ -97,15 +96,15 @@ public sealed class CreateOrgUnitCommandHandler(
 
     private async Task ValidateOrgUnitType(string type, CancellationToken cancellationToken)
     {
-        // Get tenant settings (or defaults if none exist)
-        var settings = await dbContext.TenantSettings
-            .FirstOrDefaultAsync(cancellationToken);
-
-        var mergedSettings = TenantSettingsMerger.Merge(settings?.SettingsOverrides, settings?.Version);
-
-        var validTypes = mergedSettings.OrgUnitTypes;
-        if (!validTypes.Any(t => t.Equals(type.Trim(), StringComparison.OrdinalIgnoreCase)))
+        var normalizedType = type.Trim();
+        var isValid = await dbContext.OrganizationalUnitTypes
+            .AnyAsync(candidate => candidate.Name.ToLower() == normalizedType.ToLower(), cancellationToken);
+        if (!isValid)
         {
+            var validTypes = await dbContext.OrganizationalUnitTypes
+                .OrderBy(candidate => candidate.Name)
+                .Select(candidate => candidate.Name)
+                .ToListAsync(cancellationToken);
             throw new ArgumentException(
                 $"Invalid org unit type '{type}'. Valid types are: {string.Join(", ", validTypes)}");
         }

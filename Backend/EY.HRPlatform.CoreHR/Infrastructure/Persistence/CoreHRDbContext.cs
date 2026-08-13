@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Features.OrganizationImport;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -48,15 +49,13 @@ public class CoreHRDbContext : DbContext
     public DbSet<OrganizationChange> OrganizationChanges => Set<OrganizationChange>();
     public DbSet<OrganizationalUnitType> OrganizationalUnitTypes => Set<OrganizationalUnitType>();
     public DbSet<OrgUnitCodeReservation> OrgUnitCodeReservations => Set<OrgUnitCodeReservation>();
-    public DbSet<DraftOrgUnit> DraftOrgUnits => Set<DraftOrgUnit>();
-    public DbSet<DraftStructureImportSession> DraftStructureImportSessions => Set<DraftStructureImportSession>();
     public DbSet<EmployeeImportSession> EmployeeImportSessions => Set<EmployeeImportSession>();
     public DbSet<EmployeeImportApplyOperation> EmployeeImportApplyOperations => Set<EmployeeImportApplyOperation>();
     public DbSet<EmployeeImportHistory> EmployeeImportHistories => Set<EmployeeImportHistory>();
     public DbSet<EmployeeImportFollowUpIssue> EmployeeImportFollowUpIssues => Set<EmployeeImportFollowUpIssue>();
-    public DbSet<TenantSetupState> TenantSetupStates => Set<TenantSetupState>();
-    public DbSet<TenantSetupActivity> TenantSetupActivities => Set<TenantSetupActivity>();
     public DbSet<SettingsAuditEvent> SettingsAuditEvents => Set<SettingsAuditEvent>();
+    public DbSet<OrganizationImportSession> OrganizationImportSessions => Set<OrganizationImportSession>();
+    public DbSet<OrganizationImportSource> OrganizationImportSources => Set<OrganizationImportSource>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -106,12 +105,6 @@ public class CoreHRDbContext : DbContext
         modelBuilder.Entity<OrgUnitCodeReservation>()
             .HasQueryFilter(reservation => CurrentTenantId != Guid.Empty && reservation.TenantId == CurrentTenantId);
 
-        modelBuilder.Entity<DraftOrgUnit>()
-            .HasQueryFilter(o => CurrentTenantId != Guid.Empty && o.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<DraftStructureImportSession>()
-            .HasQueryFilter(session => CurrentTenantId != Guid.Empty && session.TenantId == CurrentTenantId);
-
         modelBuilder.Entity<EmployeeImportSession>()
             .HasQueryFilter(session => CurrentTenantId != Guid.Empty && session.TenantId == CurrentTenantId);
 
@@ -124,13 +117,13 @@ public class CoreHRDbContext : DbContext
         modelBuilder.Entity<EmployeeImportFollowUpIssue>()
             .HasQueryFilter(issue => CurrentTenantId != Guid.Empty && issue.TenantId == CurrentTenantId);
 
-        modelBuilder.Entity<TenantSetupState>()
-            .HasQueryFilter(ts => CurrentTenantId != Guid.Empty && ts.TenantId == CurrentTenantId);
-
-        modelBuilder.Entity<TenantSetupActivity>()
-            .HasQueryFilter(activity => CurrentTenantId != Guid.Empty && activity.TenantId == CurrentTenantId);
-
         modelBuilder.Entity<SettingsAuditEvent>()
             .HasQueryFilter(auditEvent => CurrentTenantId != Guid.Empty && auditEvent.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<OrganizationImportSession>()
+            .HasQueryFilter(session => CurrentTenantId != Guid.Empty && session.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<OrganizationImportSource>()
+            .HasQueryFilter(source => CurrentTenantId != Guid.Empty && source.TenantId == CurrentTenantId);
     }
 }

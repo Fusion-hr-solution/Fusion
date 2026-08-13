@@ -14,6 +14,7 @@ import {
   InactivateDialog,
   ManageTypesPanel,
   MoveReviewDialog,
+  RootEstablishment,
   UnitFormPanel,
   UpcomingChangesSheet,
 } from "./organization-surfaces";
@@ -26,6 +27,11 @@ vi.mock("../api/use-organization", () => ({
     isFetching: false,
     error: null,
   }),
+}));
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a href={String(href)} {...props}>{children}</a>
+  ),
 }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -66,6 +72,41 @@ function makeMutations(): any {
     deleteType: stub(),
   };
 }
+
+describe("RootEstablishment", () => {
+  it("keeps manual root creation visible beside the prominent import alternative", () => {
+    render(
+      <RootEstablishment
+        canManage
+        today={TODAY}
+        tenantName="Asteria"
+        mutations={makeMutations()}
+        onCreated={vi.fn()}
+      />
+    );
+    expect(screen.getByRole("link", { name: "Import an existing structure" })).toHaveAttribute(
+      "href",
+      "/organization/import"
+    );
+    expect(screen.getByRole("button", { name: "Create organization" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Name")).toBeInTheDocument();
+  });
+
+  it("does not expose root-establishment actions to View-only callers", () => {
+    render(
+      <RootEstablishment
+        canManage={false}
+        today={TODAY}
+        tenantName="Asteria"
+        mutations={makeMutations()}
+        onCreated={vi.fn()}
+      />
+    );
+    expect(screen.getByText("Organization has not been established")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Import an existing structure" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create organization" })).not.toBeInTheDocument();
+  });
+});
 
 describe("UnitFormPanel", () => {
   it("hides the parent picker and states the parent for a contextual Add child", () => {
