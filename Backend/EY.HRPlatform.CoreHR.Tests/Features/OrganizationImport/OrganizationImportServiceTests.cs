@@ -96,7 +96,8 @@ public sealed class OrganizationImportServiceTests
         var tenantId = Guid.NewGuid();
         var firstDate = new DateOnly(2026, 8, 12);
         var futureDate = new DateOnly(2026, 10, 1);
-        await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
+        var tenantContext = TestTenantContext.WithTenant(tenantId);
+        await using var context = TestDbContextFactory.Create(tenantContext);
         var organization = new Mock<IOrganizationService>();
         organization.Setup(service => service.GetReadinessAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new OrganizationReadinessDto(true, null, true, Guid.NewGuid(), firstDate, true));
@@ -109,7 +110,8 @@ public sealed class OrganizationImportServiceTests
             context,
             TestTenantContext.WithTenant(tenantId),
             new OrganizationImportSourceInspectionService(),
-            organization.Object);
+            organization.Object,
+            new OrganizationImportInterpreter(context, tenantContext));
         var actor = new OrganizationImportActor(Guid.NewGuid(), "Admin");
 
         var created = await service.IntakeAsync(
@@ -144,7 +146,8 @@ public sealed class OrganizationImportServiceTests
             context,
             tenantContext,
             new OrganizationImportSourceInspectionService(),
-            organization.Object);
+            organization.Object,
+            new OrganizationImportInterpreter(context, tenantContext));
     }
 
     private static MemoryStream Csv(string value) => new(Encoding.UTF8.GetBytes(value));

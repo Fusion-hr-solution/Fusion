@@ -27,8 +27,13 @@ public sealed class OrganizationImportControllerTests
             Guid.NewGuid(), "\"1\"", new UpdateOrganizationImportEffectiveDateRequest(new DateOnly(2026, 8, 12)),
             CancellationToken.None)).Result);
         Assert.IsType<ForbidResult>((await controller.Discard(Guid.NewGuid(), "\"1\"", CancellationToken.None)).Result);
+        Assert.IsType<ForbidResult>((await controller.ReplaceDecisions(
+            Guid.NewGuid(), "\"1\"", new ReplaceOrganizationImportDecisionsRequest(new OrganizationImportDecisions()), CancellationToken.None)).Result);
+        Assert.IsType<ForbidResult>((await controller.Refresh(Guid.NewGuid(), CancellationToken.None)).Result);
+        Assert.IsType<ForbidResult>((await controller.Commit(
+            Guid.NewGuid(), "\"1\"", new CommitOrganizationImportRequest("digest"), CancellationToken.None)).Result);
 
-        access.Verify(policy => policy.CanManageOrganization(It.IsAny<ClaimsPrincipal>()), Times.Exactly(7));
+        access.Verify(policy => policy.CanManageOrganization(It.IsAny<ClaimsPrincipal>()), Times.Exactly(10));
         imports.VerifyNoOtherCalls();
         workbooks.VerifyNoOtherCalls();
     }
@@ -111,6 +116,30 @@ public sealed class OrganizationImportControllerTests
         Assert.Equal("\"5\"", controller.Response.Headers.ETag);
     }
 
+    [Fact]
+    public async Task DecisionsRefreshAndCommit_UseEtagActorAndReviewedDigest()
+    {
+        var (controller, imports, _, _) = CreateController();
+        var id = Guid.NewGuid();
+        var decisions = new OrganizationImportDecisions(IntroducedRoot: new("Asteria", "ASTERIA"));
+        imports.Setup(service => service.ReplaceDecisionsAsync(id, 6, decisions,
+                It.Is<OrganizationImportActor>(actor => actor.DisplayName == "Ada Admin"), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Session(id, version: 7));
+        imports.Setup(service => service.RefreshAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(Session(id, version: 7));
+        var terminal = new OrganizationImportCommitResult(id, new DateOnly(2026, 8, 12), [], true);
+        imports.Setup(service => service.CommitAsync(id, 7, "digest", It.IsAny<OrganizationImportActor>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(terminal);
+
+        Assert.IsType<BadRequestObjectResult>((await controller.ReplaceDecisions(
+            id, null, new ReplaceOrganizationImportDecisionsRequest(decisions), CancellationToken.None)).Result);
+        Assert.IsType<OkObjectResult>((await controller.ReplaceDecisions(
+            id, "\"6\"", new ReplaceOrganizationImportDecisionsRequest(decisions), CancellationToken.None)).Result);
+        Assert.Equal("\"7\"", controller.Response.Headers.ETag);
+        Assert.IsType<OkObjectResult>((await controller.Refresh(id, CancellationToken.None)).Result);
+        Assert.IsType<OkObjectResult>((await controller.Commit(
+            id, "\"7\"", new CommitOrganizationImportRequest("digest"), CancellationToken.None)).Result);
+    }
+
     private static (OrganizationImportController Controller, Mock<IOrganizationImportService> Imports,
         Mock<IOrganizationImportWorkbookService> Workbooks, Mock<ICoreAccessPolicyService> Access)
         CreateController(bool canManage = true)
@@ -146,6 +175,8 @@ public sealed class OrganizationImportControllerTests
                 status == "Discarded" ? DateTime.UtcNow : null,
                 status == "Discarded" ? null : new OrganizationSourceTable(
                     [new OrganizationSourceColumn(0, "Name")], [new string?[] { "Root" }])),
-            new CanonicalOrganizationBaselineSummary(true, false));
+            new CanonicalOrganizationBaselineSummary(true, false),
+            new OrganizationImportDecisions().Normalize(),
+            null, null, null, null, null, null);
     }
 }

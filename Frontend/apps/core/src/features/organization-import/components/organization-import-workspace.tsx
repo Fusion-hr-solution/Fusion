@@ -10,21 +10,7 @@ import {
   type DragEvent,
   type ReactNode,
 } from "react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  Button,
-  Input,
-  Label,
-  Spinner,
-  cn,
-} from "@repo/ds";
+import { Button, Input, Label, Spinner, cn } from "@repo/ds";
 import {
   PageContainer,
   PageHeader,
@@ -45,7 +31,6 @@ import {
   translateOrganizationImportError,
   type OrganizationImportActiveSummaryDto,
   type OrganizationImportIntakeResult,
-  type OrganizationImportSessionDto,
 } from "@repo/api";
 import {
   canManageCoreOrganization,
@@ -55,13 +40,13 @@ import {
 import { toast } from "sonner";
 import { todayCalendarDate } from "@/features/organization/model/workspace-state";
 import { useOrganizationReadiness } from "@/features/organization/api/use-organization";
-import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
+import { downloadBlob, formatHumanDate, formatRelativeTime } from "../model/format";
 import {
   useActiveOrganizationImports,
   useOrganizationImportApi,
   useOrganizationImportMutations,
-  useOrganizationImportSession,
 } from "../api/use-organization-import";
+import { ImportReviewWorkspace } from "./import-review-workspace";
 
 type SourceState =
   | { kind: "idle" }
@@ -114,7 +99,7 @@ export default function OrganizationImportWorkspace({
       </PageContainer>
     );
   return sessionId ? (
-    <DurableImportWorkspace sessionId={sessionId} />
+    <ImportReviewWorkspace sessionId={sessionId} />
   ) : (
     <NewImportWorkspace />
   );
@@ -618,229 +603,4 @@ function UploadSurface({
       </div>
     </div>
   );
-}
-
-function DurableImportWorkspace({ sessionId }: { sessionId: string }) {
-  const router = useRouter();
-  const sessionQuery = useOrganizationImportSession(sessionId);
-  const mutations = useOrganizationImportMutations();
-  const today = todayCalendarDate();
-  const [date, setDate] = useState("");
-  const [discardOpen, setDiscardOpen] = useState(false);
-  useBreadcrumbLabel(sessionId, sessionQuery.data?.source.originalFileName);
-  useEffect(() => {
-    if (sessionQuery.data) setDate(sessionQuery.data.effectiveDate);
-  }, [sessionQuery.data]);
-
-  if (sessionQuery.isLoading)
-    return (
-      <PageContainer width="wide">
-        <TaskHeader description="Loading your import." />
-        <PageSkeleton rows={4} label="Loading import" />
-      </PageContainer>
-    );
-  if (sessionQuery.error)
-    return (
-      <PageContainer className="space-y-6">
-        <TaskHeader description="This import could not be loaded." />
-        <PagePermissionNotice
-          title="Import not available"
-          description={
-            translateOrganizationImportError(sessionQuery.error).message
-          }
-          action={
-            <Button onClick={() => void sessionQuery.refetch()}>Retry</Button>
-          }
-        />
-      </PageContainer>
-    );
-  const session = sessionQuery.data;
-  if (!session) return null;
-  if (session.status === "Discarded")
-    return <DiscardedImport session={session} />;
-  const activeSession = session;
-
-  async function changeDate(value: string) {
-    setDate(value);
-    // Native date controls briefly emit an empty value while a user replaces
-    // the current date. Keep that intermediate editing state local instead of
-    // sending an invalid mutation and racing the completed value.
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return;
-    try {
-      await mutations.changeDate.mutateAsync({
-        id: activeSession.id,
-        version: activeSession.version,
-        effectiveDate: value,
-      });
-      await sessionQuery.refetch();
-    } catch (error) {
-      toast.error("Effective date was not changed", {
-        description: translateOrganizationImportError(error).message,
-      });
-      setDate(activeSession.effectiveDate);
-    }
-  }
-
-  async function discard() {
-    try {
-      await mutations.discard.mutateAsync({
-        id: activeSession.id,
-        version: activeSession.version,
-      });
-      router.replace("/organization/import");
-    } catch (error) {
-      toast.error("Import was not discarded", {
-        description: translateOrganizationImportError(error).message,
-      });
-    }
-  }
-
-  const source = session.source;
-  const savedAt = session.updatedAt ?? session.createdAt;
-  return (
-    <PageContainer className="space-y-8 pb-14">
-      <TaskHeader description="This import is in progress. Nothing changes until you review and commit." />
-
-      <section
-        aria-labelledby="source-ready-title"
-        className="rounded-2xl border bg-background p-6 shadow-sm"
-      >
-        <div className="flex items-start gap-4">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-success-subtle text-success">
-            <FileSpreadsheet className="h-6 w-6" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h2
-                id="source-ready-title"
-                className="truncate text-lg font-semibold"
-              >
-                {source.originalFileName}
-              </h2>
-              <span className="inline-flex items-center gap-1 rounded-full bg-success-subtle px-2.5 py-0.5 text-xs font-medium text-success">
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                Source ready
-              </span>
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {source.sourceFormat.toUpperCase()} ·{" "}
-              {formatBytes(source.byteLength)} ·{" "}
-              {source.rowCount.toLocaleString()} data rows ·{" "}
-              {source.columnCount} columns
-              {source.sourceFormat === "xlsx" && source.selectedSheetName
-                ? ` · ${source.selectedSheetName}`
-                : ""}
-            </p>
-            <p className="mt-3 text-xs text-muted-foreground">
-              Saved automatically · updated {formatRelativeTime(savedAt)} by{" "}
-              {session.lastUpdatedByDisplayName}
-            </p>
-          </div>
-        </div>
-        <div className="mt-6 border-t pt-6">
-          <EffectiveDateControl
-            id="durable-effective-date"
-            value={date}
-            today={today}
-            disabled={mutations.changeDate.isLoading}
-            onChange={(value) => void changeDate(value)}
-          />
-        </div>
-      </section>
-
-      <div className="flex justify-start">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-destructive hover:text-destructive"
-          onClick={() => setDiscardOpen(true)}
-        >
-          <Trash2 className="h-4 w-4" />
-          Discard import
-        </Button>
-      </div>
-
-      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Discard this import?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your Organization won’t be changed. This import will no longer be
-              available to continue.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Keep import</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={mutations.discard.isLoading}
-              onClick={() => void discard()}
-            >
-              Discard import
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </PageContainer>
-  );
-}
-
-function DiscardedImport({
-  session,
-}: {
-  session: OrganizationImportSessionDto;
-}) {
-  return (
-    <PageContainer className="space-y-8">
-      <TaskHeader description="This import is no longer active." />
-      <PagePermissionNotice
-        title="Import discarded"
-        description={`${session.source.originalFileName} can no longer be resumed. Its source has been removed.`}
-        action={
-          <Button asChild>
-            <Link href="/organization/import">Start another import</Link>
-          </Button>
-        }
-      />
-    </PageContainer>
-  );
-}
-
-function downloadBlob(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
-function formatBytes(value: number) {
-  if (value < 1024) return `${value} B`;
-  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
-  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatHumanDate(value: string) {
-  const date = new Date(`${value.slice(0, 10)}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
-
-function formatRelativeTime(value: string | null) {
-  if (!value) return "just now";
-  const then = new Date(value).getTime();
-  if (Number.isNaN(then)) return "just now";
-  const minutes = Math.round((Date.now() - then) / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes} min ago`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `${hours} hr ago`;
-  const days = Math.round(hours / 24);
-  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
-  return formatHumanDate(value);
 }

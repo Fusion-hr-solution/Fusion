@@ -46,6 +46,7 @@ import {
   CalendarDays,
   ChevronRight,
   Clock3,
+  FileOutput,
   History,
   ListTree,
   MoreHorizontal,
@@ -92,6 +93,8 @@ import {
   type OrganizationLocalState,
   type OrganizationUrlState,
 } from "../model/workspace-state";
+import { useOrganizationImportApi } from "@/features/organization-import/api/use-organization-import";
+import { downloadBlob } from "@/features/organization-import/model/format";
 import { OrganizationOutline } from "./organization-outline";
 import {
   CorrectionPanel,
@@ -563,6 +566,7 @@ export default function OrganizationWorkspace() {
     unitForm !== null || manageTypes || createType || correction !== null;
   const types = useOrganizationTypes(canView && needTypes);
   const mutations = useOrganizationMutations();
+  const importApi = useOrganizationImportApi();
   const cancelUnit = useOrganizationUnit(
     cancelChange?.orgUnitId ?? null,
     cancelChange?.effectiveDate ?? today,
@@ -662,6 +666,17 @@ export default function OrganizationWorkspace() {
   const futureChanges = (upcoming.data ?? []).filter(
     (change) => !change.isCancelled && change.effectiveDate > today
   );
+
+  async function exportStructure() {
+    try {
+      const blob = await importApi.exportStructure(urlState.asOf);
+      downloadBlob(blob, `Fusion-organization-${urlState.asOf}.xlsx`);
+    } catch {
+      toast.error("Structure could not be exported", {
+        description: "Try again in a moment.",
+      });
+    }
+  }
 
   return (
     <div className="flex h-[calc(100dvh-4rem)] min-h-[680px] flex-col overflow-hidden">
@@ -900,20 +915,31 @@ export default function OrganizationWorkspace() {
                     Import structure
                   </Link>
                 </Button>
-                <div
-                  className="ml-1 h-6 w-px self-center bg-border"
-                  aria-hidden
-                />
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => patchLocal({ manageTypes: true })}
-                >
-                  <Settings2 className="h-4 w-4" />
-                  Manage Unit Types
-                </Button>
               </>
             ) : null}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="More Organization actions"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => void exportStructure()}>
+                  <FileOutput className="h-4 w-4" />
+                  Export structure
+                </DropdownMenuItem>
+                {canManage && !readOnly ? (
+                  <DropdownMenuItem onClick={() => patchLocal({ manageTypes: true })}>
+                    <Settings2 className="h-4 w-4" />
+                    Manage Unit Types
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
           <div className="relative flex min-h-0 flex-1">
             <main

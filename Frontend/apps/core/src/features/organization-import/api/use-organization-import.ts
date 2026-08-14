@@ -6,6 +6,7 @@ import {
   createCoreOrganizationImportApi,
   createPlatformApiClient,
 } from "@repo/api";
+import type { OrganizationImportDecisions } from "@repo/api";
 import { useApiMutation, useApiQuery, useApiQueryClient } from "@repo/api/query";
 import { canManageCoreOrganization, useAuth } from "@repo/auth";
 
@@ -55,6 +56,20 @@ export function useOrganizationImportMutations() {
     ),
     discard: useApiMutation(
       ({ id, version }: { id: string; version: number }) => api.discard(id, version),
+      { onSuccess: refreshAll }
+    ),
+    replaceDecisions: useApiMutation(
+      ({ id, version, decisions }: { id: string; version: number; decisions: OrganizationImportDecisions }) =>
+        api.replaceDecisions(id, version, decisions),
+      { onSuccess: refreshAll }
+    ),
+    refresh: useApiMutation(
+      ({ id }: { id: string }) => api.refresh(id),
+      { onSuccess: refreshAll }
+    ),
+    commit: useApiMutation(
+      ({ id, version, semanticDigest }: { id: string; version: number; semanticDigest: string }) =>
+        api.commit(id, version, semanticDigest),
       { onSuccess: refreshAll }
     ),
   };

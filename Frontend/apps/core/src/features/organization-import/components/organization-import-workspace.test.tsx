@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -21,8 +22,12 @@ const mocks = vi.hoisted(() => ({
   intake: { mutateAsync: vi.fn(), isLoading: false },
   changeDate: { mutateAsync: vi.fn(), isLoading: false },
   discard: { mutateAsync: vi.fn(), isLoading: false },
+  replaceDecisions: { mutateAsync: vi.fn(), isLoading: false },
+  refresh: { mutateAsync: vi.fn(), isLoading: false },
+  commit: { mutateAsync: vi.fn(), isLoading: false },
   downloadTemplate: vi.fn(),
   exportStructure: vi.fn(),
+  toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn() }),
 }));
 
 vi.mock("next/link", () => ({
@@ -42,7 +47,7 @@ vi.mock("@repo/api", () => ({
     message: error instanceof Error ? error.message : "Request failed",
   }),
 }));
-vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
+vi.mock("sonner", () => ({ toast: mocks.toast }));
 vi.mock("@/features/organization/api/use-organization", () => ({
   useOrganizationReadiness: () => ({ data: mocks.readiness }),
 }));
@@ -58,6 +63,9 @@ vi.mock("../api/use-organization-import", () => ({
     intake: mocks.intake,
     changeDate: mocks.changeDate,
     discard: mocks.discard,
+    replaceDecisions: mocks.replaceDecisions,
+    refresh: mocks.refresh,
+    commit: mocks.commit,
   }),
   useActiveOrganizationImports: () => ({ data: mocks.activeData }),
   useOrganizationImportSession: () => mocks.sessionQuery,
@@ -95,6 +103,30 @@ function sourceReady(
         table: { columns: [{ index: 0, sourceLabel: "Name" }], rows: [["Root"]] },
       },
       baseline: { hasPermanentRootIdentity: true, hasRootAsOfEffectiveDate: false },
+      decisions: {},
+      review: {
+        shape: "ParentReference",
+        shapeStatus: "Resolved",
+        shapeOrigin: "Deterministic",
+        fieldMappings: [],
+        typeOptions: [],
+        proposalNodes: [],
+        resultingOrganization: [],
+        issues: [],
+        existingCount: 0,
+        createCount: 0,
+        canCommit: true,
+        semanticDigest: "a".repeat(64),
+        canonicalObservationDigest: "b".repeat(64),
+        decisionRevision: 0,
+        decisionsUpdatedAt: null,
+        decisionsUpdatedByDisplayName: null,
+      },
+      commitResult: null,
+      committedAt: null,
+      committedByUserId: null,
+      committedByDisplayName: null,
+      finalProvenance: null,
       ...overrides,
     },
     sheetSelection: null,
@@ -118,6 +150,12 @@ beforeEach(() => {
   mocks.intake.mutateAsync.mockReset();
   mocks.changeDate.mutateAsync.mockReset();
   mocks.discard.mutateAsync.mockReset();
+  mocks.replaceDecisions.mutateAsync.mockReset();
+  mocks.refresh.mutateAsync.mockReset();
+  mocks.commit.mutateAsync.mockReset();
+  mocks.toast.mockReset();
+  mocks.toast.error.mockReset();
+  mocks.toast.success.mockReset();
   mocks.downloadTemplate.mockReset().mockResolvedValue(new Blob());
   mocks.exportStructure.mockReset().mockResolvedValue(new Blob());
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
@@ -133,6 +171,14 @@ beforeEach(() => {
     configurable: true,
     value: vi.fn(),
   });
+  // Radix menus and the outline's reveal-on-select rely on DOM APIs happy-dom omits.
+  for (const [name, value] of [
+    ["scrollIntoView", vi.fn()],
+    ["hasPointerCapture", vi.fn(() => false)],
+    ["releasePointerCapture", vi.fn()],
+    ["setPointerCapture", vi.fn()],
+  ] as const)
+    Object.defineProperty(window.HTMLElement.prototype, name, { configurable: true, value });
 });
 
 describe("OrganizationImportWorkspace access and composition", () => {
@@ -324,16 +370,201 @@ describe("OrganizationImportWorkspace source intake", () => {
 });
 
 describe("OrganizationImportWorkspace durable route", () => {
-  it("renders a truthful Source ready workspace without phase or semantic leakage", () => {
-    mocks.sessionQuery = { data: sourceReady().session, isLoading: false, error: null, refetch: vi.fn() };
+  it("makes the resulting hierarchy the surface and reads a valid no-op as a calm finish", () => {
+    const base = sourceReady().session;
+    const noop = sourceReady({
+      review: {
+        ...base.review!,
+        existingCount: 2,
+        createCount: 0,
+        canCommit: true,
+        resultingOrganization: [
+          { id: "canonical:1", canonicalId: "1", name: "Demo Eight", businessCode: "DE", typeName: "Organization", parentId: null, isNew: false, isRoot: true },
+          { id: "canonical:2", canonicalId: "2", name: "Engineering", businessCode: "ENG", typeName: "Department", parentId: "canonical:1", isNew: false, isRoot: false },
+        ],
+      },
+    }).session;
+    mocks.sessionQuery = { data: noop, isLoading: false, error: null, refetch: vi.fn() };
     render(<OrganizationImportWorkspace sessionId="session-1" />);
-    expect(screen.getByText("organization.csv")).toBeInTheDocument();
-    expect(screen.getByText("Source ready")).toBeInTheDocument();
-    // No implementation-phase or semantic-acceptance language leaks into the product.
-    expect(screen.queryByText("Accepted source")).not.toBeInTheDocument();
-    expect(screen.queryByText(/next import phase|Details/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/permanent Organization root/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/proposal|mapping|conflict/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/organization\.csv · saved/)).toBeInTheDocument();
+    expect(screen.getByRole("treegrid", { name: "Resulting organization" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Everything in this file already exists in Organization/)
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Finish import" })).toBeEnabled();
+    // No empty attention rail and no disabled completion ceremony.
+    expect(screen.queryByText("No issues found.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Complete import" })).not.toBeInTheDocument();
+  });
+
+  it("represents one missing root as one issue and resolves it in the contextual inspector", async () => {
+    const base = sourceReady().session;
+    const blocked = sourceReady({
+      review: {
+        ...base.review!,
+        canCommit: false,
+        issues: [{
+          code: "FreshRootRequired",
+          severity: "Blocker",
+          title: "This fresh tenant needs one explicit Organization root above the source top-level units.",
+          message: "This fresh tenant needs one explicit Organization root above the source top-level units.",
+          affectedCount: 0,
+          nodeIds: [],
+          sourceCells: [],
+          recoveryActions: ["Introduce Organization root"],
+        }],
+      },
+    }).session;
+    mocks.sessionQuery = { data: blocked, isLoading: false, error: null, refetch: vi.fn() };
+    mocks.replaceDecisions.mutateAsync.mockResolvedValue(blocked);
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    // Blocked review never advertises a completion action.
+    expect(screen.queryByRole("button", { name: "Complete import" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Finish import" })).not.toBeInTheDocument();
+    expect(screen.getByText(/1 thing needs your attention before you can finish/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    const panel = screen.getByRole("complementary", { name: "Import review panel" });
+    fireEvent.change(within(panel).getByLabelText("Name"), { target: { value: "Asteria" } });
+    fireEvent.change(within(panel).getByLabelText("Business code"), { target: { value: "ASTERIA" } });
+    fireEvent.click(within(panel).getByRole("button", { name: "Add root" }));
+
+    await waitFor(() => expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledWith({
+      id: "session-1",
+      version: 1,
+      decisions: expect.objectContaining({ introducedRoot: { name: "Asteria", businessCode: "ASTERIA" } }),
+    }));
+  });
+
+  it("finishes a valid no-op immediately without a mutation confirmation modal", async () => {
+    const active = sourceReady().session;
+    mocks.sessionQuery = { data: active, isLoading: false, error: null, refetch: vi.fn() };
+    mocks.commit.mutateAsync.mockResolvedValue({ sessionId: active.id, effectiveDate: active.effectiveDate, createdUnits: [], noChanges: true });
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Finish import" }));
+    // The no-op path commits directly; no create-confirmation dialog is shown.
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(mocks.commit.mutateAsync).toHaveBeenCalledWith({
+      id: "session-1",
+      version: 1,
+      semanticDigest: "a".repeat(64),
+    }));
+    expect(mocks.replace).toHaveBeenCalledWith(expect.stringContaining("/organization?asOf="));
+  });
+
+  it("confirms an additive commit with create count and effective date, then hands off", async () => {
+    const base = sourceReady().session;
+    const additive = sourceReady({
+      review: {
+        ...base.review!,
+        existingCount: 3,
+        createCount: 1,
+        canCommit: true,
+        resultingOrganization: [
+          { id: "canonical:1", canonicalId: "1", name: "Demo Eight", businessCode: "DE", typeName: "Organization", parentId: null, isNew: false, isRoot: true },
+          { id: "row:2", canonicalId: null, name: "Finance", businessCode: "FINANCE", typeName: "Department", parentId: "canonical:1", isNew: true, isRoot: false },
+        ],
+      },
+    }).session;
+    mocks.sessionQuery = { data: additive, isLoading: false, error: null, refetch: vi.fn() };
+    mocks.commit.mutateAsync.mockResolvedValue({
+      sessionId: additive.id,
+      effectiveDate: additive.effectiveDate,
+      createdUnits: [{ proposalNodeId: "row:2", orgUnitId: "unit-9", businessCode: "FINANCE", name: "Finance" }],
+      noChanges: false,
+    });
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    // Source summary describes the file, not all visible hierarchy context.
+    expect(screen.getByText(/3 matched/)).toBeInTheDocument();
+    expect(screen.getByText(/1 new organizational unit/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Complete import" }));
+    const dialog = await screen.findByRole("alertdialog");
+    // The business facts stay emphasized in the confirmation.
+    expect(within(dialog).getByText("1 organizational unit")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Complete import" }));
+
+    await waitFor(() => expect(mocks.commit.mutateAsync).toHaveBeenCalledWith({
+      id: "session-1",
+      version: 1,
+      semanticDigest: "a".repeat(64),
+    }));
+    expect(mocks.replace).toHaveBeenCalledWith(expect.stringContaining("reveal=unit-9"));
+  });
+
+  it("shows both conflicting canonical units for an identity contradiction", () => {
+    const base = sourceReady().session;
+    const conflict = sourceReady({
+      review: {
+        ...base.review!,
+        canCommit: false,
+        existingCount: 2,
+        createCount: 0,
+        proposalNodes: [{
+          id: "row:3",
+          name: "Engineering",
+          businessCode: "PEOPLE",
+          businessCodeGenerated: false,
+          rawType: "Department",
+          typeId: null,
+          typeName: "Department",
+          parentNodeId: null,
+          parentCanonicalId: null,
+          rawParent: "DE",
+          canonicalId: null,
+          classification: "Conflict",
+          isProposalRoot: false,
+          descriptiveCandidates: [],
+          sourceCells: [],
+          identityEvidence: [
+            { identifier: "fusionOrgUnitId", suppliedValue: "id-eng", unitId: "1", unitName: "Engineering", unitCode: "ENGINEER" },
+            { identifier: "businessCode", suppliedValue: "PEOPLE", unitId: "2", unitName: "People", unitCode: "PEOPLE" },
+          ],
+        }],
+        issues: [{
+          code: "StrongIdentityContradiction",
+          severity: "Blocker",
+          title: "This row identifies two units",
+          message: "The supplied Fusion ID and Business Code identify two different existing units.",
+          affectedCount: 1,
+          nodeIds: ["row:3"],
+          sourceCells: [],
+          recoveryActions: ["Correct field mapping", "Replace source"],
+        }],
+      },
+    }).session;
+    mocks.sessionQuery = { data: conflict, isLoading: false, error: null, refetch: vi.fn() };
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    const panel = screen.getByRole("complementary", { name: "Import review panel" });
+    // The user can tell exactly which two existing units conflict.
+    expect(within(panel).getAllByText("Engineering").length).toBeGreaterThan(0);
+    expect(within(panel).getByText("ENGINEER")).toBeInTheDocument();
+    expect(within(panel).getByText("People")).toBeInTheDocument();
+    expect(within(panel).getAllByText("PEOPLE").length).toBeGreaterThan(0);
+    // The recovery is a corrected re-import, never an invalid "pick one".
+    expect(within(panel).getByRole("link", { name: "Start a corrected import" })).toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: /Choose Engineering|Choose People/ })).not.toBeInTheDocument();
+  });
+
+  it("renders a committed deep link without reopening proposal controls", () => {
+    const committed = sourceReady({
+      status: "Committed",
+      review: null,
+      committedAt: "2026-08-14T12:00:00Z",
+      committedByUserId: "admin-1",
+      committedByDisplayName: "Ada Admin",
+      commitResult: { sessionId: "session-1", effectiveDate: todayCalendarDate(), createdUnits: [], noChanges: true },
+    }).session;
+    mocks.sessionQuery = { data: committed, isLoading: false, error: null, refetch: vi.fn() };
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    expect(screen.getByText("Nothing new to add")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View Organization" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Complete|Finish/ })).not.toBeInTheDocument();
   });
 
   it("persists date edits with the current ETag version", async () => {
@@ -350,14 +581,16 @@ describe("OrganizationImportWorkspace durable route", () => {
     expect(refetch).toHaveBeenCalled();
   });
 
-  it("requires explicit confirmation before discard and then returns to the generic workspace", async () => {
+  it("keeps discard as a confirmed action in the overflow menu, then returns to the generic workspace", async () => {
+    const user = userEvent.setup();
     mocks.sessionQuery = { data: sourceReady().session, isLoading: false, error: null, refetch: vi.fn() };
     mocks.discard.mutateAsync.mockResolvedValue(sourceReady({ status: "Discarded" }).session);
     render(<OrganizationImportWorkspace sessionId="session-1" />);
-    fireEvent.click(screen.getByRole("button", { name: "Discard import" }));
+    await user.click(screen.getByRole("button", { name: "More actions" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Discard import" }));
     expect(mocks.discard.mutateAsync).not.toHaveBeenCalled();
     const dialog = await screen.findByRole("alertdialog");
-    fireEvent.click(within(dialog).getByRole("button", { name: "Discard import" }));
+    await user.click(within(dialog).getByRole("button", { name: "Discard import" }));
     await waitFor(() => expect(mocks.discard.mutateAsync).toHaveBeenCalledWith({ id: "session-1", version: 1 }));
     expect(mocks.replace).toHaveBeenCalledWith("/organization/import");
   });
@@ -383,5 +616,154 @@ describe("OrganizationImportWorkspace durable route", () => {
     expect(screen.getByText("Import not available")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refetch).toHaveBeenCalled();
+  });
+
+  it("summarizes what the file contributed when nothing matched", () => {
+    const base = sourceReady().session;
+    const newOnly = sourceReady({
+      review: {
+        ...base.review!,
+        createCount: 3,
+        existingCount: 0,
+        canCommit: true,
+        resultingOrganization: [
+          { id: "canonical:1", canonicalId: "1", name: "Demo Eight", businessCode: "DE", typeName: "Organization", parentId: null, isNew: false, isRoot: true },
+          { id: "row:2", canonicalId: null, name: "Finance", businessCode: "FIN", typeName: "Department", parentId: "canonical:1", isNew: true, isRoot: false },
+        ],
+      },
+    }).session;
+    mocks.sessionQuery = { data: newOnly, isLoading: false, error: null, refetch: vi.fn() };
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+    expect(screen.getByText(/from this file/)).toBeInTheDocument();
+    expect(screen.queryByText(/matched/)).not.toBeInTheDocument();
+  });
+
+  it("shows an unresolved parent honestly and resolves it in a direct resolver", async () => {
+    const base = sourceReady().session;
+    const unresolved = sourceReady({
+      review: {
+        ...base.review!,
+        canCommit: false,
+        createCount: 1,
+        existingCount: 0,
+        proposalNodes: [{
+          id: "row:2", name: "Analytics", businessCode: "ANALYT", businessCodeGenerated: false,
+          rawType: "Department", typeId: "t1", typeName: "Department", parentNodeId: null, parentCanonicalId: null,
+          rawParent: "DIGITL", canonicalId: null, classification: "Create", isProposalRoot: false,
+          descriptiveCandidates: [], sourceCells: [], identityEvidence: [],
+        }],
+        resultingOrganization: [
+          { id: "canonical:1", canonicalId: "1", name: "Demo Eight", businessCode: "DE", typeName: "Organization", parentId: null, isNew: false, isRoot: true },
+          { id: "row:2", canonicalId: null, name: "Analytics", businessCode: "ANALYT", typeName: "Department", parentId: null, isNew: true, isRoot: false },
+        ],
+        issues: [{
+          code: "ParentUnresolved", severity: "Blocker", title: "Choose a parent",
+          message: "The parent reference 'DIGITL' is not unique or available.",
+          affectedCount: 1, nodeIds: ["row:2"], sourceCells: [], recoveryActions: ["Choose parent"],
+        }],
+      },
+    }).session;
+    mocks.sessionQuery = { data: unresolved, isLoading: false, error: null, refetch: vi.fn() };
+    mocks.replaceDecisions.mutateAsync.mockResolvedValue(unresolved);
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    // Honest placement: not silently parented under the root.
+    expect(screen.getByText("Unresolved placement")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    const panel = screen.getByRole("complementary", { name: "Import review panel" });
+    expect(within(panel).getByText("DIGITL")).toBeInTheDocument();
+    fireEvent.change(within(panel).getByLabelText("Parent"), { target: { value: "canonical:1" } });
+    fireEvent.click(within(panel).getByRole("button", { name: "Apply resolution" }));
+
+    await waitFor(() => expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledWith({
+      id: "session-1",
+      version: 1,
+      decisions: expect.objectContaining({
+        nodeCorrections: { "row:2": expect.objectContaining({ parentCanonicalId: "1", parentNodeId: null }) },
+      }),
+    }));
+  });
+
+  it("excludes a leaf immediately with undo and no consequence dialog", async () => {
+    const base = sourceReady().session;
+    const additive = sourceReady({
+      review: {
+        ...base.review!,
+        canCommit: true,
+        createCount: 1,
+        existingCount: 1,
+        proposalNodes: [{
+          id: "row:2", name: "Finance", businessCode: "FIN", businessCodeGenerated: false,
+          rawType: "Department", typeId: "t1", typeName: "Department", parentNodeId: null, parentCanonicalId: "1",
+          rawParent: null, canonicalId: null, classification: "Create", isProposalRoot: false,
+          descriptiveCandidates: [], sourceCells: [], identityEvidence: [],
+        }],
+        resultingOrganization: [
+          { id: "canonical:1", canonicalId: "1", name: "Demo Eight", businessCode: "DE", typeName: "Organization", parentId: null, isNew: false, isRoot: true },
+          { id: "row:2", canonicalId: null, name: "Finance", businessCode: "FIN", typeName: "Department", parentId: "canonical:1", isNew: true, isRoot: false },
+        ],
+      },
+    }).session;
+    mocks.sessionQuery = { data: additive, isLoading: false, error: null, refetch: vi.fn() };
+    mocks.replaceDecisions.mutateAsync.mockResolvedValue(additive);
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    fireEvent.click(screen.getByText("Finance"));
+    const panel = screen.getByRole("complementary", { name: "Import review panel" });
+    fireEvent.click(within(panel).getByRole("button", { name: "Exclude from import" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+    await waitFor(() => expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledWith({
+      id: "session-1",
+      version: 1,
+      decisions: expect.objectContaining({ excludedNodeIds: ["row:2"] }),
+    }));
+    await waitFor(() => expect(mocks.toast).toHaveBeenCalled());
+    const call = mocks.toast.mock.calls.at(-1)!;
+    expect(String(call[0])).toMatch(/Excluded Finance/);
+    expect(call[1].action.label).toBe("Undo");
+    call[1].action.onClick();
+    await waitFor(() => expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledTimes(2));
+  });
+
+  it("shows the subtree consequence before excluding a parent unit", async () => {
+    const base = sourceReady().session;
+    const withChild = sourceReady({
+      review: {
+        ...base.review!,
+        canCommit: true,
+        createCount: 2,
+        existingCount: 0,
+        proposalNodes: [{
+          id: "row:2", name: "Consulting", businessCode: "CONS", businessCodeGenerated: false,
+          rawType: "Division", typeId: "t1", typeName: "Division", parentNodeId: null, parentCanonicalId: "1",
+          rawParent: null, canonicalId: null, classification: "Create", isProposalRoot: false,
+          descriptiveCandidates: [], sourceCells: [], identityEvidence: [],
+        }],
+        resultingOrganization: [
+          { id: "canonical:1", canonicalId: "1", name: "Demo Eight", businessCode: "DE", typeName: "Organization", parentId: null, isNew: false, isRoot: true },
+          { id: "row:2", canonicalId: null, name: "Consulting", businessCode: "CONS", typeName: "Division", parentId: "canonical:1", isNew: true, isRoot: false },
+          { id: "row:3", canonicalId: null, name: "Transformation", businessCode: "TRAN", typeName: "Team", parentId: "row:2", isNew: true, isRoot: false },
+        ],
+      },
+    }).session;
+    mocks.sessionQuery = { data: withChild, isLoading: false, error: null, refetch: vi.fn() };
+    mocks.replaceDecisions.mutateAsync.mockResolvedValue(withChild);
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    fireEvent.click(screen.getByText("Consulting"));
+    const panel = screen.getByRole("complementary", { name: "Import review panel" });
+    fireEvent.click(within(panel).getByRole("button", { name: "Exclude from import" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText(/1 proposed unit/)).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Exclude 2 units" }));
+
+    await waitFor(() => expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledWith({
+      id: "session-1",
+      version: 1,
+      decisions: expect.objectContaining({
+        excludedNodeIds: expect.arrayContaining(["row:2", "row:3"]),
+      }),
+    }));
   });
 });
