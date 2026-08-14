@@ -33,7 +33,7 @@ export interface OrganizationImportSourceDto {
 
 export interface OrganizationImportSessionDto {
   id: string;
-  status: "Active" | "Discarded";
+  status: "Active" | "Discarded" | "Committed";
   effectiveDate: string;
   version: number;
   startedByUserId: string;
@@ -45,7 +45,81 @@ export interface OrganizationImportSessionDto {
   discardedAt: string | null;
   source: OrganizationImportSourceDto;
   baseline: CanonicalOrganizationBaselineSummary;
+  decisions: OrganizationImportDecisions;
+  review: OrganizationImportReview | null;
+  commitResult: OrganizationImportCommitResult | null;
+  committedAt: string | null;
+  committedByUserId: string | null;
+  committedByDisplayName: string | null;
+  finalProvenance: OrganizationImportProvenance[] | null;
 }
+
+export type OrganizationImportShape = "Native" | "ParentReference" | "LevelColumns" | "Unresolved";
+export type OrganizationImportResolutionStatus = "Resolved" | "Suggested" | "Unresolved";
+export type OrganizationImportResolutionOrigin = "Native" | "Deterministic" | "Administrator" | "FutureSuggestion";
+export type OrganizationImportNodeClassification = "Unchanged" | "Create" | "Conflict";
+export type OrganizationImportIssueSeverity = "Blocker" | "Warning" | "Information";
+
+export interface OrganizationImportFieldMapping {
+  field: string;
+  columnIndex: number | null;
+  status: OrganizationImportResolutionStatus;
+  origin: OrganizationImportResolutionOrigin;
+}
+export interface OrganizationImportRootDecision { name: string; businessCode: string }
+export interface OrganizationImportNodeCorrection {
+  name?: string | null;
+  businessCode?: string | null;
+  typeId?: string | null;
+  parentNodeId?: string | null;
+  parentCanonicalId?: string | null;
+}
+export interface OrganizationImportDecisions {
+  shape?: OrganizationImportShape | null;
+  fieldMappings?: Record<string, number | null>;
+  typeMappings?: Record<string, string>;
+  acceptedExistingMatches?: Record<string, string>;
+  nodeCorrections?: Record<string, OrganizationImportNodeCorrection>;
+  excludedNodeIds?: string[];
+  keepCanonicalNodeIds?: string[];
+  introducedRoot?: OrganizationImportRootDecision | null;
+}
+export interface OrganizationImportTypeOption { id: string; name: string }
+export interface OrganizationImportCandidate { id: string; code: string; name: string; typeId: string; typeName: string; parentId: string | null }
+export interface OrganizationImportSourceCell { rowNumber: number; columnIndex: number; value: string | null }
+export interface OrganizationImportIdentityEvidence {
+  identifier: "fusionOrgUnitId" | "businessCode";
+  suppliedValue: string;
+  unitId: string;
+  unitName: string;
+  unitCode: string;
+}
+export interface OrganizationImportReviewNode {
+  id: string; name: string; businessCode: string | null; businessCodeGenerated: boolean; rawType: string | null;
+  typeId: string | null; typeName: string | null; parentNodeId: string | null; parentCanonicalId: string | null; rawParent: string | null;
+  canonicalId: string | null; classification: OrganizationImportNodeClassification; isProposalRoot: boolean;
+  descriptiveCandidates: OrganizationImportCandidate[]; sourceCells: OrganizationImportSourceCell[];
+  identityEvidence: OrganizationImportIdentityEvidence[];
+}
+export interface OrganizationImportResultNode {
+  id: string; canonicalId: string | null; name: string; businessCode: string; typeName: string;
+  parentId: string | null; isNew: boolean; isRoot: boolean;
+}
+export interface OrganizationImportIssue {
+  code: string; severity: OrganizationImportIssueSeverity; title: string; message: string; affectedCount: number;
+  nodeIds: string[]; sourceCells: OrganizationImportSourceCell[]; recoveryActions: string[];
+}
+export interface OrganizationImportReview {
+  shape: OrganizationImportShape; shapeStatus: OrganizationImportResolutionStatus; shapeOrigin: OrganizationImportResolutionOrigin;
+  fieldMappings: OrganizationImportFieldMapping[]; typeOptions: OrganizationImportTypeOption[];
+  proposalNodes: OrganizationImportReviewNode[]; resultingOrganization: OrganizationImportResultNode[];
+  issues: OrganizationImportIssue[]; existingCount: number; createCount: number; canCommit: boolean;
+  semanticDigest: string; canonicalObservationDigest: string; decisionRevision: number;
+  decisionsUpdatedAt: string | null; decisionsUpdatedByDisplayName: string | null;
+}
+export interface OrganizationImportCreatedUnit { proposalNodeId: string; orgUnitId: string; businessCode: string; name: string }
+export interface OrganizationImportCommitResult { sessionId: string; effectiveDate: string; createdUnits: OrganizationImportCreatedUnit[]; noChanges: boolean }
+export interface OrganizationImportProvenance { proposalNodeId: string; orgUnitId: string | null; sourceCells: OrganizationImportSourceCell[]; resolution: string }
 
 export interface OrganizationImportActiveSummaryDto {
   id: string;
@@ -96,6 +170,9 @@ export const coreOrganizationImportPaths = {
   session: (id: string) => `/corehr/organization/imports/${id}`,
   effectiveDate: (id: string) => `/corehr/organization/imports/${id}/effective-date`,
   discard: (id: string) => `/corehr/organization/imports/${id}/discard`,
+  decisions: (id: string) => `/corehr/organization/imports/${id}/decisions`,
+  refresh: (id: string) => `/corehr/organization/imports/${id}/refresh`,
+  commit: (id: string) => `/corehr/organization/imports/${id}/commit`,
 } as const;
 
 export const coreOrganizationImportQueryKeys = {
@@ -172,6 +249,20 @@ export function createCoreOrganizationImportApi(client: ApiClient) {
       client.post<OrganizationImportSessionDto>(
         coreOrganizationImportPaths.discard(id),
         undefined,
+        { headers: { "If-Match": organizationIfMatch(version) } }
+      ),
+    replaceDecisions: (id: string, version: number, decisions: OrganizationImportDecisions) =>
+      client.put<OrganizationImportSessionDto>(
+        coreOrganizationImportPaths.decisions(id),
+        { decisions },
+        { headers: { "If-Match": organizationIfMatch(version) } }
+      ),
+    refresh: (id: string) =>
+      client.post<OrganizationImportSessionDto>(coreOrganizationImportPaths.refresh(id)),
+    commit: (id: string, version: number, semanticDigest: string) =>
+      client.post<OrganizationImportCommitResult>(
+        coreOrganizationImportPaths.commit(id),
+        { semanticDigest },
         { headers: { "If-Match": organizationIfMatch(version) } }
       ),
   };

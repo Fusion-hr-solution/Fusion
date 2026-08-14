@@ -60,6 +60,28 @@ describe("Organization Import contracts", () => {
     );
   });
 
+  it("sends only bounded decisions and the reviewed digest with optimistic concurrency", async () => {
+    const put = vi.fn().mockResolvedValue({});
+    const post = vi.fn().mockResolvedValue({});
+    const api = createCoreOrganizationImportApi({
+      get: vi.fn(), post, put, patch: vi.fn(), delete: vi.fn(),
+    } as unknown as ApiClient);
+
+    await api.replaceDecisions("session-1", 9, { introducedRoot: { name: "Asteria", businessCode: "ASTERIA" } });
+    await api.commit("session-1", 10, "digest");
+
+    expect(put).toHaveBeenCalledWith(
+      "/corehr/organization/imports/session-1/decisions",
+      { decisions: { introducedRoot: { name: "Asteria", businessCode: "ASTERIA" } } },
+      { headers: { "If-Match": '"9"' } }
+    );
+    expect(post).toHaveBeenCalledWith(
+      "/corehr/organization/imports/session-1/commit",
+      { semanticDigest: "digest" },
+      { headers: { "If-Match": '"10"' } }
+    );
+  });
+
   it("keeps active and durable caches in one bounded namespace", () => {
     expect(coreOrganizationImportQueryKeys.active()).toEqual(["coreOrganizationImport", "active"]);
     expect(coreOrganizationImportQueryKeys.session("session-1")).toEqual([
