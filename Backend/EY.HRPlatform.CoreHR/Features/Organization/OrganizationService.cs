@@ -263,6 +263,68 @@ public sealed class OrganizationService(
         return await GetUnitAsync(unit.Id, request.EffectiveDate, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<OrganizationBatchCreatedNode>> CreateBatchInCurrentTransactionAsync(
+        DateOnly effectiveDate,
+        IReadOnlyList<OrganizationBatchCreateNode> nodes,
+        CancellationToken cancellationToken)
+    {
+        if (dbContext.Database.IsRelational() && dbContext.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("Canonical Organization batch creation requires the caller's write transaction.");
+        await EnsureBuiltInsAsync(cancellationToken);
+        var existingRoot = await dbContext.OrgUnits.AnyAsync(unit => unit.IsRoot, cancellationToken);
+        if (existingRoot && nodes.Any(node => node.IsRoot))
+            throw new DuplicateEntityException("Organization root");
+        if (!existingRoot && nodes.Count > 0 && nodes.Count(node => node.IsRoot) != 1)
+            throw new ArgumentException("A fresh Organization batch must create exactly one permanent root.");
+
+        var pending = nodes.ToDictionary(node => node.ProposalNodeId, StringComparer.Ordinal);
+        var created = new Dictionary<string, OrganizationBatchCreatedNode>(StringComparer.Ordinal);
+        var stagedUnits = new List<OrgUnit>();
+        while (pending.Count > 0)
+        {
+            var ready = pending.Values
+                .Where(node => node.ParentProposalNodeId is null || created.ContainsKey(node.ParentProposalNodeId))
+                .OrderByDescending(node => node.IsRoot)
+                .ThenBy(node => node.ProposalNodeId, StringComparer.Ordinal)
+                .ToList();
+            if (ready.Count == 0) throw new ArgumentException("The Organization create plan contains a parent cycle.");
+            foreach (var node in ready)
+            {
+                var normalizedCode = NormalizeCode(node.Code);
+                await EnsureCodeAvailableAsync(normalizedCode, null, cancellationToken);
+                if (created.Values.Any(item => item.Code.Equals(normalizedCode, StringComparison.Ordinal)))
+                    throw new DuplicateEntityException("Organizational Unit code");
+                await EnsureTypeAvailableAsync(node.TypeId, cancellationToken);
+                var parentId = node.ParentProposalNodeId is not null
+                    ? created[node.ParentProposalNodeId].OrgUnitId
+                    : node.ParentCanonicalId;
+                if (!node.IsRoot)
+                {
+                    if (parentId is null) throw new ArgumentException("A non-root Organizational Unit requires a parent.");
+                    if (node.ParentProposalNodeId is null)
+                    {
+                        var parent = await ResolveStateAsync(parentId.Value, effectiveDate, cancellationToken)
+                            ?? throw new ArgumentException("Parent must be active on the unit effective date.");
+                        if (parent.LifecycleState != OrgUnitLifecycleState.Active)
+                            throw new ArgumentException("Parent must be active on the unit effective date.");
+                    }
+                }
+                var unit = OrgUnit.CreateCanonical(TenantId, normalizedCode, node.IsRoot);
+                var payload = OrganizationPatch.Create(node.Name, node.TypeId, parentId, OrgUnitLifecycleState.Active);
+                dbContext.OrgUnits.Add(unit);
+                dbContext.OrganizationChanges.Add(NewChange(unit, effectiveDate, OrganizationChangeKind.Create, null, "Unit created by Organization import", payload));
+                dbContext.OrgUnitCodeReservations.Add(OrgUnitCodeReservation.Create(TenantId, unit.Id, normalizedCode));
+                created.Add(node.ProposalNodeId, new(node.ProposalNodeId, unit.Id, normalizedCode, node.Name.Trim()));
+                stagedUnits.Add(unit);
+                pending.Remove(node.ProposalNodeId);
+            }
+        }
+        foreach (var unit in stagedUnits)
+            await RebuildStatesAsync(unit.Id, cancellationToken);
+        await SaveAndValidateAsync(cancellationToken);
+        return nodes.Select(node => created[node.ProposalNodeId]).ToList();
+    }
+
     public Task<OrganizationUnitStateDto> ChangeAsync(Guid id, uint expectedVersion, ChangeOrganizationUnitRequest request, CancellationToken cancellationToken)
         => MutateAsync(id, expectedVersion, request.EffectiveDate, OrganizationChangeKind.Change, request.Reason, "Details changed",
             new OrganizationPatch(request.Name is not null, request.Name, request.TypeId.HasValue, request.TypeId, false, null, false, null), cancellationToken);
@@ -486,17 +548,7 @@ public sealed class OrganizationService(
     }
 
     private async Task<IDbContextTransaction?> BeginOrganizationWriteAsync(CancellationToken cancellationToken)
-    {
-        if (!dbContext.Database.IsRelational())
-            return null;
-        var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-        if (dbContext.Database.IsNpgsql())
-        {
-            var key = BitConverter.ToInt64(TenantId.ToByteArray(), 0);
-            await dbContext.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock({key})", cancellationToken);
-        }
-        return transaction;
-    }
+        => await OrganizationWriteTransaction.BeginAsync(dbContext, TenantId, cancellationToken);
 
     private async Task ValidateHierarchyAsync(DateOnly asOf, IReadOnlyList<OrgUnitEffectiveState> states, CancellationToken cancellationToken)
     {

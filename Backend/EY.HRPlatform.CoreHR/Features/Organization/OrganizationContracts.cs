@@ -70,3 +70,13 @@ public sealed record CorrectOrganizationUnitRequest(string? Name, Guid? TypeId, 
 public sealed record CorrectOrganizationCodeRequest(string Code, string Reason);
 public sealed record CreateOrganizationalUnitTypeRequest(string Name);
 public sealed record RenameOrganizationalUnitTypeRequest(string Name);
+
+public sealed record OrganizationBatchCreateNode(
+    string ProposalNodeId,
+    string Code,
+    string Name,
+    Guid TypeId,
+    string? ParentProposalNodeId,
+    Guid? ParentCanonicalId,
+    bool IsRoot);
+public sealed record OrganizationBatchCreatedNode(string ProposalNodeId, Guid OrgUnitId, string Code, string Name);

@@ -16,6 +16,12 @@ public sealed class OrganizationImportSessionConfiguration : IEntityTypeConfigur
         builder.Property(session => session.CreationFingerprint).HasMaxLength(64).IsRequired();
         builder.Property(session => session.StartedByDisplayName).HasMaxLength(256).IsRequired();
         builder.Property(session => session.LastUpdatedByDisplayName).HasMaxLength(256).IsRequired();
+        builder.Property(session => session.DecisionsJson).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb").IsRequired();
+        builder.Property(session => session.DecisionsUpdatedByDisplayName).HasMaxLength(256);
+        builder.Property(session => session.CommittedByDisplayName).HasMaxLength(256);
+        builder.Property(session => session.FinalSemanticDigest).HasMaxLength(64);
+        builder.Property(session => session.CommitResultJson).HasColumnType("jsonb");
+        builder.Property(session => session.FinalProvenanceJson).HasColumnType("jsonb");
         builder.Property(session => session.CreatedBy).HasMaxLength(256);
         builder.Property(session => session.UpdatedBy).HasMaxLength(256);
         builder.HasIndex(session => new { session.TenantId, session.CreationToken })

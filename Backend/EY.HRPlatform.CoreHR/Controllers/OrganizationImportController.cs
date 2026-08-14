@@ -125,6 +125,56 @@ public sealed class OrganizationImportController(
         return Ok(ApiResponse<OrganizationImportSessionDto>.Success(session));
     }
 
+    [HttpPut("{sessionId:guid}/decisions")]
+    public async Task<ActionResult<ApiResponse<OrganizationImportSessionDto>>> ReplaceDecisions(
+        Guid sessionId,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        [FromBody] ReplaceOrganizationImportDecisionsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageOrganization(User)) return Forbid();
+        if (!TryParseVersion(ifMatch, out var version))
+            return BadRequest(ApiResponse.Failure("A current import version is required."));
+        try
+        {
+            var session = await importService.ReplaceDecisionsAsync(sessionId, version, request.Decisions, Actor(), cancellationToken);
+            SetEtag(session.Version);
+            return Ok(ApiResponse<OrganizationImportSessionDto>.Success(session));
+        }
+        catch (OrganizationImportReviewException exception) { return ReviewProblem(exception); }
+    }
+
+    [HttpPost("{sessionId:guid}/refresh")]
+    public async Task<ActionResult<ApiResponse<OrganizationImportSessionDto>>> Refresh(Guid sessionId, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageOrganization(User)) return Forbid();
+        try
+        {
+            var session = await importService.RefreshAsync(sessionId, cancellationToken);
+            SetEtag(session.Version);
+            return Ok(ApiResponse<OrganizationImportSessionDto>.Success(session));
+        }
+        catch (OrganizationImportReviewException exception) { return ReviewProblem(exception); }
+    }
+
+    [HttpPost("{sessionId:guid}/commit")]
+    public async Task<ActionResult<ApiResponse<OrganizationImportCommitResult>>> Commit(
+        Guid sessionId,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        [FromBody] CommitOrganizationImportRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageOrganization(User)) return Forbid();
+        if (!TryParseVersion(ifMatch, out var version))
+            return BadRequest(ApiResponse.Failure("A current import version is required."));
+        try
+        {
+            var result = await importService.CommitAsync(sessionId, version, request.SemanticDigest, Actor(), cancellationToken);
+            return Ok(ApiResponse<OrganizationImportCommitResult>.Success(result));
+        }
+        catch (OrganizationImportReviewException exception) { return ReviewProblem(exception); }
+    }
+
     private OrganizationImportActor Actor() => new(User.GetUserId(), User.GetFullName());
 
     private ObjectResult SourceProblem(OrganizationImportSourceException exception)
@@ -133,6 +183,19 @@ public sealed class OrganizationImportController(
         {
             Status = exception.StatusCode,
             Title = "Organization source could not be accepted",
+            Detail = exception.Message,
+            Type = $"https://fusion.local/problems/organization-import/{exception.Code}",
+        };
+        problem.Extensions["code"] = exception.Code;
+        return StatusCode(exception.StatusCode, problem);
+    }
+
+    private ObjectResult ReviewProblem(OrganizationImportReviewException exception)
+    {
+        var problem = new ProblemDetails
+        {
+            Status = exception.StatusCode,
+            Title = "Organization proposal needs attention",
             Detail = exception.Message,
             Type = $"https://fusion.local/problems/organization-import/{exception.Code}",
         };

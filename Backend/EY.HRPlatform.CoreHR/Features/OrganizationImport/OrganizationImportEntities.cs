@@ -7,6 +7,7 @@ public enum OrganizationImportStatus
 {
     Active,
     Discarded,
+    Committed,
 }
 
 public sealed class OrganizationImportSession : BaseEntity, ITenantEntity
@@ -25,6 +26,17 @@ public sealed class OrganizationImportSession : BaseEntity, ITenantEntity
     public string LastUpdatedByDisplayName { get; private set; } = string.Empty;
     public DateTime? DiscardedAt { get; private set; }
     public Guid? DiscardedByUserId { get; private set; }
+    public string DecisionsJson { get; private set; } = "{}";
+    public int DecisionRevision { get; private set; }
+    public DateTime? DecisionsUpdatedAt { get; private set; }
+    public Guid? DecisionsUpdatedByUserId { get; private set; }
+    public string? DecisionsUpdatedByDisplayName { get; private set; }
+    public DateTime? CommittedAt { get; private set; }
+    public Guid? CommittedByUserId { get; private set; }
+    public string? CommittedByDisplayName { get; private set; }
+    public string? FinalSemanticDigest { get; private set; }
+    public string? CommitResultJson { get; private set; }
+    public string? FinalProvenanceJson { get; private set; }
     public OrganizationImportSource Source { get; private set; } = null!;
 
     public static OrganizationImportSession Create(
@@ -63,6 +75,39 @@ public sealed class OrganizationImportSession : BaseEntity, ITenantEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
+    public void ReplaceDecisions(OrganizationImportDecisions decisions, OrganizationImportActor actor)
+    {
+        EnsureActive();
+        DecisionsJson = OrganizationImportJson.Serialize(decisions.Normalize());
+        DecisionRevision++;
+        DecisionsUpdatedAt = DateTime.UtcNow;
+        DecisionsUpdatedByUserId = actor.UserId;
+        DecisionsUpdatedByDisplayName = actor.DisplayName;
+        LastUpdatedByUserId = actor.UserId;
+        LastUpdatedByDisplayName = actor.DisplayName;
+        UpdatedAt = DecisionsUpdatedAt;
+    }
+
+    public void Commit(
+        string semanticDigest,
+        OrganizationImportCommitResult result,
+        IReadOnlyList<OrganizationImportProvenance> provenance,
+        OrganizationImportActor actor)
+    {
+        EnsureActive();
+        Status = OrganizationImportStatus.Committed;
+        CommittedAt = DateTime.UtcNow;
+        CommittedByUserId = actor.UserId;
+        CommittedByDisplayName = actor.DisplayName;
+        FinalSemanticDigest = semanticDigest;
+        CommitResultJson = OrganizationImportJson.Serialize(result);
+        FinalProvenanceJson = OrganizationImportJson.Serialize(provenance);
+        LastUpdatedByUserId = actor.UserId;
+        LastUpdatedByDisplayName = actor.DisplayName;
+        UpdatedAt = CommittedAt;
+        Source.PurgePayload();
+    }
+
     public bool Discard(OrganizationImportActor actor)
     {
         if (Status == OrganizationImportStatus.Discarded) return false;
@@ -79,7 +124,7 @@ public sealed class OrganizationImportSession : BaseEntity, ITenantEntity
     private void EnsureActive()
     {
         if (Status != OrganizationImportStatus.Active)
-            throw new InvalidOperationException("A discarded import cannot be changed.");
+            throw new InvalidOperationException("A terminal import cannot be changed.");
     }
 }
 

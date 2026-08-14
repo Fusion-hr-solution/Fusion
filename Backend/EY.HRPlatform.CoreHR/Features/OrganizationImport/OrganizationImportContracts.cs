@@ -59,7 +59,14 @@ public sealed record OrganizationImportSessionDto(
     DateTime? UpdatedAt,
     DateTime? DiscardedAt,
     OrganizationImportSourceDto Source,
-    CanonicalOrganizationBaselineSummary Baseline);
+    CanonicalOrganizationBaselineSummary Baseline,
+    OrganizationImportDecisions Decisions,
+    OrganizationImportReview? Review,
+    OrganizationImportCommitResult? CommitResult,
+    DateTime? CommittedAt,
+    Guid? CommittedByUserId,
+    string? CommittedByDisplayName,
+    IReadOnlyList<OrganizationImportProvenance>? FinalProvenance);
 
 public sealed record OrganizationImportActiveSummaryDto(
     Guid Id,
@@ -104,7 +111,9 @@ internal static class OrganizationImportJson
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    public static string Serialize(OrganizationSourceTable value) => JsonSerializer.Serialize(value, Options);
+    public static string Serialize<T>(T value) => JsonSerializer.Serialize(value, Options);
     public static OrganizationSourceTable? Deserialize(string? value)
         => value is null ? null : JsonSerializer.Deserialize<OrganizationSourceTable>(value, Options);
+    public static T? Deserialize<T>(string? value)
+        => value is null ? default : JsonSerializer.Deserialize<T>(value, Options);
 }

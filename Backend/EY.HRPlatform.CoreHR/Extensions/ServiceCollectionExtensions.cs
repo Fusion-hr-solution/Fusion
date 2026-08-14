@@ -59,6 +59,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IOrganizationImportSourceInspectionService, OrganizationImportSourceInspectionService>();
         services.AddScoped<IOrganizationImportWorkbookService, OrganizationImportWorkbookService>();
         services.AddScoped<IOrganizationImportService, OrganizationImportService>();
+        services.AddScoped<IOrganizationImportInterpreter, OrganizationImportInterpreter>();
         services.AddHostedService<EmployeeImportApplyBackgroundService>();
 
         services.AddHttpClient<IWorkforceBulkProvisioner, WorkforceBulkProvisioner>(client =>

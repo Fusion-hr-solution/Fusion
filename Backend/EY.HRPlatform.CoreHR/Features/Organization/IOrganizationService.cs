@@ -11,6 +11,10 @@ public interface IOrganizationService
     Task<IReadOnlyList<OrganizationalUnitTypeDto>> GetTypesAsync(CancellationToken cancellationToken);
     Task<OrganizationUnitStateDto> CreateRootAsync(CreateOrganizationRootRequest request, CancellationToken cancellationToken);
     Task<OrganizationUnitStateDto> CreateUnitAsync(CreateOrganizationUnitRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<OrganizationBatchCreatedNode>> CreateBatchInCurrentTransactionAsync(
+        DateOnly effectiveDate,
+        IReadOnlyList<OrganizationBatchCreateNode> nodes,
+        CancellationToken cancellationToken);
     Task<OrganizationUnitStateDto> ChangeAsync(Guid id, uint expectedVersion, ChangeOrganizationUnitRequest request, CancellationToken cancellationToken);
     Task<OrganizationUnitStateDto> MoveAsync(Guid id, uint expectedVersion, MoveOrganizationUnitRequest request, CancellationToken cancellationToken);
     Task<OrganizationUnitStateDto> InactivateAsync(Guid id, uint expectedVersion, InactivateOrganizationUnitRequest request, CancellationToken cancellationToken);

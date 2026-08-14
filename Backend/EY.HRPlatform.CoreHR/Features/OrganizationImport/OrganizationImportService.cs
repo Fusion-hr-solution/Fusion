@@ -33,13 +33,27 @@ public interface IOrganizationImportService
         uint expectedVersion,
         OrganizationImportActor actor,
         CancellationToken cancellationToken);
+    Task<OrganizationImportSessionDto> ReplaceDecisionsAsync(
+        Guid sessionId,
+        uint expectedVersion,
+        OrganizationImportDecisions decisions,
+        OrganizationImportActor actor,
+        CancellationToken cancellationToken);
+    Task<OrganizationImportSessionDto> RefreshAsync(Guid sessionId, CancellationToken cancellationToken);
+    Task<OrganizationImportCommitResult> CommitAsync(
+        Guid sessionId,
+        uint expectedVersion,
+        string semanticDigest,
+        OrganizationImportActor actor,
+        CancellationToken cancellationToken);
 }
 
 public sealed class OrganizationImportService(
     CoreHRDbContext dbContext,
     ITenantContext tenantContext,
     IOrganizationImportSourceInspectionService inspectionService,
-    IOrganizationService organizationService) : IOrganizationImportService
+    IOrganizationService organizationService,
+    IOrganizationImportInterpreter interpreter) : IOrganizationImportService
 {
     private Guid TenantId => tenantContext.TenantId;
 
@@ -146,6 +160,77 @@ public sealed class OrganizationImportService(
         return await MapAsync(session, cancellationToken);
     }
 
+    public async Task<OrganizationImportSessionDto> ReplaceDecisionsAsync(
+        Guid sessionId,
+        uint expectedVersion,
+        OrganizationImportDecisions decisions,
+        OrganizationImportActor actor,
+        CancellationToken cancellationToken)
+    {
+        var session = await LoadAsync(sessionId, cancellationToken);
+        ValidateDecisionBounds(session, decisions);
+        dbContext.Entry(session).Property(item => item.Version).OriginalValue = expectedVersion;
+        session.ReplaceDecisions(decisions, actor.Normalize());
+        try { await dbContext.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateConcurrencyException) { throw new ConcurrencyException("Organization import", sessionId); }
+        return await MapAsync(session, cancellationToken);
+    }
+
+    public Task<OrganizationImportSessionDto> RefreshAsync(Guid sessionId, CancellationToken cancellationToken)
+        => GetAsync(sessionId, cancellationToken);
+
+    public async Task<OrganizationImportCommitResult> CommitAsync(
+        Guid sessionId,
+        uint expectedVersion,
+        string semanticDigest,
+        OrganizationImportActor actor,
+        CancellationToken cancellationToken)
+    {
+        var initiallyLoaded = await LoadAsync(sessionId, cancellationToken);
+        if (initiallyLoaded.Status == OrganizationImportStatus.Committed)
+            return OrganizationImportJson.Deserialize<OrganizationImportCommitResult>(initiallyLoaded.CommitResultJson)
+                ?? throw new InvalidOperationException("The committed import result is unavailable.");
+        if (initiallyLoaded.Status != OrganizationImportStatus.Active)
+            throw new OrganizationImportReviewException("ImportTerminal", "A discarded import cannot be completed.", StatusCodes.Status409Conflict);
+        dbContext.ChangeTracker.Clear();
+
+        await using var transaction = await OrganizationWriteTransaction.BeginAsync(dbContext, TenantId, cancellationToken);
+        var session = await LoadAsync(sessionId, cancellationToken);
+        if (session.Status == OrganizationImportStatus.Committed)
+            return OrganizationImportJson.Deserialize<OrganizationImportCommitResult>(session.CommitResultJson)
+                ?? throw new InvalidOperationException("The committed import result is unavailable.");
+        if (session.Status != OrganizationImportStatus.Active)
+            throw new OrganizationImportReviewException("ImportTerminal", "A discarded import cannot be completed.", StatusCodes.Status409Conflict);
+        dbContext.Entry(session).Property(item => item.Version).OriginalValue = expectedVersion;
+        var review = await interpreter.InterpretAsync(session, cancellationToken);
+        if (!review.CanCommit)
+            throw new OrganizationImportReviewException("ProposalBlocked", "Resolve every blocking issue before completing the import.", StatusCodes.Status409Conflict);
+        if (string.IsNullOrWhiteSpace(semanticDigest)
+            || !CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(review.SemanticDigest), Encoding.ASCII.GetBytes(semanticDigest.Trim())))
+            throw new OrganizationImportReviewException("ProposalChanged", "The Organization proposal changed. Review the refreshed result before completing it.", StatusCodes.Status409Conflict);
+
+        var createNodes = review.ProposalNodes
+            .Where(node => node.Classification == OrganizationImportNodeClassification.Create)
+            .Select(node => new OrganizationBatchCreateNode(node.Id, node.BusinessCode!, node.Name, node.TypeId!.Value,
+                node.ParentNodeId, node.ParentCanonicalId, node.IsProposalRoot))
+            .ToList();
+        var created = await organizationService.CreateBatchInCurrentTransactionAsync(session.EffectiveDate, createNodes, cancellationToken);
+        var result = new OrganizationImportCommitResult(session.Id, session.EffectiveDate,
+            created.Select(node => new OrganizationImportCreatedUnit(node.ProposalNodeId, node.OrgUnitId, node.Code, node.Name)).ToList(),
+            created.Count == 0);
+        var createdByProposal = created.ToDictionary(node => node.ProposalNodeId, StringComparer.Ordinal);
+        var provenance = review.ProposalNodes.Select(node => new OrganizationImportProvenance(
+            node.Id,
+            node.CanonicalId ?? (createdByProposal.TryGetValue(node.Id, out var item) ? item.OrgUnitId : null),
+            node.SourceCells,
+            node.Classification.ToString())).ToList();
+        session.Commit(review.SemanticDigest, result, provenance, actor.Normalize());
+        try { await dbContext.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateConcurrencyException) { throw new ConcurrencyException("Organization import", sessionId); }
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
+        return result;
+    }
+
     private async Task<OrganizationImportIntakeResult> ReplayOrConflictAsync(
         OrganizationImportSession existing,
         string fingerprint,
@@ -188,6 +273,12 @@ public sealed class OrganizationImportService(
         var table = session.Status == OrganizationImportStatus.Active
             ? OrganizationImportJson.Deserialize(session.Source.SourceTableJson)
             : null;
+        var review = session.Status == OrganizationImportStatus.Active
+            ? await interpreter.InterpretAsync(session, cancellationToken)
+            : null;
+        var commitResult = session.Status == OrganizationImportStatus.Committed
+            ? OrganizationImportJson.Deserialize<OrganizationImportCommitResult>(session.CommitResultJson)
+            : null;
         return new OrganizationImportSessionDto(
             session.Id,
             session.Status.ToString(),
@@ -212,7 +303,16 @@ public sealed class OrganizationImportService(
                 session.Source.RowCount,
                 session.Source.PayloadPurgedAt,
                 table),
-            baseline);
+            baseline,
+            OrganizationImportJson.Deserialize<OrganizationImportDecisions>(session.DecisionsJson)?.Normalize() ?? new OrganizationImportDecisions().Normalize(),
+            review,
+            commitResult,
+            session.CommittedAt,
+            session.CommittedByUserId,
+            session.CommittedByDisplayName,
+            session.Status == OrganizationImportStatus.Committed
+                ? OrganizationImportJson.Deserialize<IReadOnlyList<OrganizationImportProvenance>>(session.FinalProvenanceJson)
+                : null);
     }
 
     private static string CreateFingerprint(InspectedOrganizationSource source)
@@ -223,4 +323,34 @@ public sealed class OrganizationImportService(
         => exception.InnerException is PostgresException postgres
             && postgres.SqlState == PostgresErrorCodes.UniqueViolation
             && postgres.ConstraintName == "UX_OrganizationImportSessions_Tenant_CreationToken";
+
+    private static void ValidateDecisionBounds(OrganizationImportSession session, OrganizationImportDecisions value)
+    {
+        var decisions = value.Normalize();
+        var allowedFields = new HashSet<string>(
+            [OrganizationImportFields.FusionOrgUnitId, OrganizationImportFields.BusinessCode, OrganizationImportFields.Name,
+             OrganizationImportFields.Type, OrganizationImportFields.ParentBusinessCode], StringComparer.Ordinal);
+        if (decisions.FieldMappings!.Any(item => !allowedFields.Contains(item.Key)
+                || item.Value is int column && (column < 0 || column >= session.Source.ColumnCount)))
+            throw new OrganizationImportReviewException("InvalidDecision", "A field mapping does not belong to this source.");
+        if (decisions.TypeMappings!.Count > 256 || decisions.AcceptedExistingMatches!.Count > session.Source.RowCount
+            || decisions.NodeCorrections!.Count > session.Source.RowCount * Math.Max(1, session.Source.ColumnCount)
+            || decisions.ExcludedNodeIds!.Count > session.Source.RowCount * Math.Max(1, session.Source.ColumnCount)
+            || decisions.KeepCanonicalNodeIds!.Count > session.Source.RowCount * Math.Max(1, session.Source.ColumnCount))
+            throw new OrganizationImportReviewException("DecisionLimitExceeded", "The proposal contains too many decisions.");
+        if (decisions.TypeMappings.Keys.Any(key => key.Length > 200)
+            || decisions.AcceptedExistingMatches.Keys.Concat(decisions.NodeCorrections.Keys)
+                .Concat(decisions.ExcludedNodeIds).Concat(decisions.KeepCanonicalNodeIds).Any(key => key.Length > 128))
+            throw new OrganizationImportReviewException("InvalidDecision", "A proposal decision is invalid.");
+        if (decisions.NodeCorrections.Values.Any(correction =>
+                correction.Name?.Trim().Length > 200 || correction.BusinessCode?.Trim().Length > 50
+                || correction.ParentNodeId?.Length > 128))
+            throw new OrganizationImportReviewException("InvalidDecision", "A proposed unit correction exceeds Organization limits.");
+        if (decisions.IntroducedRoot is { } root
+            && (string.IsNullOrWhiteSpace(root.Name) || root.Name.Trim().Length > 200
+                || string.IsNullOrWhiteSpace(root.BusinessCode) || root.BusinessCode.Trim().Length > 50))
+            throw new OrganizationImportReviewException("InvalidDecision", "The proposed Organization root needs a valid Name and Business Code.");
+        if (Encoding.UTF8.GetByteCount(OrganizationImportJson.Serialize(decisions)) > 512 * 1024)
+            throw new OrganizationImportReviewException("DecisionLimitExceeded", "The proposal decisions are too large.");
+    }
 }
