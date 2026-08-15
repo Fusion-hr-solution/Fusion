@@ -179,6 +179,127 @@ public sealed class OrganizationImportSource : BaseEntity, ITenantEntity
     }
 }
 
+public sealed class OrganizationImportSemanticAttempt : BaseEntity, ITenantEntity
+{
+    private OrganizationImportSemanticAttempt() { }
+
+    public Guid TenantId { get; private set; }
+    public Guid SessionId { get; private set; }
+    public int Version { get; private set; } = 1;
+    public int AttemptOrdinal { get; private set; }
+    public string ContractVersion { get; private set; } = string.Empty;
+    public string InputFingerprint { get; private set; } = string.Empty;
+    public OrganizationImportSemanticAttemptStatus Status { get; private set; }
+    public string Provider { get; private set; } = string.Empty;
+    public string Model { get; private set; } = string.Empty;
+    public string EligibleIssueKeysJson { get; private set; } = "[]";
+    public string SuggestionsJson { get; private set; } = "[]";
+    public string? ReviewOutcomesJson { get; private set; }
+    public OrganizationImportSemanticFailureCategory? FailureCategory { get; private set; }
+    public DateTime RequestedAt { get; private set; }
+    public DateTime? CompletedAt { get; private set; }
+    public DateTime? RetryAfter { get; private set; }
+    public int? LatencyMilliseconds { get; private set; }
+    public int? InputTokens { get; private set; }
+    public int? OutputTokens { get; private set; }
+    public Guid? AppliedByUserId { get; private set; }
+    public string? AppliedByDisplayName { get; private set; }
+    public DateTime? AppliedAt { get; private set; }
+
+    public static OrganizationImportSemanticAttempt CreatePending(
+        Guid tenantId,
+        Guid sessionId,
+        int attemptOrdinal,
+        string contractVersion,
+        string inputFingerprint,
+        string provider,
+        string model,
+        IReadOnlyList<string> eligibleIssueKeys)
+    {
+        if (tenantId == Guid.Empty) throw new ArgumentException("Tenant is required.", nameof(tenantId));
+        if (sessionId == Guid.Empty) throw new ArgumentException("Session is required.", nameof(sessionId));
+        if (attemptOrdinal < 1) throw new ArgumentOutOfRangeException(nameof(attemptOrdinal));
+        return new OrganizationImportSemanticAttempt
+        {
+            TenantId = tenantId,
+            SessionId = sessionId,
+            AttemptOrdinal = attemptOrdinal,
+            ContractVersion = contractVersion,
+            InputFingerprint = inputFingerprint,
+            Status = OrganizationImportSemanticAttemptStatus.Pending,
+            Provider = provider,
+            Model = model,
+            EligibleIssueKeysJson = OrganizationImportJson.Serialize(eligibleIssueKeys),
+            RequestedAt = DateTime.UtcNow,
+        };
+    }
+
+    public void Complete(
+        IReadOnlyList<OrganizationImportSemanticProviderSuggestion> suggestions,
+        int elapsedMilliseconds,
+        int? inputTokens,
+        int? outputTokens)
+    {
+        EnsurePending();
+        Status = OrganizationImportSemanticAttemptStatus.Available;
+        SuggestionsJson = OrganizationImportJson.Serialize(suggestions);
+        FailureCategory = null;
+        RetryAfter = null;
+        CompletedAt = DateTime.UtcNow;
+        LatencyMilliseconds = elapsedMilliseconds;
+        InputTokens = inputTokens;
+        OutputTokens = outputTokens;
+        Touch();
+    }
+
+    public void Fail(
+        OrganizationImportSemanticFailureCategory category,
+        int elapsedMilliseconds,
+        DateTime? retryAfter = null)
+    {
+        EnsurePending();
+        Status = OrganizationImportSemanticAttemptStatus.Failed;
+        FailureCategory = category;
+        RetryAfter = retryAfter;
+        CompletedAt = DateTime.UtcNow;
+        LatencyMilliseconds = elapsedMilliseconds;
+        SuggestionsJson = "[]";
+        Touch();
+    }
+
+    public void Supersede()
+    {
+        if (Status == OrganizationImportSemanticAttemptStatus.Superseded) return;
+        Status = OrganizationImportSemanticAttemptStatus.Superseded;
+        Touch();
+    }
+
+    public void Apply(IReadOnlyList<OrganizationImportSemanticReviewRecord> outcomes, OrganizationImportActor actor)
+    {
+        if (Status != OrganizationImportSemanticAttemptStatus.Available)
+            throw new InvalidOperationException("Only available suggestions can be applied.");
+        var normalizedActor = actor.Normalize();
+        Status = OrganizationImportSemanticAttemptStatus.Applied;
+        ReviewOutcomesJson = OrganizationImportJson.Serialize(outcomes);
+        AppliedByUserId = normalizedActor.UserId;
+        AppliedByDisplayName = normalizedActor.DisplayName;
+        AppliedAt = DateTime.UtcNow;
+        Touch();
+    }
+
+    private void EnsurePending()
+    {
+        if (Status != OrganizationImportSemanticAttemptStatus.Pending)
+            throw new InvalidOperationException("Only a pending assistance attempt can be completed.");
+    }
+
+    private void Touch()
+    {
+        Version++;
+        UpdatedAt = DateTime.UtcNow;
+    }
+}
+
 public sealed record OrganizationImportActor(Guid UserId, string DisplayName)
 {
     public OrganizationImportActor Normalize()

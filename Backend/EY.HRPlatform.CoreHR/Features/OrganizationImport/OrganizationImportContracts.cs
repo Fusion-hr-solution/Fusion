@@ -66,7 +66,8 @@ public sealed record OrganizationImportSessionDto(
     DateTime? CommittedAt,
     Guid? CommittedByUserId,
     string? CommittedByDisplayName,
-    IReadOnlyList<OrganizationImportProvenance>? FinalProvenance);
+    IReadOnlyList<OrganizationImportProvenance>? FinalProvenance,
+    OrganizationImportSemanticAssistanceDto? SemanticAssistance = null);
 
 public sealed record OrganizationImportActiveSummaryDto(
     Guid Id,

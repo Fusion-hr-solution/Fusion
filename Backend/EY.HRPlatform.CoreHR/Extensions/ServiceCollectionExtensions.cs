@@ -60,6 +60,21 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IOrganizationImportWorkbookService, OrganizationImportWorkbookService>();
         services.AddScoped<IOrganizationImportService, OrganizationImportService>();
         services.AddScoped<IOrganizationImportInterpreter, OrganizationImportInterpreter>();
+        var semanticAssistance = configuration
+            .GetSection(OrganizationImportSemanticAssistanceOptions.SectionName)
+            .Get<OrganizationImportSemanticAssistanceOptions>() ?? new OrganizationImportSemanticAssistanceOptions();
+        semanticAssistance.ApiKey = string.IsNullOrWhiteSpace(semanticAssistance.ApiKey)
+            ? configuration["GROQ_API_KEY"]
+            : semanticAssistance.ApiKey;
+        ValidateSemanticAssistance(semanticAssistance);
+        services.AddSingleton(semanticAssistance);
+        services.AddScoped<IOrganizationImportSemanticContextBuilder, OrganizationImportSemanticContextBuilder>();
+        services.AddScoped<IOrganizationImportSemanticAssistanceService, OrganizationImportSemanticAssistanceService>();
+        services.AddHttpClient<IOrganizationImportSemanticProvider, GroqOrganizationImportSemanticProvider>(client =>
+        {
+            client.BaseAddress = new Uri(EnsureTrailingSlash(semanticAssistance.Endpoint));
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
         services.AddHostedService<EmployeeImportApplyBackgroundService>();
 
         services.AddHttpClient<IWorkforceBulkProvisioner, WorkforceBulkProvisioner>(client =>
@@ -79,6 +94,30 @@ public static class ServiceCollectionExtensions
 
     private static string EnsureTrailingSlash(string url)
         => url.EndsWith('/') ? url : $"{url}/";
+
+    private static void ValidateSemanticAssistance(OrganizationImportSemanticAssistanceOptions options)
+    {
+        if (!string.Equals(options.Provider, OrganizationImportSemanticAssistanceOptions.DefaultProvider, StringComparison.Ordinal))
+            throw new InvalidOperationException("OrganizationImport:SemanticAssistance:Provider must be Groq.");
+        if (string.IsNullOrWhiteSpace(options.Model))
+            throw new InvalidOperationException("OrganizationImport:SemanticAssistance:Model is required.");
+        if (!Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var endpoint)
+            || (endpoint.Scheme != Uri.UriSchemeHttps && !endpoint.IsLoopback)
+            || (!endpoint.IsLoopback && !string.Equals(endpoint.Host, "api.groq.com", StringComparison.OrdinalIgnoreCase))
+            || !string.IsNullOrEmpty(endpoint.UserInfo)
+            || !string.IsNullOrEmpty(endpoint.Query)
+            || !string.IsNullOrEmpty(endpoint.Fragment))
+            throw new InvalidOperationException("OrganizationImport:SemanticAssistance:Endpoint must use api.groq.com over HTTPS or a loopback development URL.");
+        if (options.TimeoutSeconds is < 1 or > 60
+            || options.MaxFields is < 1 or > 32
+            || options.MaxValuesPerField is < 1 or > 8
+            || options.MaxTotalValues is < 1 or > 64
+            || options.MaxValueCharacters is < 16 or > 120
+            || options.MaxPayloadBytes is < 4096 or > 20480
+            || options.MaxRationaleCharacters is < 40 or > 180
+            || string.IsNullOrWhiteSpace(options.ContractVersion))
+            throw new InvalidOperationException("OrganizationImport:SemanticAssistance contains an invalid non-secret limit or contract version.");
+    }
 
     public static IServiceCollection AddMultitenancy(this IServiceCollection services)
     {

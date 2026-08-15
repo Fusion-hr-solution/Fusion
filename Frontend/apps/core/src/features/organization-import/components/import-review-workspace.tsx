@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CheckCircle2,
   FileSpreadsheet,
+  ListChecks,
   MoreHorizontal,
   RefreshCw,
   TriangleAlert,
@@ -41,6 +42,7 @@ import {
 import {
   translateOrganizationImportError,
   type OrganizationImportDecisions,
+  type OrganizationImportSemanticReviewedItem,
   type OrganizationImportSessionDto,
 } from "@repo/api";
 import { toast } from "sonner";
@@ -180,6 +182,27 @@ function ActiveReviewWorkspace({
   // has already advanced the ETag version).
   const sessionRef = useRef(session);
   sessionRef.current = session;
+  const generatedRequestRef = useRef<string | null>(null);
+  const [failedRequestKey, setFailedRequestKey] = useState<string | null>(null);
+  const reviewSurfaceRef = useRef<HTMLElement | null>(null);
+  const assistance = session.semanticAssistance;
+
+  useEffect(() => {
+    if (assistance?.state !== "Eligible" || !assistance.inputFingerprint) return;
+    const requestKey = `${session.id}:${assistance.inputFingerprint}`;
+    if (generatedRequestRef.current === requestKey) return;
+    generatedRequestRef.current = requestKey;
+    setFailedRequestKey(null);
+    void mutations.generateSuggestions
+      .mutateAsync({ id: session.id, inputFingerprint: assistance.inputFingerprint })
+      .then(() => onRefetch())
+      .catch((error) => {
+        setFailedRequestKey(requestKey);
+        toast.error("Suggestions could not be requested", {
+          description: translateOrganizationImportError(error).message,
+        });
+      });
+  }, [assistance?.inputFingerprint, assistance?.state, mutations.generateSuggestions, onRefetch, session.id]);
 
   const issues = useMemo(() => (review ? deriveReviewIssues(review) : []), [review]);
   const unplacedIds = useMemo(() => unresolvedParentNodeIds(issues), [issues]);
@@ -207,8 +230,10 @@ function ActiveReviewWorkspace({
       setSelection({ kind: "none" });
     } else if (selection.kind === "issues" && issues.length === 0) {
       setSelection({ kind: "none" });
+    } else if (selection.kind === "suggestions" && assistance?.state !== "Available") {
+      setSelection({ kind: "none" });
     }
-  }, [review, issues, selection, setSelection]);
+  }, [assistance?.state, review, issues, selection, setSelection]);
 
   async function changeDate(value: string) {
     setDate(value);
@@ -273,6 +298,49 @@ function ActiveReviewWorkspace({
         description: problem.message,
       });
       setCommitOpen(false);
+      onRefetch();
+    }
+  }
+
+  async function retrySuggestions() {
+    if (!assistance?.inputFingerprint) return;
+    const requestKey = `${session.id}:${assistance.inputFingerprint}`;
+    generatedRequestRef.current = requestKey;
+    setFailedRequestKey(null);
+    try {
+      await mutations.generateSuggestions.mutateAsync({
+        id: session.id,
+        inputFingerprint: assistance.inputFingerprint,
+        retry: true,
+      });
+      onRefetch();
+    } catch (error) {
+      toast.error("Suggestions could not be retried", {
+        description: translateOrganizationImportError(error).message,
+      });
+      setFailedRequestKey(requestKey);
+      onRefetch();
+    }
+  }
+
+  async function applySuggestions(reviewedItems: OrganizationImportSemanticReviewedItem[]) {
+    if (!assistance?.attemptId || !assistance.inputFingerprint || assistance.attemptVersion === null) return;
+    try {
+      await mutations.applySuggestions.mutateAsync({
+        id: session.id,
+        version: session.version,
+        attemptId: assistance.attemptId,
+        inputFingerprint: assistance.inputFingerprint,
+        attemptVersion: assistance.attemptVersion,
+        reviewedItems,
+      });
+      setSelection({ kind: "none" });
+      onRefetch();
+      window.requestAnimationFrame(() => reviewSurfaceRef.current?.focus());
+    } catch (error) {
+      toast.error("Suggestions were not applied", {
+        description: translateOrganizationImportError(error).message,
+      });
       onRefetch();
     }
   }
@@ -415,25 +483,78 @@ function ActiveReviewWorkspace({
                   </span>
                 ) : null}
               </span>
-              {issues.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={openIssues}
-                  className={cn(
-                    "ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                    hasBlocker
-                      ? "bg-destructive/10 text-destructive hover:bg-destructive/15"
-                      : "bg-warning/10 text-warning hover:bg-warning/15"
-                  )}
-                >
-                  {hasBlocker ? (
-                    <AlertCircle className="h-4 w-4" />
-                  ) : (
-                    <TriangleAlert className="h-4 w-4" />
-                  )}
-                  Needs attention · {issues.length}
-                </button>
-              ) : null}
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                {assistance?.state === "Eligible" && assistance.inputFingerprint &&
+                failedRequestKey === `${session.id}:${assistance.inputFingerprint}` ? (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-muted/70 px-2.5 py-1 text-sm text-muted-foreground"
+                    role="status"
+                  >
+                    Suggestions unavailable
+                    <button
+                      type="button"
+                      className="font-medium text-foreground hover:underline disabled:opacity-50"
+                      disabled={mutations.generateSuggestions.isLoading}
+                      onClick={() => void retrySuggestions()}
+                    >
+                      Retry
+                    </button>
+                  </span>
+                ) : assistance?.state === "Pending" ||
+                (assistance?.state === "Eligible" && mutations.generateSuggestions.isLoading) ? (
+                  <span
+                    className="inline-flex items-center gap-2 rounded-lg bg-muted/70 px-2.5 py-1 text-sm text-muted-foreground"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <Spinner className="size-3.5" aria-hidden />
+                    Interpreting unfamiliar organization terms…
+                  </span>
+                ) : assistance?.state === "Available" ? (
+                  <button
+                    type="button"
+                    onClick={() => setSelection({ kind: "suggestions" })}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1 text-sm font-medium text-primary outline-none hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <ListChecks className="h-4 w-4" aria-hidden />
+                    {assistance.suggestions.length} suggestions to review
+                  </button>
+                ) : assistance?.state === "Failed" ? (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-muted/70 px-2.5 py-1 text-sm text-muted-foreground"
+                    role="status"
+                  >
+                    Suggestions unavailable
+                    <button
+                      type="button"
+                      className="font-medium text-foreground hover:underline disabled:opacity-50"
+                      disabled={mutations.generateSuggestions.isLoading || Boolean(assistance.retryAfter && new Date(assistance.retryAfter) > new Date())}
+                      onClick={() => void retrySuggestions()}
+                    >
+                      Retry
+                    </button>
+                  </span>
+                ) : null}
+                {issues.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={openIssues}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      hasBlocker
+                        ? "bg-destructive/10 text-destructive hover:bg-destructive/15"
+                        : "bg-warning/10 text-warning hover:bg-warning/15"
+                    )}
+                  >
+                    {hasBlocker ? (
+                      <AlertCircle className="h-4 w-4" />
+                    ) : (
+                      <TriangleAlert className="h-4 w-4" />
+                    )}
+                    Needs attention · {issues.length}
+                  </button>
+                ) : null}
+              </div>
             </>
           ) : null}
         </div>
@@ -445,7 +566,12 @@ function ActiveReviewWorkspace({
         </div>
       ) : (
         <div className="relative flex min-h-0 flex-1">
-          <main className="min-w-0 flex-1" aria-label="Resulting organization review">
+          <main
+            ref={reviewSurfaceRef}
+            tabIndex={-1}
+            className="min-w-0 flex-1 outline-none"
+            aria-label="Resulting organization review"
+          >
             {tree.roots.length > 0 ? (
               <ImportReviewOutline
                 model={tree}
@@ -477,8 +603,10 @@ function ActiveReviewWorkspace({
                 review={review}
                 issues={issues}
                 saving={mutations.replaceDecisions.isLoading}
+                applyingSuggestions={mutations.applySuggestions.isLoading}
                 onSelect={setSelection}
                 onSave={(decisions) => void saveDecisions(decisions)}
+                onApplySuggestions={(items) => void applySuggestions(items)}
                 onExcludeNode={requestExclude}
                 onClose={() => setSelection({ kind: "none" })}
               />

@@ -52,6 +52,7 @@ export interface OrganizationImportSessionDto {
   committedByUserId: string | null;
   committedByDisplayName: string | null;
   finalProvenance: OrganizationImportProvenance[] | null;
+  semanticAssistance?: OrganizationImportSemanticAssistance | null;
 }
 
 export type OrganizationImportShape = "Native" | "ParentReference" | "LevelColumns" | "Unresolved";
@@ -121,6 +122,51 @@ export interface OrganizationImportCreatedUnit { proposalNodeId: string; orgUnit
 export interface OrganizationImportCommitResult { sessionId: string; effectiveDate: string; createdUnits: OrganizationImportCreatedUnit[]; noChanges: boolean }
 export interface OrganizationImportProvenance { proposalNodeId: string; orgUnitId: string | null; sourceCells: OrganizationImportSourceCell[]; resolution: string }
 
+export type OrganizationImportSemanticAssistanceState =
+  | "NotEligible"
+  | "Eligible"
+  | "Pending"
+  | "Available"
+  | "Failed"
+  | "Applied";
+export type OrganizationImportSemanticFailureCategory =
+  | "NotConfigured"
+  | "Timeout"
+  | "RateLimited"
+  | "ProviderUnavailable"
+  | "InvalidOutput"
+  | "Interrupted";
+export type OrganizationImportSemanticReviewOutcome = "Accepted" | "Changed" | "Rejected";
+export interface OrganizationImportSemanticTarget { key: string; label: string }
+export interface OrganizationImportSemanticSuggestion {
+  issueKey: string;
+  kind: "source_shape" | "field_mapping" | "organization_type_mapping";
+  sourceColumnIndex: number | null;
+  sourceLabel: string | null;
+  targetKey: string;
+  targetLabel: string;
+  rationale: string | null;
+  allowedTargets: OrganizationImportSemanticTarget[];
+}
+export interface OrganizationImportSemanticAssistance {
+  state: OrganizationImportSemanticAssistanceState;
+  inputFingerprint: string | null;
+  attemptId: string | null;
+  attemptVersion: number | null;
+  provider: string | null;
+  model: string | null;
+  requestedAt: string | null;
+  completedAt: string | null;
+  failureCategory: OrganizationImportSemanticFailureCategory | null;
+  retryAfter: string | null;
+  suggestions: OrganizationImportSemanticSuggestion[];
+}
+export interface OrganizationImportSemanticReviewedItem {
+  issueKey: string;
+  targetKey: string | null;
+  outcome: OrganizationImportSemanticReviewOutcome;
+}
+
 export interface OrganizationImportActiveSummaryDto {
   id: string;
   effectiveDate: string;
@@ -172,6 +218,9 @@ export const coreOrganizationImportPaths = {
   discard: (id: string) => `/corehr/organization/imports/${id}/discard`,
   decisions: (id: string) => `/corehr/organization/imports/${id}/decisions`,
   refresh: (id: string) => `/corehr/organization/imports/${id}/refresh`,
+  semanticSuggestions: (id: string) => `/corehr/organization/imports/${id}/semantic-suggestions`,
+  applySemanticSuggestions: (id: string, attemptId: string) =>
+    `/corehr/organization/imports/${id}/semantic-suggestions/${attemptId}/apply`,
   commit: (id: string) => `/corehr/organization/imports/${id}/commit`,
 } as const;
 
@@ -259,6 +308,24 @@ export function createCoreOrganizationImportApi(client: ApiClient) {
       ),
     refresh: (id: string) =>
       client.post<OrganizationImportSessionDto>(coreOrganizationImportPaths.refresh(id)),
+    generateSemanticSuggestions: (id: string, inputFingerprint: string, retry = false) =>
+      client.post<OrganizationImportSemanticAssistance>(
+        coreOrganizationImportPaths.semanticSuggestions(id),
+        { inputFingerprint, retry }
+      ),
+    applySemanticSuggestions: (
+      id: string,
+      version: number,
+      attemptId: string,
+      inputFingerprint: string,
+      attemptVersion: number,
+      reviewedItems: OrganizationImportSemanticReviewedItem[]
+    ) =>
+      client.put<OrganizationImportSessionDto>(
+        coreOrganizationImportPaths.applySemanticSuggestions(id, attemptId),
+        { inputFingerprint, attemptVersion, reviewedItems },
+        { headers: { "If-Match": organizationIfMatch(version) } }
+      ),
     commit: (id: string, version: number, semanticDigest: string) =>
       client.post<OrganizationImportCommitResult>(
         coreOrganizationImportPaths.commit(id),

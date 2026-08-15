@@ -53,7 +53,8 @@ public sealed class OrganizationImportService(
     ITenantContext tenantContext,
     IOrganizationImportSourceInspectionService inspectionService,
     IOrganizationService organizationService,
-    IOrganizationImportInterpreter interpreter) : IOrganizationImportService
+    IOrganizationImportInterpreter interpreter,
+    IOrganizationImportSemanticAssistanceService? semanticAssistance = null) : IOrganizationImportService
 {
     private Guid TenantId => tenantContext.TenantId;
 
@@ -279,6 +280,9 @@ public sealed class OrganizationImportService(
         var commitResult = session.Status == OrganizationImportStatus.Committed
             ? OrganizationImportJson.Deserialize<OrganizationImportCommitResult>(session.CommitResultJson)
             : null;
+        var assistance = session.Status == OrganizationImportStatus.Active && review is not null && semanticAssistance is not null
+            ? await semanticAssistance.DescribeAsync(session, review, cancellationToken)
+            : null;
         return new OrganizationImportSessionDto(
             session.Id,
             session.Status.ToString(),
@@ -312,7 +316,8 @@ public sealed class OrganizationImportService(
             session.CommittedByDisplayName,
             session.Status == OrganizationImportStatus.Committed
                 ? OrganizationImportJson.Deserialize<IReadOnlyList<OrganizationImportProvenance>>(session.FinalProvenanceJson)
-                : null);
+                : null,
+            assistance);
     }
 
     private static string CreateFingerprint(InspectedOrganizationSource source)

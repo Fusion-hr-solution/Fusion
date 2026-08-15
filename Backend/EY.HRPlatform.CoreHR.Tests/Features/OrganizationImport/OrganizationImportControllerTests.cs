@@ -30,10 +30,14 @@ public sealed class OrganizationImportControllerTests
         Assert.IsType<ForbidResult>((await controller.ReplaceDecisions(
             Guid.NewGuid(), "\"1\"", new ReplaceOrganizationImportDecisionsRequest(new OrganizationImportDecisions()), CancellationToken.None)).Result);
         Assert.IsType<ForbidResult>((await controller.Refresh(Guid.NewGuid(), CancellationToken.None)).Result);
+        Assert.IsType<ForbidResult>((await controller.GenerateSemanticSuggestions(
+            Guid.NewGuid(), new(new string('f', 64)), CancellationToken.None)).Result);
+        Assert.IsType<ForbidResult>((await controller.ApplySemanticSuggestions(
+            Guid.NewGuid(), Guid.NewGuid(), "\"1\"", new(new string('f', 64), 1, []), CancellationToken.None)).Result);
         Assert.IsType<ForbidResult>((await controller.Commit(
             Guid.NewGuid(), "\"1\"", new CommitOrganizationImportRequest("digest"), CancellationToken.None)).Result);
 
-        access.Verify(policy => policy.CanManageOrganization(It.IsAny<ClaimsPrincipal>()), Times.Exactly(10));
+        access.Verify(policy => policy.CanManageOrganization(It.IsAny<ClaimsPrincipal>()), Times.Exactly(12));
         imports.VerifyNoOtherCalls();
         workbooks.VerifyNoOtherCalls();
     }
@@ -140,9 +144,51 @@ public sealed class OrganizationImportControllerTests
             id, "\"7\"", new CommitOrganizationImportRequest("digest"), CancellationToken.None)).Result);
     }
 
+    [Fact]
+    public async Task SemanticGenerationAndApply_UsePermissionAttemptVersionAndSessionEtag()
+    {
+        var semantic = new Mock<IOrganizationImportSemanticAssistanceService>();
+        var (controller, imports, _, _) = CreateController(semantic: semantic);
+        var sessionId = Guid.NewGuid();
+        var attemptId = Guid.NewGuid();
+        var fingerprint = new string('f', 64);
+        var generated = new OrganizationImportSemanticAssistanceDto(
+            OrganizationImportSemanticAssistanceState.Available,
+            fingerprint,
+            attemptId,
+            2,
+            "Groq",
+            OrganizationImportSemanticAssistanceOptions.DefaultModel,
+            DateTime.UtcNow,
+            DateTime.UtcNow,
+            null,
+            null,
+            []);
+        semantic.Setup(service => service.GenerateAsync(
+                sessionId, It.Is<GenerateOrganizationImportSemanticSuggestionsRequest>(request => request.InputFingerprint == fingerprint),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(generated);
+        var apply = new ApplyOrganizationImportSemanticSuggestionsRequest(
+            fingerprint, 2, [new("shape", "shape:LevelColumns", OrganizationImportSemanticReviewOutcome.Accepted)]);
+        semantic.Setup(service => service.ApplyAsync(
+                sessionId, attemptId, 7, apply,
+                It.Is<OrganizationImportActor>(actor => actor.DisplayName == "Ada Admin"), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        imports.Setup(service => service.GetAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(Session(sessionId, version: 8));
+
+        Assert.IsType<OkObjectResult>((await controller.GenerateSemanticSuggestions(
+            sessionId, new(fingerprint), CancellationToken.None)).Result);
+        Assert.IsType<BadRequestObjectResult>((await controller.ApplySemanticSuggestions(
+            sessionId, attemptId, null, apply, CancellationToken.None)).Result);
+        Assert.IsType<OkObjectResult>((await controller.ApplySemanticSuggestions(
+            sessionId, attemptId, "\"7\"", apply, CancellationToken.None)).Result);
+        Assert.Equal("\"8\"", controller.Response.Headers.ETag);
+        semantic.VerifyAll();
+    }
+
     private static (OrganizationImportController Controller, Mock<IOrganizationImportService> Imports,
         Mock<IOrganizationImportWorkbookService> Workbooks, Mock<ICoreAccessPolicyService> Access)
-        CreateController(bool canManage = true)
+        CreateController(bool canManage = true, Mock<IOrganizationImportSemanticAssistanceService>? semantic = null)
     {
         var imports = new Mock<IOrganizationImportService>();
         var workbooks = new Mock<IOrganizationImportWorkbookService>();
@@ -152,7 +198,7 @@ public sealed class OrganizationImportControllerTests
         var user = new ClaimsPrincipal(new ClaimsIdentity(
             [new Claim(ClaimTypes.NameIdentifier, userId.ToString()), new Claim(CustomClaimTypes.FullName, "Ada Admin")],
             "test"));
-        var controller = new OrganizationImportController(imports.Object, workbooks.Object, access.Object)
+        var controller = new OrganizationImportController(imports.Object, workbooks.Object, access.Object, semantic?.Object)
         {
             ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext { User = user } },
         };

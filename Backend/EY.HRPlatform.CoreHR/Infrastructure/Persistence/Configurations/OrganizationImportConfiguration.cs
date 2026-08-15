@@ -57,3 +57,40 @@ public sealed class OrganizationImportSourceConfiguration : IEntityTypeConfigura
         builder.HasIndex(source => source.SessionId).IsUnique();
     }
 }
+
+public sealed class OrganizationImportSemanticAttemptConfiguration : IEntityTypeConfiguration<OrganizationImportSemanticAttempt>
+{
+    public void Configure(EntityTypeBuilder<OrganizationImportSemanticAttempt> builder)
+    {
+        builder.ToTable("OrganizationImportSemanticAttempts");
+        builder.HasKey(attempt => attempt.Id);
+        builder.Property(attempt => attempt.Version).IsConcurrencyToken();
+        builder.Property(attempt => attempt.ContractVersion).HasMaxLength(80).IsRequired();
+        builder.Property(attempt => attempt.InputFingerprint).HasMaxLength(64).IsRequired();
+        builder.Property(attempt => attempt.Status).HasConversion<string>().HasMaxLength(16).IsRequired();
+        builder.Property(attempt => attempt.Provider).HasMaxLength(32).IsRequired();
+        builder.Property(attempt => attempt.Model).HasMaxLength(128).IsRequired();
+        builder.Property(attempt => attempt.EligibleIssueKeysJson).HasColumnType("jsonb").IsRequired();
+        builder.Property(attempt => attempt.SuggestionsJson).HasColumnType("jsonb").IsRequired();
+        builder.Property(attempt => attempt.ReviewOutcomesJson).HasColumnType("jsonb");
+        builder.Property(attempt => attempt.FailureCategory).HasConversion<string>().HasMaxLength(24);
+        builder.Property(attempt => attempt.AppliedByDisplayName).HasMaxLength(256);
+        builder.Property(attempt => attempt.CreatedBy).HasMaxLength(256);
+        builder.Property(attempt => attempt.UpdatedBy).HasMaxLength(256);
+        builder.HasIndex(attempt => new
+            {
+                attempt.TenantId,
+                attempt.SessionId,
+                attempt.InputFingerprint,
+                attempt.AttemptOrdinal,
+            })
+            .IsUnique()
+            .HasDatabaseName("UX_OrganizationImportSemanticAttempts_Tenant_Session_Fingerprint_Ordinal");
+        builder.HasIndex(attempt => new { attempt.TenantId, attempt.SessionId, attempt.Status })
+            .HasDatabaseName("IX_OrganizationImportSemanticAttempts_Tenant_Session_Status");
+        builder.HasOne<OrganizationImportSession>()
+            .WithMany()
+            .HasForeignKey(attempt => attempt.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+    }
+}

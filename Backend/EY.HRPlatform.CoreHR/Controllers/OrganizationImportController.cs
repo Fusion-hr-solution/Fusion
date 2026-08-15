@@ -13,9 +13,11 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 public sealed class OrganizationImportController(
     IOrganizationImportService importService,
     IOrganizationImportWorkbookService workbookService,
-    ICoreAccessPolicyService accessPolicy) : ControllerBase
+    ICoreAccessPolicyService accessPolicy,
+    IOrganizationImportSemanticAssistanceService? semanticAssistance = null) : ControllerBase
 {
     private const long MultipartLimit = 11L * 1024 * 1024;
+    private const long SemanticRequestLimit = 64L * 1024;
 
     [HttpGet("template")]
     public async Task<IActionResult> DownloadTemplate(CancellationToken cancellationToken)
@@ -151,6 +153,46 @@ public sealed class OrganizationImportController(
         try
         {
             var session = await importService.RefreshAsync(sessionId, cancellationToken);
+            SetEtag(session.Version);
+            return Ok(ApiResponse<OrganizationImportSessionDto>.Success(session));
+        }
+        catch (OrganizationImportReviewException exception) { return ReviewProblem(exception); }
+    }
+
+    [HttpPost("{sessionId:guid}/semantic-suggestions")]
+    [RequestSizeLimit(SemanticRequestLimit)]
+    public async Task<ActionResult<ApiResponse<OrganizationImportSemanticAssistanceDto>>> GenerateSemanticSuggestions(
+        Guid sessionId,
+        [FromBody] GenerateOrganizationImportSemanticSuggestionsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageOrganization(User)) return Forbid();
+        if (semanticAssistance is null) return StatusCode(StatusCodes.Status503ServiceUnavailable, ApiResponse.Failure("Suggestions are unavailable."));
+        try
+        {
+            var result = await semanticAssistance.GenerateAsync(sessionId, request, cancellationToken);
+            return Ok(ApiResponse<OrganizationImportSemanticAssistanceDto>.Success(result));
+        }
+        catch (OrganizationImportReviewException exception) { return ReviewProblem(exception); }
+    }
+
+    [HttpPut("{sessionId:guid}/semantic-suggestions/{attemptId:guid}/apply")]
+    [RequestSizeLimit(SemanticRequestLimit)]
+    public async Task<ActionResult<ApiResponse<OrganizationImportSessionDto>>> ApplySemanticSuggestions(
+        Guid sessionId,
+        Guid attemptId,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        [FromBody] ApplyOrganizationImportSemanticSuggestionsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageOrganization(User)) return Forbid();
+        if (!TryParseVersion(ifMatch, out var version))
+            return BadRequest(ApiResponse.Failure("A current import version is required."));
+        if (semanticAssistance is null) return StatusCode(StatusCodes.Status503ServiceUnavailable, ApiResponse.Failure("Suggestions are unavailable."));
+        try
+        {
+            await semanticAssistance.ApplyAsync(sessionId, attemptId, version, request, Actor(), cancellationToken);
+            var session = await importService.GetAsync(sessionId, cancellationToken);
             SetEtag(session.Version);
             return Ok(ApiResponse<OrganizationImportSessionDto>.Success(session));
         }

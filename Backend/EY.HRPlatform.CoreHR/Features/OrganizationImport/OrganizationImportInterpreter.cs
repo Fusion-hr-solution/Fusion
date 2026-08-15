@@ -152,16 +152,22 @@ public sealed class OrganizationImportInterpreter(CoreHRDbContext dbContext, ITe
                     OrganizationImportResolutionStatus.Resolved, OrganizationImportResolutionOrigin.Deterministic);
         }
 
-        var typeLevelColumns = table.Columns
-            .Where(column => TryBuiltInType(column.SourceLabel, out _))
+        var inferredTypeLevelColumns = table.Columns
+            .Where(column => TryBuiltInType(column.SourceLabel, out _)
+                || (Clean(column.SourceLabel) is { } label && decisions.TypeMappings!.ContainsKey(label)))
             .Select(column => column.Index).ToList();
         var deterministicShape = native ? OrganizationImportShape.Native
-            : typeLevelColumns.Count >= 2 ? OrganizationImportShape.LevelColumns
+            : inferredTypeLevelColumns.Count >= 2 ? OrganizationImportShape.LevelColumns
             : mappings.Any(mapping => mapping.Field == OrganizationImportFields.Name && mapping.ColumnIndex is not null)
                 && mappings.Any(mapping => mapping.Field == OrganizationImportFields.ParentBusinessCode && mapping.ColumnIndex is not null)
                 ? OrganizationImportShape.ParentReference
                 : OrganizationImportShape.Unresolved;
         var shape = decisions.Shape ?? deterministicShape;
+        // Once an administrator selects the level-column shape, every source column is part of that
+        // hierarchy. Unmapped columns must remain visible as unresolved work instead of disappearing.
+        var typeLevelColumns = shape == OrganizationImportShape.LevelColumns
+            ? table.Columns.Select(column => column.Index).ToList()
+            : inferredTypeLevelColumns;
         return new Inference(shape,
             decisions.Shape is not null ? OrganizationImportResolutionStatus.Resolved : deterministicShape == OrganizationImportShape.Unresolved ? OrganizationImportResolutionStatus.Unresolved : OrganizationImportResolutionStatus.Resolved,
             decisions.Shape is not null ? OrganizationImportResolutionOrigin.Administrator : native ? OrganizationImportResolutionOrigin.Native : OrganizationImportResolutionOrigin.Deterministic,
@@ -249,10 +255,22 @@ public sealed class OrganizationImportInterpreter(CoreHRDbContext dbContext, ITe
                 {
                     var id = "path:" + Hash(path)[..16];
                     var correction = decisions.NodeCorrections!.GetValueOrDefault(id);
-                    TryBuiltInType(table.Columns[column].SourceLabel, out var typeName);
+                    var rawLevelType = Clean(table.Columns[column].SourceLabel);
+                    TryBuiltInType(rawLevelType, out var typeName);
+                    Guid? mappedTypeId = null;
+                    if (rawLevelType is not null
+                        && decisions.TypeMappings!.TryGetValue(rawLevelType, out var selectedTypeId)
+                        && canonical.Types.Any(type => type.Id == selectedTypeId))
+                    {
+                        mappedTypeId = selectedTypeId;
+                        typeName = canonical.Types.Single(type => type.Id == selectedTypeId).Name;
+                    }
                     node = new MutableNode(id, correction?.Name ?? value, correction?.BusinessCode, false,
-                        typeName, correction?.TypeId, null, correction?.ParentNodeId ?? parentId, correction?.ParentCanonicalId,
+                        rawLevelType ?? typeName, correction?.TypeId ?? mappedTypeId, null, correction?.ParentNodeId ?? parentId, correction?.ParentCanonicalId,
                         null, false, []);
+                    node.TypeName = correction?.TypeId is Guid correctedTypeId
+                        ? canonical.Types.SingleOrDefault(type => type.Id == correctedTypeId)?.Name
+                        : typeName;
                     byPath.Add(path, node);
                     nodes.Add(node);
                 }
@@ -586,12 +604,4 @@ public sealed class OrganizationImportInterpreter(CoreHRDbContext dbContext, ITe
     }
     private sealed record IssueSeed(string Code, OrganizationImportIssueSeverity Severity, string Title, string Message,
         IReadOnlyList<MutableNode> Nodes, IReadOnlyList<string> RecoveryActions);
-}
-
-public sealed record OrganizationImportUntrustedSuggestion<T>(T Value, string ProviderReference);
-public interface IOrganizationImportSuggestionProvider
-{
-    Task<IReadOnlyList<OrganizationImportUntrustedSuggestion<OrganizationImportDecisions>>> SuggestAsync(
-        OrganizationSourceTable source,
-        CancellationToken cancellationToken);
 }

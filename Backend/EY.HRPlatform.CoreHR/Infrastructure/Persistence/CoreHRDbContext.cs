@@ -56,6 +56,7 @@ public class CoreHRDbContext : DbContext
     public DbSet<SettingsAuditEvent> SettingsAuditEvents => Set<SettingsAuditEvent>();
     public DbSet<OrganizationImportSession> OrganizationImportSessions => Set<OrganizationImportSession>();
     public DbSet<OrganizationImportSource> OrganizationImportSources => Set<OrganizationImportSource>();
+    public DbSet<OrganizationImportSemanticAttempt> OrganizationImportSemanticAttempts => Set<OrganizationImportSemanticAttempt>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -125,5 +126,8 @@ public class CoreHRDbContext : DbContext
 
         modelBuilder.Entity<OrganizationImportSource>()
             .HasQueryFilter(source => CurrentTenantId != Guid.Empty && source.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<OrganizationImportSemanticAttempt>()
+            .HasQueryFilter(attempt => CurrentTenantId != Guid.Empty && attempt.TenantId == CurrentTenantId);
     }
 }

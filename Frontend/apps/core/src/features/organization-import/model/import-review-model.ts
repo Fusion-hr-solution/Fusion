@@ -19,6 +19,7 @@ export const UNPLACED_PARENT_ID = "__unresolved_placement__";
 export type ReviewSelection =
   | { kind: "none" }
   | { kind: "unit"; nodeId: string }
+  | { kind: "suggestions" }
   | { kind: "issues" }
   | { kind: "issue"; key: string };
 

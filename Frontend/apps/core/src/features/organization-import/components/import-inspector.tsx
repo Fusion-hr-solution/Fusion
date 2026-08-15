@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowLeft,
@@ -14,7 +14,6 @@ import {
   X,
 } from "lucide-react";
 import {
-  Badge,
   Button,
   Input,
   Label,
@@ -27,9 +26,11 @@ import type {
   OrganizationImportDecisions,
   OrganizationImportReview,
   OrganizationImportReviewNode,
+  OrganizationImportSemanticAssistance,
+  OrganizationImportSemanticReviewedItem,
+  OrganizationImportSemanticReviewOutcome,
   OrganizationImportSessionDto,
 } from "@repo/api";
-import { formatHumanDate } from "../model/format";
 import {
   findProposalNode,
   type ReviewIssue,
@@ -42,14 +43,23 @@ interface ImportInspectorProps {
   review: OrganizationImportReview;
   issues: ReviewIssue[];
   saving: boolean;
+  applyingSuggestions: boolean;
   onSelect: (selection: ReviewSelection) => void;
   onSave: (decisions: OrganizationImportDecisions) => void;
+  onApplySuggestions: (items: OrganizationImportSemanticReviewedItem[]) => void;
   onExcludeNode: (nodeId: string) => void;
   onClose: () => void;
 }
 
 export function ImportInspector(props: ImportInspectorProps) {
   const { selection, review, issues } = props;
+
+  if (selection.kind === "suggestions") {
+    const assistance = props.session.semanticAssistance;
+    if (!assistance || assistance.state !== "Available")
+      return <EmptyInspector onClose={props.onClose} />;
+    return <SemanticSuggestionsInspector key={assistance.attemptId} {...props} assistance={assistance} />;
+  }
 
   if (selection.kind === "issues")
     return <IssueIndex {...props} />;
@@ -63,6 +73,122 @@ export function ImportInspector(props: ImportInspectorProps) {
   const node = findProposalNode(review, selection.nodeId);
   if (!node) return <ExistingUnitInspector {...props} nodeId={selection.nodeId} />;
   return <UnitInspector {...props} node={node} />;
+}
+
+type ReviewedSuggestion = {
+  targetKey: string | null;
+  outcome: OrganizationImportSemanticReviewOutcome;
+};
+
+function initialSuggestionReview(assistance: OrganizationImportSemanticAssistance) {
+  return Object.fromEntries(
+    assistance.suggestions.map((suggestion) => [
+      suggestion.issueKey,
+      { targetKey: suggestion.targetKey, outcome: "Accepted" as const },
+    ])
+  ) as Record<string, ReviewedSuggestion>;
+}
+
+function SemanticSuggestionsInspector({
+  assistance,
+  applyingSuggestions,
+  onApplySuggestions,
+  onClose,
+}: ImportInspectorProps & { assistance: OrganizationImportSemanticAssistance }) {
+  const [reviewed, setReviewed] = useState<Record<string, ReviewedSuggestion>>(() =>
+    initialSuggestionReview(assistance)
+  );
+  const acceptedCount = useMemo(
+    () => Object.values(reviewed).filter((item) => item.outcome !== "Rejected").length,
+    [reviewed]
+  );
+  const items = assistance.suggestions.map((suggestion) => ({
+    issueKey: suggestion.issueKey,
+    targetKey: reviewed[suggestion.issueKey]?.targetKey ?? null,
+    outcome: reviewed[suggestion.issueKey]?.outcome ?? "Rejected",
+  }));
+
+  return (
+    <InspectorShell
+      title="Suggested meanings"
+      status={`${assistance.suggestions.length} to review`}
+      tone="primary"
+      onClose={onClose}
+      footer={
+        <Button
+          disabled={applyingSuggestions}
+          onClick={() => onApplySuggestions(items)}
+        >
+          {applyingSuggestions ? "Applying…" : `Apply suggestions · ${acceptedCount}`}
+        </Button>
+      }
+    >
+      <p className="text-sm leading-6 text-muted-foreground">
+        Check how Fusion understood these source terms. Change a target or leave it for manual review.
+      </p>
+      <div className="divide-y">
+        {assistance.suggestions.map((suggestion, index) => {
+          const current = reviewed[suggestion.issueKey] ?? {
+            targetKey: null,
+            outcome: "Rejected" as const,
+          };
+          const sourceLabel = suggestion.sourceLabel ?? "Source structure";
+          return (
+            <div key={suggestion.issueKey} className="space-y-2.5 py-4 first:pt-0 last:pb-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <Label htmlFor={`semantic-suggestion-${index}`} className="block truncate">
+                    {sourceLabel}
+                  </Label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {current.outcome === "Rejected"
+                      ? "Current · unresolved"
+                      : current.outcome === "Changed"
+                        ? "Changed by you"
+                        : "Suggested mapping"}
+                  </p>
+                </div>
+              </div>
+              <NativeSelect
+                id={`semantic-suggestion-${index}`}
+                autoFocus={index === 0}
+                value={current.targetKey ?? ""}
+                onChange={(event) => {
+                  const targetKey = event.target.value || null;
+                  setReviewed((previous) => ({
+                    ...previous,
+                    [suggestion.issueKey]: {
+                      targetKey,
+                      outcome: targetKey === null
+                        ? "Rejected"
+                        : targetKey === suggestion.targetKey
+                          ? "Accepted"
+                          : "Changed",
+                    },
+                  }));
+                }}
+              >
+                <NativeSelectOption value="">Leave for manual review</NativeSelectOption>
+                {suggestion.allowedTargets.map((target) => (
+                  <NativeSelectOption key={target.key} value={target.key}>
+                    {target.label}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+              {suggestion.rationale ? (
+                <p className="text-xs leading-5 text-muted-foreground">{suggestion.rationale}</p>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+      {assistance.provider || assistance.model ? (
+        <p className="border-t pt-3 text-xs text-muted-foreground">
+          Suggested by {[assistance.provider, assistance.model].filter(Boolean).join(" · ")}. Nothing is applied until you confirm.
+        </p>
+      ) : null}
+    </InspectorShell>
+  );
 }
 
 // --- shell ---------------------------------------------------------------
@@ -98,7 +224,7 @@ function InspectorShell({
               Back
             </button>
           ) : null}
-          <p className="truncate text-base font-semibold">{title}</p>
+          <h2 className="truncate text-base font-semibold">{title}</h2>
           {status ? (
             <p
               className={cn(

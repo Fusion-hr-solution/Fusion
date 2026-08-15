@@ -28,6 +28,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Input,
+  Separator,
   Skeleton,
   Tabs,
   TabsContent,
@@ -900,46 +901,49 @@ export default function OrganizationWorkspace() {
               </ToggleGroupItem>
             </ToggleGroup>
             {canManage && !readOnly ? (
-              <>
-                <Button
-                  onClick={() =>
-                    patchLocal({ unitForm: { kind: "add", parentId: null } })
-                  }
-                >
-                  <Plus className="h-4 w-4" />
-                  Add unit
-                </Button>
+              <Button
+                onClick={() =>
+                  patchLocal({ unitForm: { kind: "add", parentId: null } })
+                }
+              >
+                <Plus className="h-4 w-4" />
+                Add unit
+              </Button>
+            ) : null}
+            <div className="ml-auto flex items-center gap-3">
+              {canManage && !readOnly ? (
                 <Button asChild variant="outline">
                   <Link href="/organization/import">
                     <Upload className="h-4 w-4" />
                     Import structure
                   </Link>
                 </Button>
-              </>
-            ) : null}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="More Organization actions"
-                >
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => void exportStructure()}>
-                  <FileOutput className="h-4 w-4" />
-                  Export structure
-                </DropdownMenuItem>
-                {canManage && !readOnly ? (
-                  <DropdownMenuItem onClick={() => patchLocal({ manageTypes: true })}>
-                    <Settings2 className="h-4 w-4" />
-                    Manage Unit Types
+              ) : null}
+              <Separator orientation="vertical" className="h-6" />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="More Organization actions"
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => void exportStructure()}>
+                    <FileOutput className="h-4 w-4" />
+                    Export structure
                   </DropdownMenuItem>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  {canManage && !readOnly ? (
+                    <DropdownMenuItem onClick={() => patchLocal({ manageTypes: true })}>
+                      <Settings2 className="h-4 w-4" />
+                      Manage Unit Types
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
           <div className="relative flex min-h-0 flex-1">
             <main

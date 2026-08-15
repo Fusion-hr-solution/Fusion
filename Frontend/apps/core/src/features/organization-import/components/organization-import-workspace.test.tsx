@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   OrganizationImportActiveSummaryDto,
   OrganizationImportIntakeResult,
+  OrganizationImportSemanticAssistance,
   OrganizationImportSessionDto,
 } from "@repo/api";
 import { todayCalendarDate } from "@/features/organization/model/workspace-state";
@@ -24,6 +25,8 @@ const mocks = vi.hoisted(() => ({
   discard: { mutateAsync: vi.fn(), isLoading: false },
   replaceDecisions: { mutateAsync: vi.fn(), isLoading: false },
   refresh: { mutateAsync: vi.fn(), isLoading: false },
+  generateSuggestions: { mutateAsync: vi.fn(), isLoading: false },
+  applySuggestions: { mutateAsync: vi.fn(), isLoading: false },
   commit: { mutateAsync: vi.fn(), isLoading: false },
   downloadTemplate: vi.fn(),
   exportStructure: vi.fn(),
@@ -65,6 +68,8 @@ vi.mock("../api/use-organization-import", () => ({
     discard: mocks.discard,
     replaceDecisions: mocks.replaceDecisions,
     refresh: mocks.refresh,
+    generateSuggestions: mocks.generateSuggestions,
+    applySuggestions: mocks.applySuggestions,
     commit: mocks.commit,
   }),
   useActiveOrganizationImports: () => ({ data: mocks.activeData }),
@@ -139,6 +144,26 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+function semanticAssistance(
+  state: OrganizationImportSemanticAssistance["state"],
+  overrides: Partial<OrganizationImportSemanticAssistance> = {}
+): OrganizationImportSemanticAssistance {
+  return {
+    state,
+    inputFingerprint: "f".repeat(64),
+    attemptId: state === "Available" ? "attempt-1" : null,
+    attemptVersion: state === "Available" ? 2 : null,
+    provider: state === "Available" ? "Groq" : null,
+    model: state === "Available" ? "openai/gpt-oss-120b" : null,
+    requestedAt: null,
+    completedAt: null,
+    failureCategory: null,
+    retryAfter: null,
+    suggestions: [],
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   mocks.canView = true;
   mocks.canManage = true;
@@ -152,6 +177,8 @@ beforeEach(() => {
   mocks.discard.mutateAsync.mockReset();
   mocks.replaceDecisions.mutateAsync.mockReset();
   mocks.refresh.mutateAsync.mockReset();
+  mocks.generateSuggestions.mutateAsync.mockReset();
+  mocks.applySuggestions.mutateAsync.mockReset();
   mocks.commit.mutateAsync.mockReset();
   mocks.toast.mockReset();
   mocks.toast.error.mockReset();
@@ -370,6 +397,162 @@ describe("OrganizationImportWorkspace source intake", () => {
 });
 
 describe("OrganizationImportWorkspace durable route", () => {
+  it("requests eligible semantic help once and shows the restrained persisted pending state", async () => {
+    const eligible = sourceReady({ semanticAssistance: semanticAssistance("Eligible") }).session;
+    const refetch = vi.fn();
+    mocks.sessionQuery = { data: eligible, isLoading: false, error: null, refetch };
+    mocks.generateSuggestions.mutateAsync.mockResolvedValue(semanticAssistance("Pending"));
+    const view = render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    await waitFor(() => expect(mocks.generateSuggestions.mutateAsync).toHaveBeenCalledWith({
+      id: "session-1",
+      inputFingerprint: "f".repeat(64),
+    }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+
+    mocks.sessionQuery = {
+      data: sourceReady({ semanticAssistance: semanticAssistance("Pending") }).session,
+      isLoading: false,
+      error: null,
+      refetch,
+    };
+    view.rerender(<OrganizationImportWorkspace sessionId="session-1" />);
+    expect(screen.getByRole("status")).toHaveTextContent("Interpreting unfamiliar organization terms…");
+    expect(mocks.generateSuggestions.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers an explicit retry after a transport failure and scopes generation to the session", async () => {
+    const first = sourceReady({ semanticAssistance: semanticAssistance("Eligible") }).session;
+    const refetch = vi.fn();
+    mocks.sessionQuery = { data: first, isLoading: false, error: null, refetch };
+    mocks.generateSuggestions.mutateAsync
+      .mockRejectedValueOnce(new Error("network unavailable"))
+      .mockResolvedValue(semanticAssistance("Pending"));
+    const view = render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Retry" }));
+    expect(mocks.generateSuggestions.mutateAsync).toHaveBeenLastCalledWith({
+      id: "session-1",
+      inputFingerprint: "f".repeat(64),
+      retry: true,
+    });
+
+    mocks.sessionQuery = {
+      data: sourceReady({ id: "session-2", semanticAssistance: semanticAssistance("Eligible") }).session,
+      isLoading: false,
+      error: null,
+      refetch,
+    };
+    view.rerender(<OrganizationImportWorkspace sessionId="session-2" />);
+    await waitFor(() => expect(mocks.generateSuggestions.mutateAsync).toHaveBeenLastCalledWith({
+      id: "session-2",
+      inputFingerprint: "f".repeat(64),
+    }));
+  });
+
+  it("restores persisted suggestions, supports changed and rejected outcomes, and applies once", async () => {
+    const available = semanticAssistance("Available", {
+      suggestions: [
+        {
+          issueKey: "level-type:0",
+          kind: "organization_type_mapping",
+          sourceColumnIndex: 0,
+          sourceLabel: "Entity",
+          targetKey: "type:organization",
+          targetLabel: "Organization",
+          rationale: "Entity represents the organization level.",
+          allowedTargets: [
+            { key: "type:organization", label: "Organization" },
+            { key: "type:division", label: "Division" },
+          ],
+        },
+        {
+          issueKey: "level-type:1",
+          kind: "organization_type_mapping",
+          sourceColumnIndex: 1,
+          sourceLabel: "Strategic Pillar",
+          targetKey: "type:division",
+          targetLabel: "Division",
+          rationale: null,
+          allowedTargets: [
+            { key: "type:division", label: "Division" },
+            { key: "type:department", label: "Department" },
+          ],
+        },
+      ],
+    });
+    const refetch = vi.fn();
+    mocks.sessionQuery = {
+      data: sourceReady({ semanticAssistance: available }).session,
+      isLoading: false,
+      error: null,
+      refetch,
+    };
+    mocks.applySuggestions.mutateAsync.mockResolvedValue(sourceReady().session);
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    expect(mocks.generateSuggestions.mutateAsync).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole("button", { name: "2 suggestions to review" }));
+    const panel = screen.getByRole("complementary", { name: "Import review panel" });
+    expect(within(panel).getByRole("heading", { name: "Suggested meanings" })).toBeInTheDocument();
+    await userEvent.selectOptions(within(panel).getByLabelText("Entity"), "type:division");
+    await userEvent.selectOptions(within(panel).getByLabelText("Strategic Pillar"), "");
+    await userEvent.click(within(panel).getByRole("button", { name: "Apply suggestions · 1" }));
+
+    await waitFor(() => expect(mocks.applySuggestions.mutateAsync).toHaveBeenCalledWith({
+      id: "session-1",
+      version: 1,
+      attemptId: "attempt-1",
+      inputFingerprint: "f".repeat(64),
+      attemptVersion: 2,
+      reviewedItems: [
+        { issueKey: "level-type:0", targetKey: "type:division", outcome: "Changed" },
+        { issueKey: "level-type:1", targetKey: null, outcome: "Rejected" },
+      ],
+    }));
+    expect(refetch).toHaveBeenCalled();
+    expect(screen.queryByRole("complementary", { name: "Import review panel" })).not.toBeInTheDocument();
+    expect(screen.getByRole("main", { name: "Resulting organization review" })).toHaveFocus();
+  });
+
+  it("keeps manual review available and makes retry explicit when assistance is not configured", async () => {
+    const refetch = vi.fn();
+    const base = sourceReady().session;
+    mocks.sessionQuery = {
+      data: sourceReady({
+        semanticAssistance: semanticAssistance("Failed", { failureCategory: "NotConfigured" }),
+        review: {
+          ...base.review!,
+          canCommit: false,
+          issues: [{
+            code: "UnknownType",
+            severity: "Blocker",
+            title: "Choose a type for Entity.",
+            message: "Choose a type for Entity.",
+            affectedCount: 1,
+            nodeIds: [],
+            sourceCells: [],
+            recoveryActions: ["Map organization type"],
+          }],
+        },
+      }).session,
+      isLoading: false,
+      error: null,
+      refetch,
+    };
+    mocks.generateSuggestions.mutateAsync.mockResolvedValue(semanticAssistance("Pending"));
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    expect(screen.getByText("Suggestions unavailable")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(mocks.generateSuggestions.mutateAsync).toHaveBeenCalledWith({
+      id: "session-1",
+      inputFingerprint: "f".repeat(64),
+      retry: true,
+    });
+    expect(screen.getByRole("button", { name: "Review" })).toBeInTheDocument();
+  });
+
   it("makes the resulting hierarchy the surface and reads a valid no-op as a calm finish", () => {
     const base = sourceReady().session;
     const noop = sourceReady({

@@ -6,7 +6,7 @@ import {
   createCoreOrganizationImportApi,
   createPlatformApiClient,
 } from "@repo/api";
-import type { OrganizationImportDecisions } from "@repo/api";
+import type { OrganizationImportDecisions, OrganizationImportSemanticReviewedItem } from "@repo/api";
 import { useApiMutation, useApiQuery, useApiQueryClient } from "@repo/api/query";
 import { canManageCoreOrganization, useAuth } from "@repo/auth";
 
@@ -65,6 +65,29 @@ export function useOrganizationImportMutations() {
     ),
     refresh: useApiMutation(
       ({ id }: { id: string }) => api.refresh(id),
+      { onSuccess: refreshAll }
+    ),
+    generateSuggestions: useApiMutation(
+      ({ id, inputFingerprint, retry = false }: { id: string; inputFingerprint: string; retry?: boolean }) =>
+        api.generateSemanticSuggestions(id, inputFingerprint, retry),
+      { onSuccess: refreshAll }
+    ),
+    applySuggestions: useApiMutation(
+      ({ id, version, attemptId, inputFingerprint, attemptVersion, reviewedItems }: {
+        id: string;
+        version: number;
+        attemptId: string;
+        inputFingerprint: string;
+        attemptVersion: number;
+        reviewedItems: OrganizationImportSemanticReviewedItem[];
+      }) => api.applySemanticSuggestions(
+        id,
+        version,
+        attemptId,
+        inputFingerprint,
+        attemptVersion,
+        reviewedItems
+      ),
       { onSuccess: refreshAll }
     ),
     commit: useApiMutation(

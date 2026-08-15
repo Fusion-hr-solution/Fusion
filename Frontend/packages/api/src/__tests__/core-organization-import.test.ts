@@ -82,6 +82,31 @@ describe("Organization Import contracts", () => {
     );
   });
 
+  it("generates by fingerprint and applies reviewed suggestions with both concurrency channels", async () => {
+    const post = vi.fn().mockResolvedValue({});
+    const put = vi.fn().mockResolvedValue({});
+    const api = createCoreOrganizationImportApi({
+      get: vi.fn(), post, put, patch: vi.fn(), delete: vi.fn(),
+    } as unknown as ApiClient);
+    const reviewedItems = [
+      { issueKey: "level-type:0", targetKey: "type:organization", outcome: "Accepted" as const },
+      { issueKey: "level-type:1", targetKey: null, outcome: "Rejected" as const },
+    ];
+
+    await api.generateSemanticSuggestions("session-1", "fingerprint", true);
+    await api.applySemanticSuggestions("session-1", 11, "attempt-1", "fingerprint", 3, reviewedItems);
+
+    expect(post).toHaveBeenCalledWith(
+      "/corehr/organization/imports/session-1/semantic-suggestions",
+      { inputFingerprint: "fingerprint", retry: true }
+    );
+    expect(put).toHaveBeenCalledWith(
+      "/corehr/organization/imports/session-1/semantic-suggestions/attempt-1/apply",
+      { inputFingerprint: "fingerprint", attemptVersion: 3, reviewedItems },
+      { headers: { "If-Match": '"11"' } }
+    );
+  });
+
   it("keeps active and durable caches in one bounded namespace", () => {
     expect(coreOrganizationImportQueryKeys.active()).toEqual(["coreOrganizationImport", "active"]);
     expect(coreOrganizationImportQueryKeys.session("session-1")).toEqual([
