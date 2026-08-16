@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
+  useCallback,
   useDeferredValue,
   useEffect,
   useMemo,
@@ -107,6 +108,8 @@ import {
   UnitFormPanel,
   UpcomingChangesSheet,
 } from "./organization-surfaces";
+
+const EMPTY_REVEAL: ReadonlySet<string> = new Set();
 
 const OrganizationChart = dynamic(() => import("./organization-chart"), {
   ssr: false,
@@ -288,21 +291,20 @@ function InspectorContent({
                   <div className="mt-5 flex items-center gap-1">
                     <Button
                       size="sm"
+                      className="gap-1 px-2 text-xs"
+                      onClick={() => onAddChild(unit.id)}
+                    >
+                      <Plus className="h-3.5 w-3.5 shrink-0" />
+                      Add child
+                    </Button>
+                    <Button
+                      size="sm"
                       variant="outline"
                       className="gap-1 px-2 text-xs"
                       onClick={() => onEdit(unit)}
                     >
                       <Pencil className="h-3.5 w-3.5 shrink-0" />
                       Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-1 px-2 text-xs"
-                      onClick={() => onAddChild(unit.id)}
-                    >
-                      <Plus className="h-3.5 w-3.5 shrink-0" />
-                      Add child
                     </Button>
                     {!root ? (
                       <Button
@@ -615,6 +617,62 @@ export default function OrganizationWorkspace() {
   function toggle(id: string) {
     dispatchLocal({ type: "toggle-collapse", id });
   }
+
+  // After a successful structural action (import, add), the affected units are
+  // carried in a `?reveal=` param. Deriving the highlight from the URL rather than
+  // component state keeps it resilient across the navigation/refetch churn that
+  // follows those actions; the fade is a self-contained CSS animation, and the
+  // param is dropped after the window so a later refresh is quiet.
+  // After a successful structural action, the affected units arrive as `?reveal=`.
+  // Capture them into state on first sight and immediately drop the param — the
+  // highlight then runs entirely from state, immune to the URL churn (soft
+  // navigations, refetches) that follows those actions. The highlight is a bounded
+  // state, not a one-shot animation: it holds for the reveal window, then clears,
+  // and the node's own box-shadow transition fades the halo out — robust even
+  // across the node remounts React Flow performs during the reveal viewport move.
+  const revealParam = searchParams.get("reveal");
+  const [revealedIds, setRevealedIds] = useState<ReadonlySet<string>>(EMPTY_REVEAL);
+  useEffect(() => {
+    if (!revealParam) return;
+    const ids = revealParam.split(",").map((value) => value.trim()).filter(Boolean);
+    if (ids.length === 0) return;
+    setRevealedIds(new Set(ids));
+    // The param is left in the URL (harmless — the window is bounded here, and the
+    // next selection/date/view change drops it through `navigate`). Stripping it
+    // in this effect would re-run the effect and clear the timer prematurely.
+    const timer = setTimeout(() => setRevealedIds(EMPTY_REVEAL), 2600);
+    return () => clearTimeout(timer);
+    // Capture once per distinct reveal param value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealParam]);
+  const revealKey = useMemo(() => [...revealedIds].sort().join(","), [revealedIds]);
+
+  // Expand collapsed ancestors so the revealed units are actually visible.
+  useEffect(() => {
+    if (!model || revealKey === "") return;
+    for (const id of revealKey.split(",")) {
+      if (model.byId.has(id)) dispatchLocal({ type: "reveal", model, id });
+    }
+  }, [model, revealKey]);
+
+  // Reveal a set of units by carrying them in the URL (used by manual Add so it
+  // shares the exact import reveal/highlight mechanism).
+  const revealUnits = useCallback(
+    (ids: string[], selectId?: string) => {
+      const params = writeOrganizationUrlState(
+        { ...urlState, selectedId: selectId ?? urlState.selectedId },
+        today
+      );
+      if (ids.length > 0) params.set("reveal", ids.join(","));
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+      if (selectId && model) dispatchLocal({ type: "reveal", model, id: selectId });
+      if (selectId) patchLocal({ inspectorOpen: true });
+    },
+    // urlState/model are read fresh; patchLocal/dispatchLocal are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pathname, router, today, urlState, model]
+  );
 
   function addChild(id: string) {
     if (!readOnly && canManage)
@@ -988,6 +1046,7 @@ export default function OrganizationWorkspace() {
                     model={model}
                     collapsed={collapsed}
                     selectedId={urlState.selectedId}
+                    revealedIds={revealedIds}
                     canManage={canManage}
                     readOnly={readOnly}
                     onSelect={select}
@@ -1042,7 +1101,7 @@ export default function OrganizationWorkspace() {
                     }
                     onCreateType={() => patchLocal({ createType: true })}
                     onSaved={(id, effectiveDate) => {
-                      if (effectiveDate === today) select(id);
+                      if (effectiveDate === today) revealUnits([id], id);
                     }}
                   />
                 ) : correction !== null ? (

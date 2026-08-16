@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import dagre from "dagre";
 import {
   Background,
@@ -40,6 +40,7 @@ type OrganizationNodeData = Record<string, unknown> & {
   moving: boolean;
   validDrop: boolean;
   invalidDrop: boolean;
+  revealed: boolean;
   onSelect: (id: string) => void;
   onToggle: (id: string) => void;
   onAddChild: (id: string) => void;
@@ -57,10 +58,11 @@ const OrganizationNode = memo(function OrganizationNode({ data }: NodeProps<Orga
         // React Flow sets pointer-events:none on non-draggable nodes (root, and
         // every node in read-only as-of views); re-enable so the card stays
         // selectable/inspectable and its disclosure stays operable.
-        "group pointer-events-auto relative h-[78px] w-[244px] rounded-lg border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.05)] transition-[border-color,box-shadow,opacity,background-color] duration-150",
+        "group pointer-events-auto relative h-[78px] w-[244px] rounded-lg border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.05)] transition-[border-color,box-shadow,opacity,background-color] duration-500 motion-reduce:transition-none",
         data.root && "border-l-[3px] border-l-primary/60 bg-[color-mix(in_oklab,var(--primary)_4%,var(--card))]",
         !data.selected && !data.validDrop && !data.invalidDrop && "hover:border-foreground/25 hover:shadow-md",
         data.selected && "border-primary shadow-md ring-2 ring-primary/25",
+        data.revealed && "org-reveal-highlight z-10",
         data.moving && "opacity-55 ring-2 ring-primary/40",
         data.validDrop && "border-primary bg-[color-mix(in_oklab,var(--primary)_7%,var(--card))] ring-2 ring-primary/35",
         data.invalidDrop && "border-destructive bg-[color-mix(in_oklab,var(--destructive)_6%,var(--card))] ring-2 ring-destructive/25"
@@ -128,18 +130,86 @@ const OrganizationNode = memo(function OrganizationNode({ data }: NodeProps<Orga
 
 const nodeTypes = { organizationUnit: OrganizationNode };
 
+function reduceMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 function FocusSelected({ selectedId }: { selectedId: string | null }) {
   const flow = useReactFlow<OrganizationFlowNode, Edge>();
   useEffect(() => {
     if (!selectedId) return;
     const node = flow.getNode(selectedId);
     if (!node) return;
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     void flow.setCenter(node.position.x + NODE_WIDTH / 2, node.position.y + NODE_HEIGHT / 2, {
       zoom: flow.getZoom(),
-      duration: reduceMotion ? 0 : 180,
+      duration: reduceMotion() ? 0 : 180,
     });
   }, [flow, selectedId]);
+  return null;
+}
+
+// Keep the interacted node spatially anchored across an expand/collapse relayout.
+// dagre re-lays-out every visible node, so without compensation the toggled node
+// jumps; here the viewport is translated by the node's position delta (preserving
+// zoom) so it stays put on screen. Runs synchronously before paint.
+function AnchorViewport({
+  nodes,
+  pendingAnchorRef,
+}: {
+  nodes: OrganizationFlowNode[];
+  pendingAnchorRef: React.MutableRefObject<{ id: string; x: number; y: number } | null>;
+}) {
+  const flow = useReactFlow<OrganizationFlowNode, Edge>();
+  useLayoutEffect(() => {
+    const anchor = pendingAnchorRef.current;
+    if (!anchor) return;
+    pendingAnchorRef.current = null;
+    const next = nodes.find((node) => node.id === anchor.id);
+    if (!next) return;
+    const viewport = flow.getViewport();
+    const dx = (anchor.x - next.position.x) * viewport.zoom;
+    const dy = (anchor.y - next.position.y) * viewport.zoom;
+    if (dx === 0 && dy === 0) return;
+    void flow.setViewport({ x: viewport.x + dx, y: viewport.y + dy, zoom: viewport.zoom });
+  }, [flow, nodes, pendingAnchorRef]);
+  return null;
+}
+
+// A genuine reveal is allowed to move the viewport: bring the just-changed unit(s)
+// into view — center a single node, or fit a created set — without disturbing
+// pan/zoom on ordinary interactions.
+function RevealViewport({
+  revealedIds,
+  nodes,
+}: {
+  revealedIds: ReadonlySet<string>;
+  nodes: OrganizationFlowNode[];
+}) {
+  const flow = useReactFlow<OrganizationFlowNode, Edge>();
+  const revealKey = useMemo(() => [...revealedIds].sort().join(","), [revealedIds]);
+  useEffect(() => {
+    if (revealKey === "") return;
+    const ids = revealKey.split(",");
+    const present = ids.filter((id) => nodes.some((node) => node.id === id));
+    if (present.length === 0) return;
+    const duration = reduceMotion() ? 0 : 420;
+    if (present.length === 1) {
+      const node = nodes.find((candidate) => candidate.id === present[0])!;
+      void flow.setCenter(node.position.x + NODE_WIDTH / 2, node.position.y + NODE_HEIGHT / 2, {
+        zoom: Math.min(flow.getZoom(), 1),
+        duration,
+      });
+    } else {
+      void flow.fitView({
+        nodes: present.map((id) => ({ id })),
+        padding: 0.25,
+        maxZoom: 1,
+        duration,
+      });
+    }
+    // Center once per revealed set; the highlight fade is owned by the caller.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flow, revealKey]);
   return null;
 }
 
@@ -147,6 +217,7 @@ export interface OrganizationChartProps {
   model: OrganizationHierarchyModel;
   collapsed: ReadonlySet<string>;
   selectedId: string | null;
+  revealedIds?: ReadonlySet<string>;
   canManage: boolean;
   readOnly: boolean;
   onSelect: (id: string) => void;
@@ -155,10 +226,13 @@ export interface OrganizationChartProps {
   onStageDragMove: (sourceId: string, targetId: string) => void;
 }
 
+const EMPTY_IDS: ReadonlySet<string> = new Set();
+
 export default function OrganizationChart({
   model,
   collapsed,
   selectedId,
+  revealedIds = EMPTY_IDS,
   canManage,
   readOnly,
   onSelect,
@@ -168,6 +242,20 @@ export default function OrganizationChart({
 }: OrganizationChartProps) {
   const [dragSource, setDragSource] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  // Keep the node the user toggled visually anchored: capture its pre-relayout
+  // position, and after dagre repositions everything, compensate the viewport so
+  // it does not jump across the screen. See AnchorViewport.
+  const nodesRef = useRef<OrganizationFlowNode[]>([]);
+  const pendingAnchorRef = useRef<{ id: string; x: number; y: number } | null>(null);
+
+  const handleToggle = useCallback(
+    (id: string) => {
+      const current = nodesRef.current.find((node) => node.id === id);
+      if (current) pendingAnchorRef.current = { id, x: current.position.x, y: current.position.y };
+      onToggle(id);
+    },
+    [onToggle]
+  );
 
   const dropValid =
     dragSource !== null &&
@@ -223,8 +311,9 @@ export default function OrganizationChart({
             moving: movingSet?.has(id) === true && dropTarget !== id,
             validDrop: isCandidate && !isInvalidMoveTarget(model, dragSource!, id),
             invalidDrop: isCandidate && isInvalidMoveTarget(model, dragSource!, id),
+            revealed: revealedIds.has(id),
             onSelect,
-            onToggle,
+            onToggle: handleToggle,
             onAddChild,
           },
         };
@@ -241,7 +330,9 @@ export default function OrganizationChart({
         },
       })),
     };
-  }, [canManage, collapsed, dragSource, dropTarget, model, onAddChild, onSelect, onToggle, readOnly, selectedId]);
+  }, [canManage, collapsed, dragSource, dropTarget, handleToggle, model, onAddChild, onSelect, readOnly, revealedIds, selectedId]);
+
+  nodesRef.current = nodes;
 
   const findDropTarget: OnNodeDrag<OrganizationFlowNode> = (_event, dragged) => {
     // Trigger as soon as the dragged card overlaps a target card (not only when
@@ -319,6 +410,8 @@ export default function OrganizationChart({
         className="bg-transparent"
       >
         <FocusSelected selectedId={selectedId} />
+        <AnchorViewport nodes={nodes} pendingAnchorRef={pendingAnchorRef} />
+        <RevealViewport revealedIds={revealedIds} nodes={nodes} />
         {/* Fine single grid that rides the viewport transform, so panning and
             zooming read as movement through space. */}
         <Background

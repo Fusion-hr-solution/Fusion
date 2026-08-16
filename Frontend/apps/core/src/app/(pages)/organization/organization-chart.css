@@ -1,0 +1,62 @@
+/* Organization Chart theming: make the React Flow controls a deliberate part of
+   Fusion (semantic tokens, theme-aware in light and dark) rather than an
+   unthemed third-party widget, and define the restrained post-action reveal
+   highlight. Imported after @xyflow/react's stylesheet so these win. */
+
+.react-flow__controls {
+  border: 1px solid var(--border);
+  border-radius: 0.625rem;
+  overflow: hidden;
+  box-shadow: 0 1px 3px oklch(0 0 0 / 0.08);
+  background: var(--card);
+}
+
+.react-flow__controls-button {
+  width: 1.9rem;
+  height: 1.9rem;
+  background: var(--card);
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted-foreground);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.react-flow__controls-button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+  color: var(--foreground);
+}
+
+.react-flow__controls-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor;
+  max-width: 0.85rem;
+  max-height: 0.85rem;
+}
+
+/* Post-action reveal: a restrained Fusion-primary halo that draws the eye to
+   what just changed. It is a *state*, not a one-shot animation — the node keeps
+   the class for the reveal window, then the workspace drops it and the node's own
+   box-shadow transition fades the halo out. Using a toggled state (not a keyframe)
+   keeps it robust to the node remounts that React Flow performs while the reveal
+   viewport move culls and re-adds elements: a remounted node simply re-shows the
+   static halo instead of losing a mid-flight animation. */
+.org-reveal-highlight {
+  border-color: var(--primary) !important;
+  box-shadow:
+    0 0 0 2px var(--primary),
+    0 0 0 8px color-mix(in oklab, var(--primary) 22%, transparent) !important;
+}
