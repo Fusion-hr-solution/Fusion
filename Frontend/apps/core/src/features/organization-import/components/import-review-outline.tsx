@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { AlertCircle, ChevronDown, ChevronRight, Plus, TriangleAlert, Unlink } from "lucide-react";
+import { AlertCircle, ChevronDown, ChevronRight, Plus, Sparkles, TriangleAlert, Unlink } from "lucide-react";
 import { Badge, cn } from "@repo/ds";
 import type { OrganizationImportIssueSeverity } from "@repo/api";
 import { flattenReviewTree, type ReviewTreeModel } from "../model/import-review-model";
@@ -12,6 +12,9 @@ export interface ImportReviewOutlineProps {
   selectedId: string | null;
   highlightedIds: ReadonlySet<string>;
   attention: Map<string, OrganizationImportIssueSeverity>;
+  /** How units still being interpreted by AI should read in the Status column. */
+  interpretation?: "interpreting" | "suggested" | null;
+  interpretationIds?: ReadonlySet<string>;
   onSelect: (id: string) => void;
   onToggle: (id: string) => void;
 }
@@ -24,6 +27,8 @@ export function ImportReviewOutline({
   selectedId,
   highlightedIds,
   attention,
+  interpretation = null,
+  interpretationIds,
   onSelect,
   onToggle,
 }: ImportReviewOutlineProps) {
@@ -102,6 +107,8 @@ export function ImportReviewOutline({
         const selected = node.id === selectedId;
         const highlighted = highlightedIds.has(node.id) && !selected;
         const severity = attention.get(node.id);
+        const interpreting =
+          Boolean(interpretation) && !node.isPlaceholder && interpretationIds?.has(node.id);
         return (
           <div
             key={node.id}
@@ -181,7 +188,22 @@ export function ImportReviewOutline({
               {node.businessCode || (node.isPlaceholder ? "—" : "")}
             </span>
             <span role="gridcell" className="min-w-0">
-              {severity === "Blocker" ? (
+              {interpreting ? (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 text-xs font-medium text-primary",
+                    interpretation === "interpreting" && "text-primary/80"
+                  )}
+                >
+                  <Sparkles
+                    className={cn(
+                      "h-3.5 w-3.5 shrink-0",
+                      interpretation === "interpreting" && "animate-pulse motion-reduce:animate-none"
+                    )}
+                  />
+                  {interpretation === "interpreting" ? "Interpreting" : "Suggested"}
+                </span>
+              ) : severity === "Blocker" ? (
                 <span className="inline-flex items-center gap-1 text-xs font-medium text-destructive">
                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                   Needs attention

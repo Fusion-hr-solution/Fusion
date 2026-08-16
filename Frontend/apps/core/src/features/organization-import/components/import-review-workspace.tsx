@@ -8,9 +8,9 @@ import {
   CalendarDays,
   CheckCircle2,
   FileSpreadsheet,
-  ListChecks,
   MoreHorizontal,
   RefreshCw,
+  Sparkles,
   TriangleAlert,
   Trash2,
 } from "lucide-react";
@@ -44,6 +44,7 @@ import {
   type OrganizationImportDecisions,
   type OrganizationImportSemanticReviewedItem,
   type OrganizationImportSessionDto,
+  type OrganizationImportShape,
 } from "@repo/api";
 import { toast } from "sonner";
 import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
@@ -56,6 +57,8 @@ import {
   attentionByNode,
   buildReviewTree,
   deriveReviewIssues,
+  interpretationNodeIds,
+  isDeferredDuringInterpretation,
   PLACEHOLDER_ROOT_ID,
   proposedDescendantIds,
   rootRequired,
@@ -185,6 +188,15 @@ function ActiveReviewWorkspace({
   const generatedRequestRef = useRef<string | null>(null);
   const [failedRequestKey, setFailedRequestKey] = useState<string | null>(null);
   const reviewSurfaceRef = useRef<HTMLElement | null>(null);
+  // Which interpretation flow (by semantic fingerprint) has already auto-opened the
+  // inspector. Keyed on the fingerprint so the drawer opens once when interpreting
+  // begins and stays through the ready transition, without a later rerender/refetch
+  // undoing a deliberate close.
+  const autoOpenedFlowRef = useRef<string | null>(null);
+  // After an explicit source-shape reinterpretation, route to the deterministic
+  // resolver for the new shape once recompute settles (unless a fresh AI
+  // interpretation takes over instead).
+  const routeToSourceAfterRecomputeRef = useRef(false);
   const assistance = session.semanticAssistance;
 
   useEffect(() => {
@@ -213,7 +225,58 @@ function ActiveReviewWorkspace({
         : null,
     [review, unplacedIds]
   );
-  const attention = useMemo(() => attentionByNode(issues), [issues]);
+  // Coalesce the assistance lifecycle into one phase the whole workspace agrees
+  // on, so a term Fusion is actively interpreting never simultaneously reads as a
+  // red "needs attention" failure. While interpreting or waiting for review, the
+  // semantic issues belong to the interpretation surface, not the manual queue.
+  const currentKey = assistance?.inputFingerprint
+    ? `${session.id}:${assistance.inputFingerprint}`
+    : null;
+  const generateFailed =
+    assistance?.state === "Failed" || (currentKey !== null && failedRequestKey === currentKey);
+  const semanticPhase: "interpreting" | "ready" | "failed" | "none" =
+    assistance?.state === "Available"
+      ? "ready"
+      : generateFailed
+        ? "failed"
+        : Boolean(assistance?.inputFingerprint) &&
+            (assistance?.state === "Pending" || assistance?.state === "Eligible")
+          ? "interpreting"
+          : "none";
+  const semanticActive = semanticPhase === "interpreting" || semanticPhase === "ready";
+  // While AI is interpreting or awaiting review, the manual attention queue drops
+  // both the semantic issues and the root/placement conditions that only fail
+  // because the levels are not typed yet — they cannot be evaluated until Apply.
+  const manualIssues = useMemo(
+    () =>
+      semanticActive
+        ? issues.filter((issue) => !isDeferredDuringInterpretation(issue))
+        : issues,
+    [issues, semanticActive]
+  );
+  const interpretationIds = useMemo(() => interpretationNodeIds(issues), [issues]);
+  const interpretationCount = assistance
+    ? assistance.suggestions.filter((suggestion) => suggestion.kind === "organization_type_mapping")
+        .length || assistance.suggestions.length
+    : 0;
+  // The interpretation drawer and the workflow bar are one flow: the bar owns the
+  // single "Review interpretations" entry while the drawer is closed, and steps
+  // back to a quiet summary once the drawer (which owns "Apply") is open.
+  const reviewDrawerOpen = selection.kind === "suggestions";
+
+  // The interpretation surface is continuous: the inspector opens the moment
+  // interpreting begins (skeleton placeholders) and resolves into the mappings when
+  // ready — no discovery click. It opens once per fingerprint and only from an idle
+  // selection, so a deliberate close is never undone by a later rerender/refetch.
+  useEffect(() => {
+    if (semanticPhase !== "interpreting" && semanticPhase !== "ready") return;
+    const key = assistance?.inputFingerprint;
+    if (!key || autoOpenedFlowRef.current === key) return;
+    autoOpenedFlowRef.current = key;
+    if (selection.kind === "none") setSelection({ kind: "suggestions" });
+  }, [semanticPhase, assistance?.inputFingerprint, selection.kind, setSelection]);
+
+  const attention = useMemo(() => attentionByNode(manualIssues), [manualIssues]);
   const [excludeTarget, setExcludeTarget] = useState<
     { nodeId: string; name: string; descendantCount: number } | null
   >(null);
@@ -230,10 +293,36 @@ function ActiveReviewWorkspace({
       setSelection({ kind: "none" });
     } else if (selection.kind === "issues" && issues.length === 0) {
       setSelection({ kind: "none" });
-    } else if (selection.kind === "suggestions" && assistance?.state !== "Available") {
+    } else if (
+      selection.kind === "suggestions" &&
+      assistance?.state !== "Available" &&
+      assistance?.state !== "Pending" &&
+      assistance?.state !== "Eligible"
+    ) {
+      // Keep the drawer open across the interpreting → ready transition; only a
+      // terminal non-review state (failed/applied/none) closes it.
       setSelection({ kind: "none" });
     }
   }, [assistance?.state, review, issues, selection, setSelection]);
+
+  // Once a source-shape reinterpretation has recomputed, surface the deterministic
+  // resolver for the new shape — unless a fresh AI interpretation has taken over,
+  // in which case its own inspector leads.
+  useEffect(() => {
+    if (!routeToSourceAfterRecomputeRef.current || !review) return;
+    if (semanticPhase === "interpreting" || semanticPhase === "ready") {
+      routeToSourceAfterRecomputeRef.current = false;
+      return;
+    }
+    const sourceIssue = issues.find((issue) => issue.kind === "sourceMapping");
+    if (sourceIssue) {
+      routeToSourceAfterRecomputeRef.current = false;
+      setSelection({ kind: "issue", key: sourceIssue.key });
+    } else if (issues.length > 0) {
+      routeToSourceAfterRecomputeRef.current = false;
+      setSelection({ kind: "issues" });
+    }
+  }, [issues, review, semanticPhase, setSelection]);
 
   async function changeDate(value: string) {
     setDate(value);
@@ -337,6 +426,7 @@ function ActiveReviewWorkspace({
       setSelection({ kind: "none" });
       onRefetch();
       window.requestAnimationFrame(() => reviewSurfaceRef.current?.focus());
+      toast.success("Interpretations applied");
     } catch (error) {
       toast.error("Suggestions were not applied", {
         description: translateOrganizationImportError(error).message,
@@ -345,8 +435,23 @@ function ActiveReviewWorkspace({
     }
   }
 
+  // An explicit source-shape change is a full reinterpretation: it writes the
+  // authoritative shape decision, which changes the semantic fingerprint and
+  // supersedes the current AI attempt server-side, so the stale level-based
+  // suggestions can no longer be applied. The drawer closes immediately and the
+  // deterministic resolver for the new shape is surfaced once recompute settles.
+  async function changeSourceShape(shape: OrganizationImportShape) {
+    if (shape === review?.shape) return;
+    setSelection({ kind: "none" });
+    routeToSourceAfterRecomputeRef.current = true;
+    await saveDecisions({ ...sessionRef.current.decisions, shape });
+    toast("Reinterpreting the source", {
+      description: `Now reading it as a ${shape === "LevelColumns" ? "level-based" : "parent-reference"} hierarchy.`,
+    });
+  }
+
   function openIssues() {
-    if (issues.length === 1 && issues[0]) setSelection(issueTarget(issues[0]));
+    if (manualIssues.length === 1 && manualIssues[0]) setSelection(issueTarget(manualIssues[0]));
     else setSelection({ kind: "issues" });
   }
 
@@ -396,8 +501,8 @@ function ActiveReviewWorkspace({
   const createCount = review?.createCount ?? 0;
   const existingCount = review?.existingCount ?? 0;
   const isNoop = canCommit && createCount === 0;
-  const blockerCount = issues.filter((issue) => issue.severity === "Blocker").length;
-  const hasBlocker = issues.some((issue) => issue.severity === "Blocker");
+  const blockerCount = manualIssues.filter((issue) => issue.severity === "Blocker").length;
+  const hasBlocker = manualIssues.some((issue) => issue.severity === "Blocker");
 
   const selectedId = selection.kind === "unit" ? selection.nodeId : null;
   const highlightedIds = useMemo(() => {
@@ -484,58 +589,40 @@ function ActiveReviewWorkspace({
                 ) : null}
               </span>
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-                {assistance?.state === "Eligible" && assistance.inputFingerprint &&
-                failedRequestKey === `${session.id}:${assistance.inputFingerprint}` ? (
+                {semanticPhase === "interpreting" ? (
                   <span
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-muted/70 px-2.5 py-1 text-sm text-muted-foreground"
-                    role="status"
-                  >
-                    Suggestions unavailable
-                    <button
-                      type="button"
-                      className="font-medium text-foreground hover:underline disabled:opacity-50"
-                      disabled={mutations.generateSuggestions.isLoading}
-                      onClick={() => void retrySuggestions()}
-                    >
-                      Retry
-                    </button>
-                  </span>
-                ) : assistance?.state === "Pending" ||
-                (assistance?.state === "Eligible" && mutations.generateSuggestions.isLoading) ? (
-                  <span
-                    className="inline-flex items-center gap-2 rounded-lg bg-muted/70 px-2.5 py-1 text-sm text-muted-foreground"
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-2.5 py-1 text-sm font-medium text-primary"
                     role="status"
                     aria-live="polite"
                   >
-                    <Spinner className="size-3.5" aria-hidden />
-                    Interpreting unfamiliar organization terms…
+                    <Sparkles
+                      className="h-4 w-4 animate-pulse motion-reduce:animate-none"
+                      aria-hidden
+                    />
+                    Interpreting your structure
                   </span>
-                ) : assistance?.state === "Available" ? (
-                  <button
-                    type="button"
-                    onClick={() => setSelection({ kind: "suggestions" })}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1 text-sm font-medium text-primary outline-none hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <ListChecks className="h-4 w-4" aria-hidden />
-                    {assistance.suggestions.length} suggestions to review
-                  </button>
-                ) : assistance?.state === "Failed" ? (
+                ) : semanticPhase === "failed" ? (
                   <span
                     className="inline-flex items-center gap-1.5 rounded-lg bg-muted/70 px-2.5 py-1 text-sm text-muted-foreground"
                     role="status"
                   >
-                    Suggestions unavailable
+                    Interpretation unavailable
                     <button
                       type="button"
                       className="font-medium text-foreground hover:underline disabled:opacity-50"
-                      disabled={mutations.generateSuggestions.isLoading || Boolean(assistance.retryAfter && new Date(assistance.retryAfter) > new Date())}
+                      disabled={
+                        mutations.generateSuggestions.isLoading ||
+                        Boolean(
+                          assistance?.retryAfter && new Date(assistance.retryAfter) > new Date()
+                        )
+                      }
                       onClick={() => void retrySuggestions()}
                     >
                       Retry
                     </button>
                   </span>
                 ) : null}
-                {issues.length > 0 ? (
+                {manualIssues.length > 0 ? (
                   <button
                     type="button"
                     onClick={openIssues}
@@ -551,7 +638,7 @@ function ActiveReviewWorkspace({
                     ) : (
                       <TriangleAlert className="h-4 w-4" />
                     )}
-                    Needs attention · {issues.length}
+                    Needs attention · {manualIssues.length}
                   </button>
                 ) : null}
               </div>
@@ -579,6 +666,14 @@ function ActiveReviewWorkspace({
                 selectedId={selectedId}
                 highlightedIds={highlightedIds}
                 attention={attention}
+                interpretation={
+                  semanticPhase === "interpreting"
+                    ? "interpreting"
+                    : semanticPhase === "ready"
+                      ? "suggested"
+                      : null
+                }
+                interpretationIds={interpretationIds}
                 onSelect={selectNode}
                 onToggle={toggle}
               />
@@ -601,12 +696,13 @@ function ActiveReviewWorkspace({
                 selection={selection}
                 session={session}
                 review={review}
-                issues={issues}
+                issues={manualIssues}
                 saving={mutations.replaceDecisions.isLoading}
                 applyingSuggestions={mutations.applySuggestions.isLoading}
                 onSelect={setSelection}
                 onSave={(decisions) => void saveDecisions(decisions)}
                 onApplySuggestions={(items) => void applySuggestions(items)}
+                onChangeSourceShape={(shape) => void changeSourceShape(shape)}
                 onExcludeNode={requestExclude}
                 onClose={() => setSelection({ kind: "none" })}
               />
@@ -617,32 +713,61 @@ function ActiveReviewWorkspace({
 
       {review ? (
         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t bg-background px-6 py-3">
-          <div className="flex items-center gap-2 text-sm">
-            {canCommit ? (
-              <CheckCircle2 className="h-4 w-4 text-success" />
-            ) : (
-              <AlertCircle className="h-4 w-4 text-destructive" />
-            )}
-            <span className={cn(!canCommit && "text-destructive")}>
-              {!canCommit
-                ? blockerCount === 1
-                  ? "1 thing needs your attention before you can finish."
-                  : `${blockerCount} things need your attention before you can finish.`
-                : isNoop
-                  ? "Everything in this file already exists in Organization. No changes will be made."
-                  : `${createCount} new organizational ${createCount === 1 ? "unit" : "units"} · effective ${formatHumanDate(session.effectiveDate)}`}
-            </span>
-          </div>
-          {!canCommit ? (
-            <Button variant="outline" onClick={openIssues}>
-              Review
-            </Button>
-          ) : isNoop ? (
-            <Button disabled={mutations.commit.isLoading} onClick={() => void complete()}>
-              {mutations.commit.isLoading ? "Finishing…" : "Finish import"}
-            </Button>
+          {semanticPhase === "interpreting" ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Sparkles
+                className="h-4 w-4 animate-pulse text-primary motion-reduce:animate-none"
+                aria-hidden
+              />
+              Interpreting your structure
+            </div>
+          ) : semanticPhase === "ready" ? (
+            <>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Sparkles className="h-4 w-4 text-primary" aria-hidden />
+                <span>
+                  {reviewDrawerOpen ? "Reviewing " : ""}
+                  <span className="font-semibold text-primary">{interpretationCount}</span>{" "}
+                  {interpretationCount === 1 ? "interpretation" : "interpretations"}
+                  {reviewDrawerOpen ? "" : " ready to review"}
+                </span>
+              </div>
+              {reviewDrawerOpen ? null : (
+                <Button onClick={() => setSelection({ kind: "suggestions" })}>
+                  Review interpretations
+                </Button>
+              )}
+            </>
           ) : (
-            <Button onClick={() => setCommitOpen(true)}>Complete import</Button>
+            <>
+              <div className="flex items-center gap-2 text-sm">
+                {canCommit ? (
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                )}
+                <span className={cn(!canCommit && "text-destructive")}>
+                  {!canCommit
+                    ? blockerCount === 1
+                      ? "1 thing needs your attention before you can finish."
+                      : `${blockerCount} things need your attention before you can finish.`
+                    : isNoop
+                      ? "Everything in this file already exists in Organization. No changes will be made."
+                      : `${createCount} new organizational ${createCount === 1 ? "unit" : "units"} · effective ${formatHumanDate(session.effectiveDate)}`}
+                </span>
+              </div>
+              {!canCommit ? (
+                <Button variant="outline" onClick={openIssues}>
+                  Review
+                </Button>
+              ) : isNoop ? (
+                <Button disabled={mutations.commit.isLoading} onClick={() => void complete()}>
+                  {mutations.commit.isLoading ? "Finishing…" : "Finish import"}
+                </Button>
+              ) : (
+                <Button onClick={() => setCommitOpen(true)}>Complete import</Button>
+              )}
+            </>
           )}
         </footer>
       ) : null}

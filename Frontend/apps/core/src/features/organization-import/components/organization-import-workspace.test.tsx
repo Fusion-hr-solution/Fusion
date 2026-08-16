@@ -417,8 +417,170 @@ describe("OrganizationImportWorkspace durable route", () => {
       refetch,
     };
     view.rerender(<OrganizationImportWorkspace sessionId="session-1" />);
-    expect(screen.getByRole("status")).toHaveTextContent("Interpreting unfamiliar organization terms…");
+    expect(screen.getByRole("status")).toHaveTextContent("Interpreting your structure");
     expect(mocks.generateSuggestions.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens a continuous processing surface while interpreting, then resolves into mappings", () => {
+    const refetch = vi.fn();
+    mocks.sessionQuery = {
+      data: sourceReady({ semanticAssistance: semanticAssistance("Pending") }).session,
+      isLoading: false,
+      error: null,
+      refetch,
+    };
+    const view = render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    // The interpretation inspector auto-opens in a processing state — no discovery click,
+    // no mappings or apply yet, just the resolving surface.
+    const panel = screen.getByRole("complementary", { name: "Import review panel" });
+    expect(within(panel).getByRole("heading", { name: "Fusion’s interpretation" })).toBeInTheDocument();
+    expect(within(panel).getByText("Interpreting your structure…")).toBeInTheDocument();
+    expect(within(panel).queryByRole("combobox")).not.toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: /Apply/ })).not.toBeInTheDocument();
+
+    // When the attempt lands, the same open drawer resolves into the real mappings.
+    const available = semanticAssistance("Available", {
+      suggestions: [
+        {
+          issueKey: "level-type:0",
+          kind: "organization_type_mapping",
+          sourceColumnIndex: 0,
+          sourceLabel: "Entity",
+          targetKey: "type:organization",
+          targetLabel: "Organization",
+          rationale: null,
+          allowedTargets: [{ key: "type:organization", label: "Organization" }],
+        },
+      ],
+    });
+    mocks.sessionQuery = {
+      data: sourceReady({ semanticAssistance: available }).session,
+      isLoading: false,
+      error: null,
+      refetch,
+    };
+    view.rerender(<OrganizationImportWorkspace sessionId="session-1" />);
+    const resolved = screen.getByRole("complementary", { name: "Import review panel" });
+    expect(within(resolved).getByLabelText("Entity")).toBeInTheDocument();
+    expect(within(resolved).getByRole("button", { name: "Apply 1 interpretation" })).toBeInTheDocument();
+  });
+
+  it("keeps interpreting terms out of the attention queue instead of reading as failure", () => {
+    const base = sourceReady().session;
+    const interpreting = sourceReady({
+      semanticAssistance: semanticAssistance("Pending"),
+      review: {
+        ...base.review!,
+        canCommit: false,
+        issues: [
+          {
+            code: "UnknownType",
+            severity: "Blocker",
+            title: "Map “Strategic Pillar” to an organization type",
+            message: "Map “Strategic Pillar” to an organization type",
+            affectedCount: 1,
+            nodeIds: [],
+            sourceCells: [],
+            recoveryActions: ["Map organization type"],
+          },
+        ],
+      },
+    }).session;
+    mocks.sessionQuery = { data: interpreting, isLoading: false, error: null, refetch: vi.fn() };
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    // The term Fusion is interpreting is not simultaneously advertised as a failure.
+    expect(screen.getByRole("status")).toHaveTextContent("Interpreting your structure");
+    expect(screen.queryByText(/Needs attention/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/needs your attention before you can finish/)).not.toBeInTheDocument();
+  });
+
+  it("holds back consequence root/placement issues during review, then restores them after apply", () => {
+    const base = sourceReady().session;
+    const typeIssue = {
+      code: "UnknownType",
+      severity: "Blocker" as const,
+      title: "Map “Entity” to an organization type",
+      message: "Map “Entity” to an organization type",
+      affectedCount: 1,
+      nodeIds: [] as string[],
+      sourceCells: [],
+      recoveryActions: ["Map organization type"],
+    };
+    const rootIssue = {
+      code: "FreshRootRequired",
+      severity: "Blocker" as const,
+      title: "This structure needs one organization at the top.",
+      message: "This structure needs one organization at the top.",
+      affectedCount: 0,
+      nodeIds: [] as string[],
+      sourceCells: [],
+      recoveryActions: ["Introduce Organization root"],
+    };
+    // "No units in this file" — the interpreter parses no units until levels are typed.
+    const noUnitsIssue = {
+      code: "NoProposalNodes",
+      severity: "Blocker" as const,
+      title: "No units in this file",
+      message: "Fusion didn’t find any unit names in this file.",
+      affectedCount: 0,
+      nodeIds: [] as string[],
+      sourceCells: [],
+      recoveryActions: ["Correct field mapping"],
+    };
+    const available = semanticAssistance("Available", {
+      suggestions: [
+        {
+          issueKey: "level-type:0",
+          kind: "organization_type_mapping",
+          sourceColumnIndex: 0,
+          sourceLabel: "Entity",
+          targetKey: "type:organization",
+          targetLabel: "Organization",
+          rationale: null,
+          allowedTargets: [{ key: "type:organization", label: "Organization" }],
+        },
+      ],
+    });
+    const refetch = vi.fn();
+    // Fresh, root-less tenant with an unfamiliar file: the only manual issues are the
+    // semantic type and its root consequence, both undecidable until Apply.
+    mocks.sessionQuery = {
+      data: sourceReady({
+        semanticAssistance: available,
+        review: { ...base.review!, canCommit: false, issues: [typeIssue, rootIssue, noUnitsIssue] },
+      }).session,
+      isLoading: false,
+      error: null,
+      refetch,
+    };
+    const view = render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    // Ready-for-review auto-opens the inspector and shows no misleading attention.
+    expect(screen.getByRole("complementary", { name: "Import review panel" })).toBeInTheDocument();
+    expect(screen.queryByText(/Needs attention/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/needs your attention before you can finish/)).not.toBeInTheDocument();
+    // Closing restores the single entry point without resurfacing consequence issues.
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByRole("button", { name: "Review interpretations" })).toBeInTheDocument();
+    expect(screen.queryByText(/Needs attention/)).not.toBeInTheDocument();
+
+    // After Apply the AI phase ends; a genuine remaining root blocker resumes normally.
+    mocks.sessionQuery = {
+      data: sourceReady({
+        semanticAssistance: semanticAssistance("Applied"),
+        review: { ...base.review!, canCommit: false, issues: [rootIssue] },
+      }).session,
+      isLoading: false,
+      error: null,
+      refetch,
+    };
+    view.rerender(<OrganizationImportWorkspace sessionId="session-1" />);
+    expect(screen.getByRole("button", { name: "Needs attention · 1" })).toBeInTheDocument();
+    expect(
+      screen.getByText(/1 thing needs your attention before you can finish/)
+    ).toBeInTheDocument();
   });
 
   it("offers an explicit retry after a transport failure and scopes generation to the session", async () => {
@@ -492,12 +654,25 @@ describe("OrganizationImportWorkspace durable route", () => {
     render(<OrganizationImportWorkspace sessionId="session-1" />);
 
     expect(mocks.generateSuggestions.mutateAsync).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole("button", { name: "2 suggestions to review" }));
-    const panel = screen.getByRole("complementary", { name: "Import review panel" });
-    expect(within(panel).getByRole("heading", { name: "Suggested meanings" })).toBeInTheDocument();
+    // Provider/model plumbing never leaks into the normal experience.
+    expect(screen.queryByText(/Groq/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/gpt-oss/)).not.toBeInTheDocument();
+    // The workflow bar owns the single review entry point (no duplicate header pill).
+    expect(screen.queryByRole("button", { name: /Review interpretations · / })).not.toBeInTheDocument();
+    // The straight path auto-opens the interpretation inspector — no discovery click.
+    const panel = await screen.findByRole("complementary", { name: "Import review panel" });
+    expect(within(panel).getByRole("heading", { name: "Fusion’s interpretation" })).toBeInTheDocument();
+    // Source shape is informational here, not an editable dropdown.
+    expect(within(panel).getByText("Structure detected")).toBeInTheDocument();
+    expect(within(panel).getByText(/hierarchy/)).toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Change source interpretation" })).toBeInTheDocument();
+    // With the drawer open the workflow bar no longer offers a review CTA — only the drawer applies.
+    expect(screen.queryByRole("button", { name: "Review interpretations" })).not.toBeInTheDocument();
     await userEvent.selectOptions(within(panel).getByLabelText("Entity"), "type:division");
+    // Changing Fusion's suggestion is reflected truthfully as an edited row.
+    expect(within(panel).getByText("Edited")).toBeInTheDocument();
     await userEvent.selectOptions(within(panel).getByLabelText("Strategic Pillar"), "");
-    await userEvent.click(within(panel).getByRole("button", { name: "Apply suggestions · 1" }));
+    await userEvent.click(within(panel).getByRole("button", { name: "Apply 1 interpretation" }));
 
     await waitFor(() => expect(mocks.applySuggestions.mutateAsync).toHaveBeenCalledWith({
       id: "session-1",
@@ -513,6 +688,133 @@ describe("OrganizationImportWorkspace durable route", () => {
     expect(refetch).toHaveBeenCalled();
     expect(screen.queryByRole("complementary", { name: "Import review panel" })).not.toBeInTheDocument();
     expect(screen.getByRole("main", { name: "Resulting organization review" })).toHaveFocus();
+  });
+
+  it("reinterprets the source shape on request, invalidating the current level-based suggestions", async () => {
+    const base = sourceReady().session;
+    const available = semanticAssistance("Available", {
+      suggestions: [
+        {
+          issueKey: "level-type:0",
+          kind: "organization_type_mapping",
+          sourceColumnIndex: 0,
+          sourceLabel: "Entity",
+          targetKey: "type:organization",
+          targetLabel: "Organization",
+          rationale: null,
+          allowedTargets: [{ key: "type:organization", label: "Organization" }],
+        },
+      ],
+    });
+    const refetch = vi.fn();
+    mocks.sessionQuery = {
+      // Detected as a level-based hierarchy: Parent-reference is the reinterpretation.
+      data: sourceReady({
+        semanticAssistance: available,
+        review: { ...base.review!, shape: "LevelColumns", canCommit: false },
+      }).session,
+      isLoading: false,
+      error: null,
+      refetch,
+    };
+    mocks.replaceDecisions.mutateAsync.mockResolvedValue(sourceReady().session);
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    // Inspector auto-opens; the detected shape is informational, not a stray dropdown.
+    const panel = await screen.findByRole("complementary", { name: "Import review panel" });
+    expect(within(panel).getByText("Level-based hierarchy")).toBeInTheDocument();
+    expect(within(panel).queryByRole("combobox", { name: /structure/i })).not.toBeInTheDocument();
+
+    // Explicit reinterpretation to Parent-reference is a real, authoritative decision.
+    await userEvent.click(within(panel).getByRole("button", { name: "Change source interpretation" }));
+    await userEvent.click(within(panel).getByRole("button", { name: "Parent-reference hierarchy" }));
+
+    await waitFor(() => expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledWith({
+      id: "session-1",
+      version: 1,
+      decisions: expect.objectContaining({ shape: "ParentReference" }),
+    }));
+    // The stale level-based suggestions can no longer be applied.
+    expect(screen.queryByRole("button", { name: /Apply .* interpretation/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "Import review panel" })).not.toBeInTheDocument();
+  });
+
+  it("renders field-meaning interpretations with the field vocabulary, reconciling the Apply count", async () => {
+    const fieldTargets = [
+      { key: "field:name", label: "Name" },
+      { key: "field:businessCode", label: "Business Code" },
+      { key: "field:type", label: "Type" },
+      { key: "field:parentBusinessCode", label: "Parent reference" },
+    ];
+    const field = (issueKey: string, col: number, label: string, targetKey: string) => ({
+      issueKey,
+      kind: "field_mapping" as const,
+      sourceColumnIndex: col,
+      sourceLabel: label,
+      targetKey,
+      targetLabel: fieldTargets.find((t) => t.key === targetKey)!.label,
+      rationale: null,
+      allowedTargets: fieldTargets,
+    });
+    const available = semanticAssistance("Available", {
+      suggestions: [
+        field("field:0", 0, "OU Ref", "field:businessCode"),
+        field("field:1", 1, "Org Label", "field:name"),
+        field("field:2", 2, "Classification", "field:type"),
+        field("field:3", 3, "Rolls Up To", "field:parentBusinessCode"),
+      ],
+    });
+    mocks.sessionQuery = {
+      data: sourceReady({
+        semanticAssistance: available,
+        review: { ...sourceReady().session.review!, shape: "ParentReference", canCommit: false },
+      }).session,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    // The four field-meaning rows are visible — the Apply count matches what is shown.
+    const panel = await screen.findByRole("complementary", { name: "Import review panel" });
+    for (const term of ["OU Ref", "Org Label", "Classification", "Rolls Up To"])
+      expect(within(panel).getByLabelText(term)).toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: "Apply 4 interpretations" })).toBeInTheDocument();
+
+    // The select offers only the field vocabulary — no Organization type leaks in.
+    const ouRef = within(panel).getByLabelText<HTMLSelectElement>("OU Ref");
+    const options = Array.from(ouRef.options).map((option) => option.textContent);
+    expect(options).toEqual(["Resolve manually", "Name", "Business Code", "Type", "Parent reference"]);
+    expect(ouRef.value).toBe("field:businessCode");
+  });
+
+  it("never lets the Apply count exceed reviewable rows: an unrenderable interpretation disables Apply", async () => {
+    const available = semanticAssistance("Available", {
+      suggestions: [
+        {
+          issueKey: "field:0",
+          kind: "field_mapping",
+          sourceColumnIndex: 0,
+          sourceLabel: "OU Ref",
+          targetKey: "field:businessCode",
+          targetLabel: "Business Code",
+          rationale: null,
+          // A reviewable interpretation with no selectable targets cannot be shown.
+          allowedTargets: [],
+        },
+      ],
+    });
+    mocks.sessionQuery = {
+      data: sourceReady({ semanticAssistance: available }).session,
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    render(<OrganizationImportWorkspace sessionId="session-1" />);
+
+    const panel = await screen.findByRole("complementary", { name: "Import review panel" });
+    expect(within(panel).getByText(/couldn’t be shown for review/)).toBeInTheDocument();
+    expect(within(panel).getByRole("button", { name: /Apply/ })).toBeDisabled();
   });
 
   it("keeps manual review available and makes retry explicit when assistance is not configured", async () => {
@@ -543,7 +845,7 @@ describe("OrganizationImportWorkspace durable route", () => {
     mocks.generateSuggestions.mutateAsync.mockResolvedValue(semanticAssistance("Pending"));
     render(<OrganizationImportWorkspace sessionId="session-1" />);
 
-    expect(screen.getByText("Suggestions unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Interpretation unavailable")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(mocks.generateSuggestions.mutateAsync).toHaveBeenCalledWith({
       id: "session-1",

@@ -269,6 +269,47 @@ export function deriveReviewIssues(review: OrganizationImportReview): ReviewIssu
 }
 
 /**
+ * True when an issue is exactly the kind Fusion resolves through AI-assisted
+ * interpretation (unfamiliar source shape/columns or unknown level vocabulary).
+ * While assistance is interpreting or waiting for review, these are not a user
+ * failure — they are the very thing being interpreted — so they must not read as
+ * red "needs attention" alongside a calm interpreting state.
+ */
+export function isInterpretationIssue(issue: ReviewIssue): boolean {
+  return issue.kind === "type" || issue.kind === "sourceMapping";
+}
+
+/** Result-tree node ids covered by the semantic (AI) interpretation set. */
+export function interpretationNodeIds(issues: ReviewIssue[]): Set<string> {
+  const ids = new Set<string>();
+  for (const issue of issues)
+    if (isInterpretationIssue(issue)) for (const nodeId of issue.nodeIds) ids.add(nodeId);
+  return ids;
+}
+
+/**
+ * Issues to hold back from the manual attention queue while AI assistance is
+ * interpreting or awaiting review: the semantic issues themselves, plus the
+ * root/placement conditions that exist *only* as a consequence of the not-yet-
+ * applied interpretations (a fresh organization "needs a root", a unit "can't be
+ * placed") and cannot be meaningfully evaluated until the levels are typed. Once
+ * the administrator applies interpretations the AI phase ends, normal
+ * deterministic validation resumes, and any genuine root/placement blocker that
+ * still remains reappears as ordinary attention.
+ */
+export function isDeferredDuringInterpretation(issue: ReviewIssue): boolean {
+  return (
+    isInterpretationIssue(issue) ||
+    issue.kind === "root" ||
+    issue.kind === "parent" ||
+    // "No units in this file": the interpreter builds no proposal nodes until the
+    // levels are typed, so on an unfamiliar file this only reflects the pending
+    // interpretation, not a genuine empty source.
+    issue.raw?.code === "NoProposalNodes"
+  );
+}
+
+/**
  * Map each result-tree node to the strongest attention it carries, so the
  * hierarchy can mark what needs a decision without becoming warning soup.
  */
