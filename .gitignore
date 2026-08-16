@@ -12,7 +12,9 @@ Backend/EY.HRPlatform.Performance/App_Data/
 # Project docs (local only)
 # ========================
 EY_ACADEMY_MODULE.md
+DESIGN.md
 docs/corehr/
+docs/demo/
 artifacts/
 external-skills/
 .local-docs/
