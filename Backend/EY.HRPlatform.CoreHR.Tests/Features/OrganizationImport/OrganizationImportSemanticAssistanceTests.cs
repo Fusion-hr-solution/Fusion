@@ -325,6 +325,73 @@ public sealed class OrganizationImportSemanticAssistanceTests
         Assert.Equal(OrganizationImportSemanticFailureCategory.Interrupted, attempt.FailureCategory);
     }
 
+    [Fact]
+    public async Task ParentReferenceSource_DetectedDeterministically_AndOffersOnlyFieldMeanings()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        await SeedTypesAsync(context);
+        var session = Session(tenant.TenantId, ExpansionTable());
+        context.OrganizationImportSessions.Add(session);
+        await context.SaveChangesAsync();
+        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
+        var request = Assert.IsType<OrganizationImportSemanticRequest>(
+            new OrganizationImportSemanticContextBuilder(Options()).Build(session, review));
+
+        // The self-referential foreign key is deterministic evidence: the shape is
+        // settled without AI, so no source-shape question is asked.
+        Assert.Equal(OrganizationImportShape.ParentReference, review.Shape);
+        Assert.DoesNotContain(request.Issues, issue => issue.Kind == OrganizationImportSemanticKinds.SourceShape);
+
+        // Every ambiguity is a field-meaning question; a customer field is never
+        // offered an Organization type such as "Business Unit".
+        Assert.NotEmpty(request.Issues);
+        Assert.All(request.Issues, issue =>
+        {
+            Assert.Equal(OrganizationImportSemanticKinds.FieldMapping, issue.Kind);
+            Assert.All(issue.AllowedTargets, target => Assert.StartsWith("field:", target.Key));
+            Assert.DoesNotContain(issue.AllowedTargets, target => target.Key.StartsWith("type:", StringComparison.Ordinal));
+        });
+    }
+
+    [Fact]
+    public async Task CrossKindProviderTargets_AreRejectedAsInvalidOutput()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        await SeedTypesAsync(context);
+        var session = Session(tenant.TenantId, ExpansionTable());
+        context.OrganizationImportSessions.Add(session);
+        await context.SaveChangesAsync();
+        // A misbehaving model answers every field-meaning question with a hierarchy
+        // type target — a semantically impossible cross-kind answer.
+        var typeId = OrganizationalUnitTypeCatalog.BuiltIns.First().Id;
+        var provider = new StubProvider(request => new(
+            request.Issues.Select(issue =>
+                new OrganizationImportSemanticProviderSuggestion(issue.Key, issue.Kind, $"type:{typeId}", null)).ToList(),
+            null, null));
+        var service = Service(context, tenant, provider);
+        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
+        var eligible = await service.DescribeAsync(session, review, CancellationToken.None);
+
+        var result = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
+
+        // None survive validation, so the attempt fails cleanly and manual review remains.
+        Assert.Equal(OrganizationImportSemanticAssistanceState.Failed, result.State);
+        Assert.Equal(OrganizationImportSemanticFailureCategory.InvalidOutput, result.FailureCategory);
+        Assert.Empty(result.Suggestions);
+    }
+
+    private static OrganizationSourceTable ExpansionTable()
+        => new(
+            [new(0, "OU Ref"), new(1, "Org Label"), new(2, "Classification"), new(3, "Rolls Up To")],
+            [
+                new string?[] { "AG", "Asteria Group", "Organization", null },
+                new string?[] { "CG", "Customer Growth", "Division", "AG" },
+                new string?[] { "CE", "Customer Experience", "Department", "CG" },
+                new string?[] { "CX", "Experience Pod", "Team", "CE" },
+            ]);
+
     private static OrganizationImportSemanticAssistanceService Service(
         EY.HRPlatform.CoreHR.Infrastructure.Persistence.CoreHRDbContext context,
         TestTenantContext tenant,

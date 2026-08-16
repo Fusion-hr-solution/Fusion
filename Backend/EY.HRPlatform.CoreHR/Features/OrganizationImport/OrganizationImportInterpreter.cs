@@ -161,6 +161,12 @@ public sealed class OrganizationImportInterpreter(CoreHRDbContext dbContext, ITe
             : mappings.Any(mapping => mapping.Field == OrganizationImportFields.Name && mapping.ColumnIndex is not null)
                 && mappings.Any(mapping => mapping.Field == OrganizationImportFields.ParentBusinessCode && mapping.ColumnIndex is not null)
                 ? OrganizationImportShape.ParentReference
+            // A self-referential foreign key (one column's values reference another
+            // identifier column) is a parent-reference table even before the field
+            // meanings are known. Establish the shape deterministically and leave the
+            // column meanings to semantic interpretation.
+            : OrganizationImportShapeEvidence.HasParentReferenceStructure(table)
+                ? OrganizationImportShape.ParentReference
                 : OrganizationImportShape.Unresolved;
         var shape = decisions.Shape ?? deterministicShape;
         // Once an administrator selects the level-column shape, every source column is part of that

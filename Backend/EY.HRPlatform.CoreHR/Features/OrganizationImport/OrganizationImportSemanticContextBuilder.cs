@@ -77,7 +77,13 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
         }
 
         if (fields.Count == 0) return null;
-        var hasOrderedLevelPattern = HasOrderedLevelPattern(table, fields.Select(field => field.ColumnIndex).ToList());
+        var hasParentReferenceEvidence = OrganizationImportShapeEvidence.HasParentReferenceStructure(table);
+        // A parent-reference table is often rectangular, so the ordered-level pattern
+        // alone would misread it as level columns. The self-referential foreign key is
+        // the authority: when it is present the columns are field roles, not levels.
+        var hasOrderedLevelPattern =
+            !hasParentReferenceEvidence
+            && HasOrderedLevelPattern(table, fields.Select(field => field.ColumnIndex).ToList());
         var plausibleShapes = hasOrderedLevelPattern
             ? new[] { OrganizationImportShape.LevelColumns.ToString(), OrganizationImportShape.ParentReference.ToString() }
             : new[] { OrganizationImportShape.ParentReference.ToString(), OrganizationImportShape.LevelColumns.ToString() };
