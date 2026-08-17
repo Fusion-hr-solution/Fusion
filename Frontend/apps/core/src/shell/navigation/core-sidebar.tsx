@@ -43,7 +43,7 @@ export function CoreSidebar() {
   const peopleItems = PEOPLE_NAV.items.filter((item) => {
     if (item.href === "/profile") return canSeeMyProfile;
     if (item.href === "/team") return canSeeMyTeam;
-    if (item.href === "/employees") return canSeeEmployeeRoster;
+    if (item.href === "/people") return canSeeEmployeeRoster;
     if (item.href === "/organization") return canSeeOrganization;
     return true;
   });

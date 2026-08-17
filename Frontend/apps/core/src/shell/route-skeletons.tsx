@@ -70,7 +70,7 @@ export function OverviewPageSkeleton() {
 export function EmployeesPageSkeleton({ label }: { label?: string }) {
   return (
     <PageContainer width="wide" className="space-y-5">
-      <PageHeader title="Employees" description="Browse and manage workforce records." />
+      <PageHeader title="People" />
       <PageLoading rows={8} label={label ?? "Loading employees"} />
     </PageContainer>
   );
@@ -246,9 +246,11 @@ export function SetupPageSkeleton() {
 /** The dedicated loading skeleton for a core route (module-relative path). */
 export function getRoutePageSkeleton(corePath: string): ReactNode {
   if (corePath === "/") return <OverviewPageSkeleton />;
-  if (corePath === "/employees") return <EmployeesPageSkeleton />;
-  if (corePath === "/employees/import") return <EmployeeImportPageSkeleton />;
-  if (corePath.startsWith("/employees/")) return <EmployeeProfilePageSkeleton />;
+  if (corePath === "/people") return <EmployeesPageSkeleton />;
+  if (corePath === "/people/import") return <EmployeeImportPageSkeleton />;
+  if (corePath === "/people/hire" || corePath === "/people/add-existing")
+    return <TitledPageLoading title="People" rows={5} label="Opening employee details" />;
+  if (corePath.startsWith("/people/")) return <EmployeeProfilePageSkeleton />;
   if (corePath === "/profile") return <MyProfilePageSkeleton />;
   if (corePath === "/team") return <TeamPageSkeleton />;
   if (corePath === "/organization" || corePath === "/org-chart") return <OrgChartPageSkeleton />;

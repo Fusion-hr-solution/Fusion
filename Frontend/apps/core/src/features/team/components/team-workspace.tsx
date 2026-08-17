@@ -79,7 +79,7 @@ export default function TeamWorkspace() {
               {directReports.map(({ employee }) => (
                 <Link
                   key={employee.id}
-                  href={`/employees/${employee.stableEmployeeKey}`}
+                  href={`/people/${employee.stableEmployeeKey}`}
                   className="group rounded-xl border bg-background p-4 transition-colors hover:border-primary/40 hover:bg-muted/10"
                 >
                   <div className="flex items-start justify-between gap-3">

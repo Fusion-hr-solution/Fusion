@@ -460,7 +460,7 @@ describe("EmployeeProfileWorkspace", () => {
       const directReportLink = within(managerPanel).getByRole("link", {
         name: /Taylor Singh/i,
       });
-      expect(directReportLink.getAttribute("href")).toBe("/employees/E-EMP2");
+      expect(directReportLink.getAttribute("href")).toBe("/people/E-EMP2");
 
       fireEvent.click(screen.getAllByRole("button", { name: "Edit record" })[0]!);
 

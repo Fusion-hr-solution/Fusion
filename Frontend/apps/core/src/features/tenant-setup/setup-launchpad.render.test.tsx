@@ -167,7 +167,7 @@ describe("Tenant Setup launchpad presentation", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Add workforce/i })
-    ).toHaveAttribute("href", "/employees");
+    ).toHaveAttribute("href", "/people");
     expect(
       screen.getAllByRole("heading", { name: "Add your workforce" })
     ).toHaveLength(1);

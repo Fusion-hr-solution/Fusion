@@ -347,7 +347,7 @@ function ManagerChainBreadcrumb({
           `${employee.firstName} ${employee.lastName}`;
         const href =
           canOpenProfiles && employee.stableEmployeeKey
-            ? `/employees/${employee.stableEmployeeKey}`
+            ? `/people/${employee.stableEmployeeKey}`
             : null;
 
         return (
@@ -1468,7 +1468,7 @@ export function EmployeeProfileWorkspace({
     canManageReporting;
   const managerProfileHref =
     canOpenManagerProfile && managerNode?.stableEmployeeKey
-      ? `/employees/${managerNode.stableEmployeeKey}`
+      ? `/people/${managerNode.stableEmployeeKey}`
       : null;
   const managerSupportingText = managerNode?.jobTitle ? (
     <div className="min-w-0 space-y-0.5">
@@ -2249,7 +2249,7 @@ export function EmployeeProfileWorkspace({
                           employee.fullName?.trim() ||
                           `${employee.firstName} ${employee.lastName}`;
                         const href = canOpenDirectReportProfiles
-                          ? `/employees/${employee.stableEmployeeKey}`
+                          ? `/people/${employee.stableEmployeeKey}`
                           : null;
                         const tertiary = employee.jobTitle ? (
                           <div className="flex flex-wrap items-center gap-2">

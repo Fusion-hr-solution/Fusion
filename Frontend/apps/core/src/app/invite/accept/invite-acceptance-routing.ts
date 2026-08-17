@@ -34,7 +34,7 @@ export function resolveInviteAcceptanceDestination(
   }
 
   if (canAccessCorePeople(user)) {
-    return "/employees";
+    return "/people";
   }
 
   if (canAccessCoreTeam(user)) {

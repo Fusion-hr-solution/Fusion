@@ -83,7 +83,7 @@ export const SETUP_CAPABILITIES: SetupCapability[] = [
     purpose: "Add and manage the people who work in this tenant.",
     group: "foundation",
     availability: "implemented",
-    route: "/employees",
+    route: "/people",
     actionLabel: "Add workforce",
     // The employee roster needs the official Organization hierarchy to place
     // people into, so this is a real dependency rather than a sequencing

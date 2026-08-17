@@ -935,7 +935,7 @@ function AppliedCtaCluster() {
       ) : null}
       {canOpenEmployeeDirectory ? (
         <Button asChild type="button" variant="outline" size="sm" className="w-full justify-center">
-          <Link href="/employees">
+          <Link href="/people">
             <Users />
             See employees
           </Link>
@@ -1220,7 +1220,7 @@ export function AppliedResultPanel({
             ) : null}
             {canOpenEmployeeDirectory ? (
               <Button asChild type="button" variant="outline">
-                <Link href="/employees">
+                <Link href="/people">
                   <Users />
                   See employees
                 </Link>

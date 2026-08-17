@@ -348,7 +348,7 @@ export default function EmployeeImportWorkspace() {
       }
 
       const nextSearch = nextSearchParams.toString();
-      const nextUrl = `/employees/import${nextSearch ? `?${nextSearch}` : ""}${hash}`;
+      const nextUrl = `/people/import${nextSearch ? `?${nextSearch}` : ""}${hash}`;
       router.replace(nextUrl);
     },
     [router, searchParams]
@@ -624,7 +624,7 @@ export default function EmployeeImportWorkspace() {
         description="Upload, review, and apply CSV employee data."
         actions={
           <Button variant="outline" asChild>
-            <Link href="/employees">
+            <Link href="/people">
               <ArrowLeft />
               Back to employees
             </Link>

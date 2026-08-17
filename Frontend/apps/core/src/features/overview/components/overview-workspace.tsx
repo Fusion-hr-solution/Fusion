@@ -238,7 +238,7 @@ function WorkforceDashboard({
           value={active}
           icon={Users}
           hint={`${totalWorkforce} total · ${inactive} inactive`}
-          href={toHref("/employees?status=Active")}
+          href={toHref("/people?status=Active")}
         />
         <KpiStat
           label="Workforce readiness"
@@ -246,7 +246,7 @@ function WorkforceDashboard({
           tone={readinessPct >= 90 ? "success" : readinessPct >= 70 ? "warning" : "danger"}
           icon={Gauge}
           hint={`${readyCount} of ${active} records ready`}
-          href={toHref("/employees?readiness=Ready")}
+          href={toHref("/people")}
         />
         <KpiStat
           label="Needs attention"
@@ -254,14 +254,14 @@ function WorkforceDashboard({
           tone={needsAttention > 0 ? "warning" : "success"}
           icon={TriangleAlert}
           hint={needsAttention > 0 ? "People with data issues" : "All records healthy"}
-          href={toHref("/employees?readiness=NeedsAttention")}
+          href={toHref("/people")}
         />
         <KpiStat
           label="New hires (90d)"
           value={analytics.newHires90}
           icon={TrendingUp}
           hint={`${analytics.managers} managers`}
-          href={toHref("/employees")}
+          href={toHref("/people")}
         />
       </KpiGrid>
 
@@ -326,7 +326,7 @@ function WorkforceDashboard({
             description="Records with blocking or data-quality issues — resolve to keep the workforce trustworthy."
             action={
               <Link
-                href={toHref("/employees?readiness=NeedsAttention")}
+                href={toHref("/people")}
                 className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
               >
                 Review all <ArrowRight className="size-3.5" />
@@ -338,7 +338,7 @@ function WorkforceDashboard({
                 {analytics.attention.map(({ employee, blocking, issues }) => (
                   <li key={employee.id}>
                     <Link
-                      href={toHref(`/employees/${employee.stableEmployeeKey}`)}
+                      href={toHref(`/people/${employee.stableEmployeeKey}`)}
                       className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary"
                     >
                       <span className="flex min-w-0 items-center gap-2.5">
@@ -426,7 +426,7 @@ function WorkforceDashboard({
             description="Newest people joining the workforce."
             action={
               <Link
-                href={toHref("/employees")}
+                href={toHref("/people")}
                 className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
               >
                 All employees <ArrowRight className="size-3.5" />
@@ -438,7 +438,7 @@ function WorkforceDashboard({
                 {recentHires.map((employee) => (
                   <li key={employee.id}>
                     <Link
-                      href={toHref(`/employees/${employee.stableEmployeeKey}`)}
+                      href={toHref(`/people/${employee.stableEmployeeKey}`)}
                       className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary"
                     >
                       <span className="min-w-0">
@@ -470,7 +470,7 @@ function WorkforceDashboard({
         <DashboardPanel>
           <DashboardSection title="Quick actions">
             <div className="flex flex-col gap-2">
-              <QuickLink href={toHref("/employees?create=1")} icon={Plus}>
+              <QuickLink href={toHref("/people/hire")} icon={Plus}>
                 Add employee
               </QuickLink>
               <QuickLink href={toHref("/access")} icon={ShieldCheck}>
@@ -567,7 +567,7 @@ function ManagerDashboard({ me }: { me: WorkforceMeContext }) {
                   return (
                     <li key={member.employeeId}>
                       <Link
-                        href={`/employees/${member.stableEmployeeKey}`}
+                        href={`/people/${member.stableEmployeeKey}`}
                         className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary"
                       >
                         <span className="flex min-w-0 items-center gap-2.5">
@@ -744,7 +744,7 @@ function CoreOperationsDashboard() {
       ? { href: moduleHref("/settings"), title: "Settings", icon: Settings2 }
       : null,
     canAccessEmployeeRoster(user)
-      ? { href: moduleHref("/employees"), title: "Employees", icon: Users }
+      ? { href: moduleHref("/people"), title: "People", icon: Users }
       : null,
     canAccessTeamWorkspace(user)
       ? { href: moduleHref("/team"), title: "My Team", icon: Users }
@@ -787,7 +787,7 @@ function getFallbackWorkspace(user: AuthUser | null): { href: string; label: str
     return { href: "/settings?tab=access-permissions", label: "Settings" };
   if (canViewTenantAdministration(user)) return { href: "/getting-started", label: "Getting started" };
   if (canAccessCoreSettings(user)) return { href: "/settings", label: "Settings" };
-  if (canAccessEmployeeRoster(user)) return { href: "/employees", label: "Employees" };
+  if (canAccessEmployeeRoster(user)) return { href: "/people", label: "People" };
   if (canAccessTeamWorkspace(user)) return { href: "/team", label: "My Team" };
   if (canAccessSelfEmployeeProfile(user)) return { href: "/profile", label: "My Profile" };
   return null;

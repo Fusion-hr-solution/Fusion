@@ -53,6 +53,22 @@
     --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
     --sidebar-border: oklch(0.92 0.004 286.32);
     --sidebar-ring: oklch(0.705 0.015 286.067);
+    /* Semantic elevation (DESIGN.md §8, §33.6). Two tiers only — do not add
+       arbitrary per-component shadows. `raised` is for genuinely lifted content
+       (rare); `overlay` is for dialogs/menus/popovers/dragged objects. Static
+       grouped content should rely on hierarchy/spacing/tone, not shadow. */
+    --shadow-raised: 0 1px 2px 0 oklch(0 0 0 / 0.06), 0 1px 3px 0 oklch(0 0 0 / 0.08);
+    --shadow-overlay: 0 4px 12px -6px oklch(0 0 0 / 0.18), 0 12px 32px -12px oklch(0 0 0 / 0.24);
+    /* Motion vocabulary (DESIGN.md §22, §33.15). Small and intentional.
+       Durations are plain properties (Tailwind has no duration theme namespace);
+       use via duration-[var(--duration-*)] or in CSS. Easings register below. */
+    --duration-fast: 120ms;    /* interaction feedback: hover, press, toggle */
+    --duration-normal: 200ms;  /* standard transitions: color, size, position */
+    --duration-reveal: 260ms;  /* expand/collapse, content reveal */
+    --duration-overlay: 160ms; /* overlay enter/leave */
+    --ease-standard: cubic-bezier(0.2, 0, 0, 1);   /* most transitions */
+    --ease-emphasized: cubic-bezier(0.3, 0, 0, 1); /* reveals, meaningful motion */
+    --ease-exit: cubic-bezier(0.4, 0, 1, 1);       /* elements leaving */
 }
 
 .dark {
@@ -93,6 +109,9 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.552 0.016 285.938);
+    /* Dark shadows carry less on dark surfaces; overlays lean on ring-1 too. */
+    --shadow-raised: 0 1px 2px 0 oklch(0 0 0 / 0.4), 0 1px 3px 0 oklch(0 0 0 / 0.5);
+    --shadow-overlay: 0 4px 12px -6px oklch(0 0 0 / 0.55), 0 12px 32px -12px oklch(0 0 0 / 0.6);
 }
 
 @theme inline {
@@ -164,6 +183,13 @@
     --radius-2xl: 1rem;
     --radius-3xl: 1.5rem;
     --radius-4xl: 2rem;
+    /* Elevation → `shadow-raised` / `shadow-overlay` utilities. */
+    --shadow-raised: var(--shadow-raised);
+    --shadow-overlay: var(--shadow-overlay);
+    /* Easings → `ease-standard` / `ease-emphasized` / `ease-exit` utilities. */
+    --ease-standard: var(--ease-standard);
+    --ease-emphasized: var(--ease-emphasized);
+    --ease-exit: var(--ease-exit);
 }
 
 @layer base {
@@ -179,6 +205,17 @@
   h1, h2, h3 {
     @apply font-heading tracking-tight;
     }
+  /* Reduced-motion is a design requirement (DESIGN.md §24, §33.15), not just a
+     Radix concern: collapse animation/transition timing for users who ask for it
+     while leaving a 1ms tail so state-change callbacks still fire. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 /*
