@@ -72,7 +72,7 @@ public class ChangeEmployeeManagerCommandHandlerTests
     private static (Employee Employee, Employment Employment, WorkAssignment Assignment) SeedEmployed(
         CoreHRDbContext seed, OrgUnit orgUnit, string first, string last, string email)
     {
-        var employee = Employee.Create(TenantId, first, last, email, Hire);
+        var employee = Employee.Create(TenantId, first, last, email, Hire, employeeNumber: TestEmployeeNumbers.Next());
         var employment = Employment.Start(TenantId, employee.Id, Hire, "FullTime", WorkforceSourceType.Manual);
         var assignment = WorkAssignment.Create(
             TenantId, employment.Id, employee.Id, orgUnit.Id, "Engineer", "HQ", true, Hire, null, WorkforceSourceType.Manual);

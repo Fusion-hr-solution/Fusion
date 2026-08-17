@@ -26,7 +26,7 @@ public class RehireEmployeeCommandHandlerTests
 
         await using var seed = TestDbContextFactory.CreateWithoutTenant(dbName);
         var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", Hire);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", Hire, employeeNumber: TestEmployeeNumbers.Next());
         var endedEmployment = Employment.Start(TenantId, employee.Id, Hire, "FullTime", WorkforceSourceType.Manual);
         endedEmployment.End(Termination);
         seed.AddRange(orgUnit, employee, endedEmployment);
@@ -64,7 +64,7 @@ public class RehireEmployeeCommandHandlerTests
 
         await using var seed = TestDbContextFactory.CreateWithoutTenant(dbName);
         var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", Hire);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", Hire, employeeNumber: TestEmployeeNumbers.Next());
         var activeEmployment = Employment.Start(TenantId, employee.Id, Hire, "FullTime", WorkforceSourceType.Manual);
         seed.AddRange(orgUnit, employee, activeEmployment);
         await seed.SaveChangesAsync();

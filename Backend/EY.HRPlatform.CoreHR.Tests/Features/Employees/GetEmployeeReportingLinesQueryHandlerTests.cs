@@ -29,11 +29,11 @@ public class GetEmployeeReportingLinesQueryHandlerTests
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com");
-            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com");
-            var reportOne = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com");
-            var reportTwo = Employee.Create(TenantId, "Jordan", "Ray", "jordan.ray@example.com");
-            var indirectReport = Employee.Create(TenantId, "Priya", "Singh", "priya.singh@example.com");
+            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", employeeNumber: "TEST-EXEC");
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", employeeNumber: "TEST-MANAGER");
+            var reportOne = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", employeeNumber: "TEST-REPORT-1");
+            var reportTwo = Employee.Create(TenantId, "Jordan", "Ray", "jordan.ray@example.com", employeeNumber: "TEST-REPORT-2");
+            var indirectReport = Employee.Create(TenantId, "Priya", "Singh", "priya.singh@example.com", employeeNumber: "TEST-INDIRECT");
 
             var executiveEmployment = Employment.Start(TenantId, executive.Id, effectiveFrom.AddMonths(-3), "FullTime", WorkforceSourceType.Manual);
             var managerEmployment = Employment.Start(TenantId, manager.Id, effectiveFrom.AddMonths(-2), "FullTime", WorkforceSourceType.Manual);
@@ -96,7 +96,7 @@ public class GetEmployeeReportingLinesQueryHandlerTests
 
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
-            var employee = Employee.Create(TenantId, "Solo", "Leader", "solo.leader@example.com");
+            var employee = Employee.Create(TenantId, "Solo", "Leader", "solo.leader@example.com", employeeNumber: "TEST-SOLO");
             seedContext.Employees.Add(employee);
             await seedContext.SaveChangesAsync();
             employeeId = employee.Id;

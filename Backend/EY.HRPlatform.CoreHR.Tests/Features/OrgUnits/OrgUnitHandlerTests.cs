@@ -704,7 +704,7 @@ public class OrgUnitHandlerTests
         seedContext.OrgUnits.Add(orgUnit);
         await seedContext.SaveChangesAsync();
 
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
         var employment = Employment.Start(TenantId, employee.Id, DateTime.UtcNow.AddMonths(-1), "FullTime", WorkforceSourceType.Manual);
         var assignment = WorkAssignment.Create(TenantId, employment.Id, employee.Id, orgUnit.Id, "Engineer", null, true, employment.EffectiveFrom, null, WorkforceSourceType.Manual);
         seedContext.Employees.Add(employee);

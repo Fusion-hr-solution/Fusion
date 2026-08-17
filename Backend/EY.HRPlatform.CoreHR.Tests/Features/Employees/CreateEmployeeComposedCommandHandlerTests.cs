@@ -23,7 +23,7 @@ public class CreateEmployeeComposedCommandHandlerTests
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-            var manager = Employee.Create(TenantId, "Maya", "Lead", "maya.lead@example.com", DateTime.UtcNow.AddYears(-3));
+            var manager = Employee.Create(TenantId, "Maya", "Lead", "maya.lead@example.com", DateTime.UtcNow.AddYears(-3), employeeNumber: TestEmployeeNumbers.Next());
             var managerEmployment = Employment.Start(TenantId, manager.Id, DateTime.UtcNow.AddYears(-3), "FullTime", WorkforceSourceType.Manual);
             var managerAssignment = WorkAssignment.Create(
                 TenantId,

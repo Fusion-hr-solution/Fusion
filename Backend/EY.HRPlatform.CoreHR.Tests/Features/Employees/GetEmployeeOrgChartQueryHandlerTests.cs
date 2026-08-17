@@ -43,21 +43,21 @@ public class GetEmployeeOrgChartQueryHandlerTests
         {
             var orgUnit = OrgUnit.Create(TenantId, "SHARED", "Shared", "Department", null);
 
-            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow);
+            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var execEmp = StartEmp(TenantId, executive.Id);
             var execAssignment = CreateAssignment(TenantId, execEmp, executive.Id, orgUnit.Id);
 
-            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var mgrEmp = StartEmp(TenantId, manager.Id);
             var mgrAssignment = CreateAssignment(TenantId, mgrEmp, manager.Id, orgUnit.Id);
             var mgrLink = CreateLink(TenantId, manager, mgrAssignment, executive, execAssignment);
 
-            var report = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
+            var report = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var rptEmp = StartEmp(TenantId, report.Id);
             var rptAssignment = CreateAssignment(TenantId, rptEmp, report.Id, orgUnit.Id);
             var rptLink = CreateLink(TenantId, report, rptAssignment, manager, mgrAssignment);
 
-            var rootWithoutManager = Employee.Create(TenantId, "Jordan", "Root", "jordan.root@example.com", DateTime.UtcNow);
+            var rootWithoutManager = Employee.Create(TenantId, "Jordan", "Root", "jordan.root@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var rootEmp = StartEmp(TenantId, rootWithoutManager.Id);
 
             seedContext.OrgUnits.Add(orgUnit);
@@ -105,16 +105,16 @@ public class GetEmployeeOrgChartQueryHandlerTests
         {
             var orgUnit = OrgUnit.Create(TenantId, "SHARED", "Shared", "Department", null);
 
-            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow);
+            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var execEmp = StartEmp(TenantId, executive.Id);
             var execAssignment = CreateAssignment(TenantId, execEmp, executive.Id, orgUnit.Id);
 
-            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var mgrEmp = StartEmp(TenantId, manager.Id);
             var mgrAssignment = CreateAssignment(TenantId, mgrEmp, manager.Id, orgUnit.Id);
             var mgrLink = CreateLink(TenantId, manager, mgrAssignment, executive, execAssignment);
 
-            var report = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
+            var report = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var rptEmp = StartEmp(TenantId, report.Id);
             var rptAssignment = CreateAssignment(TenantId, rptEmp, report.Id, orgUnit.Id);
             var rptLink = CreateLink(TenantId, report, rptAssignment, manager, mgrAssignment);
@@ -151,16 +151,16 @@ public class GetEmployeeOrgChartQueryHandlerTests
         {
             var orgUnit = OrgUnit.Create(TenantId, "SHARED", "Shared", "Department", null);
 
-            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow);
+            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var execEmp = StartEmp(TenantId, executive.Id);
             var execAssignment = CreateAssignment(TenantId, execEmp, executive.Id, orgUnit.Id);
 
-            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var mgrEmp = StartEmp(TenantId, manager.Id);
             var mgrAssignment = CreateAssignment(TenantId, mgrEmp, manager.Id, orgUnit.Id);
             var mgrLink = CreateLink(TenantId, manager, mgrAssignment, executive, execAssignment);
 
-            var report = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
+            var report = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var rptEmp = StartEmp(TenantId, report.Id);
             var rptAssignment = CreateAssignment(TenantId, rptEmp, report.Id, orgUnit.Id);
             var rptLink = CreateLink(TenantId, report, rptAssignment, manager, mgrAssignment);
@@ -199,21 +199,21 @@ public class GetEmployeeOrgChartQueryHandlerTests
         {
             var orgUnit = OrgUnit.Create(TenantId, "SHARED", "Shared", "Department", null);
 
-            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow);
+            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var execEmp = StartEmp(TenantId, executive.Id);
             var execAssignment = CreateAssignment(TenantId, execEmp, executive.Id, orgUnit.Id);
 
-            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var mgrEmp = StartEmp(TenantId, manager.Id);
             var mgrAssignment = CreateAssignment(TenantId, mgrEmp, manager.Id, orgUnit.Id);
             var mgrLink = CreateLink(TenantId, manager, mgrAssignment, executive, execAssignment);
 
-            var report = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
+            var report = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var rptEmp = StartEmp(TenantId, report.Id);
             var rptAssignment = CreateAssignment(TenantId, rptEmp, report.Id, orgUnit.Id);
             var rptLink = CreateLink(TenantId, report, rptAssignment, manager, mgrAssignment);
 
-            var deeper = Employee.Create(TenantId, "Nina", "Stone", "nina.stone@example.com", DateTime.UtcNow);
+            var deeper = Employee.Create(TenantId, "Nina", "Stone", "nina.stone@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var deeperEmp = StartEmp(TenantId, deeper.Id);
             var deeperAssignment = CreateAssignment(TenantId, deeperEmp, deeper.Id, orgUnit.Id);
             var deeperLink = CreateLink(TenantId, deeper, deeperAssignment, report, rptAssignment);
@@ -259,7 +259,7 @@ public class GetEmployeeOrgChartQueryHandlerTests
             var orgUnit = OrgUnit.Create(TenantId, "SHARED", "Shared", "Department", null);
 
             // Inactive manager: employment ended yesterday
-            var inactiveManager = Employee.Create(TenantId, "Casey", "Inactive", "casey.inactive@example.com", DateTime.UtcNow);
+            var inactiveManager = Employee.Create(TenantId, "Casey", "Inactive", "casey.inactive@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var inactiveMgrEmp = Employment.Start(TenantId, inactiveManager.Id, DateTime.UtcNow.AddMonths(-6), null, WorkforceSourceType.Manual);
             inactiveMgrEmp.End(yesterday);
             var inactiveMgrAssignment = WorkAssignment.Create(
@@ -267,7 +267,7 @@ public class GetEmployeeOrgChartQueryHandlerTests
                 "N/A", null, true, inactiveMgrEmp.EffectiveFrom, yesterday, WorkforceSourceType.Manual);
 
             // Active report with ManagerRelationship still pointing to inactive manager
-            var report = Employee.Create(TenantId, "Robin", "Active", "robin.active@example.com", DateTime.UtcNow);
+            var report = Employee.Create(TenantId, "Robin", "Active", "robin.active@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var reportEmp = StartEmp(TenantId, report.Id);
             var reportAssignment = CreateAssignment(TenantId, reportEmp, report.Id, orgUnit.Id);
             var managerLink = ManagerRelationship.Create(
@@ -307,14 +307,14 @@ public class GetEmployeeOrgChartQueryHandlerTests
         {
             var orgUnit = OrgUnit.Create(TenantId, "SHARED", "Shared", "Department", null);
 
-            var inactiveManager = Employee.Create(TenantId, "Casey", "Inactive", "casey.inactive@example.com", DateTime.UtcNow);
+            var inactiveManager = Employee.Create(TenantId, "Casey", "Inactive", "casey.inactive@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var inactiveMgrEmp = Employment.Start(TenantId, inactiveManager.Id, DateTime.UtcNow.AddMonths(-6), null, WorkforceSourceType.Manual);
             inactiveMgrEmp.End(yesterday);
             var inactiveMgrAssignment = WorkAssignment.Create(
                 TenantId, inactiveMgrEmp.Id, inactiveManager.Id, orgUnit.Id,
                 "N/A", null, true, inactiveMgrEmp.EffectiveFrom, yesterday, WorkforceSourceType.Manual);
 
-            var report = Employee.Create(TenantId, "Robin", "Active", "robin.active@example.com", DateTime.UtcNow);
+            var report = Employee.Create(TenantId, "Robin", "Active", "robin.active@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var reportEmp = StartEmp(TenantId, report.Id);
             var reportAssignment = CreateAssignment(TenantId, reportEmp, report.Id, orgUnit.Id);
             var managerLink = ManagerRelationship.Create(
@@ -367,7 +367,7 @@ public class GetEmployeeOrgChartQueryHandlerTests
 
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
-            var employee = Employee.Create(tenantA, "John", "Doe", "john@example.com", DateTime.UtcNow);
+            var employee = Employee.Create(tenantA, "John", "Doe", "john@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             seedContext.Employees.Add(employee);
             await seedContext.SaveChangesAsync();
             employeeId = employee.Id;
@@ -393,16 +393,16 @@ public class GetEmployeeOrgChartQueryHandlerTests
         {
             var orgUnit = OrgUnit.Create(TenantId, "SHARED", "Shared", "Department", null);
 
-            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow);
+            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var execEmp = StartEmp(TenantId, executive.Id);
             var execAssignment = CreateAssignment(TenantId, execEmp, executive.Id, orgUnit.Id);
 
-            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var mgrEmp = StartEmp(TenantId, manager.Id);
             var mgrAssignment = CreateAssignment(TenantId, mgrEmp, manager.Id, orgUnit.Id);
             var mgrLink = CreateLink(TenantId, manager, mgrAssignment, executive, execAssignment);
 
-            var report = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
+            var report = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var rptEmp = StartEmp(TenantId, report.Id);
             var rptAssignment = CreateAssignment(TenantId, rptEmp, report.Id, orgUnit.Id);
             var rptLink = CreateLink(TenantId, report, rptAssignment, manager, mgrAssignment);
@@ -458,14 +458,14 @@ public class GetEmployeeOrgChartQueryHandlerTests
             var orgUnitB = OrgUnit.Create(TenantId, "OU-B", "Org Unit B", "Department", null);
 
             // executive is in org unit B (ancestor manager, different unit)
-            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow);
+            var executive = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var execEmp = StartEmp(TenantId, executive.Id);
             var execAssignment = WorkAssignment.Create(
                 TenantId, execEmp.Id, executive.Id, orgUnitB.Id,
                 "N/A", null, true, execEmp.EffectiveFrom, null, WorkforceSourceType.Manual);
 
             // manager in org unit A, reports to executive
-            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow);
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var mgrEmp = StartEmp(TenantId, manager.Id);
             var mgrAssignment = WorkAssignment.Create(
                 TenantId, mgrEmp.Id, manager.Id, orgUnitA.Id,
@@ -473,7 +473,7 @@ public class GetEmployeeOrgChartQueryHandlerTests
             var mgrLink = CreateLink(TenantId, manager, mgrAssignment, executive, execAssignment);
 
             // report in org unit A, reports to manager
-            var report = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
+            var report = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var rptEmp = StartEmp(TenantId, report.Id);
             var rptAssignment = WorkAssignment.Create(
                 TenantId, rptEmp.Id, report.Id, orgUnitA.Id,
@@ -481,7 +481,7 @@ public class GetEmployeeOrgChartQueryHandlerTests
             var rptLink = CreateLink(TenantId, report, rptAssignment, manager, mgrAssignment);
 
             // unrelated in org unit B — should NOT appear
-            var unrelated = Employee.Create(TenantId, "Bob", "Other", "bob.other@example.com", DateTime.UtcNow);
+            var unrelated = Employee.Create(TenantId, "Bob", "Other", "bob.other@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var unrelatedEmp = StartEmp(TenantId, unrelated.Id);
 
             seedContext.OrgUnits.AddRange(orgUnitA, orgUnitB);
@@ -522,29 +522,29 @@ public class GetEmployeeOrgChartQueryHandlerTests
             var orgUnit = OrgUnit.Create(TenantId, "SHARED", "Shared", "Department", null);
 
             // top-level leader (root) — has reports, no manager → Root hierarchy status, not an issue
-            var topLevel = Employee.Create(TenantId, "Emma", "Executive", "emma@example.com", DateTime.UtcNow);
+            var topLevel = Employee.Create(TenantId, "Emma", "Executive", "emma@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var topEmp = StartEmp(TenantId, topLevel.Id);
             var topAssignment = CreateAssignment(TenantId, topEmp, topLevel.Id, orgUnit.Id);
 
-            var topLevelReport = Employee.Create(TenantId, "Casey", "Report", "casey@example.com", DateTime.UtcNow);
+            var topLevelReport = Employee.Create(TenantId, "Casey", "Report", "casey@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var topRptEmp = StartEmp(TenantId, topLevelReport.Id);
             var topRptAssignment = CreateAssignment(TenantId, topRptEmp, topLevelReport.Id, orgUnit.Id);
             var topRptLink = CreateLink(TenantId, topLevelReport, topRptAssignment, topLevel, topAssignment);
 
             // isolated employee: no manager, no reports → NoManagerAssigned
-            var isolated = Employee.Create(TenantId, "Jordan", "Solo", "jordan@example.com", DateTime.UtcNow);
+            var isolated = Employee.Create(TenantId, "Jordan", "Solo", "jordan@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var isolatedEmp = StartEmp(TenantId, isolated.Id);
             // no WorkAssignment → also MissingOrgUnit
 
             // inactive manager: employment ended → ManagerInactive count
-            var inactiveManager = Employee.Create(TenantId, "Inactive", "Manager", "inactive@example.com", DateTime.UtcNow);
+            var inactiveManager = Employee.Create(TenantId, "Inactive", "Manager", "inactive@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var inactiveMgrEmp = Employment.Start(TenantId, inactiveManager.Id, DateTime.UtcNow.AddMonths(-6), null, WorkforceSourceType.Manual);
             inactiveMgrEmp.End(yesterday);
             var inactiveMgrAssignment = WorkAssignment.Create(
                 TenantId, inactiveMgrEmp.Id, inactiveManager.Id, orgUnit.Id,
                 "N/A", null, true, inactiveMgrEmp.EffectiveFrom, yesterday, WorkforceSourceType.Manual);
 
-            var reportOfInactive = Employee.Create(TenantId, "Robin", "Active", "robin@example.com", DateTime.UtcNow);
+            var reportOfInactive = Employee.Create(TenantId, "Robin", "Active", "robin@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
             var robinEmp = StartEmp(TenantId, reportOfInactive.Id);
             var robinAssignment = CreateAssignment(TenantId, robinEmp, reportOfInactive.Id, orgUnit.Id);
             var robinLink = ManagerRelationship.Create(

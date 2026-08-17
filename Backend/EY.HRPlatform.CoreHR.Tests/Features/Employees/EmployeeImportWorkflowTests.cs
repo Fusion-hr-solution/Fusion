@@ -1053,7 +1053,8 @@ public class EmployeeImportWorkflowTests
                 "inactive.manager@contoso.com",
                 effectiveFrom,
                 null,
-                "Engineering Manager");
+                "Engineering Manager",
+                "TEST-INACTIVE-MANAGER");
             var employment = Employment.Start(TenantId, inactiveManager.Id, effectiveFrom, "FullTime", WorkforceSourceType.Manual);
             employment.End(effectiveFrom.AddDays(1));
             seedContext.Employees.Add(inactiveManager);
@@ -1310,7 +1311,8 @@ public class EmployeeImportWorkflowTests
             email,
             hireDate,
             null,
-            "Engineering Manager");
+            "Engineering Manager",
+            $"TEST-{Guid.NewGuid():N}");
         var employment = Employment.Start(TenantId, employee.Id, hireDate, "FullTime", WorkforceSourceType.Manual);
         var assignment = WorkAssignment.Create(
             TenantId,

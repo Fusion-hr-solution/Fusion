@@ -24,7 +24,7 @@ public class GetWorkforceReadinessSummaryQueryHandlerTests
             var orgUnit = OrgUnit.Create(TenantId, "EXEC", "Executive", "Department", null);
 
             // leader: has Employment + primary WorkAssignment, no manager, has 1 direct report
-            var leader = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", now);
+            var leader = Employee.Create(TenantId, "Emma", "Executive", "emma.executive@example.com", now, employeeNumber: TestEmployeeNumbers.Next());
             var leaderEmployment = Employment.Start(TenantId, leader.Id, now.AddMonths(-6), "FullTime", WorkforceSourceType.Manual);
             var leaderAssignment = WorkAssignment.Create(
                 TenantId, leaderEmployment.Id, leader.Id, orgUnit.Id,
@@ -32,7 +32,7 @@ public class GetWorkforceReadinessSummaryQueryHandlerTests
                 now.AddMonths(-6), null, WorkforceSourceType.Manual);
 
             // report: has Employment + primary WorkAssignment + ManagerRelationship → leader
-            var report = Employee.Create(TenantId, "Casey", "Report", "casey.report@example.com", now);
+            var report = Employee.Create(TenantId, "Casey", "Report", "casey.report@example.com", now, employeeNumber: TestEmployeeNumbers.Next());
             var reportEmployment = Employment.Start(TenantId, report.Id, now.AddMonths(-3), "FullTime", WorkforceSourceType.Manual);
             var reportAssignment = WorkAssignment.Create(
                 TenantId, reportEmployment.Id, report.Id, orgUnit.Id,
@@ -45,7 +45,7 @@ public class GetWorkforceReadinessSummaryQueryHandlerTests
                 now.AddMonths(-3), WorkforceSourceType.Manual);
 
             // missingOrgUnit: has Employment only — no WorkAssignment, no manager → MissingOrgUnit + NoManagerAssigned
-            var missingOrgUnit = Employee.Create(TenantId, "Jordan", "Solo", "jordan.solo@example.com", now);
+            var missingOrgUnit = Employee.Create(TenantId, "Jordan", "Solo", "jordan.solo@example.com", now, employeeNumber: TestEmployeeNumbers.Next());
             var missingOrgUnitEmployment = Employment.Start(TenantId, missingOrgUnit.Id, now.AddMonths(-1), null, WorkforceSourceType.Manual);
 
             var history = EmployeeImportHistory.CreateApplied(

@@ -25,8 +25,8 @@ public class GetEmployeesCanonicalQueryHandlerTests
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com");
-            var report = Employee.Create(TenantId, "Sam", "Report", "sam.report@example.com");
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", employeeNumber: TestEmployeeNumbers.Next());
+            var report = Employee.Create(TenantId, "Sam", "Report", "sam.report@example.com", employeeNumber: TestEmployeeNumbers.Next());
 
             var managerEmployment = Employment.Start(TenantId, manager.Id, effectiveFrom.AddMonths(-3), "FullTime", WorkforceSourceType.Manual);
             var reportEmployment = Employment.Start(TenantId, report.Id, effectiveFrom, "FullTime", WorkforceSourceType.Manual);
@@ -73,9 +73,9 @@ public class GetEmployeesCanonicalQueryHandlerTests
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com");
-            var report = Employee.Create(TenantId, "Sam", "Report", "sam.report@example.com");
-            var outsider = Employee.Create(TenantId, "Riley", "Peer", "riley.peer@example.com");
+            var manager = Employee.Create(TenantId, "Alex", "Manager", "alex.manager@example.com", employeeNumber: TestEmployeeNumbers.Next());
+            var report = Employee.Create(TenantId, "Sam", "Report", "sam.report@example.com", employeeNumber: TestEmployeeNumbers.Next());
+            var outsider = Employee.Create(TenantId, "Riley", "Peer", "riley.peer@example.com", employeeNumber: TestEmployeeNumbers.Next());
 
             var managerEmployment = Employment.Start(TenantId, manager.Id, effectiveFrom.AddMonths(-3), "FullTime", WorkforceSourceType.Manual);
             var reportEmployment = Employment.Start(TenantId, report.Id, effectiveFrom, "FullTime", WorkforceSourceType.Manual);
@@ -116,7 +116,7 @@ public class GetEmployeesCanonicalQueryHandlerTests
 
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
-            var employee = Employee.Create(TenantId, "Inactive", "User", "inactive@example.com");
+            var employee = Employee.Create(TenantId, "Inactive", "User", "inactive@example.com", employeeNumber: TestEmployeeNumbers.Next());
             var employment = Employment.Start(TenantId, employee.Id, hireDate, "FullTime", WorkforceSourceType.Manual);
             employment.End(DateTime.UtcNow.AddDays(-1));
 

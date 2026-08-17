@@ -26,7 +26,7 @@ public class ResponsibleManagerServiceTests
 
     private static Employee SeedEmployedManager(CoreHRDbContext context, Guid tenant)
     {
-        var employee = Employee.Create(tenant, "Manager", "Doe", $"mgr-{Guid.NewGuid():N}@ey-hr.com", Hire);
+        var employee = Employee.Create(tenant, "Manager", "Doe", $"mgr-{Guid.NewGuid():N}@ey-hr.com", Hire, employeeNumber: TestEmployeeNumbers.Next());
         var employment = Employment.Start(tenant, employee.Id, Hire, "FullTime", WorkforceSourceType.Manual);
         context.AddRange(employee, employment);
         return employee;
@@ -63,7 +63,7 @@ public class ResponsibleManagerServiceTests
     public async Task Validate_EmployeeWithoutActiveEmployment_ThrowsArgument()
     {
         var (context, service) = NewService();
-        var employee = Employee.Create(Tenant, "NoEmp", "Doe", "noemp@ey-hr.com", Hire);
+        var employee = Employee.Create(Tenant, "NoEmp", "Doe", "noemp@ey-hr.com", Hire, employeeNumber: TestEmployeeNumbers.Next());
         context.Add(employee);
         await context.SaveChangesAsync();
 

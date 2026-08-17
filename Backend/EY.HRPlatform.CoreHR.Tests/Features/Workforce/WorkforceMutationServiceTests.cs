@@ -30,7 +30,7 @@ public class WorkforceMutationServiceTests
     }
 
     private static Employee SeedEmployee(string first)
-        => Employee.Create(Tenant, first, "Doe", $"{first}@ey-hr.com", Hire);
+        => Employee.Create(Tenant, first, "Doe", $"{first}@ey-hr.com", Hire, employeeNumber: TestEmployeeNumbers.Next());
 
     /// <summary>Seeds an employee with an active employment + active primary work assignment.</summary>
     private static async Task<(Employee Employee, Employment Employment, WorkAssignment Assignment)> SeedEmployedAsync(
@@ -93,7 +93,10 @@ public class WorkforceMutationServiceTests
         var (context, service) = NewService();
         var first = SeedEmployee("Grace");
         var second = SeedEmployee("Edsger");
-        context.AddRange(first, second);
+        // Grace actively occupies grace@ey-hr.com; Edsger is actively employed so his email change is subject to occupancy.
+        var secondEmployment = Employment.Start(Tenant, second.Id, Hire, "FullTime", WorkforceSourceType.Manual);
+        context.AddRange(first, second, secondEmployment);
+        context.WorkEmailOccupancies.Add(WorkEmailOccupancy.Create(Tenant, first.Id, "grace@ey-hr.com"));
         await context.SaveChangesAsync();
 
         var result = await service.UpdateEmployeeProfileAsync(
@@ -101,7 +104,7 @@ public class WorkforceMutationServiceTests
             Actor, CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Equal("Employee.DuplicateEmail", result.Error.Code);
+        Assert.Equal("Employee.EmailOccupied", result.Error.Code);
     }
 
     // --- StartEmployment -----------------------------------------------------------------------

@@ -114,8 +114,8 @@ public class UpdateEmployeeComposedCommandHandlerTests
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-            var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", employeeHireDate, jobTitle: "Developer");
-            var manager = Employee.Create(TenantId, "Maya", "Lead", "maya@example.com", managerHireDate, jobTitle: "Manager");
+            var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", employeeHireDate, jobTitle: "Developer", employeeNumber: TestEmployeeNumbers.Next());
+            var manager = Employee.Create(TenantId, "Maya", "Lead", "maya@example.com", managerHireDate, jobTitle: "Manager", employeeNumber: TestEmployeeNumbers.Next());
             var employeeEmployment = Employment.Start(TenantId, employee.Id, employeeHireDate, "FullTime", WorkforceSourceType.Manual);
             var managerEmployment = Employment.Start(TenantId, manager.Id, managerHireDate, "FullTime", WorkforceSourceType.Manual);
             var employeeAssignment = WorkAssignment.Create(TenantId, employeeEmployment.Id, employee.Id, orgUnit.Id, "Developer", "Tunis", true, employeeEmployment.EffectiveFrom, null, WorkforceSourceType.Manual);
@@ -162,7 +162,7 @@ public class UpdateEmployeeComposedCommandHandlerTests
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {
             var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-            var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", hireDate, jobTitle: "Developer");
+            var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", hireDate, jobTitle: "Developer", employeeNumber: TestEmployeeNumbers.Next());
             var employment = Employment.Start(TenantId, employee.Id, hireDate, "FullTime", WorkforceSourceType.Manual);
             var assignment = WorkAssignment.Create(TenantId, employment.Id, employee.Id, orgUnit.Id, "Developer", "Tunis", true, employment.EffectiveFrom, null, WorkforceSourceType.Manual);
 

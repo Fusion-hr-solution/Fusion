@@ -30,7 +30,7 @@ public class EmployeeIdentityTests
     [Fact]
     public void UpdateProfile_UpdatesCoreOwnedIdentityFields()
     {
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com");
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", employeeNumber: TestEmployeeNumbers.Next());
 
         employee.UpdateProfile("Jane", "Smith", "JANE@EXAMPLE.COM", "Janie", "12345");
 
@@ -44,7 +44,7 @@ public class EmployeeIdentityTests
     [Fact]
     public void UpdatePreferredName_WithWhitespace_ClearsValue()
     {
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com");
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", employeeNumber: TestEmployeeNumbers.Next());
         employee.UpdatePreferredName("Johnny");
 
         employee.UpdatePreferredName("   ");

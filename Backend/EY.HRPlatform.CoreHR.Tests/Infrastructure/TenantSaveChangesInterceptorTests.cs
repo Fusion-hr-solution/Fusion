@@ -16,7 +16,7 @@ public class TenantSaveChangesInterceptorTests
             "John",
             "Doe",
             "john.doe@example.com",
-            DateTime.UtcNow);
+            DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
 
     [Fact]
     public async Task SaveChangesAsync_WithCorrectTenant_Succeeds()
@@ -177,7 +177,7 @@ public class TenantSaveChangesInterceptorTests
         // Arrange - create employees for two tenants
         var dbName = Guid.NewGuid().ToString();
         var employeeA = CreateEmployee(TenantA);
-        var employeeB = Employee.Create(TenantB, "Bob", "Smith", "bob@example.com", DateTime.UtcNow);
+        var employeeB = Employee.Create(TenantB, "Bob", "Smith", "bob@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
 
         await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
         {

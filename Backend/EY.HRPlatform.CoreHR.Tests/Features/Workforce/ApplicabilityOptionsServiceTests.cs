@@ -60,9 +60,9 @@ public sealed class ApplicabilityOptionsServiceTests
         await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
 
         var orgUnit = OrgUnit.Create(tenantId, "ENG", "Engineering", "Department", null);
-        var emp1 = Employee.Create(tenantId, "Alice", "A", "alice@x.com", Start);
-        var emp2 = Employee.Create(tenantId, "Bob", "B", "bob@x.com", Start);
-        var emp3 = Employee.Create(tenantId, "Carol", "C", "carol@x.com", Start);
+        var emp1 = Employee.Create(tenantId, "Alice", "A", "alice@x.com", Start, employeeNumber: TestEmployeeNumbers.Next());
+        var emp2 = Employee.Create(tenantId, "Bob", "B", "bob@x.com", Start, employeeNumber: TestEmployeeNumbers.Next());
+        var emp3 = Employee.Create(tenantId, "Carol", "C", "carol@x.com", Start, employeeNumber: TestEmployeeNumbers.Next());
         db.AddRange(orgUnit, emp1, emp2, emp3);
         await db.SaveChangesAsync();
 
@@ -94,7 +94,7 @@ public sealed class ApplicabilityOptionsServiceTests
         await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
 
         var orgUnit = OrgUnit.Create(tenantId, "ENG", "Engineering", "Department", null);
-        var emp = Employee.Create(tenantId, "Alice", "A", "alice@x.com", Start);
+        var emp = Employee.Create(tenantId, "Alice", "A", "alice@x.com", Start, employeeNumber: TestEmployeeNumbers.Next());
         db.AddRange(orgUnit, emp);
         await db.SaveChangesAsync();
 
@@ -122,8 +122,8 @@ public sealed class ApplicabilityOptionsServiceTests
         await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
 
         var orgUnit = OrgUnit.Create(tenantId, "OFF", "Office", "Department", null);
-        var emp1 = Employee.Create(tenantId, "Alice", "A", "alice@x.com", Start);
-        var emp2 = Employee.Create(tenantId, "Bob", "B", "bob@x.com", Start);
+        var emp1 = Employee.Create(tenantId, "Alice", "A", "alice@x.com", Start, employeeNumber: TestEmployeeNumbers.Next());
+        var emp2 = Employee.Create(tenantId, "Bob", "B", "bob@x.com", Start, employeeNumber: TestEmployeeNumbers.Next());
         db.AddRange(orgUnit, emp1, emp2);
         await db.SaveChangesAsync();
 
@@ -151,9 +151,9 @@ public sealed class ApplicabilityOptionsServiceTests
         await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
 
         var orgUnit = OrgUnit.Create(tenantId, "ENG", "Engineering", "Department", null);
-        var emp1 = Employee.Create(tenantId, "Alice", "A", "alice@x.com", Start);
-        var emp2 = Employee.Create(tenantId, "Bob", "B", "bob@x.com", Start);
-        var emp3 = Employee.Create(tenantId, "Carol", "C", "carol@x.com", Start);
+        var emp1 = Employee.Create(tenantId, "Alice", "A", "alice@x.com", Start, employeeNumber: TestEmployeeNumbers.Next());
+        var emp2 = Employee.Create(tenantId, "Bob", "B", "bob@x.com", Start, employeeNumber: TestEmployeeNumbers.Next());
+        var emp3 = Employee.Create(tenantId, "Carol", "C", "carol@x.com", Start, employeeNumber: TestEmployeeNumbers.Next());
         db.AddRange(orgUnit, emp1, emp2, emp3);
         await db.SaveChangesAsync();
 

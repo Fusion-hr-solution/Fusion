@@ -141,7 +141,7 @@ public class EmployeesControllerLifecycleAuthorizationTests
         var hire = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         await using var seed = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(tenantId, "Jane", "Roe", "jane@example.com", hire);
+        var employee = Employee.Create(tenantId, "Jane", "Roe", "jane@example.com", hire, employeeNumber: TestEmployeeNumbers.Next());
         seed.Employees.Add(employee);
         await seed.SaveChangesAsync();
 

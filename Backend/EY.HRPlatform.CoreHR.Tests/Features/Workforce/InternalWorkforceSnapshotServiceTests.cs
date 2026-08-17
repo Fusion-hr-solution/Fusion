@@ -18,9 +18,9 @@ public sealed class InternalWorkforceSnapshotServiceTests
 
         var engineering = OrgUnit.Create(tenantId, "ENG", "Engineering", "Department", null);
         var operations = OrgUnit.Create(tenantId, "OPS", "Operations", "Department", null);
-        var managerA = Employee.Create(tenantId, "Maya", "Lead", "maya@example.com", start);
-        var managerB = Employee.Create(tenantId, "Omar", "Director", "omar@example.com", start);
-        var employee = Employee.Create(tenantId, "Alice", "Adams", "alice@example.com", start);
+        var managerA = Employee.Create(tenantId, "Maya", "Lead", "maya@example.com", start, employeeNumber: TestEmployeeNumbers.Next());
+        var managerB = Employee.Create(tenantId, "Omar", "Director", "omar@example.com", start, employeeNumber: TestEmployeeNumbers.Next());
+        var employee = Employee.Create(tenantId, "Alice", "Adams", "alice@example.com", start, employeeNumber: TestEmployeeNumbers.Next());
         db.AddRange(engineering, operations, managerA, managerB, employee);
         await db.SaveChangesAsync();
 

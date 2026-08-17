@@ -22,7 +22,7 @@ public class TerminateEmployeeCommandHandlerTests
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
         var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", Hire);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", Hire, employeeNumber: TestEmployeeNumbers.Next());
         var employment = Employment.Start(TenantId, employee.Id, Hire, "FullTime", WorkforceSourceType.Manual);
         var assignment = WorkAssignment.Create(
             TenantId,
@@ -67,7 +67,7 @@ public class TerminateEmployeeCommandHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", Hire);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", Hire, employeeNumber: TestEmployeeNumbers.Next());
         seedContext.Employees.Add(employee);
         await seedContext.SaveChangesAsync();
 

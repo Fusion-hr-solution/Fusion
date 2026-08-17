@@ -70,8 +70,10 @@ public class EmployeeHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
 
-        var existing = Employee.Create(TenantId, "Jane", "Doe", "john.doe@example.com", DateTime.UtcNow);
+        var existing = Employee.Create(TenantId, "Jane", "Doe", "john.doe@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
         seedContext.Employees.Add(existing);
+        // Jane actively occupies the work email, so a new active hire cannot reuse it.
+        seedContext.WorkEmailOccupancies.Add(WorkEmailOccupancy.Create(TenantId, existing.Id, "john.doe@example.com"));
         var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
         seedContext.OrgUnits.Add(orgUnit);
         await seedContext.SaveChangesAsync();
@@ -89,7 +91,7 @@ public class EmployeeHandlerTests
         var result = await handler.Handle(command, CancellationToken.None);
 
         Assert.True(result.IsFailure);
-        Assert.Equal("Employee.DuplicateEmail", result.Error.Code);
+        Assert.Equal("Employee.EmailOccupied", result.Error.Code);
     }
 
     [Fact]
@@ -100,7 +102,7 @@ public class EmployeeHandlerTests
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
         var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-        var manager = Employee.Create(TenantId, "Manager", "Person", "manager@example.com", DateTime.UtcNow);
+        var manager = Employee.Create(TenantId, "Manager", "Person", "manager@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
         var managerEmployment = Employment.Start(TenantId, manager.Id, DateTime.UtcNow.AddDays(-10), "FullTime", WorkforceSourceType.Manual);
         var managerAssignment = WorkAssignment.Create(
             TenantId,
@@ -146,7 +148,7 @@ public class EmployeeHandlerTests
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
         var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-        var manager = Employee.Create(TenantId, "Manager", "Person", "manager@example.com", DateTime.UtcNow);
+        var manager = Employee.Create(TenantId, "Manager", "Person", "manager@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
         var managerEmployment = Employment.Start(TenantId, manager.Id, DateTime.UtcNow.AddDays(-10), "FullTime", WorkforceSourceType.Manual);
         managerEmployment.End(DateTime.UtcNow.AddDays(-1));
         seedContext.OrgUnits.Add(orgUnit);
@@ -180,7 +182,7 @@ public class EmployeeHandlerTests
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
         var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
-        var manager = Employee.Create(otherTenantId, "Manager", "Person", "manager@example.com", DateTime.UtcNow);
+        var manager = Employee.Create(otherTenantId, "Manager", "Person", "manager@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
         var managerEmployment = Employment.Start(otherTenantId, manager.Id, DateTime.UtcNow.AddDays(-10), "FullTime", WorkforceSourceType.Manual);
         var foreignOrgUnit = OrgUnit.Create(otherTenantId, "FIN", "Finance", "Department", null);
         var managerAssignment = WorkAssignment.Create(
@@ -347,7 +349,7 @@ public class EmployeeHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
         seedContext.Employees.Add(employee);
         await seedContext.SaveChangesAsync();
 
@@ -375,7 +377,7 @@ public class EmployeeHandlerTests
         var orgUnit = OrgUnit.Create(TenantId, "ENG", "Engineering", "Department", null);
         seedContext.OrgUnits.Add(orgUnit);
 
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
         var employment = Employment.Start(TenantId, employee.Id, DateTime.UtcNow.AddMonths(-1), "FullTime", WorkforceSourceType.Manual);
         var assignment = WorkAssignment.Create(TenantId, employment.Id, employee.Id, orgUnit.Id, "Engineer", null, true, employment.EffectiveFrom, null, WorkforceSourceType.Manual);
         seedContext.Employees.Add(employee);
@@ -408,7 +410,7 @@ public class EmployeeHandlerTests
         var legacyOrgUnit = OrgUnit.Create(TenantId, "LEG", "Legacy", "Department", null);
         var canonicalOrgUnit = OrgUnit.Create(TenantId, "CAN", "Canonical", "Department", null);
 
-        var manager = Employee.Create(TenantId, "Maya", "Lead", "maya@example.com", DateTime.UtcNow.AddYears(-3));
+        var manager = Employee.Create(TenantId, "Maya", "Lead", "maya@example.com", DateTime.UtcNow.AddYears(-3), employeeNumber: TestEmployeeNumbers.Next());
         var employee = Employee.Create(
             TenantId,
             "John",
@@ -507,7 +509,7 @@ public class EmployeeHandlerTests
         var tenantB = Guid.NewGuid();
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(tenantA, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        var employee = Employee.Create(tenantA, "John", "Doe", "john@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
         seedContext.Employees.Add(employee);
         await seedContext.SaveChangesAsync();
 
@@ -554,7 +556,7 @@ public class EmployeeHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
         seedContext.Employees.Add(employee);
         await seedContext.SaveChangesAsync();
 
@@ -590,7 +592,7 @@ public class EmployeeHandlerTests
             """);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow, null, "Developer");
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow, null, "Developer", employeeNumber: TestEmployeeNumbers.Next());
         seedContext.Employees.Add(employee);
         await seedContext.SaveChangesAsync();
 
@@ -618,7 +620,7 @@ public class EmployeeHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow);
+        var employee = Employee.Create(TenantId, "John", "Doe", "john@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
         seedContext.Employees.Add(employee);
         await seedContext.SaveChangesAsync();
 
@@ -651,7 +653,7 @@ public class EmployeeHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
+        var employee = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
         seedContext.Employees.Add(employee);
         await seedContext.SaveChangesAsync();
         var version = employee.Version;
@@ -676,7 +678,7 @@ public class EmployeeHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
+        var employee = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
         employee.UpdatePreferredName("Sally");
         seedContext.Employees.Add(employee);
         await seedContext.SaveChangesAsync();
@@ -702,7 +704,7 @@ public class EmployeeHandlerTests
         var tenantContext = TestTenantContext.WithTenant(TenantId);
 
         await using var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName);
-        var employee = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow);
+        var employee = Employee.Create(TenantId, "Sarah", "Chen", "sarah.chen@example.com", DateTime.UtcNow, employeeNumber: TestEmployeeNumbers.Next());
         seedContext.Employees.Add(employee);
         await seedContext.SaveChangesAsync();
 
