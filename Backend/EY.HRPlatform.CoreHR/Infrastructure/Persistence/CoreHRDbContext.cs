@@ -42,6 +42,8 @@ public class CoreHRDbContext : DbContext
     public DbSet<WorkAssignment> WorkAssignments => Set<WorkAssignment>();
     public DbSet<ManagerRelationship> ManagerRelationships => Set<ManagerRelationship>();
     public DbSet<WorkforceAuditEntry> WorkforceAuditEntries => Set<WorkforceAuditEntry>();
+    public DbSet<EmployeeNumberAllocator> EmployeeNumberAllocators => Set<EmployeeNumberAllocator>();
+    public DbSet<WorkEmailOccupancy> WorkEmailOccupancies => Set<WorkEmailOccupancy>();
 
     public DbSet<TenantSettings> TenantSettings => Set<TenantSettings>();
     public DbSet<OrgUnit> OrgUnits => Set<OrgUnit>();
@@ -89,6 +91,12 @@ public class CoreHRDbContext : DbContext
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<WorkforceAuditEntry>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<EmployeeNumberAllocator>()
+            .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<WorkEmailOccupancy>()
             .HasQueryFilter(x => CurrentTenantId != Guid.Empty && x.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<TenantSettings>()

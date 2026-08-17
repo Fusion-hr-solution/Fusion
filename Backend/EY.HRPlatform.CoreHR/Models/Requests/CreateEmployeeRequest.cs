@@ -9,7 +9,7 @@ public sealed record CreateEmployeeRequest(
     [StringLength(64)] string? EmployeeNumber,
     [Required] string FirstName,
     [Required] string LastName,
-    [Required, EmailAddress] string Email,
+    [EmailAddress] string? Email,
     [Required] DateTime HireDate,
     [StringLength(50)] string? Phone = null,
     [StringLength(100)] string? JobTitle = null,

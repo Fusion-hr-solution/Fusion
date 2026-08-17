@@ -17,7 +17,8 @@ public sealed class CreateEmployeeCommandHandler(
     ITenantContext tenantContext,
     IWorkforceMutationService? workforceMutationService = null,
     IEmployeeDetailsReadModelService? employeeDetailsReadModelService = null,
-    ITenantSettingsReadService? tenantSettingsReadService = null)
+    ITenantSettingsReadService? tenantSettingsReadService = null,
+    IEmployeeNumberAllocator? employeeNumberAllocator = null)
     : ICommandHandler<CreateEmployeeCommand, Result<EmployeeDetailsDto>>
 {
     private readonly IWorkforceMutationService workforceMutationService =
@@ -32,8 +33,11 @@ public sealed class CreateEmployeeCommandHandler(
     private readonly ITenantSettingsReadService tenantSettingsReader =
         tenantSettingsReadService ?? new TenantSettingsReadService(dbContext);
 
+    private readonly IEmployeeNumberAllocator employeeNumberAllocator =
+        employeeNumberAllocator ?? new EmployeeNumberAllocatorService(dbContext, tenantContext);
+
     private static readonly HashSet<string> OperationallyRequiredFields =
-        ["firstName", "lastName", "email", "hireDate", "jobTitle"];
+        ["firstName", "lastName", "hireDate", "jobTitle"];
 
     public async Task<Result<EmployeeDetailsDto>> Handle(CreateEmployeeCommand request, CancellationToken cancellationToken)
     {
@@ -42,7 +46,7 @@ public sealed class CreateEmployeeCommandHandler(
 
         ValidateConfiguredRequiredField(request.FirstName, "firstName", "First name", settings, true);
         ValidateConfiguredRequiredField(request.LastName, "lastName", "Last name", settings, true);
-        ValidateConfiguredRequiredField(request.Email, "email", "Email", settings, true);
+        ValidateConfiguredRequiredField(request.Email, "email", "Email", settings, false);
         ValidateConfiguredRequiredField(request.Phone, "phone", "Phone", settings, false);
         ValidateConfiguredRequiredField(request.JobTitle, "jobTitle", "Job title", settings, false);
         ValidateConfiguredRequiredField(request.WorkLocation, "workLocation", "Work location", settings, false);
@@ -55,21 +59,19 @@ public sealed class CreateEmployeeCommandHandler(
                 "An active organization unit is required to create the employee's primary work assignment."));
         }
 
-        var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var normalizedEmployeeNumber = string.IsNullOrWhiteSpace(request.EmployeeNumber)
+        var useTransaction = dbContext.Database.IsRelational();
+        await using var transaction = useTransaction
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
+        var normalizedEmail = string.IsNullOrWhiteSpace(request.Email)
             ? null
+            : request.Email.Trim().ToLowerInvariant();
+        var normalizedEmployeeNumber = string.IsNullOrWhiteSpace(request.EmployeeNumber)
+            ? await employeeNumberAllocator.AllocateAsync(cancellationToken)
             : request.EmployeeNumber.Trim().ToUpperInvariant();
 
-        var emailExists = await dbContext.Employees
-            .AnyAsync(e => e.Email == normalizedEmail, cancellationToken);
-        if (emailExists)
-        {
-            return Result.Failure<EmployeeDetailsDto>(Error.Conflict(
-                "Employee.DuplicateEmail",
-                $"Email '{normalizedEmail}' is already in use."));
-        }
-
-        if (!string.IsNullOrWhiteSpace(normalizedEmployeeNumber))
+        if (!string.IsNullOrWhiteSpace(request.EmployeeNumber))
         {
             var employeeNumberExists = await dbContext.Employees
                 .AnyAsync(e => e.EmployeeNumber == normalizedEmployeeNumber, cancellationToken);
@@ -86,8 +88,8 @@ public sealed class CreateEmployeeCommandHandler(
             tenantId,
             request.FirstName,
             request.LastName,
-            request.Email,
-            employeeNumber: request.EmployeeNumber,
+            normalizedEmail,
+            employeeNumber: normalizedEmployeeNumber,
             phone: request.Phone);
 
         dbContext.Employees.Add(employee);
@@ -132,10 +134,12 @@ public sealed class CreateEmployeeCommandHandler(
         try
         {
             await dbContext.SaveChangesAsync(cancellationToken);
+            if (transaction is not null)
+                await transaction.CommitAsync(cancellationToken);
         }
         catch (DbUpdateException ex) when (IsUniqueConstraintViolation(ex))
         {
-            return Result.Failure<EmployeeDetailsDto>(ResolveDuplicateError(ex, normalizedEmail, normalizedEmployeeNumber));
+            return Result.Failure<EmployeeDetailsDto>(ResolveDuplicateError(ex, normalizedEmployeeNumber));
         }
 
         var details = await employeeDetailsReadModelService.BuildAsync(
@@ -178,8 +182,7 @@ public sealed class CreateEmployeeCommandHandler(
 
     private static Error ResolveDuplicateError(
         DbUpdateException ex,
-        string normalizedEmail,
-        string? normalizedEmployeeNumber)
+        string normalizedEmployeeNumber)
     {
         if (ex.InnerException?.Message.Contains("IX_Employees_TenantId_EmployeeNumber") == true
             && !string.IsNullOrWhiteSpace(normalizedEmployeeNumber))
@@ -189,8 +192,13 @@ public sealed class CreateEmployeeCommandHandler(
                 $"Employee number '{normalizedEmployeeNumber}' is already in use.");
         }
 
-        return Error.Conflict(
-            "Employee.DuplicateEmail",
-            $"Email '{normalizedEmail}' is already in use.");
+        if (ex.InnerException?.Message.Contains("UX_WorkEmailOccupancies_TenantId_NormalizedEmail") == true)
+        {
+            return Error.Conflict(
+                "Employee.EmailOccupied",
+                "This work email is already used by a scheduled or active employee.");
+        }
+
+        return Error.Conflict("Employee.Duplicate", "The employee conflicts with an existing workforce record.");
     }
 }

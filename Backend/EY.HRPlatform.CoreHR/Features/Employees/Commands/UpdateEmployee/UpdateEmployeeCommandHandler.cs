@@ -36,7 +36,7 @@ public sealed class UpdateEmployeeCommandHandler(
     private readonly IWorkforceCanonicalResolver workforceCanonicalResolver = new WorkforceCanonicalResolver(dbContext);
 
     private static readonly HashSet<string> OperationallyRequiredFields =
-        ["firstName", "lastName", "email", "jobTitle"];
+        ["firstName", "lastName", "jobTitle"];
 
     public async Task<Result<EmployeeDetailsDto>> Handle(UpdateEmployeeCommand request, CancellationToken cancellationToken)
     {
@@ -56,7 +56,7 @@ public sealed class UpdateEmployeeCommandHandler(
         var settings = await tenantSettingsReader.GetCurrentAsync(cancellationToken);
         ValidateConfiguredRequiredField(request.FirstName, "firstName", "First name", settings, true);
         ValidateConfiguredRequiredField(request.LastName, "lastName", "Last name", settings, true);
-        ValidateConfiguredRequiredField(request.Email, "email", "Email", settings, true);
+        ValidateConfiguredRequiredField(request.Email, "email", "Email", settings, false);
         ValidateConfiguredRequiredField(request.Phone, "phone", "Phone", settings, false);
         ValidateConfiguredRequiredField(request.JobTitle, "jobTitle", "Job title", settings, false);
         ValidateConfiguredRequiredField(request.WorkLocation, "workLocation", "Work location", settings, false);
@@ -81,28 +81,18 @@ public sealed class UpdateEmployeeCommandHandler(
         var firstName = request.FirstName ?? employee.FirstName;
         var lastName = request.LastName ?? employee.LastName;
         var preferredName = request.PreferredName ?? employee.PreferredName;
-        var email = request.Email ?? employee.Email;
+        var email = request.Email is null ? employee.Email : request.Email;
         var phone = request.Phone ?? employee.Phone;
         var employeeNumber = request.EmployeeNumber ?? employee.EmployeeNumber;
 
-        var normalizedEmail = email.Trim().ToLowerInvariant();
-        var normalizedEmployeeNumber = string.IsNullOrWhiteSpace(employeeNumber)
+        var normalizedEmail = string.IsNullOrWhiteSpace(email)
             ? null
-            : employeeNumber.Trim().ToUpperInvariant();
+            : email.Trim().ToLowerInvariant();
+        if (string.IsNullOrWhiteSpace(employeeNumber))
+            throw new ArgumentException("Employee Number is required.", nameof(request.EmployeeNumber));
+        var normalizedEmployeeNumber = employeeNumber.Trim().ToUpperInvariant();
 
-        if (normalizedEmail != employee.Email)
-        {
-            var emailExists = await dbContext.Employees
-                .AnyAsync(e => e.Email == normalizedEmail && e.Id != request.EmployeeId, cancellationToken);
-
-            if (emailExists)
-            {
-                throw new DuplicateEntityException("Employee", "email", normalizedEmail);
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(normalizedEmployeeNumber)
-            && !string.Equals(normalizedEmployeeNumber, employee.EmployeeNumber, StringComparison.Ordinal))
+        if (!string.Equals(normalizedEmployeeNumber, employee.EmployeeNumber, StringComparison.Ordinal))
         {
             var employeeNumberExists = await dbContext.Employees
                 .AnyAsync(e => e.EmployeeNumber == normalizedEmployeeNumber && e.Id != request.EmployeeId, cancellationToken);
@@ -198,7 +188,7 @@ public sealed class UpdateEmployeeCommandHandler(
         string firstName,
         string lastName,
         string? preferredName,
-        string email,
+        string? email,
         string? phone)
         => !string.Equals(employee.FirstName, firstName, StringComparison.Ordinal)
             || !string.Equals(employee.LastName, lastName, StringComparison.Ordinal)

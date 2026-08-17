@@ -1,0 +1,75 @@
+using EY.HRPlatform.SharedKernel.CQRS;
+using EY.HRPlatform.SharedKernel.Results;
+
+namespace EY.HRPlatform.CoreHR.Features.People;
+
+public enum PeopleEmploymentState
+{
+    Active,
+    Scheduled,
+    Former,
+    Incomplete
+}
+
+public enum PeopleOrganizationScope
+{
+    Direct,
+    Subtree
+}
+
+public enum PeopleSortField
+{
+    Name,
+    EmployeeNumber,
+    EmploymentDate
+}
+
+public enum PeopleSortDirection
+{
+    Asc,
+    Desc
+}
+
+public sealed record PeopleQuery(
+    string? Q = null,
+    PeopleEmploymentState? State = null,
+    Guid? OrgUnitId = null,
+    PeopleOrganizationScope OrganizationScope = PeopleOrganizationScope.Subtree,
+    PeopleSortField Sort = PeopleSortField.Name,
+    PeopleSortDirection Direction = PeopleSortDirection.Asc,
+    int Page = 1,
+    int PageSize = 25) : IQuery<Result<PeoplePageDto>>;
+
+public sealed record PeopleManagerDto(
+    string EmployeeKey,
+    string DisplayName,
+    string EmployeeNumber);
+
+public sealed record PeopleWorkDto(
+    string JobTitle,
+    string OrganizationName,
+    string OrganizationPath,
+    string? Location,
+    DateTime EffectiveFrom,
+    bool IsHistorical);
+
+public sealed record PeopleRowDto(
+    string EmployeeKey,
+    string EmployeeNumber,
+    string DisplayName,
+    string FirstName,
+    string LastName,
+    string? WorkEmail,
+    PeopleEmploymentState EmploymentState,
+    DateTime? EmploymentStart,
+    DateTime? EmploymentEnd,
+    PeopleWorkDto? Work,
+    PeopleManagerDto? PrimaryManager,
+    string Completeness);
+
+public sealed record PeoplePageDto(
+    IReadOnlyList<PeopleRowDto> Items,
+    int TotalCount,
+    int Page,
+    int PageSize,
+    int TotalPages);

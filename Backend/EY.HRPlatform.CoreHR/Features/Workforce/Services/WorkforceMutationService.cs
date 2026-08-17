@@ -11,7 +11,7 @@ namespace EY.HRPlatform.CoreHR.Features.Workforce.Services;
 public sealed record UpdateEmployeeProfileInput(
     string FirstName,
     string LastName,
-    string Email,
+    string? Email,
     string? PreferredName,
     string? Phone);
 
@@ -116,10 +116,13 @@ public sealed class WorkforceMutationService(
     CoreHRDbContext dbContext,
     ITenantContext tenantContext,
     IWorkforceCanonicalResolver resolver,
-    WorkforceResolutionScope? resolutionScope = null) : IWorkforceMutationService
+    WorkforceResolutionScope? resolutionScope = null,
+    IWorkEmailOccupancyService? workEmailOccupancyService = null) : IWorkforceMutationService
 {
     private const int ManagerChainGuardDepth = 100;
     private readonly WorkforceResolutionScope _resolutionScope = resolutionScope ?? new WorkforceResolutionScope();
+    private readonly IWorkEmailOccupancyService _workEmailOccupancyService =
+        workEmailOccupancyService ?? new WorkEmailOccupancyService(dbContext, tenantContext);
 
     public async Task<Result<Employee>> UpdateEmployeeProfileAsync(
         Guid employeeId, UpdateEmployeeProfileInput input, string? actor, CancellationToken cancellationToken)
@@ -128,21 +131,11 @@ public sealed class WorkforceMutationService(
         if (employee is null)
             return Result.Failure<Employee>(Error.NotFound("Employee", employeeId));
 
-        var normalizedEmail = input.Email?.Trim().ToLowerInvariant() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(normalizedEmail))
-            return Result.Failure<Employee>(Error.Validation("Employee.EmailRequired", "Email is required."));
+        employee.UpdateProfile(input.FirstName, input.LastName, input.Email, input.PreferredName, input.Phone);
 
-        // In a preloaded bulk run the tracker holds every relevant employee, and any DB-only
-        // collision is pre-checked in one batched query by the caller — so avoid the per-row query.
-        var emailTaken = _resolutionScope.TrackedGraphOnly
-            ? dbContext.Employees.Local.Any(e => e.Id != employeeId && e.Email == normalizedEmail)
-            : await dbContext.Employees
-                .AnyAsync(e => e.Id != employeeId && e.Email == normalizedEmail, cancellationToken);
-        if (emailTaken)
-            return Result.Failure<Employee>(
-                Error.Conflict("Employee.DuplicateEmail", $"Email '{normalizedEmail}' is already in use."));
-
-        employee.UpdateProfile(input.FirstName, input.LastName, normalizedEmail, input.PreferredName, input.Phone);
+        var occupancy = await _workEmailOccupancyService.SynchronizeAsync(employeeId, cancellationToken);
+        if (occupancy.IsFailure)
+            return Result.Failure<Employee>(occupancy.Error);
 
         StageAudit("Employee", employee.Id, WorkforceAuditAction.EmployeeProfileUpdated,
             WorkforceSourceType.Manual, actor, effectiveDate: null, sourceReference: null, importBatchId: null,
@@ -171,6 +164,10 @@ public sealed class WorkforceMutationService(
             tenantContext.TenantId, employeeId, effectiveFrom, input.EmploymentType,
             input.Source, input.SourceReference, input.ImportBatchId);
         dbContext.Employments.Add(employment);
+
+        var occupancy = await _workEmailOccupancyService.SynchronizeAsync(employeeId, cancellationToken);
+        if (occupancy.IsFailure)
+            return Result.Failure<Employment>(occupancy.Error);
 
         StageAudit("Employment", employment.Id, WorkforceAuditAction.EmploymentStarted,
             input.Source, actor, effectiveFrom, input.SourceReference, input.ImportBatchId,
@@ -211,6 +208,10 @@ public sealed class WorkforceMutationService(
                 "Employment.EndBeforeStart", "Employment end date must be after its start date."));
 
         employment.End(at);
+
+        var occupancy = await _workEmailOccupancyService.SynchronizeAsync(employeeId, cancellationToken);
+        if (occupancy.IsFailure)
+            return Result.Failure<Employment>(occupancy.Error);
 
         StageAudit("Employment", employment.Id, WorkforceAuditAction.EmploymentEnded,
             WorkforceSourceType.Manual, actor, at, sourceReference: null, importBatchId: null,
@@ -271,6 +272,10 @@ public sealed class WorkforceMutationService(
 
         assignment.End(at);
         employment.End(at);
+
+        var occupancy = await _workEmailOccupancyService.SynchronizeAsync(employeeId, cancellationToken);
+        if (occupancy.IsFailure)
+            return Result.Failure<Employment>(occupancy.Error);
 
         StageAudit("Employment", employment.Id, WorkforceAuditAction.EmploymentEnded,
             input.Source, actor, at, input.SourceReference, input.ImportBatchId,

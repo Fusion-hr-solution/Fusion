@@ -1,4 +1,5 @@
 using System;
+using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Workforce.Services;
@@ -90,7 +91,8 @@ public sealed class GetEmployeeReportingLinesByKeyQueryHandler(
     {
         var activeRelationships = await dbContext.ManagerRelationships
             .AsNoTracking()
-            .Where(current => current.EffectiveFrom <= asOf
+            .Where(current => current.Type == ReportingRelationshipType.PrimaryManager
+                && current.EffectiveFrom <= asOf
                 && (current.EffectiveTo == null || asOf < current.EffectiveTo))
             .Select(current => new { current.SubjectEmployeeId, current.ManagerEmployeeId })
             .ToListAsync(cancellationToken);

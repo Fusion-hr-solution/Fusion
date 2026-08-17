@@ -16,7 +16,7 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(e => e.Version).IsRowVersion();
 
         builder.Property(e => e.TenantId).IsRequired();
-        builder.Property(e => e.EmployeeNumber).HasMaxLength(64);
+        builder.Property(e => e.EmployeeNumber).HasMaxLength(64).IsRequired();
 
         builder.Property(e => e.StableEmployeeKey).HasMaxLength(64).IsRequired();
 
@@ -27,7 +27,7 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         // Email is normalised (trimmed + lowercased) at the domain boundary.
         // The unique index therefore operates on a consistent value without
         // a DB-level value converter.
-        builder.Property(e => e.Email).HasMaxLength(256).IsRequired();
+        builder.Property(e => e.Email).HasMaxLength(256);
         builder.Property(e => e.Phone).HasMaxLength(50);
 
         builder.Property(e => e.Department).HasMaxLength(100);
@@ -41,17 +41,12 @@ public class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.HasIndex(e => e.TenantId)
             .HasDatabaseName("IX_Employees_TenantId");
 
-        builder.HasIndex(e => new { e.TenantId, e.Email })
-            .IsUnique()
-            .HasDatabaseName("IX_Employees_TenantId_Email");
-
         builder.HasIndex(e => new { e.TenantId, e.StableEmployeeKey })
             .IsUnique()
             .HasDatabaseName("IX_Employees_TenantId_StableEmployeeKey");
 
         builder.HasIndex(e => new { e.TenantId, e.EmployeeNumber })
             .IsUnique()
-            .HasFilter("\"EmployeeNumber\" IS NOT NULL")
             .HasDatabaseName("IX_Employees_TenantId_EmployeeNumber");
 
         // FullName is a computed property — not persisted.

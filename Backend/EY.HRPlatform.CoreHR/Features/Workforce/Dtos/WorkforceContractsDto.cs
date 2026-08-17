@@ -5,7 +5,7 @@ namespace EY.HRPlatform.CoreHR.Features.Workforce.Dtos;
 public sealed record WorkforceManagerSummaryDto(
     Guid EmployeeId,
     string DisplayName,
-    string Email,
+    string? Email,
     bool IsActive);
 
 public sealed record WorkforceOrgAssignmentDto(
@@ -27,13 +27,13 @@ public sealed record WorkforceDataQualityDto(
 public sealed record WorkforceEmployeeSummaryDto(
     Guid EmployeeId,
     string StableEmployeeKey,
-    string? EmployeeNumber,
+    string EmployeeNumber,
     string FirstName,
     string LastName,
     string? PreferredName,
     string DisplayName,
     string FullName,
-    string WorkEmail,
+    string? WorkEmail,
     string? JobTitle,
     DateTime HireDate,
     string EmploymentStatus,
@@ -51,12 +51,12 @@ public sealed record WorkforceAccessProfileSummaryDto(
 public sealed record WorkforceAccessSubjectSummaryDto(
     Guid EmployeeId,
     string StableEmployeeKey,
-    string? EmployeeNumber,
+    string EmployeeNumber,
     string FirstName,
     string LastName,
     string? PreferredName,
     string DisplayName,
-    string WorkEmail,
+    string? WorkEmail,
     string EmploymentStatus,
     bool IsActive,
     int DirectReportCount,
@@ -107,7 +107,7 @@ public sealed record InternalWorkforceEmployeeSnapshotDto(
     string StableEmployeeKey,
     string FullName,
     string DisplayName,
-    string WorkEmail,
+    string? WorkEmail,
     string? JobTitle,
     bool IsActive,
     InternalWorkforceOrgSnapshotDto? OrgUnit,
@@ -190,7 +190,7 @@ public sealed record WorkforceBulkInviteRequest(
 public sealed record WorkforceBulkInviteResultItemDto(
     Guid EmployeeId,
     string DisplayName,
-    string Email,
+    string? Email,
     string Outcome,
     string Message);
 

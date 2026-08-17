@@ -34,8 +34,8 @@ public sealed class GetEmployeesQueryHandler(
             employeeQuery = employeeQuery.Where(e =>
                 e.FirstName.ToLower().Contains(searchTerm) ||
                 e.LastName.ToLower().Contains(searchTerm) ||
-                e.Email.ToLower().Contains(searchTerm) ||
-                (e.EmployeeNumber != null && e.EmployeeNumber.ToLower().Contains(searchTerm)) ||
+                (e.Email != null && e.Email.ToLower().Contains(searchTerm)) ||
+                e.EmployeeNumber.ToLower().Contains(searchTerm) ||
                 (e.FirstName + " " + e.LastName).ToLower().Contains(searchTerm));
         }
 
@@ -94,9 +94,9 @@ public sealed class GetEmployeesQueryHandler(
         if (request.Access.HasValue)
         {
             var statuses = await workforceAccountStatusReader.GetStatusesAsync(
-                items.Select(employee => new WorkforceAccountSubjectDto(
+                items.Where(employee => !string.IsNullOrWhiteSpace(employee.Email)).Select(employee => new WorkforceAccountSubjectDto(
                     employee.Id,
-                    employee.Email,
+                    employee.Email!,
                     employee.FirstName,
                     employee.LastName)).ToList(),
                 cancellationToken);

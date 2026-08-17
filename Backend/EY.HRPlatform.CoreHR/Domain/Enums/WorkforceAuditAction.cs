@@ -7,6 +7,8 @@ namespace EY.HRPlatform.CoreHR.Domain.Enums;
 /// </summary>
 public enum WorkforceAuditAction
 {
+    Hire,
+    Establish,
     EmploymentStarted,
     EmploymentUpdated,
     EmploymentEnded,

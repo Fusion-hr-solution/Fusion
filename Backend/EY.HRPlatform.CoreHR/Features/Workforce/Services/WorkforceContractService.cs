@@ -177,8 +177,8 @@ public sealed class WorkforceContractService(
             query = query.Where(current =>
                 current.FirstName.ToLower().Contains(searchTerm) ||
                 current.LastName.ToLower().Contains(searchTerm) ||
-                current.Email.ToLower().Contains(searchTerm) ||
-                (current.EmployeeNumber != null && current.EmployeeNumber.ToLower().Contains(searchTerm)) ||
+                (current.Email != null && current.Email.ToLower().Contains(searchTerm)) ||
+                current.EmployeeNumber.ToLower().Contains(searchTerm) ||
                 (current.FirstName + " " + current.LastName).ToLower().Contains(searchTerm));
         }
 
@@ -437,6 +437,12 @@ public sealed class WorkforceContractService(
 
         foreach (var employee in matchingEmployees)
         {
+            if (employee.Email is null)
+            {
+                skippedEmployees.Add(employee);
+                continue;
+            }
+
             var status = statuses.GetValueOrDefault(employee.Id);
             var provisioningState = status?.ProvisioningState ?? "Unprovisioned";
 
@@ -470,7 +476,7 @@ public sealed class WorkforceContractService(
         if (sendToIdentity.Count > 0)
         {
             var subjects = sendToIdentity
-                .Select(e => new WorkforceBulkProvisionSubject(e.Id, e.Email, e.FirstName, e.LastName))
+                .Select(e => new WorkforceBulkProvisionSubject(e.Id, e.Email!, e.FirstName, e.LastName))
                 .ToList();
 
             var provisionResult = await workforceBulkProvisioner.BulkProvisionAsync(
@@ -1239,9 +1245,9 @@ public sealed class WorkforceContractService(
         }
 
         return await workforceAccountStatusReader.GetStatusesAsync(
-            employees.Select(employee => new WorkforceAccountSubjectDto(
+            employees.Where(employee => employee.Email is not null).Select(employee => new WorkforceAccountSubjectDto(
                 employee.Id,
-                employee.Email,
+                employee.Email!,
                 employee.FirstName,
                 employee.LastName)).ToList(),
             cancellationToken);
@@ -1335,8 +1341,8 @@ public sealed class WorkforceContractService(
             query = query.Where(current =>
                 current.FirstName.ToLower().Contains(searchTerm) ||
                 current.LastName.ToLower().Contains(searchTerm) ||
-                current.Email.ToLower().Contains(searchTerm) ||
-                (current.EmployeeNumber != null && current.EmployeeNumber.ToLower().Contains(searchTerm)) ||
+                (current.Email != null && current.Email.ToLower().Contains(searchTerm)) ||
+                current.EmployeeNumber.ToLower().Contains(searchTerm) ||
                 (current.FirstName + " " + current.LastName).ToLower().Contains(searchTerm));
         }
 

@@ -79,6 +79,7 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
     private readonly ITenantSettingsReadService tenantSettingsReader;
     private readonly IWorkforceCanonicalResolver canonicalResolver;
     private readonly IWorkforceMutationService mutationService;
+    private readonly IEmployeeNumberAllocator employeeNumberAllocator;
     private readonly IServiceScopeFactory? scopeFactory;
     private readonly ILogger<EmployeeImportWorkflowService>? logger;
 
@@ -92,7 +93,7 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(2);
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly HashSet<string> OperationallyRequiredFields =
-        ["firstName", "lastName", "email", "hireDate"];
+        ["firstName", "lastName", "hireDate"];
     private static readonly IReadOnlyList<EmployeeImportCanonicalFieldDto> CanonicalFields =
     [
         new(
@@ -116,8 +117,8 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
         new(
             "email",
             "Email",
-            true,
-            "Primary work email used as the stable employee identity.",
+            false,
+            "Optional work email used for contact and access suggestions.",
             "sarah.chen@contoso.com"),
         new(
             "phone",
@@ -180,7 +181,8 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
         IWorkforceMutationService? mutationService = null,
         WorkforceResolutionScope? resolutionScope = null,
         IServiceScopeFactory? scopeFactory = null,
-        ILogger<EmployeeImportWorkflowService>? logger = null)
+        ILogger<EmployeeImportWorkflowService>? logger = null,
+        IEmployeeNumberAllocator? employeeNumberAllocator = null)
     {
         this.dbContext = dbContext;
         this.tenantContext = tenantContext;
@@ -192,6 +194,8 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
             tenantContext,
             this.canonicalResolver,
             this.resolutionScope);
+        this.employeeNumberAllocator = employeeNumberAllocator
+            ?? new EmployeeNumberAllocatorService(dbContext, tenantContext);
         this.scopeFactory = scopeFactory;
         this.logger = logger;
     }
@@ -539,8 +543,8 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var conflictingEmails = await dbContext.Employees
                 .AsNoTracking()
-                .Where(e => createEmails.Contains(e.Email))
-                .Select(e => e.Email)
+                .Where(e => e.Email != null && createEmails.Contains(e.Email))
+                .Select(e => e.Email!)
                 .ToListAsync(cancellationToken);
             if (conflictingEmails.Count > 0)
                 throw new ArgumentException(
@@ -609,11 +613,15 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
 
         try
         {
+            var createdEmployeesByRow = new Dictionary<int, Employee>();
             var createdEmployeesByEmail = new Dictionary<string, Employee>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var row in createRows)
             {
                 var hireDate = row.HireDate != default ? row.HireDate : row.ResolvedEffectiveDate;
+                var employeeNumber = string.IsNullOrWhiteSpace(row.EmployeeNumber)
+                    ? await employeeNumberAllocator.AllocateAsync(cancellationToken)
+                    : row.EmployeeNumber;
                 var employee = Employee.Create(
                     tenantContext.TenantId,
                     row.FirstName,
@@ -622,14 +630,16 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
                     hireDate,
                     null,
                     row.JobTitle,
-                    row.EmployeeNumber,
+                    employeeNumber,
                     row.Phone,
                     row.WorkLocation,
                     row.EmploymentType);
 
                 dbContext.Employees.Add(employee);
                 resolutionScope.Register(employee);
-                createdEmployeesByEmail[row.Email] = employee;
+                createdEmployeesByRow[row.RowNumber] = employee;
+                if (!string.IsNullOrWhiteSpace(row.Email))
+                    createdEmployeesByEmail[row.Email] = employee;
 
                 var empResult = await mutationService.StartEmploymentAsync(
                     employee.Id,
@@ -668,7 +678,7 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
 
             foreach (var row in createRows.Where(r => !string.IsNullOrWhiteSpace(r.ManagerEmail)))
             {
-                var employee = createdEmployeesByEmail[row.Email];
+                var employee = createdEmployeesByRow[row.RowNumber];
                 var managerId = row.ExistingManagerId;
 
                 if (!managerId.HasValue)
@@ -848,7 +858,7 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
                 operation.ActorFullName,
                 operation.ActorRole);
 
-            var importFollowUpIssues = BuildImportFollowUpIssues(history.Id, createdEmployeesByEmail, createRows, settings);
+            var importFollowUpIssues = BuildImportFollowUpIssues(history.Id, createdEmployeesByRow, createRows, settings);
 
             dbContext.EmployeeImportHistories.Add(history);
             if (importFollowUpIssues.Count > 0)
@@ -916,13 +926,15 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
         var emails = emailToMatchedId.Keys.ToList();
         var existing = await dbContext.Employees
             .AsNoTracking()
-            .Where(e => emails.Contains(e.Email))
+            .Where(e => e.Email != null && emails.Contains(e.Email))
             .Select(e => new { e.Id, e.Email })
             .ToListAsync(cancellationToken);
 
         foreach (var employee in existing)
         {
-            if (emailToMatchedId.TryGetValue(employee.Email, out var matchedId) && employee.Id != matchedId)
+            if (employee.Email is not null
+                && emailToMatchedId.TryGetValue(employee.Email, out var matchedId)
+                && employee.Id != matchedId)
                 throw new ArgumentException(
                     "One or more employee emails already exist in this tenant. Validate the file again before applying.");
         }
@@ -1410,7 +1422,7 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
                 AddIssue(issues, issueKeys, sourceRow.RowNumber, "lastName", "missingLastName", "Last name is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
             }
 
-            if (IsFieldRequiredForImport(sourceHeaders, "email", settings, true)
+            if (IsFieldRequiredForImport(sourceHeaders, "email", settings, false)
                 && string.IsNullOrWhiteSpace(email))
             {
                 AddIssue(issues, issueKeys, sourceRow.RowNumber, "email", "missingEmail", "Email is required.", rowErrorNumbers: rowErrorNumbers, issueCodesByRow: issueCodesByRow);
@@ -1602,9 +1614,10 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
 
         var existingEmployeesByEmail = await dbContext.Employees
             .AsNoTracking()
-            .Where(employee => emailOccurrences.Keys.Contains(employee.Email) || referencedManagerEmails.Contains(employee.Email))
+            .Where(employee => employee.Email != null
+                && (emailOccurrences.Keys.Contains(employee.Email) || referencedManagerEmails.Contains(employee.Email)))
             .Select(employee => new ExistingEmployeeReference(
-                employee.Email,
+                employee.Email!,
                 employee.Id,
                 dbContext.Employments.Any(employment =>
                     employment.EmployeeId == employee.Id
@@ -1854,7 +1867,7 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
                     || !string.IsNullOrWhiteSpace(candidate.FirstName))
                 && (!IsFieldRequiredForImport(sourceHeaders, "lastName", settings, true)
                     || !string.IsNullOrWhiteSpace(candidate.LastName))
-                && (!IsFieldRequiredForImport(sourceHeaders, "email", settings, true)
+                && (!IsFieldRequiredForImport(sourceHeaders, "email", settings, false)
                     || !string.IsNullOrWhiteSpace(candidate.Email))
                 // Field-completeness rules govern new-employee creation; controlled updates only
                 // touch the facts their row actually supplies.
@@ -1874,7 +1887,7 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
                 candidate.EmployeeNumber,
                 candidate.FirstName!,
                 candidate.LastName!,
-                candidate.Email!,
+                candidate.Email,
                 candidate.Phone,
                 candidate.HireDate ?? candidate.ResolvedEffectiveDate,
                 candidate.JobTitle,
@@ -2388,16 +2401,16 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
 
     private List<EmployeeImportFollowUpIssue> BuildImportFollowUpIssues(
         Guid historyId,
-        IReadOnlyDictionary<string, Employee> employeesByEmail,
+        IReadOnlyDictionary<int, Employee> employeesByRow,
         IReadOnlyCollection<StoredNormalizedRow> normalizedRows,
         TenantSettingsDto settings)
     {
-        var normalizedRowsByEmail = normalizedRows.ToDictionary(row => row.Email, StringComparer.OrdinalIgnoreCase);
+        var normalizedRowsByNumber = normalizedRows.ToDictionary(row => row.RowNumber);
         var followUpIssues = new List<EmployeeImportFollowUpIssue>();
 
-        foreach (var (email, employee) in employeesByEmail)
+        foreach (var (rowNumber, employee) in employeesByRow)
         {
-            var row = normalizedRowsByEmail[email];
+            var row = normalizedRowsByNumber[rowNumber];
 
             // Check required identity fields
             if (IsFieldRequired(settings, "firstName") && string.IsNullOrWhiteSpace(row.FirstName))
@@ -2794,7 +2807,7 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
     private sealed record ExistingEmployeeMatch(
         string EmployeeNumber,
         Guid Id,
-        string Email,
+        string? Email,
         string FirstName,
         string LastName,
         string? Phone);
@@ -2804,7 +2817,7 @@ public sealed class EmployeeImportWorkflowService : IEmployeeImportWorkflowServi
         string? EmployeeNumber,
         string FirstName,
         string LastName,
-        string Email,
+        string? Email,
         string? Phone,
         DateTime HireDate,
         string? JobTitle,

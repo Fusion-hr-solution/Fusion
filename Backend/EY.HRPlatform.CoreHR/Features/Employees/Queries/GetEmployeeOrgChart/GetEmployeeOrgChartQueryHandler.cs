@@ -457,11 +457,11 @@ public sealed class GetEmployeeOrgChartQueryHandler(
 internal sealed record CanonicalEmployeeView(
     Guid Id,
     string StableEmployeeKey,
-    string? EmployeeNumber,
+    string EmployeeNumber,
     string FirstName,
     string LastName,
     string? PreferredName,
-    string Email,
+    string? Email,
     string? Phone,
     bool IsActive,
     DateTime HireDate,

@@ -153,7 +153,7 @@ public sealed record EmployeeImportFollowUpIssueDto(
     int SourceRowNumber,
     Guid EmployeeId,
     string EmployeeFullName,
-    string EmployeeEmail,
+    string? EmployeeEmail,
     string Code,
     string Label,
     string? FieldKey,

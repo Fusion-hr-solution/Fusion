@@ -151,9 +151,6 @@ public sealed class WorkforceAccountsController(
             statuses.Add(await ResolveStatusAsync(tenantId, subject, cancellationToken));
         }
 
-        if (dbContext.ChangeTracker.HasChanges())
-            await dbContext.SaveChangesAsync(cancellationToken);
-
         return Ok(ApiResponse<List<WorkforceAccountStatusDto>>.Success(statuses));
     }
 
@@ -504,6 +501,7 @@ public sealed class WorkforceAccountsController(
 
         var userByEmail = await dbContext.Users
             .IgnoreQueryFilters()
+            .AsNoTracking()
             .FirstOrDefaultAsync(user => user.TenantMemberships.Any(m => m.TenantId == tenantId && m.Status == TenantMembershipStatus.Active) && user.NormalizedEmail == normalizedEmailUpper, cancellationToken);
 
         if (userByEmail is not null)
@@ -511,15 +509,12 @@ public sealed class WorkforceAccountsController(
             if (userByEmail.EmployeeId.HasValue && userByEmail.EmployeeId.Value != subject.EmployeeId)
                 return BuildConflictStatus(subject, "EmployeeEmailMismatch", "This email is already linked to a different employee.", "Review duplicate employee records before inviting.");
 
-            userByEmail.EmployeeId = subject.EmployeeId;
-            return await BuildUserStatusAsync(subject.EmployeeId, userByEmail, cancellationToken);
+            return BuildConflictStatus(
+                subject,
+                "MatchingAccountRequiresExplicitLink",
+                "A Fusion account in this organization uses this email but is not linked to this employee.",
+                "Review the account and link it through an explicit access action.");
         }
-
-        var crossTenantUserExists = await dbContext.Users
-            .IgnoreQueryFilters()
-            .AnyAsync(user => !user.TenantMemberships.Any(m => m.TenantId == tenantId && m.Status == TenantMembershipStatus.Active) && user.NormalizedEmail == normalizedEmailUpper, cancellationToken);
-        if (crossTenantUserExists)
-            return BuildConflictStatus(subject, "EmailAlreadyRegistered", "Email is already registered in another tenant.", "Use another email or contact platform support.");
 
         var inviteByEmployee = await FindLatestInviteByEmployeeAsync(tenantId, subject.EmployeeId, cancellationToken);
         if (inviteByEmployee is not null)
@@ -532,6 +527,7 @@ public sealed class WorkforceAccountsController(
 
         var inviteByEmail = await dbContext.InviteTokens
             .IgnoreQueryFilters()
+            .AsNoTracking()
             .Where(invite => invite.TenantId == tenantId && invite.Email == normalizedEmail)
             .OrderByDescending(invite => invite.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
@@ -541,8 +537,11 @@ public sealed class WorkforceAccountsController(
             if (inviteByEmail.EmployeeId.HasValue && inviteByEmail.EmployeeId.Value != subject.EmployeeId)
                 return BuildConflictStatus(subject, "EmployeeEmailMismatch", "This email already has an invitation for a different employee.", "Review duplicate employee records before inviting.");
 
-            inviteByEmail.LinkEmployee(subject.EmployeeId);
-            return await BuildInviteStatusAsync(subject.EmployeeId, inviteByEmail, cancellationToken);
+            return BuildConflictStatus(
+                subject,
+                "MatchingInvitationRequiresExplicitLink",
+                "An invitation in this organization uses this email but is not linked to this employee.",
+                "Review the invitation and link it through an explicit access action.");
         }
 
         return BuildUnprovisionedStatus(subject);
@@ -592,6 +591,7 @@ public sealed class WorkforceAccountsController(
         CancellationToken cancellationToken)
         => await dbContext.Users
             .IgnoreQueryFilters()
+            .AsNoTracking()
             .FirstOrDefaultAsync(user => user.TenantMemberships.Any(m => m.TenantId == tenantId && m.Status == TenantMembershipStatus.Active) && user.EmployeeId == employeeId, cancellationToken);
 
     private async Task<InviteToken?> FindLatestInviteByEmployeeAsync(
@@ -600,6 +600,7 @@ public sealed class WorkforceAccountsController(
         CancellationToken cancellationToken)
         => await dbContext.InviteTokens
             .IgnoreQueryFilters()
+            .AsNoTracking()
             .Where(invite => invite.TenantId == tenantId && invite.EmployeeId == employeeId)
             .OrderByDescending(invite => invite.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);

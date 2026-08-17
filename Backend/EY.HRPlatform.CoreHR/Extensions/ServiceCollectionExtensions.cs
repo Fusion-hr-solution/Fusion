@@ -55,6 +55,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<WorkforceResolutionScope>();
         services.AddScoped<IWorkforceCanonicalResolver, WorkforceCanonicalResolver>();
         services.AddScoped<IWorkforceMutationService, WorkforceMutationService>();
+        services.AddScoped<IEmployeeNumberAllocator, EmployeeNumberAllocatorService>();
+        services.AddScoped<IWorkEmailOccupancyService, WorkEmailOccupancyService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         services.AddScoped<IOrganizationImportSourceInspectionService, OrganizationImportSourceInspectionService>();
         services.AddScoped<IOrganizationImportWorkbookService, OrganizationImportWorkbookService>();

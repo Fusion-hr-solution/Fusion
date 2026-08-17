@@ -325,12 +325,10 @@ public sealed class EmployeeDetailsReadModelService(
 
             if (managerEmployee is not null)
             {
-                managerEmployment = await workforceCanonicalResolver.GetCurrentEmploymentAsync(manager.ManagerEmployeeId, at, cancellationToken)
-                    ?? await dbContext.Employments
-                        .AsNoTracking()
-                        .Where(x => x.EmployeeId == manager.ManagerEmployeeId)
-                        .OrderByDescending(x => x.EffectiveFrom)
-                        .FirstOrDefaultAsync(cancellationToken);
+                managerEmployment = await workforceCanonicalResolver.GetCurrentEmploymentAsync(
+                    manager.ManagerEmployeeId,
+                    at,
+                    cancellationToken);
             }
         }
 
@@ -338,6 +336,7 @@ public sealed class EmployeeDetailsReadModelService(
             .AsNoTracking()
             .CountAsync(
                 x => x.ManagerEmployeeId == employee.Id
+                    && x.Type == ReportingRelationshipType.PrimaryManager
                     && x.EffectiveFrom <= at
                     && (x.EffectiveTo == null || at < x.EffectiveTo),
                 cancellationToken);
@@ -351,7 +350,10 @@ public sealed class EmployeeDetailsReadModelService(
             .CountAsync(x => x.EmployeeId == employee.Id, cancellationToken);
         var managerRelationshipCount = await dbContext.ManagerRelationships
             .AsNoTracking()
-            .CountAsync(x => x.SubjectEmployeeId == employee.Id, cancellationToken);
+            .CountAsync(
+                x => x.SubjectEmployeeId == employee.Id
+                    && x.Type == ReportingRelationshipType.PrimaryManager,
+                cancellationToken);
 
         var hierarchyStatus = manager switch
         {

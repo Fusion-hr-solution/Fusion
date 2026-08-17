@@ -384,6 +384,7 @@ public sealed class AccessProfileService(
         }
 
         var assignments = await dbContext.UserAccessProfiles
+            .AsNoTracking()
             .Where(assignment => assignment.TenantId == tenantId && assignment.UserId == user.Id)
             .Join(
                 dbContext.AccessProfiles,
@@ -468,6 +469,7 @@ public sealed class AccessProfileService(
             : assignments.Append(administratorDefinitionId.Value).Distinct().ToList();
 
         var grants = await dbContext.AccessProfileGrants
+            .AsNoTracking()
             .Where(grant => grant.TenantId == permissionTenantId && sourceProfileIds.Contains(grant.AccessProfileId))
             .ToListAsync(cancellationToken);
 

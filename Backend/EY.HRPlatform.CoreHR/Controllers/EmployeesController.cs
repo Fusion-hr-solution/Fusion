@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
+using EY.HRPlatform.CoreHR.Features.People;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.ChangeEmployeeManager;
 using EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
@@ -24,6 +26,8 @@ using ApiResponseOfEmployeeOrgChartDto = EY.HRPlatform.SharedKernel.Api.ApiRespo
 using ApiResponseOfPagedEmployeeList = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Models.Responses.PagedResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeListItemDto>>;
 using ApiResponseOfEmployeeReportingLinesDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.EmployeeReportingLinesDto>;
 using ApiResponseOfWorkforceReadinessSummaryDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.Employees.Dtos.WorkforceReadinessSummaryDto>;
+using ApiResponseOfPeoplePageDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.People.PeoplePageDto>;
+using ApiResponseOfPeopleProfileDto = EY.HRPlatform.SharedKernel.Api.ApiResponse<EY.HRPlatform.CoreHR.Features.People.PeopleProfileDto>;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -37,6 +41,142 @@ public class EmployeesController(
     ISender sender,
     ICoreAccessPolicyService accessPolicy) : ControllerBase
 {
+    [HttpPost("hire")]
+    [ProducesResponseType(typeof(EY.HRPlatform.SharedKernel.Api.ApiResponse<EstablishmentResultDto>), StatusCodes.Status201Created)]
+    public async Task<IActionResult> Hire(
+        [FromBody] HireEmployeeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User))
+            return Forbid();
+
+        var result = await sender.Send(
+            new HireEmployeeCommand(request, GetAuditActor()),
+            cancellationToken);
+        if (result.IsFailure)
+            return MapEmployeeMutationFailure(result.Error);
+
+        Response.Headers.Location = $"/core/people/{result.Value.EmployeeKey}";
+        return StatusCode(
+            StatusCodes.Status201Created,
+            EY.HRPlatform.SharedKernel.Api.ApiResponse<EstablishmentResultDto>.Success(result.Value));
+    }
+
+    [HttpPost("add-existing")]
+    [ProducesResponseType(typeof(EY.HRPlatform.SharedKernel.Api.ApiResponse<EstablishmentResultDto>), StatusCodes.Status201Created)]
+    public async Task<IActionResult> AddExisting(
+        [FromBody] AddExistingEmployeeRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User))
+            return Forbid();
+
+        var result = await sender.Send(
+            new AddExistingEmployeeCommand(request, GetAuditActor()),
+            cancellationToken);
+        if (result.IsFailure)
+            return MapEmployeeMutationFailure(result.Error);
+
+        Response.Headers.Location = $"/core/people/{result.Value.EmployeeKey}";
+        return StatusCode(
+            StatusCodes.Status201Created,
+            EY.HRPlatform.SharedKernel.Api.ApiResponse<EstablishmentResultDto>.Success(result.Value));
+    }
+
+    [HttpPost("people/establishment-review")]
+    [ProducesResponseType(typeof(EY.HRPlatform.SharedKernel.Api.ApiResponse<EstablishmentReviewDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ReviewEstablishment(
+        [FromBody] EstablishmentReviewRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User))
+            return Forbid();
+
+        var result = await sender.Send(new EstablishmentReviewQuery(request), cancellationToken);
+        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<EstablishmentReviewDto>.Success(result.Value));
+    }
+
+    /// <summary>Bounded canonical People roster.</summary>
+    [HttpGet("people")]
+    [ProducesResponseType(typeof(ApiResponseOfPeoplePageDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPeople(
+        [FromQuery] string? q,
+        [FromQuery] PeopleEmploymentState? state,
+        [FromQuery] Guid? orgUnitId,
+        [FromQuery] PeopleOrganizationScope organizationScope = PeopleOrganizationScope.Subtree,
+        [FromQuery] PeopleSortField sort = PeopleSortField.Name,
+        [FromQuery] PeopleSortDirection direction = PeopleSortDirection.Asc,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
+    {
+        if (!accessPolicy.CanViewTenantEmployees(User))
+            return Forbid();
+
+        var result = await sender.Send(
+            new PeopleQuery(q, state, orgUnitId, organizationScope, sort, direction, page, pageSize),
+            cancellationToken);
+        return Ok(ApiResponseOfPeoplePageDto.Success(result.Value));
+    }
+
+    [HttpGet("people/{employeeKey}")]
+    [ProducesResponseType(typeof(ApiResponseOfPeopleProfileDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetPeopleProfile(
+        string employeeKey,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewTenantEmployees(User))
+            return Forbid();
+
+        var result = await sender.Send(new PeopleProfileQuery(employeeKey), cancellationToken);
+        if (result.IsFailure)
+            return NotFound(ApiResponse.Failure("Employee was not found."));
+
+        Response.Headers.ETag = $"\"{result.Value.Version}\"";
+        return Ok(ApiResponseOfPeopleProfileDto.Success(result.Value));
+    }
+
+    [HttpGet("people/manager-options")]
+    public async Task<IActionResult> GetManagerOptions(
+        [FromQuery] DateTime effectiveDate,
+        [FromQuery] string? q,
+        [FromQuery] Guid? excludeEmployeeId,
+        [FromQuery] int limit = 30,
+        CancellationToken cancellationToken = default)
+    {
+        if (!accessPolicy.CanManageEmployees(User))
+            return Forbid();
+
+        var result = await sender.Send(
+            new ManagerOptionsQuery(effectiveDate, q, excludeEmployeeId, limit),
+            cancellationToken);
+        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<IReadOnlyList<ManagerOptionDto>>.Success(result.Value));
+    }
+
+    [HttpGet("people/{employeeKey}/access-status")]
+    public async Task<IActionResult> GetPeopleAccessStatus(
+        string employeeKey,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewTenantEmployees(User))
+            return Forbid();
+
+        var result = await sender.Send(new PeopleAccessStatusQuery(employeeKey), cancellationToken);
+        if (result.IsFailure)
+            return NotFound(ApiResponse.Failure("Employee was not found."));
+        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<PeopleAccessStatusDto>.Success(result.Value));
+    }
+
+    private string GetAuditActor()
+    {
+        var id = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
+        var name = User.FindFirstValue(CustomClaimTypes.FullName)
+            ?? User.FindFirstValue(ClaimTypes.Email)
+            ?? "Unknown user";
+        return $"{id}|{name}";
+    }
+
     /// <summary>
     /// List employees with optional search, status filtering, sorting, and pagination.
     /// </summary>

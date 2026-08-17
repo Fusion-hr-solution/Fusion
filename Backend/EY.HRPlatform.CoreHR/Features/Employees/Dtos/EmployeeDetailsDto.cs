@@ -6,11 +6,11 @@ public sealed record EmployeeDetailsDto(
     Guid Id,
     Guid TenantId,
     string StableEmployeeKey,
-    string? EmployeeNumber,
+    string EmployeeNumber,
     string FirstName,
     string LastName,
     string? PreferredName,
-    string Email,
+    string? Email,
     string? Phone,
     EmployeeCurrentEmploymentDto? CurrentEmployment,
     EmployeeCurrentWorkAssignmentDto? CurrentWorkAssignment,
@@ -52,7 +52,7 @@ public sealed record EmployeeCurrentManagerDto(
     Guid ManagerWorkAssignmentId,
     string ManagerFirstName,
     string ManagerLastName,
-    string ManagerEmail,
+    string? ManagerEmail,
     DateTime EffectiveFrom,
     DateTime? EffectiveTo)
 {

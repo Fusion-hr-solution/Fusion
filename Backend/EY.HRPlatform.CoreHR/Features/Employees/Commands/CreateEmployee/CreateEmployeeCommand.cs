@@ -10,7 +10,7 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Commands.CreateEmployee;
 public sealed record CreateEmployeeCommand(
     string FirstName,
     string LastName,
-    string Email,
+    string? Email,
     DateTime HireDate,
     string? JobTitle = null,
     Guid? ManagerId = null,

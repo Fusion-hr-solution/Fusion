@@ -8,11 +8,11 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Dtos;
 public sealed record EmployeeListItemDto(
     Guid Id,
     string StableEmployeeKey,
-    string? EmployeeNumber,
+    string EmployeeNumber,
     string FirstName,
     string LastName,
     string? PreferredName,
-    string Email,
+    string? Email,
     Guid? OrgUnitId,
     string? OrgUnitName,
     string? JobTitle,

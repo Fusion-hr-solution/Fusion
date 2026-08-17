@@ -23,7 +23,7 @@ public sealed record EmployeeOrgChartNodeDto(
     string FullName,
     string FirstName,
     string LastName,
-    string Email,
+    string? Email,
     string? JobTitle,
     Domain.Enums.EmployeeStatus EmploymentStatus,
     Guid? OrgUnitId,

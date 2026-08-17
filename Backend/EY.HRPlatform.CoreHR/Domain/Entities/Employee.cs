@@ -13,12 +13,12 @@ public class Employee : AggregateRoot, ITenantEntity
     /// Row version for optimistic concurrency control (mapped to PostgreSQL xmin).
     /// </summary>
     public uint Version { get; private set; }
-    public string? EmployeeNumber { get; private set; }
+    public string EmployeeNumber { get; private set; } = string.Empty;
     public string StableEmployeeKey { get; private set; } = string.Empty;
     public string FirstName { get; private set; } = string.Empty;
     public string LastName { get; private set; } = string.Empty;
     public string? PreferredName { get; private set; }
-    public string Email { get; private set; } = string.Empty;
+    public string? Email { get; private set; }
     public string? Phone { get; private set; }
     public string? Department { get; private set; }
     public string FullName => $"{FirstName} {LastName}";
@@ -30,7 +30,7 @@ public class Employee : AggregateRoot, ITenantEntity
         Guid tenantId,
         string firstName,
         string lastName,
-        string email,
+        string? email,
         string? department = null,
         string? employeeNumber = null,
         string? phone = null)
@@ -44,9 +44,6 @@ public class Employee : AggregateRoot, ITenantEntity
         if (string.IsNullOrWhiteSpace(lastName))
             throw new ArgumentException("Last name cannot be empty.", nameof(lastName));
 
-        if (string.IsNullOrWhiteSpace(email))
-            throw new ArgumentException("Email cannot be empty.", nameof(email));
-
         var id = Guid.NewGuid();
         return new Employee
         {
@@ -56,7 +53,7 @@ public class Employee : AggregateRoot, ITenantEntity
             StableEmployeeKey = GenerateStableKey(id),
             FirstName = firstName.Trim(),
             LastName = lastName.Trim(),
-            Email = email.Trim().ToLowerInvariant(),
+            Email = NormalizeEmail(email),
             Phone = NormalizePhone(phone),
             Department = department?.Trim()
         };
@@ -67,7 +64,7 @@ public class Employee : AggregateRoot, ITenantEntity
         Guid tenantId,
         string firstName,
         string lastName,
-        string email,
+        string? email,
         string? department = null,
         string? employeeNumber = null,
         string? phone = null)
@@ -82,7 +79,7 @@ public class Employee : AggregateRoot, ITenantEntity
         Guid tenantId,
         string firstName,
         string lastName,
-        string email,
+        string? email,
         DateTime hireDate,
         string? department = null,
         string? jobTitle = null,
@@ -108,7 +105,7 @@ public class Employee : AggregateRoot, ITenantEntity
     public void UpdateProfile(
         string firstName,
         string lastName,
-        string email,
+        string? email,
         string? preferredName,
         string? phone)
     {
@@ -118,12 +115,9 @@ public class Employee : AggregateRoot, ITenantEntity
         if (string.IsNullOrWhiteSpace(lastName))
             throw new ArgumentException("Last name cannot be empty.", nameof(lastName));
 
-        if (string.IsNullOrWhiteSpace(email))
-            throw new ArgumentException("Email cannot be empty.", nameof(email));
-
         FirstName = firstName.Trim();
         LastName = lastName.Trim();
-        Email = email.Trim().ToLowerInvariant();
+        Email = NormalizeEmail(email);
         PreferredName = NormalizePreferredName(preferredName);
         Phone = NormalizePhone(phone);
         UpdatedAt = DateTime.UtcNow;
@@ -141,7 +135,7 @@ public class Employee : AggregateRoot, ITenantEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void UpdateEmployeeNumber(string? employeeNumber)
+    public void UpdateEmployeeNumber(string employeeNumber)
     {
         EmployeeNumber = NormalizeEmployeeNumber(employeeNumber);
         UpdatedAt = DateTime.UtcNow;
@@ -160,16 +154,28 @@ public class Employee : AggregateRoot, ITenantEntity
         return $"E-{id:N}".ToUpperInvariant();
     }
 
-    private static string? NormalizeEmployeeNumber(string? employeeNumber)
+    private static string NormalizeEmployeeNumber(string? employeeNumber)
     {
         if (string.IsNullOrWhiteSpace(employeeNumber))
-            return null;
+            throw new ArgumentException("Employee Number is required.", nameof(employeeNumber));
 
         var normalized = employeeNumber.Trim().ToUpperInvariant();
         if (normalized.Length > 64)
         {
             throw new ArgumentException("EmployeeNumber cannot exceed 64 characters.", nameof(employeeNumber));
         }
+
+        return normalized;
+    }
+
+    private static string? NormalizeEmail(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+            return null;
+
+        var normalized = email.Trim().ToLowerInvariant();
+        if (normalized.Length > 256)
+            throw new ArgumentException("Email cannot exceed 256 characters.", nameof(email));
 
         return normalized;
     }

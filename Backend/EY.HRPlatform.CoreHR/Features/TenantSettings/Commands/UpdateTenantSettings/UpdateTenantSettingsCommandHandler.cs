@@ -17,7 +17,7 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
     private static readonly Regex HexColorPattern = HexColorRegex();
     private static readonly HashSet<string> KnownFieldNames = TenantSettingsDto.DefaultEmployeeFieldConfig.Keys.ToHashSet();
     private static readonly HashSet<string> CoreIdentityFields = ["firstName", "lastName", "email"];
-    private static readonly HashSet<string> OperationallyRequiredFields = ["firstName", "lastName", "email", "hireDate"];
+    private static readonly HashSet<string> OperationallyRequiredFields = ["firstName", "lastName", "hireDate"];
 
     public async Task<Result<TenantSettingsDto>> Handle(UpdateTenantSettingsCommand request, CancellationToken cancellationToken)
     {
