@@ -1,7 +1,7 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
 using EY.HRPlatform.CoreHR.Features.Employees.Dtos;
-using EY.HRPlatform.CoreHR.Features.Employees.Import.Dtos;
+
 using EY.HRPlatform.CoreHR.Features.Employees.Queries.GetWorkforceReadinessSummary;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
@@ -13,7 +13,7 @@ public class GetWorkforceReadinessSummaryQueryHandlerTests
     private static readonly Guid TenantId = Guid.NewGuid();
 
     [Fact]
-    public async Task GetWorkforceReadinessSummary_ComputesScoreCountsAndUnresolvedImportIssues()
+    public async Task GetWorkforceReadinessSummary_ComputesScoreAndCanonicalCounts()
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
@@ -48,20 +48,11 @@ public class GetWorkforceReadinessSummaryQueryHandlerTests
             var missingOrgUnit = Employee.Create(TenantId, "Jordan", "Solo", "jordan.solo@example.com", now, employeeNumber: TestEmployeeNumbers.Next());
             var missingOrgUnitEmployment = Employment.Start(TenantId, missingOrgUnit.Id, now.AddMonths(-1), null, WorkforceSourceType.Manual);
 
-            var history = EmployeeImportHistory.CreateApplied(
-                TenantId, Guid.NewGuid(), "employees.csv",
-                100, 1, 1, 1, 0, 1,
-                now, Guid.NewGuid(), "HR Admin", "HRAdmin");
-
             seedContext.OrgUnits.Add(orgUnit);
             seedContext.Employees.AddRange(leader, report, missingOrgUnit);
             seedContext.Employments.AddRange(leaderEmployment, reportEmployment, missingOrgUnitEmployment);
             seedContext.WorkAssignments.AddRange(leaderAssignment, reportAssignment);
             seedContext.ManagerRelationships.Add(reportManagerLink);
-            seedContext.EmployeeImportHistories.Add(history);
-            seedContext.EmployeeImportFollowUpIssues.Add(EmployeeImportFollowUpIssue.Create(
-                TenantId, history.Id, missingOrgUnit.Id, 1,
-                EmployeeReadinessIssueCodes.MissingOrgUnit, "orgUnitId"));
 
             await seedContext.SaveChangesAsync();
         }
@@ -79,6 +70,6 @@ public class GetWorkforceReadinessSummaryQueryHandlerTests
         Assert.Equal(1, result.Value.IssueCounts.MissingOrgUnit);
         Assert.Equal(1, result.Value.IssueCounts.NoManagerAssigned);
         Assert.Equal(1, result.Value.IssueCounts.DeactivationBlocked);
-        Assert.Equal(1, result.Value.IssueCounts.UnresolvedImportIssues);
+        Assert.Equal(0, result.Value.IssueCounts.UnresolvedImportIssues); // legacy import follow-up product retired
     }
 }

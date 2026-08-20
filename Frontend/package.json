@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "turbo dev",
+    "dev:owned": "turbo dev --filter=shell --filter=core --filter=platform --filter=performance",
     "build": "turbo build",
     "lint": "turbo lint",
     "test": "turbo test",
