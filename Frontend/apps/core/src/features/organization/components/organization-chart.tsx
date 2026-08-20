@@ -15,6 +15,7 @@ import {
   type Node,
   type NodeProps,
   type OnNodeDrag,
+  type ReactFlowInstance,
 } from "@xyflow/react";
 import { ChevronDown, ChevronRight, GripVertical, Plus } from "lucide-react";
 import { Button, cn } from "@repo/ds";
@@ -37,7 +38,9 @@ type OrganizationNodeData = Record<string, unknown> & {
   hiddenCount: number;
   canManage: boolean;
   readOnly: boolean;
-  moving: boolean;
+  inBranch: boolean;
+  lifted: boolean;
+  dimmed: boolean;
   validDrop: boolean;
   invalidDrop: boolean;
   revealed: boolean;
@@ -58,12 +61,19 @@ const OrganizationNode = memo(function OrganizationNode({ data }: NodeProps<Orga
         // React Flow sets pointer-events:none on non-draggable nodes (root, and
         // every node in read-only as-of views); re-enable so the card stays
         // selectable/inspectable and its disclosure stays operable.
-        "group pointer-events-auto relative h-[78px] w-[244px] rounded-lg border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.05)] transition-[border-color,box-shadow,opacity,background-color] duration-500 motion-reduce:transition-none",
+        "group pointer-events-auto relative h-[78px] w-[244px] rounded-lg border bg-card shadow-[0_1px_2px_oklch(0_0_0/0.05)] transition-[border-color,box-shadow,opacity,background-color,transform] duration-500 motion-reduce:transition-none",
         data.root && "border-l-[3px] border-l-primary/60 bg-[color-mix(in_oklab,var(--primary)_4%,var(--card))]",
         !data.selected && !data.validDrop && !data.invalidDrop && "hover:border-foreground/25 hover:shadow-md",
-        data.selected && "border-primary shadow-md ring-2 ring-primary/25",
+        // A descendant of the selected node: part of the highlighted branch, but clearly
+        // subordinate to the selection — a tinted border only, no ring/shadow.
+        data.inBranch && "border-primary/45 bg-[color-mix(in_oklab,var(--primary)_4%,var(--card))]",
+        // The selected node itself owns the branch: full primary border + ring + shadow.
+        data.selected && "border-primary shadow-md ring-2 ring-primary/30",
         data.revealed && "org-reveal-highlight z-10",
-        data.moving && "opacity-55 ring-2 ring-primary/40",
+        // The card being dragged lifts off the canvas and moves with the cursor in real time.
+        data.lifted && "z-20 scale-[1.03] cursor-grabbing border-primary opacity-100 shadow-2xl ring-2 ring-primary !duration-100",
+        // Descendants that will travel with it are ghosted at their origin.
+        data.dimmed && "opacity-40",
         data.validDrop && "border-primary bg-[color-mix(in_oklab,var(--primary)_7%,var(--card))] ring-2 ring-primary/35",
         data.invalidDrop && "border-destructive bg-[color-mix(in_oklab,var(--destructive)_6%,var(--card))] ring-2 ring-destructive/25"
       )}
@@ -134,17 +144,31 @@ function reduceMotion() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-function FocusSelected({ selectedId }: { selectedId: string | null }) {
+function FocusSelected({
+  selectedId,
+  isRoot,
+  nodes,
+}: {
+  selectedId: string | null;
+  isRoot: boolean;
+  nodes: OrganizationFlowNode[];
+}) {
   const flow = useReactFlow<OrganizationFlowNode, Edge>();
+  const focusedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!selectedId) return;
-    const node = flow.getNode(selectedId);
+    // The initial root framing is owned by the parent's onInit/frameEntry; only a
+    // deliberate non-root selection centers here, so a load that defaults its selection
+    // to the root does not fight the entry framing.
+    if (!selectedId || isRoot) return;
+    if (focusedRef.current === selectedId) return;
+    const node = nodes.find((candidate) => candidate.id === selectedId);
     if (!node) return;
+    focusedRef.current = selectedId;
     void flow.setCenter(node.position.x + NODE_WIDTH / 2, node.position.y + NODE_HEIGHT / 2, {
       zoom: flow.getZoom(),
       duration: reduceMotion() ? 0 : 180,
     });
-  }, [flow, selectedId]);
+  }, [flow, selectedId, isRoot, nodes]);
   return null;
 }
 
@@ -242,6 +266,12 @@ export default function OrganizationChart({
 }: OrganizationChartProps) {
   const [dragSource, setDragSource] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  // Live position of the card being dragged. Because `nodes` is recomputed mid-drag
+  // (dropTarget changes as the cursor sweeps over targets), the memo would otherwise feed
+  // React Flow the dragged node's *original* dagre position every frame and snap it back —
+  // so only the cursor would appear to move. Pinning this live position keeps the card
+  // itself travelling under the cursor.
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   // Keep the node the user toggled visually anchored: capture its pre-relayout
   // position, and after dagre repositions everything, compensate the viewport so
   // it does not jump across the screen. See AnchorViewport.
@@ -262,9 +292,24 @@ export default function OrganizationChart({
     dropTarget !== null &&
     !isInvalidMoveTarget(model, dragSource, dropTarget);
 
+  const selectedIsRoot = selectedId !== null && model.roots.includes(selectedId);
+  // Identity of the underlying dataset: changes on load, effective-date change, or
+  // import; stable across expand/collapse. The chart frames its entry once per dataset.
+  const dataKey = useMemo(() => `${[...model.roots].join(",")}|${model.byId.size}`, [model]);
+  // A post-action reveal, or a deliberate non-root selection, owns the viewport;
+  // otherwise the entry framing (root head) runs.
+  const autoFrame = revealedIds.size === 0 && (selectedId === null || selectedIsRoot);
+  const flowRef = useRef<ReactFlowInstance<OrganizationFlowNode, Edge> | null>(null);
+  const framedRef = useRef<string | null>(null);
+
   const { nodes, edges } = useMemo(() => {
     const movingSet = dragSource
       ? new Set<string>([dragSource, ...(model.descendantsById.get(dragSource) ?? [])])
+      : null;
+    // The selected node plus its whole sub-tree: highlighted as one branch, with the
+    // selected node styled distinctly from its descendants.
+    const branchSet = selectedId
+      ? new Set<string>([selectedId, ...(model.descendantsById.get(selectedId) ?? [])])
       : null;
     const visibleIds: string[] = [];
     const visibleEdges: Array<{ source: string; target: string }> = [];
@@ -279,7 +324,12 @@ export default function OrganizationChart({
     for (const root of model.roots) visit(root);
 
     const graph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-    graph.setGraph({ rankdir: "TB", nodesep: 40, ranksep: 62, marginx: 40, marginy: 40 });
+    // Top-to-bottom layout: the root sits on top and depth flows downward across ranks,
+    // while sibling units at each level spread sideways. `nodesep` is the horizontal gap
+    // between siblings; `ranksep` is the vertical gap between depth levels. The wide, short
+    // nodes spread far horizontally, so a generous `ranksep` gives the tree comparable
+    // vertical extent rather than a short, very wide band.
+    graph.setGraph({ rankdir: "TB", nodesep: 8, ranksep: 260, marginx: 40, marginy: 40 });
     for (const id of visibleIds) graph.setNode(id, { width: NODE_WIDTH, height: NODE_HEIGHT });
     for (const edge of visibleEdges) graph.setEdge(edge.source, edge.target);
     dagre.layout(graph);
@@ -293,6 +343,14 @@ export default function OrganizationChart({
           id,
           type: "organizationUnit",
           position: { x: position.x - NODE_WIDTH / 2, y: position.y - NODE_HEIGHT / 2 },
+          // Top-to-bottom flow: parents connect from their bottom edge to a child's top.
+          sourcePosition: Position.Bottom,
+          targetPosition: Position.Top,
+          // Explicit dimensions so the MiniMap can draw every node — with
+          // `onlyRenderVisibleElements`, off-screen nodes are never measured, so without
+          // these the overview would render as an empty box with no node marks.
+          width: NODE_WIDTH,
+          height: NODE_HEIGHT,
           draggable: canManage && !readOnly && unit.parentId !== null,
           dragHandle: ".org-drag-handle",
           data: {
@@ -308,7 +366,9 @@ export default function OrganizationChart({
             hiddenCount: collapsed.has(id) ? (model.descendantsById.get(id)?.size ?? 0) : 0,
             canManage,
             readOnly,
-            moving: movingSet?.has(id) === true && dropTarget !== id,
+            inBranch: branchSet?.has(id) === true && id !== selectedId,
+            lifted: id === dragSource,
+            dimmed: movingSet?.has(id) === true && id !== dragSource && dropTarget !== id,
             validDrop: isCandidate && !isInvalidMoveTarget(model, dragSource!, id),
             invalidDrop: isCandidate && isInvalidMoveTarget(model, dragSource!, id),
             revealed: revealedIds.has(id),
@@ -318,21 +378,62 @@ export default function OrganizationChart({
           },
         };
       }),
-      edges: visibleEdges.map<Edge>((edge) => ({
-        id: `${edge.source}-${edge.target}`,
-        source: edge.source,
-        target: edge.target,
-        type: "smoothstep",
-        style: {
-          stroke: "var(--border)",
-          strokeWidth: selectedId && (edge.source === selectedId || edge.target === selectedId) ? 2 : 1.25,
-          opacity: dragSource && movingSet?.has(edge.target) ? 0.4 : 1,
-        },
-      })),
+      edges: visibleEdges.map<Edge>((edge) => {
+        // A link inside the selected branch: both ends are in the sub-tree, so the whole
+        // branch — nodes and the connecting ropes — reads as one highlighted lineage.
+        const inBranch = branchSet !== null && branchSet.has(edge.source) && branchSet.has(edge.target);
+        return {
+          id: `${edge.source}-${edge.target}`,
+          source: edge.source,
+          target: edge.target,
+          type: "smoothstep",
+          animated: inBranch && dragSource === null,
+          style: {
+            stroke: inBranch ? "var(--primary)" : "var(--border)",
+            strokeWidth: inBranch ? 2.25 : 1.25,
+            opacity: dragSource && movingSet?.has(edge.target) ? 0.4 : 1,
+          },
+        };
+      }),
     };
   }, [canManage, collapsed, dragSource, dropTarget, handleToggle, model, onAddChild, onSelect, readOnly, revealedIds, selectedId]);
 
   nodesRef.current = nodes;
+
+  // Pin the live drag position onto the dragged card so mid-drag relayouts don't snap it
+  // back to its dagre slot; every other node keeps its computed position.
+  const displayNodes = useMemo(() => {
+    if (!dragSource || !dragPos) return nodes;
+    return nodes.map((node) => (node.id === dragSource ? { ...node, position: dragPos } : node));
+  }, [nodes, dragSource, dragPos]);
+
+  // Frame the head of the organization: the root at a readable zoom, biased rightward so
+  // its immediate children (which flow to the right in this left-to-right layout) come
+  // into view and the rest is a scroll/zoom away. The built-in `fitView` frames a large
+  // org too small, so this replaces it with a legible entry, framed once per dataset.
+  // Called from `onInit` for the first mount (which runs after ReactFlow's own viewport
+  // init, so it is not clobbered) and from the effect below for later dataset changes.
+  const frameEntry = useCallback(
+    (instance: ReactFlowInstance<OrganizationFlowNode, Edge>) => {
+      if (!autoFrame) return;
+      const current = nodesRef.current;
+      const root = current.find((node) => model.roots.includes(node.id)) ?? current[0];
+      if (!root) return;
+      framedRef.current = dataKey;
+      void instance.setCenter(root.position.x + NODE_WIDTH * 2.5, root.position.y + NODE_HEIGHT / 2, {
+        zoom: 0.8,
+        duration: reduceMotion() ? 0 : 240,
+      });
+    },
+    [autoFrame, dataKey, model.roots]
+  );
+
+  useEffect(() => {
+    // Re-frame on a genuine dataset change after mount (effective-date, import); the
+    // first mount is handled by onInit. Skips expand/collapse (same dataKey).
+    if (!flowRef.current || framedRef.current === null || framedRef.current === dataKey) return;
+    frameEntry(flowRef.current);
+  }, [dataKey, frameEntry]);
 
   const findDropTarget: OnNodeDrag<OrganizationFlowNode> = (_event, dragged) => {
     // Trigger as soon as the dragged card overlaps a target card (not only when
@@ -354,6 +455,7 @@ export default function OrganizationChart({
       }
     }
     setDropTarget(candidate);
+    setDragPos(dragged.position);
   };
 
   const handleDragStop: OnNodeDrag<OrganizationFlowNode> = (_event, dragged) => {
@@ -362,6 +464,7 @@ export default function OrganizationChart({
     }
     setDragSource(null);
     setDropTarget(null);
+    setDragPos(null);
   };
 
   const draggedUnit = dragSource ? model.byId.get(dragSource) : null;
@@ -392,24 +495,27 @@ export default function OrganizationChart({
         </div>
       ) : null}
       <ReactFlow<OrganizationFlowNode, Edge>
-        nodes={nodes}
+        nodes={displayNodes}
         edges={edges}
         nodeTypes={nodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
-        minZoom={0.25}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+        minZoom={0.08}
         maxZoom={1.5}
         nodesConnectable={false}
         elementsSelectable={false}
         nodeDragThreshold={8}
         onlyRenderVisibleElements
-        onNodeDragStart={(_event, node) => setDragSource(node.id)}
+        onInit={(instance) => {
+          flowRef.current = instance;
+          frameEntry(instance);
+        }}
+        onNodeDragStart={(_event, node) => { setDragSource(node.id); setDragPos(node.position); }}
         onNodeDrag={findDropTarget}
         onNodeDragStop={handleDragStop}
         proOptions={{ hideAttribution: true }}
         className="bg-transparent"
       >
-        <FocusSelected selectedId={selectedId} />
+        <FocusSelected selectedId={selectedId} isRoot={selectedIsRoot} nodes={nodes} />
         <AnchorViewport nodes={nodes} pendingAnchorRef={pendingAnchorRef} />
         <RevealViewport revealedIds={revealedIds} nodes={nodes} />
         {/* Fine single grid that rides the viewport transform, so panning and
@@ -428,7 +534,13 @@ export default function OrganizationChart({
             zoomable
             className="!bottom-3 !right-14 !rounded-lg !border !border-border !bg-background/95 !shadow-sm"
             maskColor="color-mix(in oklab, var(--muted) 66%, transparent)"
-            nodeColor="var(--muted-foreground)"
+            nodeColor={(node) =>
+              node.data?.root === true || node.data?.selected === true
+                ? "var(--primary)"
+                : "var(--muted-foreground)"
+            }
+            nodeStrokeColor="transparent"
+            nodeBorderRadius={2}
           />
         ) : null}
       </ReactFlow>

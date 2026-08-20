@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.CoreHR.Features.People;
 
-public sealed record PeopleProfileQuery(string EmployeeKey) : IQuery<Result<PeopleProfileDto>>;
+public sealed record PeopleProfileQuery(string EmployeeKey, DateTime? AsOf = null) : IQuery<Result<PeopleProfileDto>>;
 
 public sealed record PeopleProfileIdentityDto(
     string EmployeeKey,
@@ -29,7 +29,8 @@ public sealed record PeopleProfileEmploymentDto(
 public sealed record PeopleProfileReportDto(
     string EmployeeKey,
     string EmployeeNumber,
-    string DisplayName);
+    string DisplayName,
+    string? JobTitle);
 
 public sealed record PeopleProfileDto(
     PeopleProfileIdentityDto Identity,
@@ -39,11 +40,18 @@ public sealed record PeopleProfileDto(
     int DirectReportCount,
     IReadOnlyList<PeopleProfileReportDto> DirectReports,
     string Completeness,
-    uint Version);
+    uint Version,
+    /// <summary>The effective date this snapshot was resolved for (Today by default).</summary>
+    DateTime ViewedDate,
+    /// <summary>True when viewing a non-Today date; the snapshot is read-only.</summary>
+    bool IsAsOf,
+    /// <summary>Scheduled future changes, present only on the Today view.</summary>
+    IReadOnlyList<PeopleUpcomingChangeDto> Upcoming);
 
 public sealed class PeopleProfileQueryHandler(
     CoreHRDbContext dbContext,
-    IOrganizationService organizationService)
+    IOrganizationService organizationService,
+    PeopleTimelineComposer timelineComposer)
     : IQueryHandler<PeopleProfileQuery, Result<PeopleProfileDto>>
 {
     public async Task<Result<PeopleProfileDto>> Handle(
@@ -57,9 +65,27 @@ public sealed class PeopleProfileQueryHandler(
             return Result.Failure<PeopleProfileDto>(new Error("Employee.NotFound", "Employee was not found."));
 
         var today = DateTime.UtcNow.Date;
-        var employment = await ResolveEmploymentAsync(employee.Id, today, cancellationToken);
-        var state = ResolveState(employment, today);
-        var displayAt = ResolveDisplayAt(employment, state, today);
+        var asOf = request.AsOf?.Date is { } requested
+            ? DateTime.SpecifyKind(requested, DateTimeKind.Utc)
+            : (DateTime?)null;
+        var isAsOf = asOf.HasValue && asOf.Value != today;
+
+        Employment? employment;
+        PeopleEmploymentState state;
+        DateTime displayAt;
+        if (isAsOf)
+        {
+            // Page-level as-of: resolve every fact on the same requested date; read-only.
+            displayAt = asOf!.Value;
+            employment = await ResolveEmploymentAtAsync(employee.Id, displayAt, cancellationToken);
+            state = await ResolveStateAtAsync(employee.Id, employment, displayAt, cancellationToken);
+        }
+        else
+        {
+            employment = await ResolveEmploymentAsync(employee.Id, today, cancellationToken);
+            state = ResolveState(employment, today);
+            displayAt = ResolveDisplayAt(employment, state, today);
+        }
         var assignment = employment is null
             ? null
             : await dbContext.WorkAssignments.AsNoTracking()
@@ -79,6 +105,7 @@ public sealed class PeopleProfileQueryHandler(
                 DateOnly.FromDateTime(displayAt),
                 cancellationToken);
             work = new PeopleWorkDto(
+                assignment.OrgUnitId,
                 assignment.JobTitle,
                 organization.Name,
                 organization.Path,
@@ -95,7 +122,6 @@ public sealed class PeopleProfileQueryHandler(
                 join managerEmployee in dbContext.Employees.AsNoTracking()
                     on relationship.ManagerEmployeeId equals managerEmployee.Id
                 where relationship.SubjectEmployeeId == employee.Id
-                    && relationship.SubjectWorkAssignmentId == assignment.Id
                     && relationship.Type == ReportingRelationshipType.PrimaryManager
                     && relationship.EffectiveFrom <= displayAt
                     && (relationship.EffectiveTo == null || displayAt < relationship.EffectiveTo)
@@ -125,8 +151,20 @@ public sealed class PeopleProfileQueryHandler(
             .Select(report => new PeopleProfileReportDto(
                 report.StableEmployeeKey,
                 report.EmployeeNumber,
-                (report.PreferredName ?? report.FirstName) + " " + report.LastName))
+                (report.PreferredName ?? report.FirstName) + " " + report.LastName,
+                dbContext.WorkAssignments.AsNoTracking()
+                    .Where(assignment => assignment.EmployeeId == report.Id
+                        && assignment.IsPrimary
+                        && assignment.EffectiveFrom <= displayAt
+                        && (assignment.EffectiveTo == null || displayAt < assignment.EffectiveTo))
+                    .OrderByDescending(assignment => assignment.EffectiveFrom)
+                    .Select(assignment => assignment.JobTitle)
+                    .FirstOrDefault()))
             .ToListAsync(cancellationToken);
+
+        var upcoming = isAsOf
+            ? (IReadOnlyList<PeopleUpcomingChangeDto>)Array.Empty<PeopleUpcomingChangeDto>()
+            : (await timelineComposer.ComposeAsync(employee.Id, employee.StableEmployeeKey, cancellationToken)).Upcoming;
 
         var result = new PeopleProfileDto(
             new PeopleProfileIdentityDto(
@@ -150,7 +188,10 @@ public sealed class PeopleProfileQueryHandler(
             employment is null ? "EmploymentUnavailable"
                 : work is null ? "WorkDetailsUnavailable"
                 : "Complete",
-            employee.Version);
+            employee.Version,
+            isAsOf ? asOf!.Value : today,
+            isAsOf,
+            upcoming);
         return Result.Success(result);
     }
 
@@ -181,6 +222,36 @@ public sealed class PeopleProfileQueryHandler(
             .OrderByDescending(item => item.EffectiveTo ?? item.EffectiveFrom)
             .ThenByDescending(item => item.EffectiveFrom)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task<Employment?> ResolveEmploymentAtAsync(
+        Guid employeeId,
+        DateTime at,
+        CancellationToken cancellationToken)
+        => await dbContext.Employments.AsNoTracking()
+            .Where(item => item.EmployeeId == employeeId
+                && item.EffectiveFrom <= at
+                && (item.EffectiveTo == null || at < item.EffectiveTo))
+            .OrderByDescending(item => item.EffectiveFrom)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    private async Task<PeopleEmploymentState> ResolveStateAtAsync(
+        Guid employeeId,
+        Employment? activeOnDate,
+        DateTime at,
+        CancellationToken cancellationToken)
+    {
+        if (activeOnDate is not null)
+            return PeopleEmploymentState.Active;
+
+        var hasFuture = await dbContext.Employments.AsNoTracking()
+            .AnyAsync(item => item.EmployeeId == employeeId && item.EffectiveFrom > at, cancellationToken);
+        if (hasFuture)
+            return PeopleEmploymentState.Scheduled;
+
+        var hasEnded = await dbContext.Employments.AsNoTracking()
+            .AnyAsync(item => item.EmployeeId == employeeId && item.EffectiveTo != null && item.EffectiveTo <= at, cancellationToken);
+        return hasEnded ? PeopleEmploymentState.Former : PeopleEmploymentState.Incomplete;
     }
 
     private static PeopleEmploymentState ResolveState(Employment? employment, DateTime today)

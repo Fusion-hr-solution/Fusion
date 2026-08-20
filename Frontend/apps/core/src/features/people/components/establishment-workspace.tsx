@@ -41,6 +41,7 @@ import {
   Search,
 } from "lucide-react";
 import { useOrganizationHierarchy } from "@/features/organization/api/use-organization";
+import { OrganizationTree } from "@/features/organization/components/organization-tree";
 import { useManagerOptions, usePeopleEstablishmentMutations } from "../api/use-people";
 import { EmployeeIdentity, Monogram, OrgPath, formatWorkforceDate, initials } from "./workforce-ui";
 
@@ -107,29 +108,26 @@ function Segmented<T extends string>({
 }
 
 function OrganizationPicker({
-  choices,
+  roots,
   value,
   onChange,
   invalid,
 }: {
-  choices: OrgChoice[];
+  roots: OrganizationHierarchyNodeDto[];
   value: string;
   onChange: (value: string) => void;
   invalid: boolean;
 }) {
-  const [query, setQuery] = useState("");
-  const selected = choices.find((choice) => choice.id === value);
-  const visible = query.trim()
-    ? choices.filter((choice) => choice.path.toLowerCase().includes(query.trim().toLowerCase()))
-    : choices;
+  const [open, setOpen] = useState(false);
+  const selected = useMemo(() => flattenOrg(roots).find((choice) => choice.id === value), [roots, value]);
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" aria-invalid={invalid} className={cn("h-auto min-h-11 w-full justify-between py-2 font-normal", selected && "border-foreground/25")}>
           <span className="flex min-w-0 items-center gap-2.5">
             <Building2 className="size-4 shrink-0 text-muted-foreground" />
             {selected ? (
-              <OrgPath name={selected.name} path={selected.path} className="text-left" />
+              <OrgPath name={selected.name} path={selected.path} className="text-left" showAncestry={false} />
             ) : (
               <span className="text-muted-foreground">Select organization</span>
             )}
@@ -138,30 +136,17 @@ function OrganizationPicker({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[min(32rem,calc(100vw-2rem))] p-0">
-        <div className="relative border-b p-3">
-          <Search className="pointer-events-none absolute left-6 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search organizations" aria-label="Search organizations" className="pl-9" />
-        </div>
-        <div className="max-h-72 overflow-y-auto p-1" role="tree" aria-label="Organization hierarchy">
-          {visible.map((choice) => (
-            <button
-              type="button"
-              role="treeitem"
-              aria-selected={value === choice.id}
-              key={choice.id}
-              onClick={() => onChange(choice.id)}
-              className="flex w-full items-center justify-between gap-2 rounded-md py-2 pr-3 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-selected:bg-muted"
-              style={{ paddingLeft: `${0.75 + choice.depth * 1.125}rem` }}
-            >
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-medium">{choice.name}</span>
-                {query ? <span className="block truncate text-xs text-muted-foreground">{choice.path}</span> : null}
-              </span>
-              {value === choice.id ? <Check className="size-4 shrink-0" /> : null}
-            </button>
-          ))}
-          {visible.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">No valid unit on this date</p> : null}
-        </div>
+        <OrganizationTree
+          roots={roots}
+          selectedId={value || null}
+          onSelect={(id) => {
+            if (id) {
+              onChange(id);
+              setOpen(false);
+            }
+          }}
+          emptyLabel="No valid unit on this date"
+        />
       </PopoverContent>
     </Popover>
   );
@@ -497,7 +482,7 @@ export default function EstablishmentWorkspace({ mode }: { mode: EstablishmentMo
             </FormSection>
 
             <FormSection title={isHire ? "Work" : "Current work"}>
-              <Field data-invalid={Boolean(errors.orgUnitId)}><FieldLabel>Organization</FieldLabel><OrganizationPicker choices={orgChoices} value={form.orgUnitId} onChange={(value) => set("orgUnitId", value)} invalid={Boolean(errors.orgUnitId)} /><FieldError>{errors.orgUnitId}</FieldError></Field>
+              <Field data-invalid={Boolean(errors.orgUnitId)}><FieldLabel>Organization</FieldLabel><OrganizationPicker roots={hierarchy.data?.roots ?? []} value={form.orgUnitId} onChange={(value) => set("orgUnitId", value)} invalid={Boolean(errors.orgUnitId)} /><FieldError>{errors.orgUnitId}</FieldError></Field>
               <div className="grid gap-5 sm:grid-cols-2">
                 <Field data-invalid={Boolean(errors.jobTitle)}><FieldLabel htmlFor="jobTitle">Display title</FieldLabel><Input id="jobTitle" value={form.jobTitle} onChange={(event) => set("jobTitle", event.target.value)} aria-invalid={Boolean(errors.jobTitle)} placeholder="e.g. Senior Consultant" /><FieldError>{errors.jobTitle}</FieldError></Field>
                 <Field><FieldLabel htmlFor="location">Location <span className="font-normal text-muted-foreground">Optional</span></FieldLabel><Input id="location" value={form.location} onChange={(event) => set("location", event.target.value)} placeholder="e.g. Tunis" /></Field>

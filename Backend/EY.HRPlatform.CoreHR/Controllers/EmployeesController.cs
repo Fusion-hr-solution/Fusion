@@ -108,13 +108,14 @@ public class EmployeesController(
         [FromQuery] PeopleSortDirection direction = PeopleSortDirection.Asc,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 25,
+        [FromQuery] Guid? importBatch = null,
         CancellationToken cancellationToken = default)
     {
         if (!accessPolicy.CanViewTenantEmployees(User))
             return Forbid();
 
         var result = await sender.Send(
-            new PeopleQuery(q, state, orgUnitId, organizationScope, sort, direction, page, pageSize),
+            new PeopleQuery(q, state, orgUnitId, organizationScope, sort, direction, page, pageSize, importBatch),
             cancellationToken);
         return Ok(ApiResponseOfPeoplePageDto.Success(result.Value));
     }
@@ -124,17 +125,108 @@ public class EmployeesController(
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetPeopleProfile(
         string employeeKey,
+        [FromQuery] DateTime? asOf,
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanViewTenantEmployees(User))
             return Forbid();
 
-        var result = await sender.Send(new PeopleProfileQuery(employeeKey), cancellationToken);
+        var result = await sender.Send(new PeopleProfileQuery(employeeKey, asOf), cancellationToken);
         if (result.IsFailure)
             return NotFound(ApiResponse.Failure("Employee was not found."));
 
         Response.Headers.ETag = $"\"{result.Value.Version}\"";
         return Ok(ApiResponseOfPeopleProfileDto.Success(result.Value));
+    }
+
+    /// <summary>Bounded business Upcoming preview and Timeline for an employee.</summary>
+    [HttpGet("people/{employeeKey}/timeline")]
+    public async Task<IActionResult> GetPeopleTimeline(
+        string employeeKey,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewTenantEmployees(User))
+            return Forbid();
+
+        var result = await sender.Send(new PeopleTimelineQuery(employeeKey), cancellationToken);
+        if (result.IsFailure)
+            return NotFound(ApiResponse.Failure("Employee was not found."));
+
+        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<PeopleTimelineDto>.Success(result.Value));
+    }
+
+    /// <summary>Effective-dated Change Work: schedules or applies the next work context.</summary>
+    [HttpPost("people/{employeeKey}/change-work")]
+    public async Task<IActionResult> ChangeWork(
+        string employeeKey,
+        [FromBody] ChangeWorkRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User))
+            return Forbid();
+
+        var result = await sender.Send(
+            new ChangeWorkCommand(employeeKey, request.EffectiveDate, request.OrgUnitId, request.JobTitle, request.Location, GetAuditActor()),
+            cancellationToken);
+        if (result.IsFailure)
+            return MapEmployeeMutationFailure(result.Error);
+
+        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<MaintenanceResultDto>.Success(result.Value));
+    }
+
+    /// <summary>Effective-dated Change Manager, including an explicit No manager outcome.</summary>
+    [HttpPost("people/{employeeKey}/change-manager")]
+    public async Task<IActionResult> ChangeManagerByKey(
+        string employeeKey,
+        [FromBody] ChangeManagerByKeyRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User) && !accessPolicy.CanManageReporting(User))
+            return Forbid();
+
+        var result = await sender.Send(
+            new ChangeManagerByKeyCommand(employeeKey, request.EffectiveDate, request.ManagerEmployeeId, GetAuditActor()),
+            cancellationToken);
+        if (result.IsFailure)
+            return MapEmployeeMutationFailure(result.Error);
+
+        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<MaintenanceResultDto>.Success(result.Value));
+    }
+
+    /// <summary>Preview of an employment end: the direct reports that would become managerless.</summary>
+    [HttpGet("people/{employeeKey}/end-employment/preview")]
+    public async Task<IActionResult> PreviewEndEmployment(
+        string employeeKey,
+        [FromQuery] DateTime lastEmployedDate,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User))
+            return Forbid();
+
+        var result = await sender.Send(new EndEmploymentPreviewQuery(employeeKey, lastEmployedDate), cancellationToken);
+        if (result.IsFailure)
+            return MapEmployeeMutationFailure(result.Error);
+
+        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<EndEmploymentPreviewDto>.Success(result.Value));
+    }
+
+    /// <summary>Ends employment coherently, releasing direct reports rather than blocking.</summary>
+    [HttpPost("people/{employeeKey}/end-employment")]
+    public async Task<IActionResult> EndEmployment(
+        string employeeKey,
+        [FromBody] EndEmploymentRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User))
+            return Forbid();
+
+        var result = await sender.Send(
+            new EndEmploymentCommand(employeeKey, request.LastEmployedDate, request.Note, GetAuditActor()),
+            cancellationToken);
+        if (result.IsFailure)
+            return MapEmployeeMutationFailure(result.Error);
+
+        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<MaintenanceResultDto>.Success(result.Value));
     }
 
     [HttpGet("people/manager-options")]

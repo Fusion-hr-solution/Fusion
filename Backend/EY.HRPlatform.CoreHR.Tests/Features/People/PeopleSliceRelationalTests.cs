@@ -93,7 +93,7 @@ public sealed class PeopleSliceRelationalTests
             Assert.Equal("Fusion / People Operations", row.Work!.OrganizationPath);
             Assert.Equal("Maya North", row.PrimaryManager!.DisplayName);
 
-            var profile = await new PeopleProfileQueryHandler(db, organization).Handle(
+            var profile = await new PeopleProfileQueryHandler(db, organization, new PeopleTimelineComposer(db)).Handle(
                 new PeopleProfileQuery(establish.Value.EmployeeKey), default);
             Assert.True(profile.IsSuccess);
             Assert.Equal(PeopleEmploymentState.Active, profile.Value.Employment.State);
@@ -101,7 +101,7 @@ public sealed class PeopleSliceRelationalTests
             Assert.Equal(today, profile.Value.Work!.EffectiveFrom);
             Assert.Equal(hire.Value.EmployeeKey, profile.Value.PrimaryManager!.EmployeeKey);
 
-            var managerProfile = await new PeopleProfileQueryHandler(db, organization).Handle(
+            var managerProfile = await new PeopleProfileQueryHandler(db, organization, new PeopleTimelineComposer(db)).Handle(
                 new PeopleProfileQuery(hire.Value.EmployeeKey), default);
             Assert.Equal(1, managerProfile.Value.DirectReportCount);
             Assert.Equal(establish.Value.EmployeeKey, Assert.Single(managerProfile.Value.DirectReports).EmployeeKey);
@@ -156,7 +156,8 @@ public sealed class PeopleSliceRelationalTests
             Assert.Empty(isolatedPeople.Value.Items);
             var hiddenProfile = await new PeopleProfileQueryHandler(
                     otherDb,
-                    new OrganizationService(otherDb, TestTenantContext.WithTenant(otherTenant)))
+                    new OrganizationService(otherDb, TestTenantContext.WithTenant(otherTenant)),
+                    new PeopleTimelineComposer(otherDb))
                 .Handle(new PeopleProfileQuery(establish.Value.EmployeeKey), default);
             Assert.True(hiddenProfile.IsFailure);
             Assert.Equal("Employee.NotFound", hiddenProfile.Error.Code);

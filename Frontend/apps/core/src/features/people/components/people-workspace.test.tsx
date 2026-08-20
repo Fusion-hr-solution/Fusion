@@ -59,6 +59,7 @@ function row(overrides: Partial<PeopleRowDto> = {}): PeopleRowDto {
     employmentStart: "2022-03-01T00:00:00Z",
     employmentEnd: null,
     work: {
+      orgUnitId: null,
       jobTitle: "Principal Engineer",
       organizationName: "Platform",
       organizationPath: "Group / Technology / Platform",
@@ -99,9 +100,11 @@ describe("PeopleWorkspace", () => {
     expect(screen.getAllByText("Ada Lovelace").length).toBeGreaterThan(0);
     expect(screen.getAllByText("E000123").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Principal Engineer").length).toBeGreaterThan(0);
-    // Organization grammar: assigned unit is primary, ancestry is quiet context
+    // Organization grammar: the assigned unit is printed; the full path stays quiet as a
+    // hover title (dense roster), not a printed ancestry line under every row.
     expect(screen.getAllByText("Platform").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Group / Technology").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Group / Technology")).toBeNull();
+    expect(screen.getAllByTitle("Group / Technology / Platform").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Grace Hopper").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Active").length).toBeGreaterThan(0);
     // profile links use the opaque employee key, never a raw id

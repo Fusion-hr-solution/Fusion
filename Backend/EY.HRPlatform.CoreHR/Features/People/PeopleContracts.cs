@@ -38,7 +38,9 @@ public sealed record PeopleQuery(
     PeopleSortField Sort = PeopleSortField.Name,
     PeopleSortDirection Direction = PeopleSortDirection.Asc,
     int Page = 1,
-    int PageSize = 25) : IQuery<Result<PeoplePageDto>>;
+    int PageSize = 25,
+    /// <summary>Transient handoff filter: the cohort added by a completed Workforce Import session.</summary>
+    Guid? ImportBatchId = null) : IQuery<Result<PeoplePageDto>>;
 
 public sealed record PeopleManagerDto(
     string EmployeeKey,
@@ -46,6 +48,7 @@ public sealed record PeopleManagerDto(
     string EmployeeNumber);
 
 public sealed record PeopleWorkDto(
+    Guid? OrgUnitId,
     string JobTitle,
     string OrganizationName,
     string OrganizationPath,

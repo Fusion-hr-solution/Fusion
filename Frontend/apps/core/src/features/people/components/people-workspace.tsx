@@ -60,6 +60,7 @@ import {
   X,
 } from "lucide-react";
 import { useOrganizationHierarchy } from "@/features/organization/api/use-organization";
+import { OrganizationTree } from "@/features/organization/components/organization-tree";
 import { usePeople } from "../api/use-people";
 import {
   EmployeeIdentity,
@@ -68,7 +69,7 @@ import {
   formatWorkforceDate,
 } from "./workforce-ui";
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 10;
 const EMPLOYMENT_STATES: PeopleEmploymentState[] = ["Active", "Scheduled", "Former", "Incomplete"];
 
 function todayCalendarDate() {
@@ -82,11 +83,26 @@ function employmentLabel(person: PeopleRowDto) {
   return `Since ${formatWorkforceDate(person.employmentStart)}`;
 }
 
+const STATE_DOT: Record<PeopleEmploymentState, string> = {
+  Active: "bg-success",
+  Scheduled: "bg-info",
+  Former: "bg-muted-foreground/50",
+  Incomplete: "bg-warning",
+};
+
+/**
+ * Roster employment state — a quiet dot + label + date rather than a filled pill on
+ * every single row. Reserving the pill treatment for the profile keeps the directory
+ * calm (§33.8) while still non-color-only.
+ */
 function EmploymentCell({ person }: { person: PeopleRowDto }) {
   return (
-    <div className="min-w-0 space-y-1.5">
-      <EmploymentStatus state={person.employmentState} />
-      <p className="type-meta text-muted-foreground">{employmentLabel(person)}</p>
+    <div className="min-w-0">
+      <p className="flex items-center gap-2 type-body">
+        <span aria-hidden className={cn("size-1.5 rounded-full", STATE_DOT[person.employmentState])} />
+        {person.employmentState}
+      </p>
+      <p className="mt-1 pl-3.5 type-meta text-muted-foreground">{employmentLabel(person)}</p>
     </div>
   );
 }
@@ -109,26 +125,23 @@ function flattenOrganization(
 }
 
 function OrganizationFilter({
-  choices,
+  roots,
   selectedId,
   scope,
   onSelect,
   onScopeChange,
 }: {
-  choices: OrganizationChoice[];
+  roots: OrganizationHierarchyNodeDto[];
   selectedId: string | null;
   scope: PeopleOrganizationScope;
   onSelect: (id: string | null) => void;
   onScopeChange: (scope: PeopleOrganizationScope) => void;
 }) {
-  const [query, setQuery] = useState("");
-  const selected = choices.find((choice) => choice.id === selectedId);
-  const visible = query.trim()
-    ? choices.filter((choice) => choice.path.toLowerCase().includes(query.trim().toLowerCase()))
-    : choices;
+  const [open, setOpen] = useState(false);
+  const selected = useMemo(() => flattenOrganization(roots).find((choice) => choice.id === selectedId), [roots, selectedId]);
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -140,61 +153,33 @@ function OrganizationFilter({
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[min(28rem,calc(100vw-2rem))] p-0">
-        <div className="border-b p-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search organizations"
-              aria-label="Search organizations"
-              className="pl-9"
-            />
-          </div>
-          <RadioGroup
-            value={scope}
-            onValueChange={(value) => onScopeChange(value as PeopleOrganizationScope)}
-            className="mt-3 grid grid-cols-2 gap-2"
-            aria-label="Organization scope"
-          >
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm has-data-[state=checked]:border-foreground/30 has-data-[state=checked]:bg-muted/50">
-              <RadioGroupItem value="Subtree" /> Unit and teams below
-            </label>
-            <label className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm has-data-[state=checked]:border-foreground/30 has-data-[state=checked]:bg-muted/50">
-              <RadioGroupItem value="Direct" /> This unit only
-            </label>
-          </RadioGroup>
-        </div>
-        <div className="max-h-72 overflow-y-auto p-1" role="tree" aria-label="Organization hierarchy">
-          <button
-            type="button"
-            role="treeitem"
-            aria-selected={!selectedId}
-            onClick={() => onSelect(null)}
-            className="flex w-full items-center rounded-md px-3 py-2 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-selected:bg-muted"
-          >
-            All organizations
-          </button>
-          {visible.map((choice) => (
-            <button
-              type="button"
-              role="treeitem"
-              aria-selected={selectedId === choice.id}
-              key={choice.id}
-              onClick={() => onSelect(choice.id)}
-              className="flex w-full min-w-0 items-center rounded-md py-2 pr-3 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-selected:bg-muted"
-              style={{ paddingLeft: `${0.75 + choice.depth * 1.125}rem` }}
+        {selectedId ? (
+          <div className="border-b border-border p-3">
+            <RadioGroup
+              value={scope}
+              onValueChange={(value) => onScopeChange(value as PeopleOrganizationScope)}
+              className="grid grid-cols-2 gap-2"
+              aria-label="Organization scope"
             >
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-medium">{choice.name}</span>
-                {query ? <span className="block truncate text-xs text-muted-foreground">{choice.path}</span> : null}
-              </span>
-            </button>
-          ))}
-          {visible.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No matching unit</p>
-          ) : null}
-        </div>
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm has-data-[state=checked]:border-foreground/30 has-data-[state=checked]:bg-muted/50">
+                <RadioGroupItem value="Subtree" /> Unit and teams below
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm has-data-[state=checked]:border-foreground/30 has-data-[state=checked]:bg-muted/50">
+                <RadioGroupItem value="Direct" /> This unit only
+              </label>
+            </RadioGroup>
+          </div>
+        ) : null}
+        <OrganizationTree
+          roots={roots}
+          selectedId={selectedId}
+          onSelect={(id) => {
+            onSelect(id);
+            if (id === null) setOpen(false);
+          }}
+          allOption={{ label: "All organizations" }}
+          emptyLabel="No matching unit"
+        />
       </PopoverContent>
     </Popover>
   );
@@ -233,7 +218,7 @@ function PersonMobileRow({ person }: { person: PeopleRowDto }) {
         <div>
           <p className="type-body">{person.work?.jobTitle ?? "Work details unavailable"}</p>
           {person.work ? (
-            <OrgPath name={person.work.organizationName} path={person.work.organizationPath} />
+            <OrgPath name={person.work.organizationName} path={person.work.organizationPath} showAncestry={false} />
           ) : (
             <p className="type-meta text-muted-foreground">No current organization</p>
           )}
@@ -249,22 +234,25 @@ function PersonMobileRow({ person }: { person: PeopleRowDto }) {
 }
 
 function PeopleTable({ people }: { people: PeopleRowDto[] }) {
+  // Location is optional workforce data; a whole column of dashes is dead weight, so
+  // the column only exists when at least one person on the page actually has a location.
+  const showLocation = people.some((person) => Boolean(person.work?.location));
   return (
     <>
       <div className="hidden overflow-hidden rounded-2xl border sm:block">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/30 hover:bg-muted/30">
-              <TableHead className="h-10 w-[26%] type-eyebrow text-muted-foreground">Employee</TableHead>
-              <TableHead className="w-[28%] type-eyebrow text-muted-foreground">Work</TableHead>
-              <TableHead className="w-[18%] type-eyebrow text-muted-foreground max-lg:hidden">Manager</TableHead>
-              <TableHead className="w-[14%] type-eyebrow text-muted-foreground max-xl:hidden">Location</TableHead>
+              <TableHead className="h-10 w-[28%] type-eyebrow text-muted-foreground">Employee</TableHead>
+              <TableHead className={cn("type-eyebrow text-muted-foreground", showLocation ? "w-[28%]" : "w-[34%]")}>Work</TableHead>
+              <TableHead className="w-[20%] type-eyebrow text-muted-foreground max-lg:hidden">Manager</TableHead>
+              {showLocation ? <TableHead className="w-[14%] type-eyebrow text-muted-foreground max-xl:hidden">Location</TableHead> : null}
               <TableHead className="w-[16%] type-eyebrow text-muted-foreground">Employment</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {people.map((person) => (
-              <TableRow key={person.employeeKey} className="h-[4.75rem]">
+              <TableRow key={person.employeeKey} className="h-[4.5rem]">
                 <TableCell>
                   <EmployeeIdentity
                     name={person.displayName}
@@ -279,28 +267,32 @@ function PeopleTable({ people }: { people: PeopleRowDto[] }) {
                       name={person.work.organizationName}
                       path={person.work.organizationPath}
                       className="mt-0.5"
+                      showAncestry={false}
                     />
                   ) : (
                     <p className="mt-0.5 type-meta text-muted-foreground">No current organization</p>
                   )}
                   <div className="mt-1 flex flex-wrap gap-x-3 type-meta text-muted-foreground lg:hidden">
                     <span>{person.primaryManager?.displayName ?? "No manager"}</span>
-                    {person.work?.location ? <span className="xl:hidden">{person.work.location}</span> : null}
+                    {showLocation && person.work?.location ? <span className="xl:hidden">{person.work.location}</span> : null}
                   </div>
                 </TableCell>
                 <TableCell className="max-lg:hidden">
-                  <p className="type-body truncate">{person.primaryManager?.displayName ?? <span className="text-muted-foreground">No manager</span>}</p>
                   {person.primaryManager ? (
-                    <p className="type-code text-xs text-muted-foreground">{person.primaryManager.employeeNumber}</p>
-                  ) : null}
-                </TableCell>
-                <TableCell className="max-xl:hidden">
-                  {person.work?.location ? (
-                    <p className="type-body truncate">{person.work.location}</p>
+                    <p className="type-body truncate">{person.primaryManager.displayName}</p>
                   ) : (
-                    <span className="type-meta text-muted-foreground">—</span>
+                    <span className="type-meta text-muted-foreground">No manager</span>
                   )}
                 </TableCell>
+                {showLocation ? (
+                  <TableCell className="max-xl:hidden">
+                    {person.work?.location ? (
+                      <p className="type-body truncate">{person.work.location}</p>
+                    ) : (
+                      <span className="type-meta text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                ) : null}
                 <TableCell><EmploymentCell person={person} /></TableCell>
               </TableRow>
             ))}
@@ -382,6 +374,7 @@ export default function PeopleWorkspace() {
     : "Name";
   const direction = searchParams.get("direction") === "Desc" ? "Desc" : "Asc";
   const page = Math.max(1, Number(searchParams.get("page")) || 1);
+  const importBatch = searchParams.get("importBatch");
 
   const updateUrl = useCallback((updates: Record<string, string | null>, replace = false) => {
     const next = new URLSearchParams(searchParams.toString());
@@ -407,15 +400,13 @@ export default function PeopleWorkspace() {
     direction,
     page,
     pageSize: PAGE_SIZE,
-  }), [direction, orgUnitId, page, q, scope, sort, state]);
+    importBatch: importBatch || null,
+  }), [direction, orgUnitId, page, q, scope, sort, state, importBatch]);
   const people = usePeople(query);
   const organization = useOrganizationHierarchy(todayCalendarDate());
-  const organizationChoices = useMemo(
-    () => flattenOrganization(organization.data?.roots ?? []),
-    [organization.data?.roots],
-  );
-  const hasFilters = Boolean(q || state || orgUnitId);
+  const hasFilters = Boolean(q || state || orgUnitId || importBatch);
   const items = people.data?.items ?? [];
+  const cohortCount = importBatch ? people.data?.totalCount ?? items.length : 0;
   const isTrueEmpty = Boolean(people.data) && !people.error && !hasFilters && items.length === 0;
 
   const clearFilters = useCallback(() => {
@@ -446,6 +437,23 @@ export default function PeopleWorkspace() {
     <PageContainer width="wide" className="pb-12">
       <PageHeader title="People" actions={headerActions} />
 
+      {importBatch ? (
+        <div className="mb-5 flex flex-wrap items-center gap-3">
+          <p className="type-title font-semibold text-foreground">
+            <span className="tabular-nums">{cohortCount}</span>{" "}
+            {cohortCount === 1 ? "employee added" : "employees added"}
+          </p>
+          <button
+            type="button"
+            onClick={() => updateUrl({ importBatch: null, page: null }, true)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 type-meta font-medium text-foreground ring-1 ring-inset ring-primary/25 transition-colors hover:bg-primary/15"
+          >
+            Added in this import
+            <X className="size-3.5" aria-hidden />
+          </button>
+        </div>
+      ) : null}
+
       {isTrueEmpty ? (
         <EstablishWorkforce canManage={canManage} canImport={canImport} />
       ) : (
@@ -465,7 +473,7 @@ export default function PeopleWorkspace() {
               {EMPLOYMENT_STATES.map((item) => <NativeSelectOption key={item} value={item}>{item}</NativeSelectOption>)}
             </NativeSelect>
             <OrganizationFilter
-              choices={organizationChoices}
+              roots={organization.data?.roots ?? []}
               selectedId={orgUnitId}
               scope={scope}
               onSelect={(id) => updateUrl({ orgUnitId: id, page: null })}
@@ -507,19 +515,114 @@ export default function PeopleWorkspace() {
           )}
 
           {people.data && people.data.totalCount > 0 ? (
-            <footer className="mt-4 flex flex-wrap items-center justify-between gap-3 type-meta text-muted-foreground">
-              <p className="tabular-nums">{people.data.totalCount.toLocaleString()} {people.data.totalCount === 1 ? "person" : "people"}</p>
-              {people.data.totalPages > 1 ? (
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => updateUrl({ page: String(page - 1) })}><ChevronLeft className="size-4" /> Previous</Button>
-                  <span className="min-w-20 text-center tabular-nums">Page {page} of {people.data.totalPages}</span>
-                  <Button variant="outline" size="sm" disabled={page >= people.data.totalPages} onClick={() => updateUrl({ page: String(page + 1) })}>Next <ChevronRight className="size-4" /></Button>
-                </div>
-              ) : null}
-            </footer>
+            <PeoplePagination
+              page={page}
+              pageSize={PAGE_SIZE}
+              totalCount={people.data.totalCount}
+              onPageChange={(next) => updateUrl({ page: next <= 1 ? null : String(next) })}
+            />
           ) : null}
         </>
       )}
     </PageContainer>
   );
+}
+
+/**
+ * Roster pagination — the same grammar as the Platform tenant directory: a bordered
+ * footer bar whose range ("Showing X–Y of N") is always present because it answers
+ * "how many are there?", with numbered page controls added once there is more than one
+ * page. The number run keeps a stable width via a first/last + windowed-neighbours set.
+ */
+function PeoplePagination({
+  page,
+  pageSize,
+  totalCount,
+  onPageChange,
+}: {
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  onPageChange: (next: number) => void;
+}) {
+  const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+  const from = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, totalCount);
+
+  // A dataset that fits on one page gets no pager chrome — just a quiet count.
+  if (pageCount <= 1) {
+    return (
+      <p className="mt-4 type-meta text-muted-foreground">
+        <span className="tabular-nums text-foreground">{totalCount.toLocaleString()}</span> {totalCount === 1 ? "person" : "people"}
+      </p>
+    );
+  }
+
+  return (
+    <nav
+      aria-label="People pages"
+      className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
+    >
+      <p aria-live="polite" className="text-sm text-muted-foreground">
+        Showing <span className="tabular-nums text-foreground">{from.toLocaleString()}</span>–
+        <span className="tabular-nums text-foreground">{to.toLocaleString()}</span> of{" "}
+        <span className="tabular-nums text-foreground">{totalCount.toLocaleString()}</span>{" "}
+        {totalCount === 1 ? "person" : "people"}
+      </p>
+
+      {pageCount > 1 ? (
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>
+            <ChevronLeft aria-hidden className="size-4" />
+            Previous
+          </Button>
+
+          <ol className="flex items-center gap-1">
+            {pageNumbers(page, pageCount).map((entry, index) =>
+              entry === "gap" ? (
+                <li key={`gap-${index}`} aria-hidden className="px-1 text-sm text-muted-foreground">…</li>
+              ) : (
+                <li key={entry}>
+                  <Button
+                    variant={entry === page ? "default" : "ghost"}
+                    size="sm"
+                    aria-label={`Page ${entry}`}
+                    aria-current={entry === page ? "page" : undefined}
+                    onClick={() => onPageChange(entry)}
+                    className="min-w-9 tabular-nums"
+                  >
+                    {entry}
+                  </Button>
+                </li>
+              )
+            )}
+          </ol>
+
+          <Button variant="outline" size="sm" disabled={page >= pageCount} onClick={() => onPageChange(page + 1)}>
+            Next
+            <ChevronRight aria-hidden className="size-4" />
+          </Button>
+        </div>
+      ) : null}
+    </nav>
+  );
+}
+
+/** First page, last page, and a stable-width window around the current one. */
+function pageNumbers(page: number, pageCount: number): Array<number | "gap"> {
+  if (pageCount <= 7) return Array.from({ length: pageCount }, (_, index) => index + 1);
+
+  const window = new Set([1, pageCount, page, page - 1, page + 1]);
+  if (page <= 3) [2, 3, 4].forEach((entry) => window.add(entry));
+  if (page >= pageCount - 2) [pageCount - 3, pageCount - 2, pageCount - 1].forEach((entry) => window.add(entry));
+
+  const pages = [...window].filter((entry) => entry >= 1 && entry <= pageCount).sort((a, b) => a - b);
+  const result: Array<number | "gap"> = [];
+  let previous = 0;
+  for (const entry of pages) {
+    if (previous && entry - previous > 1) result.push("gap");
+    result.push(entry);
+    previous = entry;
+  }
+  return result;
 }

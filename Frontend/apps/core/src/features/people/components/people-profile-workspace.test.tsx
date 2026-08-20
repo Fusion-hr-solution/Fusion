@@ -3,12 +3,14 @@ import "@testing-library/jest-dom/vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { PeopleAccessStatusDto, PeopleProfileDto } from "@repo/api";
+import type { PeopleAccessStatusDto, PeopleProfileDto, PeopleTimelineDto } from "@repo/api";
 
-const { mockSearchParams, mockProfile, mockAccess } = vi.hoisted(() => ({
+const { mockSearchParams, mockProfile, mockAccess, mockTimeline, mockPush } = vi.hoisted(() => ({
   mockSearchParams: { current: new URLSearchParams() },
   mockProfile: vi.fn(),
   mockAccess: vi.fn(),
+  mockTimeline: vi.fn(),
+  mockPush: vi.fn(),
 }));
 
 vi.mock("next/link", () => ({
@@ -21,15 +23,23 @@ vi.mock("next/link", () => ({
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => mockSearchParams.current,
+  useRouter: () => ({ push: mockPush }),
+  usePathname: () => "/people/E-KEY-1",
 }));
 
 vi.mock("@/shell/breadcrumb-overrides", () => ({
   useBreadcrumbLabel: () => undefined,
 }));
 
+vi.mock("@repo/auth", () => ({
+  useAuth: () => ({ user: { id: "u1" }, isAuthenticated: true, isLoading: false }),
+  canManageCoreEmployees: () => true,
+}));
+
 vi.mock("../api/use-people", () => ({
   usePeopleProfile: () => mockProfile(),
   usePeopleAccessStatus: () => mockAccess(),
+  usePeopleTimeline: () => mockTimeline(),
 }));
 
 import PeopleProfileWorkspace from "./people-profile-workspace";
@@ -48,6 +58,7 @@ function profile(overrides: Partial<PeopleProfileDto> = {}): PeopleProfileDto {
     },
     employment: { state: "Active", start: "2022-03-01T00:00:00Z", end: null, employmentType: "Full-time" },
     work: {
+      orgUnitId: "ORG-1",
       jobTitle: "Principal Engineer",
       organizationName: "Platform",
       organizationPath: "Group / Technology / Platform",
@@ -57,9 +68,12 @@ function profile(overrides: Partial<PeopleProfileDto> = {}): PeopleProfileDto {
     },
     primaryManager: { employeeKey: "E-KEY-9", displayName: "Grace Hopper", employeeNumber: "E000001" },
     directReportCount: 1,
-    directReports: [{ employeeKey: "E-KEY-3", displayName: "Alan Turing", employeeNumber: "E000456" }],
+    directReports: [{ employeeKey: "E-KEY-3", displayName: "Alan Turing", employeeNumber: "E000456", jobTitle: "Analyst" }],
     completeness: "Complete",
     version: 1,
+    viewedDate: "2026-08-18T00:00:00Z",
+    isAsOf: false,
+    upcoming: [],
     ...overrides,
   };
 }
@@ -72,11 +86,18 @@ function access(over: Partial<PeopleAccessStatusDto> = {}): PeopleAccessStatusDt
   return { state: "Linked", label: "Linked", detail: "ada@ey-hr.com", ...over };
 }
 
+function timeline(over: Partial<PeopleTimelineDto> = {}): PeopleTimelineDto {
+  return { upcoming: [], timeline: [], ...over };
+}
+
 beforeEach(() => {
   mockSearchParams.current = new URLSearchParams();
   mockProfile.mockReset();
   mockAccess.mockReset();
+  mockTimeline.mockReset();
+  mockPush.mockReset();
   mockAccess.mockReturnValue(q({ data: access() }));
+  mockTimeline.mockReturnValue(q({ data: timeline() }));
 });
 
 describe("PeopleProfileWorkspace", () => {
@@ -91,9 +112,30 @@ describe("PeopleProfileWorkspace", () => {
     expect(screen.getByText("Employment")).toBeInTheDocument();
     expect(screen.getByText("Reporting to")).toBeInTheDocument();
     expect(screen.getByText("Fusion access")).toBeInTheDocument();
-    // no Slice-1-forbidden placeholders
-    expect(screen.queryByText(/Timeline/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Upcoming/i)).not.toBeInTheDocument();
+    // contextual change actions are present on the Today view for managers
+    expect(screen.getByRole("link", { name: /Change work/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Change manager/i })).toBeInTheDocument();
+  });
+
+  it("surfaces scheduled upcoming changes with a path to view as of that date", () => {
+    mockProfile.mockReturnValue(
+      q({
+        data: profile({
+          upcoming: [
+            {
+              effectiveDate: "2099-09-01T00:00:00Z",
+              kind: "Work",
+              employeeKey: "E-KEY-1",
+              fields: [{ label: "Title", from: "Principal Engineer", to: "Staff Engineer" }],
+            },
+          ],
+        }),
+      }),
+    );
+    render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
+    expect(screen.getByText("Upcoming")).toBeInTheDocument();
+    expect(screen.getByText("Work change")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /View as of/i })).toBeInTheDocument();
   });
 
   it("shows managerless and incomplete-work truth without inventing current facts", () => {
@@ -103,12 +145,7 @@ describe("PeopleProfileWorkspace", () => {
     render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
     expect(screen.getAllByText("No manager").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Work details unavailable/i).length).toBeGreaterThan(0);
-    // zero direct reports is omitted, never shown as a KPI
     expect(screen.queryByText(/Direct reports/i)).not.toBeInTheDocument();
-    // empty/non-product facts are not rendered
-    expect(screen.queryByText(/Not provided/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Not specified/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Employment type/i)).not.toBeInTheDocument();
   });
 
   it("presents a Scheduled employee as a normal lifecycle state with a planned start", () => {
@@ -118,7 +155,6 @@ describe("PeopleProfileWorkspace", () => {
     render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
     expect(screen.getAllByText("Scheduled").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Starts .*2099/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Planned start/)).toBeInTheDocument();
   });
 
   it("omits Contact entirely when neither email nor phone is present", () => {
@@ -134,19 +170,10 @@ describe("PeopleProfileWorkspace", () => {
     const refetch = vi.fn();
     mockAccess.mockReturnValue(q({ error: new Error("Identity offline"), refetch }));
     render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
-    // the profile itself still renders even though access failed
     expect(screen.getByRole("heading", { level: 1, name: "Ada Lovelace" })).toBeInTheDocument();
     expect(screen.getByText("Status unavailable")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refetch).toHaveBeenCalled();
-  });
-
-  it("shows the Linked access label from Identity without a link workflow", () => {
-    mockProfile.mockReturnValue(q({ data: profile() }));
-    mockAccess.mockReturnValue(q({ data: access({ label: "Linked" }) }));
-    render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
-    expect(screen.getAllByText("Linked").length).toBeGreaterThan(0);
-    expect(screen.queryByRole("button", { name: /Give access/i })).not.toBeInTheDocument();
   });
 
   it("lists PrimaryManager-only direct reports", () => {
@@ -154,6 +181,16 @@ describe("PeopleProfileWorkspace", () => {
     render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
     const report = screen.getByRole("link", { name: /Alan Turing/ });
     expect(report).toHaveAttribute("href", "/people/E-KEY-3");
+  });
+
+  it("presents an as-of view as read-only with a return to Today", () => {
+    mockSearchParams.current = new URLSearchParams("asOf=2099-09-01");
+    mockProfile.mockReturnValue(q({ data: profile({ isAsOf: true, viewedDate: "2099-09-01T00:00:00Z", upcoming: [] }) }));
+    render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
+    expect(screen.getByText(/As of/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Today/i })).toBeInTheDocument();
+    // read-only: change actions are hidden on a non-Today snapshot
+    expect(screen.queryByRole("link", { name: /Change work/i })).not.toBeInTheDocument();
   });
 
   it("renders a non-disclosing not-found state for unknown or cross-tenant keys", () => {

@@ -138,20 +138,26 @@ export function OrgPath({
   className,
   unitClassName,
   ancestryClassName,
+  showAncestry = true,
 }: {
   name?: string | null;
   path: string;
   className?: string;
   unitClassName?: string;
   ancestryClassName?: string;
+  /** Show the parent-path line beneath the unit. Off for dense rosters — the full path
+   * still travels as a hover title for disambiguation. */
+  showAncestry?: boolean;
 }) {
   const segments = path.split("/").map((segment) => segment.trim()).filter(Boolean);
   const unit = (name && name.trim()) || segments.at(-1) || path;
   const ancestry = segments.slice(0, -1).join(" / ");
   return (
     <span className={cn("block min-w-0", className)}>
-      <span className={cn("block truncate type-body", unitClassName)}>{unit}</span>
-      {ancestry ? (
+      <span className={cn("block truncate type-body", unitClassName)} title={ancestry ? path : undefined}>
+        {unit}
+      </span>
+      {showAncestry && ancestry ? (
         <span className={cn("block truncate type-meta text-muted-foreground", ancestryClassName)}>
           {ancestry}
         </span>

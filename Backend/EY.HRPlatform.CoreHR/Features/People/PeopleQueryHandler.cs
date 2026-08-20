@@ -24,6 +24,7 @@ public sealed class PeopleQueryHandler(
         var pageSize = Math.Clamp(request.PageSize, 1, MaxPageSize);
         var offset = (page - 1) * pageSize;
         var orderBy = BuildOrderBy(request.Sort, request.Direction);
+        var cohortKeys = await ResolveImportCohortAsync(request.ImportBatchId, cancellationToken);
         var sql = BuildSql(orderBy);
         var connection = dbContext.Database.GetDbConnection();
         var shouldClose = connection.State != ConnectionState.Open;
@@ -41,6 +42,11 @@ public sealed class PeopleQueryHandler(
             AddParameter(command, "state", request.State?.ToString() ?? (object)DBNull.Value, DbType.String);
             AddParameter(command, "orgUnitId", request.OrgUnitId ?? (object)DBNull.Value, DbType.Guid);
             AddParameter(command, "orgScope", request.OrganizationScope.ToString());
+            // A typed text[] parameter so PostgreSQL can resolve `= ANY(@cohortKeys)` even when null.
+            command.Parameters.Add(new Npgsql.NpgsqlParameter("cohortKeys", NpgsqlTypes.NpgsqlDbType.Array | NpgsqlTypes.NpgsqlDbType.Text)
+            {
+                Value = (object?)cohortKeys ?? DBNull.Value,
+            });
             AddParameter(command, "offset", offset);
             AddParameter(command, "limit", pageSize);
 
@@ -55,6 +61,7 @@ public sealed class PeopleQueryHandler(
                 var work = jobTitle is null
                     ? null
                     : new PeopleWorkDto(
+                        null,
                         jobTitle,
                         GetNullableString(reader, "OrganizationName") ?? "Work details unavailable",
                         GetNullableString(reader, "OrganizationPath") ?? "Work details unavailable",
@@ -102,14 +109,18 @@ public sealed class PeopleQueryHandler(
     {
         var page = Math.Max(1, request.Page);
         var pageSize = Math.Clamp(request.PageSize, 1, MaxPageSize);
-        var employees = await dbContext.Employees.AsNoTracking()
+        var cohortKeys = await ResolveImportCohortAsync(request.ImportBatchId, cancellationToken);
+        var baseQuery = dbContext.Employees.AsNoTracking();
+        if (cohortKeys is not null)
+            baseQuery = baseQuery.Where(employee => cohortKeys.Contains(employee.StableEmployeeKey));
+        var employees = await baseQuery
             .OrderBy(employee => employee.LastName)
             .ThenBy(employee => employee.FirstName)
             .ThenBy(employee => employee.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(cancellationToken);
-        var total = await dbContext.Employees.CountAsync(cancellationToken);
+        var total = await baseQuery.CountAsync(cancellationToken);
         var rows = employees.Select(employee => new PeopleRowDto(
             employee.StableEmployeeKey,
             employee.EmployeeNumber,
@@ -133,8 +144,32 @@ public sealed class PeopleQueryHandler(
         {
             PeopleSortField.EmployeeNumber => $"f.\"EmployeeNumber\" {dir}, f.\"EmployeeId\" ASC",
             PeopleSortField.EmploymentDate => $"f.\"EmploymentStart\" {dir} NULLS LAST, f.\"EmployeeId\" ASC",
-            _ => $"f.\"LastName\" {dir}, f.\"FirstName\" {dir}, f.\"EmployeeId\" ASC"
+            // Roster shows "First Last", so "Name A–Z" must sort by the visible display name.
+            _ => $"lower(f.\"DisplayName\") {dir}, f.\"EmployeeId\" ASC"
         };
+    }
+
+    /// <summary>
+    /// Resolve the transient imported-cohort filter to the created Employee Keys from durable import
+    /// history. Tenant-scoped and non-disclosing: an unknown/cross-tenant batch yields an empty
+    /// cohort (no rows) rather than the full roster.
+    /// </summary>
+    private async Task<string[]?> ResolveImportCohortAsync(Guid? importBatchId, CancellationToken cancellationToken)
+    {
+        if (importBatchId is not { } sessionId) return null;
+        var keysJson = await dbContext.WorkforceImportHistories.AsNoTracking()
+            .Where(history => history.SessionId == sessionId)
+            .Select(history => history.CreatedEmployeeKeysJson)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (keysJson is null) return [];
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<string[]>(keysJson) ?? [];
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return [];
+        }
     }
 
     private static string BuildSql(string orderBy) => $$"""
@@ -242,6 +277,7 @@ public sealed class PeopleQueryHandler(
                     OR (@orgScope = 'Subtree' AND EXISTS (
                         SELECT 1 FROM org_paths op
                         WHERE op."EmployeeId" = f."EmployeeId" AND op."CurrentOrgUnitId" = @orgUnitId)))
+                AND (@cohortKeys IS NULL OR f."EmployeeKey" = ANY(@cohortKeys))
         )
         SELECT f.*, COUNT(*) OVER()::int AS "TotalCount"
         FROM filtered f

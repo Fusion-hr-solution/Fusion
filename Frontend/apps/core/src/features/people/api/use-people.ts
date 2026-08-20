@@ -6,6 +6,9 @@ import {
   createCorePeopleApi,
   createPlatformApiClient,
   type AddExistingEmployeeRequest,
+  type ChangeManagerByKeyRequestBody,
+  type ChangeWorkRequestBody,
+  type EndEmploymentRequestBody,
   type HireEmployeeRequest,
   type EstablishmentReviewRequest,
   type PeopleQueryParams,
@@ -35,15 +38,58 @@ export function usePeople(params: PeopleQueryParams) {
   );
 }
 
-export function usePeopleProfile(employeeKey: string) {
+export function usePeopleProfile(employeeKey: string, asOf?: string | null) {
   const api = usePeopleApi();
   const { user, isAuthenticated, isLoading } = useAuth();
   const enabled = !isLoading && isAuthenticated && canAccessEmployeeProfile(user) && Boolean(employeeKey);
   return useApiQuery(
-    corePeopleQueryKeys.profile(employeeKey),
-    useCallback((signal) => api.profile(employeeKey, signal), [api, employeeKey]),
+    corePeopleQueryKeys.profile(employeeKey, asOf ?? null),
+    useCallback((signal) => api.profile(employeeKey, asOf ?? null, signal), [api, employeeKey, asOf]),
     { enabled }
   );
+}
+
+export function usePeopleTimeline(employeeKey: string, enabled = true) {
+  const api = usePeopleApi();
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const canRead = !isLoading && isAuthenticated && canAccessEmployeeProfile(user) && Boolean(employeeKey) && enabled;
+  return useApiQuery(
+    corePeopleQueryKeys.timeline(employeeKey),
+    useCallback((signal) => api.timeline(employeeKey, signal), [api, employeeKey]),
+    { enabled: canRead }
+  );
+}
+
+export function useEndEmploymentPreview(employeeKey: string, lastEmployedDate: string, enabled = true) {
+  const api = usePeopleApi();
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const canRead =
+    !isLoading && isAuthenticated && canManageCoreEmployees(user) && Boolean(employeeKey) && Boolean(lastEmployedDate) && enabled;
+  return useApiQuery(
+    corePeopleQueryKeys.endEmploymentPreview(employeeKey, lastEmployedDate),
+    useCallback((signal) => api.endEmploymentPreview(employeeKey, lastEmployedDate, signal), [api, employeeKey, lastEmployedDate]),
+    { enabled: canRead, placeholderData: keepPreviousData }
+  );
+}
+
+export function useWorkforceMaintenanceMutations(employeeKey: string) {
+  const api = usePeopleApi();
+  const queryClient = useQueryClient();
+  const refresh = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: corePeopleQueryKeys.profiles() });
+    void queryClient.invalidateQueries({ queryKey: corePeopleQueryKeys.lists() });
+  }, [queryClient]);
+  return {
+    changeWork: useApiMutation((request: ChangeWorkRequestBody) => api.changeWork(employeeKey, request), {
+      onSuccess: refresh,
+    }),
+    changeManager: useApiMutation((request: ChangeManagerByKeyRequestBody) => api.changeManager(employeeKey, request), {
+      onSuccess: refresh,
+    }),
+    endEmployment: useApiMutation((request: EndEmploymentRequestBody) => api.endEmployment(employeeKey, request), {
+      onSuccess: refresh,
+    }),
+  };
 }
 
 export function usePeopleAccessStatus(employeeKey: string, enabled = true) {

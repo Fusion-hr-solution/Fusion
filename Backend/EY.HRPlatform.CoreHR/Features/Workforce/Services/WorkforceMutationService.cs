@@ -66,6 +66,26 @@ public sealed record TerminateEmployeeInput(
     Guid? ImportBatchId = null);
 
 /// <summary>
+/// Inputs to end employment coherently while releasing direct reports. The employee is employed
+/// <b>through</b> <see cref="LastEmployedDate"/> and inactive after it.
+/// </summary>
+public sealed record EndEmploymentInput(
+    DateTime LastEmployedDate,
+    string? Note = null,
+    WorkforceSourceType Source = WorkforceSourceType.Manual,
+    string? SourceReference = null,
+    Guid? ImportBatchId = null);
+
+/// <summary>A minimal reference to a direct report affected by an employment end.</summary>
+public sealed record AffectedDirectReport(Guid EmployeeId, string DisplayName, string EmployeeNumber);
+
+/// <summary>The consequence preview for an employment end: reports that become managerless.</summary>
+public sealed record EndEmploymentPreview(
+    DateTime LastEmployedDate,
+    int DirectReportCount,
+    IReadOnlyList<AffectedDirectReport> DirectReports);
+
+/// <summary>
 /// Explicit, effective-dated canonical write operations over the
 /// <c>Employee -&gt; Employment -&gt; WorkAssignment -&gt; ManagerRelationship</c> chain. Each
 /// operation validates the canonical invariants (single active employment, single active primary
@@ -110,6 +130,27 @@ public interface IWorkforceMutationService
     /// <summary>Sets the first, or close-and-succeeds the current, primary manager relationship.</summary>
     Task<Result<ManagerRelationship>> ChangeManagerAsync(
         Guid employeeId, ChangeManagerInput input, string? actor, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Ends the current active primary manager relationship effective the given date, leaving the
+    /// employee validly managerless. A no-op success when the employee already has no manager.
+    /// </summary>
+    Task<Result<ManagerRelationship?>> RemovePrimaryManagerAsync(
+        Guid employeeId, DateTime effectiveDate, WorkforceSourceType source, string? sourceReference,
+        Guid? importBatchId, string? actor, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Ends employment coherently: the employee is employed through <c>LastEmployedDate</c> and
+    /// inactive after it. Closes the active employment, its primary work assignment, and the
+    /// employee's own manager relationships, and ends the relationships in which the employee is the
+    /// manager (leaving those direct reports managerless) instead of blocking.
+    /// </summary>
+    Task<Result<Employment>> EndEmploymentReleasingReportsAsync(
+        Guid employeeId, EndEmploymentInput input, string? actor, CancellationToken cancellationToken);
+
+    /// <summary>Previews an employment end: the direct reports that would become managerless.</summary>
+    Task<Result<EndEmploymentPreview>> PreviewEndEmploymentAsync(
+        Guid employeeId, DateTime lastEmployedDate, CancellationToken cancellationToken);
 }
 
 public sealed class WorkforceMutationService(
@@ -430,6 +471,90 @@ public sealed class WorkforceMutationService(
         return Result.Success(relationship);
     }
 
+    public async Task<Result<ManagerRelationship?>> RemovePrimaryManagerAsync(
+        Guid employeeId, DateTime effectiveDate, WorkforceSourceType source, string? sourceReference,
+        Guid? importBatchId, string? actor, CancellationToken cancellationToken)
+    {
+        var at = NormalizeDate(effectiveDate);
+
+        var current = await ResolveActivePrimaryManagerRelationshipAsync(employeeId, at, cancellationToken);
+        if (current is null)
+            return Result.Success<ManagerRelationship?>(null); // Already managerless — a valid no-op.
+
+        if (at <= current.EffectiveFrom)
+            return Result.Failure<ManagerRelationship?>(Error.Validation(
+                "Manager.EffectiveDateNotAfterCurrent",
+                "Manager change date must be after the current relationship's start date."));
+
+        current.End(at);
+
+        StageAudit("ManagerRelationship", current.Id, WorkforceAuditAction.ManagerChanged,
+            source, actor, at, sourceReference, importBatchId, "Primary manager removed.");
+
+        return Result.Success<ManagerRelationship?>(current);
+    }
+
+    public async Task<Result<Employment>> EndEmploymentReleasingReportsAsync(
+        Guid employeeId, EndEmploymentInput input, string? actor, CancellationToken cancellationToken)
+    {
+        var lastEmployed = NormalizeDate(input.LastEmployedDate);
+        var boundary = lastEmployed.AddDays(1); // Employed THROUGH lastEmployed; inactive AFTER it.
+
+        var employment = await ResolveActiveEmploymentAsync(employeeId, lastEmployed, cancellationToken);
+        if (employment is null)
+            return Result.Failure<Employment>(Error.Validation(
+                "Employment.NoActive", "Employee has no active employment to end."));
+
+        if (boundary <= employment.EffectiveFrom)
+            return Result.Failure<Employment>(Error.Validation(
+                "Employment.EndBeforeStart", "Last employed date must fall on or after the employment start date."));
+
+        // The employee's own primary reporting link closes at the boundary (resolved by employee,
+        // so a prior Change Work that superseded the assignment does not orphan it).
+        var ownManager = await ResolveActivePrimaryManagerRelationshipAsync(employeeId, lastEmployed, cancellationToken);
+        ownManager?.End(boundary);
+
+        var assignment = await ResolveActivePrimaryAssignmentAsync(employeeId, lastEmployed, cancellationToken);
+        if (assignment is not null)
+        {
+            // Direct reports are RELEASED (left managerless), not blocked.
+            var reportRelationships = await ResolveActiveManagerSideRelationshipsAsync(assignment.Id, lastEmployed, cancellationToken);
+            foreach (var relationship in reportRelationships)
+                relationship.End(boundary);
+
+            assignment.End(boundary);
+        }
+
+        employment.End(boundary);
+
+        var occupancy = await _workEmailOccupancyService.SynchronizeAsync(employeeId, cancellationToken);
+        if (occupancy.IsFailure)
+            return Result.Failure<Employment>(occupancy.Error);
+
+        StageAudit("Employment", employment.Id, WorkforceAuditAction.EmploymentEnded,
+            input.Source, actor, boundary, input.SourceReference, input.ImportBatchId,
+            BuildEndEmploymentAuditDetails(input.Note));
+
+        return Result.Success(employment);
+    }
+
+    public async Task<Result<EndEmploymentPreview>> PreviewEndEmploymentAsync(
+        Guid employeeId, DateTime lastEmployedDate, CancellationToken cancellationToken)
+    {
+        var lastEmployed = NormalizeDate(lastEmployedDate);
+
+        var assignment = await ResolveActivePrimaryAssignmentAsync(employeeId, lastEmployed, cancellationToken);
+        if (assignment is null)
+            return Result.Success(new EndEmploymentPreview(lastEmployed, 0, Array.Empty<AffectedDirectReport>()));
+
+        var reports = await ResolveBlockingDirectReportsAsync(assignment.Id, lastEmployed, cancellationToken);
+        var affected = reports
+            .Select(employee => new AffectedDirectReport(employee.Id, employee.DisplayName, employee.EmployeeNumber))
+            .ToList();
+
+        return Result.Success(new EndEmploymentPreview(lastEmployed, affected.Count, affected));
+    }
+
     // --- Unit-of-work aware lookups (staged adds first, then persisted, tracked for mutation) -------
 
     private async Task<Employee?> FindEmployeeAsync(Guid employeeId, CancellationToken cancellationToken)
@@ -541,6 +666,29 @@ public sealed class WorkforceMutationService(
         return [.. locals, .. persisted];
     }
 
+    private async Task<List<ManagerRelationship>> ResolveActiveManagerSideRelationshipsAsync(
+        Guid managerWorkAssignmentId,
+        DateTime asOf,
+        CancellationToken cancellationToken)
+    {
+        var locals = dbContext.ManagerRelationships.Local
+            .Where(m => m.ManagerWorkAssignmentId == managerWorkAssignmentId
+                && m.Type == ReportingRelationshipType.PrimaryManager
+                && m.IsActiveOn(asOf))
+            .ToList();
+
+        var localIds = locals.Select(m => m.Id).ToHashSet();
+        var persisted = await dbContext.ManagerRelationships
+            .Where(m => m.ManagerWorkAssignmentId == managerWorkAssignmentId
+                && m.Type == ReportingRelationshipType.PrimaryManager
+                && m.EffectiveFrom <= asOf
+                && (m.EffectiveTo == null || asOf < m.EffectiveTo)
+                && !localIds.Contains(m.Id))
+            .ToListAsync(cancellationToken);
+
+        return [.. locals, .. persisted];
+    }
+
     private async Task<List<Employee>> ResolveBlockingDirectReportsAsync(
         Guid managerWorkAssignmentId,
         DateTime asOf,
@@ -607,6 +755,11 @@ public sealed class WorkforceMutationService(
         => string.IsNullOrWhiteSpace(note)
             ? "Employee terminated."
             : $"Employee terminated. Note: {note.Trim()}";
+
+    private static string BuildEndEmploymentAuditDetails(string? note)
+        => string.IsNullOrWhiteSpace(note)
+            ? "Employment ended."
+            : $"Employment ended. Note: {note.Trim()}";
 
     private static string BuildTerminationBlockedMessage(IReadOnlyList<Employee> directReports)
         => $"Termination is blocked until these direct reports are reassigned effective on or before the termination date: {string.Join(", ", directReports.Select(FormatEmployeeReference))}.";
