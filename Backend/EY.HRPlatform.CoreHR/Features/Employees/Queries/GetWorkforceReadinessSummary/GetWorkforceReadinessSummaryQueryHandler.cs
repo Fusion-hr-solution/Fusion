@@ -31,14 +31,15 @@ public sealed class GetWorkforceReadinessSummaryQueryHandler(
 
         if (activeEmployeeCount == 0)
         {
-            var emptyImportIssues = await CountUnresolvedImportIssuesAsync([], now, cancellationToken);
             return Result.Success(new WorkforceReadinessSummaryDto(
                 0, 0, 0, 100m,
-                new WorkforceReadinessIssueCountsDto(0, 0, 0, 0, 0, 0, emptyImportIssues)));
+                new WorkforceReadinessIssueCountsDto(0, 0, 0, 0, 0, 0, 0)));
         }
 
         var (readyCounts, issueCounts) = await ComputeReadinessAsync(activeEmployeeIds, settings, now, cancellationToken);
-        var unresolvedImportIssueCount = await CountUnresolvedImportIssuesAsync(activeEmployeeIds, now, cancellationToken);
+        // The legacy import follow-up-issue product was retired; canonical establishment leaves no
+        // unresolved import issues, so this count is always zero.
+        const int unresolvedImportIssueCount = 0;
 
         var readyEmployeeCount = readyCounts;
         var employeesNeedingAttention = activeEmployeeCount - readyEmployeeCount;
@@ -211,90 +212,6 @@ public sealed class GetWorkforceReadinessSummaryQueryHandler(
 
         return (readyCount, new CanonicalIssueCounts(
             missingRequired, missingOrgUnit, noManager, managerInactive, managerMissing, deactivationBlocked));
-    }
-
-    private async Task<int> CountUnresolvedImportIssuesAsync(
-        IReadOnlyList<Guid> activeEmployeeIds,
-        DateTime now,
-        CancellationToken cancellationToken)
-    {
-        var storedIssues = await dbContext.EmployeeImportFollowUpIssues
-            .AsNoTracking()
-            .ToListAsync(cancellationToken);
-
-        if (storedIssues.Count == 0) return 0;
-
-        var issueEmployeeIds = storedIssues
-            .Select(i => i.EmployeeId)
-            .Distinct()
-            .ToList();
-
-        // Gather canonical resolution data for employees with stored issues
-        var activeAssignmentEmployeeIds = (await dbContext.WorkAssignments
-            .AsNoTracking()
-            .Where(wa => issueEmployeeIds.Contains(wa.EmployeeId)
-                && wa.IsPrimary
-                && wa.EffectiveFrom <= now && (wa.EffectiveTo == null || now < wa.EffectiveTo))
-            .Select(wa => new { wa.EmployeeId, wa.OrgUnitId, wa.JobTitle, wa.WorkLocation })
-            .ToListAsync(cancellationToken))
-            .GroupBy(wa => wa.EmployeeId)
-            .ToDictionary(g => g.Key, g => g.First());
-
-        var activeManagerEmployeeIds = (await dbContext.ManagerRelationships
-            .AsNoTracking()
-            .Where(mr => issueEmployeeIds.Contains(mr.SubjectEmployeeId)
-                && mr.Type == ReportingRelationshipType.PrimaryManager
-                && mr.EffectiveFrom <= now && (mr.EffectiveTo == null || now < mr.EffectiveTo))
-            .Select(mr => mr.SubjectEmployeeId)
-            .Distinct()
-            .ToListAsync(cancellationToken))
-            .ToHashSet();
-
-        var employeeFacts = (await dbContext.Employees
-            .AsNoTracking()
-            .Where(e => issueEmployeeIds.Contains(e.Id))
-            .Select(e => new { e.Id, e.FirstName, e.LastName, e.Email, e.Phone })
-            .ToListAsync(cancellationToken))
-            .ToDictionary(e => e.Id);
-
-        var employmentFacts = (await dbContext.Employments
-            .AsNoTracking()
-            .Where(e => issueEmployeeIds.Contains(e.EmployeeId)
-                && e.EffectiveFrom <= now && (e.EffectiveTo == null || now < e.EffectiveTo))
-            .Select(e => new { e.EmployeeId, e.EmploymentType })
-            .ToListAsync(cancellationToken))
-            .GroupBy(e => e.EmployeeId)
-            .ToDictionary(g => g.Key, g => g.First().EmploymentType);
-
-        var settings = await tenantSettingsReadService.GetCurrentAsync(cancellationToken);
-
-        return storedIssues.Count(issue =>
-        {
-            if (!employeeFacts.TryGetValue(issue.EmployeeId, out var emp)) return false;
-
-            return issue.IssueCode switch
-            {
-                EmployeeReadinessIssueCodes.MissingOrgUnit =>
-                    !activeAssignmentEmployeeIds.ContainsKey(issue.EmployeeId),
-                EmployeeReadinessIssueCodes.NoManagerAssigned or
-                EmployeeReadinessIssueCodes.ManagerInactive or
-                EmployeeReadinessIssueCodes.ManagerMissing =>
-                    !activeManagerEmployeeIds.Contains(issue.EmployeeId),
-                EmployeeReadinessIssueCodes.MissingRequiredField => issue.FieldKey switch
-                {
-                    "firstName" => string.IsNullOrWhiteSpace(emp.FirstName),
-                    "lastName" => string.IsNullOrWhiteSpace(emp.LastName),
-                    "email" => string.IsNullOrWhiteSpace(emp.Email),
-                    "phone" => string.IsNullOrWhiteSpace(emp.Phone),
-                    "jobTitle" => !activeAssignmentEmployeeIds.TryGetValue(issue.EmployeeId, out var wa) || string.IsNullOrWhiteSpace(wa.JobTitle),
-                    "workLocation" => !activeAssignmentEmployeeIds.TryGetValue(issue.EmployeeId, out var wa2) || string.IsNullOrWhiteSpace(wa2.WorkLocation),
-                    "employmentType" => string.IsNullOrWhiteSpace(employmentFacts.GetValueOrDefault(issue.EmployeeId)),
-                    "hireDate" => !employmentFacts.ContainsKey(issue.EmployeeId),
-                    _ => false
-                },
-                _ => false
-            };
-        });
     }
 
     private static bool IsRequired(TenantSettingsDto settings, string fieldKey)

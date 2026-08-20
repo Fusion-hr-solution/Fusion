@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence.Interceptors;
 using EY.HRPlatform.CoreHR.Features.Employees.Services;
@@ -47,17 +48,41 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITenantSettingsReadService, TenantSettingsReadService>();
         services.AddScoped<ISettingsSectionRegistry, SettingsSectionRegistry>();
         services.AddScoped<ISettingsAuditService, SettingsAuditService>();
-        services.AddScoped<IEmployeeImportWorkflowService, EmployeeImportWorkflowService>();
-        services.AddSingleton<IEmployeeImportApplyQueueProcessor, EmployeeImportApplyQueueProcessor>();
         services.AddScoped<IWorkforceContractService, WorkforceContractService>();
         services.AddScoped<IInternalWorkforceSnapshotService, InternalWorkforceSnapshotService>();
         services.AddScoped<IApplicabilityOptionsService, ApplicabilityOptionsService>();
         services.AddScoped<WorkforceResolutionScope>();
         services.AddScoped<IWorkforceCanonicalResolver, WorkforceCanonicalResolver>();
         services.AddScoped<IWorkforceMutationService, WorkforceMutationService>();
+        services.AddScoped<EY.HRPlatform.CoreHR.Features.People.PeopleTimelineComposer>();
         services.AddScoped<IEmployeeNumberAllocator, EmployeeNumberAllocatorService>();
         services.AddScoped<IWorkEmailOccupancyService, WorkEmailOccupancyService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
+        services.AddSingleton<ISafeTabularSourceReader, SafeTabularSourceReader>();
+        services.AddSingleton<WorkforceImportSourceAdapter>();
+        services.AddSingleton<WorkforceImportInterpreter>();
+        services.AddSingleton<WorkforceImportResolver>();
+        services.AddSingleton<WorkforceImportSemanticContextBuilder>();
+        var workforceSemantic = configuration
+            .GetSection(WorkforceImportSemanticAssistanceOptions.SectionName)
+            .Get<WorkforceImportSemanticAssistanceOptions>() ?? new WorkforceImportSemanticAssistanceOptions();
+        workforceSemantic.ApiKey = string.IsNullOrWhiteSpace(workforceSemantic.ApiKey)
+            ? configuration["GROQ_API_KEY"]
+            : workforceSemantic.ApiKey;
+        services.AddSingleton(workforceSemantic);
+        services.AddHttpClient<IWorkforceImportSemanticProvider, GroqWorkforceImportSemanticProvider>(client =>
+        {
+            client.BaseAddress = new Uri(EnsureTrailingSlash(workforceSemantic.BaseUrl));
+            client.Timeout = TimeSpan.FromSeconds(Math.Clamp(workforceSemantic.TimeoutSeconds, 5, 60));
+        }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
+        services.AddScoped<WorkforceImportSnapshotLoader>();
+        services.AddScoped<WorkforceImportReviewService>();
+        services.AddScoped<WorkforceImportSemanticService>();
+        services.AddScoped<WorkforceImportApplyOrchestrator>();
+        services.AddScoped<WorkforceImportApplyOperationService>();
+        services.AddSingleton<IWorkforceImportApplyProcessor, WorkforceImportApplyProcessor>();
+        services.AddHostedService<WorkforceImportApplyBackgroundService>();
+        services.AddScoped<IWorkforceImportSessionService, WorkforceImportSessionService>();
         services.AddScoped<IOrganizationImportSourceInspectionService, OrganizationImportSourceInspectionService>();
         services.AddScoped<IOrganizationImportWorkbookService, OrganizationImportWorkbookService>();
         services.AddScoped<IOrganizationImportService, OrganizationImportService>();
@@ -77,7 +102,6 @@ public static class ServiceCollectionExtensions
             client.BaseAddress = new Uri(EnsureTrailingSlash(semanticAssistance.Endpoint));
             client.Timeout = Timeout.InfiniteTimeSpan;
         }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
-        services.AddHostedService<EmployeeImportApplyBackgroundService>();
 
         services.AddHttpClient<IWorkforceBulkProvisioner, WorkforceBulkProvisioner>(client =>
         {

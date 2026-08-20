@@ -1,7 +1,7 @@
-import EmployeeImportWorkspace from "@/features/employees/components/employee-import-workspace";
+import { WorkforceImportEntry } from "@/features/workforce-import/components/workforce-import-entry";
 
 export const dynamic = "force-dynamic";
 
-export default function PeopleImportPage() {
-  return <EmployeeImportWorkspace />;
+export default function WorkforceImportPage() {
+  return <WorkforceImportEntry />;
 }
