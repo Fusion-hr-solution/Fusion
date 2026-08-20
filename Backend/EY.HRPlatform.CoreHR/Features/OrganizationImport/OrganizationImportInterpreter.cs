@@ -423,8 +423,13 @@ public sealed class OrganizationImportInterpreter(CoreHRDbContext dbContext, ITe
         }
 
         var top = nodes.Where(node => node.Classification != OrganizationImportNodeClassification.Conflict && node.ParentNodeId is null && node.ParentCanonicalId is null).ToList();
-        var directOrganizationRoot = top.Count == 1 && top[0].TypeId == OrganizationalUnitTypeCatalog.OrganizationId;
-        if (directOrganizationRoot) { top[0].IsProposalRoot = true; return; }
+        // Root meaning is structural: a single parentless source row with the rest of the
+        // hierarchy connected beneath it (every other node resolved a parent, so nothing else
+        // surfaces as top) is unambiguously the organization root. Promote it deterministically,
+        // regardless of its source type — mapping unfamiliar type vocabulary such as "Groupe" is
+        // a separate, AI-assisted concern. Only genuinely ambiguous structure (multiple parentless
+        // or disconnected tops) falls through to require an administrator-introduced root.
+        if (top.Count == 1) { top[0].IsProposalRoot = true; return; }
         if (decisions.IntroducedRoot is null)
         {
             issues.Add(Block("FreshRootRequired", "Add the top of your organization", "This file has more than one top-level unit. Add one organization to sit above them all.", top, ["Introduce Organization root", "Replace source"]));

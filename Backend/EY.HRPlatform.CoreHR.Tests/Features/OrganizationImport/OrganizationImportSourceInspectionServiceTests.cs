@@ -4,12 +4,13 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 using EY.HRPlatform.CoreHR.Features.OrganizationImport;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 
 namespace EY.HRPlatform.CoreHR.Tests.Features.OrganizationImport;
 
 public sealed class OrganizationImportSourceInspectionServiceTests
 {
-    private readonly OrganizationImportSourceInspectionService _service = new();
+    private readonly OrganizationImportSourceInspectionService _service = new(new SafeTabularSourceReader());
 
     [Theory]
     [InlineData(",")]

@@ -95,6 +95,12 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
             table.Columns.Count,
             hasOrderedLevelPattern,
             plausibleShapes);
+        // The source type SYSTEM (vocabulary + topology) and the canonical roles, so the model maps
+        // the whole taxonomy coherently instead of classifying each label alone.
+        var sourceTypeSystem = BuildSourceTypeSystem(review);
+        var canonicalTypeGuidance = review.TypeOptions
+            .Select(type => new OrganizationImportSemanticCanonicalType(type.Name, CanonicalTypeDescription(type.Name)))
+            .ToList();
         var sourceFingerprint = $"{session.Source.Sha256}:{session.Source.SelectedSheetName}:{session.Source.SelectedRange}";
         var decisions = (OrganizationImportJson.Deserialize<OrganizationImportDecisions>(session.DecisionsJson)
             ?? new OrganizationImportDecisions()).Normalize();
@@ -109,6 +115,8 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
                 fields,
                 organizationTypes = review.TypeOptions.OrderBy(type => type.Id),
                 structure,
+                sourceTypeSystem,
+                canonicalTypeGuidance,
                 decisions = new
                 {
                     decisions.Shape,
@@ -127,6 +135,8 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
                     fields,
                     review.TypeOptions.OrderBy(type => type.Name, StringComparer.OrdinalIgnoreCase).ToList(),
                     structure,
+                    sourceTypeSystem,
+                    canonicalTypeGuidance,
                     fingerprint);
             }
 
@@ -226,6 +236,82 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
             .ThenBy(issue => issue.Key, StringComparer.Ordinal)
             .ToList();
     }
+
+    /// <summary>
+    /// Distil the proposal into per-source-type topology evidence: for each distinct raw type, how
+    /// many units use it, the depths it appears at, its observed parent/child types, whether it sits
+    /// on the structural root, and whether it is leaf-only. Derived from the deterministic proposal
+    /// graph (parent links + root), so the model receives facts, not guesses.
+    /// </summary>
+    private static IReadOnlyList<OrganizationImportSemanticSourceType> BuildSourceTypeSystem(OrganizationImportReview review)
+    {
+        var nodes = review.ProposalNodes;
+        if (nodes.Count == 0) return [];
+        var byId = nodes.Where(n => n.Id is not null).ToDictionary(n => n.Id, StringComparer.Ordinal);
+        string? TypeOf(OrganizationImportReviewNode n) => string.IsNullOrWhiteSpace(n.RawType) ? n.TypeName : n.RawType;
+
+        // Depth from the structural root via parent links (bounded against cycles).
+        int Depth(OrganizationImportReviewNode n)
+        {
+            var depth = 0;
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var current = n;
+            while (current.ParentNodeId is { } pid && seen.Add(current.Id) && byId.TryGetValue(pid, out var parent))
+            {
+                depth++;
+                current = parent;
+                if (depth > 64) break;
+            }
+            return depth;
+        }
+
+        var childTypesByParentId = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var node in nodes)
+            if (node.ParentNodeId is { } pid && TypeOf(node) is { } ct)
+                (childTypesByParentId.TryGetValue(pid, out var set) ? set : childTypesByParentId[pid] = new(StringComparer.OrdinalIgnoreCase)).Add(ct);
+
+        var groups = nodes
+            .Where(n => TypeOf(n) is not null)
+            .GroupBy(n => TypeOf(n)!, StringComparer.OrdinalIgnoreCase);
+
+        var result = new List<OrganizationImportSemanticSourceType>();
+        foreach (var group in groups.OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            var members = group.ToList();
+            var depths = members.Select(Depth).ToList();
+            var parentTypes = members
+                .Where(n => n.ParentNodeId is not null && byId.TryGetValue(n.ParentNodeId, out _))
+                .Select(n => TypeOf(byId[n.ParentNodeId!]))
+                .Where(t => t is not null).Select(t => t!)
+                .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
+            var childTypes = members
+                .SelectMany(n => childTypesByParentId.TryGetValue(n.Id, out var set) ? set : Enumerable.Empty<string>())
+                .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
+            var occursOnRoot = members.Any(n => n.IsProposalRoot);
+            var leafOnly = childTypes.Count == 0;
+            var sampleNames = members
+                .Select(n => n.Name).Where(name => !string.IsNullOrWhiteSpace(name) && IsSafeRepresentativeValue(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase).Take(3)
+                .Select(name => name[..Math.Min(name.Length, 40)]).ToList();
+
+            result.Add(new OrganizationImportSemanticSourceType(
+                group.Key, members.Count, depths.Min(), depths.Max(), parentTypes, childTypes, occursOnRoot, leafOnly, sampleNames));
+        }
+        return result;
+    }
+
+    /// <summary>A short, source-neutral description of the organizational role each canonical Fusion
+    /// type represents, so the model can align unfamiliar vocabulary to roles rather than names.</summary>
+    private static string CanonicalTypeDescription(string typeName) => Normalize(typeName) switch
+    {
+        "organization" => "Enterprise/root organizational body — the single top of the organization.",
+        "division" => "Major organizational branch directly beneath the enterprise.",
+        "department" => "Functional grouping beneath a division or equivalent major branch.",
+        "team" => "Operational/team-level grouping, commonly leaf-level.",
+        "unit" => "Generic organizational unit when no more specific role applies.",
+        "businessunit" => "Business unit — a mid-level operating grouping.",
+        _ => $"Canonical organization type '{typeName}'.",
+    };
 
     private static bool HasOrderedLevelPattern(OrganizationSourceTable table, IReadOnlyList<int> columnIndexes)
     {

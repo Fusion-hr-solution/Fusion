@@ -94,6 +94,25 @@ public sealed record OrganizationImportSemanticStructuralContext(
     bool HasOrderedLevelPattern,
     IReadOnlyList<string> PlausibleShapes);
 
+/// <summary>
+/// Per-source-type structural evidence: what role a source type label actually plays in the uploaded
+/// hierarchy. Lets the semantic model reason about the type SYSTEM (vocabulary + topology) instead of
+/// classifying each label in isolation. PII-free — labels, counts, depths, and neighbour type labels.
+/// </summary>
+public sealed record OrganizationImportSemanticSourceType(
+    string SourceLabel,
+    int Occurrences,
+    int MinDepth,
+    int MaxDepth,
+    IReadOnlyList<string> ParentTypes,
+    IReadOnlyList<string> ChildTypes,
+    bool OccursOnRoot,
+    bool LeafOnly,
+    IReadOnlyList<string> SampleNames);
+
+/// <summary>A canonical Fusion type and a short description of the organizational role it represents.</summary>
+public sealed record OrganizationImportSemanticCanonicalType(string Name, string Description);
+
 public sealed record OrganizationImportSemanticRequest(
     string ContractVersion,
     string SourceFingerprint,
@@ -101,6 +120,8 @@ public sealed record OrganizationImportSemanticRequest(
     IReadOnlyList<OrganizationImportSemanticFieldContext> Fields,
     IReadOnlyList<OrganizationImportTypeOption> OrganizationTypes,
     OrganizationImportSemanticStructuralContext Structure,
+    IReadOnlyList<OrganizationImportSemanticSourceType> SourceTypeSystem,
+    IReadOnlyList<OrganizationImportSemanticCanonicalType> CanonicalTypeGuidance,
     string InputFingerprint);
 
 public sealed record OrganizationImportSemanticProviderSuggestion(

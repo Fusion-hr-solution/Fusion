@@ -2,6 +2,7 @@ using System.Text;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Features.Organization;
 using EY.HRPlatform.CoreHR.Features.OrganizationImport;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,6 +37,35 @@ public sealed class OrganizationImportInterpretationAndCommitTests
         Assert.All(review.ProposalNodes, node => Assert.Equal(OrganizationImportNodeClassification.Create, node.Classification));
         Assert.Contains(review.ProposalNodes, node => node.IsProposalRoot && node.Name == "Asteria");
         Assert.Contains(review.Issues, issue => issue.Code == "DuplicateProposalCode");
+    }
+
+    [Fact]
+    public async Task SingleParentlessRow_AutoResolvesAsRoot_WithoutRequiringAnIntroducedRoot()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        await SeedTypesAsync(context);
+        // Asteria-style source: exactly one parentless row, everything else connected beneath it.
+        // The top's source type is unfamiliar vocabulary ("Groupe") mapped to a non-Organization
+        // type, yet its structural root-ness must be inferred deterministically with no root issue.
+        var table = new OrganizationSourceTable(
+            [new(0, "Business Code"), new(1, "Name"), new(2, "Type"), new(3, "Parent Business Code")],
+            [
+                new string?[] { "AST", "Asteria Technologies", "Groupe", null },
+                new string?[] { "SALES", "Sales", "Team", "AST" },
+                new string?[] { "ENG", "Engineering", "Team", "AST" },
+            ]);
+        var session = Session(tenant.TenantId, table);
+        session.ReplaceDecisions(new OrganizationImportDecisions(
+            TypeMappings: new Dictionary<string, Guid> { ["Groupe"] = OrganizationalUnitTypeCatalog.BusinessUnitId }), Actor());
+
+        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
+
+        var root = Assert.Single(review.ProposalNodes, node => node.IsProposalRoot);
+        Assert.Equal("Asteria Technologies", root.Name);
+        Assert.Null(root.ParentNodeId);
+        Assert.DoesNotContain(review.Issues, issue => issue.Code is "FreshRootRequired" or "RootCount" or "RootType");
+        Assert.True(review.CanCommit);
     }
 
     [Fact]
@@ -102,7 +132,7 @@ public sealed class OrganizationImportInterpretationAndCommitTests
         var organization = new OrganizationService(context, tenant);
         await organization.CreateRootAsync(new("ROOT", "Asteria", EffectiveDate), CancellationToken.None);
         var interpreter = new OrganizationImportInterpreter(context, tenant);
-        var imports = new OrganizationImportService(context, tenant, new OrganizationImportSourceInspectionService(), organization, interpreter);
+        var imports = new OrganizationImportService(context, tenant, new OrganizationImportSourceInspectionService(new SafeTabularSourceReader()), organization, interpreter);
         var actor = Actor();
         var csv = "Fusion OrgUnit ID,Business Code,Name,Type,Parent Business Code\n,TEAMX,Team X,Team,ROOT";
         var intake = await imports.IntakeAsync(new MemoryStream(Encoding.UTF8.GetBytes(csv)), "organization.csv", "text/csv",
@@ -136,7 +166,7 @@ public sealed class OrganizationImportInterpretationAndCommitTests
         var organization = new OrganizationService(context, tenant);
         var root = await organization.CreateRootAsync(new("ROOT", "Asteria", EffectiveDate), CancellationToken.None);
         var interpreter = new OrganizationImportInterpreter(context, tenant);
-        var imports = new OrganizationImportService(context, tenant, new OrganizationImportSourceInspectionService(), organization, interpreter);
+        var imports = new OrganizationImportService(context, tenant, new OrganizationImportSourceInspectionService(new SafeTabularSourceReader()), organization, interpreter);
         var csv = $"Fusion OrgUnit ID,Business Code,Name,Type,Parent Business Code\n{root.Id},ROOT,Asteria,Organization,";
         var intake = await imports.IntakeAsync(new MemoryStream(Encoding.UTF8.GetBytes(csv)), "organization.csv", "text/csv",
             EffectiveDate, Guid.NewGuid(), null, Actor(), CancellationToken.None);
@@ -157,7 +187,7 @@ public sealed class OrganizationImportInterpretationAndCommitTests
         var organization = new OrganizationService(context, tenant);
         var root = await organization.CreateRootAsync(new("ROOT", "Asteria", EffectiveDate), CancellationToken.None);
         var csv = $"Fusion OrgUnit ID,Business Code,Name,Type,Parent Business Code\n{root.Id},ROOT,Asteria,Organization,\n,TEAMX,Team X,Team,ROOT";
-        var inspected = await new OrganizationImportSourceInspectionService()
+        var inspected = await new OrganizationImportSourceInspectionService(new SafeTabularSourceReader())
             .InspectAsync(new MemoryStream(Encoding.UTF8.GetBytes(csv)), "organization.csv", "text/csv", null, CancellationToken.None);
         var session = Session(tenant.TenantId, Assert.IsType<OrganizationSourceReady>(inspected).Source.Table);
 

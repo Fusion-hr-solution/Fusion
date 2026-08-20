@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
+  ArrowRight,
   CalendarDays,
+  Check,
   CheckCircle2,
   FileSpreadsheet,
   MoreHorizontal,
@@ -30,6 +32,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Input,
+  NativeSelect,
+  NativeSelectOption,
   Spinner,
   cn,
 } from "@repo/ds";
@@ -45,6 +49,7 @@ import {
   type OrganizationImportSemanticReviewedItem,
   type OrganizationImportSessionDto,
   type OrganizationImportShape,
+  type OrganizationImportTypeOption,
 } from "@repo/api";
 import { toast } from "sonner";
 import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
@@ -75,7 +80,6 @@ export function ImportReviewWorkspace({ sessionId }: { sessionId: string }) {
   const mutations = useOrganizationImportMutations();
   const [date, setDate] = useState("");
   const [discardOpen, setDiscardOpen] = useState(false);
-  const [commitOpen, setCommitOpen] = useState(false);
   const [selection, setSelection] = useState<ReviewSelection>({ kind: "none" });
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [handoff, setHandoff] = useState(false);
@@ -120,8 +124,6 @@ export function ImportReviewWorkspace({ sessionId }: { sessionId: string }) {
       setDate={setDate}
       discardOpen={discardOpen}
       setDiscardOpen={setDiscardOpen}
-      commitOpen={commitOpen}
-      setCommitOpen={setCommitOpen}
       selection={selection}
       setSelection={setSelection}
       collapsed={collapsed}
@@ -151,8 +153,6 @@ function ActiveReviewWorkspace({
   setDate,
   discardOpen,
   setDiscardOpen,
-  commitOpen,
-  setCommitOpen,
   selection,
   setSelection,
   collapsed,
@@ -167,8 +167,6 @@ function ActiveReviewWorkspace({
   setDate: (value: string) => void;
   discardOpen: boolean;
   setDiscardOpen: (open: boolean) => void;
-  commitOpen: boolean;
-  setCommitOpen: (open: boolean) => void;
   selection: ReviewSelection;
   setSelection: (selection: ReviewSelection) => void;
   collapsed: ReadonlySet<string>;
@@ -188,11 +186,11 @@ function ActiveReviewWorkspace({
   const generatedRequestRef = useRef<string | null>(null);
   const [failedRequestKey, setFailedRequestKey] = useState<string | null>(null);
   const reviewSurfaceRef = useRef<HTMLElement | null>(null);
-  // Which interpretation flow (by semantic fingerprint) has already auto-opened the
-  // inspector. Keyed on the fingerprint so the drawer opens once when interpreting
-  // begins and stays through the ready transition, without a later rerender/refetch
-  // undoing a deliberate close.
-  const autoOpenedFlowRef = useRef<string | null>(null);
+  // Structural interpretations (which column is Name/Type/Parent, which source
+  // shape) are plumbing, not business decisions — Fusion applies them itself while
+  // it builds the proposal. This tracks the attempt whose structural suggestions
+  // have already been written so the silent apply fires once per attempt.
+  const appliedStructuralAttemptRef = useRef<string | null>(null);
   // After an explicit source-shape reinterpretation, route to the deterministic
   // resolver for the new shape once recompute settles (unless a fresh AI
   // interpretation takes over instead).
@@ -244,6 +242,33 @@ function ActiveReviewWorkspace({
           ? "interpreting"
           : "none";
   const semanticActive = semanticPhase === "interpreting" || semanticPhase === "ready";
+  // Split Fusion's interpretation into the two things it means for the journey.
+  // Structural suggestions (source shape, which column is Name/Type/Parent) are
+  // applied silently — the administrator never operates them. Vocabulary
+  // suggestions (what a source term like "Pôle" means) are the only genuine
+  // business decisions, surfaced together as one consolidated confirmation.
+  const readySuggestions = useMemo(
+    () => (semanticPhase === "ready" ? (assistance?.suggestions ?? []) : []),
+    [semanticPhase, assistance?.suggestions]
+  );
+  const structuralSuggestions = useMemo(
+    () =>
+      readySuggestions.filter(
+        (suggestion) =>
+          suggestion.kind === "field_mapping" || suggestion.kind === "source_shape"
+      ),
+    [readySuggestions]
+  );
+  const hasVocabularySuggestion = readySuggestions.some(
+    (suggestion) => suggestion.kind === "organization_type_mapping"
+  );
+  // A ready attempt that carries only structural suggestions is applied for the
+  // administrator; until that write lands the workspace stays in the one calm
+  // "Understanding your organization" state rather than surfacing an apply step.
+  const structuralAutoApplyPending =
+    semanticPhase === "ready" &&
+    structuralSuggestions.length > 0 &&
+    !hasVocabularySuggestion;
   // While AI is interpreting or awaiting review, the manual attention queue drops
   // both the semantic issues and the root/placement conditions that only fail
   // because the levels are not typed yet — they cannot be evaluated until Apply.
@@ -255,26 +280,29 @@ function ActiveReviewWorkspace({
     [issues, semanticActive]
   );
   const interpretationIds = useMemo(() => interpretationNodeIds(issues), [issues]);
-  const interpretationCount = assistance
-    ? assistance.suggestions.filter((suggestion) => suggestion.kind === "organization_type_mapping")
-        .length || assistance.suggestions.length
-    : 0;
-  // The interpretation drawer and the workflow bar are one flow: the bar owns the
-  // single "Review interpretations" entry while the drawer is closed, and steps
-  // back to a quiet summary once the drawer (which owns "Apply") is open.
-  const reviewDrawerOpen = selection.kind === "suggestions";
 
-  // The interpretation surface is continuous: the inspector opens the moment
-  // interpreting begins (skeleton placeholders) and resolves into the mappings when
-  // ready — no discovery click. It opens once per fingerprint and only from an idle
-  // selection, so a deliberate close is never undone by a later rerender/refetch.
+  // Silently apply structural interpretations as Fusion's own proposal-building
+  // step — never as an administrator action. Writing the field/shape decisions
+  // recomputes the proposal and advances the interpretation continuously, so the
+  // only interpretation the administrator is ever asked about is real vocabulary.
   useEffect(() => {
-    if (semanticPhase !== "interpreting" && semanticPhase !== "ready") return;
-    const key = assistance?.inputFingerprint;
-    if (!key || autoOpenedFlowRef.current === key) return;
-    autoOpenedFlowRef.current = key;
-    if (selection.kind === "none") setSelection({ kind: "suggestions" });
-  }, [semanticPhase, assistance?.inputFingerprint, selection.kind, setSelection]);
+    if (!structuralAutoApplyPending || !assistance?.attemptId) return;
+    if (appliedStructuralAttemptRef.current === assistance.attemptId) return;
+    appliedStructuralAttemptRef.current = assistance.attemptId;
+    const previous = sessionRef.current.decisions;
+    const fieldMappings = { ...(previous.fieldMappings ?? {}) };
+    let shape = previous.shape ?? null;
+    for (const suggestion of structuralSuggestions) {
+      if (suggestion.kind === "field_mapping" && suggestion.sourceColumnIndex !== null) {
+        const field = suggestion.targetKey.replace(/^field:/, "");
+        fieldMappings[field] = suggestion.sourceColumnIndex;
+      } else if (suggestion.kind === "source_shape") {
+        const detected = suggestion.targetKey.replace(/^shape:/, "");
+        if (detected === "LevelColumns" || detected === "ParentReference") shape = detected;
+      }
+    }
+    void saveDecisions({ ...previous, shape, fieldMappings });
+  }, [structuralAutoApplyPending, structuralSuggestions, assistance?.attemptId]);
 
   const attention = useMemo(() => attentionByNode(manualIssues), [manualIssues]);
   const [excludeTarget, setExcludeTarget] = useState<
@@ -375,7 +403,6 @@ function ActiveReviewWorkspace({
       });
       // Hold one controlled transition so the committed session never flashes
       // before the browser lands on canonical Organization.
-      setCommitOpen(false);
       onHandoff();
       const reveal = result.createdUnits.map((unit) => unit.orgUnitId).join(",");
       router.replace(
@@ -386,28 +413,6 @@ function ActiveReviewWorkspace({
       toast.error(problem.code === "ProposalChanged" ? "The proposal changed" : "The import was not completed", {
         description: problem.message,
       });
-      setCommitOpen(false);
-      onRefetch();
-    }
-  }
-
-  async function retrySuggestions() {
-    if (!assistance?.inputFingerprint) return;
-    const requestKey = `${session.id}:${assistance.inputFingerprint}`;
-    generatedRequestRef.current = requestKey;
-    setFailedRequestKey(null);
-    try {
-      await mutations.generateSuggestions.mutateAsync({
-        id: session.id,
-        inputFingerprint: assistance.inputFingerprint,
-        retry: true,
-      });
-      onRefetch();
-    } catch (error) {
-      toast.error("Suggestions could not be retried", {
-        description: translateOrganizationImportError(error).message,
-      });
-      setFailedRequestKey(requestKey);
       onRefetch();
     }
   }
@@ -497,12 +502,58 @@ function ActiveReviewWorkspace({
     setCollapsed(next);
   }
 
+  // Type-vocabulary is resolved on the consolidated understanding surface, never in
+  // the manual attention queue — so the queue only ever holds genuine review work.
+  const nonTypeManualIssues = useMemo(
+    () => manualIssues.filter((issue) => issue.kind !== "type"),
+    [manualIssues]
+  );
   const canCommit = review?.canCommit ?? false;
   const createCount = review?.createCount ?? 0;
   const existingCount = review?.existingCount ?? 0;
   const isNoop = canCommit && createCount === 0;
-  const blockerCount = manualIssues.filter((issue) => issue.severity === "Blocker").length;
-  const hasBlocker = manualIssues.some((issue) => issue.severity === "Blocker");
+  const blockerCount = nonTypeManualIssues.filter((issue) => issue.severity === "Blocker").length;
+  const hasBlocker = nonTypeManualIssues.some((issue) => issue.severity === "Blocker");
+
+  // One consolidated business decision per source term Fusion couldn't place on its
+  // own, carrying Fusion's suggested meaning and how many units share that term. The
+  // administrator confirms a meaning once; it applies to every unit that uses it.
+  const vocabularyDecisions = useMemo<VocabularyDecision[]>(() => {
+    const typeIssues = issues.filter((issue) => issue.kind === "type");
+    return typeIssues.map((issue) => {
+      const rawType = issue.rawType ?? "";
+      const suggestion = readySuggestions.find(
+        (candidate) =>
+          candidate.kind === "organization_type_mapping" &&
+          (candidate.sourceLabel ?? "").toLowerCase() === rawType.toLowerCase()
+      );
+      const suggestedTypeId = suggestion?.targetKey.startsWith("type:")
+        ? suggestion.targetKey.slice("type:".length)
+        : null;
+      return {
+        rawType,
+        unitCount: issue.raw?.affectedCount ?? issue.nodeIds.length,
+        suggestedTypeId,
+        suggestedLabel: suggestion?.targetLabel ?? null,
+      };
+    });
+  }, [issues, readySuggestions]);
+
+  // The single processing state and the single decision state. While Fusion is still
+  // reading, interpreting, or applying its own structural interpretations, the whole
+  // workspace holds one calm "Understanding your organization" surface — no resets,
+  // no per-pass apply. Only genuine vocabulary pauses it, on one consolidated screen.
+  const understandingPhase =
+    Boolean(review) && (semanticPhase === "interpreting" || structuralAutoApplyPending);
+  const vocabularyPhase =
+    Boolean(review) && !understandingPhase && vocabularyDecisions.length > 0;
+
+  async function applyTypeMappings(entries: { rawType: string; typeId: string }[]) {
+    const previous = sessionRef.current.decisions;
+    const typeMappings = { ...(previous.typeMappings ?? {}) };
+    for (const entry of entries) typeMappings[entry.rawType] = entry.typeId;
+    await saveDecisions({ ...previous, typeMappings });
+  }
 
   const selectedId = selection.kind === "unit" ? selection.nodeId : null;
   const highlightedIds = useMemo(() => {
@@ -569,7 +620,7 @@ function ActiveReviewWorkspace({
               {source.selectedSheetName ? ` · ${source.selectedSheetName}` : ""}
             </span>
           </span>
-          {review ? (
+          {review && !understandingPhase && !vocabularyPhase ? (
             <>
               <span className="h-4 w-px bg-border" aria-hidden />
               <span className="flex items-center gap-1.5">
@@ -588,41 +639,8 @@ function ActiveReviewWorkspace({
                   </span>
                 ) : null}
               </span>
-              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-                {semanticPhase === "interpreting" ? (
-                  <span
-                    className="inline-flex items-center gap-2 rounded-lg bg-primary/10 px-2.5 py-1 text-sm font-medium text-primary"
-                    role="status"
-                    aria-live="polite"
-                  >
-                    <Sparkles
-                      className="h-4 w-4 animate-pulse motion-reduce:animate-none"
-                      aria-hidden
-                    />
-                    Interpreting your structure
-                  </span>
-                ) : semanticPhase === "failed" ? (
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-muted/70 px-2.5 py-1 text-sm text-muted-foreground"
-                    role="status"
-                  >
-                    Interpretation unavailable
-                    <button
-                      type="button"
-                      className="font-medium text-foreground hover:underline disabled:opacity-50"
-                      disabled={
-                        mutations.generateSuggestions.isLoading ||
-                        Boolean(
-                          assistance?.retryAfter && new Date(assistance.retryAfter) > new Date()
-                        )
-                      }
-                      onClick={() => void retrySuggestions()}
-                    >
-                      Retry
-                    </button>
-                  </span>
-                ) : null}
-                {manualIssues.length > 0 ? (
+              {nonTypeManualIssues.length > 0 ? (
+                <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={openIssues}
@@ -638,10 +656,10 @@ function ActiveReviewWorkspace({
                     ) : (
                       <TriangleAlert className="h-4 w-4" />
                     )}
-                    Needs attention · {manualIssues.length}
+                    Needs attention · {nonTypeManualIssues.length}
                   </button>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
             </>
           ) : null}
         </div>
@@ -651,6 +669,15 @@ function ActiveReviewWorkspace({
         <div className="flex-1 p-6">
           <PageSkeleton rows={5} label="Building Organization proposal" />
         </div>
+      ) : understandingPhase ? (
+        <UnderstandingState fileName={source.originalFileName} />
+      ) : vocabularyPhase ? (
+        <VocabularyState
+          decisions={vocabularyDecisions}
+          typeOptions={review.typeOptions}
+          saving={mutations.replaceDecisions.isLoading}
+          onConfirm={(entries) => void applyTypeMappings(entries)}
+        />
       ) : (
         <div className="relative flex min-h-0 flex-1">
           <main
@@ -666,13 +693,7 @@ function ActiveReviewWorkspace({
                 selectedId={selectedId}
                 highlightedIds={highlightedIds}
                 attention={attention}
-                interpretation={
-                  semanticPhase === "interpreting"
-                    ? "interpreting"
-                    : semanticPhase === "ready"
-                      ? "suggested"
-                      : null
-                }
+                interpretation={null}
                 interpretationIds={interpretationIds}
                 onSelect={selectNode}
                 onToggle={toggle}
@@ -711,63 +732,38 @@ function ActiveReviewWorkspace({
         </div>
       )}
 
-      {review ? (
+      {review && !understandingPhase && !vocabularyPhase ? (
         <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t bg-background px-6 py-3">
-          {semanticPhase === "interpreting" ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Sparkles
-                className="h-4 w-4 animate-pulse text-primary motion-reduce:animate-none"
-                aria-hidden
-              />
-              Interpreting your structure
-            </div>
-          ) : semanticPhase === "ready" ? (
-            <>
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Sparkles className="h-4 w-4 text-primary" aria-hidden />
-                <span>
-                  {reviewDrawerOpen ? "Reviewing " : ""}
-                  <span className="font-semibold text-primary">{interpretationCount}</span>{" "}
-                  {interpretationCount === 1 ? "interpretation" : "interpretations"}
-                  {reviewDrawerOpen ? "" : " ready to review"}
-                </span>
-              </div>
-              {reviewDrawerOpen ? null : (
-                <Button onClick={() => setSelection({ kind: "suggestions" })}>
-                  Review interpretations
-                </Button>
-              )}
-            </>
+          <div className="flex items-center gap-2 text-sm">
+            {canCommit ? (
+              <CheckCircle2 className="h-4 w-4 text-success" />
+            ) : (
+              <AlertCircle className="h-4 w-4 text-destructive" />
+            )}
+            <span className={cn(!canCommit && "text-destructive")}>
+              {!canCommit
+                ? blockerCount === 1
+                  ? "1 thing needs your attention before you can finish."
+                  : `${blockerCount} things need your attention before you can finish.`
+                : isNoop
+                  ? "Everything in this file already exists in Organization. No changes will be made."
+                  : `${createCount} new organizational ${createCount === 1 ? "unit" : "units"} · effective ${formatHumanDate(session.effectiveDate)}`}
+            </span>
+          </div>
+          {!canCommit ? (
+            <Button variant="outline" onClick={openIssues}>
+              Review
+            </Button>
+          ) : isNoop ? (
+            <Button disabled={mutations.commit.isLoading} onClick={() => void complete()}>
+              {mutations.commit.isLoading ? "Finishing…" : "Finish import"}
+            </Button>
           ) : (
-            <>
-              <div className="flex items-center gap-2 text-sm">
-                {canCommit ? (
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                ) : (
-                  <AlertCircle className="h-4 w-4 text-destructive" />
-                )}
-                <span className={cn(!canCommit && "text-destructive")}>
-                  {!canCommit
-                    ? blockerCount === 1
-                      ? "1 thing needs your attention before you can finish."
-                      : `${blockerCount} things need your attention before you can finish.`
-                    : isNoop
-                      ? "Everything in this file already exists in Organization. No changes will be made."
-                      : `${createCount} new organizational ${createCount === 1 ? "unit" : "units"} · effective ${formatHumanDate(session.effectiveDate)}`}
-                </span>
-              </div>
-              {!canCommit ? (
-                <Button variant="outline" onClick={openIssues}>
-                  Review
-                </Button>
-              ) : isNoop ? (
-                <Button disabled={mutations.commit.isLoading} onClick={() => void complete()}>
-                  {mutations.commit.isLoading ? "Finishing…" : "Finish import"}
-                </Button>
-              ) : (
-                <Button onClick={() => setCommitOpen(true)}>Complete import</Button>
-              )}
-            </>
+            // One click commits — the Review IS the confirmation; no interstitial dialog. The button
+            // disables itself while the commit is in flight so a second click cannot double-submit.
+            <Button disabled={mutations.commit.isLoading} onClick={() => void complete()}>
+              {mutations.commit.isLoading ? "Completing…" : "Complete import"}
+            </Button>
           )}
         </footer>
       ) : null}
@@ -788,30 +784,6 @@ function ActiveReviewWorkspace({
               onClick={() => void discard()}
             >
               Discard import
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={commitOpen} onOpenChange={setCommitOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Complete import?</AlertDialogTitle>
-            <AlertDialogDescription>
-              <span className="block text-base text-foreground">
-                <span className="font-semibold">
-                  {createCount} organizational {createCount === 1 ? "unit" : "units"}
-                </span>{" "}
-                will be added, effective{" "}
-                <span className="font-semibold">{formatHumanDate(session.effectiveDate)}</span>.
-              </span>
-              <span className="mt-1.5 block">Later changes are managed from Organization.</span>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Back to review</AlertDialogCancel>
-            <AlertDialogAction disabled={mutations.commit.isLoading} onClick={() => void complete()}>
-              {mutations.commit.isLoading ? "Completing…" : "Complete import"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -848,6 +820,190 @@ function ActiveReviewWorkspace({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+}
+
+// One business decision per source term Fusion couldn't place deterministically,
+// carrying Fusion's suggested Organization type and how many units share the term.
+type VocabularyDecision = {
+  rawType: string;
+  unitCount: number;
+  suggestedTypeId: string | null;
+  suggestedLabel: string | null;
+};
+
+// The single processing state. Everything Fusion does internally — reading the
+// source, inferring the hierarchy and root, interpreting vocabulary, applying its
+// own structural interpretations — happens behind this one calm surface, with no
+// resets and no per-pass apply. It never asks the administrator to operate a step.
+function UnderstandingState({ fileName }: { fileName: string }) {
+  return (
+    <div
+      className="flex flex-1 items-center justify-center p-6"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="w-full max-w-md text-center">
+        <div className="relative mx-auto grid h-16 w-16 place-items-center">
+          <span className="absolute inset-0 animate-ping rounded-2xl bg-primary/15 motion-reduce:hidden" />
+          <span className="relative grid h-16 w-16 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+            <Sparkles className="h-7 w-7 animate-pulse motion-reduce:animate-none" aria-hidden />
+          </span>
+        </div>
+        <h2 className="mt-6 text-lg font-semibold">Understanding your organization</h2>
+        <p className="mx-auto mt-1.5 max-w-xs text-sm text-muted-foreground">
+          Reading {fileName}, identifying the hierarchy, and learning your vocabulary.
+        </p>
+        <div className="mx-auto mt-6 h-1 w-40 overflow-hidden rounded-full bg-muted">
+          <span className="block h-full w-1/3 animate-[understanding-sweep_1.4s_ease-in-out_infinite] rounded-full bg-primary/70 motion-reduce:w-full motion-reduce:animate-none" />
+        </div>
+      </div>
+      <style>{`@keyframes understanding-sweep{0%{transform:translateX(-140%)}100%{transform:translateX(420%)}}`}</style>
+    </div>
+  );
+}
+
+// The one consolidated decision surface. Fusion resolved the structure itself and
+// now asks only about genuine meaning: what each unfamiliar source term is, once,
+// for every unit that uses it. Fusion's suggestion is pre-selected, so the whole
+// vocabulary is usually confirmed in a single action; a term with no confident
+// suggestion falls back to an explicit choice. Resolving the last one advances to
+// review automatically.
+function VocabularyState({
+  decisions,
+  typeOptions,
+  saving,
+  onConfirm,
+}: {
+  decisions: VocabularyDecision[];
+  typeOptions: OrganizationImportTypeOption[];
+  saving: boolean;
+  onConfirm: (entries: { rawType: string; typeId: string }[]) => void;
+}) {
+  const [choices, setChoices] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      decisions.map((decision) => [decision.rawType, decision.suggestedTypeId ?? ""])
+    )
+  );
+  const labelFor = (typeId: string) => typeOptions.find((type) => type.id === typeId)?.name;
+  const allSuggested = decisions.every((decision) => decision.suggestedTypeId);
+  const allChosen = decisions.every((decision) => choices[decision.rawType]);
+
+  function confirmAll() {
+    const entries = decisions
+      .map((decision) => ({ rawType: decision.rawType, typeId: choices[decision.rawType] ?? "" }))
+      .filter((entry) => entry.typeId);
+    if (entries.length > 0) onConfirm(entries);
+  }
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="mx-auto w-full max-w-2xl px-6 py-10">
+        <div className="flex items-center gap-2 text-sm font-medium text-primary">
+          <Sparkles className="h-4 w-4" aria-hidden />
+          {decisions.length === 1
+            ? "Fusion found 1 meaning to confirm"
+            : `Fusion found ${decisions.length} meanings to confirm`}
+        </div>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+          {decisions.length === 1
+            ? "Confirm one meaning"
+            : `Confirm ${decisions.length} meanings`}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {allSuggested
+            ? "Your file uses its own words for organization types. Confirm what each one means."
+            : "Set what each of your organization terms means."}
+        </p>
+
+        <div className="mt-7 divide-y rounded-2xl border">
+          {decisions.map((decision) => {
+            const chosen = choices[decision.rawType] ?? "";
+            const isSuggested =
+              decision.suggestedTypeId !== null && chosen === decision.suggestedTypeId;
+            return (
+              <div
+                key={decision.rawType}
+                className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-base font-semibold">{decision.rawType}</span>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden />
+                    <span
+                      className={cn(
+                        "truncate text-base font-medium",
+                        chosen ? "text-foreground" : "text-muted-foreground"
+                      )}
+                    >
+                      {chosen ? labelFor(chosen) : "Choose a type"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {isSuggested ? (
+                      <span className="inline-flex items-center gap-1 text-primary">
+                        <Sparkles className="h-3 w-3" aria-hidden />
+                        Fusion’s suggestion
+                      </span>
+                    ) : decision.suggestedLabel ? (
+                      <button
+                        type="button"
+                        className="underline-offset-2 hover:text-foreground hover:underline"
+                        onClick={() =>
+                          setChoices((previous) => ({
+                            ...previous,
+                            [decision.rawType]: decision.suggestedTypeId ?? "",
+                          }))
+                        }
+                      >
+                        Fusion suggested {decision.suggestedLabel}
+                      </button>
+                    ) : (
+                      "Needs a type"
+                    )}
+                    <span aria-hidden> · </span>
+                    Used by {decision.unitCount.toLocaleString()}{" "}
+                    {decision.unitCount === 1 ? "unit" : "units"}
+                  </p>
+                </div>
+                <NativeSelect
+                  aria-label={`Type for ${decision.rawType}`}
+                  className="h-9 w-[176px] text-sm"
+                  value={chosen}
+                  disabled={saving}
+                  onChange={(event) =>
+                    setChoices((previous) => ({
+                      ...previous,
+                      [decision.rawType]: event.target.value,
+                    }))
+                  }
+                >
+                  <NativeSelectOption value="">Choose a type</NativeSelectOption>
+                  {typeOptions.map((type) => (
+                    <NativeSelectOption key={type.id} value={type.id}>
+                      {type.name}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 flex items-center justify-end gap-3">
+          <Button size="lg" disabled={saving || !allChosen} onClick={confirmAll}>
+            <Check className="h-4 w-4" aria-hidden />
+            {saving
+              ? "Applying…"
+              : decisions.length === 1
+                ? "Confirm meaning"
+                : allSuggested && allChosen
+                  ? "Use these meanings"
+                  : "Confirm meanings"}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

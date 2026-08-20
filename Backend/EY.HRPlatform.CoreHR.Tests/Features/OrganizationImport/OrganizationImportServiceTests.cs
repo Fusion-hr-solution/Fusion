@@ -1,6 +1,7 @@
 using System.Text;
 using EY.HRPlatform.CoreHR.Features.Organization;
 using EY.HRPlatform.CoreHR.Features.OrganizationImport;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 using Moq;
 
@@ -109,7 +110,7 @@ public sealed class OrganizationImportServiceTests
         var service = new OrganizationImportService(
             context,
             TestTenantContext.WithTenant(tenantId),
-            new OrganizationImportSourceInspectionService(),
+            new OrganizationImportSourceInspectionService(new SafeTabularSourceReader()),
             organization.Object,
             new OrganizationImportInterpreter(context, tenantContext));
         var actor = new OrganizationImportActor(Guid.NewGuid(), "Admin");
@@ -145,7 +146,7 @@ public sealed class OrganizationImportServiceTests
         return new OrganizationImportService(
             context,
             tenantContext,
-            new OrganizationImportSourceInspectionService(),
+            new OrganizationImportSourceInspectionService(new SafeTabularSourceReader()),
             organization.Object,
             new OrganizationImportInterpreter(context, tenantContext));
     }

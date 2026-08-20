@@ -382,6 +382,152 @@ public sealed class OrganizationImportSemanticAssistanceTests
         Assert.Empty(result.Suggestions);
     }
 
+    // A synthetic, non-native customer taxonomy (never Fusion vocabulary) with a clean root→leaf shape.
+    private static OrganizationSourceTable SyntheticTaxonomyTable()
+        => new(
+            [new(0, "Unit Ref"), new(1, "Unit Name"), new(2, "Unit Class"), new(3, "Rolls Up To")],
+            [
+                new string?[] { "ENT", "Northwind", "Enterprise Class", null },
+                new string?[] { "OC1", "Retail Cluster", "Operating Cluster", "ENT" },
+                new string?[] { "OC2", "Wholesale Cluster", "Operating Cluster", "ENT" },
+                new string?[] { "CA1", "Merchandising", "Capability Area", "OC1" },
+                new string?[] { "CA2", "Logistics", "Capability Area", "OC2" },
+                new string?[] { "SQ1", "Pricing Squad", "Squad", "CA1" },
+                new string?[] { "SQ2", "Inbound Squad", "Squad", "CA2" },
+            ]);
+
+    // The field roles are already resolved (as they are by the point type-vocabulary questions
+    // surface): Business Code=0, Name=1, Type=2, Parent reference=3. Only the type meanings remain.
+    private static OrganizationImportDecisions TaxonomyFieldMappings()
+        => new(
+            Shape: OrganizationImportShape.ParentReference,
+            FieldMappings: new Dictionary<string, int?>(StringComparer.Ordinal)
+            {
+                [OrganizationImportFields.BusinessCode] = 0,
+                [OrganizationImportFields.Name] = 1,
+                [OrganizationImportFields.Type] = 2,
+                [OrganizationImportFields.ParentBusinessCode] = 3,
+            });
+
+    [Fact]
+    public async Task TypeSystem_evidence_supplies_topology_per_source_type_to_the_model()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        await SeedTypesAsync(context);
+        var session = Session(tenant.TenantId, SyntheticTaxonomyTable());
+        session.ReplaceDecisions(TaxonomyFieldMappings(), Actor());
+        context.OrganizationImportSessions.Add(session);
+        await context.SaveChangesAsync();
+        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
+        var request = Assert.IsType<OrganizationImportSemanticRequest>(new OrganizationImportSemanticContextBuilder(Options()).Build(session, review));
+
+        var system = request.SourceTypeSystem.ToDictionary(t => t.SourceLabel, StringComparer.OrdinalIgnoreCase);
+        // The whole taxonomy is described with topology, not just labels.
+        Assert.True(system.ContainsKey("Enterprise Class"));
+        Assert.True(system["Enterprise Class"].OccursOnRoot);
+        Assert.Equal(0, system["Enterprise Class"].MinDepth);
+        Assert.Contains("Operating Cluster", system["Enterprise Class"].ChildTypes);
+        Assert.Equal(2, system["Operating Cluster"].Occurrences);
+        Assert.Contains("Enterprise Class", system["Operating Cluster"].ParentTypes);
+        Assert.Contains("Capability Area", system["Operating Cluster"].ChildTypes);
+        Assert.True(system["Squad"].LeafOnly);
+        Assert.False(system["Squad"].OccursOnRoot);
+        // Canonical role guidance travels with the request so the model aligns to roles, not names.
+        Assert.Contains(request.CanonicalTypeGuidance, c => c.Name == "Organization" && c.Description.Length > 0);
+    }
+
+    [Fact]
+    public async Task Coherent_whole_taxonomy_type_mapping_is_kept_for_auto_accept()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        await SeedTypesAsync(context);
+        var session = Session(tenant.TenantId, SyntheticTaxonomyTable());
+        session.ReplaceDecisions(TaxonomyFieldMappings(), Actor());
+        context.OrganizationImportSessions.Add(session);
+        await context.SaveChangesAsync();
+
+        // Model aligns each distinct source class to a distinct canonical role following source order.
+        var provider = new StubProvider(request => new(request.Issues.Select(issue =>
+        {
+            var target = issue.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping
+                ? issue.AllowedTargets.Single(t => t.Label == (issue.SourceLabel switch
+                {
+                    "Enterprise Class" => "Organization",
+                    "Operating Cluster" => "Division",
+                    "Capability Area" => "Department",
+                    "Squad" => "Team",
+                    _ => "Team",
+                }))
+                : issue.AllowedTargets.First();
+            return new OrganizationImportSemanticProviderSuggestion(issue.Key, issue.Kind, target.Key, null);
+        }).ToList(), null, null));
+        var service = Service(context, tenant, provider);
+        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
+        var eligible = await service.DescribeAsync(session, review, CancellationToken.None);
+
+        var result = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
+
+        Assert.Equal(OrganizationImportSemanticAssistanceState.Available, result.State);
+        // All four distinct roles survive corroboration (coherent = distinct canonical types).
+        var typeSuggestions = result.Suggestions.Where(s => s.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping).ToList();
+        Assert.Equal(4, typeSuggestions.Count);
+        Assert.Equal(4, typeSuggestions.Select(s => s.TargetKey).Distinct().Count());
+    }
+
+    [Fact]
+    public async Task Incoherent_collapse_of_differentiated_types_is_withheld_for_grouped_confirmation()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        await SeedTypesAsync(context);
+        var session = Session(tenant.TenantId, SyntheticTaxonomyTable());
+        session.ReplaceDecisions(TaxonomyFieldMappings(), Actor());
+        context.OrganizationImportSessions.Add(session);
+        await context.SaveChangesAsync();
+
+        // A weak model answer that collapses the whole differentiated hierarchy onto "Organization"
+        // (root + non-root, different depths) — exactly the manual-replay defect.
+        var orgTargetByIssue = new Dictionary<string, string>();
+        var provider = new StubProvider(request => new(request.Issues.Select(issue =>
+        {
+            var target = issue.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping
+                ? issue.AllowedTargets.Single(t => t.Label == "Organization")
+                : issue.AllowedTargets.First();
+            if (issue.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping) orgTargetByIssue[issue.Key] = target.Key;
+            return new OrganizationImportSemanticProviderSuggestion(issue.Key, issue.Kind, target.Key, null);
+        }).ToList(), null, null));
+        var service = Service(context, tenant, provider);
+        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
+        var eligible = await service.DescribeAsync(session, review, CancellationToken.None);
+
+        var result = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
+
+        // The incoherent type suggestions are withheld — none of the collapsed type mappings is
+        // auto-accepted, so the administrator resolves them through grouped confirmation instead.
+        Assert.DoesNotContain(result.Suggestions, s => s.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping);
+    }
+
+    [Fact]
+    public async Task Native_type_vocabulary_needs_no_semantic_type_questions()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        await SeedTypesAsync(context);
+        // ExpansionTable already uses native canonical type names (Organization/Division/Department/Team).
+        var session = Session(tenant.TenantId, ExpansionTable());
+        context.OrganizationImportSessions.Add(session);
+        await context.SaveChangesAsync();
+        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
+        var request = new OrganizationImportSemanticContextBuilder(Options()).Build(session, review);
+
+        // Deterministic interpretation already resolved the native types, so either there is nothing to
+        // ask (null request) or no organization-type question remains for the model.
+        if (request is not null)
+            Assert.DoesNotContain(request.Issues, i => i.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping);
+    }
+
     private static OrganizationSourceTable ExpansionTable()
         => new(
             [new(0, "OU Ref"), new(1, "Org Label"), new(2, "Classification"), new(3, "Rolls Up To")],

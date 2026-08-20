@@ -50,6 +50,8 @@ public sealed class GroqOrganizationImportSemanticProvider(
             }),
             organizationTypes = request.OrganizationTypes,
             request.Structure,
+            sourceTypeSystem = request.SourceTypeSystem,
+            canonicalTypeGuidance = request.CanonicalTypeGuidance,
         };
         var body = new
         {
@@ -59,7 +61,15 @@ public sealed class GroqOrganizationImportSemanticProvider(
                 new
                 {
                     role = "system",
-                    content = "Map unfamiliar organization-import vocabulary to the exact allowed targets. Return only useful suggestions. Interpret related hierarchy levels together and preserve their order. Never invent units, identities, relationships, codes, roots, or types. Never map a field to Fusion OrgUnit ID. Rationale must be null or one short business-readable sentence. Do not provide hidden reasoning or chain-of-thought.",
+                    content = "Map unfamiliar organization-import vocabulary to the exact allowed targets. "
+                        + "For organization type mappings, interpret the source type SYSTEM AS A WHOLE, not each label alone: "
+                        + "use both the vocabulary AND the provided topology in sourceTypeSystem — occurrences, min/max depth, "
+                        + "parentTypes, childTypes, whether it occurs on the root, and whether it is leaf-only — and align each "
+                        + "source type to the canonical role in canonicalTypeGuidance that best fits its meaning and its position "
+                        + "in the hierarchy. Produce a coherent whole-taxonomy mapping (typically distinct roles map to distinct "
+                        + "canonical types following the source's own top-to-bottom order). Return only useful suggestions. "
+                        + "Never invent units, identities, relationships, codes, roots, or types. Never map a field to Fusion OrgUnit ID. "
+                        + "Rationale must be null or one short business-readable sentence. Do not provide hidden reasoning or chain-of-thought.",
                 },
                 new
                 {

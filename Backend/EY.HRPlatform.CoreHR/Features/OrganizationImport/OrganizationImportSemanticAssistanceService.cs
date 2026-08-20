@@ -449,8 +449,59 @@ public sealed class OrganizationImportSemanticAssistanceService(
                 continue;
             result.Add(suggestion with { Rationale = string.IsNullOrWhiteSpace(suggestion.Rationale) ? null : suggestion.Rationale.Trim() });
         }
-        return result;
+        return CorroborateTypeSystem(result, request);
     }
+
+    /// <summary>
+    /// Global coherence corroboration for organization TYPE suggestions. Structural evidence is a
+    /// confidence signal, not a universal rule: a mapping is incoherent when several DISTINCT source
+    /// types that the source itself differentiates by topology (different depths / parent-child roles)
+    /// all collapse onto the same canonical type — most tellingly the root "Organization" reused on
+    /// non-root types. Such low-confidence type suggestions are withheld so the administrator resolves
+    /// them through a grouped confirmation rather than being auto-accepted into a wrong schema. Field
+    /// and shape suggestions are unaffected. This never imposes a fixed level count or a root-only rule.
+    /// </summary>
+    private static List<OrganizationImportSemanticProviderSuggestion> CorroborateTypeSystem(
+        List<OrganizationImportSemanticProviderSuggestion> suggestions,
+        OrganizationImportSemanticRequest request)
+    {
+        var typeByLabel = request.SourceTypeSystem.ToDictionary(t => t.SourceLabel, StringComparer.OrdinalIgnoreCase);
+        if (typeByLabel.Count == 0) return suggestions;
+        var issues = request.Issues.ToDictionary(issue => issue.Key, StringComparer.Ordinal);
+        var typeTargetLabel = request.OrganizationTypes.ToDictionary(t => $"type:{t.Id}", t => t.Name, StringComparer.Ordinal);
+
+        // Type suggestions whose source label carries topology evidence, paired with the source type.
+        var typeSuggestions = suggestions
+            .Where(s => issues.TryGetValue(s.IssueKey, out var i)
+                && i.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping
+                && i.SourceLabel is not null && typeByLabel.ContainsKey(i.SourceLabel))
+            .Select(s => (Suggestion: s, Source: typeByLabel[issues[s.IssueKey].SourceLabel!],
+                Canonical: typeTargetLabel.GetValueOrDefault(s.TargetKey, s.TargetKey)))
+            .ToList();
+        if (typeSuggestions.Count < 2) return suggestions; // need ≥2 differentiated types to judge collapse
+
+        var incoherent = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var group in typeSuggestions.GroupBy(x => Normalize(x.Canonical)))
+        {
+            var members = group.ToList();
+            if (members.Count < 2) continue;
+            // Distinct source roles collapsed to one canonical type: differentiated if they occur at
+            // different depths or in a parent/child relationship to each other.
+            var distinctDepthBands = members.Select(m => m.Source.MinDepth).Distinct().Count();
+            var rootAndNonRoot = members.Any(m => m.Source.OccursOnRoot) && members.Any(m => !m.Source.OccursOnRoot);
+            var parentChildAmongThem = members.Any(m =>
+                members.Any(other => !ReferenceEquals(m, other)
+                    && m.Source.ChildTypes.Contains(other.Source.SourceLabel, StringComparer.OrdinalIgnoreCase)));
+            if (distinctDepthBands > 1 || rootAndNonRoot || parentChildAmongThem)
+                foreach (var m in members) incoherent.Add(m.Suggestion.IssueKey);
+        }
+        if (incoherent.Count == 0) return suggestions;
+        // Withhold only the incoherent type suggestions; everything else (including coherent types)
+        // stays auto-acceptable. The withheld ones remain unresolved → grouped confirmation.
+        return suggestions.Where(s => !incoherent.Contains(s.IssueKey)).ToList();
+    }
+
+    private static string Normalize(string value) => new(value.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
 
     private static OrganizationImportSemanticAssistanceDto Map(
         OrganizationImportSemanticAttempt attempt,

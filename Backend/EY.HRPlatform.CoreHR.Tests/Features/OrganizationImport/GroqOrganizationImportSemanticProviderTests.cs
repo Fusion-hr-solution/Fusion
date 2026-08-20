@@ -137,6 +137,8 @@ public sealed class GroqOrganizationImportSemanticProviderTests
             [new(0, "Entity", ["Asteria"], 1, 1)],
             [new(typeId, "Organization")],
             new(1, 1, true, ["LevelColumns"]),
+            [new("Entity", 1, 0, 0, [], [], true, false, ["Asteria"])],
+            [new("Organization", "Enterprise/root organizational body.")],
             new string('f', 64));
     }
 
