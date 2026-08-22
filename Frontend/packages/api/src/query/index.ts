@@ -4,6 +4,7 @@ export {
   ApiQueryProvider,
   createApiQueryClient,
   createApiQueryDefaultOptions,
+  SHARED_QUERY_DEFAULTS,
   useApiQueryClient,
   type ApiQueryKey,
   type ApiQueryProviderProps,

@@ -20,6 +20,23 @@ vi.mock("@repo/auth", async (importOriginal) => {
   return {
     ...actual,
     useAuth: () => ({ user: mocks.user, isLoading: mocks.isLoading }),
+    // The boundary consumes the shared hydration-safe mechanism. Feed it the
+    // controlled auth values and run the module's resolver, as it does once
+    // hydration has settled (the hydration hold itself is unit-tested in
+    // @repo/auth). This keeps the boundary's state→UI mapping under test.
+    useHydratedWorkspaceAccess: (
+      resolve: (input: { user: AuthUser | null; isLoading: boolean }) => string,
+    ) => {
+      const state = mocks.isLoading
+        ? "loading"
+        : resolve({ user: mocks.user, isLoading: mocks.isLoading });
+      return {
+        state,
+        user: mocks.user,
+        isLoading: mocks.isLoading,
+        hydrated: !mocks.isLoading,
+      };
+    },
   };
 });
 

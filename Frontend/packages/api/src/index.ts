@@ -2,6 +2,13 @@ export { createApiClient } from "./client";
 export { createPlatformApiClient, isBrowser } from "./platform";
 export { ApiError } from "./types";
 export type { ApiClient, ApiClientConfig, ApiResponse, RequestOptions } from "./types";
+export {
+  classifyApiError,
+  isRetriableErrorKind,
+  UPSTREAM_UNAVAILABLE_CODE,
+  UPSTREAM_UNAVAILABLE_STATUS,
+  type ApiErrorKind,
+} from "./error-classification";
 export type { PlatformApiClientConfig } from "./platform";
 export * from "./tenant-settings";
 export * from "./invites";
@@ -12,3 +19,4 @@ export * from "./core-organization";
 export * from "./core-organization-import";
 export * from "./core-workforce-import";
 export * from "./core-people";
+export * from "./performance";

@@ -38,24 +38,27 @@ describe("query layer", () => {
     expect(defaults.queries?.refetchOnWindowFocus).toBe(false);
     expect(defaults.mutations?.retry).toBe(false);
     expect(typeof queryRetry).toBe("function");
-    expect(
-      (queryRetry as (failureCount: number, error: unknown) => boolean)(
-        0,
-        new ApiError(400, "Bad Request", ["invalid"], null)
-      )
-    ).toBe(false);
-    expect(
-      (queryRetry as (failureCount: number, error: unknown) => boolean)(
-        0,
-        new ApiError(500, "Server Error", ["down"], null)
-      )
-    ).toBe(true);
-    expect(
-      (queryRetry as (failureCount: number, error: unknown) => boolean)(
-        1,
-        new Error("retry budget spent")
-      )
-    ).toBe(false);
+    const retry = queryRetry as (
+      failureCount: number,
+      error: unknown
+    ) => boolean;
+
+    // Business/validation errors are never retried.
+    expect(retry(0, new ApiError(400, "Bad Request", ["invalid"], null))).toBe(
+      false
+    );
+    // A bare 500 is an unexpected application error, not a transient upstream
+    // outage: it is NOT retried, so a crashing endpoint is not hammered.
+    expect(retry(0, new ApiError(500, "Server Error", ["down"], null))).toBe(
+      false
+    );
+    // An attributed upstream-unavailable (503) is transient: retried once only.
+    expect(retry(0, new ApiError(503, "Unavailable", ["down"], null))).toBe(
+      true
+    );
+    expect(retry(1, new ApiError(503, "Unavailable", ["down"], null))).toBe(
+      false
+    );
   });
 
   it("invalidates configured query keys after a mutation succeeds", async () => {

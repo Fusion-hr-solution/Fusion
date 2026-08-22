@@ -15,6 +15,20 @@ const nextConfig: NextConfig = {
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   outputFileTracingRoot: frontendWorkspaceRoot,
   transpilePackages: ["@repo/ds", "@repo/auth", "@repo/api"],
+  experimental: {
+    // The shell reverse-proxies module documents to each MFE via `rewrites()`.
+    // Next's rewrite proxy defaults to a 30s timeout; when a Next dev server
+    // compiles a route on first hit it can exceed that (measured ~33s for a cold
+    // `/performance`), and the proxy then aborts with a socket hang up (ECONNRESET)
+    // and renders `/_error` — surfacing an intermittent "Internal Server Error"
+    // document on the first visit to an un-compiled MFE route. This is a dev-only
+    // trigger (production MFEs are prebuilt and answer in ms), so we raise the
+    // proxy timeout only in development to let a slow cold compile finish instead
+    // of resetting. Production keeps Next's sane 30s default (fail-fast), so a
+    // genuinely slow/hung upstream is not masked there.
+    proxyTimeout:
+      process.env.NODE_ENV === "development" ? 180_000 : undefined,
+  },
   async redirects() {
     // `/setup` is retired in favour of the canonical `/getting-started`. A
     // context-preserving compatibility redirect keeps old links and activation
@@ -28,15 +42,15 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    const gatewayUrl = process.env.GATEWAY_URL || "http://localhost:5000";
     const coreUrl = process.env.CORE_MFE_URL || "http://localhost:3002";
     const platformUrl =
       process.env.PLATFORM_MFE_URL || "http://localhost:3007";
+    // `/api/*` is intentionally NOT rewritten here. It is served by the explicit
+    // proxy route handler (`src/app/api/[...path]/route.ts`), which preserves full
+    // successful-proxy parity and attributes an unreachable Gateway as a typed 503
+    // instead of the implicit rewrite's bare, unattributed 500. `_next` asset and
+    // module rewrites below are unaffected.
     return { beforeFiles: [
-      {
-        source: "/api/:path*",
-        destination: `${gatewayUrl}/api/:path*`,
-      },
       {
         source: "/platform/_next/:path*",
         destination: `${platformUrl}/platform/_next/:path*`,

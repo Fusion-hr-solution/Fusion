@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { canAccessPlatform, useAuth } from "@repo/auth";
+import { canAccessPlatform, useHydratedWorkspaceAccess } from "@repo/auth";
 import {
   PageContainer,
   PageHeader,
@@ -23,22 +23,13 @@ export function CoreWorkspaceAccessBoundary({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { user, isLoading } = useAuth();
 
-  // The session is restored by an effect in AuthProvider, which can run while
-  // React is still hydrating this subtree. Resolving access before that point
-  // would render the workspace against server HTML that still holds the
-  // skeleton, and React discards the whole tree and rebuilds it on the client.
-  //
-  // Holding the first client render equal to the server's keeps hydration
-  // intact. It only ever delays showing the workspace — an unresolved session
-  // stays on the skeleton — so the gate cannot open earlier than before.
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
-
-  const state = hydrated
-    ? resolveCoreWorkspaceAccessState({ user, isLoading, pathname })
-    : "loading";
+  // The shared hydration-safe mechanism holds the first client render equal to
+  // the server's until hydration settles, then resolves access from session
+  // claims — so this boundary can never drift back into a hydration mismatch.
+  const { state, user } = useHydratedWorkspaceAccess(({ user, isLoading }) =>
+    resolveCoreWorkspaceAccessState({ user, isLoading, pathname }),
+  );
 
   useEffect(() => {
     if (state !== "sign-in-required") {

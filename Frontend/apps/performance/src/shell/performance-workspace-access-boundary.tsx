@@ -2,7 +2,7 @@
 
 import { useEffect, type ReactNode } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useAuth } from "@repo/auth";
+import { useHydratedWorkspaceAccess } from "@repo/auth";
 import {
   PageContainer,
   PageHeader,
@@ -23,8 +23,14 @@ export function PerformanceWorkspaceAccessBoundary({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { user, isLoading } = useAuth();
-  const state = resolvePerformanceWorkspaceAccessState({ user, isLoading });
+
+  // The shared hydration-safe mechanism holds the first client render equal to
+  // the server's until hydration settles, then resolves access from session
+  // claims. This is what keeps Performance from regenerating its subtree during
+  // hydration — the guard now lives in @repo/auth so it cannot be forgotten.
+  const { state } = useHydratedWorkspaceAccess(
+    resolvePerformanceWorkspaceAccessState,
+  );
 
   useEffect(() => {
     if (state !== "sign-in-required") {

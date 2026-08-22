@@ -1,0 +1,450 @@
+"use client";
+
+import { useMemo } from "react";
+import { useAuth } from "@repo/auth";
+import {
+  coreOrganizationQueryKeys,
+  coreWorkforcePaths,
+  coreWorkforceQueryKeys,
+  createCoreOrganizationApi,
+  createPerformanceApi,
+  createPlatformApiClient,
+  performanceQueryKeys,
+  type AddPlanObjectiveRequest,
+  type AlignObjectiveRequest,
+  type ConfigureContributionRequest,
+  type CreateCycleRequest,
+  type CreateOrganizationalObjectiveRequest,
+  type CreateStrategicObjectiveRequest,
+  type CycleSettingsDto,
+  type ExceptionalApprovePlanRequest,
+  type PerformanceAccessDto,
+  type ReturnObjectiveRequest,
+  type ReturnPlanRequest,
+  type SetPlanWeightsRequest,
+  type SetPopulationRequest,
+  type SubmitProgressRequest,
+  type UpdateCycleRequest,
+  type UpdateOrganizationalObjectiveRequest,
+  type UpdatePlanObjectiveRequest,
+  type UpdateStrategicObjectiveRequest,
+  type WorkforceEmployeeSummaryDto,
+} from "@repo/api";
+import { useApiMutation, useApiQuery } from "@repo/api/query";
+import { resolvePerformanceAccess } from "@/shell/performance-access";
+
+interface EmployeeSearchResponse {
+  items: WorkforceEmployeeSummaryDto[];
+}
+
+function useApis() {
+  const client = useMemo(() => createPlatformApiClient(), []);
+  return useMemo(
+    () => ({
+      performance: createPerformanceApi(client),
+      organization: createCoreOrganizationApi(client),
+    }),
+    [client]
+  );
+}
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * Performance capabilities for the current user, derived from the authenticated
+ * session claims — the client twin of the backend access policy. This removes the
+ * blocking `/performance/access` round-trip that used to gate the whole overview
+ * waterfall: the same booleans the server computes are pure claims checks, so no
+ * network call is needed to know what to show. The backend still enforces every
+ * action; this only governs "hide, don't deny" rendering.
+ *
+ * The result shape matches the react-query hooks (`data`/`isLoading`/`error`/
+ * `refetch`) so existing consumers read unchanged. `data` is undefined until the
+ * session resolves, keeping the content region on its loading state — and never
+ * exposing an access-dependent surface before the session is known.
+ */
+export function usePerformanceAccess(): {
+  data: PerformanceAccessDto | undefined;
+  isLoading: boolean;
+  error: Error | null;
+  refetch: () => void;
+} {
+  const { user, isLoading } = useAuth();
+  return useMemo(
+    () => ({
+      data: isLoading ? undefined : resolvePerformanceAccess(user),
+      isLoading,
+      error: null,
+      refetch: () => undefined,
+    }),
+    [user, isLoading],
+  );
+}
+
+export function useCycles(enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(performanceQueryKeys.cycles(), (signal) => performance.listCycles(signal), {
+    enabled,
+  });
+}
+
+export function useCycle(cycleId: string | null) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.cycle(cycleId ?? "none"),
+    (signal) => performance.getCycle(cycleId as string, signal),
+    { enabled: Boolean(cycleId) }
+  );
+}
+
+/**
+ * The primary/current Cycle's composed detail in one read — no list→detail chain.
+ * The server selects the primary Cycle with the same rule as selectPrimaryCycle,
+ * so the overview obtains its landing data directly and can load the Cycle list
+ * (for the switcher) in parallel rather than gated behind it.
+ */
+export function useCurrentCycle(enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.currentCycle(),
+    (signal) => performance.getCurrentCycle(signal),
+    { enabled }
+  );
+}
+
+export function useSettings(enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(performanceQueryKeys.settings(), (signal) => performance.getSettings(signal), {
+    enabled,
+  });
+}
+
+export function useStrategy(cycleId: string | null) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.strategy(cycleId ?? "none"),
+    (signal) => performance.listStrategy(cycleId as string, signal),
+    { enabled: Boolean(cycleId) }
+  );
+}
+
+export function usePopulation(cycleId: string | null, enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.population(cycleId ?? "none"),
+    (signal) => performance.getPopulation(cycleId as string, signal),
+    { enabled: Boolean(cycleId) && enabled }
+  );
+}
+
+export function useGoals(cycleId: string | null, enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.goals(cycleId ?? "none"),
+    (signal) => performance.getGoals(cycleId as string, signal),
+    { enabled: Boolean(cycleId) && enabled }
+  );
+}
+
+export function useGoal(cycleId: string | null, objectiveId: string | null) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.goal(cycleId ?? "none", objectiveId ?? "none"),
+    (signal) => performance.getGoal(cycleId as string, objectiveId as string, signal),
+    { enabled: Boolean(cycleId) && Boolean(objectiveId) }
+  );
+}
+
+export function useGoalMutations(cycleId: string) {
+  const { performance } = useApis();
+  // Any goal mutation can change the graph and any node's detail, so invalidate the whole goals
+  // area plus the current Cycle detail (counts on the overview).
+  const invalidate = [
+    { queryKey: performanceQueryKeys.goals(cycleId) },
+    { queryKey: [...performanceQueryKeys.all(), "goal", cycleId] },
+    { queryKey: performanceQueryKeys.cycle(cycleId) },
+    { queryKey: performanceQueryKeys.currentCycle() },
+  ];
+  const create = useApiMutation(
+    (request: CreateOrganizationalObjectiveRequest) => performance.createGoal(cycleId, request),
+    { invalidateQueries: invalidate }
+  );
+  const update = useApiMutation(
+    (args: { objectiveId: string; request: UpdateOrganizationalObjectiveRequest }) =>
+      performance.updateGoal(cycleId, args.objectiveId, args.request),
+    { invalidateQueries: invalidate }
+  );
+  const align = useApiMutation(
+    (args: { objectiveId: string; request: AlignObjectiveRequest }) =>
+      performance.alignGoal(cycleId, args.objectiveId, args.request),
+    { invalidateQueries: invalidate }
+  );
+  const submit = useApiMutation((objectiveId: string) => performance.submitGoal(cycleId, objectiveId), {
+    invalidateQueries: invalidate,
+  });
+  const approve = useApiMutation((objectiveId: string) => performance.approveGoal(cycleId, objectiveId), {
+    invalidateQueries: invalidate,
+  });
+  const returnForRevision = useApiMutation(
+    (args: { objectiveId: string; request: ReturnObjectiveRequest }) =>
+      performance.returnGoal(cycleId, args.objectiveId, args.request),
+    { invalidateQueries: invalidate }
+  );
+  const configureContribution = useApiMutation(
+    (args: { objectiveId: string; request: ConfigureContributionRequest }) =>
+      performance.configureGoalContribution(cycleId, args.objectiveId, args.request),
+    { invalidateQueries: invalidate }
+  );
+  const lockContribution = useApiMutation(
+    (objectiveId: string) => performance.lockGoalContribution(cycleId, objectiveId),
+    { invalidateQueries: invalidate }
+  );
+  const remove = useApiMutation((objectiveId: string) => performance.deleteGoal(cycleId, objectiveId), {
+    invalidateQueries: invalidate,
+  });
+  return { create, update, align, submit, approve, returnForRevision, configureContribution, lockContribution, remove };
+}
+
+// ── Employee plans (Chunk C) ───────────────────────────────────────────────────
+
+export function useMyPlan(cycleId: string | null, enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.myPlan(cycleId ?? "none"),
+    (signal) => performance.getMyPlan(cycleId as string, signal),
+    { enabled: Boolean(cycleId) && enabled }
+  );
+}
+
+export function useAlignmentTargets(cycleId: string | null, enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.alignmentTargets(cycleId ?? "none"),
+    (signal) => performance.getAlignmentTargets(cycleId as string, signal),
+    { enabled: Boolean(cycleId) && enabled }
+  );
+}
+
+export function usePlanReviews(cycleId: string | null, enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.planReviews(cycleId ?? "none"),
+    (signal) => performance.getPlanReviews(cycleId as string, signal),
+    { enabled: Boolean(cycleId) && enabled }
+  );
+}
+
+export function usePlanDetail(cycleId: string | null, planId: string | null) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.planDetail(cycleId ?? "none", planId ?? "none"),
+    (signal) => performance.getPlanDetail(cycleId as string, planId as string, signal),
+    { enabled: Boolean(cycleId) && Boolean(planId) }
+  );
+}
+
+/** Employee authoring: create/edit/weight/submit the caller's own plan. */
+export function usePlanMutations(cycleId: string) {
+  const { performance } = useApis();
+  const invalidate = [
+    { queryKey: performanceQueryKeys.myPlan(cycleId) },
+    { queryKey: performanceQueryKeys.cycle(cycleId) },
+    { queryKey: performanceQueryKeys.currentCycle() },
+  ];
+  const create = useApiMutation(() => performance.createMyPlan(cycleId), { invalidateQueries: invalidate });
+  const addObjective = useApiMutation(
+    (request: AddPlanObjectiveRequest) => performance.addPlanObjective(cycleId, request),
+    { invalidateQueries: invalidate }
+  );
+  const updateObjective = useApiMutation(
+    (args: { objectiveId: string; request: UpdatePlanObjectiveRequest }) =>
+      performance.updatePlanObjective(cycleId, args.objectiveId, args.request),
+    { invalidateQueries: invalidate }
+  );
+  const removeObjective = useApiMutation(
+    (objectiveId: string) => performance.removePlanObjective(cycleId, objectiveId),
+    { invalidateQueries: invalidate }
+  );
+  const setWeights = useApiMutation(
+    (request: SetPlanWeightsRequest) => performance.setPlanWeights(cycleId, request),
+    { invalidateQueries: invalidate }
+  );
+  const submit = useApiMutation(() => performance.submitPlan(cycleId), { invalidateQueries: invalidate });
+  return { create, addObjective, updateObjective, removeObjective, setWeights, submit };
+}
+
+/** Manager/administrator decision: return, approve, or exceptionally approve a submitted plan. */
+export function usePlanReviewMutations(cycleId: string, planId: string) {
+  const { performance } = useApis();
+  const invalidate = [
+    { queryKey: performanceQueryKeys.planReviews(cycleId) },
+    { queryKey: performanceQueryKeys.planDetail(cycleId, planId) },
+    { queryKey: performanceQueryKeys.cycle(cycleId) },
+    { queryKey: performanceQueryKeys.currentCycle() },
+  ];
+  const approve = useApiMutation(() => performance.approvePlan(cycleId, planId), { invalidateQueries: invalidate });
+  const returnForRevision = useApiMutation(
+    (request: ReturnPlanRequest) => performance.returnPlan(cycleId, planId, request),
+    { invalidateQueries: invalidate }
+  );
+  const exceptionalApprove = useApiMutation(
+    (request: ExceptionalApprovePlanRequest) => performance.exceptionalApprovePlan(cycleId, planId, request),
+    { invalidateQueries: invalidate }
+  );
+  return { approve, returnForRevision, exceptionalApprove };
+}
+
+// ── Progress & contribution (Chunk D) ──────────────────────────────────────────
+
+export function useObjectiveProgress(cycleId: string | null, objectiveId: string | null) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.objectiveProgress(cycleId ?? "none", objectiveId ?? "none"),
+    (signal) => performance.getObjectiveProgress(cycleId as string, objectiveId as string, signal),
+    { enabled: Boolean(cycleId) && Boolean(objectiveId) }
+  );
+}
+
+export function useContribution(cycleId: string | null, enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.contribution(cycleId ?? "none"),
+    (signal) => performance.getContribution(cycleId as string, signal),
+    { enabled: Boolean(cycleId) && enabled }
+  );
+}
+
+export function useContributionDetail(cycleId: string | null, objectiveId: string | null) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.contributionDetail(cycleId ?? "none", objectiveId ?? "none"),
+    (signal) => performance.getContributionDetail(cycleId as string, objectiveId as string, signal),
+    { enabled: Boolean(cycleId) && Boolean(objectiveId) }
+  );
+}
+
+/** Owner progress recording on one objective, plus evidence staging. Refreshes progress, plan, and contribution. */
+export function useProgressMutations(cycleId: string, objectiveId: string) {
+  const { performance } = useApis();
+  const invalidate = [
+    { queryKey: performanceQueryKeys.objectiveProgress(cycleId, objectiveId) },
+    { queryKey: performanceQueryKeys.myPlan(cycleId) },
+    { queryKey: performanceQueryKeys.contribution(cycleId) },
+    { queryKey: [...performanceQueryKeys.all(), "contribution", cycleId] },
+  ];
+  const submit = useApiMutation(
+    (request: SubmitProgressRequest) => performance.submitProgress(cycleId, objectiveId, request),
+    { invalidateQueries: invalidate }
+  );
+  const uploadEvidence = useApiMutation((file: File) => performance.uploadEvidence(cycleId, file));
+  return { submit, uploadEvidence, evidenceDownloadPath: (id: string) => performance.evidenceDownloadPath(cycleId, id) };
+}
+
+export function useOrgHierarchy(enabled = true) {
+  const { organization } = useApis();
+  const asOf = todayIso();
+  return useApiQuery(
+    coreOrganizationQueryKeys.hierarchy(asOf),
+    (signal) => organization.hierarchy(asOf, signal),
+    { enabled, staleTime: 60_000 }
+  );
+}
+
+export function useEmployeeSearch(term: string) {
+  const client = useMemo(() => createPlatformApiClient(), []);
+  const trimmed = term.trim();
+  return useApiQuery(
+    [...coreWorkforceQueryKeys.all(), "performance-picker", trimmed] as const,
+    (signal) =>
+      client.get<EmployeeSearchResponse>(coreWorkforcePaths.search(), {
+        params: { search: trimmed || null, page: 1, pageSize: 8 },
+        signal,
+      }),
+    { enabled: trimmed.length >= 2, staleTime: 30_000 }
+  );
+}
+
+// ── Mutations ────────────────────────────────────────────────────────────────
+
+export function useCreateCycle() {
+  const { performance } = useApis();
+  return useApiMutation((request: CreateCycleRequest) => performance.createCycle(request), {
+    invalidateQueries: [
+      { queryKey: performanceQueryKeys.cycles() },
+      { queryKey: performanceQueryKeys.currentCycle() },
+    ],
+  });
+}
+
+export function useUpdateCycle(cycleId: string) {
+  const { performance } = useApis();
+  return useApiMutation((request: UpdateCycleRequest) => performance.updateCycle(cycleId, request), {
+    invalidateQueries: [
+      { queryKey: performanceQueryKeys.cycles() },
+      { queryKey: performanceQueryKeys.currentCycle() },
+      { queryKey: performanceQueryKeys.cycle(cycleId) },
+    ],
+  });
+}
+
+export function useActivateCycle(cycleId: string) {
+  const { performance } = useApis();
+  return useApiMutation(() => performance.activateCycle(cycleId), {
+    invalidateQueries: [
+      { queryKey: performanceQueryKeys.cycles() },
+      { queryKey: performanceQueryKeys.currentCycle() },
+      { queryKey: performanceQueryKeys.cycle(cycleId) },
+    ],
+  });
+}
+
+export function useUpdateSettings() {
+  const { performance } = useApis();
+  return useApiMutation((request: CycleSettingsDto) => performance.updateSettings(request), {
+    invalidateQueries: [{ queryKey: performanceQueryKeys.settings() }],
+  });
+}
+
+export function useSaveStrategy(cycleId: string) {
+  const { performance } = useApis();
+  const invalidate = [
+    { queryKey: performanceQueryKeys.strategy(cycleId) },
+    { queryKey: performanceQueryKeys.cycle(cycleId) },
+    { queryKey: performanceQueryKeys.currentCycle() },
+  ];
+  const create = useApiMutation(
+    (request: CreateStrategicObjectiveRequest) => performance.createStrategy(cycleId, request),
+    { invalidateQueries: invalidate }
+  );
+  const update = useApiMutation(
+    (args: { objectiveId: string; request: UpdateStrategicObjectiveRequest }) =>
+      performance.updateStrategy(cycleId, args.objectiveId, args.request),
+    { invalidateQueries: invalidate }
+  );
+  const publish = useApiMutation(
+    (objectiveId: string) => performance.publishStrategy(cycleId, objectiveId),
+    { invalidateQueries: invalidate }
+  );
+  const remove = useApiMutation(
+    (objectiveId: string) => performance.deleteStrategy(cycleId, objectiveId),
+    { invalidateQueries: invalidate }
+  );
+  return { create, update, publish, remove };
+}
+
+export function usePopulationMutations(cycleId: string) {
+  const { performance } = useApis();
+  const invalidate = [
+    { queryKey: performanceQueryKeys.population(cycleId) },
+    { queryKey: performanceQueryKeys.cycle(cycleId) },
+    { queryKey: performanceQueryKeys.currentCycle() },
+  ];
+  const set = useApiMutation(
+    (request: SetPopulationRequest) => performance.setPopulation(cycleId, request),
+    { invalidateQueries: invalidate }
+  );
+  const confirm = useApiMutation(() => performance.confirmPopulation(cycleId), {
+    invalidateQueries: invalidate,
+  });
+  return { set, confirm };
+}
