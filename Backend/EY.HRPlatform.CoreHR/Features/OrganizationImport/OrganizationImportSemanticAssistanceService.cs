@@ -161,18 +161,11 @@ public sealed class OrganizationImportSemanticAssistanceService(
 
         var stopwatch = Stopwatch.StartNew();
         OrganizationImportSemanticProviderResult providerResult;
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 60)));
         try
         {
-            providerResult = await provider.SuggestAsync(semanticRequest, timeout.Token);
+            providerResult = await SuggestWithRetryAsync(semanticRequest, cancellationToken);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            await FailAttemptAsync(attempt.Id, OrganizationImportSemanticFailureCategory.Timeout, stopwatch.ElapsedMilliseconds, null);
-            return await ReloadAndMapAsync(attempt.Id, semanticRequest, CancellationToken.None);
-        }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             await FailAttemptAsync(attempt.Id, OrganizationImportSemanticFailureCategory.Interrupted, stopwatch.ElapsedMilliseconds, null);
             throw;
@@ -180,16 +173,6 @@ public sealed class OrganizationImportSemanticAssistanceService(
         catch (OrganizationImportSemanticProviderException exception)
         {
             await FailAttemptAsync(attempt.Id, exception.Category, stopwatch.ElapsedMilliseconds, exception.RetryAfter);
-            return await ReloadAndMapAsync(attempt.Id, semanticRequest, CancellationToken.None);
-        }
-        catch (HttpRequestException)
-        {
-            await FailAttemptAsync(attempt.Id, OrganizationImportSemanticFailureCategory.ProviderUnavailable, stopwatch.ElapsedMilliseconds, null);
-            return await ReloadAndMapAsync(attempt.Id, semanticRequest, CancellationToken.None);
-        }
-        catch (Exception)
-        {
-            await FailAttemptAsync(attempt.Id, OrganizationImportSemanticFailureCategory.ProviderUnavailable, stopwatch.ElapsedMilliseconds, null);
             return await ReloadAndMapAsync(attempt.Id, semanticRequest, CancellationToken.None);
         }
 
@@ -369,6 +352,91 @@ public sealed class OrganizationImportSemanticAssistanceService(
             outcomes.Count(item => item.Outcome == OrganizationImportSemanticReviewOutcome.Rejected));
         foreach (var outcome in outcomes) OrganizationImportSemanticTelemetry.RecordDisposition(outcome.Outcome);
         OrganizationImportSemanticTelemetry.RecordApplication();
+    }
+
+    // The provider makes two sequential calls per import (field mapping, then type mapping). The
+    // second (type) call is the heavier one and is the first to be throttled or hit a transient
+    // provider error — and a single failure otherwise drops the administrator straight into manual
+    // type selection. A bounded retry with backoff (honouring the provider's Retry-After) lets a
+    // transient throttle or blip self-heal so the interpretation completes on its own.
+    private async Task<OrganizationImportSemanticProviderResult> SuggestWithRetryAsync(
+        OrganizationImportSemanticRequest request,
+        CancellationToken cancellationToken)
+    {
+        var maxAttempts = Math.Clamp(options.MaxProviderAttempts, 1, 5);
+        OrganizationImportSemanticProviderException lastFailure = new(
+            OrganizationImportSemanticFailureCategory.ProviderUnavailable,
+            "Suggestions are unavailable right now. Continue with manual review.");
+        for (var attemptNumber = 1; attemptNumber <= maxAttempts; attemptNumber++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 60)));
+            try
+            {
+                return await provider.SuggestAsync(request, timeout.Token);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw; // The caller cancelled — surface as Interrupted upstream, do not retry.
+            }
+            catch (OperationCanceledException)
+            {
+                lastFailure = new(
+                    OrganizationImportSemanticFailureCategory.Timeout,
+                    "Suggestions timed out. Continue manually or retry.");
+            }
+            catch (OrganizationImportSemanticProviderException exception) when (IsTransient(exception.Category))
+            {
+                lastFailure = exception;
+            }
+            catch (OrganizationImportSemanticProviderException)
+            {
+                throw; // NotConfigured / InvalidOutput are deterministic — retrying will not help.
+            }
+            catch (HttpRequestException)
+            {
+                lastFailure = new(
+                    OrganizationImportSemanticFailureCategory.ProviderUnavailable,
+                    "Suggestions are unavailable right now. Continue with manual review.");
+            }
+            catch (Exception)
+            {
+                lastFailure = new(
+                    OrganizationImportSemanticFailureCategory.ProviderUnavailable,
+                    "Suggestions are unavailable right now. Continue with manual review.");
+            }
+
+            if (attemptNumber >= maxAttempts) break;
+            var delay = RetryBackoff(attemptNumber, lastFailure.RetryAfter);
+            logger.LogInformation(
+                "Organization import semantic assistance retrying. Attempt={AttemptNumber} Category={Category} DelayMs={DelayMs}",
+                attemptNumber,
+                lastFailure.Category,
+                (int)delay.TotalMilliseconds);
+            if (delay > TimeSpan.Zero) await Task.Delay(delay, cancellationToken);
+        }
+        throw lastFailure;
+    }
+
+    private static bool IsTransient(OrganizationImportSemanticFailureCategory category)
+        => category is OrganizationImportSemanticFailureCategory.RateLimited
+            or OrganizationImportSemanticFailureCategory.ProviderUnavailable
+            or OrganizationImportSemanticFailureCategory.Timeout;
+
+    private static TimeSpan RetryBackoff(int attemptNumber, DateTime? retryAfter)
+    {
+        // Exponential 0.75s, 1.5s, 3s… floored by any provider Retry-After and capped so the overall
+        // interpretation stays responsive rather than blocking on a long throttle window.
+        var backoff = TimeSpan.FromMilliseconds(750 * Math.Pow(2, attemptNumber - 1));
+        if (retryAfter is DateTime when)
+        {
+            var wait = when - DateTime.UtcNow;
+            if (wait > backoff) backoff = wait;
+        }
+        var cap = TimeSpan.FromSeconds(10);
+        if (backoff < TimeSpan.Zero) return TimeSpan.Zero;
+        return backoff > cap ? cap : backoff;
     }
 
     private async Task<OrganizationImportSession> LoadSessionAsync(Guid sessionId, CancellationToken cancellationToken)

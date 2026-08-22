@@ -78,7 +78,12 @@ public sealed class GroqOrganizationImportSemanticProvider(
                 },
             },
             temperature = 0.1,
-            max_completion_tokens = 1200,
+            // This is a bounded classification task, not open-ended generation. Low reasoning effort
+            // keeps the mapping quality while cutting the hidden reasoning tokens (and the per-request
+            // token reservation) so both the field and type calls comfortably fit the provider's
+            // tokens-per-minute budget instead of throttling the second (type) call.
+            max_completion_tokens = 800,
+            reasoning_effort = "low",
             stream = false,
             response_format = new
             {

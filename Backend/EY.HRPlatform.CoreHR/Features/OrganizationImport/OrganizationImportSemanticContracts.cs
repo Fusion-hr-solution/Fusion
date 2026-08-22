@@ -21,6 +21,7 @@ public sealed class OrganizationImportSemanticAssistanceOptions
     public int MaxValueCharacters { get; set; } = 120;
     public int MaxPayloadBytes { get; set; } = 20 * 1024;
     public int MaxRationaleCharacters { get; set; } = 180;
+    public int MaxProviderAttempts { get; set; } = 3;
     public string ContractVersion { get; set; } = DefaultContractVersion;
     public string? ApiKey { get; set; }
 }

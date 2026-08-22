@@ -141,6 +141,7 @@ public static class ServiceCollectionExtensions
             || options.MaxValueCharacters is < 16 or > 120
             || options.MaxPayloadBytes is < 4096 or > 20480
             || options.MaxRationaleCharacters is < 40 or > 180
+            || options.MaxProviderAttempts is < 1 or > 5
             || string.IsNullOrWhiteSpace(options.ContractVersion))
             throw new InvalidOperationException("OrganizationImport:SemanticAssistance contains an invalid non-secret limit or contract version.");
     }
