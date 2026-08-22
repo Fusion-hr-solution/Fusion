@@ -108,6 +108,61 @@ public static class AccessProfileTemplates
     /// </summary>
     public static IReadOnlyList<SeededAccessProfileTemplate> All => [Employee, Manager, HrAdmin, OrgAdmin];
 
+    /// <summary>
+    /// Performance participation grants added to each seeded profile only when the
+    /// tenant holds the Performance entitlement. This is the entitlement-gated seed
+    /// path referenced by the Performance authorization design (Decision 2): the
+    /// widest breadth an ordinary profile carries in the MVP is <c>@DirectReports</c>
+    /// (managers reviewing their own reports); <c>performance.cycle.view @OrgUnit</c>
+    /// is deliberately left unseeded because Core exposes no canonical OrgUnit-leader
+    /// relationship to bind it to. Broad tenant administration and strategy authority
+    /// ride on <see cref="BuildTenantAdministrator"/> (all four at their widest scope).
+    /// </summary>
+    private static readonly IReadOnlyDictionary<string, IReadOnlyList<EffectivePermissionGrant>> PerformanceGrantsByInternalKey =
+        new Dictionary<string, IReadOnlyList<EffectivePermissionGrant>>(StringComparer.Ordinal)
+        {
+            ["employee"] =
+            [
+                new(PerformancePermissions.CycleView, PermissionScopes.Self),
+                new(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self),
+            ],
+            ["manager"] =
+            [
+                new(PerformancePermissions.CycleView, PermissionScopes.DirectReports),
+                new(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self),
+            ],
+            ["hr-admin"] =
+            [
+                new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
+                new(PerformancePermissions.CycleManage, PermissionScopes.Tenant),
+            ],
+            ["org-admin"] =
+            [
+                new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
+                new(PerformancePermissions.CycleManage, PermissionScopes.Tenant),
+                new(PerformancePermissions.StrategyPublish, PermissionScopes.Tenant),
+            ],
+        };
+
+    /// <summary>
+    /// The seeded profiles for a tenant, with each module's participation grants
+    /// folded in only when the tenant holds that module's entitlement. The Tenant
+    /// Administrator is composed separately through <see cref="BuildTenantAdministrator"/>.
+    /// </summary>
+    public static IReadOnlyList<SeededAccessProfileTemplate> ComposeSeeded(bool performanceEnabled)
+        => All
+            .Select(template =>
+            {
+                if (!performanceEnabled
+                    || !PerformanceGrantsByInternalKey.TryGetValue(template.InternalKey, out var extra))
+                {
+                    return template;
+                }
+
+                return template with { Grants = [.. template.Grants, .. extra] };
+            })
+            .ToList();
+
     public static SeededAccessProfileTemplate? GetByInternalKey(string internalKey)
         => All.FirstOrDefault(t =>
             string.Equals(t.InternalKey, internalKey, StringComparison.Ordinal));

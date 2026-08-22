@@ -67,10 +67,10 @@ public sealed class AuthSessionFactory(
                 {
                     PermissionKey = grant.PermissionKey,
                     Scope = grant.Scope,
-                    Label = CorePermissionCatalog.Get(grant.PermissionKey).Label,
-                    Group = CorePermissionCatalog.Get(grant.PermissionKey).Group,
-                    HelperText = CorePermissionCatalog.Get(grant.PermissionKey).HelperText,
-                    AllowedScopes = CorePermissionCatalog.Get(grant.PermissionKey).AllowedScopes.ToList(),
+                    Label = PermissionCatalog.Get(grant.PermissionKey).Label,
+                    Group = PermissionCatalog.Get(grant.PermissionKey).Group,
+                    HelperText = PermissionCatalog.Get(grant.PermissionKey).HelperText,
+                    AllowedScopes = PermissionCatalog.Get(grant.PermissionKey).AllowedScopes.ToList(),
                 })
                 .ToList();
 

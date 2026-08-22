@@ -70,13 +70,14 @@ public static class ModulePermissionRegistry
         ]);
 
     /// <summary>
-    /// Performance owns no permissions yet. The registration point is declared so
-    /// the module adds its own permissions from its own shared contract rather
-    /// than by editing the Core catalogue.
+    /// Performance contributes its own catalogue slice from its own shared contract
+    /// (<see cref="PerformancePermissionCatalog"/>) rather than by editing the Core
+    /// catalogue. Composed into the Tenant Administrator only when the tenant holds
+    /// the Performance entitlement.
     /// </summary>
     private static readonly ModulePermissionContribution Performance = new(
         PermissionModuleKeys.Performance,
-        []);
+        PerformancePermissionCatalog.Definitions);
 
     public static IReadOnlyList<ModulePermissionContribution> All { get; } =
         [CoreHR, Performance, Learning, Interview];

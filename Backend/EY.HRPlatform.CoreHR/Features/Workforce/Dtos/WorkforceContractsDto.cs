@@ -132,6 +132,10 @@ public sealed record InternalWorkforceEmployeesByScopeRequest(
     bool IncludeDescendants = true,
     bool IncludeInactive = false);
 
+public sealed record InternalWorkforceAllActiveRequest(
+    DateTime AsOf,
+    bool IncludeInactive = false);
+
 public sealed record WorkforceOrgUnitSummaryDto(
     Guid Id,
     string StableKey,

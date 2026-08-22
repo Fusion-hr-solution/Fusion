@@ -118,7 +118,7 @@ public sealed class AccessProfileService(
 
     public Task<IReadOnlyList<CorePermissionCatalogItemDto>> GetPermissionCatalogAsync(CancellationToken cancellationToken = default)
         => Task.FromResult<IReadOnlyList<CorePermissionCatalogItemDto>>(
-            CorePermissionCatalog.All
+            PermissionCatalog.All
                 .Select(definition => new CorePermissionCatalogItemDto
                 {
                     PermissionKey = definition.Key,
@@ -812,9 +812,11 @@ public sealed class AccessProfileService(
             .Select(entitlement => entitlement.Module)
             .ToListAsync(cancellationToken);
 
-        var templates = AccessProfileTemplates.All
-            .Append(AccessProfileTemplates.BuildTenantAdministrator(
-                enabledModuleKeys.Select(ModulePermissionKeyFor)))
+        var modulePermissionKeys = enabledModuleKeys.Select(ModulePermissionKeyFor).ToList();
+        var performanceEnabled = modulePermissionKeys.Contains(PermissionModuleKeys.Performance, StringComparer.Ordinal);
+
+        var templates = AccessProfileTemplates.ComposeSeeded(performanceEnabled)
+            .Append(AccessProfileTemplates.BuildTenantAdministrator(modulePermissionKeys))
             .ToList();
 
         foreach (var template in templates)
@@ -927,7 +929,7 @@ public sealed class AccessProfileService(
 
         foreach (var input in grants)
         {
-            var grant = CorePermissionCatalog.NormalizeGrant(input.PermissionKey, input.Scope)
+            var grant = PermissionCatalog.NormalizeGrant(input.PermissionKey, input.Scope)
                 ?? throw new InvalidOperationException($"Invalid permission or scope: {input.PermissionKey} / {input.Scope}.");
 
             if (!normalized.TryGetValue(grant.PermissionKey, out var current))
@@ -1018,15 +1020,15 @@ public sealed class AccessProfileService(
             UpdatedAt = profile.UpdatedAt,
             Version = profile.Version,
             Grants = profile.Grants
-                .OrderBy(grant => CorePermissionCatalog.Get(grant.PermissionKey).Group)
-                .ThenBy(grant => CorePermissionCatalog.Get(grant.PermissionKey).Label)
+                .OrderBy(grant => PermissionCatalog.Get(grant.PermissionKey).Group)
+                .ThenBy(grant => PermissionCatalog.Get(grant.PermissionKey).Label)
                 .Select(grant => MapGrant(new EffectivePermissionGrant(grant.PermissionKey, grant.Scope)))
                 .ToList(),
         };
 
     private static EffectivePermissionGrantDto MapGrant(EffectivePermissionGrant grant)
     {
-        var definition = CorePermissionCatalog.Get(grant.PermissionKey);
+        var definition = PermissionCatalog.Get(grant.PermissionKey);
         return new EffectivePermissionGrantDto
         {
             PermissionKey = grant.PermissionKey,

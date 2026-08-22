@@ -6,7 +6,7 @@ public static class CorePermissionClaimValue
 
     public static string Encode(string permissionKey, string scope)
     {
-        var normalized = CorePermissionCatalog.NormalizeGrant(permissionKey, scope)
+        var normalized = PermissionCatalog.NormalizeGrant(permissionKey, scope)
             ?? throw new ArgumentException($"Invalid permission grant '{permissionKey}' / '{scope}'.", nameof(permissionKey));
 
         return $"{normalized.PermissionKey}{Separator}{normalized.Scope}";
@@ -29,7 +29,7 @@ public static class CorePermissionClaimValue
 
         var permissionKey = value[..separatorIndex];
         var scope = value[(separatorIndex + 1)..];
-        grant = CorePermissionCatalog.NormalizeGrant(permissionKey, scope);
+        grant = PermissionCatalog.NormalizeGrant(permissionKey, scope);
         return grant is not null;
     }
 }

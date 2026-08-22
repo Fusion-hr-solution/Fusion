@@ -19,6 +19,16 @@ public interface IInternalWorkforceSnapshotService
         bool includeDescendants,
         bool includeInactive,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// All active/eligible employees for the tenant as-of a date: those with active employment
+    /// and an active primary assignment on that date. Additive convenience so Performance can
+    /// resolve an "all eligible active" population entirely through the snapshot contract.
+    /// </summary>
+    Task<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>> GetAllActiveAsOfAsync(
+        DateTime asOf,
+        bool includeInactive,
+        CancellationToken cancellationToken);
 }
 
 public sealed class InternalWorkforceSnapshotService(CoreHRDbContext dbContext) : IInternalWorkforceSnapshotService
@@ -66,6 +76,44 @@ public sealed class InternalWorkforceSnapshotService(CoreHRDbContext dbContext) 
             .AsNoTracking()
             .Where(w => targetOrgUnitIds.Contains(w.OrgUnitId)
                 && w.IsPrimary
+                && activeEmploymentIds.Contains(w.EmploymentId)
+                && w.EffectiveFrom <= at
+                && (w.EffectiveTo == null || at < w.EffectiveTo))
+            .Select(w => w.EmployeeId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (employeeIds.Count == 0)
+        {
+            return [];
+        }
+
+        var snapshots = await BuildSnapshotsAsync(at, employeeIds, cancellationToken);
+        return includeInactive
+            ? snapshots
+            : snapshots.Where(snapshot => snapshot.IsActive).ToList();
+    }
+
+    public async Task<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>> GetAllActiveAsOfAsync(
+        DateTime asOf,
+        bool includeInactive,
+        CancellationToken cancellationToken)
+    {
+        var at = Normalize(asOf);
+
+        // Eligible = active employment AND an active primary assignment on the as-of date.
+        // Resolved through the same tenant-filtered machinery as by-scope; the query filter
+        // scopes every set to the caller's tenant, so no cross-tenant workforce leaks.
+        var activeEmploymentIds = dbContext.Employments
+            .AsNoTracking()
+            .Where(e => e.Status == EmploymentStatus.Active
+                && e.EffectiveFrom <= at
+                && (e.EffectiveTo == null || at < e.EffectiveTo))
+            .Select(e => e.Id);
+
+        var employeeIds = await dbContext.WorkAssignments
+            .AsNoTracking()
+            .Where(w => w.IsPrimary
                 && activeEmploymentIds.Contains(w.EmploymentId)
                 && w.EffectiveFrom <= at
                 && (w.EffectiveTo == null || at < w.EffectiveTo))

@@ -43,4 +43,18 @@ public sealed class InternalWorkforceSnapshotsController(
             request.IncludeInactive,
             cancellationToken));
     }
+
+    [HttpPost("all-active")]
+    public async Task<ActionResult<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>>> GetAllActive(
+        [FromBody] InternalWorkforceAllActiveRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await authorizer.AuthorizeAsync(Request, cancellationToken))
+            return Unauthorized();
+
+        return Ok(await workforceSnapshotService.GetAllActiveAsOfAsync(
+            request.AsOf,
+            request.IncludeInactive,
+            cancellationToken));
+    }
 }

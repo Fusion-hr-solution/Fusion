@@ -1,19 +1,32 @@
 using System.Text;
+using System.Text.Json.Serialization;
+using EY.HRPlatform.Performance.Extensions;
+using EY.HRPlatform.Performance.Infrastructure.Persistence;
+using EY.HRPlatform.Performance.Middleware;
 using EY.HRPlatform.SharedKernel.Auth;
+using EY.HRPlatform.SharedKernel.Multitenancy;
+using EY.HRPlatform.SharedKernel.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using EY.HRPlatform.SharedKernel.Security;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Performance has no business endpoints yet. It still establishes its security
-// boundary now so that the first endpoint added here is protected by default
-// rather than accidentally public: anything that is not explicitly anonymous
-// requires an authenticated caller whose session carries a membership-derived
-// customer tenant and the Performance entitlement for that tenant.
+builder.Host.UseSerilog((ctx, cfg) => cfg.ReadFrom.Configuration(ctx.Configuration));
+
+// Performance now hosts the Cycle & Goals product. It keeps the same security boundary the
+// foundation established: JWT + the Performance module entitlement (deny-by-default fallback)
+// + gateway-only binding + internal-service body buffering.
 var jwtSecret = builder.Configuration["Jwt:Secret"]
     ?? throw new InvalidOperationException("Jwt:Secret is not configured.");
+
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -26,8 +39,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtSecret)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
             ClockSkew = TimeSpan.Zero
         };
     });
@@ -41,11 +53,12 @@ builder.Services.AddAuthorization(options =>
         .Build();
 });
 
-builder.Services.AddHealthChecks();
+builder.Services.AddPerformanceMultitenancy();
+builder.Services.AddPerformanceApplication(builder.Configuration);
+builder.Services.AddPerformancePersistence(builder.Configuration);
 
-// Customer traffic reaches this service only through the Gateway, which is where
-// withdrawn tenant access is enforced per request. Refuse to start somewhere it
-// could be reached around that.
+// Customer traffic reaches this service only through the Gateway, which is where withdrawn
+// tenant access is enforced per request. Refuse to start somewhere it could be reached around that.
 GatewayOnlyBindingGuard.Verify(
     "Performance",
     builder.Configuration["Urls"] ?? builder.Configuration["ASPNETCORE_URLS"],
@@ -53,17 +66,36 @@ GatewayOnlyBindingGuard.Verify(
 
 var app = builder.Build();
 
-// Before routing and model binding: signatures on internal routes are
-// body-bound, and a request stream can only be read once.
+if (builder.Configuration.GetValue<bool>("Database:AutoMigrate"))
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<PerformanceDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger(c => c.RouteTemplate = "api/performance/swagger/{documentName}/swagger.json");
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("v1/swagger.json", "Performance API v1");
+        c.RoutePrefix = "api/performance/swagger";
+    });
+}
+
+app.UseSerilogRequestLogging();
+
+// Before routing and model binding: signatures on internal routes are body-bound, and a
+// request stream can only be read once.
 app.UseInternalServiceBodyBuffering();
 
 app.UseAuthentication();
+app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
 
-// Liveness and readiness are infrastructure probes, not customer data, so they
-// stay anonymous and are the only endpoints exempt from the boundary above.
-app.MapHealthChecks("/health/live").AllowAnonymous();
-app.MapHealthChecks("/health/ready").AllowAnonymous();
+app.MapControllers();
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("ready") }).AllowAnonymous();
 
 app.Run();
 

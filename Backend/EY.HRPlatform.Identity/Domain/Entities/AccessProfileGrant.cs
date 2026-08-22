@@ -26,9 +26,9 @@ public class AccessProfileGrant : ITenantEntity
         if (accessProfileId == Guid.Empty)
             throw new ArgumentException("AccessProfileId is required.", nameof(accessProfileId));
 
-        var normalizedGrant = CorePermissionCatalog.NormalizeGrant(permissionKey, scope)
+        var normalizedGrant = PermissionCatalog.NormalizeGrant(permissionKey, scope)
             ?? throw new ArgumentException(
-                $"Invalid Core permission grant '{permissionKey}' / '{scope}'.",
+                $"Invalid permission grant '{permissionKey}' / '{scope}'.",
                 nameof(permissionKey));
 
         return new AccessProfileGrant
