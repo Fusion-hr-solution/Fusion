@@ -14,10 +14,23 @@ export const DIFFICULTY_LEVELS: DifficultyLevel[] = [
   "Entry", "Mid", "Senior", "Lead", "Executive",
 ];
 
-export const QUESTION_TYPES: QuestionType[] = [
-  "Coding", "SQL", "Multiple Choice", "Essay",
-  "Case Study", "Excel", "True/False", "Design", "Frontend Project",
-];
+// Exhaustive by construction: a Record over the union fails to compile when a member is missing,
+// so adding a QuestionType forces it into this list. A plain `QuestionType[]` literal accepts a
+// subset without complaint — which is exactly how "Frontend Project" went missing from a duplicate
+// of this list and silently degraded those questions to "Essay" on read-back.
+const QUESTION_TYPE_ORDER: Record<QuestionType, true> = {
+  "Coding": true,
+  "SQL": true,
+  "Multiple Choice": true,
+  "Essay": true,
+  "Case Study": true,
+  "Excel": true,
+  "True/False": true,
+  "Design": true,
+  "Frontend Project": true,
+};
+
+export const QUESTION_TYPES = Object.keys(QUESTION_TYPE_ORDER) as QuestionType[];
 
 // Frameworks a "Frontend Project" question can be built/assessed in.
 export const FRONTEND_FRAMEWORKS: { label: string; value: string }[] = [

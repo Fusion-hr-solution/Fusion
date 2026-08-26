@@ -8,6 +8,7 @@ using EY.HRPlatform.Interview.Models.Questions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 
 namespace EY.HRPlatform.Interview.Tests.Features.Questions;
 
@@ -220,7 +221,7 @@ public class QuestionGeneratorServiceTests
         });
 
         var http = new HttpClient(handler) { BaseAddress = new Uri("https://stub.groq.local") };
-        return new GroqClient(http);
+        return new GroqClient(http, Options.Create(new GroqOptions()));
     }
 
     private sealed class StubHandler(Func<HttpResponseMessage> responder) : HttpMessageHandler

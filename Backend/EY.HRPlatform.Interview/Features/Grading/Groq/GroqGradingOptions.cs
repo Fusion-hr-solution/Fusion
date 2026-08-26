@@ -22,4 +22,12 @@ public sealed class GroqGradingOptions
 
     /// <summary>Sampling temperature for each pass — high enough to make passes genuinely independent.</summary>
     public double PassTemperature { get; set; } = 0.4;
+
+    /// <summary>
+    /// Completion budget per pass. On a reasoning model this covers the thinking
+    /// tokens as well as the verdict, so it has to leave room for both: too low and
+    /// the pass is truncated before the JSON arrives and the question is needlessly
+    /// flagged for human review.
+    /// </summary>
+    public int MaxCompletionTokens { get; set; } = 1536;
 }

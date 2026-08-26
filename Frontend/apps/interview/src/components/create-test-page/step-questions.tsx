@@ -31,14 +31,21 @@ const DIFF_STYLES: Record<Difficulty, string> = {
   Expert: "bg-purple-50 text-purple-700 border-purple-100",
 };
 
+/** Creation time in epoch ms; 0 for a question saved before createdAt was exposed. */
+function createdAtMs(question: Question): number {
+  const parsed = Date.parse(question.createdAt);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
 // ─── Sortable selected-question row ──────────────────────────────────────────
 
 function SortableRow({
-  question, index, flagged, onPreview, onRemove,
+  question, index, flagged, onEdit, onPreview, onRemove,
 }: {
   question: Question;
   index: number;
   flagged: boolean;
+  onEdit: (question: Question) => void;
   onPreview: (question: Question) => void;
   onRemove: (id: string) => void;
 }) {
@@ -92,8 +99,16 @@ function SortableRow({
         <button
           onClick={() => onPreview(question)}
           className="rounded-md p-0.5 text-zinc-300 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-500"
-          title="Edit / Preview"
-          aria-label="Edit or preview question"
+          title="Preview"
+          aria-label="Preview question"
+        >
+          <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+        <button
+          onClick={() => onEdit(question)}
+          className="rounded-md p-0.5 text-zinc-300 transition-colors duration-150 hover:bg-zinc-100 hover:text-zinc-500"
+          title="Edit"
+          aria-label="Edit question"
         >
           <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
@@ -115,7 +130,7 @@ function SortableRow({
 export function StepQuestions() {
   const router = useRouter();
   const {
-    selectedQuestions, addQuestion, removeQuestion,
+    selectedQuestions, addQuestion, removeQuestion, updateSelectedQuestion,
     reorderQuestions, isQuestionSelected, nextStep, prevStep,
     previewFlaggedQuestionIds,
     togglePreviewFlaggedQuestion,
@@ -151,8 +166,10 @@ export function StepQuestions() {
   }
 
   function handleAiSaved(created: Question[]) {
-    // Surface the new questions in the library and select them into the test.
+    // Surface the new questions in the library and select them into the test. Jump back to the
+    // first page so they are actually visible — under the default "newest" sort they land there.
     setQuestionLibrary((prev) => [...created, ...prev]);
+    setLibPage(1);
     created.forEach((q) => addQuestion(q));
   }
   useEffect(() => {
@@ -163,7 +180,16 @@ export function StepQuestions() {
       setLibraryError(null);
       try {
         const data = await getQuestions();
-        if (isMounted) setQuestionLibrary(data);
+        if (isMounted) {
+          setQuestionLibrary(data);
+          // The store persists whole Question objects to localStorage, so a selection made
+          // before a mapping or schema change keeps serving its stale copy forever — which is
+          // why Frontend Project questions still previewed as "Essay" after the type-mapping
+          // fix. Re-seat each selection on the copy the API just returned.
+          data.forEach((fresh) => {
+            if (isQuestionSelected(fresh.id)) updateSelectedQuestion(fresh);
+          });
+        }
       } catch (err) {
         if (isMounted) {
           setLibraryError(err instanceof Error ? err.message : "Failed to load question library.");
@@ -227,8 +253,11 @@ export function StepQuestions() {
       return true;
     })
     .sort((a, b) => {
-      if (sortBy === "newest")    return b.id.localeCompare(a.id);
-      if (sortBy === "oldest")    return a.id.localeCompare(b.id);
+      // Ids are random GUIDs, so comparing them ordered the library arbitrarily and scattered
+      // freshly created questions across pages. createdAt is the real ordering key; the id
+      // tiebreak keeps a batch saved in the same instant from reshuffling between renders.
+      if (sortBy === "newest")    return createdAtMs(b) - createdAtMs(a) || a.id.localeCompare(b.id);
+      if (sortBy === "oldest")    return createdAtMs(a) - createdAtMs(b) || a.id.localeCompare(b.id);
       if (sortBy === "most_used") return b.usageCount - a.usageCount;
       if (sortBy === "points")    return b.points - a.points;
       return 0;
@@ -779,6 +808,9 @@ export function StepQuestions() {
                           question={q}
                           index={i}
                           flagged={flaggedIdSet.has(q.id)}
+                          onEdit={(question) =>
+                            router.push(`/tests/create/questions/${question.id}/edit?from=/tests/create`)
+                          }
                           onPreview={(question) => setPreviewQ(question)}
                           onRemove={removeQuestion}
                         />
@@ -834,7 +866,7 @@ export function StepQuestions() {
       {previewQ && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
+            className="absolute inset-0"
             onClick={() => setPreviewQ(null)}
           />
           <div className="relative z-10 w-[560px] animate-in fade-in-0 zoom-in-95 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl duration-200">

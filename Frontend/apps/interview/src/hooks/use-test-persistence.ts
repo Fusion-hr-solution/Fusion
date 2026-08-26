@@ -47,6 +47,7 @@ export function useTestPersistence() {
       enableProctoring: config.enableProctoring,
       enableActivityMonitoring: config.enableActivityMonitoring,
       restrictCopyPaste: config.restrictCopyPaste,
+      passingThreshold: config.passingThreshold,
     });
 
     // Guard against any backend fallback to Draft when publishing.
@@ -68,6 +69,7 @@ export function useTestPersistence() {
             enableProctoring: config.enableProctoring,
             enableActivityMonitoring: config.enableActivityMonitoring,
             restrictCopyPaste: config.restrictCopyPaste,
+            passingThreshold: config.passingThreshold,
           })
         : saved;
 

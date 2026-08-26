@@ -40,6 +40,9 @@ type AnswerDraft = {
   questionId: string;
   answerText?: string;
   selectedOptionIds?: string[];
+  /** Seconds the candidate spent on this question; accumulated client-side, consumed by the report.
+   * Rides inside AnswersJson — grading ignores it, older attempts omit it. */
+  secondsSpent?: number;
 };
 
 function parseSavedAnswers(raw: string): Record<string, AnswerDraft> {
@@ -65,6 +68,7 @@ function parseSavedAnswers(raw: string): Record<string, AnswerDraft> {
         questionId?: unknown;
         answerText?: unknown;
         selectedOptionIds?: unknown;
+        secondsSpent?: unknown;
       };
       if (typeof response.questionId !== "string" || response.questionId.length === 0) {
         continue;
@@ -76,6 +80,12 @@ function parseSavedAnswers(raw: string): Record<string, AnswerDraft> {
         selectedOptionIds: Array.isArray(response.selectedOptionIds)
           ? response.selectedOptionIds.filter((value): value is string => typeof value === "string")
           : undefined,
+        secondsSpent:
+          typeof response.secondsSpent === "number" &&
+          Number.isFinite(response.secondsSpent) &&
+          response.secondsSpent >= 0
+            ? Math.round(response.secondsSpent)
+            : undefined,
       };
     }
 
@@ -85,11 +95,19 @@ function parseSavedAnswers(raw: string): Record<string, AnswerDraft> {
   }
 }
 
-function toAnswersPayload(drafts: Record<string, AnswerDraft>): { responses: AnswerDraft[] } {
+function toAnswersPayload(
+  drafts: Record<string, AnswerDraft>,
+  timeSpent: Record<string, number> = {}
+): { responses: AnswerDraft[] } {
   return {
-    responses: Object.values(drafts).filter((item) =>
-      Boolean((item.answerText && item.answerText.trim().length > 0) || (item.selectedOptionIds && item.selectedOptionIds.length > 0))
-    ),
+    responses: Object.values(drafts)
+      .filter((item) =>
+        Boolean((item.answerText && item.answerText.trim().length > 0) || (item.selectedOptionIds && item.selectedOptionIds.length > 0))
+      )
+      .map((item) => {
+        const seconds = timeSpent[item.questionId] ?? item.secondsSpent;
+        return seconds != null && seconds > 0 ? { ...item, secondsSpent: Math.round(seconds) } : item;
+      }),
   };
 }
 
@@ -266,6 +284,25 @@ export default function CandidateStartPage() {
   // Layer A webcam proctoring: the candidate must give recorded consent before the camera is touched.
   const [proctorConsent, setProctorConsent] = useState(false);
   const startedRef = useRef(false);
+
+  // Per-question time capture: accumulate wall-clock seconds on the active question so the reviewer
+  // report can cross-reference time vs. score. Time only accrues while an attempt is running and the
+  // tab is visible. Banked into timeSpentRef; merged into the submit payload.
+  const timeSpentRef = useRef<Record<string, number>>({});
+  const activeQuestionIdRef = useRef<string | null>(null);
+  const activeSinceRef = useRef<number | null>(null);
+
+  const flushActiveTime = useCallback(() => {
+    const questionId = activeQuestionIdRef.current;
+    const since = activeSinceRef.current;
+    if (questionId && since != null) {
+      const elapsed = Math.round((Date.now() - since) / 1000);
+      if (elapsed > 0) {
+        timeSpentRef.current[questionId] = (timeSpentRef.current[questionId] ?? 0) + elapsed;
+      }
+    }
+    activeSinceRef.current = null;
+  }, []);
   const frontendSlotRef = useRef<HTMLDivElement | null>(null);
   const startAttemptRef = useRef<() => Promise<void>>(async () => {});
   const frontendChangeRef = useRef<(value: string) => void>(() => {});
@@ -527,6 +564,13 @@ export default function CandidateStartPage() {
         (question) => !isAnsweredDraft(parsedAnswers[question.id])
       );
 
+      // Restore any time banked in a prior (resumed) session so accrual continues, not restarts.
+      timeSpentRef.current = Object.fromEntries(
+        Object.values(parsedAnswers)
+          .filter((draft) => typeof draft.secondsSpent === "number" && draft.secondsSpent > 0)
+          .map((draft) => [draft.questionId, draft.secondsSpent as number])
+      );
+
       setSession(data);
       setAnswers(parsedAnswers);
       setCurrentIndex(firstUnansweredIndex >= 0 ? firstUnansweredIndex : 0);
@@ -572,6 +616,45 @@ export default function CandidateStartPage() {
     if (frontendQuestion) updateTextAnswer(frontendQuestion.id, value);
   };
 
+  // Start/stop the per-question clock as the candidate moves between questions. Cleanup banks the
+  // outgoing question's time before the next one's clock starts, so switches never double-count.
+  const activeTimedQuestionId = orderedQuestions[currentIndex]?.id ?? null;
+  useEffect(() => {
+    if (!session || submission) {
+      activeSinceRef.current = null;
+      return;
+    }
+    activeQuestionIdRef.current = activeTimedQuestionId;
+    activeSinceRef.current = activeTimedQuestionId ? Date.now() : null;
+    return () => {
+      flushActiveTime();
+    };
+  }, [activeTimedQuestionId, session, submission, flushActiveTime]);
+
+  // Pause the clock when the tab is hidden (or the page is closing) and resume when it returns, so
+  // time spent away from the assessment isn't counted.
+  useEffect(() => {
+    if (!session || submission) {
+      return;
+    }
+    function handleVisibility(): void {
+      if (document.hidden) {
+        flushActiveTime();
+      } else if (activeQuestionIdRef.current) {
+        activeSinceRef.current = Date.now();
+      }
+    }
+    function handleBeforeUnload(): void {
+      flushActiveTime();
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [session, submission, flushActiveTime]);
+
   function retryPrewarm(): void {
     setPrewarmPhase("booting");
     setPrewarmKey((k) => k + 1);
@@ -589,9 +672,12 @@ export default function CandidateStartPage() {
     // ingestion endpoint rejects it). Awaited so a rejection is retried rather than silently lost.
     await flushProctoring();
 
+    // Bank the current question's time before serializing so the final question isn't undercounted.
+    flushActiveTime();
+
     try {
       const resolvedFingerprint = await resolveBrowserFingerprint();
-      const answersPayload = toAnswersPayload(answers);
+      const answersPayload = toAnswersPayload(answers, timeSpentRef.current);
       const resultPayload = {
         source: "candidate-link",
         answeredQuestions: answersPayload.responses.length,

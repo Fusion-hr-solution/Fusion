@@ -90,7 +90,7 @@ export function TestCard({
         }
       }}
       className={cn(
-        "group relative flex cursor-pointer flex-col gap-3 rounded-xl border-l-[3px] border border-zinc-200 bg-white p-5 shadow-sm transition-all duration-150 hover:shadow-md hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-900/10",
+        "group relative flex h-full cursor-pointer flex-col gap-3 rounded-xl border-l-[3px] border border-zinc-200 bg-white p-5 shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-900/10",
         statusCfg.accent
       )}
     >
@@ -120,7 +120,7 @@ export function TestCard({
           </button>
 
           {menuOpen && (
-            <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg">
+            <div className="dash-pop absolute right-0 top-full z-20 mt-1 w-44 origin-top-right overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg">
               {[
                 { icon: Eye, label: "Preview", action: onPreview },
                 { icon: Pencil, label: "Edit", action: onEdit },

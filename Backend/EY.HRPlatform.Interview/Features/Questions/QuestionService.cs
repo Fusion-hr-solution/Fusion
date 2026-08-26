@@ -5,6 +5,7 @@ using EY.HRPlatform.Interview.Infrastructure;
 using EY.HRPlatform.Interview.Models.Common;
 using EY.HRPlatform.Interview.Models.Questions;
 using Microsoft.EntityFrameworkCore;
+using static EY.HRPlatform.Interview.Domain.QuestionContracts;
 
 namespace EY.HRPlatform.Interview.Features.Questions;
 
@@ -202,6 +203,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             DurationMinutes = question.DurationMinutes,
             Tags = question.Tags,
             UsageCount = question.UsageCount,
+            CreatedAt = question.CreatedAt.ToString("O"),
             Options = question.Options.Select(o => new QuestionOptionDto
             {
                 Text = o.Text,
@@ -317,28 +319,6 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             "Hybrid" => GradingMethod.Hybrid,
             "Manual" => GradingMethod.Manual,
             _ => throw new ApiException($"Invalid GradingMethod value '{value}'.", StatusCodes.Status400BadRequest)
-        };
-    }
-
-    private static string ToContract(QuestionType type)
-    {
-        return type switch
-        {
-            QuestionType.Sql => "SQL",
-            QuestionType.MultipleChoice => "Multiple Choice",
-            QuestionType.CaseStudy => "Case Study",
-            QuestionType.TrueFalse => "True/False",
-            QuestionType.FrontendProject => "Frontend Project",
-            _ => type.ToString()
-        };
-    }
-
-    private static string ToContract(GradingMethod method)
-    {
-        return method switch
-        {
-            GradingMethod.AutoGraded => "Auto-graded",
-            _ => method.ToString()
         };
     }
 }

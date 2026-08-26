@@ -39,6 +39,22 @@ public class CandidateManagementController(
         return Ok(ApiResponse<CandidateProgressTimelineDto>.Success(data));
     }
 
+    [HttpGet("report")]
+    [ProducesResponseType(typeof(ApiResponse<CandidateReportDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCandidateReport(
+        [FromQuery] string testId,
+        [FromQuery] string candidateEmail,
+        [FromQuery] int? attemptNumber,
+        CancellationToken cancellationToken)
+    {
+        var data = await candidateManagementService.GetCandidateReportAsync(
+            testId,
+            candidateEmail,
+            attemptNumber,
+            cancellationToken);
+        return Ok(ApiResponse<CandidateReportDto>.Success(data));
+    }
+
     [HttpPost("retake")]
     [ProducesResponseType(typeof(ApiResponse<CandidateRetakeGrantResultDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GrantRetake(

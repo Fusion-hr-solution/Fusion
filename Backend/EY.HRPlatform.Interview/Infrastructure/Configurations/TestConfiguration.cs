@@ -60,6 +60,9 @@ public class TestConfiguration : IEntityTypeConfiguration<Test>
             .HasDefaultValue(false)
             .IsRequired();
 
+        builder.Property(t => t.PassingThreshold)
+            .IsRequired(false);
+
         builder.Property(t => t.CandidateCount)
             .HasDefaultValue(0)
             .IsRequired();

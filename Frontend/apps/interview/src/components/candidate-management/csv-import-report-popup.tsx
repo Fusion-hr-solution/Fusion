@@ -8,7 +8,7 @@ export function CsvImportReportPopup({ report }: CsvImportReportPopupProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl">
         <div className="flex items-start gap-3">
           <span

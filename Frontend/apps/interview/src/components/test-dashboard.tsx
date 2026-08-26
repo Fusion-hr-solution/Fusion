@@ -233,7 +233,7 @@ export function TestDashboard() {
     <div className="flex flex-1 flex-col min-h-screen bg-zinc-50">
       {/* Page header */}
       <div className="border-b border-zinc-200 bg-white px-8 py-5">
-        <div className="flex items-start justify-between gap-4">
+        <div className="dash-rise flex items-start justify-between gap-4">
           <div>
             <h1 className="text-[22px] font-semibold tracking-tight text-zinc-900">
               Test Management
@@ -307,8 +307,8 @@ export function TestDashboard() {
       ) : null}
 
       {!isLoading && !error && paginatedTests.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 py-28">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100">
+        <div className="dash-rise flex flex-1 flex-col items-center justify-center gap-4 py-28">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100 transition-transform duration-200 hover:scale-105">
             <Plus className="h-6 w-6 text-zinc-400" />
           </div>
           <div className="text-center">
@@ -327,18 +327,23 @@ export function TestDashboard() {
         </div>
       ) : !isLoading && !error ? (
         <div className="grid grid-cols-1 gap-4 px-8 py-4 sm:grid-cols-2 xl:grid-cols-3">
-          {paginatedTests.map((test) => (
-            <TestCard
+          {paginatedTests.map((test, index) => (
+            <div
               key={test.id}
-              test={test}
-              onOpen={(item) => void handleEdit(item, 4)}
-              onEdit={(item) => void handleEdit(item)}
-              onPreview={(item) => void handlePreview(item)}
-              onDuplicate={(item) => void handleDuplicate(item)}
-              onSetStatus={(item, status) => void handleSetStatus(item, status)}
-              onDelete={(item) => void handleDelete(item)}
-              isBusy={actionBusyId === test.id}
-            />
+              className="dash-rise"
+              style={{ animationDelay: `${Math.min(index, 10) * 50}ms` }}
+            >
+              <TestCard
+                test={test}
+                onOpen={(item) => void handleEdit(item, 4)}
+                onEdit={(item) => void handleEdit(item)}
+                onPreview={(item) => void handlePreview(item)}
+                onDuplicate={(item) => void handleDuplicate(item)}
+                onSetStatus={(item, status) => void handleSetStatus(item, status)}
+                onDelete={(item) => void handleDelete(item)}
+                isBusy={actionBusyId === test.id}
+              />
+            </div>
           ))}
         </div>
            ) : null}
@@ -356,7 +361,7 @@ export function TestDashboard() {
         }}
       >
         <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          <Dialog.Overlay className="fixed inset-0 z-50 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
           {previewTest ? (
             <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[760px] max-w-[96vw] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 focus:outline-none">
               <div className="flex items-start justify-between border-b border-zinc-100 px-6 py-5">
@@ -478,7 +483,7 @@ export function TestDashboard() {
         }}
       >
         <AlertDialog.Portal>
-          <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[2px] data-[state=open]:animate-in data-[state=open]:fade-in-0" />
+          <AlertDialog.Overlay className="fixed inset-0 z-50 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
           <AlertDialog.Content className="fixed left-1/2 top-1/2 z-50 w-[440px] max-w-[92vw] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
             <div className="mb-1 flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100">
               {pendingAction?.type === "archive" ? (

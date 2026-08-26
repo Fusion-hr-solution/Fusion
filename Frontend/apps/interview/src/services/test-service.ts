@@ -10,6 +10,17 @@ import type {
   TestCase,
   TestStatus,
 } from "@/types";
+// Single source of truth. These lists previously existed here as a private copy that drifted:
+// "Frontend Project" was added to the UI list but not this one, so every Frontend Project question
+// read back from the API silently degraded to "Essay" — and saving that form wiped the question's
+// framework, starter project and hidden grading tests.
+import {
+  DISCIPLINES,
+  QUESTION_TYPES,
+  DIFFICULTIES,
+  GRADING_METHODS,
+  TEST_STATUSES,
+} from "@/config/constants";
 
 const client = createPlatformApiClient();
 
@@ -36,6 +47,7 @@ interface BackendTestDto {
   enableProctoring: boolean;
   enableActivityMonitoring: boolean;
   restrictCopyPaste: boolean;
+  passingThreshold?: number | null;
   candidateCount: number;
   questionCount: number;
   createdAt: string;
@@ -53,6 +65,7 @@ interface UpsertTestRequest {
   enableProctoring: boolean;
   enableActivityMonitoring: boolean;
   restrictCopyPaste: boolean;
+  passingThreshold?: number | null;
 }
 
 interface BackendQuestionDto {
@@ -66,6 +79,7 @@ interface BackendQuestionDto {
   durationMinutes: number;
   tags: string[];
   usageCount: number;
+  createdAt: string;
   options?: Array<{ text: string; correct: boolean }>;
   language?: string;
   starterCode?: string;
@@ -94,31 +108,6 @@ interface CreateQuestionRequest {
   evaluationCriteria: string;
   testCases?: string;
 }
-
-const TEST_STATUSES: TestStatus[] = ["Active", "Draft", "Archived"];
-const DISCIPLINES: Discipline[] = [
-  "Engineering",
-  "Design",
-  "Product",
-  "Data",
-  "Marketing",
-  "Sales",
-  "Operations",
-  "Finance",
-  "HR",
-  ];
-const QUESTION_TYPES: QuestionType[] = [
-  "Coding",
-  "SQL",
-  "Multiple Choice",
-  "Essay",
-  "Case Study",
-  "Excel",
-  "True/False",
-  "Design",
-];
-const DIFFICULTIES: Difficulty[] = ["Easy", "Medium", "Hard", "Expert"];
-const GRADING_METHODS: GradingMethod[] = ["Auto-graded", "Hybrid", "Manual"];
 
 function asDiscipline(value: string): Discipline {
   return DISCIPLINES.includes(value as Discipline)
@@ -166,6 +155,7 @@ function mapTest(dto: BackendTestDto): Test {
     enableProctoring: dto.enableProctoring ?? false,
     enableActivityMonitoring: dto.enableActivityMonitoring ?? false,
     restrictCopyPaste: dto.restrictCopyPaste ?? false,
+    passingThreshold: dto.passingThreshold ?? null,
     candidateCount: dto.candidateCount,
     questionCount: dto.questionCount,
     createdAt: dto.createdAt,
@@ -184,6 +174,7 @@ function mapQuestion(dto: BackendQuestionDto): Question {
     durationMinutes: dto.durationMinutes,
     tags: dto.tags ?? [],
     usageCount: dto.usageCount,
+    createdAt: dto.createdAt,
     options: dto.options,
     language: dto.language,
     starterCode: dto.starterCode,
@@ -369,6 +360,7 @@ interface PersistTestInput {
   enableProctoring: boolean;
   enableActivityMonitoring: boolean;
   restrictCopyPaste: boolean;
+  passingThreshold?: number | null;
 }
 
 function toUpsertTestRequest(input: PersistTestInput): UpsertTestRequest {
@@ -385,6 +377,7 @@ function toUpsertTestRequest(input: PersistTestInput): UpsertTestRequest {
     enableProctoring: input.enableProctoring,
     enableActivityMonitoring: input.enableActivityMonitoring,
     restrictCopyPaste: input.restrictCopyPaste,
+    passingThreshold: input.passingThreshold ?? null,
   };
 }
 
@@ -452,6 +445,7 @@ export async function setTestStatus(test: Test, status: TestStatus): Promise<Tes
     enableProctoring: test.enableProctoring,
     enableActivityMonitoring: test.enableActivityMonitoring,
     restrictCopyPaste: test.restrictCopyPaste,
+    passingThreshold: test.passingThreshold ?? null,
   });
 }
 
@@ -479,5 +473,6 @@ export async function duplicateTest(test: Test): Promise<Test> {
     enableProctoring: test.enableProctoring,
     enableActivityMonitoring: test.enableActivityMonitoring,
     restrictCopyPaste: test.restrictCopyPaste,
+    passingThreshold: test.passingThreshold ?? null,
   });
 }

@@ -18,6 +18,9 @@ public class Test : AggregateRoot
     public bool EnableProctoring { get; set; }        // Layer A — webcam detection (camera + consent)
     public bool EnableActivityMonitoring { get; set; } // Layer B — tab/window switch, fullscreen, 2nd display
     public bool RestrictCopyPaste { get; set; }        // Layer B — block + log clipboard in answer UI
+    /// <summary>Author-set pass mark as a percentage (0–100); null = no pass mark configured. Drives the
+    /// reviewer report's pass/fail verdict.</summary>
+    public int? PassingThreshold { get; set; }
     public int CandidateCount { get; set; }
     public ICollection<TestQuestion> TestQuestions { get; set; } = new List<TestQuestion>();
 

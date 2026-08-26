@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EY.HRPlatform.Interview.Domain;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Infrastructure;
@@ -7,6 +8,7 @@ using EY.HRPlatform.Interview.Models.Tests;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
+using static EY.HRPlatform.Interview.Domain.QuestionContracts;
 
 namespace EY.HRPlatform.Interview.Features.Tests;
 
@@ -119,6 +121,7 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
                 t.EnableProctoring,
                 t.EnableActivityMonitoring,
                 t.RestrictCopyPaste,
+                t.PassingThreshold,
                 t.CandidateCount,
                 t.CreatedAt,
                 QuestionCount = t.TestQuestions.Count,
@@ -144,6 +147,7 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
                 EnableProctoring = t.EnableProctoring,
                 EnableActivityMonitoring = t.EnableActivityMonitoring,
                 RestrictCopyPaste = t.RestrictCopyPaste,
+                PassingThreshold = t.PassingThreshold,
                 CandidateCount = t.CandidateCount,
                 QuestionCount = t.QuestionCount,
                 CreatedAt = t.CreatedAt == default ? DateTime.UtcNow.ToString("O") : t.CreatedAt.ToString("O"),
@@ -202,6 +206,7 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
             EnableProctoring = request.EnableProctoring ?? false,
             EnableActivityMonitoring = request.EnableActivityMonitoring ?? false,
             RestrictCopyPaste = request.RestrictCopyPaste ?? false,
+            PassingThreshold = request.PassingThreshold,
             CandidateCount = 0
         };
 
@@ -234,6 +239,7 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
         test.EnableProctoring = request.EnableProctoring ?? test.EnableProctoring;
         test.EnableActivityMonitoring = request.EnableActivityMonitoring ?? test.EnableActivityMonitoring;
         test.RestrictCopyPaste = request.RestrictCopyPaste ?? test.RestrictCopyPaste;
+        test.PassingThreshold = request.PassingThreshold ?? test.PassingThreshold;
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await InvalidateTestsCacheAsync(cancellationToken);
@@ -274,6 +280,9 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
         if (request.MaxAttempts.HasValue && request.MaxAttempts.Value < 0)
             errors.Add("maxAttempts must be 0 or greater.");
 
+        if (request.PassingThreshold.HasValue && request.PassingThreshold.Value is < 0 or > 100)
+            errors.Add("passingThreshold must be between 0 and 100.");
+
         if (errors.Count > 0)
             throw new ApiException("Validation failed.", StatusCodes.Status400BadRequest, errors);
     }
@@ -302,6 +311,7 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
             EnableProctoring = test.EnableProctoring,
             EnableActivityMonitoring = test.EnableActivityMonitoring,
             RestrictCopyPaste = test.RestrictCopyPaste,
+            PassingThreshold = test.PassingThreshold,
             CandidateCount = test.CandidateCount,
             QuestionCount = test.TestQuestions.Count,
             CreatedAt = test.CreatedAt == default ? DateTime.UtcNow.ToString("O") : test.CreatedAt.ToString("O")
@@ -361,15 +371,4 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
         };
     }
 
-    private static string ToContract(QuestionType type)
-    {
-        return type switch
-        {
-            QuestionType.Sql => "SQL",
-            QuestionType.MultipleChoice => "Multiple Choice",
-            QuestionType.CaseStudy => "Case Study",
-            QuestionType.TrueFalse => "True/False",
-            _ => type.ToString()
-        };
-    }
 }

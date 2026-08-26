@@ -272,7 +272,7 @@ export function CreateQuestionSheet({
     <div className={fullPage ? "w-full" : "fixed inset-0 z-[55] flex items-center justify-center p-6"}>
       {!fullPage && (
         <div
-          className="absolute inset-0 bg-black/40 backdrop-blur-[3px]"
+          className="absolute inset-0"
           onClick={onClose}
         />
       )}

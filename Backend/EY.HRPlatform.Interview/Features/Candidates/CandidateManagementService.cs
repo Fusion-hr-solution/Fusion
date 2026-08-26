@@ -1,8 +1,10 @@
 using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using EY.HRPlatform.Interview.Domain;
 using EY.HRPlatform.Interview.Domain.Entities;
+using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Infrastructure;
 using EY.HRPlatform.Interview.Models.Candidates;
 using EY.HRPlatform.Interview.Models.Common;
@@ -25,6 +27,18 @@ public class CandidateManagementService(
     private static readonly Guid AttemptSettingsId = Guid.Parse("1f8197d0-4b62-4b54-8ed9-7ebf2fb02a51");
     private const string PrivacyActionAnonymize = "anonymize";
     private const string PrivacyActionDeletePii = "delete-pii";
+
+    /// <summary>Minimum graded attempts needed before a cohort average is shown; below this, an average
+    /// would be too noisy (and re-identifiable) to be meaningful. Applied twice: to the test as a whole,
+    /// and again per skill axis, since an axis can be far thinner than the cohort it sits in.</summary>
+    private const int CohortBenchmarkFloor = 15;
+    /// <summary>The report needs at least this many distinct tags before it groups skills by tag; below
+    /// it, tags are too sparse to be a useful profile and it falls back to grouping by question type.</summary>
+    private const int MinDistinctTagsForTagAxis = 3;
+    /// <summary>Cap on skill axes so the profile stays readable — the highest point-coverage axes win.</summary>
+    private const int MaxSkillAxes = 8;
+    /// <summary>Upper clamp for a single question's captured time (24h) to discard corrupt values.</summary>
+    private const int MaxQuestionSeconds = 24 * 60 * 60;
 
     public async Task<CandidateManagementOverviewDto> GetOverviewAsync(CancellationToken cancellationToken)
     {
@@ -242,6 +256,183 @@ public class CandidateManagementService(
             CandidateEmail = NormalizeStoredEmailForLookup(invitation.Email),
             CandidateName = invitation.CandidateName,
             Attempts = attempts,
+        };
+    }
+
+    public async Task<CandidateReportDto> GetCandidateReportAsync(
+        string testId,
+        string candidateEmail,
+        int? attemptNumber,
+        CancellationToken cancellationToken)
+    {
+        var parsedTestId = ParseTestId(testId);
+        var normalizedCandidateEmail = NormalizeCandidateEmail(candidateEmail);
+
+        var invitation = await FindLatestInvitationByNormalizedEmailAsync(
+                parsedTestId,
+                normalizedCandidateEmail,
+                cancellationToken)
+            ?? throw new ApiException("Candidate report not found.", StatusCodes.Status404NotFound);
+
+        // Resolve the target attempt: the requested attempt number, else the most recent one.
+        var attempt = attemptNumber.HasValue
+            ? invitation.Attempts
+                .Where(item => item.AttemptNumber == attemptNumber.Value)
+                .OrderByDescending(item => item.CreatedAt)
+                .FirstOrDefault()
+            : invitation.Attempts
+                .OrderByDescending(item => item.AttemptNumber)
+                .ThenByDescending(item => item.CreatedAt)
+                .FirstOrDefault();
+
+        if (attempt is null)
+        {
+            throw new ApiException(
+                "This candidate has no attempt to report on yet.",
+                StatusCodes.Status404NotFound);
+        }
+
+        var nowUtc = DateTime.UtcNow;
+
+        var test = await dbContext.Tests
+            .AsNoTracking()
+            .Where(item => item.Id == parsedTestId)
+            .Select(item => new
+            {
+                item.Title,
+                item.PassingThreshold,
+                item.EnableProctoring,
+                item.EnableActivityMonitoring,
+                item.RestrictCopyPaste,
+            })
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new ApiException("Test not found.", StatusCodes.Status404NotFound);
+
+        var proctoringEnabled =
+            test.EnableProctoring || test.EnableActivityMonitoring || test.RestrictCopyPaste;
+
+        // Skill-breakdown source: this attempt's graded questions joined to their question metadata.
+        // Tags is a collection column (EF can't GROUP BY it), so we project raw rows and expand in memory.
+        var gradeRows = await (
+                from grade in dbContext.QuestionGradeResults.AsNoTracking()
+                join question in dbContext.Questions.AsNoTracking() on grade.QuestionId equals question.Id
+                where grade.AttemptId == attempt.Id
+                select new ReportGradeRow
+                {
+                    AttemptId = grade.AttemptId,
+                    QuestionId = grade.QuestionId,
+                    Score = grade.Score,
+                    MaxScore = grade.MaxScore,
+                    Tags = question.Tags,
+                    Type = question.Type,
+                    DurationMinutes = question.DurationMinutes,
+                })
+            .ToListAsync(cancellationToken);
+
+        var secondsByQuestion = ParseSecondsByQuestion(attempt.AnswersJson);
+
+        // Cohort = graded, submitted attempts for this test that produced a usable score.
+        var cohortAttemptQuery = dbContext.CandidateTestAttempts
+            .AsNoTracking()
+            .Where(item =>
+                item.TestId == parsedTestId &&
+                item.GradingStatus == GradingStatus.Completed &&
+                item.SubmittedAtUtc != null &&
+                item.TotalScore != null &&
+                item.MaxScore != null &&
+                item.MaxScore > 0m);
+
+        var cohortSize = await cohortAttemptQuery.CountAsync(cancellationToken);
+        var cohortAvailable = cohortSize >= CohortBenchmarkFloor;
+
+        double? overallCohortAvgPct = null;
+        List<ReportGradeRow> cohortRows = [];
+        if (cohortAvailable)
+        {
+            // Overall cohort mean via a real SQL group-by (one row for this test).
+            overallCohortAvgPct = await cohortAttemptQuery
+                .GroupBy(item => item.TestId)
+                .Select(group => group.Average(item =>
+                    (double)item.TotalScore!.Value / (double)item.MaxScore!.Value))
+                .FirstOrDefaultAsync(cancellationToken) * 100d;
+
+            // Per-axis cohort rows: load once, expand + aggregate in memory (same as the candidate).
+            cohortRows = await (
+                    from grade in dbContext.QuestionGradeResults.AsNoTracking()
+                    join att in cohortAttemptQuery on grade.AttemptId equals att.Id
+                    join question in dbContext.Questions.AsNoTracking() on grade.QuestionId equals question.Id
+                    select new ReportGradeRow
+                    {
+                        AttemptId = grade.AttemptId,
+                        QuestionId = grade.QuestionId,
+                        Score = grade.Score,
+                        MaxScore = grade.MaxScore,
+                        Tags = question.Tags,
+                        Type = question.Type,
+                        DurationMinutes = question.DurationMinutes,
+                    })
+                .ToListAsync(cancellationToken);
+        }
+
+        var (axisKind, skills) = BuildSkillBreakdown(gradeRows, cohortRows, cohortAvailable, secondsByQuestion);
+
+        int? totalDurationSeconds = secondsByQuestion.Count == 0
+            ? null
+            : gradeRows
+                .Select(row => row.QuestionId)
+                .Distinct()
+                .Sum(questionId => secondsByQuestion.GetValueOrDefault(questionId, 0));
+
+        // Proctoring roll-up — same aggregate shape + builder the timeline uses, scoped to this attempt.
+        var proctoringRows = await dbContext.CandidateProctoringEvents
+            .AsNoTracking()
+            .Where(item => item.AttemptId == attempt.Id)
+            .GroupBy(item => new { item.AttemptId, item.Type })
+            .Select(group => new
+            {
+                group.Key.AttemptId,
+                group.Key.Type,
+                Count = group.Count(),
+                First = group.Min(item => item.StartedAtUtc),
+                Last = group.Max(item => item.ServerReceivedAtUtc),
+            })
+            .ToListAsync(cancellationToken);
+        var proctoringGroups = proctoringRows
+            .Select(row => new ProctoringTypeAggregate(row.AttemptId, row.Type, row.Count, row.First, row.Last))
+            .ToList();
+
+        var startedAtUtc = attempt.StartedAtUtc != default ? attempt.StartedAtUtc : (DateTime?)null;
+        var proctoringSummary = BuildProctoringSummary(
+            attempt,
+            startedAtUtc,
+            attempt.SubmittedAtUtc,
+            proctoringGroups,
+            proctoringEnabled,
+            nowUtc);
+
+        return new CandidateReportDto
+        {
+            TestId = parsedTestId.ToString(),
+            TestTitle = test.Title,
+            CandidateEmail = NormalizeStoredEmailForLookup(invitation.Email),
+            CandidateName = invitation.CandidateName,
+            AttemptNumber = attempt.AttemptNumber,
+            AttemptId = attempt.Id.ToString(),
+            GradingStatus = attempt.GradingStatus.ToString(),
+            TotalScore = attempt.TotalScore,
+            MaxScore = attempt.MaxScore,
+            PassingThreshold = test.PassingThreshold,
+            SubmittedAtUtc = attempt.SubmittedAtUtc?.ToString("O"),
+            TotalDurationSeconds = totalDurationSeconds,
+            AxisKind = axisKind,
+            CohortSize = cohortSize,
+            CohortAvailable = cohortAvailable,
+            CohortUnavailableReason = cohortAvailable
+                ? null
+                : $"Benchmarking needs at least {CohortBenchmarkFloor} graded attempts; this test has {cohortSize}.",
+            OverallCohortAvgPct = cohortAvailable ? Round1(overallCohortAvgPct) : null,
+            Skills = skills,
+            Proctoring = proctoringSummary,
         };
     }
 
@@ -1230,6 +1421,227 @@ public class CandidateManagementService(
             WentDark = wentDark,
         };
     }
+
+    /// <summary>One graded question of an attempt, flattened with the question metadata the skill
+    /// breakdown needs. Kept as raw rows because tag axes must be expanded/grouped in memory.</summary>
+    private sealed class ReportGradeRow
+    {
+        public Guid AttemptId { get; set; }
+        public Guid QuestionId { get; set; }
+        public decimal Score { get; set; }
+        public decimal MaxScore { get; set; }
+        public List<string> Tags { get; set; } = [];
+        public QuestionType Type { get; set; }
+        public int DurationMinutes { get; set; }
+    }
+
+    /// <summary>Running totals for one skill axis (a tag or a question type).</summary>
+    private sealed class AxisAccumulator
+    {
+        public required string Key { get; init; }
+        public decimal Score { get; set; }
+        public decimal MaxScore { get; set; }
+        public int AllottedSeconds { get; set; }
+        public int SecondsSpent { get; set; }
+        public int QuestionCount { get; set; }
+
+        /// <summary>Distinct attempts that contributed to this axis. One for a candidate's own
+        /// profile; for a cohort it is how many peers actually answered anything on this axis,
+        /// which is what the benchmark floor is applied to.</summary>
+        public HashSet<Guid> AttemptIds { get; } = [];
+    }
+
+    /// <summary>Builds the per-skill profile. Picks the axis (tag vs. type), aggregates the candidate's
+    /// rows, caps to the highest-coverage axes, and — when a cohort is available — attaches the cohort
+    /// mean per axis computed the same (pooled points) way so candidate and cohort are comparable.</summary>
+    private static (string AxisKind, List<CandidateReportSkillDto> Skills) BuildSkillBreakdown(
+        IReadOnlyList<ReportGradeRow> attemptRows,
+        IReadOnlyList<ReportGradeRow> cohortRows,
+        bool cohortAvailable,
+        IReadOnlyDictionary<Guid, int> secondsByQuestion)
+    {
+        var distinctTags = attemptRows
+            .SelectMany(row => NormalizeTags(row.Tags))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+        var axisKind = distinctTags >= MinDistinctTagsForTagAxis ? "tag" : "type";
+
+        var hasTiming = secondsByQuestion.Count > 0;
+
+        var candidateAxes = AggregateAxes(attemptRows, axisKind, secondsByQuestion, hasTiming);
+
+        // Cap to the highest point-coverage axes so the profile stays legible.
+        var orderedKeys = candidateAxes.Values
+            .OrderByDescending(axis => axis.MaxScore)
+            .ThenBy(axis => axis.Key, StringComparer.OrdinalIgnoreCase)
+            .Take(MaxSkillAxes)
+            .Select(axis => axis.Key)
+            .ToList();
+
+        var cohortAxes = cohortAvailable
+            ? AggregateAxes(cohortRows, axisKind, secondsByQuestion, hasTiming: false)
+            : new Dictionary<string, AxisAccumulator>(StringComparer.OrdinalIgnoreCase);
+
+        var skills = orderedKeys
+            .Select(key =>
+            {
+                var axis = candidateAxes[key];
+
+                // The benchmark floor applies per axis, not just to the test as a whole. A tag
+                // carried by a recently added question can sit inside a 100-attempt cohort and
+                // still have been answered by two people — an average over those two is exactly
+                // the noisy, re-identifiable number the floor exists to suppress.
+                double? cohortPct = null;
+                if (cohortAvailable
+                    && cohortAxes.TryGetValue(key, out var cohortAxis)
+                    && cohortAxis.AttemptIds.Count >= CohortBenchmarkFloor
+                    && cohortAxis.MaxScore > 0m)
+                {
+                    cohortPct = Round1((double)(cohortAxis.Score / cohortAxis.MaxScore) * 100d);
+                }
+
+                return new CandidateReportSkillDto
+                {
+                    Key = key,
+                    ScorePct = axis.MaxScore > 0m
+                        ? Round1((double)(axis.Score / axis.MaxScore) * 100d)
+                        : 0d,
+                    CohortAvgPct = cohortPct,
+                    SecondsSpent = hasTiming ? axis.SecondsSpent : null,
+                    AllottedSeconds = axis.AllottedSeconds,
+                    QuestionCount = axis.QuestionCount,
+                };
+            })
+            .ToList();
+
+        return (axisKind, skills);
+    }
+
+    /// <summary>Expands rows onto their axes (a multi-tag question adds its score to every tag) and sums
+    /// points, allotted time, captured time, and question counts per axis.</summary>
+    private static Dictionary<string, AxisAccumulator> AggregateAxes(
+        IReadOnlyList<ReportGradeRow> rows,
+        string axisKind,
+        IReadOnlyDictionary<Guid, int> secondsByQuestion,
+        bool hasTiming)
+    {
+        var axes = new Dictionary<string, AxisAccumulator>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var row in rows)
+        {
+            var keys = axisKind == "tag"
+                ? NormalizeTags(row.Tags).Distinct(StringComparer.OrdinalIgnoreCase).ToList()
+                : [QuestionTypeLabel(row.Type)];
+
+            // Untagged questions stay in the overall score but off the tag axes.
+            if (keys.Count == 0)
+            {
+                continue;
+            }
+
+            var seconds = hasTiming ? secondsByQuestion.GetValueOrDefault(row.QuestionId, 0) : 0;
+            var allotted = Math.Max(0, row.DurationMinutes) * 60;
+
+            foreach (var key in keys)
+            {
+                if (!axes.TryGetValue(key, out var axis))
+                {
+                    axis = new AxisAccumulator { Key = key };
+                    axes[key] = axis;
+                }
+
+                axis.Score += row.Score;
+                axis.MaxScore += row.MaxScore;
+                axis.AllottedSeconds += allotted;
+                axis.SecondsSpent += seconds;
+                axis.QuestionCount += 1;
+                axis.AttemptIds.Add(row.AttemptId);
+            }
+        }
+
+        return axes;
+    }
+
+    private static IEnumerable<string> NormalizeTags(IEnumerable<string>? tags)
+    {
+        if (tags is null)
+        {
+            yield break;
+        }
+
+        foreach (var tag in tags)
+        {
+            if (!string.IsNullOrWhiteSpace(tag))
+            {
+                yield return tag.Trim();
+            }
+        }
+    }
+
+    private static string QuestionTypeLabel(QuestionType type) => type switch
+    {
+        QuestionType.Sql => "SQL",
+        QuestionType.MultipleChoice => "Multiple Choice",
+        QuestionType.CaseStudy => "Case Study",
+        QuestionType.TrueFalse => "True/False",
+        QuestionType.FrontendProject => "Frontend Project",
+        _ => type.ToString(),
+    };
+
+    /// <summary>Parses per-question time (seconds) out of the attempt's AnswersJson. The candidate client
+    /// attaches <c>secondsSpent</c> to each response; older attempts omit it, so this returns empty and the
+    /// time panel reads "not captured". Malformed JSON is tolerated (returns empty).</summary>
+    private static IReadOnlyDictionary<Guid, int> ParseSecondsByQuestion(string? answersJson)
+    {
+        var result = new Dictionary<Guid, int>();
+        if (string.IsNullOrWhiteSpace(answersJson))
+        {
+            return result;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(answersJson);
+            if (document.RootElement.ValueKind != JsonValueKind.Object
+                || !document.RootElement.TryGetProperty("responses", out var responses)
+                || responses.ValueKind != JsonValueKind.Array)
+            {
+                return result;
+            }
+
+            foreach (var response in responses.EnumerateArray())
+            {
+                if (response.ValueKind != JsonValueKind.Object
+                    || !response.TryGetProperty("questionId", out var questionIdElement)
+                    || questionIdElement.ValueKind != JsonValueKind.String
+                    || !Guid.TryParse(questionIdElement.GetString(), out var questionId))
+                {
+                    continue;
+                }
+
+                if (!response.TryGetProperty("secondsSpent", out var secondsElement)
+                    || secondsElement.ValueKind != JsonValueKind.Number
+                    || !secondsElement.TryGetInt32(out var seconds)
+                    || seconds < 0)
+                {
+                    continue;
+                }
+
+                // Last write wins; clamp to a sane upper bound to ignore corrupt values.
+                result[questionId] = Math.Min(seconds, MaxQuestionSeconds);
+            }
+        }
+        catch (JsonException)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        return result;
+    }
+
+    private static double Round1(double value) => Math.Round(value, 1, MidpointRounding.AwayFromZero);
+
+    private static double? Round1(double? value) => value.HasValue ? Round1(value.Value) : null;
 
     private static string NormalizeCandidateEmail(string value)
     {

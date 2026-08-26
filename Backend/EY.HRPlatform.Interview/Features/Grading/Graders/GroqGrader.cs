@@ -34,7 +34,9 @@ public class GroqGrader(
         {
             try
             {
-                var raw = await groq.CompleteAsync(systemPrompt, userMessage, ct, _options.PassTemperature);
+                var raw = await groq.CompleteAsync(
+                    systemPrompt, userMessage, ct,
+                    _options.PassTemperature, _options.MaxCompletionTokens, ResponseFormat);
                 passes.Add(ParseGradingResponse(raw));
             }
             catch (Exception ex)
@@ -106,6 +108,21 @@ public class GroqGrader(
             : (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0;
     }
 
+    // Strict schema: the model can only answer in this shape, so the prompt doesn't
+    // have to beg for JSON and the response doesn't have to be salvaged from prose.
+    private static readonly object ResponseFormat = JsonSchemaFormat.Strict("grading_result", new
+    {
+        type = "object",
+        properties = new
+        {
+            score = new { type = "number", description = "Score from 0 to 10." },
+            feedback = new { type = "string", description = "Brief feedback for the candidate." },
+            confidence = new { type = "number", description = "Confidence in this grade, from 0 to 1." },
+        },
+        required = new[] { "score", "feedback", "confidence" },
+        additionalProperties = false,
+    });
+
     private static string BuildSystemPrompt(Question question)
     {
         var criteria = string.IsNullOrWhiteSpace(question.EvaluationCriteria)
@@ -116,8 +133,7 @@ public class GroqGrader(
                $"Question: {question.Title}\n" +
                $"Description: {question.Description}\n" +
                $"Evaluation criteria: {criteria}\n\n" +
-               "Respond ONLY with valid JSON in this exact format:\n" +
-               "{\"score\": <0-10 float>, \"feedback\": \"<brief feedback>\", \"confidence\": <0-1 float>}";
+               "Report the score, brief feedback for the candidate, and how confident you are in the grade.";
     }
 
     private static string BuildUserMessage(Question question, string answer) =>
@@ -129,23 +145,34 @@ public class GroqGrader(
     {
         try
         {
-            var start = raw.IndexOf('{');
-            var end = raw.LastIndexOf('}');
-            if (start >= 0 && end > start)
-            {
-                var json = raw[start..(end + 1)];
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
+            using var doc = JsonDocument.Parse(ExtractJsonObject(raw));
+            var root = doc.RootElement;
 
-                var score = root.TryGetProperty("score", out var scoreEl) ? scoreEl.GetDouble() : 5.0;
-                var feedback = root.TryGetProperty("feedback", out var feedbackEl) ? feedbackEl.GetString() ?? "" : "";
-                var confidence = root.TryGetProperty("confidence", out var confEl) ? confEl.GetDouble() : 0.5;
+            var score = root.TryGetProperty("score", out var scoreEl) ? scoreEl.GetDouble() : 5.0;
+            var feedback = root.TryGetProperty("feedback", out var feedbackEl) ? feedbackEl.GetString() ?? "" : "";
+            var confidence = root.TryGetProperty("confidence", out var confEl) ? confEl.GetDouble() : 0.5;
 
-                return new GradingResponse(Math.Clamp(score, 0, 10), feedback, Math.Clamp(confidence, 0, 1));
-            }
+            return new GradingResponse(Math.Clamp(score, 0, 10), feedback, Math.Clamp(confidence, 0, 1));
         }
-        catch { }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
+        {
+            return new GradingResponse(0, "Could not parse AI response.", 0.0);
+        }
+    }
 
-        return new GradingResponse(0, "Could not parse AI response.", 0.0);
+    /// <summary>
+    /// The schema-constrained response is already a bare JSON object. This only does
+    /// anything if <c>Groq:Model</c> is pointed at a model without strict-schema
+    /// support, which may wrap its answer in prose or a markdown fence.
+    /// </summary>
+    private static string ExtractJsonObject(string raw)
+    {
+        var trimmed = raw.Trim();
+        if (trimmed.StartsWith('{'))
+            return trimmed;
+
+        var start = trimmed.IndexOf('{');
+        var end = trimmed.LastIndexOf('}');
+        return start >= 0 && end > start ? trimmed[start..(end + 1)] : trimmed;
     }
 }

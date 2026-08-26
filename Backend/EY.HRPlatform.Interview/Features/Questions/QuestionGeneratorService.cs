@@ -16,6 +16,64 @@ public class QuestionGeneratorService(
     private static readonly string[] ValidDifficulties = ["Easy", "Medium", "Hard", "Expert"];
     private static readonly string[] ValidGradingMethods = ["Auto-graded", "Hybrid", "Manual"];
 
+    // Strict schema — the enums and field set are enforced by the model rather than
+    // described in the prompt and repaired afterwards. A JSON schema root has to be
+    // an object, hence the "questions" wrapper around what is really an array.
+    private static readonly object ResponseFormat = JsonSchemaFormat.Strict("question_drafts", new
+    {
+        type = "object",
+        properties = new
+        {
+            questions = new
+            {
+                type = "array",
+                items = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        type = new { type = "string", @enum = ValidTypes },
+                        title = new { type = "string", description = "Short title, max 200 characters." },
+                        description = new { type = "string", description = "The full question text." },
+                        difficulty = new { type = "string", @enum = ValidDifficulties },
+                        gradingMethod = new { type = "string", @enum = ValidGradingMethods },
+                        points = new { type = "integer", description = "Between 1 and 100." },
+                        durationMinutes = new { type = "integer", description = "Between 1 and 120." },
+                        tags = new { type = "array", items = new { type = "string" }, description = "Short tag strings." },
+                        options = new
+                        {
+                            type = "array",
+                            description = "3-5 options with exactly one correct for Multiple Choice; exactly " +
+                                          "two (True, False) for True/False; empty for every other type.",
+                            items = new
+                            {
+                                type = "object",
+                                properties = new
+                                {
+                                    text = new { type = "string" },
+                                    correct = new { type = "boolean" },
+                                },
+                                required = new[] { "text", "correct" },
+                                additionalProperties = false,
+                            },
+                        },
+                        language = new { type = "string", description = "Programming language for Coding/SQL; empty otherwise." },
+                        starterCode = new { type = "string", description = "Starter code, or empty if none." },
+                        evaluationCriteria = new { type = "string", description = "Grading rubric for Essay/Case Study; empty otherwise." },
+                    },
+                    required = new[]
+                    {
+                        "type", "title", "description", "difficulty", "gradingMethod", "points",
+                        "durationMinutes", "tags", "options", "language", "starterCode", "evaluationCriteria",
+                    },
+                    additionalProperties = false,
+                },
+            },
+        },
+        required = new[] { "questions" },
+        additionalProperties = false,
+    });
+
     public async Task<IReadOnlyList<CreateQuestionDto>> GenerateAsync(
         GenerateQuestionsRequestDto request, CancellationToken cancellationToken)
     {
@@ -34,12 +92,16 @@ public class QuestionGeneratorService(
 
         var systemPrompt = BuildSystemPrompt(request, count, forcedType);
         var userMessage = $"Topic: {request.Topic.Trim()}\nGenerate {count} question(s).";
-        var maxTokens = Math.Min(4096, 600 * count + 600);
+        // Budget covers the drafts plus, on a reasoning model, the thinking that
+        // precedes them — truncation here costs the whole batch.
+        var maxTokens = Math.Min(16384, 900 * count + 2000);
 
         string raw;
         try
         {
-            raw = await groq.CompleteAsync(systemPrompt, userMessage, cancellationToken, temperature: 0.4, maxTokens: maxTokens);
+            raw = await groq.CompleteAsync(
+                systemPrompt, userMessage, cancellationToken,
+                temperature: 0.4, maxTokens: maxTokens, responseFormat: ResponseFormat);
         }
         catch (Exception ex)
         {
@@ -80,23 +142,15 @@ public class QuestionGeneratorService(
         return
             $"You are an expert technical assessment author. Generate exactly {count} interview " +
             "question(s) about the topic the user provides.\n\n" +
-            "Respond with ONLY a JSON array (no markdown fences, no commentary). Each element is an " +
-            "object with EXACTLY these fields:\n" +
-            "{\n" +
-            "  \"type\": one of [Coding, SQL, Multiple Choice, Essay, Case Study, Excel, True/False, Design],\n" +
-            "  \"title\": short title (max 200 chars),\n" +
-            "  \"description\": the full question text,\n" +
-            "  \"difficulty\": one of [Easy, Medium, Hard, Expert],\n" +
-            "  \"gradingMethod\": one of [Auto-graded, Hybrid, Manual],\n" +
-            "  \"points\": integer 1-100,\n" +
-            "  \"durationMinutes\": integer 1-120,\n" +
-            "  \"tags\": array of short tag strings,\n" +
-            "  \"options\": array of {\"text\": string, \"correct\": boolean} — REQUIRED for \"Multiple Choice\" " +
-            "(3-5 options, exactly one correct) and \"True/False\" (exactly two options True/False); [] otherwise,\n" +
-            "  \"language\": programming language string — REQUIRED for \"Coding\" and \"SQL\"; \"\" otherwise,\n" +
-            "  \"starterCode\": optional starter code; \"\" if none,\n" +
-            "  \"evaluationCriteria\": grading rubric for open-ended answers (Essay/Case Study); \"\" otherwise\n" +
-            "}\n\n" +
+            // The field set and enums are enforced by the response schema; the prompt
+            // only carries the rules a schema can't express — which fields apply to
+            // which question type, and the caller's constraints.
+            "Field rules:\n" +
+            "- \"options\": REQUIRED for \"Multiple Choice\" (3-5 options, exactly one correct) and " +
+            "\"True/False\" (exactly two options, True and False); [] for every other type.\n" +
+            "- \"language\": REQUIRED for \"Coding\" and \"SQL\"; \"\" otherwise.\n" +
+            "- \"starterCode\": starter code where it helps; \"\" if none.\n" +
+            "- \"evaluationCriteria\": grading rubric for open-ended answers (Essay/Case Study); \"\" otherwise.\n\n" +
             "Constraints:\n" + constraints;
     }
 
@@ -105,16 +159,11 @@ public class QuestionGeneratorService(
         var drafts = new List<CreateQuestionDto>();
         try
         {
-            var start = raw.IndexOf('[');
-            var end = raw.LastIndexOf(']');
-            if (start < 0 || end <= start)
+            using var doc = JsonDocument.Parse(ExtractJson(raw));
+            if (!TryGetQuestionArray(doc.RootElement, out var questions))
                 return drafts;
 
-            using var doc = JsonDocument.Parse(raw[start..(end + 1)]);
-            if (doc.RootElement.ValueKind != JsonValueKind.Array)
-                return drafts;
-
-            foreach (var el in doc.RootElement.EnumerateArray())
+            foreach (var el in questions.EnumerateArray())
             {
                 if (el.ValueKind != JsonValueKind.Object)
                     continue;
@@ -130,6 +179,52 @@ public class QuestionGeneratorService(
         }
 
         return drafts;
+    }
+
+    /// <summary>
+    /// Trims the model's output down to its JSON payload. The strict schema returns
+    /// bare JSON, so this only does anything when <c>Groq:Model</c> is pointed at a
+    /// model without strict-schema support, which may add prose or a markdown fence.
+    /// </summary>
+    private static string ExtractJson(string raw)
+    {
+        var trimmed = raw.Trim();
+        if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
+            return trimmed;
+
+        // Whichever payload shape opens first is the one being wrapped.
+        var objectStart = trimmed.IndexOf('{');
+        var arrayStart = trimmed.IndexOf('[');
+        var (start, end) = arrayStart >= 0 && (objectStart < 0 || arrayStart < objectStart)
+            ? (arrayStart, trimmed.LastIndexOf(']'))
+            : (objectStart, trimmed.LastIndexOf('}'));
+
+        return start >= 0 && end > start ? trimmed[start..(end + 1)] : trimmed;
+    }
+
+    /// <summary>
+    /// The strict schema wraps the drafts as <c>{"questions": [...]}</c> because a
+    /// JSON schema root must be an object. A bare array is still accepted so that
+    /// swapping <c>Groq:Model</c> for a model without strict-schema support works.
+    /// </summary>
+    private static bool TryGetQuestionArray(JsonElement root, out JsonElement questions)
+    {
+        if (root.ValueKind == JsonValueKind.Object
+            && root.TryGetProperty("questions", out var wrapped)
+            && wrapped.ValueKind == JsonValueKind.Array)
+        {
+            questions = wrapped;
+            return true;
+        }
+
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            questions = root;
+            return true;
+        }
+
+        questions = default;
+        return false;
     }
 
     private static CreateQuestionDto? MapDraft(JsonElement el, GenerateQuestionsRequestDto request, string? forcedType)

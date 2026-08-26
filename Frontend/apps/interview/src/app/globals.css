@@ -63,3 +63,46 @@
     display: none;
   }
 }
+/* Print: the candidate report should read as a clean flowing document. Controls, the sticky
+   action bar, and the shell sidebar are already print:hidden; these rules neutralise sticky
+   positioning and heavy backgrounds so the exported PDF is legible. */
+@media print {
+  body {
+    background: #fff;
+  }
+  .sticky {
+    position: static !important;
+  }
+}
+
+/* Dashboard motion — a single "rise + fade" entrance (staggered via inline animation-delay on a
+   wrapper so it never fights element hover transforms) and a menu "pop". All motion is gated behind
+   prefers-reduced-motion so it fully disables for users who ask for less movement. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes dash-rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes dash-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  .dash-rise {
+    animation: dash-rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .dash-pop {
+    animation: dash-pop 0.16s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}

@@ -12,6 +12,9 @@ public class QuestionDto
     public int DurationMinutes { get; set; }
     public List<string> Tags { get; set; } = [];
     public int UsageCount { get; set; }
+    /// <summary>Creation timestamp (ISO-8601, UTC). The library sorts "newest"/"oldest" on this —
+    /// ids are random GUIDs, so they carry no ordering.</summary>
+    public string CreatedAt { get; set; } = string.Empty;
     public List<QuestionOptionDto> Options { get; set; } = [];
     public string Language { get; set; } = string.Empty;
     public string StarterCode { get; set; } = string.Empty;

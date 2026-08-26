@@ -30,4 +30,7 @@ public class CreateTestDto
     public bool? EnableActivityMonitoring { get; set; }
 
     public bool? RestrictCopyPaste { get; set; }
+
+    [Range(0, 100)]
+    public int? PassingThreshold { get; set; }
 }

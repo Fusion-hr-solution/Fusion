@@ -23,9 +23,13 @@ export function AppShell({ children }: AppShellProps) {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <InterviewSidebar />
-      <main className="flex-1 overflow-y-auto">{children}</main>
+    // print:* overrides let a page (e.g. the candidate report) print as a full flowing document:
+    // the sidebar is dropped and the viewport height/overflow clamps are lifted.
+    <div className="flex h-screen overflow-hidden print:block print:h-auto print:overflow-visible">
+      <div className="print:hidden">
+        <InterviewSidebar />
+      </div>
+      <main className="flex-1 overflow-y-auto print:overflow-visible">{children}</main>
     </div>
   );
 }

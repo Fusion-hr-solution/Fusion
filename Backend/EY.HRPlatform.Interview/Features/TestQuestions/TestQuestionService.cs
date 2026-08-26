@@ -1,3 +1,4 @@
+using EY.HRPlatform.Interview.Domain;
 using EY.HRPlatform.Interview.Domain.Entities;
 using EY.HRPlatform.Interview.Domain.Enums;
 using EY.HRPlatform.Interview.Infrastructure;
@@ -6,6 +7,7 @@ using EY.HRPlatform.Interview.Models.Questions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using static EY.HRPlatform.Interview.Domain.QuestionContracts;
 
 namespace EY.HRPlatform.Interview.Features.TestQuestions;
 
@@ -106,27 +108,6 @@ public class TestQuestionService(AppDbContext dbContext) : ITestQuestionService
             Language = question.Language ?? string.Empty,
             StarterCode = question.StarterCode ?? string.Empty,
             EvaluationCriteria = question.EvaluationCriteria ?? string.Empty
-        };
-    }
-
-    private static string ToContract(QuestionType type)
-    {
-        return type switch
-        {
-            QuestionType.Sql => "SQL",
-            QuestionType.MultipleChoice => "Multiple Choice",
-            QuestionType.CaseStudy => "Case Study",
-            QuestionType.TrueFalse => "True/False",
-            _ => type.ToString()
-        };
-    }
-
-    private static string ToContract(GradingMethod method)
-    {
-        return method switch
-        {
-            GradingMethod.AutoGraded => "Auto-graded",
-            _ => method.ToString()
         };
     }
 

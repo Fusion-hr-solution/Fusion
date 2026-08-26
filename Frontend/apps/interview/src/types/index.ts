@@ -45,6 +45,7 @@ export interface Test {
   enableProctoring: boolean;
   enableActivityMonitoring: boolean;
   restrictCopyPaste: boolean;
+  passingThreshold?: number | null;
   candidateCount: number;
   questionCount: number;
   createdAt: string;
@@ -66,6 +67,8 @@ export interface Question {
   durationMinutes: number;
   tags: string[];
   usageCount: number;
+  /** ISO-8601 UTC creation timestamp. Ids are random GUIDs, so this is the only ordering key. */
+  createdAt: string;
   options?: { text: string; correct: boolean }[];
   language?: string;
   starterCode?: string;
@@ -290,6 +293,43 @@ export interface CandidateProgressTimeline {
   candidateEmail: string;
   candidateName?: string;
   attempts: CandidateAttemptTimeline[];
+}
+
+/** One skill axis in a candidate report — a question tag or a question-type. */
+export interface CandidateReportSkill {
+  key: string;
+  scorePct: number;
+  cohortAvgPct?: number;
+  secondsSpent?: number;
+  allottedSeconds: number;
+  questionCount: number;
+}
+
+/** Synthesized, decision-oriented view of a single graded attempt. The hiring verdict is derived on
+ * the client from score + proctoring (see components/reports/verdict), never persisted. */
+export interface CandidateReport {
+  testId: string;
+  testTitle: string;
+  candidateEmail: string;
+  candidateName?: string;
+  attemptNumber: number;
+  attemptId?: string;
+  gradingStatus: "Pending" | "InProgress" | "Completed" | "Failed";
+  totalScore?: number;
+  maxScore?: number;
+  /** Author-set pass mark (0–100), or undefined when the test has none. */
+  passingThreshold?: number;
+  submittedAtUtc?: string;
+  /** Total time on the attempt in seconds; undefined for attempts recorded before timing capture. */
+  totalDurationSeconds?: number;
+  /** Which axis the skills are grouped by. */
+  axisKind: "tag" | "type";
+  cohortSize: number;
+  cohortAvailable: boolean;
+  cohortUnavailableReason?: string;
+  overallCohortAvgPct?: number;
+  skills: CandidateReportSkill[];
+  proctoring?: CandidateAttemptProctoringSummary;
 }
 
 export type RetentionAction = "Anonymize" | "Delete" | "Expire";

@@ -7,6 +7,7 @@ public interface ICandidateManagementService
     Task<CandidateManagementOverviewDto> GetOverviewAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<CandidateTimelineCandidateDto>> GetTimelineCandidatesAsync(string testId, CancellationToken cancellationToken);
     Task<CandidateProgressTimelineDto> GetTimelineAsync(string testId, string candidateEmail, CancellationToken cancellationToken);
+    Task<CandidateReportDto> GetCandidateReportAsync(string testId, string candidateEmail, int? attemptNumber, CancellationToken cancellationToken);
     Task<CandidateRetakeGrantResultDto> GrantRetakeAsync(GrantCandidateRetakeRequestDto request, CancellationToken cancellationToken);
     Task<CandidateAttemptSettingsDto> GetAttemptSettingsAsync(CancellationToken cancellationToken);
     Task<CandidateAttemptSettingsDto> SaveAttemptSettingsAsync(UpdateCandidateAttemptSettingsDto request, CancellationToken cancellationToken);
