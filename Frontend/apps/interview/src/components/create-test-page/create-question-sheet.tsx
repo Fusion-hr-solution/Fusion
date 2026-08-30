@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Plus, CheckCircle2, Sparkles, RefreshCw } from "lucide-react";
+import { X, Plus, CheckCircle2, Sparkles, RefreshCw, File as FileIcon, Files as FilesIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { QUESTION_TYPES, CODING_LANGUAGES, GRADING_METHODS, FRONTEND_FRAMEWORKS } from "@/config/constants";
 import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import { TestCasesEditor } from "@/components/create-test-page/test-cases-editor";
 import { ProjectEditor } from "@/components/create-test-page/project-editor";
 import { generateQuestions } from "@/services/test-service";
-import { defaultFileName, serializeProject } from "@/lib/project";
+import { defaultFileName, parseProject, serializeProject } from "@/lib/project";
 import {
   frameworkStarterProject,
   normalizeFramework,
@@ -185,14 +185,24 @@ export function CreateQuestionSheet({
     setSeedKey((k) => k + 1);
   }
 
+  const project = parseProject(form.projectFiles);
+  /** Files that switching back to a single file would discard. */
+  const droppedFileCount = Math.max(0, (project?.files.length ?? 0) - 1);
+
   function toggleMultiFile(on: boolean) {
     if (on) {
       // Seed a one-file project from the current starter code so the editor isn't empty.
       const entry = defaultFileName(form.language);
       update("projectFiles", serializeProject({ entry, files: [{ path: entry, content: form.starterCode || "" }] }));
-    } else {
-      update("projectFiles", "");
+      return;
     }
+
+    // Carry the entry file's content back into the single-file editor. Blanking projectFiles
+    // on its own would drop the author's work and leave a stale starterCode behind it.
+    const entryFile =
+      project?.files.find((file) => file.path === project.entry) ?? project?.files[0];
+    if (entryFile) update("starterCode", entryFile.content);
+    update("projectFiles", "");
   }
   const validationError = getValidationError(form);
   const isValid = validationError === null;
@@ -660,18 +670,49 @@ export function CreateQuestionSheet({
                     />
                   </div>
                   <div>
-                    <div className="mb-2 flex items-center justify-between">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                       <FieldLabel>{multiFile ? "Starter Project" : "Starter Code"}</FieldLabel>
-                      <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-zinc-500">
-                        <input
-                          type="checkbox"
-                          checked={multiFile}
-                          onChange={(e) => toggleMultiFile(e.target.checked)}
-                          className="h-3.5 w-3.5 accent-zinc-900"
-                        />
-                        Multiple files
-                      </label>
+                      {/* A mode switch, not an option: both states are named and equally
+                          reachable, and the whole pill is the hit target. */}
+                      <div
+                        role="radiogroup"
+                        aria-label="Starter code layout"
+                        className="flex items-center gap-0.5 rounded-lg border border-zinc-200 bg-zinc-50 p-0.5"
+                      >
+                        {[
+                          { value: false, label: "Single file", icon: FileIcon },
+                          { value: true, label: "Multiple files", icon: FilesIcon },
+                        ].map(({ value, label, icon: Icon }) => {
+                          const active = multiFile === value;
+                          return (
+                            <button
+                              key={label}
+                              type="button"
+                              role="radio"
+                              aria-checked={active}
+                              onClick={() => { if (!active) toggleMultiFile(value); }}
+                              className={cn(
+                                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[12px] font-medium transition-colors duration-150",
+                                active
+                                  ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200"
+                                  : "text-zinc-500 hover:text-zinc-800"
+                              )}
+                            >
+                              <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
+
+                    {multiFile && droppedFileCount > 0 ? (
+                      <p className="mb-2 text-[11px] text-zinc-400">
+                        Switching to a single file keeps{" "}
+                        <span className="font-medium text-zinc-500">{project?.entry}</span> and discards the other{" "}
+                        {droppedFileCount} file{droppedFileCount === 1 ? "" : "s"}.
+                      </p>
+                    ) : null}
                     {multiFile ? (
                       <ProjectEditor
                         key={seedKey}

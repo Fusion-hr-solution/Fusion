@@ -205,7 +205,9 @@ export function StepQuestions() {
     return () => {
       isMounted = false;
     };
-  }, []);
+    // Both are zustand actions defined once in the store creator, so their identity is stable
+    // and listing them keeps the effect a genuine mount-time load rather than a re-runner.
+  }, [isQuestionSelected, updateSelectedQuestion]);
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {

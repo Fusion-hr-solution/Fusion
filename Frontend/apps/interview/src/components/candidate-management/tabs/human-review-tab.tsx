@@ -171,7 +171,7 @@ function ReviewCard({ item, scoreInput, onScoreChange, onApprove, isApproving }:
 
           <div>
             <p className="text-[11px] font-medium text-zinc-500 uppercase tracking-wide mb-1">Candidate's Answer</p>
-            <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-3 text-[12px] text-zinc-800 font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+            <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-3 text-[12px] text-zinc-800 font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
               {item.candidateAnswer || <span className="text-zinc-400 italic">No answer provided</span>}
             </div>
           </div>

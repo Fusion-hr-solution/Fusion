@@ -43,7 +43,7 @@ public class HumanReviewService(AppDbContext dbContext)
                 CandidateName: r.Attempt.CandidateName ?? r.Attempt.CandidateEmail,
                 QuestionTitle: r.Question.Title,
                 QuestionText: r.Question.Description,
-                CandidateAnswer: RenderAnswer(answer, r.Question),
+                CandidateAnswer: CandidateAnswerRenderer.Render(answer, r.Question),
                 AiSuggestedFeedback: r.Feedback,
                 AiSuggestedScore: r.Score,
                 MaxScore: r.MaxScore
@@ -81,24 +81,4 @@ public class HumanReviewService(AppDbContext dbContext)
         await dbContext.SaveChangesAsync(ct);
     }
 
-    /// <summary>
-    /// Produces a human-readable answer for the review queue. Selected option ids
-    /// are resolved to their option text; otherwise the free-text answer is shown.
-    /// </summary>
-    private static string RenderAnswer(CandidateAnswer answer, Question question)
-    {
-        if (answer.SelectedOptionIds.Count > 0)
-        {
-            var textById = question.Options
-                .GroupBy(o => o.Id.ToString(), StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(g => g.Key, g => g.First().Text, StringComparer.OrdinalIgnoreCase);
-
-            var labels = answer.SelectedOptionIds
-                .Select(id => textById.TryGetValue(id, out var text) ? text : id);
-
-            return string.Join(", ", labels);
-        }
-
-        return answer.AnswerText;
-    }
 }

@@ -16,6 +16,7 @@ import { AttemptLimitsTab } from "@/components/candidate-management/tabs/attempt
 import { AnonymizeTab } from "@/components/candidate-management/tabs/anonymize-tab";
 import { RetentionTab } from "@/components/candidate-management/tabs/retention-tab";
 import { HumanReviewTab } from "@/components/candidate-management/tabs/human-review-tab";
+import { ScrollableTabs } from "@/components/candidate-management/scrollable-tabs";
 import type { CsvImportReport } from "@/services/models/csv_import_report_popup_model";
 import type { InviteResult } from "@/services/models/invite_result_popup_model";
 import type { InviteMethod } from "@/services/models/invite_tab_model";
@@ -226,6 +227,8 @@ export function CandidateManagement() {
   const csvReportTimerRef = useRef<number | null>(null);
 
   const activeTab = parseTab(searchParams.get("tab"));
+  const requestedTestId = searchParams.get("testId") ?? "";
+  const requestedCandidateEmail = searchParams.get("candidateEmail") ?? "";
   const timelineTabActive = activeTab === "timeline" || activeTab === "retake" || activeTab === "anonymize";
 
   // ── Server state (React Query) ───────────────────────────────────────────────
@@ -344,6 +347,14 @@ export function CandidateManagement() {
     };
   }, []);
 
+  // A deep link (e.g. "Open timeline" from a report) names the test + candidate to show.
+  // Honour it before the auto-select effects below, which otherwise fall back to the first
+  // of each. Guarded on a non-empty value so switching tabs — which drops these params —
+  // leaves the current selection alone.
+  useEffect(() => {
+    if (requestedTestId) setSelectedTestId(requestedTestId);
+  }, [requestedTestId]);
+
   // Auto-select first test when tests load
   useEffect(() => {
     if (tests.length > 0 && !selectedTestId) {
@@ -370,12 +381,15 @@ export function CandidateManagement() {
       setSelectedTimelineCandidateEmail("");
       return;
     }
-    setSelectedTimelineCandidateEmail((prev) =>
-      timelineCandidates.some((c) => c.candidateEmail === prev)
-        ? prev
-        : timelineCandidates[0]?.candidateEmail ?? ""
-    );
-  }, [timelineCandidates, timelineTabActive]);
+    setSelectedTimelineCandidateEmail((prev) => {
+      // A deep link ("Open timeline" from a report) names the candidate to show. Prefer it
+      // until the reviewer picks someone else, and only while this test actually lists them.
+      const desired = prev || requestedCandidateEmail;
+      return timelineCandidates.some((c) => c.candidateEmail === desired)
+        ? desired
+        : timelineCandidates[0]?.candidateEmail ?? "";
+    });
+  }, [timelineCandidates, timelineTabActive, requestedCandidateEmail]);
 
   useEffect(() => {
     setGrantRetakeError(null);
@@ -1001,12 +1015,13 @@ export function CandidateManagement() {
         <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm">
           {/* Tab navigation */}
           <div className="border-b border-zinc-100 bg-zinc-50/50 px-3 pt-2.5 pb-0">
-            <div className="flex gap-0.5 overflow-x-auto scrollbar-hide">
+            <ScrollableTabs activeKey={activeTab}>
               {TAB_CONFIG.map((tab) => {
                 const isActive = tab.key === activeTab;
                 return (
                   <button
                     key={tab.key}
+                    data-active={isActive}
                     onClick={() => switchTab(tab.key)}
                     className={cn(
                       "inline-flex shrink-0 items-center gap-1.5 rounded-t-lg px-3 py-2 text-[12px] font-medium transition-all duration-150 border border-transparent",
@@ -1020,7 +1035,7 @@ export function CandidateManagement() {
                   </button>
                 );
               })}
-            </div>
+            </ScrollableTabs>
           </div>
 
           <div className="px-6 py-6">

@@ -225,7 +225,17 @@ function ReportsContent() {
         <ReportBody
           report={report}
           showComparison={showComparison && report.cohortAvailable}
-          onOpenTimeline={() => router.push("/candidates")}
+          onOpenTimeline={() => {
+            // Name the tab AND the subject: the tab is URL-driven, while the test/candidate
+            // selectors otherwise auto-pick the first of each — which would open a stranger's
+            // timeline rather than the candidate being reviewed.
+            const params = new URLSearchParams({
+              tab: "timeline",
+              testId: report.testId,
+              candidateEmail: report.candidateEmail,
+            });
+            router.push(`/candidates?${params.toString()}`);
+          }}
         />
       ) : null}
     </div>
