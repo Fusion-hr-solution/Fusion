@@ -9,7 +9,12 @@ export type QuestionType =
   | "Design"
   | "Frontend Project";
 
-export type Difficulty = "Easy" | "Medium" | "Hard" | "Expert";
+/**
+ * Admin-curated label, not a fixed union — the backend stores it as a plain string because it
+ * carries no behaviour. The seed values live in `@/config/constants`; the live set comes from
+ * Settings. Style maps keyed by difficulty must therefore tolerate an unknown value.
+ */
+export type Difficulty = string;
 
 export type GradingMethod = "Auto-graded" | "Hybrid" | "Manual";
 
@@ -17,16 +22,8 @@ export type TestStatus = "Active" | "Draft" | "Archived";
 
 export type DifficultyLevel = "Entry" | "Mid" | "Senior" | "Lead" | "Executive";
 
-export type Discipline =
-  | "Engineering"
-  | "Design"
-  | "Product"
-  | "Data"
-  | "Marketing"
-  | "Sales"
-  | "Operations"
-  | "Finance"
-  | "HR";
+/** Admin-curated label, not a fixed union — see {@link Difficulty}. */
+export type Discipline = string;
 
 export type SortOption = "newest" | "oldest" | "most_used" | "points";
 

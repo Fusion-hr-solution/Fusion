@@ -93,7 +93,7 @@ public class TestQuestionService(AppDbContext dbContext) : ITestQuestionService
             Title = question.Title,
             Description = question.Description,
             Type = ToContract(question.Type),
-            Difficulty = question.Difficulty.ToString(),
+            Difficulty = question.Difficulty,
             GradingMethod = ToContract(question.GradingMethod),
             Points = question.Points,
             DurationMinutes = question.DurationMinutes,

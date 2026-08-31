@@ -96,7 +96,7 @@ public class InterviewRoutesIntegrationTests
     }
 
     [Fact]
-    public async Task PostTests_WhenDisciplineInvalid_Returns400WithFailureEnvelope()
+    public async Task PostTests_WhenDisciplineTooLong_Returns400WithFailureEnvelope()
     {
         await using var factory = new InterviewApiFactory();
         var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
@@ -104,11 +104,13 @@ public class InterviewRoutesIntegrationTests
             BaseAddress = new Uri("https://localhost")
         });
 
+        // Discipline is no longer a fixed enum, so an unrecognised name is valid (see the test
+        // below). What still fails is a value that would not fit the column.
         var request = new
         {
-            title = "Invalid discipline test",
+            title = "Overlong discipline test",
             description = "Desc",
-            discipline = "Legal"
+            discipline = new string('x', 31)
         };
 
         var response = await client.PostAsJsonAsync("/api/interview/tests", request);
@@ -116,9 +118,32 @@ public class InterviewRoutesIntegrationTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("Invalid Discipline", json.RootElement.GetProperty("message").GetString());
+        Assert.Contains("Discipline cannot exceed", json.RootElement.GetProperty("message").GetString());
         Assert.True(json.RootElement.TryGetProperty("errors", out var errors));
         Assert.True(errors.ValueKind == JsonValueKind.Array);
+    }
+
+    [Fact]
+    public async Task PostTests_AcceptsADisciplineOutsideTheOriginalEnum()
+    {
+        await using var factory = new InterviewApiFactory();
+        var client = factory.CreateAuthenticatedClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        // "Legal" was rejected while Discipline was a C# enum. It is now an admin-curated label,
+        // so the API stores whatever the taxonomy offers.
+        var response = await client.PostAsJsonAsync("/api/interview/tests", new
+        {
+            title = "Paralegal screening",
+            description = "Desc",
+            discipline = "Legal"
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("Legal", json.RootElement.GetProperty("data").GetProperty("discipline").GetString());
     }
 
     [Fact]
@@ -169,7 +194,7 @@ public class InterviewRoutesIntegrationTests
             Title = "SQL basics",
             Description = "Simple select",
             Type = QuestionType.Sql,
-            Difficulty = Difficulty.Easy,
+            Difficulty = "Easy",
             GradingMethod = GradingMethod.Manual,
             Points = 5,
             DurationMinutes = 5,
@@ -189,7 +214,7 @@ public class InterviewRoutesIntegrationTests
         {
             Title = "Backend Test",
             Description = "Desc",
-            Discipline = Discipline.Engineering,
+            Discipline = "Engineering",
             Status = TestStatus.Draft,
             CandidateCount = 0
         };
@@ -199,7 +224,7 @@ public class InterviewRoutesIntegrationTests
             Title = "MCQ",
             Description = "Desc",
             Type = QuestionType.MultipleChoice,
-            Difficulty = Difficulty.Easy,
+            Difficulty = "Easy",
             GradingMethod = GradingMethod.AutoGraded,
             Points = 10,
             DurationMinutes = 5,

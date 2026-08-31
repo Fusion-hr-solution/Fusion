@@ -19,7 +19,6 @@ public class TestConfiguration : IEntityTypeConfiguration<Test>
         builder.Property(t => t.Description).HasMaxLength(4000);
 
         builder.Property(t => t.Discipline)
-            .HasConversion<string>()
             .HasMaxLength(30)
             .IsRequired();
 

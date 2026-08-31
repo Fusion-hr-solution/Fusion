@@ -147,7 +147,7 @@ public class TestServiceTests
             Title = "Easy SQL",
             Description = "SQL basics",
             Type = QuestionType.Sql,
-            Difficulty = Difficulty.Easy,
+            Difficulty = "Easy",
             GradingMethod = GradingMethod.Manual,
             Points = 10,
             DurationMinutes = 10,
@@ -160,7 +160,7 @@ public class TestServiceTests
             Title = "Hard coding",
             Description = "Algorithm challenge",
             Type = QuestionType.Coding,
-            Difficulty = Difficulty.Hard,
+            Difficulty = "Hard",
             GradingMethod = GradingMethod.Hybrid,
             Points = 40,
             DurationMinutes = 30,
@@ -172,7 +172,7 @@ public class TestServiceTests
         {
             Title = "Engineering SQL",
             Description = "SQL test",
-            Discipline = Discipline.Engineering,
+            Discipline = "Engineering",
             Status = TestStatus.Active,
             CandidateCount = 5,
             TestQuestions = [new TestQuestion { Question = q1 }]
@@ -183,7 +183,7 @@ public class TestServiceTests
         {
             Title = "Engineering Coding",
             Description = "Coding test",
-            Discipline = Discipline.Engineering,
+            Discipline = "Engineering",
             Status = TestStatus.Draft,
             CandidateCount = 3,
             TestQuestions = [new TestQuestion { Question = q2 }]

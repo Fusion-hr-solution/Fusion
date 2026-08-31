@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<CandidateRetentionSettings> CandidateRetentionSettings => Set<CandidateRetentionSettings>();
     public DbSet<CandidateRetentionRun> CandidateRetentionRuns => Set<CandidateRetentionRun>();
     public DbSet<CandidateTestAttempt> CandidateTestAttempts => Set<CandidateTestAttempt>();
+    public DbSet<InterviewTaxonomySettings> InterviewTaxonomySettings => Set<InterviewTaxonomySettings>();
     public DbSet<GradingJob> GradingJobs => Set<GradingJob>();
     public DbSet<QuestionGradeResult> QuestionGradeResults => Set<QuestionGradeResult>();
     public DbSet<Question> Questions => Set<Question>();
@@ -154,6 +155,21 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         }
 
         foreach (var entry in ChangeTracker.Entries<CandidateRetentionSettings>())
+        {
+            if (entry.State == EntityState.Added)
+            {
+                entry.Property(x => x.CreatedAt).CurrentValue = utcNow;
+                entry.Property(x => x.UpdatedAt).CurrentValue = utcNow;
+            }
+
+            if (entry.State == EntityState.Modified)
+            {
+                entry.Property(x => x.UpdatedAt).CurrentValue = utcNow;
+                entry.Property(x => x.CreatedAt).IsModified = false;
+            }
+        }
+
+        foreach (var entry in ChangeTracker.Entries<InterviewTaxonomySettings>())
         {
             if (entry.State == EntityState.Added)
             {

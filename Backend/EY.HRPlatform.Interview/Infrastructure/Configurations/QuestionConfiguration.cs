@@ -26,7 +26,6 @@ public class QuestionConfiguration : IEntityTypeConfiguration<Question>
             .IsRequired();
 
         builder.Property(q => q.Difficulty)
-            .HasConversion<string>()
             .HasMaxLength(20)
             .IsRequired();
 

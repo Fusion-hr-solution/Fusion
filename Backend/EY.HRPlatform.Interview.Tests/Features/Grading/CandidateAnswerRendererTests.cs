@@ -97,7 +97,7 @@ public class CandidateAnswerRendererTests
         Title = "Q",
         Description = "d",
         Type = QuestionType.FrontendProject,
-        Difficulty = Difficulty.Medium,
+        Difficulty = "Medium",
         GradingMethod = GradingMethod.AutoGraded,
         Points = 10,
         DurationMinutes = 30,

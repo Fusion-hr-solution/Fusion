@@ -18,7 +18,7 @@ public class TestQuestionServiceTests
         {
             Title = "Engineering Test",
             Description = "Desc",
-            Discipline = Discipline.Engineering,
+            Discipline = "Engineering",
             Status = TestStatus.Draft,
             CandidateCount = 0
         };
@@ -28,7 +28,7 @@ public class TestQuestionServiceTests
             Title = "SQL Question",
             Description = "Desc",
             Type = QuestionType.Sql,
-            Difficulty = Difficulty.Medium,
+            Difficulty = "Medium",
             GradingMethod = GradingMethod.Hybrid,
             Points = 20,
             DurationMinutes = 10,
@@ -75,7 +75,7 @@ public class TestQuestionServiceTests
         {
             Title = "Backend Test",
             Description = "Desc",
-            Discipline = Discipline.Engineering,
+            Discipline = "Engineering",
             Status = TestStatus.Active,
             CandidateCount = 0
         };
@@ -85,7 +85,7 @@ public class TestQuestionServiceTests
             Title = "MCQ",
             Description = "Desc",
             Type = QuestionType.MultipleChoice,
-            Difficulty = Difficulty.Easy,
+            Difficulty = "Easy",
             GradingMethod = GradingMethod.AutoGraded,
             Points = 10,
             DurationMinutes = 5,

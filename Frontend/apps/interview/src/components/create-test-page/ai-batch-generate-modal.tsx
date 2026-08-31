@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Sparkles, X, CheckCircle2, Circle, RefreshCw, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
-import { QUESTION_TYPES, DIFFICULTIES, CODING_LANGUAGES } from "@/config/constants";
+import { useTaxonomyOptions } from "@/hooks/use-taxonomy";
 import { generateQuestions, createQuestion } from "@/services/test-service";
 import type { NewQuestionForm, Question, QuestionType, Difficulty } from "@/types";
 
@@ -25,6 +25,11 @@ export function AiBatchGenerateModal({ open, onClose, onSaved }: Props) {
   const [difficulty, setDifficulty] = useState<Difficulty | "">("");
   const [language, setLanguage] = useState("");
   const [count, setCount] = useState(3);
+
+  // Create-only surface, so no ensureValue: a retired language should not be offered here.
+  const languageOptions = useTaxonomyOptions("codingLanguages");
+  const questionTypeOptions = useTaxonomyOptions("questionTypes");
+  const difficultyOptions = useTaxonomyOptions("difficulties");
 
   const [drafts, setDrafts] = useState<NewQuestionForm[]>([]);
   const [accepted, setAccepted] = useState<boolean[]>([]);
@@ -212,7 +217,7 @@ export function AiBatchGenerateModal({ open, onClose, onSaved }: Props) {
                     ariaLabel="Question type"
                     value={type}
                     placeholder="Any type"
-                    options={[{ value: "", label: "Any type" }, ...QUESTION_TYPES.map((v) => ({ value: v, label: v }))]}
+                    options={[{ value: "", label: "Any type" }, ...questionTypeOptions]}
                     onChange={(v) => setType(v as QuestionType | "")}
                   />
                 </div>
@@ -223,7 +228,7 @@ export function AiBatchGenerateModal({ open, onClose, onSaved }: Props) {
                     ariaLabel="Difficulty"
                     value={difficulty}
                     placeholder="Any difficulty"
-                    options={[{ value: "", label: "Any difficulty" }, ...DIFFICULTIES.map((v) => ({ value: v, label: v }))]}
+                    options={[{ value: "", label: "Any difficulty" }, ...difficultyOptions]}
                     onChange={(v) => setDifficulty(v as Difficulty | "")}
                   />
                 </div>
@@ -235,7 +240,7 @@ export function AiBatchGenerateModal({ open, onClose, onSaved }: Props) {
                       ariaLabel="Language"
                       value={language}
                       placeholder="Select language"
-                      options={CODING_LANGUAGES.map((v) => ({ value: v, label: v }))}
+                      options={languageOptions}
                       onChange={setLanguage}
                     />
                   </div>

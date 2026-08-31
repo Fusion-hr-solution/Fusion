@@ -2,7 +2,7 @@
 
 import { Search, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DISCIPLINES, QUESTION_TYPES, TEST_STATUSES } from "@/config/constants";
+import { useTaxonomyOptions } from "@/hooks/use-taxonomy";
 import type { FilterState } from "@/types";
 import { useState, useRef, useEffect } from "react";
 
@@ -22,7 +22,7 @@ function FilterDropdown({
   onChange,
 }: {
   label: string;
-  options: string[];
+  options: { value: string; label: string }[];
   value: string;
   onChange: (v: string) => void;
 }) {
@@ -51,7 +51,7 @@ function FilterDropdown({
             : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
         )}
       >
-        {value || label}
+        {options.find((o) => o.value === value)?.label ?? value ?? label}
         <ChevronDown
           className={cn(
             "h-3.5 w-3.5 transition-transform duration-150",
@@ -71,15 +71,15 @@ function FilterDropdown({
           <div className="border-t border-zinc-100" />
           {options.map((opt) => (
             <button
-              key={opt}
-              onClick={() => { onChange(opt); setOpen(false); }}
+              key={opt.value}
+              onClick={() => { onChange(opt.value); setOpen(false); }}
               className={cn(
                 "flex w-full items-center gap-2 px-3 py-2 text-[13px] transition-colors duration-150 hover:bg-zinc-50",
-                value === opt ? "font-medium text-zinc-900" : "text-zinc-700"
+                value === opt.value ? "font-medium text-zinc-900" : "text-zinc-700"
               )}
             >
-              {value === opt && <div className="h-1.5 w-1.5 rounded-full bg-zinc-900" />}
-              {opt}
+              {value === opt.value && <div className="h-1.5 w-1.5 rounded-full bg-zinc-900" />}
+              {opt.label}
             </button>
           ))}
         </div>
@@ -96,6 +96,11 @@ export function FilterBar({
   onFilterChange,
   onClearAll,
 }: FilterBarProps) {
+  // Filter surfaces, so no ensureValue: a hidden option is not offered as a facet.
+  const disciplineOptions = useTaxonomyOptions("disciplines");
+  const questionTypeOptions = useTaxonomyOptions("questionTypes");
+  const statusOptions = useTaxonomyOptions("testStatuses");
+
   return (
     <div className="flex items-center gap-3 px-8 py-4">
       {/* Search */}
@@ -113,20 +118,20 @@ export function FilterBar({
       {/* Filter Dropdowns */}
       <FilterDropdown
         label="Discipline"
-        options={DISCIPLINES}
+        options={disciplineOptions}
         value={filters.discipline}
         onChange={(v) => onFilterChange("discipline", v as FilterState["discipline"])}
       />
       <FilterDropdown
         label="Question Type"
-        options={QUESTION_TYPES}
+        options={questionTypeOptions}
         value={filters.questionType}
         onChange={(v) => onFilterChange("questionType", v as FilterState["questionType"])}
       />
       {showStatusFilter ? (
         <FilterDropdown
           label="Status"
-          options={TEST_STATUSES}
+          options={statusOptions}
           value={filters.status}
           onChange={(v) => onFilterChange("status", v as FilterState["status"])}
         />

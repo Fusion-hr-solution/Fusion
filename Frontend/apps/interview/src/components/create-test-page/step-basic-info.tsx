@@ -2,7 +2,8 @@
 
 import { FileUp, Upload, Layers, ArrowRight, Sparkles } from "lucide-react";
 import { useWizardStore } from "@/store/wizard-store";
-import { DISCIPLINES, DIFFICULTY_LEVELS } from "@/config/constants";
+import { DIFFICULTY_LEVELS } from "@/config/constants";
+import { useTaxonomyOptions } from "@/hooks/use-taxonomy";
 import { cn } from "@/lib/utils";
 import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import type { Discipline, DifficultyLevel } from "@/types";
@@ -44,6 +45,9 @@ function InputField(props: React.InputHTMLAttributes<HTMLInputElement>) {
 
 export function StepBasicInfo() {
   const { basicInfo, updateBasicInfo, nextStep } = useWizardStore();
+  // Reachable when editing an existing draft, so keep a retired discipline selectable
+  // rather than silently blanking it on the next save.
+  const disciplineOptions = useTaxonomyOptions("disciplines", { ensureValue: basicInfo.discipline });
   const canContinue = basicInfo.title.trim() !== "" && basicInfo.discipline !== "";
 
   return (
@@ -121,7 +125,7 @@ export function StepBasicInfo() {
                     ariaLabel="Select discipline"
                     value={basicInfo.discipline}
                     placeholder="Select discipline…"
-                    options={DISCIPLINES.map((value) => ({ value, label: value }))}
+                    options={disciplineOptions}
                     onChange={(value) => updateBasicInfo({ discipline: value as Discipline | "" })}
                   />
                 </FieldGroup>

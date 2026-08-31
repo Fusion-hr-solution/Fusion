@@ -187,7 +187,7 @@ public class CandidateInvitationServiceTests
         {
             Title = "Bulk Invite Test",
             Description = "Candidate invitation regression test",
-            Discipline = Discipline.Engineering,
+            Discipline = "Engineering",
             Status = TestStatus.Active,
             CandidateCount = 0
         };

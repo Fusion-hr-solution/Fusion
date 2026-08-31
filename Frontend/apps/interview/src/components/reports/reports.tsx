@@ -141,23 +141,11 @@ function ReportsContent() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
-      <header className="mb-5 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-[22px] font-bold text-zinc-900">Candidate report</h1>
-          <p className="mt-0.5 text-[13px] text-zinc-500">
-            A decision-oriented view of one attempt — score, skill profile, benchmark, and integrity.
-          </p>
-        </div>
-        {report ? (
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] font-medium text-zinc-700 shadow-sm transition-colors hover:border-zinc-300 print:hidden"
-          >
-            <Printer className="h-4 w-4" />
-            Save as PDF
-          </button>
-        ) : null}
+      <header className="mb-5">
+        <h1 className="text-[22px] font-bold text-zinc-900">Candidate report</h1>
+        <p className="mt-0.5 text-[13px] text-zinc-500">
+          A decision-oriented view of one attempt — score, skill profile, benchmark, and integrity.
+        </p>
       </header>
 
       {/* Selection controls — stripped from print output. */}

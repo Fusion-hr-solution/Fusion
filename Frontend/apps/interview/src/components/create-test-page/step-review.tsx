@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, XCircle, BookmarkPlus, Send, ArrowLeft, Pencil, ClipboardCheck } from "lucide-react";
 import { useWizardStore } from "@/store/wizard-store";
+import { useTaxonomyLabel } from "@/hooks/use-taxonomy";
 import { useTestPersistence } from "@/hooks/use-test-persistence";
 import { cn } from "@/lib/utils";
 
@@ -46,7 +47,9 @@ function Pair({ label, value }: { label: string; value?: string | null }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function StepReview() {
-const router = useRouter();
+  const disciplineLabel = useTaxonomyLabel("disciplines");
+  const questionTypeLabel = useTaxonomyLabel("questionTypes");
+  const router = useRouter();
   const { basicInfo, selectedQuestions, config, setStep, reset } = useWizardStore();
   const { saveDraft, publishTest } = useTestPersistence();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -120,7 +123,7 @@ const router = useRouter();
             <div className="grid grid-cols-2 gap-x-8 gap-y-4">
               <Pair label="Title"      value={basicInfo.title} />
               <Pair label="Role"       value={basicInfo.role} />
-              <Pair label="Discipline" value={basicInfo.discipline} />
+              <Pair label="Discipline" value={basicInfo.discipline ? disciplineLabel(basicInfo.discipline) : null} />
               <Pair label="Duration"   value={basicInfo.estimatedDuration ? `${basicInfo.estimatedDuration} minutes` : null} />
               <Pair label="Difficulty" value={basicInfo.difficultyLevel} />
             </div>
@@ -156,7 +159,7 @@ const router = useRouter();
                         {q.title}
                       </span>
                       <span className="shrink-0 rounded-full bg-zinc-200 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
-                        {q.type}
+                        {questionTypeLabel(q.type)}
                       </span>
                       <span className="w-12 shrink-0 text-right text-[12px] font-bold text-zinc-700">
                         {q.points}pts

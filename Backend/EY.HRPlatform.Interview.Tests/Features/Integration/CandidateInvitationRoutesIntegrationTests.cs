@@ -65,7 +65,7 @@ public class CandidateInvitationRoutesIntegrationTests
         {
             Title = "Candidate invite API test",
             Description = "Regression coverage for candidate names",
-            Discipline = Discipline.Engineering,
+            Discipline = "Engineering",
             Status = TestStatus.Active,
             CandidateCount = 0
         };

@@ -109,10 +109,12 @@ interface CreateQuestionRequest {
   testCases?: string;
 }
 
+// Discipline and difficulty are admin-curated free-form labels, not fixed unions: the backend
+// stores whatever the taxonomy offers. Clamping an unrecognised value to a default would silently
+// rewrite a legitimate label, so these only guard against a missing/blank value.
+// The remaining as*() coercions below stay strict — those ARE fixed contracts.
 function asDiscipline(value: string): Discipline {
-  return DISCIPLINES.includes(value as Discipline)
-    ? (value as Discipline)
-    : "Engineering";
+  return value?.trim() ? value : DISCIPLINES[0]!;
 }
 
 function asStatus(value: string): TestStatus {
@@ -128,9 +130,7 @@ function asQuestionType(value: string): QuestionType {
 }
 
 function asDifficulty(value: string): Difficulty {
-  return DIFFICULTIES.includes(value as Difficulty)
-    ? (value as Difficulty)
-    : "Medium";
+  return value?.trim() ? value : "Medium";
 }
 
 function asGradingMethod(value: string): GradingMethod {

@@ -644,7 +644,7 @@ public class CandidateManagementRoutesIntegrationTests
         {
             Title = "Candidate management timeline integration test",
             Description = "Timeline API route coverage",
-            Discipline = Discipline.Engineering,
+            Discipline = "Engineering",
             Status = TestStatus.Active,
             CandidateCount = 0
         };
@@ -666,7 +666,7 @@ public class CandidateManagementRoutesIntegrationTests
         {
             Title = "Proctored timeline test",
             Description = "Proctoring summary coverage",
-            Discipline = Discipline.Engineering,
+            Discipline = "Engineering",
             Status = TestStatus.Active,
             EnableProctoring = true,
         };

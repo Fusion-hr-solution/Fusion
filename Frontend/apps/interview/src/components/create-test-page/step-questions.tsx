@@ -20,16 +20,25 @@ import { CSS } from "@dnd-kit/utilities";
 import { useWizardStore } from "@/store/wizard-store";
 import { getQuestions, deleteQuestion } from "@/services/test-service";
 import { QUESTION_TYPES, DIFFICULTIES, GRADING_METHODS, SORT_OPTIONS } from "@/config/constants";
+import { useTaxonomyLabel, useTaxonomyOptions } from "@/hooks/use-taxonomy";
 import { AiBatchGenerateModal } from "@/components/create-test-page/ai-batch-generate-modal";
 import { cn } from "@/lib/utils";
 import type { Question, QuestionFilterState, SortOption, Difficulty } from "@/types";
 
-const DIFF_STYLES: Record<Difficulty, string> = {
+// Keyed by the canonical value, not the label. Difficulties are admin-editable, so a custom one
+// has no colour here and falls back to neutral rather than rendering unstyled.
+const DIFF_STYLES: Record<string, string> = {
   Easy:   "bg-emerald-50 text-emerald-700 border-emerald-100",
   Medium: "bg-amber-50  text-amber-700  border-amber-100",
   Hard:   "bg-rose-50   text-rose-700   border-rose-100",
   Expert: "bg-purple-50 text-purple-700 border-purple-100",
 };
+
+const DIFF_STYLE_FALLBACK = "bg-zinc-100 text-zinc-600 border-zinc-200";
+
+function diffStyle(difficulty: string): string {
+  return DIFF_STYLES[difficulty] ?? DIFF_STYLE_FALLBACK;
+}
 
 /** Creation time in epoch ms; 0 for a question saved before createdAt was exposed. */
 function createdAtMs(question: Question): number {
@@ -49,6 +58,7 @@ function SortableRow({
   onPreview: (question: Question) => void;
   onRemove: (id: string) => void;
 }) {
+  const difficultyLabel = useTaxonomyLabel("difficulties");
   const {
     attributes, listeners, setNodeRef,
     transform, transition, isDragging,
@@ -81,8 +91,8 @@ function SortableRow({
           {question.title}
         </p>
         <div className="mt-1 flex items-center gap-1.5">
-          <span className={cn("rounded-full border px-1.5 py-0.5 text-[10px] font-medium", DIFF_STYLES[question.difficulty])}>
-            {question.difficulty}
+          <span className={cn("rounded-full border px-1.5 py-0.5 text-[10px] font-medium", diffStyle(question.difficulty))}>
+            {difficultyLabel(question.difficulty)}
           </span>
           <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-bold text-zinc-600">
             {question.points}pt
@@ -137,6 +147,14 @@ export function StepQuestions() {
   } = useWizardStore();
 
   const flaggedIdSet = new Set(previewFlaggedQuestionIds);
+
+  // Filter surfaces, so no ensureValue: a hidden option should not be offered as a facet.
+  const typeOptions = useTaxonomyOptions("questionTypes");
+  const difficultyOptions = useTaxonomyOptions("difficulties");
+  const gradingOptions = useTaxonomyOptions("gradingMethods");
+  const questionTypeLabel = useTaxonomyLabel("questionTypes");
+  const difficultyLabel = useTaxonomyLabel("difficulties");
+  const gradingMethodLabel = useTaxonomyLabel("gradingMethods");
 
   const [filters,      setFilters]      = useState<QuestionFilterState>({ search: "", types: [], difficulties: [], gradingMethods: [] });
   const [sortBy,       setSortBy]       = useState<SortOption>("newest");
@@ -394,9 +412,9 @@ export function StepQuestions() {
       {filtersOpen && (
         <div className="flex flex-wrap items-start gap-6 rounded-2xl border border-zinc-200 bg-zinc-50/60 px-5 py-4">
           {[
-            { label: "Type",       items: QUESTION_TYPES,           counts: typeCounts, key: "types"          as const, radio: false },
-            { label: "Difficulty", items: ["All", ...DIFFICULTIES], counts: diffCounts, key: "difficulties"   as const, radio: true  },
-            { label: "Grading",    items: GRADING_METHODS,          counts: gradCounts, key: "gradingMethods" as const, radio: false },
+            { label: "Type",       items: typeOptions,                                        counts: typeCounts, key: "types"          as const, radio: false },
+            { label: "Difficulty", items: [{ value: "All", label: "All" }, ...difficultyOptions], counts: diffCounts, key: "difficulties"   as const, radio: true  },
+            { label: "Grading",    items: gradingOptions,                                     counts: gradCounts, key: "gradingMethods" as const, radio: false },
           ].map((sec, si) => (
             <div key={sec.label} className={cn("flex flex-col gap-2", si > 0 && "pl-6 border-l border-zinc-200")}>
               <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
@@ -404,18 +422,18 @@ export function StepQuestions() {
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {sec.items.map((item) => {
-                  const checked = item === "All"
+                  const checked = item.value === "All"
                     ? (filters[sec.key] as string[]).length === 0
-                    : (filters[sec.key] as string[]).includes(item);
+                    : (filters[sec.key] as string[]).includes(item.value);
                   return (
                     <button
-                      key={item}
+                      key={item.value}
                       onClick={() => {
                         if (sec.radio) {
-                          setFilters((p) => ({ ...p, [sec.key]: item === "All" ? [] : [item] }));
+                          setFilters((p) => ({ ...p, [sec.key]: item.value === "All" ? [] : [item.value] }));
                           setLibPage(1);
                         } else {
-                          toggleFilter(sec.key, item);
+                          toggleFilter(sec.key, item.value);
                         }
                       }}
                       className={cn(
@@ -425,13 +443,13 @@ export function StepQuestions() {
                           : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50"
                       )}
                     >
-                      {item}
-                      {item !== "All" && (
+                      {item.label}
+                      {item.value !== "All" && (
                         <span className={cn(
                           "rounded-full px-1.5 py-0.5 text-[10px] font-bold",
                           checked ? "bg-white/20 text-white" : "bg-zinc-100 text-zinc-500"
                         )}>
-                          {(sec.counts as Record<string, number>)[item] ?? 0}
+                          {(sec.counts as Record<string, number>)[item.value] ?? 0}
                         </span>
                       )}
                     </button>
@@ -551,10 +569,10 @@ export function StepQuestions() {
                     {/* type + difficulty + points */}
                     <div className="flex flex-wrap items-center gap-1.5 pr-6">
                       <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-700">
-                        {q.type}
+                        {questionTypeLabel(q.type)}
                       </span>
-                      <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium", DIFF_STYLES[q.difficulty])}>
-                        {q.difficulty}
+                      <span className={cn("rounded-full border px-2 py-0.5 text-[11px] font-medium", diffStyle(q.difficulty))}>
+                        {difficultyLabel(q.difficulty)}
                       </span>
                       <span className="ml-auto text-[14px] font-bold text-zinc-900">
                         {q.points}pts
@@ -577,7 +595,7 @@ export function StepQuestions() {
                         <Clock className="h-3 w-3" />{q.durationMinutes}m
                       </span>
                       <span className="flex items-center gap-1">
-                        <Zap className="h-3 w-3" />{q.gradingMethod}
+                        <Zap className="h-3 w-3" />{gradingMethodLabel(q.gradingMethod)}
                       </span>
                       <span className="flex items-center gap-1">
                         <BarChart2 className="h-3 w-3" />{q.usageCount}×
@@ -875,10 +893,10 @@ export function StepQuestions() {
             <div className="mb-4 flex items-start justify-between">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-[12px] font-semibold text-zinc-700">
-                  {previewQ.type}
+                  {questionTypeLabel(previewQ.type)}
                 </span>
-                <span className={cn("rounded-full border px-2.5 py-1 text-[12px] font-medium", DIFF_STYLES[previewQ.difficulty])}>
-                  {previewQ.difficulty}
+                <span className={cn("rounded-full border px-2.5 py-1 text-[12px] font-medium", diffStyle(previewQ.difficulty))}>
+                  {difficultyLabel(previewQ.difficulty)}
                 </span>
               </div>
               <button

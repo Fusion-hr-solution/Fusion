@@ -588,7 +588,7 @@ public class CandidateAccessRoutesIntegrationTests
         {
             Title = "Candidate access integration test",
             Description = "Secure link route coverage",
-            Discipline = Discipline.Engineering,
+            Discipline = "Engineering",
             Status = TestStatus.Active,
             CandidateCount = 0
         };

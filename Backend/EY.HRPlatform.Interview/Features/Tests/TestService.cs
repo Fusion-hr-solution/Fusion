@@ -14,6 +14,9 @@ namespace EY.HRPlatform.Interview.Features.Tests;
 
 public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogger<TestService> logger) : ITestService
 {
+    // Must match Test.Discipline's column width in TestConfiguration.
+    private const int MaxDisciplineLength = 30;
+
     private static readonly string[] CachedStatuses = ["Active", "Draft", "Archived"];
     private static readonly DistributedCacheEntryOptions CacheOptions = new()
     {
@@ -78,7 +81,7 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
 
         if (!string.IsNullOrWhiteSpace(filter.Discipline))
         {
-            var discipline = ParseDiscipline(filter.Discipline);
+            var discipline = NormalizeDiscipline(filter.Discipline);
             query = query.Where(t => t.Discipline == discipline);
         }
 
@@ -136,7 +139,7 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
                 Id = t.Id.ToString(),
                 Title = t.Title,
                 Description = t.Description,
-                Discipline = t.Discipline.ToString(),
+                Discipline = t.Discipline,
                 Status = t.Status.ToString(),
                 QuestionTypes = t.QuestionTypes.Select(ToContract).Distinct().OrderBy(x => x).ToList(),
                 MaxAttempts = t.MaxAttempts,
@@ -196,7 +199,7 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
         {
             Title = request.Title.Trim(),
             Description = string.IsNullOrWhiteSpace(request.Description) ? string.Empty : request.Description.Trim(),
-            Discipline = ParseDiscipline(request.Discipline),
+            Discipline = NormalizeDiscipline(request.Discipline),
             Status = string.IsNullOrWhiteSpace(request.Status) ? TestStatus.Draft : ParseStatus(request.Status),
             MaxAttempts = request.MaxAttempts,
             AllowSkipping = request.AllowSkipping ?? false,
@@ -229,7 +232,7 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
 
         test.Title = request.Title.Trim();
         test.Description = string.IsNullOrWhiteSpace(request.Description) ? string.Empty : request.Description.Trim();
-        test.Discipline = ParseDiscipline(request.Discipline);
+        test.Discipline = NormalizeDiscipline(request.Discipline);
         test.Status = string.IsNullOrWhiteSpace(request.Status) ? test.Status : ParseStatus(request.Status);
         test.MaxAttempts = request.MaxAttempts;
         test.AllowSkipping = request.AllowSkipping ?? test.AllowSkipping;
@@ -300,7 +303,7 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
             Id = test.Id.ToString(),
             Title = test.Title,
             Description = test.Description,
-            Discipline = test.Discipline.ToString(),
+            Discipline = test.Discipline,
             Status = test.Status.ToString(),
             QuestionTypes = questionTypes,
             MaxAttempts = test.MaxAttempts,
@@ -318,24 +321,22 @@ public class TestService(AppDbContext dbContext, IDistributedCache cache, ILogge
         };
     }
 
-    private static Discipline ParseDiscipline(string? value)
+    /// <summary>
+    /// Discipline is an admin-curated label rather than a fixed enum — it only categorises tests, so
+    /// the set lives in Settings (see <see cref="InterviewTaxonomy"/>) and any non-empty value that
+    /// fits the column is accepted.
+    /// </summary>
+    private static string NormalizeDiscipline(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
             throw new ApiException("Discipline is required.", StatusCodes.Status400BadRequest);
 
-        return value.Trim() switch
-        {
-            "Engineering" => Discipline.Engineering,
-            "Design" => Discipline.Design,
-            "Product" => Discipline.Product,
-            "Data" => Discipline.Data,
-            "Marketing" => Discipline.Marketing,
-            "Sales" => Discipline.Sales,
-            "Operations" => Discipline.Operations,
-            "Finance" => Discipline.Finance,
-            "HR" => Discipline.HR,
-            _ => throw new ApiException($"Invalid Discipline value '{value}'.", StatusCodes.Status400BadRequest)
-        };
+        var trimmed = value.Trim();
+        if (trimmed.Length > MaxDisciplineLength)
+            throw new ApiException(
+                $"Discipline cannot exceed {MaxDisciplineLength} characters.", StatusCodes.Status400BadRequest);
+
+        return trimmed;
     }
 
     private static TestStatus ParseStatus(string? value)

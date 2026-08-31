@@ -19,6 +19,7 @@ import {
   setTestStatus,
 } from "@/services/test-service";
 import { useWizardStore } from "@/store/wizard-store";
+import { useTaxonomyLabel } from "@/hooks/use-taxonomy";
 import { cn } from "@/lib/utils";
 import type { Question, Test, TestStatus } from "@/types";
 
@@ -28,6 +29,8 @@ type PendingAction =
   | null;
 
 export function TestDashboard() {
+  const questionTypeLabel = useTaxonomyLabel("questionTypes");
+  const difficultyLabel = useTaxonomyLabel("difficulties");
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -426,8 +429,8 @@ export function TestDashboard() {
                           <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-700">
                             Question {idx + 1}
                           </span>
-                          <span className="rounded-full border border-zinc-200 px-2 py-0.5">{question.type}</span>
-                          <span className="rounded-full border border-zinc-200 px-2 py-0.5">{question.difficulty}</span>
+                          <span className="rounded-full border border-zinc-200 px-2 py-0.5">{questionTypeLabel(question.type)}</span>
+                          <span className="rounded-full border border-zinc-200 px-2 py-0.5">{difficultyLabel(question.difficulty)}</span>
                           <span className="ml-auto text-zinc-400">{question.points} pts</span>
                         </div>
 

@@ -343,7 +343,7 @@ public class CandidateReportServiceTests
                 Title = "Q",
                 Description = "d",
                 Type = spec.Type,
-                Difficulty = Difficulty.Easy,
+                Difficulty = "Easy",
                 GradingMethod = GradingMethod.AutoGraded,
                 Points = (int)spec.MaxScore,
                 DurationMinutes = spec.DurationMinutes,
@@ -357,7 +357,7 @@ public class CandidateReportServiceTests
         {
             Title = "Report Test",
             Description = "d",
-            Discipline = Discipline.Engineering,
+            Discipline = "Engineering",
             Status = TestStatus.Active,
             PassingThreshold = passingThreshold,
             EnableProctoring = proctoring,

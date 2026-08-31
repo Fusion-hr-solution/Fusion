@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Test, TestStatus } from "@/types";
+import { useTaxonomyLabel } from "@/hooks/use-taxonomy";
 
 interface TestCardProps {
   test: Test;
@@ -57,6 +58,10 @@ export function TestCard({
   onDelete,
   isBusy = false,
 }: TestCardProps) {
+  // Labels are admin-curated; STATUS_CONFIG below stays keyed by the canonical value
+  // because it maps to styling, not to display text.
+  const disciplineLabel = useTaxonomyLabel("disciplines");
+  const statusLabel = useTaxonomyLabel("testStatuses");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -98,14 +103,14 @@ export function TestCard({
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="truncate rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-0.5 text-[11px] font-medium text-zinc-600">
-            {test.discipline}
+            {disciplineLabel(test.discipline)}
           </span>
           <span className={cn(
             "inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
             statusCfg.badge
           )}>
             <span className={cn("h-1.5 w-1.5 rounded-full", statusCfg.dot)} />
-            {test.status}
+            {statusLabel(test.status)}
           </span>
         </div>
 

@@ -6,6 +6,7 @@ using EY.HRPlatform.Interview.Features.Grading.Groq;
 using EY.HRPlatform.Interview.Features.Grading.HumanReview;
 using EY.HRPlatform.Interview.Features.Grading.Judge0;
 using EY.HRPlatform.Interview.Features.Questions;
+using EY.HRPlatform.Interview.Features.Taxonomy;
 using EY.HRPlatform.Interview.Features.TestQuestions;
 using EY.HRPlatform.Interview.Features.Tests;
 using EY.HRPlatform.Interview.Infrastructure;
@@ -43,6 +44,7 @@ public static class ServiceCollectionExtensions
             services.AddScoped<IQuestionGeneratorService, QuestionGeneratorService>();
             services.AddScoped<ITestService, TestService>();
             services.AddScoped<ITestQuestionService, TestQuestionService>();
+            services.AddScoped<IInterviewTaxonomyService, InterviewTaxonomyService>();
             services.AddScoped<ICandidatePrivacyActionExecutor, CandidatePrivacyActionExecutor>();
             services.AddScoped<ICandidateManagementService, CandidateManagementService>();
             services.AddScoped<ICandidateRetentionService, CandidateRetentionService>();
@@ -76,6 +78,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IQuestionGeneratorService, QuestionGeneratorService>();
         services.AddScoped<ITestService, TestService>();
         services.AddScoped<ITestQuestionService, TestQuestionService>();
+        services.AddScoped<IInterviewTaxonomyService, InterviewTaxonomyService>();
         services.AddScoped<ICandidatePrivacyActionExecutor, CandidatePrivacyActionExecutor>();
         services.AddScoped<ICandidateManagementService, CandidateManagementService>();
         services.AddScoped<ICandidateRetentionService, CandidateRetentionService>();

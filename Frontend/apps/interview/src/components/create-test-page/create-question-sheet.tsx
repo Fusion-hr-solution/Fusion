@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Plus, CheckCircle2, Sparkles, RefreshCw, File as FileIcon, Files as FilesIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { QUESTION_TYPES, CODING_LANGUAGES, GRADING_METHODS, FRONTEND_FRAMEWORKS } from "@/config/constants";
+import { useTaxonomyOptions } from "@/hooks/use-taxonomy";
 import { DropdownSelect } from "@/components/candidate-management/dropdown-select";
 import { TestCasesEditor } from "@/components/create-test-page/test-cases-editor";
 import { ProjectEditor } from "@/components/create-test-page/project-editor";
@@ -71,12 +71,18 @@ function getValidationError(form: NewQuestionForm): string | null {
 }
 
 
+// Keyed by the canonical value. Difficulties are admin-editable, so a custom one has no colour
+// here and falls back to neutral rather than rendering unstyled.
 const DIFF_STYLES: Record<string, string> = {
   Easy:   "bg-emerald-50 text-emerald-700 border-emerald-200",
   Medium: "bg-amber-50  text-amber-700  border-amber-200",
   Hard:   "bg-rose-50   text-rose-700   border-rose-200",
   Expert: "bg-purple-50 text-purple-700 border-purple-200",
 };
+
+function diffStyle(difficulty: string): string {
+  return DIFF_STYLES[difficulty] ?? "bg-zinc-100 text-zinc-600 border-zinc-200";
+}
 
 // ─── Reusable field primitives ────────────────────────────────────────────────
 
@@ -173,6 +179,11 @@ export function CreateQuestionSheet({
   const showOptions = form.type === "Multiple Choice" || form.type === "True/False";
   const showCoding  = form.type === "Coding" || form.type === "SQL";
   const showEval    = form.type === "Essay" || form.type === "Case Study";
+  const languageOptions = useTaxonomyOptions("codingLanguages", { ensureValue: form.language });
+  const questionTypeOptions = useTaxonomyOptions("questionTypes", { ensureValue: form.type });
+  const frameworkOptions = useTaxonomyOptions("frontendFrameworks", { ensureValue: form.framework });
+  const gradingMethodOptions = useTaxonomyOptions("gradingMethods", { ensureValue: form.gradingMethod });
+  const difficultyOptions = useTaxonomyOptions("difficulties", { ensureValue: form.difficulty });
   const showFrontend = form.type === "Frontend Project";
   const multiFile = Boolean(form.projectFiles && form.projectFiles.trim().length > 0);
 
@@ -443,7 +454,7 @@ export function CreateQuestionSheet({
                   ariaLabel="Question type"
                   value={form.type}
                   placeholder="Select type…"
-                  options={QUESTION_TYPES.map((value) => ({ value, label: value }))}
+                  options={questionTypeOptions}
                   onChange={(value) => {
                     const nextType = value as QuestionType | "";
                     setForm((prev) => ({
@@ -526,22 +537,25 @@ export function CreateQuestionSheet({
               <div>
                 <FieldLabel required>Difficulty</FieldLabel>
                 <div className="grid grid-cols-2 gap-2">
-                  {(["Easy", "Medium", "Hard", "Expert"] as Difficulty[]).map((d) => (
+                  {difficultyOptions.map((option) => {
+                    const d = option.value;
+                    return (
                     <button
                       key={d}
                       type="button"
                       onClick={() => update("difficulty", d)}
                       className={cn(
                         "rounded-xl border-2 px-4 py-2 text-[13px] font-semibold transition-all duration-150",
-                        DIFF_STYLES[d],
+                        diffStyle(d),
                         form.difficulty === d
                           ? "scale-[1.03] shadow-sm ring-2 ring-offset-1 ring-zinc-300"
                           : "opacity-50 hover:opacity-90"
                       )}
                     >
-                      {d}
+                      {option.label}
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -571,7 +585,11 @@ export function CreateQuestionSheet({
               <div>
                 <FieldLabel required>Grading Method</FieldLabel>
                 <div className="flex flex-col gap-2">
-                  {(["Auto-graded", "Hybrid", "Manual"] as GradingMethod[]).map((g) => (
+                  {gradingMethodOptions.map((option) => {
+                    // The value stays canonical: it drives both the help text below and what
+                    // the API is sent. Only the visible name is admin-controlled.
+                    const g = option.value as GradingMethod;
+                    return (
                     <button
                       key={g}
                       type="button"
@@ -594,7 +612,7 @@ export function CreateQuestionSheet({
                         )}
                       </div>
                       <div>
-                        <p className="text-[13px] font-semibold">{g}</p>
+                        <p className="text-[13px] font-semibold">{option.label}</p>
                         <p className={cn(
                           "text-[11px]",
                           form.gradingMethod === g ? "text-zinc-300" : "text-zinc-400"
@@ -605,7 +623,8 @@ export function CreateQuestionSheet({
                         </p>
                       </div>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -665,7 +684,7 @@ export function CreateQuestionSheet({
                       ariaLabel="Question language"
                       value={form.language}
                       placeholder="Select language"
-                      options={CODING_LANGUAGES.map((value) => ({ value, label: value }))}
+                      options={languageOptions}
                       onChange={(value) => update("language", value)}
                     />
                   </div>
@@ -750,7 +769,7 @@ export function CreateQuestionSheet({
                       ariaLabel="Frontend framework"
                       value={form.framework ?? ""}
                       placeholder="Select framework"
-                      options={FRONTEND_FRAMEWORKS}
+                      options={frameworkOptions}
                       onChange={setFramework}
                     />
                     <p className="mt-1.5 text-[11px] text-zinc-400">

@@ -15,6 +15,9 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
     // grader separately caps the MERGED project at 512 KB) but stops multi-MB blobs at authoring.
     private const int MaxProjectJsonChars = 512 * 1024;
 
+    // Must match Question.Difficulty's column width in QuestionConfiguration.
+    private const int MaxDifficultyLength = 20;
+
     public async Task<PagedResultDto<QuestionDto>> GetAsync(QuestionFilterDto filter, CancellationToken cancellationToken)
     {
         ValidatePaging(filter.Page, filter.PageSize);
@@ -38,7 +41,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
 
         if (filter.Difficulties.Length > 0)
         {
-            var difficulties = filter.Difficulties.Select(ParseDifficulty).ToHashSet();
+            var difficulties = filter.Difficulties.Select(NormalizeDifficulty).ToHashSet(StringComparer.Ordinal);
             query = query.Where(q => difficulties.Contains(q.Difficulty));
         }
 
@@ -96,7 +99,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             Title = request.Title.Trim(),
             Description = request.Description.Trim(),
             Type = ParseQuestionType(request.Type),
-            Difficulty = ParseDifficulty(request.Difficulty),
+            Difficulty = NormalizeDifficulty(request.Difficulty),
             GradingMethod = ParseGradingMethod(request.GradingMethod),
             Points = request.Points,
             DurationMinutes = request.DurationMinutes,
@@ -138,7 +141,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         question.Title = request.Title.Trim();
         question.Description = request.Description.Trim();
         question.Type = ParseQuestionType(request.Type);
-        question.Difficulty = ParseDifficulty(request.Difficulty);
+        question.Difficulty = NormalizeDifficulty(request.Difficulty);
         question.GradingMethod = ParseGradingMethod(request.GradingMethod);
         question.Points = request.Points;
         question.DurationMinutes = request.DurationMinutes;
@@ -197,7 +200,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             Title = question.Title,
             Description = question.Description,
             Type = ToContract(question.Type),
-            Difficulty = question.Difficulty.ToString(),
+            Difficulty = question.Difficulty,
             GradingMethod = ToContract(question.GradingMethod),
             Points = question.Points,
             DurationMinutes = question.DurationMinutes,
@@ -240,7 +243,7 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
             errors.Add("durationMinutes must be greater than 0.");
 
         var type = ParseQuestionType(request.Type);
-        _ = ParseDifficulty(request.Difficulty);
+        _ = NormalizeDifficulty(request.Difficulty);
         _ = ParseGradingMethod(request.GradingMethod);
 
         if ((type is QuestionType.MultipleChoice or QuestionType.TrueFalse)
@@ -293,19 +296,22 @@ public class QuestionService(AppDbContext dbContext) : IQuestionService
         };
     }
 
-    private static Difficulty ParseDifficulty(string? value)
+    /// <summary>
+    /// Difficulty is an admin-curated label rather than a fixed enum — it carries no behaviour, so
+    /// the set lives in Settings (see <see cref="InterviewTaxonomy"/>) and any non-empty value that
+    /// fits the column is accepted, exactly as <c>Language</c> already works.
+    /// </summary>
+    private static string NormalizeDifficulty(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
             throw new ApiException("Difficulty is required.", StatusCodes.Status400BadRequest);
 
-        return value.Trim() switch
-        {
-            "Easy" => Difficulty.Easy,
-            "Medium" => Difficulty.Medium,
-            "Hard" => Difficulty.Hard,
-            "Expert" => Difficulty.Expert,
-            _ => throw new ApiException($"Invalid Difficulty value '{value}'.", StatusCodes.Status400BadRequest)
-        };
+        var trimmed = value.Trim();
+        if (trimmed.Length > MaxDifficultyLength)
+            throw new ApiException(
+                $"Difficulty cannot exceed {MaxDifficultyLength} characters.", StatusCodes.Status400BadRequest);
+
+        return trimmed;
     }
 
     private static GradingMethod ParseGradingMethod(string? value)

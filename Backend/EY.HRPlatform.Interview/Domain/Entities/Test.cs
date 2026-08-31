@@ -7,7 +7,9 @@ public class Test : AggregateRoot
 {
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public Discipline Discipline { get; set; }
+    /// <summary>Admin-curatable label (see <see cref="InterviewTaxonomy"/>). Free-form —
+    /// it categorises tests and carries no behaviour.</summary>
+    public string Discipline { get; set; } = string.Empty;
     public TestStatus Status { get; set; } = TestStatus.Draft;
     public int? MaxAttempts { get; set; }
     public bool AllowSkipping { get; set; }

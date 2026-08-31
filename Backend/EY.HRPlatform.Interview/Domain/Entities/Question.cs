@@ -8,7 +8,9 @@ public class Question : AggregateRoot
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public QuestionType Type { get; set; }
-    public Difficulty Difficulty { get; set; }
+    /// <summary>Admin-curatable label (see <see cref="InterviewTaxonomy"/>). Free-form like
+    /// <see cref="Language"/> — it carries no behaviour, only categorisation.</summary>
+    public string Difficulty { get; set; } = string.Empty;
     public GradingMethod GradingMethod { get; set; }
     public int Points { get; set; }
     public int DurationMinutes { get; set; }
