@@ -12,16 +12,15 @@ public enum ObjectiveOwnershipScope
 }
 
 /// <summary>
-/// Lifecycle of an objective. Strategic objectives use Draft → Published; organizational
-/// objectives (Chunk B) add Submitted/Approved; employee objectives live inside the plan
-/// lifecycle. Only the states reachable in this change are exercised here.
+/// Lifecycle of an objective. Strategic and organizational objectives both use Draft → Published:
+/// an authorized scope owner establishes the objective and publishes it as official direction —
+/// there is no routine parent-approval step. Employee objectives live inside the plan lifecycle
+/// (Draft → Submitted → Approved and Locked), which is the genuine employee/manager agreement.
 /// </summary>
 public enum ObjectiveLifecycleState
 {
     Draft = 0,
     Published = 1,
-    Submitted = 2,
-    Approved = 3,
 }
 
 /// <summary>The three direct measurement methods (performance-objective-measurement).</summary>
@@ -49,16 +48,4 @@ public enum ObjectiveProgressSource
 {
     Direct = 0,
     Calculated = 1,
-}
-
-/// <summary>
-/// One recorded step in an organizational objective's approval history — submitted for approval,
-/// approved by the parent-accountable person, or returned to Draft with feedback. Kept as an
-/// attributable trail for the objective context panel (product-spec §17).
-/// </summary>
-public enum ObjectiveDecisionKind
-{
-    Submitted = 0,
-    Approved = 1,
-    Returned = 2,
 }

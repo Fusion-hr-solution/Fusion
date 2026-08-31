@@ -40,7 +40,6 @@ public sealed class PerformanceDbContext : DbContext
     public DbSet<Participant> Participants => Set<Participant>();
     public DbSet<Objective> Objectives => Set<Objective>();
     public DbSet<ContributionLink> ContributionLinks => Set<ContributionLink>();
-    public DbSet<ObjectiveDecision> ObjectiveDecisions => Set<ObjectiveDecision>();
     public DbSet<EmployeePlan> EmployeePlans => Set<EmployeePlan>();
     public DbSet<PlanDecision> PlanDecisions => Set<PlanDecision>();
     public DbSet<ProgressUpdate> ProgressUpdates => Set<ProgressUpdate>();
@@ -79,8 +78,6 @@ public sealed class PerformanceDbContext : DbContext
         modelBuilder.Entity<Objective>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<ContributionLink>()
-            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
-        modelBuilder.Entity<ObjectiveDecision>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<EmployeePlan>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);

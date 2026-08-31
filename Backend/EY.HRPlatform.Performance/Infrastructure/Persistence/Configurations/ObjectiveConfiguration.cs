@@ -54,13 +54,6 @@ public sealed class ObjectiveConfiguration : IEntityTypeConfiguration<Objective>
             .HasForeignKey(link => link.ObjectiveId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(objective => objective.ContributionLinks).AutoInclude(false);
-
-        // Attributable submit/approve/return trail.
-        builder.HasMany(objective => objective.Decisions)
-            .WithOne()
-            .HasForeignKey(decision => decision.ObjectiveId)
-            .OnDelete(DeleteBehavior.Cascade);
-        builder.Navigation(objective => objective.Decisions).AutoInclude(false);
     }
 }
 
@@ -73,17 +66,5 @@ public sealed class ContributionLinkConfiguration : IEntityTypeConfiguration<Con
         builder.Property(link => link.Weight).HasColumnType("numeric(6,2)").IsRequired();
         builder.HasIndex(link => link.ObjectiveId);
         builder.HasIndex(link => new { link.ObjectiveId, link.ChildObjectiveId }).IsUnique();
-    }
-}
-
-public sealed class ObjectiveDecisionConfiguration : IEntityTypeConfiguration<ObjectiveDecision>
-{
-    public void Configure(EntityTypeBuilder<ObjectiveDecision> builder)
-    {
-        builder.ToTable("ObjectiveDecisions");
-        builder.HasKey(decision => decision.Id);
-        builder.Property(decision => decision.Kind).HasConversion<string>().HasMaxLength(20).IsRequired();
-        builder.Property(decision => decision.Feedback).HasMaxLength(2000);
-        builder.HasIndex(decision => decision.ObjectiveId);
     }
 }

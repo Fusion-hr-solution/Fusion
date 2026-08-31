@@ -24,6 +24,13 @@ public interface IPerformanceAccessPolicyService
     /// <summary>Participate: author/submit own plan and own objective progress.</summary>
     bool CanManageOwnParticipation(ClaimsPrincipal user);
 
+    /// <summary>
+    /// Holds the organizational-objective management grant. In the direct MVP this is a coarse
+    /// tenant-wide authority: the holder may establish/edit/publish organizational objectives
+    /// anywhere in the tenant. Fine-grained per-OrgUnit scoping is deferred.
+    /// </summary>
+    bool CanManageOrganizationalObjectives(ClaimsPrincipal user);
+
     /// <summary>Can review direct reports' plans — the view capability at DirectReports breadth or wider.</summary>
     bool CanReviewDirectReports(ClaimsPrincipal user);
 
@@ -45,6 +52,9 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
 
     public bool CanManageOwnParticipation(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self);
+
+    public bool CanManageOrganizationalObjectives(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ObjectiveOrgManage, PermissionScopes.Tenant);
 
     public bool CanReviewDirectReports(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.CycleView, PermissionScopes.DirectReports)

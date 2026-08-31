@@ -279,7 +279,7 @@ public sealed class AddPlanObjectiveHandler(PerformanceDbContext db, ICoreWorkfo
         if (parent.CycleId != cycle.Id)
             return Result.Failure<Objective?>(Error.Validation("Plan.Alignment", "The aligned objective belongs to a different Cycle."));
         if (!parent.IsAlignmentBaseline)
-            return Result.Failure<Objective?>(Error.Conflict("Plan.ParentNotBaseline", "You can only align to a published or approved objective."));
+            return Result.Failure<Objective?>(Error.Conflict("Plan.ParentNotBaseline", "You can only align to a published objective."));
         if (parent.OwnershipScope == ObjectiveOwnershipScope.Employee)
             return Result.Failure<Objective?>(Error.Validation("Plan.Alignment", "An employee objective aligns to strategic or organizational direction, not another plan objective."));
         return Result.Success<Objective?>(parent);
@@ -342,7 +342,7 @@ public sealed class UpdatePlanObjectiveHandler(PerformanceDbContext db, ICoreWor
         if (parent.CycleId != cycle.Id)
             return Result.Failure<Objective?>(Error.Validation("Plan.Alignment", "The aligned objective belongs to a different Cycle."));
         if (!parent.IsAlignmentBaseline)
-            return Result.Failure<Objective?>(Error.Conflict("Plan.ParentNotBaseline", "You can only align to a published or approved objective."));
+            return Result.Failure<Objective?>(Error.Conflict("Plan.ParentNotBaseline", "You can only align to a published objective."));
         if (parent.OwnershipScope == ObjectiveOwnershipScope.Employee)
             return Result.Failure<Objective?>(Error.Validation("Plan.Alignment", "An employee objective aligns to strategic or organizational direction, not another plan objective."));
         return Result.Success<Objective?>(parent);

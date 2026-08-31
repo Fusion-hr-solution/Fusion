@@ -11,21 +11,22 @@ using Microsoft.EntityFrameworkCore;
 namespace EY.HRPlatform.Performance.Features.Goals;
 
 /// <summary>
-/// The caller's contextual authorization inputs for organizational-goal actions, resolved once by
-/// the controller from the token. Capability flags come from claims; the concrete contextual checks
-/// (parent-accountable, objective-accountable) are resolved here against Performance data. There is
-/// no tenant-admin override for organizational-objective approval (design Decision 4).
+/// The caller's authorization inputs for organizational-goal actions, resolved once by the
+/// controller from the token. <paramref name="IsAdmin"/> = governed Performance administration
+/// (`cycle.manage @Tenant`); <paramref name="HasOrgManageGrant"/> = holds the organizational-
+/// objective management capability (`objective.org.manage @Tenant`). Either confers coarse
+/// tenant-wide authority to establish/edit/publish organizational objectives in the direct MVP
+/// (fine-grained per-OrgUnit scoping is deferred). This authority is deliberately separate from a
+/// particular objective's accountable person.
 /// </summary>
-public sealed record GoalActorContext(Guid CallerEmployeeId, bool IsAdmin, bool CanPublishStrategy);
+public sealed record GoalActorContext(Guid CallerEmployeeId, bool IsAdmin, bool HasOrgManageGrant);
 
 public sealed record GetGoalsOverviewQuery(Guid CycleId, GoalActorContext Actor) : IQuery<Result<GoalsOverviewDto>>;
 public sealed record GetGoalDetailQuery(Guid CycleId, Guid ObjectiveId, GoalActorContext Actor) : IQuery<Result<GoalDetailDto>>;
 public sealed record CreateOrganizationalObjectiveCommand(Guid CycleId, CreateOrganizationalObjectiveRequest Request, GoalActorContext Actor) : ICommand<Result<GoalDetailDto>>;
 public sealed record UpdateOrganizationalObjectiveCommand(Guid CycleId, Guid ObjectiveId, UpdateOrganizationalObjectiveRequest Request, GoalActorContext Actor) : ICommand<Result<GoalDetailDto>>;
 public sealed record AlignObjectiveCommand(Guid CycleId, Guid ObjectiveId, AlignObjectiveRequest Request, GoalActorContext Actor) : ICommand<Result<GoalDetailDto>>;
-public sealed record SubmitObjectiveCommand(Guid CycleId, Guid ObjectiveId, GoalActorContext Actor) : ICommand<Result<GoalDetailDto>>;
-public sealed record ApproveObjectiveCommand(Guid CycleId, Guid ObjectiveId, GoalActorContext Actor) : ICommand<Result<GoalDetailDto>>;
-public sealed record ReturnObjectiveCommand(Guid CycleId, Guid ObjectiveId, ReturnObjectiveRequest Request, GoalActorContext Actor) : ICommand<Result<GoalDetailDto>>;
+public sealed record PublishObjectiveCommand(Guid CycleId, Guid ObjectiveId, GoalActorContext Actor) : ICommand<Result<GoalDetailDto>>;
 public sealed record ConfigureContributionCommand(Guid CycleId, Guid ObjectiveId, ConfigureContributionRequest Request, GoalActorContext Actor) : ICommand<Result<GoalDetailDto>>;
 public sealed record LockContributionCommand(Guid CycleId, Guid ObjectiveId, GoalActorContext Actor) : ICommand<Result<GoalDetailDto>>;
 public sealed record DeleteObjectiveCommand(Guid CycleId, Guid ObjectiveId, GoalActorContext Actor) : ICommand<Result<bool>>;
@@ -84,7 +85,6 @@ public abstract class GoalCommandHandlerBase(PerformanceDbContext db, ICoreWorkf
     protected Task<Objective?> LoadTrackedAsync(Guid cycleId, Guid objectiveId, CancellationToken cancellationToken)
         => db.Objectives
             .Include(o => o.ContributionLinks)
-            .Include(o => o.Decisions)
             .FirstOrDefaultAsync(o => o.Id == objectiveId && o.CycleId == cycleId, cancellationToken);
 
     protected async Task<Result<GoalDetailDto>> ProjectAsync(PerformanceCycle cycle, Guid objectiveId, GoalActorContext actor, CancellationToken cancellationToken)
@@ -115,11 +115,12 @@ public sealed class CreateOrganizationalObjectiveHandler(PerformanceDbContext db
         if (parent.CycleId != cycle.Id)
             return Result.Failure<GoalDetailDto>(Error.Validation("Objective.Alignment", "The parent objective belongs to a different Cycle."));
         if (!parent.IsAlignmentBaseline)
-            return Result.Failure<GoalDetailDto>(Error.Conflict("Objective.ParentNotBaseline", "You can only align to a published or approved objective."));
+            return Result.Failure<GoalDetailDto>(Error.Conflict("Objective.ParentNotBaseline", "You can only align to a published objective."));
 
-        // Creation authority (design Decision 4): admin, parent-accountable, or strategy owner for the first tier.
-        if (!CanCreateUnder(parent, command.Actor))
-            return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.CreateForbidden", "You are not authorized to create an objective under this parent."));
+        // Establishment authority is organizational-objective management (governed admin, or the
+        // org-manage grant) — not being the parent objective's owner. Coarse tenant-wide in the MVP.
+        if (!GoalsComposer.CanManageOrganizational(command.Actor))
+            return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.CreateForbidden", "You are not authorized to establish organizational objectives."));
 
         try
         {
@@ -154,11 +155,6 @@ public sealed class CreateOrganizationalObjectiveHandler(PerformanceDbContext db
             return Result.Failure<GoalDetailDto>(Error.Validation("Objective.Invalid", ex.Message));
         }
     }
-
-    internal static bool CanCreateUnder(Objective parent, GoalActorContext actor)
-        => actor.IsAdmin
-            || parent.AccountablePersonId == actor.CallerEmployeeId
-            || (parent.OwnershipScope == ObjectiveOwnershipScope.Company && actor.CanPublishStrategy);
 }
 
 // ── Update / Align ─────────────────────────────────────────────────────────
@@ -175,7 +171,7 @@ public sealed class UpdateOrganizationalObjectiveHandler(PerformanceDbContext db
         var objective = await LoadTrackedAsync(cycle.Id, command.ObjectiveId, cancellationToken);
         if (objective is null)
             return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", command.ObjectiveId));
-        if (!GoalsComposer.CanMaintain(objective, command.Actor))
+        if (!GoalsComposer.CanMaintain(command.Actor, objective))
             return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.MaintainForbidden", "You are not authorized to maintain this objective."));
 
         var parent = objective.ParentObjectiveId is null ? null
@@ -230,7 +226,7 @@ public sealed class AlignObjectiveHandler(PerformanceDbContext db, ICoreWorkforc
         var objective = await LoadTrackedAsync(cycle.Id, command.ObjectiveId, cancellationToken);
         if (objective is null)
             return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", command.ObjectiveId));
-        if (!GoalsComposer.CanMaintain(objective, command.Actor))
+        if (!GoalsComposer.CanMaintain(command.Actor, objective))
             return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.MaintainForbidden", "You are not authorized to maintain this objective."));
 
         var newParentId = command.Request.ParentObjectiveId;
@@ -240,7 +236,7 @@ public sealed class AlignObjectiveHandler(PerformanceDbContext db, ICoreWorkforc
         if (newParent.CycleId != cycle.Id)
             return Result.Failure<GoalDetailDto>(Error.Validation("Objective.Alignment", "The parent objective belongs to a different Cycle."));
         if (!newParent.IsAlignmentBaseline)
-            return Result.Failure<GoalDetailDto>(Error.Conflict("Objective.ParentNotBaseline", "You can only align to a published or approved objective."));
+            return Result.Failure<GoalDetailDto>(Error.Conflict("Objective.ParentNotBaseline", "You can only align to a published objective."));
 
         // Reject a cycle: the new parent must not be the objective itself or one of its descendants.
         var wouldCycle = await GoalsComposer.CreatesCycleAsync(Db, cycle.Id, objective.Id, newParentId, cancellationToken);
@@ -264,12 +260,12 @@ public sealed class AlignObjectiveHandler(PerformanceDbContext db, ICoreWorkforc
     }
 }
 
-// ── Lifecycle: submit / approve / return ─────────────────────────────────────
+// ── Lifecycle: publish ───────────────────────────────────────────────────────
 
-public sealed class SubmitObjectiveHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
-    : GoalCommandHandlerBase(db, workforce, tenant), ICommandHandler<SubmitObjectiveCommand, Result<GoalDetailDto>>
+public sealed class PublishObjectiveHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
+    : GoalCommandHandlerBase(db, workforce, tenant), ICommandHandler<PublishObjectiveCommand, Result<GoalDetailDto>>
 {
-    public async Task<Result<GoalDetailDto>> Handle(SubmitObjectiveCommand command, CancellationToken cancellationToken)
+    public async Task<Result<GoalDetailDto>> Handle(PublishObjectiveCommand command, CancellationToken cancellationToken)
     {
         var cycleResult = await LoadOpenCycleAsync(command.CycleId, cancellationToken);
         if (cycleResult.IsFailure) return Result.Failure<GoalDetailDto>(cycleResult.Error);
@@ -278,85 +274,23 @@ public sealed class SubmitObjectiveHandler(PerformanceDbContext db, ICoreWorkfor
         var objective = await LoadTrackedAsync(cycle.Id, command.ObjectiveId, cancellationToken);
         if (objective is null)
             return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", command.ObjectiveId));
-        if (!GoalsComposer.CanMaintain(objective, command.Actor))
-            return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.SubmitForbidden", "You are not authorized to submit this objective."));
+        // Publishing establishes official organizational direction, so it requires organizational
+        // management authority (governed admin, or the org-manage grant) — NOT merely being the
+        // objective's accountable person. This keeps a scope manager able to publish a Draft even
+        // after assigning someone else as its accountable person.
+        if (!GoalsComposer.CanManageOrganizational(command.Actor))
+            return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.PublishForbidden", "You are not authorized to publish organizational objectives."));
 
         try
         {
-            objective.Submit(command.Actor.CallerEmployeeId);
+            objective.Publish();
             GoalsComposer.FixNewChildRowState(Db);
             await Db.SaveChangesAsync(cancellationToken);
             return await ProjectAsync(cycle, objective.Id, command.Actor, cancellationToken);
         }
         catch (InvalidOperationException ex)
         {
-            return Result.Failure<GoalDetailDto>(Error.Conflict("Objective.NotSubmittable", ex.Message));
-        }
-    }
-}
-
-public sealed class ApproveObjectiveHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
-    : GoalCommandHandlerBase(db, workforce, tenant), ICommandHandler<ApproveObjectiveCommand, Result<GoalDetailDto>>
-{
-    public async Task<Result<GoalDetailDto>> Handle(ApproveObjectiveCommand command, CancellationToken cancellationToken)
-    {
-        var cycleResult = await LoadOpenCycleAsync(command.CycleId, cancellationToken);
-        if (cycleResult.IsFailure) return Result.Failure<GoalDetailDto>(cycleResult.Error);
-        var cycle = cycleResult.Value;
-
-        var objective = await LoadTrackedAsync(cycle.Id, command.ObjectiveId, cancellationToken);
-        if (objective is null)
-            return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", command.ObjectiveId));
-
-        var decision = await GoalsComposer.CanDecideAsync(Db, objective, command.Actor, cancellationToken);
-        if (!decision)
-            return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.ApproveForbidden", "Only the accountable person of the aligned parent objective can approve it."));
-
-        try
-        {
-            objective.Approve(command.Actor.CallerEmployeeId);
-            GoalsComposer.FixNewChildRowState(Db);
-            await Db.SaveChangesAsync(cancellationToken);
-            return await ProjectAsync(cycle, objective.Id, command.Actor, cancellationToken);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Result.Failure<GoalDetailDto>(Error.Conflict("Objective.NotApprovable", ex.Message));
-        }
-    }
-}
-
-public sealed class ReturnObjectiveHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
-    : GoalCommandHandlerBase(db, workforce, tenant), ICommandHandler<ReturnObjectiveCommand, Result<GoalDetailDto>>
-{
-    public async Task<Result<GoalDetailDto>> Handle(ReturnObjectiveCommand command, CancellationToken cancellationToken)
-    {
-        var cycleResult = await LoadOpenCycleAsync(command.CycleId, cancellationToken);
-        if (cycleResult.IsFailure) return Result.Failure<GoalDetailDto>(cycleResult.Error);
-        var cycle = cycleResult.Value;
-
-        var objective = await LoadTrackedAsync(cycle.Id, command.ObjectiveId, cancellationToken);
-        if (objective is null)
-            return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", command.ObjectiveId));
-
-        var decision = await GoalsComposer.CanDecideAsync(Db, objective, command.Actor, cancellationToken);
-        if (!decision)
-            return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.ReturnForbidden", "Only the accountable person of the aligned parent objective can return it."));
-
-        try
-        {
-            objective.Return(command.Actor.CallerEmployeeId, command.Request.Feedback);
-            GoalsComposer.FixNewChildRowState(Db);
-            await Db.SaveChangesAsync(cancellationToken);
-            return await ProjectAsync(cycle, objective.Id, command.Actor, cancellationToken);
-        }
-        catch (ArgumentException ex)
-        {
-            return Result.Failure<GoalDetailDto>(Error.Validation("Objective.Feedback", ex.Message));
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Result.Failure<GoalDetailDto>(Error.Conflict("Objective.NotReturnable", ex.Message));
+            return Result.Failure<GoalDetailDto>(Error.Conflict("Objective.NotPublishable", ex.Message));
         }
     }
 }
@@ -375,7 +309,7 @@ public sealed class ConfigureContributionHandler(PerformanceDbContext db, ICoreW
         var objective = await LoadTrackedAsync(cycle.Id, command.ObjectiveId, cancellationToken);
         if (objective is null)
             return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", command.ObjectiveId));
-        if (!GoalsComposer.CanMaintain(objective, command.Actor))
+        if (!GoalsComposer.CanMaintain(command.Actor, objective))
             return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.MaintainForbidden", "You are not authorized to maintain this objective."));
 
         // A contributor must be an aligned child of this objective (alignment ≠ contribution, but a
@@ -419,17 +353,17 @@ public sealed class LockContributionHandler(PerformanceDbContext db, ICoreWorkfo
         var objective = await LoadTrackedAsync(cycle.Id, command.ObjectiveId, cancellationToken);
         if (objective is null)
             return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", command.ObjectiveId));
-        if (!GoalsComposer.CanMaintain(objective, command.Actor))
+        if (!GoalsComposer.CanMaintain(command.Actor, objective))
             return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.MaintainForbidden", "You are not authorized to maintain this objective."));
 
         var childIds = objective.ContributionLinks.Select(l => l.ChildObjectiveId).ToList();
-        var approvedChildCount = await Db.Objectives.AsNoTracking()
-            .CountAsync(o => childIds.Contains(o.Id) && o.State == ObjectiveLifecycleState.Approved, cancellationToken);
-        var allApproved = childIds.Count > 0 && approvedChildCount == childIds.Count;
+        var publishedChildCount = await Db.Objectives.AsNoTracking()
+            .CountAsync(o => childIds.Contains(o.Id) && o.State == ObjectiveLifecycleState.Published, cancellationToken);
+        var allPublished = childIds.Count > 0 && publishedChildCount == childIds.Count;
 
         try
         {
-            objective.LockContributionBaseline(allApproved);
+            objective.LockContributionBaseline(allPublished);
             await Db.SaveChangesAsync(cancellationToken);
             return await ProjectAsync(cycle, objective.Id, command.Actor, cancellationToken);
         }
@@ -445,13 +379,13 @@ public sealed class DeleteObjectiveHandler(PerformanceDbContext db)
 {
     public async Task<Result<bool>> Handle(DeleteObjectiveCommand command, CancellationToken cancellationToken)
     {
-        var objective = await db.Objectives.Include(o => o.ContributionLinks).Include(o => o.Decisions)
+        var objective = await db.Objectives.Include(o => o.ContributionLinks)
             .FirstOrDefaultAsync(o => o.Id == command.ObjectiveId && o.CycleId == command.CycleId, cancellationToken);
         if (objective is null)
             return Result.Failure<bool>(Error.NotFound("Objective", command.ObjectiveId));
         if (objective.OwnershipScope != ObjectiveOwnershipScope.OrgUnit)
             return Result.Failure<bool>(Error.Conflict("Objective.NotOrganizational", "Only an organizational objective can be removed here."));
-        if (!GoalsComposer.CanMaintain(objective, command.Actor))
+        if (!GoalsComposer.CanMaintain(command.Actor, objective))
             return Result.Failure<bool>(Error.Forbidden("Objective.MaintainForbidden", "You are not authorized to remove this objective."));
         if (objective.State != ObjectiveLifecycleState.Draft)
             return Result.Failure<bool>(Error.Conflict("Objective.NotDraft", "Only a Draft objective can be removed."));

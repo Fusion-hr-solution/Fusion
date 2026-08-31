@@ -23,6 +23,7 @@ public sealed class AccessController(IPerformanceAccessPolicyService policy) : P
             policy.CanAdministerCycles(User),
             policy.CanPublishStrategy(User),
             policy.CanManageOwnParticipation(User),
+            policy.CanManageOrganizationalObjectives(User),
             policy.AggregateViewScope(User));
 
         return Ok(ApiResponse<PerformanceAccessDto>.Success(dto));

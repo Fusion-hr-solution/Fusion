@@ -31,11 +31,9 @@ public static class GoalsComposer
             .Where(o => o.CycleId == cycle.Id)
             .Include(o => o.Measurement)
             .Include(o => o.ContributionLinks)
-            .Include(o => o.Decisions)
             .ToListAsync(cancellationToken);
 
         var personIds = objectives.Select(o => o.AccountablePersonId)
-            .Concat(objectives.SelectMany(o => o.Decisions.Select(d => d.ActorEmployeeId)))
             .Where(id => id != Guid.Empty)
             .Distinct()
             .ToList();
@@ -66,7 +64,7 @@ public static class GoalsComposer
         var nodes = graph.All
             .Where(o => o.OwnershipScope != ObjectiveOwnershipScope.Employee)
             .OrderBy(o => o.OwnershipScope)
-            .ThenByDescending(o => o.State == ObjectiveLifecycleState.Approved || o.State == ObjectiveLifecycleState.Published)
+            .ThenByDescending(o => o.State == ObjectiveLifecycleState.Published)
             .ThenBy(o => o.Title)
             .Select(o => ToNode(o, graph))
             .ToList();
@@ -80,7 +78,7 @@ public static class GoalsComposer
             cycle.EndDate,
             graph.All.Count(o => o.OwnershipScope == ObjectiveOwnershipScope.Company),
             org.Count,
-            org.Count(o => o.State == ObjectiveLifecycleState.Submitted),
+            org.Count(o => o.State == ObjectiveLifecycleState.Published),
             org.Count(o => o.State == ObjectiveLifecycleState.Draft),
             nodes));
     }
@@ -102,16 +100,14 @@ public static class GoalsComposer
             })
             .ToList();
 
-        var history = objective.Decisions
-            .OrderBy(d => d.DecidedAt)
-            .Select(d => new ObjectiveDecisionDto(d.Kind, d.ActorEmployeeId, graph.Names.GetValueOrDefault(d.ActorEmployeeId), d.Feedback, d.DecidedAt))
-            .ToList();
-
-        var canMaintain = CanMaintain(objective, actor);
-        var canDecide = parent is not null
-            && objective.OwnershipScope == ObjectiveOwnershipScope.OrgUnit
-            && objective.State == ObjectiveLifecycleState.Submitted
-            && parent.AccountablePersonId == actor.CallerEmployeeId;
+        var isOrg = objective.OwnershipScope == ObjectiveOwnershipScope.OrgUnit;
+        var isDraft = objective.State == ObjectiveLifecycleState.Draft;
+        // Publishing is a scope-governance act (organizational-management authority only). Editing and
+        // contribution also accept the objective's own accountable person as additional maintenance
+        // authority — but that never confers publish, so reassigning the accountable person cannot take
+        // publish away from the authorized scope manager.
+        var canManage = CanManageOrganizational(actor);
+        var canMaintain = canManage || objective.AccountablePersonId == actor.CallerEmployeeId;
 
         return Result.Success(new GoalDetailDto(
             ToNode(objective, graph),
@@ -121,10 +117,8 @@ public static class GoalsComposer
             children.Select(c => ToNode(c, graph)).ToList(),
             PerformanceMappers.ToDtoOrNull(objective.Measurement),
             contribution,
-            history,
-            CanEdit: canMaintain && objective.State == ObjectiveLifecycleState.Draft && objective.OwnershipScope == ObjectiveOwnershipScope.OrgUnit,
-            CanSubmit: canMaintain && objective.State == ObjectiveLifecycleState.Draft && objective.OwnershipScope == ObjectiveOwnershipScope.OrgUnit,
-            CanDecide: canDecide,
+            CanEdit: canMaintain && isDraft && isOrg,
+            CanPublish: canManage && isDraft && isOrg,
             CanConfigureContribution: canMaintain && objective.IsCalculated && !objective.IsContributionBaselineLocked));
     }
 
@@ -164,20 +158,26 @@ public static class GoalsComposer
 
     // ── Authorization helpers ────────────────────────────────────────────────
 
-    /// <summary>Maintenance (edit/submit/contribution) is the objective's own accountable person, or an admin.</summary>
-    public static bool CanMaintain(Objective objective, GoalActorContext actor)
-        => actor.IsAdmin || objective.AccountablePersonId == actor.CallerEmployeeId;
+    /// <summary>
+    /// Organizational-objective management authority: governed Performance administration
+    /// (`cycle.manage @Tenant`) or the organizational-objective management grant
+    /// (`objective.org.manage @Tenant`). In the direct MVP this is a coarse tenant-wide authority —
+    /// the holder may establish/edit/publish organizational objectives anywhere in the tenant.
+    /// Fine-grained per-OrgUnit scoping is deferred to the future tenant Access/Profile design. This
+    /// authority is deliberately independent of a particular objective's accountable person.
+    /// </summary>
+    public static bool CanManageOrganizational(GoalActorContext actor)
+        => actor.IsAdmin || actor.HasOrgManageGrant;
 
     /// <summary>
-    /// Approve/return is the accountable person of the aligned parent objective ONLY — there is no
-    /// tenant-admin override for organizational-objective approval (design Decision 4).
+    /// Maintenance authority (edit / configure contribution / delete a Draft): organizational
+    /// management authority, OR being that objective's own accountable person. Publishing is the
+    /// stricter, management-only act handled directly by <see cref="CanManageOrganizational"/>, so
+    /// reassigning the accountable person never removes the scope manager's ability to publish.
     /// </summary>
-    public static async Task<bool> CanDecideAsync(PerformanceDbContext db, Objective objective, GoalActorContext actor, CancellationToken cancellationToken)
-    {
-        if (objective.ParentObjectiveId is null) return false;
-        var parent = await db.Objectives.AsNoTracking().FirstOrDefaultAsync(o => o.Id == objective.ParentObjectiveId, cancellationToken);
-        return parent is not null && parent.AccountablePersonId == actor.CallerEmployeeId;
-    }
+    public static bool CanMaintain(GoalActorContext actor, Objective objective)
+        => CanManageOrganizational(actor)
+            || objective.AccountablePersonId == actor.CallerEmployeeId;
 
     /// <summary>Would aligning <paramref name="objectiveId"/> under <paramref name="newParentId"/> create a cycle?</summary>
     public static async Task<bool> CreatesCycleAsync(PerformanceDbContext db, Guid cycleId, Guid objectiveId, Guid newParentId, CancellationToken cancellationToken)
@@ -199,15 +199,15 @@ public static class GoalsComposer
     }
 
     /// <summary>
-    /// A new contribution link or decision reached through an already-tracked objective carries a
-    /// client-generated key, so EF detects it as Modified rather than Added; correct it so the row
-    /// inserts. Mirrors the Population child-row fix.
+    /// A new contribution link reached through an already-tracked objective carries a client-generated
+    /// key, so EF detects it as Modified rather than Added; correct it so the row inserts. Mirrors the
+    /// Population child-row fix.
     /// </summary>
     public static void FixNewChildRowState(PerformanceDbContext db)
     {
         foreach (var entry in db.ChangeTracker.Entries().Where(e => e.State == Microsoft.EntityFrameworkCore.EntityState.Modified))
         {
-            if (entry.Entity is ContributionLink or ObjectiveDecision)
+            if (entry.Entity is ContributionLink)
                 entry.State = Microsoft.EntityFrameworkCore.EntityState.Added;
         }
     }

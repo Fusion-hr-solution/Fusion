@@ -139,11 +139,11 @@ public static class PlansComposer
             StandaloneAllowed: standaloneAllowed);
     }
 
-    /// <summary>Published strategic and approved organizational objectives an employee objective may align to.</summary>
+    /// <summary>Published strategic and published organizational objectives an employee objective may align to.</summary>
     public static IReadOnlyList<AlignmentTargetDto> AlignmentTargets(GoalsComposer.Graph graph)
         => graph.All
-            .Where(o => (o.OwnershipScope == ObjectiveOwnershipScope.Company && o.State == ObjectiveLifecycleState.Published)
-                || (o.OwnershipScope == ObjectiveOwnershipScope.OrgUnit && o.State == ObjectiveLifecycleState.Approved))
+            .Where(o => (o.OwnershipScope == ObjectiveOwnershipScope.Company || o.OwnershipScope == ObjectiveOwnershipScope.OrgUnit)
+                && o.State == ObjectiveLifecycleState.Published)
             .OrderBy(o => o.OwnershipScope)
             .ThenBy(o => o.Title)
             .Select(o => new AlignmentTargetDto(

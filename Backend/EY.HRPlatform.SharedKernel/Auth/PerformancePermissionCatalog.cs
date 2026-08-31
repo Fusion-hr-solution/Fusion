@@ -34,8 +34,18 @@ public static class PerformancePermissions
     /// </summary>
     public const string ObjectiveSelfManage = "performance.objective.self.manage";
 
+    /// <summary>
+    /// Establish and manage organizational objectives (create, edit, publish). In the direct MVP this
+    /// is a coarse tenant-wide authority (`@Tenant`): the holder may manage organizational objectives
+    /// anywhere in the tenant. It is distinct from <see cref="CycleView"/> (viewing aggregate data
+    /// never authorizes establishing official direction) and from a particular objective's named
+    /// accountable person. Fine-grained per-OrgUnit scoping is deferred to the future tenant
+    /// Access/Profile design.
+    /// </summary>
+    public const string ObjectiveOrgManage = "performance.objective.org.manage";
+
     public static readonly ReadOnlyCollection<string> All =
-        Array.AsReadOnly([CycleView, CycleManage, StrategyPublish, ObjectiveSelfManage]);
+        Array.AsReadOnly([CycleView, CycleManage, StrategyPublish, ObjectiveSelfManage, ObjectiveOrgManage]);
 }
 
 /// <summary>
@@ -74,5 +84,11 @@ public static class PerformancePermissionCatalog
                 Group,
                 [PermissionScopes.Self],
                 "Author and submit your own plan, and update your own objective progress and evidence."),
+            new(
+                PerformancePermissions.ObjectiveOrgManage,
+                "Manage organizational objectives",
+                Group,
+                [PermissionScopes.Tenant],
+                "Establish, edit, and publish organizational objectives across the tenant. Separate from viewing Performance data and from being an objective's accountable person. Fine-grained per-org-unit scoping is deferred to the future tenant Access/Profile design."),
         ]);
 }

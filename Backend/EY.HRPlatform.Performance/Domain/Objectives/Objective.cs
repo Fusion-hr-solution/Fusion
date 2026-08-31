@@ -6,15 +6,14 @@ namespace EY.HRPlatform.Performance.Domain.Objectives;
 /// The single objective aggregate for all three ownership scopes (product-spec §8). Chunk A
 /// creates and publishes <see cref="ObjectiveOwnershipScope.Company"/> strategic objectives;
 /// Chunk B adds <see cref="ObjectiveOwnershipScope.OrgUnit"/> organizational objectives — one
-/// accountable person, one owning org unit, one-parent alignment, a Draft→Submitted→Approved
-/// lifecycle, and a progress source that is either a direct measurement or a calculated roll-up
-/// of configured contributing children. Employee-plan objectives (Chunk C) extend the same
-/// aggregate.
+/// accountable person, one owning org unit, one-parent alignment, a Draft→Published lifecycle the
+/// authorized scope owner drives (no routine parent approval), and a progress source that is either
+/// a direct measurement or a calculated roll-up of configured contributing children. Employee-plan
+/// objectives (Chunk C) extend the same aggregate.
 /// </summary>
 public sealed class Objective : PerformanceAggregate
 {
     private readonly List<ContributionLink> _contributionLinks = [];
-    private readonly List<ObjectiveDecision> _decisions = [];
 
     private Objective() { }
 
@@ -52,15 +51,11 @@ public sealed class Objective : PerformanceAggregate
     /// <summary>Configured contributing children for a calculated organizational objective.</summary>
     public IReadOnlyList<ContributionLink> ContributionLinks => _contributionLinks;
 
-    /// <summary>Attributable submit/approve/return trail for organizational objectives.</summary>
-    public IReadOnlyList<ObjectiveDecision> Decisions => _decisions;
-
     /// <summary>Set once a calculated objective's 100% contribution baseline is locked; then read-only.</summary>
     public DateTime? ContributionBaselineLockedAt { get; private set; }
 
     public ObjectiveLifecycleState State { get; private set; }
     public DateTime? PublishedAt { get; private set; }
-    public DateTime? ApprovedAt { get; private set; }
 
     // ── Progress (Chunk D) — denormalized current state; the append-only ProgressUpdate list is the trail ──
 
@@ -79,8 +74,8 @@ public sealed class Objective : PerformanceAggregate
     /// <summary>The derived progress percentage from current state (may exceed 100%); 0 when never reported.</summary>
     public decimal DerivedProgress => Measurement?.DerivedProgress(CurrentPercentage, CurrentActual) ?? 0m;
 
-    /// <summary>Whether this objective is a locked alignment baseline downstream work may align to.</summary>
-    public bool IsAlignmentBaseline => State == ObjectiveLifecycleState.Published || State == ObjectiveLifecycleState.Approved;
+    /// <summary>Whether this objective is a published alignment baseline downstream work may align to.</summary>
+    public bool IsAlignmentBaseline => State == ObjectiveLifecycleState.Published;
 
     public bool IsCalculated => ProgressSource == ObjectiveProgressSource.Calculated;
     public bool IsContributionBaselineLocked => ContributionBaselineLockedAt is not null;
@@ -155,13 +150,20 @@ public sealed class Objective : PerformanceAggregate
         MarkUpdated();
     }
 
-    /// <summary>Transitions Draft → Published. A weighted objective must total 100% first.</summary>
+    /// <summary>
+    /// Transitions a strategic or organizational objective Draft → Published, making it official
+    /// direction available as a downstream alignment baseline. A weighted objective must total 100%
+    /// first; a calculated organizational objective may publish its business definition before its
+    /// contribution structure is complete (contribution config is a separate parent responsibility).
+    /// </summary>
     public void Publish()
     {
+        if (OwnershipScope == ObjectiveOwnershipScope.Employee)
+            throw new InvalidOperationException("Employee objectives are governed by their plan's lifecycle, not published individually.");
         if (State == ObjectiveLifecycleState.Published)
             return;
         if (State != ObjectiveLifecycleState.Draft)
-            throw new InvalidOperationException("Only a Draft strategic objective can be published.");
+            throw new InvalidOperationException("Only a Draft objective can be published.");
         if (Measurement is not null && !Measurement.WeightsAreCompleteForLock())
             throw new InvalidOperationException("A weighted-milestones objective's weights must total 100% before it can be published.");
 
@@ -289,49 +291,6 @@ public sealed class Objective : PerformanceAggregate
         MarkUpdated();
     }
 
-    /// <summary>Submits a Draft organizational objective for the parent-accountable person's decision.</summary>
-    public void Submit(Guid actorEmployeeId)
-    {
-        RequireOrganizational();
-        if (State != ObjectiveLifecycleState.Draft)
-            throw new InvalidOperationException("Only a Draft objective can be submitted.");
-        // Calculated objectives may submit their business definition before the contribution
-        // structure is complete (product-spec §17), so there is no weight gate on submission.
-
-        State = ObjectiveLifecycleState.Submitted;
-        RecordDecision(ObjectiveDecisionKind.Submitted, actorEmployeeId, null);
-        MarkUpdated();
-    }
-
-    /// <summary>Approves a Submitted objective — performed by the parent's accountable person.</summary>
-    public void Approve(Guid actorEmployeeId)
-    {
-        RequireOrganizational();
-        if (State != ObjectiveLifecycleState.Submitted)
-            throw new InvalidOperationException("Only a Submitted objective can be approved.");
-        if (ProgressSource == ObjectiveProgressSource.Direct && Measurement is not null && !Measurement.WeightsAreCompleteForLock())
-            throw new InvalidOperationException("A weighted-milestones objective's weights must total 100% before it can be approved.");
-
-        State = ObjectiveLifecycleState.Approved;
-        ApprovedAt = DateTime.UtcNow;
-        RecordDecision(ObjectiveDecisionKind.Approved, actorEmployeeId, null);
-        MarkUpdated();
-    }
-
-    /// <summary>Returns a Submitted objective to Draft with required feedback.</summary>
-    public void Return(Guid actorEmployeeId, string feedback)
-    {
-        RequireOrganizational();
-        if (State != ObjectiveLifecycleState.Submitted)
-            throw new InvalidOperationException("Only a Submitted objective can be returned.");
-        if (string.IsNullOrWhiteSpace(feedback))
-            throw new ArgumentException("Returning an objective requires feedback.", nameof(feedback));
-
-        State = ObjectiveLifecycleState.Draft;
-        RecordDecision(ObjectiveDecisionKind.Returned, actorEmployeeId, feedback);
-        MarkUpdated();
-    }
-
     /// <summary>Configures the contributing children of a calculated objective (product-spec §21).</summary>
     public void ConfigureContribution(IEnumerable<(Guid ChildObjectiveId, decimal Weight)> links)
     {
@@ -360,11 +319,11 @@ public sealed class Objective : PerformanceAggregate
     }
 
     /// <summary>
-    /// Locks the calculation baseline once weights total 100% and every configured child has an
-    /// approved/locked baseline (that cross-aggregate check is resolved by the caller). Then the
+    /// Locks the calculation baseline once weights total 100% and every configured child has a
+    /// published/locked baseline (that cross-aggregate check is resolved by the caller). Then the
     /// configured contributors and weights become read-only (product-spec §21).
     /// </summary>
-    public void LockContributionBaseline(bool allChildrenHaveApprovedBaseline)
+    public void LockContributionBaseline(bool allChildrenHavePublishedBaseline)
     {
         RequireOrganizational();
         if (!IsCalculated)
@@ -375,8 +334,8 @@ public sealed class Objective : PerformanceAggregate
             throw new InvalidOperationException("Configure at least one contributing child before locking the baseline.");
         if (ContributionWeightTotal != 100m)
             throw new InvalidOperationException("Contribution weights must total 100% before the calculation baseline can lock.");
-        if (!allChildrenHaveApprovedBaseline)
-            throw new InvalidOperationException("Every contributing child must have an approved baseline before the calculation baseline can lock.");
+        if (!allChildrenHavePublishedBaseline)
+            throw new InvalidOperationException("Every contributing child must be published before the calculation baseline can lock.");
 
         ContributionBaselineLockedAt = DateTime.UtcNow;
         MarkUpdated();
@@ -546,13 +505,6 @@ public sealed class Objective : PerformanceAggregate
     {
         if (planWeight <= 0m || planWeight > 100m)
             throw new ArgumentOutOfRangeException(nameof(planWeight), "A plan weight must be between 0 and 100.");
-    }
-
-    private void RecordDecision(ObjectiveDecisionKind kind, Guid actorEmployeeId, string? feedback)
-    {
-        var decision = ObjectiveDecision.Record(TenantId, kind, actorEmployeeId, feedback);
-        decision.AttachTo(Id);
-        _decisions.Add(decision);
     }
 
     private void AttachMilestones()

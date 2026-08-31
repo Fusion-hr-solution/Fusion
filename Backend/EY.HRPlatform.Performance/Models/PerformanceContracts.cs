@@ -13,6 +13,7 @@ public sealed record PerformanceAccessDto(
     bool CanAdminister,
     bool CanPublishStrategy,
     bool CanParticipate,
+    bool CanManageOrgObjectives,
     string? AggregateViewScope);
 
 // ----- Settings -----
@@ -207,7 +208,7 @@ public sealed record GoalsOverviewDto(
     DateOnly CycleEnd,
     int StrategicCount,
     int OrganizationalCount,
-    int AwaitingDecisionCount,
+    int PublishedCount,
     int DraftCount,
     IReadOnlyList<GoalNodeDto> Nodes);
 
@@ -217,14 +218,7 @@ public sealed record ContributionLinkDto(
     ObjectiveLifecycleState ChildState,
     decimal Weight);
 
-public sealed record ObjectiveDecisionDto(
-    ObjectiveDecisionKind Kind,
-    Guid ActorEmployeeId,
-    string? ActorName,
-    string? Feedback,
-    DateTime DecidedAt);
-
-/// <summary>The full context surface for one objective — summary, alignment, contribution, history.</summary>
+/// <summary>The full context surface for one objective — summary, alignment, contribution.</summary>
 public sealed record GoalDetailDto(
     GoalNodeDto Node,
     string? Description,
@@ -233,11 +227,9 @@ public sealed record GoalDetailDto(
     IReadOnlyList<GoalNodeDto> Children,
     MeasurementDto? Measurement,
     IReadOnlyList<ContributionLinkDto> Contribution,
-    IReadOnlyList<ObjectiveDecisionDto> History,
     // What the current caller may do on this objective, resolved server-side (hide, don't deny).
     bool CanEdit,
-    bool CanSubmit,
-    bool CanDecide,
+    bool CanPublish,
     bool CanConfigureContribution);
 
 public sealed record CreateOrganizationalObjectiveRequest(
@@ -262,8 +254,6 @@ public sealed record UpdateOrganizationalObjectiveRequest(
     MeasurementInput? Measurement);
 
 public sealed record AlignObjectiveRequest(Guid ParentObjectiveId);
-
-public sealed record ReturnObjectiveRequest(string Feedback);
 
 public sealed record ContributionInput(Guid ChildObjectiveId, decimal Weight);
 

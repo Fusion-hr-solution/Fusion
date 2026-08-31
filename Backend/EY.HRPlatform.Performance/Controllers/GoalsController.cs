@@ -11,9 +11,10 @@ namespace EY.HRPlatform.Performance.Controllers;
 
 /// <summary>
 /// Organizational goals under a Cycle: the alignment/list read models and the create → align →
-/// submit → approve/return → contribution flows. The controller resolves the caller's contextual
-/// authorization inputs from the token and Forbid()s the obvious case first; the handlers enforce
-/// the fine-grained contextual rules (parent-accountable approval, objective-accountable
+/// publish → contribution flows. An authorized scope owner establishes and publishes an
+/// organizational objective as official direction; there is no routine parent-approval step. The
+/// controller resolves the caller's contextual authorization inputs from the token and Forbid()s the
+/// obvious case first; the handlers enforce the fine-grained contextual rule (objective-accountable
 /// maintenance) that a claim alone cannot express.
 /// </summary>
 [ApiController]
@@ -24,7 +25,7 @@ public sealed class GoalsController(IMediator mediator, IPerformanceAccessPolicy
     private GoalActorContext Actor => new(
         User.GetEmployeeId() ?? Guid.Empty,
         policy.CanAdministerCycles(User),
-        policy.CanPublishStrategy(User));
+        policy.CanManageOrganizationalObjectives(User));
 
     [HttpGet]
     public async Task<ActionResult<ApiResponse<GoalsOverviewDto>>> Overview(Guid cycleId, CancellationToken cancellationToken)
@@ -64,26 +65,11 @@ public sealed class GoalsController(IMediator mediator, IPerformanceAccessPolicy
         return MapResult(await mediator.Send(new AlignObjectiveCommand(cycleId, objectiveId, request, Actor), cancellationToken));
     }
 
-    [HttpPost("{objectiveId:guid}/submit")]
-    public async Task<ActionResult<ApiResponse<GoalDetailDto>>> Submit(Guid cycleId, Guid objectiveId, CancellationToken cancellationToken)
+    [HttpPost("{objectiveId:guid}/publish")]
+    public async Task<ActionResult<ApiResponse<GoalDetailDto>>> Publish(Guid cycleId, Guid objectiveId, CancellationToken cancellationToken)
     {
         if (!policy.CanEnterPerformance(User)) return Forbid();
-        return MapResult(await mediator.Send(new SubmitObjectiveCommand(cycleId, objectiveId, Actor), cancellationToken));
-    }
-
-    [HttpPost("{objectiveId:guid}/approve")]
-    public async Task<ActionResult<ApiResponse<GoalDetailDto>>> Approve(Guid cycleId, Guid objectiveId, CancellationToken cancellationToken)
-    {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
-        return MapResult(await mediator.Send(new ApproveObjectiveCommand(cycleId, objectiveId, Actor), cancellationToken));
-    }
-
-    [HttpPost("{objectiveId:guid}/return")]
-    public async Task<ActionResult<ApiResponse<GoalDetailDto>>> Return(
-        Guid cycleId, Guid objectiveId, [FromBody] ReturnObjectiveRequest request, CancellationToken cancellationToken)
-    {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
-        return MapResult(await mediator.Send(new ReturnObjectiveCommand(cycleId, objectiveId, request, Actor), cancellationToken));
+        return MapResult(await mediator.Send(new PublishObjectiveCommand(cycleId, objectiveId, Actor), cancellationToken));
     }
 
     [HttpPut("{objectiveId:guid}/contribution")]

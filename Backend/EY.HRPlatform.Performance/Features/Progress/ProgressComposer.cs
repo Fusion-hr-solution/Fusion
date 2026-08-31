@@ -106,7 +106,7 @@ public static class ProgressComposer
         return objective.OwnershipScope switch
         {
             ObjectiveOwnershipScope.Employee => plan is not null && plan.State == PlanLifecycleState.Approved,
-            ObjectiveOwnershipScope.OrgUnit => objective.State == ObjectiveLifecycleState.Approved,
+            ObjectiveOwnershipScope.OrgUnit => objective.State == ObjectiveLifecycleState.Published,
             ObjectiveOwnershipScope.Company => objective.State == ObjectiveLifecycleState.Published,
             _ => false,
         };
