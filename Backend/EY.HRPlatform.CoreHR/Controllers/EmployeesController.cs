@@ -260,6 +260,40 @@ public class EmployeesController(
         return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<PeopleAccessStatusDto>.Success(result.Value));
     }
 
+    /// <summary>Updates the canonical work email through the People identity surface.</summary>
+    [HttpPut("people/{employeeKey}/work-email")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status412PreconditionFailed)]
+    public async Task<IActionResult> UpdatePeopleWorkEmail(
+        string employeeKey,
+        [FromBody] UpdateWorkEmailRequest request,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageEmployees(User))
+            return Forbid();
+
+        if (!TryParseVersion(ifMatch, out var expectedVersion))
+        {
+            return StatusCode(
+                StatusCodes.Status412PreconditionFailed,
+                ApiResponse.Failure("If-Match header with valid version is required for updates."));
+        }
+
+        var result = await sender.Send(
+            new UpdateWorkEmailCommand(employeeKey, expectedVersion, request.WorkEmail, GetAuditActor()),
+            cancellationToken);
+        if (result.IsFailure)
+            return MapEmployeeMutationFailure(result.Error);
+
+        Response.Headers.ETag = $"\"{result.Value.Version}\"";
+        return NoContent();
+    }
+
     private string GetAuditActor()
     {
         var id = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "unknown";
@@ -429,7 +463,7 @@ public class EmployeesController(
     [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        if (!accessPolicy.CanViewTenantEmployees(User))
+        if (!CanViewEmployeeDetails(id))
         {
             return Forbid();
         }
@@ -784,6 +818,12 @@ public class EmployeesController(
         var linkedEmployeeId = User.GetEmployeeId();
         return linkedEmployeeId.HasValue && linkedEmployeeId.Value == employeeId;
     }
+
+    private bool CanViewEmployeeDetails(Guid employeeId)
+        => accessPolicy.CanViewTenantEmployees(User)
+            || (accessPolicy.CanViewOwnProfile(User)
+                && User.GetEmployeeId() is { } linkedEmployeeId
+                && linkedEmployeeId == employeeId);
 
     private IActionResult MapEmployeeMutationFailure(EY.HRPlatform.SharedKernel.Results.Error error)
     {

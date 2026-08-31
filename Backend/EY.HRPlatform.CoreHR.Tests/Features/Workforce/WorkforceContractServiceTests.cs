@@ -250,6 +250,10 @@ public class WorkforceContractServiceTests
             employeeStatus: null,
             deliveryState: null,
             employeeKey: null,
+            baseline: null,
+            cohort: null,
+            orgUnitId: null,
+            includeDescendants: true,
             page: 1,
             pageSize: 20,
             cancellationToken: CancellationToken.None);
@@ -276,7 +280,7 @@ public class WorkforceContractServiceTests
     }
 
     [Fact]
-    public async Task SearchAccessSubjectsAsync_CollapsesInactiveAndConflictAccountsIntoNeedsReview()
+    public async Task SearchAccessSubjectsAsync_ClassifiesInactiveAsSuspendedAndConflictAsNeedsReview()
     {
         var dbName = Guid.NewGuid().ToString();
         var tenantContext = TestTenantContext.WithTenant(TenantId);
@@ -368,13 +372,19 @@ public class WorkforceContractServiceTests
             employeeStatus: null,
             deliveryState: null,
             employeeKey: null,
+            baseline: null,
+            cohort: null,
+            orgUnitId: null,
+            includeDescendants: true,
             page: 1,
             pageSize: 20,
             cancellationToken: CancellationToken.None);
 
+        // A deactivated but provisioned account is now its own Suspended bucket
+        // (restorable), no longer collapsed into NeedsReview.
         var inactiveItem = Assert.Single(result.Items.Where(item => item.EmployeeId == inactiveId));
-        Assert.Equal("NeedsReview", inactiveItem.AccessState);
-        Assert.Equal("Needs review", inactiveItem.AccessStateLabel);
+        Assert.Equal("Suspended", inactiveItem.AccessState);
+        Assert.Equal("Suspended", inactiveItem.AccessStateLabel);
         Assert.Equal("Account inactive", inactiveItem.InvitationLabel);
         Assert.Equal("This account is inactive.", inactiveItem.ReviewReason);
 
@@ -428,6 +438,10 @@ public class WorkforceContractServiceTests
             employeeStatus: null,
             deliveryState: null,
             employeeKey: null,
+            baseline: null,
+            cohort: null,
+            orgUnitId: null,
+            includeDescendants: true,
             CancellationToken.None);
 
         Assert.Equal(12, preview.Count);
@@ -867,7 +881,8 @@ public class WorkforceContractServiceTests
         public Task<WorkforceBulkProvisionResponse> BulkProvisionAsync(
             List<WorkforceBulkProvisionSubject> subjects,
             Guid accessProfileId,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string? baseline = null)
         {
             LastAccessProfileId = accessProfileId;
             var provisionState = _status?.ProvisioningState ?? "Unprovisioned";

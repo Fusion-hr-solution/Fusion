@@ -28,6 +28,10 @@ public interface IWorkforceContractService
         string? employeeStatus,
         string? deliveryState,
         string? employeeKey,
+        string? baseline,
+        Guid? cohort,
+        Guid? orgUnitId,
+        bool includeDescendants,
         int page,
         int pageSize,
         CancellationToken cancellationToken);
@@ -38,6 +42,10 @@ public interface IWorkforceContractService
         string? employeeStatus,
         string? deliveryState,
         string? employeeKey,
+        string? baseline,
+        Guid? cohort,
+        Guid? orgUnitId,
+        bool includeDescendants,
         CancellationToken cancellationToken);
     Task<WorkforceAccessRosterSummaryDto> GetAccessRosterSummaryAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetTeamAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken);
@@ -71,6 +79,7 @@ public sealed class WorkforceContractService(
     private const string AccessStateNotInvited = "NotInvited";
     private const string AccessStateInvitePending = "InvitePending";
     private const string AccessStateActiveAccount = "ActiveAccount";
+    private const string AccessStateSuspended = "Suspended";
     private const string AccessStateNeedsReview = "NeedsReview";
 
     public async Task<WorkforceCurrentUserContextDto> GetCurrentUserContextAsync(
@@ -296,6 +305,10 @@ public sealed class WorkforceContractService(
         string? employeeStatus,
         string? deliveryState,
         string? employeeKey,
+        string? baseline,
+        Guid? cohort,
+        Guid? orgUnitId,
+        bool includeDescendants,
         int page,
         int pageSize,
         CancellationToken cancellationToken)
@@ -311,6 +324,11 @@ public sealed class WorkforceContractService(
                 .AsQueryable(),
             search,
             employeeKey);
+        var scope = await ResolveRosterScopeAsync(cohort, orgUnitId, includeDescendants, cancellationToken);
+        if (scope is not null)
+        {
+            query = query.Where(current => scope.Contains(current.Id));
+        }
         var candidateEmployees = await query
             .OrderBy(current => current.LastName)
             .ThenBy(current => current.FirstName)
@@ -320,6 +338,7 @@ public sealed class WorkforceContractService(
         var filteredSummaries = summaries
             .Where(summary =>
                 MatchesStatusFilter(summary, employeeStatus)
+                && MatchesBaselineFilter(summary, baseline)
                 && MatchesAccessFilters(
                     statuses.GetValueOrDefault(summary.EmployeeId),
                     normalizedAccess,
@@ -349,6 +368,10 @@ public sealed class WorkforceContractService(
         string? employeeStatus,
         string? deliveryState,
         string? employeeKey,
+        string? baseline,
+        Guid? cohort,
+        Guid? orgUnitId,
+        bool includeDescendants,
         CancellationToken cancellationToken)
     {
         var (matchingEmployees, statuses) = await LoadMatchingAccessSubjectEmployeesAsync(
@@ -358,6 +381,10 @@ public sealed class WorkforceContractService(
             employeeStatus,
             deliveryState,
             employeeKey,
+            baseline,
+            cohort,
+            orgUnitId,
+            includeDescendants,
             cancellationToken);
 
         return await BuildAccessSubjectSummariesAsync(
@@ -384,7 +411,8 @@ public sealed class WorkforceContractService(
             accessStates.Count(state => state == AccessStateNotInvited),
             accessStates.Count(state => state == AccessStateInvitePending),
             accessStates.Count(state => state == AccessStateActiveAccount),
-            accessStates.Count(state => state == AccessStateNeedsReview));
+            accessStates.Count(state => state == AccessStateNeedsReview),
+            accessStates.Count(state => state == AccessStateSuspended));
     }
 
     public async Task<WorkforceBulkInviteResponseDto> BulkInviteAsync(
@@ -418,6 +446,10 @@ public sealed class WorkforceContractService(
                 request.EmployeeStatus,
                 request.DeliveryState,
                 request.EmployeeKey,
+                baseline: null,
+                cohort: null,
+                orgUnitId: null,
+                includeDescendants: true,
                 cancellationToken);
         }
 
@@ -1261,6 +1293,10 @@ public sealed class WorkforceContractService(
             string? employeeStatus,
             string? deliveryState,
             string? employeeKey,
+            string? baseline,
+            Guid? cohort,
+            Guid? orgUnitId,
+            bool includeDescendants,
             CancellationToken cancellationToken)
     {
         var query = ApplyAccessSubjectFilters(
@@ -1269,6 +1305,11 @@ public sealed class WorkforceContractService(
                 .AsQueryable(),
             search,
             employeeKey);
+        var scope = await ResolveRosterScopeAsync(cohort, orgUnitId, includeDescendants, cancellationToken);
+        if (scope is not null)
+        {
+            query = query.Where(current => scope.Contains(current.Id));
+        }
         var normalizedAccess = NormalizeAccessFilter(access);
         var normalizedDeliveryState = NormalizeDeliveryStateFilter(deliveryState);
         var requiresAccountFiltering =
@@ -1286,6 +1327,7 @@ public sealed class WorkforceContractService(
         var allowedEmployeeIds = summaries
             .Where(summary =>
                 MatchesStatusFilter(summary, employeeStatus)
+                && MatchesBaselineFilter(summary, baseline)
                 && (!requiresAccountFiltering || MatchesAccessFilters(
                     statuses.GetValueOrDefault(summary.EmployeeId),
                     normalizedAccess,
@@ -1321,12 +1363,44 @@ public sealed class WorkforceContractService(
                 .ToListAsync(cancellationToken))
             .ToHashSet();
 
+        var now = DateTime.UtcNow;
+        var assignmentRows = await dbContext.WorkAssignments
+            .AsNoTracking()
+            .Where(assignment => employeeIds.Contains(assignment.EmployeeId)
+                && assignment.IsPrimary
+                && assignment.EffectiveFrom <= now
+                && (assignment.EffectiveTo == null || now < assignment.EffectiveTo))
+            .Select(assignment => new
+            {
+                assignment.EmployeeId,
+                assignment.OrgUnitId,
+                assignment.JobTitle,
+                assignment.WorkLocation,
+            })
+            .ToListAsync(cancellationToken);
+        var orgUnitIds = assignmentRows.Select(assignment => assignment.OrgUnitId).Distinct().ToList();
+        var orgUnitNames = await dbContext.OrgUnits
+            .AsNoTracking()
+            .Where(unit => orgUnitIds.Contains(unit.Id))
+            .ToDictionaryAsync(unit => unit.Id, unit => unit.Name, cancellationToken);
+        var assignments = assignmentRows.ToDictionary(
+            assignment => assignment.EmployeeId,
+            assignment => new
+            {
+                assignment.JobTitle,
+                assignment.WorkLocation,
+                OrgUnitName = orgUnitNames.GetValueOrDefault(assignment.OrgUnitId),
+            });
+
         return employees
             .Select(employee => BuildAccessSubjectSummary(
                 employee,
                 statuses.GetValueOrDefault(employee.Id),
                 directReportCounts.GetValueOrDefault(employee.Id),
-                activeEmployeeIdSet.Contains(employee.Id)))
+                activeEmployeeIdSet.Contains(employee.Id),
+                assignments.GetValueOrDefault(employee.Id)?.JobTitle,
+                assignments.GetValueOrDefault(employee.Id)?.OrgUnitName,
+                assignments.GetValueOrDefault(employee.Id)?.WorkLocation))
             .ToList();
     }
 
@@ -1355,6 +1429,97 @@ public sealed class WorkforceContractService(
         return query;
     }
 
+    /// <summary>
+    /// Resolves the set of Employee ids the roster is restricted to when an import cohort
+    /// and/or an Organization scope is applied. Returns <c>null</c> when no scope restricts
+    /// the roster (the whole workforce). Each scope is tenant-isolated by the ambient query
+    /// filter, and the two scopes intersect when both are present. A cohort that resolves to
+    /// no members yields an empty set, so the roster shows exactly that cohort — never the
+    /// full workforce as a silent fallback.
+    /// </summary>
+    private async Task<HashSet<Guid>?> ResolveRosterScopeAsync(
+        Guid? cohort,
+        Guid? orgUnitId,
+        bool includeDescendants,
+        CancellationToken cancellationToken)
+    {
+        HashSet<Guid>? scope = null;
+
+        if (cohort is { } batchId)
+        {
+            var keys = await ResolveImportCohortKeysAsync(batchId, cancellationToken);
+            scope = keys.Length == 0
+                ? []
+                : (await dbContext.Employees
+                    .AsNoTracking()
+                    .Where(employee => keys.Contains(employee.StableEmployeeKey))
+                    .Select(employee => employee.Id)
+                    .ToListAsync(cancellationToken)).ToHashSet();
+        }
+
+        if (orgUnitId is { } unitId)
+        {
+            var targetOrgUnitIds = await ResolveOrgUnitScopeAsync(new[] { unitId }, includeDescendants, cancellationToken);
+            var now = DateTime.UtcNow;
+            var memberIds = targetOrgUnitIds.Count == 0
+                ? []
+                : (await dbContext.WorkAssignments
+                    .AsNoTracking()
+                    .Where(assignment => targetOrgUnitIds.Contains(assignment.OrgUnitId)
+                        && assignment.IsPrimary
+                        && assignment.EffectiveFrom <= now
+                        && (assignment.EffectiveTo == null || now < assignment.EffectiveTo))
+                    .Select(assignment => assignment.EmployeeId)
+                    .Distinct()
+                    .ToListAsync(cancellationToken)).ToHashSet();
+            scope = scope is null ? memberIds : scope.Intersect(memberIds).ToHashSet();
+        }
+
+        return scope;
+    }
+
+    private async Task<string[]> ResolveImportCohortKeysAsync(Guid importBatchId, CancellationToken cancellationToken)
+    {
+        var keysJson = await dbContext.WorkforceImportHistories
+            .AsNoTracking()
+            .Where(history => history.SessionId == importBatchId)
+            .Select(history => history.CreatedEmployeeKeysJson)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (keysJson is null)
+        {
+            return [];
+        }
+
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<string[]>(keysJson) ?? [];
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return [];
+        }
+    }
+
+    /// <summary>
+    /// The Employee/Manager baseline is the reviewed recommendation: a person with direct
+    /// reports is recommended Manager, everyone else Employee. The filter mirrors that so the
+    /// roster and the selection preview agree on what "all Managers" or "all Employees" means.
+    /// </summary>
+    private static bool MatchesBaselineFilter(WorkforceAccessSubjectSummaryDto summary, string? baseline)
+    {
+        if (string.IsNullOrWhiteSpace(baseline))
+        {
+            return true;
+        }
+
+        return baseline.Trim().ToLowerInvariant() switch
+        {
+            "manager" => summary.DirectReportCount > 0,
+            "employee" => summary.DirectReportCount == 0,
+            _ => true,
+        };
+    }
+
     private async Task<Dictionary<Guid, int>> LoadDirectReportCountsAsync(
         IReadOnlyCollection<Guid> employeeIds,
         CancellationToken cancellationToken)
@@ -1380,7 +1545,10 @@ public sealed class WorkforceContractService(
         Employee employee,
         WorkforceAccountStatusDto? account,
         int directReportCount,
-        bool isActive)
+        bool isActive,
+        string? jobTitle,
+        string? orgUnitName,
+        string? workLocation)
     {
         var accessState = ClassifyAccessState(account);
 
@@ -1393,6 +1561,9 @@ public sealed class WorkforceContractService(
             employee.PreferredName,
             employee.DisplayName,
             employee.Email,
+            jobTitle,
+            orgUnitName,
+            workLocation,
             isActive ? EmployeeStatus.Active.ToString() : EmployeeStatus.Inactive.ToString(),
             isActive,
             directReportCount,
@@ -1430,6 +1601,13 @@ public sealed class WorkforceContractService(
             return AccessStateInvitePending;
         }
 
+        // A provisioned account that has been deactivated is a suspended workforce account:
+        // the account, membership, binding, and profiles are preserved and it can be restored.
+        if (string.Equals(account.ProvisioningState, "Inactive", StringComparison.OrdinalIgnoreCase))
+        {
+            return AccessStateSuspended;
+        }
+
         return AccessStateNeedsReview;
     }
 
@@ -1440,6 +1618,7 @@ public sealed class WorkforceContractService(
             AccessStateNotInvited => "Not invited",
             AccessStateInvitePending => "Invite pending",
             AccessStateActiveAccount => "Active account",
+            AccessStateSuspended => "Suspended",
             _ => "Needs review",
         };
     }

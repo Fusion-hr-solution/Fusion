@@ -57,6 +57,9 @@ public sealed record WorkforceAccessSubjectSummaryDto(
     string? PreferredName,
     string DisplayName,
     string? WorkEmail,
+    string? JobTitle,
+    string? OrgUnitName,
+    string? WorkLocation,
     string EmploymentStatus,
     bool IsActive,
     int DirectReportCount,
@@ -77,7 +80,8 @@ public sealed record WorkforceAccessRosterSummaryDto(
     int NotInvitedCount,
     int InvitePendingCount,
     int ActiveAccountCount,
-    int NeedsReviewCount);
+    int NeedsReviewCount,
+    int SuspendedCount);
 
 public sealed record WorkforceManagerScopeDto(
     string ScopeType,

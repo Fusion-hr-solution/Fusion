@@ -38,7 +38,7 @@ public sealed class PeopleAccessStatusQueryHandler(
             return Result.Failure<PeopleAccessStatusDto>(new Error("Employee.NotFound", "Employee was not found."));
         if (string.IsNullOrWhiteSpace(employee.Email))
             return Result.Success(new PeopleAccessStatusDto(
-                "NoFusionAccess",
+                "NoAccess",
                 "No Fusion access",
                 "A work email is required before access can be linked."));
 
@@ -46,15 +46,49 @@ public sealed class PeopleAccessStatusQueryHandler(
             [new WorkforceAccountSubjectDto(employee.Id, employee.Email, employee.FirstName, employee.LastName)],
             cancellationToken);
         var status = statuses.GetValueOrDefault(employee.Id);
-        if (status?.UserId is not null)
-            return Result.Success(new PeopleAccessStatusDto(
-                "Linked",
-                "Linked",
-                status.IsActive == false ? "Account inactive" : null));
-
-        return Result.Success(new PeopleAccessStatusDto(
-            "NoFusionAccess",
-            "No Fusion access",
-            status?.Conflict?.Message));
+        return Result.Success(Project(status));
     }
+
+    private static PeopleAccessStatusDto Project(WorkforceAccountStatusDto? status)
+        => status?.ProvisioningState switch
+        {
+            "Active" => new PeopleAccessStatusDto(
+                "Active",
+                "Active",
+                string.Equals(status.Role, "Manager", StringComparison.OrdinalIgnoreCase)
+                    ? "Manager access"
+                    : "Employee access"),
+            "Inactive" => new PeopleAccessStatusDto(
+                "Suspended",
+                "Suspended",
+                "Fusion sign-in is currently suspended."),
+            "InvitePending" => new PeopleAccessStatusDto(
+                "InvitationPending",
+                "Invitation pending",
+                status.Email),
+            "Conflict" => new PeopleAccessStatusDto(
+                "NeedsReview",
+                "Needs review",
+                status.Conflict?.Message ?? "Fusion access needs review."),
+            "InviteExpired" => new PeopleAccessStatusDto(
+                "NeedsReview",
+                "Needs review",
+                "The workforce invitation has expired."),
+            "InviteRevoked" => new PeopleAccessStatusDto(
+                "NeedsReview",
+                "Needs review",
+                "The workforce invitation was withdrawn."),
+            "InviteAccepted" => new PeopleAccessStatusDto(
+                "NeedsReview",
+                "Needs review",
+                "The invitation was accepted, but the workforce account is not linked."),
+            "Unprovisioned" or null => new PeopleAccessStatusDto(
+                "NoAccess",
+                "No Fusion access",
+                null),
+            _ => new PeopleAccessStatusDto(
+                "NeedsReview",
+                "Needs review",
+                "Fusion access could not be classified. Review Workforce Access."),
+        };
 }

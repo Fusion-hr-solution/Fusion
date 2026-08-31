@@ -1,6 +1,8 @@
 using System.Data;
+using System.ComponentModel.DataAnnotations;
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
+using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.Workforce.Services;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
@@ -17,6 +19,9 @@ public sealed record ChangeWorkRequest(DateTime EffectiveDate, Guid OrgUnitId, s
 public sealed record ChangeManagerByKeyRequest(DateTime EffectiveDate, Guid? ManagerEmployeeId);
 
 public sealed record EndEmploymentRequest(DateTime LastEmployedDate, string? Note);
+
+public sealed record UpdateWorkEmailRequest(
+    [property: Required, EmailAddress, MaxLength(256)] string WorkEmail);
 
 // --- Contracts ------------------------------------------------------------------------------------
 
@@ -52,6 +57,12 @@ public sealed record EndEmploymentCommand(
 public sealed record EndEmploymentPreviewQuery(
     string EmployeeKey,
     DateTime LastEmployedDate) : IQuery<Result<EndEmploymentPreviewDto>>;
+
+public sealed record UpdateWorkEmailCommand(
+    string EmployeeKey,
+    uint ExpectedVersion,
+    string WorkEmail,
+    string Actor) : ICommand<Result<Employee>>;
 
 // --- Handlers -------------------------------------------------------------------------------------
 
@@ -186,6 +197,47 @@ public sealed class EndEmploymentPreviewQueryHandler(
     }
 }
 
+public sealed class UpdateWorkEmailCommandHandler(
+    CoreHRDbContext dbContext,
+    IWorkforceMutationService mutationService)
+    : ICommandHandler<UpdateWorkEmailCommand, Result<Employee>>
+{
+    public async Task<Result<Employee>> Handle(
+        UpdateWorkEmailCommand command,
+        CancellationToken cancellationToken)
+    {
+        var employee = await MaintenanceSupport.FindEmployeeAsync(
+            dbContext, command.EmployeeKey, cancellationToken);
+        if (employee is null)
+            return Result.Failure<Employee>(new Error("Employee.NotFound", "Employee was not found."));
+
+        if (employee.Version != command.ExpectedVersion)
+            throw new ConcurrencyException("Employee", employee.Id);
+
+        var normalizedEmail = command.WorkEmail.Trim().ToLowerInvariant();
+        if (string.Equals(employee.Email, normalizedEmail, StringComparison.Ordinal))
+            return Result.Success(employee);
+
+        return await MaintenanceSupport.RunAsync(dbContext, async () =>
+        {
+            var result = await mutationService.UpdateEmployeeProfileAsync(
+                employee.Id,
+                new UpdateEmployeeProfileInput(
+                    employee.FirstName,
+                    employee.LastName,
+                    normalizedEmail,
+                    employee.PreferredName,
+                    employee.Phone),
+                command.Actor,
+                cancellationToken);
+
+            return result.IsFailure
+                ? Result.Failure<Employee>(result.Error)
+                : Result.Success(employee);
+        }, cancellationToken);
+    }
+}
+
 // --- Shared support -------------------------------------------------------------------------------
 
 internal static class MaintenanceSupport
@@ -202,9 +254,9 @@ internal static class MaintenanceSupport
         => DateTime.SpecifyKind(value.Date, DateTimeKind.Utc);
 
     /// <summary>Runs a staged mutation inside a single read-committed transaction, then commits.</summary>
-    public static async Task<Result<MaintenanceResultDto>> RunAsync(
+    public static async Task<Result<T>> RunAsync<T>(
         CoreHRDbContext dbContext,
-        Func<Task<Result<MaintenanceResultDto>>> operation,
+        Func<Task<Result<T>>> operation,
         CancellationToken cancellationToken)
     {
         var useTransaction = dbContext.Database.IsRelational();

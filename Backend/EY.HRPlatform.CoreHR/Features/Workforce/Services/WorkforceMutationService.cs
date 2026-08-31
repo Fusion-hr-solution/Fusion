@@ -347,7 +347,15 @@ public sealed class WorkforceMutationService(
             return Result.Failure<WorkAssignment>(Error.Validation(
                 "WorkAssignment.OrgUnitNotFound",
                 "The work assignment organization unit was not found in this tenant."));
-        if (!await IsOrgUnitActiveOnAsync(orgUnit.Id, DateOnly.FromDateTime(effectiveDate), orgUnit.IsActive, cancellationToken))
+        // Initial establishment (Import) may back-date the assignment before the org unit's Fusion
+        // timeline — that timeline's start is the unit's import/establishment date, not proof the real
+        // unit did not exist earlier. The unit must still be a valid CURRENT target, so establishment
+        // validates the unit's activity as of today; later effective-dated changes validate at the
+        // change date, where an inactive unit on that date is a genuine error.
+        var orgActivityAsOf = input.Source == WorkforceSourceType.Import
+            ? DateOnly.FromDateTime(DateTime.UtcNow)
+            : DateOnly.FromDateTime(effectiveDate);
+        if (!await IsOrgUnitActiveOnAsync(orgUnit.Id, orgActivityAsOf, orgUnit.IsActive, cancellationToken))
             return Result.Failure<WorkAssignment>(Error.Validation(
                 "WorkAssignment.OrgUnitInactive", "Cannot assign an inactive organization unit."));
 

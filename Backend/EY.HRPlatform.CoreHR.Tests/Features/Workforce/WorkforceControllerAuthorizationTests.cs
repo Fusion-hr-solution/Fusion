@@ -30,6 +30,7 @@ public class WorkforceControllerAuthorizationTests
     [InlineData(nameof(WorkforceController.GetEmployee))]
     [InlineData(nameof(WorkforceController.SearchAccessSubjects))]
     [InlineData(nameof(WorkforceController.GetAccessSubjectSelectionPreview))]
+    [InlineData(nameof(WorkforceController.GetAccessCandidates))]
     [InlineData(nameof(WorkforceController.GetAccessRosterSummary))]
     [InlineData(nameof(WorkforceController.GetPublishedOrgUnits))]
     [InlineData(nameof(WorkforceController.BulkInvite))]
@@ -80,6 +81,10 @@ public class WorkforceControllerAuthorizationTests
             employeeStatus: null,
             deliveryState: null,
             employeeKey: null,
+            baseline: null,
+            cohort: null,
+            orgUnitId: null,
+            organizationScope: null,
             CancellationToken.None);
 
         Assert.IsType<ForbidResult>(result);
@@ -99,6 +104,10 @@ public class WorkforceControllerAuthorizationTests
             employeeStatus: null,
             deliveryState: null,
             employeeKey: null,
+            baseline: null,
+            cohort: null,
+            orgUnitId: null,
+            organizationScope: null,
             CancellationToken.None);
 
         var ok = Assert.IsType<OkObjectResult>(result);
@@ -113,7 +122,9 @@ public class WorkforceControllerAuthorizationTests
     {
         var controller = new WorkforceController(
             service,
-            new StubCoreAccessPolicyService(canViewAccess, canManageAccess))
+            new StubCoreAccessPolicyService(canViewAccess, canManageAccess),
+            new StubWorkforceAccessIdentityClient(),
+            new StubWorkforceBulkProvisioner())
         {
             ControllerContext = new ControllerContext
             {
@@ -196,6 +207,10 @@ public class WorkforceControllerAuthorizationTests
             string? employeeStatus,
             string? deliveryState,
             string? employeeKey,
+            string? baseline,
+            Guid? cohort,
+            Guid? orgUnitId,
+            bool includeDescendants,
             CancellationToken cancellationToken)
         {
             AccessSubjectSelectionPreviewCalled = true;
@@ -207,7 +222,7 @@ public class WorkforceControllerAuthorizationTests
         public Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> ResolveEmployeesAsync(IReadOnlyCollection<Guid> employeeIds, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<PagedResponse<WorkforceEmployeeSummaryDto>> SearchEmployeesAsync(string? search, int page, int pageSize, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetEmployeesByScopeAsync(IReadOnlyCollection<Guid> orgUnitIds, bool includeDescendants, bool includeInactive, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
-        public Task<PagedResponse<WorkforceAccessSubjectSummaryDto>> SearchAccessSubjectsAsync(string? search, string? access, Guid? profileId, string? employeeStatus, string? deliveryState, string? employeeKey, int page, int pageSize, CancellationToken cancellationToken) => throw new NotImplementedException();
+        public Task<PagedResponse<WorkforceAccessSubjectSummaryDto>> SearchAccessSubjectsAsync(string? search, string? access, Guid? profileId, string? employeeStatus, string? deliveryState, string? employeeKey, string? baseline, Guid? cohort, Guid? orgUnitId, bool includeDescendants, int page, int pageSize, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<WorkforceAccessRosterSummaryDto> GetAccessRosterSummaryAsync(CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetTeamAsync(Guid employeeId, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetDownlineAsync(Guid employeeId, int maxDepth, ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
@@ -216,5 +231,39 @@ public class WorkforceControllerAuthorizationTests
         public Task<WorkforceOrgUnitTreeDto> GetPublishedOrgUnitTreeAsync(Guid? rootId, int maxDepth, bool includeInactive, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<WorkforceOrgUnitDetailDto?> GetOrgUnitDetailAsync(Guid orgUnitId, CancellationToken cancellationToken) => throw new NotImplementedException();
         public Task<IReadOnlyList<WorkforceEmployeeSummaryDto>> GetOrgUnitMembersAsync(Guid orgUnitId, bool includeDescendants, System.Security.Claims.ClaimsPrincipal user, CancellationToken cancellationToken) => throw new NotImplementedException();
+    }
+
+    private sealed class StubWorkforceAccessIdentityClient : IWorkforceAccessIdentityClient
+    {
+        public Task<IReadOnlyDictionary<Guid, WorkforceAccessCandidateResult>> ResolveCandidatesAsync(
+            IReadOnlyCollection<WorkforceAccessCandidateSubject> subjects,
+            CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+        public Task<WorkforceAccessCandidateResult> ResolveCandidateAsync(Guid employeeId, string? normalizedWorkEmail, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+        public Task<WorkforceAccessMutationOutcomeResult> MutateAsync(Guid employeeId, string? normalizedWorkEmail, string action, string baseline, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+        public Task<WorkforceAccessMutationOutcomeResult> CorrectAsync(Guid sourceEmployeeId, Guid targetEmployeeId, string baseline, string reason, int expectedRevision, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+        public Task<bool> ResendInviteAsync(Guid employeeId, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+        public Task<bool> WithdrawInviteAsync(Guid employeeId, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+        public Task<IReadOnlyList<WorkforceAccessAuditLine>> GetAuditAsync(Guid employeeId, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+        public Task<(bool Ok, string Message)> SuspendAccountAsync(Guid employeeId, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+        public Task<(bool Ok, string Message)> RestoreAccountAsync(Guid employeeId, CancellationToken cancellationToken)
+            => throw new NotImplementedException();
+    }
+
+    private sealed class StubWorkforceBulkProvisioner : IWorkforceBulkProvisioner
+    {
+        public Task<WorkforceBulkProvisionResponse> BulkProvisionAsync(
+            List<WorkforceBulkProvisionSubject> subjects,
+            Guid accessProfileId,
+            CancellationToken cancellationToken,
+            string? baseline = null)
+            => throw new NotImplementedException();
     }
 }

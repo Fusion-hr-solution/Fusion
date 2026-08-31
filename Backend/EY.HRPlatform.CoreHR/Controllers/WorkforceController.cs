@@ -13,7 +13,9 @@ namespace EY.HRPlatform.CoreHR.Controllers;
 [Authorize]
 public class WorkforceController(
     IWorkforceContractService workforceContractService,
-    ICoreAccessPolicyService accessPolicy) : ControllerBase
+    ICoreAccessPolicyService accessPolicy,
+    IWorkforceAccessIdentityClient workforceAccessClient,
+    IWorkforceBulkProvisioner workforceBulkProvisioner) : ControllerBase
 {
     [HttpGet("me")]
     [ProducesResponseType(typeof(ApiResponse<WorkforceCurrentUserContextDto>), StatusCodes.Status200OK)]
@@ -110,6 +112,10 @@ public class WorkforceController(
         [FromQuery] string? employeeStatus,
         [FromQuery] string? deliveryState,
         [FromQuery] string? employeeKey,
+        [FromQuery] string? baseline,
+        [FromQuery] Guid? cohort,
+        [FromQuery] Guid? orgUnitId,
+        [FromQuery] string? organizationScope,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -126,6 +132,10 @@ public class WorkforceController(
             employeeStatus,
             deliveryState,
             employeeKey,
+            baseline,
+            cohort,
+            orgUnitId,
+            !string.Equals(organizationScope, "Direct", StringComparison.OrdinalIgnoreCase),
             page,
             pageSize,
             cancellationToken);
@@ -154,6 +164,10 @@ public class WorkforceController(
         [FromQuery] string? employeeStatus,
         [FromQuery] string? deliveryState,
         [FromQuery] string? employeeKey,
+        [FromQuery] string? baseline,
+        [FromQuery] Guid? cohort,
+        [FromQuery] Guid? orgUnitId,
+        [FromQuery] string? organizationScope,
         CancellationToken cancellationToken = default)
     {
         if (!accessPolicy.CanManageAccess(User))
@@ -168,6 +182,10 @@ public class WorkforceController(
             employeeStatus,
             deliveryState,
             employeeKey,
+            baseline,
+            cohort,
+            orgUnitId,
+            !string.Equals(organizationScope, "Direct", StringComparison.OrdinalIgnoreCase),
             cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<WorkforceAccessSubjectSummaryDto>>.Success(result));
     }
@@ -194,6 +212,541 @@ public class WorkforceController(
             return BadRequest(ApiResponse.Failure(ex.Message));
         }
     }
+
+    [HttpGet("access-subjects/{employeeId:guid}/candidate")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccessCandidateDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetAccessCandidate(Guid employeeId, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewAccess(User))
+        {
+            return Forbid();
+        }
+
+        // CoreHR resolves the canonical Employee (existence, ownership, work email) from its
+        // own authority; only then does it ask Identity for the non-disclosing account state.
+        var employee = await workforceContractService.GetEmployeeAsync(employeeId, User, cancellationToken);
+        if (employee is null)
+        {
+            return NotFound(ApiResponse.Failure("Employee was not found or is not visible in the current scope."));
+        }
+
+        var candidate = await workforceAccessClient.ResolveCandidateAsync(
+            employee.EmployeeId, NormalizeEmail(employee.WorkEmail), cancellationToken);
+
+        return Ok(ApiResponse<WorkforceAccessCandidateDto>.Success(BuildCandidate(employee, candidate)));
+    }
+
+    [HttpPost("access-subjects/candidates")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceAccessCandidateDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> GetAccessCandidates(
+        [FromBody] WorkforceAccessCandidatesRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageAccess(User))
+        {
+            return Forbid();
+        }
+
+        var employeeIds = request.EmployeeIds
+            .Where(employeeId => employeeId != Guid.Empty)
+            .Distinct()
+            .ToArray();
+        if (employeeIds.Length == 0)
+        {
+            return BadRequest(ApiResponse.Failure("Select at least one person to review."));
+        }
+
+        var employees = await workforceContractService.ResolveEmployeesAsync(employeeIds, User, cancellationToken);
+        var candidates = await workforceAccessClient.ResolveCandidatesAsync(
+            employees.Select(employee => new WorkforceAccessCandidateSubject(
+                employee.EmployeeId, NormalizeEmail(employee.WorkEmail))).ToArray(),
+            cancellationToken);
+
+        var resolved = employees
+            .Where(employee => candidates.ContainsKey(employee.EmployeeId))
+            .Select(employee => BuildCandidate(employee, candidates[employee.EmployeeId]))
+            .ToList();
+
+        return Ok(ApiResponse<IReadOnlyList<WorkforceAccessCandidateDto>>.Success(resolved));
+    }
+
+    [HttpPost("access-subjects/{employeeId:guid}/activate")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccessCommandResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ActivateAccess(
+        Guid employeeId, [FromBody] WorkforceAccessCommand? command, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageAccess(User))
+        {
+            return Forbid();
+        }
+
+        var employee = await workforceContractService.GetEmployeeAsync(employeeId, User, cancellationToken);
+        if (employee is null)
+        {
+            return NotFound(ApiResponse.Failure("Employee was not found or is not visible in the current scope."));
+        }
+
+        // A new account is activated by issuing exactly one purpose-bound Workforce
+        // invitation. Without a work email there is nowhere to send it, so the state
+        // is a truthful, recoverable block rather than a failure.
+        var email = NormalizeEmail(employee.WorkEmail);
+        if (string.IsNullOrEmpty(email))
+        {
+            return Ok(ApiResponse<WorkforceAccessCommandResultDto>.Success(new WorkforceAccessCommandResultDto(
+                employee.EmployeeId,
+                "Blocked",
+                WorkforceAccountStates.NewAccount,
+                "Add a work email for this person in People before inviting them.",
+                null)));
+        }
+
+        var baseline = NormalizeBaseline(command?.Baseline) ?? RecommendedBaseline(employee.DirectReportCount);
+
+        var provision = await workforceBulkProvisioner.BulkProvisionAsync(
+            [new WorkforceBulkProvisionSubject(employee.EmployeeId, email, employee.FirstName, employee.LastName)],
+            Guid.Empty,
+            cancellationToken,
+            baseline);
+
+        var item = provision.Items.FirstOrDefault();
+        var (outcome, message) = item?.Outcome switch
+        {
+            "Created" => ("Ok", "Invitation sent."),
+            "Pending" => ("Ok", "Invitation refreshed."),
+            "Active" => ("Stale", "This person already has active access."),
+            null => ("Failed", "The invitation could not be issued."),
+            _ => ("Failed", item?.Message ?? "The invitation could not be issued."),
+        };
+
+        return Ok(ApiResponse<WorkforceAccessCommandResultDto>.Success(new WorkforceAccessCommandResultDto(
+            employee.EmployeeId,
+            outcome,
+            WorkforceAccountStates.NewAccount,
+            message,
+            null)));
+    }
+
+    [HttpPost("access-subjects/{employeeId:guid}/link")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccessCommandResultDto>), StatusCodes.Status200OK)]
+    public Task<IActionResult> LinkAccess(Guid employeeId, [FromBody] WorkforceAccessCommand? command, CancellationToken cancellationToken)
+        => MutateAsync(employeeId, "Link", command, cancellationToken);
+
+    [HttpPost("access-subjects/{employeeId:guid}/reactivate")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccessCommandResultDto>), StatusCodes.Status200OK)]
+    public Task<IActionResult> ReactivateAccess(Guid employeeId, [FromBody] WorkforceAccessCommand? command, CancellationToken cancellationToken)
+        => MutateAsync(employeeId, "ReactivateAndLink", command, cancellationToken);
+
+    [HttpPost("access-subjects/{employeeId:guid}/connect")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccessCommandResultDto>), StatusCodes.Status200OK)]
+    public Task<IActionResult> ConnectAccess(Guid employeeId, [FromBody] WorkforceAccessCommand? command, CancellationToken cancellationToken)
+        => MutateAsync(employeeId, "Connect", command, cancellationToken);
+
+    [HttpPost("access-subjects/{employeeId:guid}/correct")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccessCommandResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CorrectAccess(
+        Guid employeeId, [FromBody] WorkforceAccessCorrectionCommand? command, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageAccess(User))
+        {
+            return Forbid();
+        }
+
+        if (command is null || command.TargetEmployeeId == Guid.Empty)
+        {
+            return BadRequest(ApiResponse.Failure("Choose the corrected person."));
+        }
+
+        if (string.IsNullOrWhiteSpace(command.Reason))
+        {
+            return BadRequest(ApiResponse.Failure("A correction reason is required."));
+        }
+
+        // Resolve BOTH the currently-bound source (route) and the corrected target (body)
+        // canonically. The browser never supplies an Employee identity fact — only the two
+        // references, the reviewed baseline, the reason, and the revision it reviewed.
+        var source = await workforceContractService.GetEmployeeAsync(employeeId, User, cancellationToken);
+        if (source is null)
+        {
+            return NotFound(ApiResponse.Failure("Employee was not found or is not visible in the current scope."));
+        }
+
+        var target = await workforceContractService.GetEmployeeAsync(command.TargetEmployeeId, User, cancellationToken);
+        if (target is null)
+        {
+            return NotFound(ApiResponse.Failure("The corrected person was not found or is not visible in the current scope."));
+        }
+
+        var baseline = NormalizeBaseline(command.Baseline) ?? RecommendedBaseline(target.DirectReportCount);
+        var expectedRevision = command.ExpectedVersion > int.MaxValue ? int.MaxValue : (int)command.ExpectedVersion;
+
+        var result = await workforceAccessClient.CorrectAsync(
+            source.EmployeeId, target.EmployeeId, baseline, command.Reason.Trim(), expectedRevision, cancellationToken);
+
+        return Ok(ApiResponse<WorkforceAccessCommandResultDto>.Success(new WorkforceAccessCommandResultDto(
+            source.EmployeeId,
+            result.Outcome,
+            result.AccountState,
+            result.Message,
+            result.AccessRevision is { } rev ? (uint)rev : null)));
+    }
+
+    [HttpPost("access-subjects/{employeeId:guid}/resend")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccessCommandResultDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ResendInvite(Guid employeeId, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageAccess(User)) return Forbid();
+        var employee = await workforceContractService.GetEmployeeAsync(employeeId, User, cancellationToken);
+        if (employee is null)
+            return NotFound(ApiResponse.Failure("Employee was not found or is not visible in the current scope."));
+        var ok = await workforceAccessClient.ResendInviteAsync(employee.EmployeeId, cancellationToken);
+        return Ok(ApiResponse<WorkforceAccessCommandResultDto>.Success(new WorkforceAccessCommandResultDto(
+            employee.EmployeeId, ok ? "Ok" : "Failed", null,
+            ok ? "Invitation resent." : "The invitation could not be resent.", null)));
+    }
+
+    [HttpPost("access-subjects/{employeeId:guid}/withdraw")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccessCommandResultDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> WithdrawInvite(Guid employeeId, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageAccess(User)) return Forbid();
+        var employee = await workforceContractService.GetEmployeeAsync(employeeId, User, cancellationToken);
+        if (employee is null)
+            return NotFound(ApiResponse.Failure("Employee was not found or is not visible in the current scope."));
+        var ok = await workforceAccessClient.WithdrawInviteAsync(employee.EmployeeId, cancellationToken);
+        return Ok(ApiResponse<WorkforceAccessCommandResultDto>.Success(new WorkforceAccessCommandResultDto(
+            employee.EmployeeId, ok ? "Ok" : "Failed", null,
+            ok ? "Invitation withdrawn." : "The invitation could not be withdrawn.", null)));
+    }
+
+    [HttpPost("access-subjects/{employeeId:guid}/suspend")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccessCommandResultDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> SuspendAccess(Guid employeeId, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageAccess(User)) return Forbid();
+        var employee = await workforceContractService.GetEmployeeAsync(employeeId, User, cancellationToken);
+        if (employee is null)
+            return NotFound(ApiResponse.Failure("Employee was not found or is not visible in the current scope."));
+        var (ok, message) = await workforceAccessClient.SuspendAccountAsync(employee.EmployeeId, cancellationToken);
+        return Ok(ApiResponse<WorkforceAccessCommandResultDto>.Success(new WorkforceAccessCommandResultDto(
+            employee.EmployeeId, ok ? "Ok" : "Blocked", null,
+            ok ? "Workforce access suspended." : message, null)));
+    }
+
+    [HttpPost("access-subjects/{employeeId:guid}/restore")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccessCommandResultDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RestoreAccess(Guid employeeId, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageAccess(User)) return Forbid();
+        var employee = await workforceContractService.GetEmployeeAsync(employeeId, User, cancellationToken);
+        if (employee is null)
+            return NotFound(ApiResponse.Failure("Employee was not found or is not visible in the current scope."));
+        var (ok, message) = await workforceAccessClient.RestoreAccountAsync(employee.EmployeeId, cancellationToken);
+        return Ok(ApiResponse<WorkforceAccessCommandResultDto>.Success(new WorkforceAccessCommandResultDto(
+            employee.EmployeeId, ok ? "Ok" : "Blocked", null,
+            ok ? "Workforce access restored." : message, null)));
+    }
+
+    [HttpGet("access-subjects/{employeeId:guid}/audit")]
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceAccessAuditLineDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAccessAudit(Guid employeeId, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewAccess(User)) return Forbid();
+        var employee = await workforceContractService.GetEmployeeAsync(employeeId, User, cancellationToken);
+        if (employee is null)
+            return NotFound(ApiResponse.Failure("Employee was not found or is not visible in the current scope."));
+        var lines = await workforceAccessClient.GetAuditAsync(employee.EmployeeId, cancellationToken);
+        var mapped = lines
+            .Select(l => new WorkforceAccessAuditLineDto(l.Action, l.ActorName, l.ActorRole, l.OccurredAt, l.Summary))
+            .ToList();
+        return Ok(ApiResponse<IReadOnlyList<WorkforceAccessAuditLineDto>>.Success(mapped));
+    }
+
+    [HttpPost("access-subjects/bulk-activate")]
+    [ProducesResponseType(typeof(ApiResponse<WorkforceAccessBulkResultDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> BulkActivate(
+        [FromBody] WorkforceAccessBulkRequest request, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageAccess(User))
+        {
+            return Forbid();
+        }
+
+        if (request?.Items is null || request.Items.Count == 0)
+        {
+            return BadRequest(ApiResponse.Failure("Select at least one person to activate."));
+        }
+
+        // Resolve the canonical Employees and current account candidates once for the
+        // complete reviewed population. Mutation endpoints still re-resolve under their
+        // own transaction, but the bulk command no longer performs one CoreHR query and
+        // one signed Identity round-trip per selected person.
+        var requestedItems = request.Items
+            .Where(item => item.EmployeeId != Guid.Empty)
+            .DistinctBy(item => item.EmployeeId)
+            .ToList();
+        var employees = await workforceContractService.ResolveEmployeesAsync(
+            requestedItems.Select(item => item.EmployeeId).ToArray(),
+            User,
+            cancellationToken);
+        var employeesById = employees.ToDictionary(employee => employee.EmployeeId);
+        IReadOnlyDictionary<Guid, WorkforceAccessCandidateResult> candidates;
+        try
+        {
+            candidates = await workforceAccessClient.ResolveCandidatesAsync(
+                employees.Select(employee => new WorkforceAccessCandidateSubject(
+                    employee.EmployeeId,
+                    NormalizeEmail(employee.WorkEmail))).ToArray(),
+                cancellationToken);
+        }
+        catch
+        {
+            candidates = new Dictionary<Guid, WorkforceAccessCandidateResult>();
+        }
+
+        var results = new WorkforceAccessBulkResultItemDto[requestedItems.Count];
+        var invitations = new List<(int Index, WorkforceEmployeeSummaryDto Employee, string Baseline, string AccountState)>();
+
+        for (var index = 0; index < requestedItems.Count; index++)
+        {
+            var item = requestedItems[index];
+            if (!employeesById.TryGetValue(item.EmployeeId, out var employee))
+            {
+                results[index] = new WorkforceAccessBulkResultItemDto(
+                    item.EmployeeId, "Unknown", "Failed", null, "This person is no longer visible.");
+                continue;
+            }
+
+            var display = employee.DisplayName;
+            var email = NormalizeEmail(employee.WorkEmail);
+            var baseline = NormalizeBaseline(item.Baseline) ?? RecommendedBaseline(employee.DirectReportCount);
+            if (!candidates.TryGetValue(employee.EmployeeId, out var candidate))
+            {
+                results[index] = new WorkforceAccessBulkResultItemDto(
+                    employee.EmployeeId, display, "Failed", null, "The account state could not be resolved.");
+                continue;
+            }
+
+            switch (candidate.AccountState)
+            {
+                case WorkforceAccountStates.NewAccount when string.IsNullOrEmpty(email):
+                    results[index] = new WorkforceAccessBulkResultItemDto(
+                        employee.EmployeeId, display, "Blocked", candidate.AccountState,
+                        "No work email — add one before sending an invitation.");
+                    break;
+                case WorkforceAccountStates.NewAccount:
+                    invitations.Add((index, employee, baseline, candidate.AccountState));
+                    break;
+                case WorkforceAccountStates.ExistingAccountReadyToLink:
+                    results[index] = await DispatchMutateAsync(
+                        employee, email, "Link", baseline, display, "Linked", "Account linked.", cancellationToken);
+                    break;
+                case WorkforceAccountStates.SuspendedAccountReadyToReactivate:
+                    results[index] = await DispatchMutateAsync(
+                        employee, email, "ReactivateAndLink", baseline, display, "Reactivated", "Reactivated and linked.", cancellationToken);
+                    break;
+                case WorkforceAccountStates.ExistingAccountReadyToJoinTenant:
+                    results[index] = await DispatchMutateAsync(
+                        employee, email, "Connect", baseline, display, "Linked", "Account connected.", cancellationToken);
+                    break;
+                case WorkforceAccountStates.Active:
+                    results[index] = new WorkforceAccessBulkResultItemDto(
+                        employee.EmployeeId, display, "AlreadyActive", candidate.AccountState, "Already active.");
+                    break;
+                case WorkforceAccountStates.BindingConflict:
+                    results[index] = new WorkforceAccessBulkResultItemDto(
+                        employee.EmployeeId, display, "Blocked", candidate.AccountState,
+                        "Linked to a different employee. Use correction.");
+                    break;
+                case WorkforceAccountStates.AccountUnavailable:
+                    results[index] = new WorkforceAccessBulkResultItemDto(
+                        employee.EmployeeId, display, "Blocked", candidate.AccountState, "Account in use elsewhere.");
+                    break;
+                default:
+                    results[index] = new WorkforceAccessBulkResultItemDto(
+                        employee.EmployeeId, display, "Failed", candidate.AccountState, "Unrecognised account state.");
+                    break;
+            }
+        }
+
+        if (invitations.Count > 0)
+        {
+            try
+            {
+                var provision = await workforceBulkProvisioner.BulkProvisionAsync(
+                    invitations.Select(invitation => new WorkforceBulkProvisionSubject(
+                        invitation.Employee.EmployeeId,
+                        NormalizeEmail(invitation.Employee.WorkEmail)!,
+                        invitation.Employee.FirstName,
+                        invitation.Employee.LastName,
+                        invitation.Baseline)).ToList(),
+                    Guid.Empty,
+                    cancellationToken);
+                var provisionByEmployeeId = provision.Items.ToDictionary(item => item.EmployeeId);
+
+                foreach (var invitation in invitations)
+                {
+                    var employee = invitation.Employee;
+                    var item = provisionByEmployeeId.GetValueOrDefault(employee.EmployeeId);
+                    results[invitation.Index] = item?.Outcome switch
+                    {
+                        "Created" => new WorkforceAccessBulkResultItemDto(
+                            employee.EmployeeId, employee.DisplayName, "Invited", invitation.AccountState, "Invitation sent."),
+                        "Pending" => new WorkforceAccessBulkResultItemDto(
+                            employee.EmployeeId, employee.DisplayName, "AlreadyPending", invitation.AccountState, "Invitation already pending."),
+                        "Active" => new WorkforceAccessBulkResultItemDto(
+                            employee.EmployeeId, employee.DisplayName, "AlreadyActive", invitation.AccountState, "Already active."),
+                        _ => new WorkforceAccessBulkResultItemDto(
+                            employee.EmployeeId, employee.DisplayName, "Failed", invitation.AccountState,
+                            item?.Message ?? "The invitation could not be issued."),
+                    };
+                }
+            }
+            catch
+            {
+                foreach (var invitation in invitations)
+                {
+                    var employee = invitation.Employee;
+                    results[invitation.Index] = new WorkforceAccessBulkResultItemDto(
+                        employee.EmployeeId, employee.DisplayName, "Failed", invitation.AccountState,
+                        "The invitation service was unavailable.");
+                }
+            }
+        }
+
+        var completedResults = results.ToList();
+
+        return Ok(ApiResponse<WorkforceAccessBulkResultDto>.Success(new WorkforceAccessBulkResultDto(
+            completedResults,
+            completedResults.Count(r => r.Outcome == "Invited"),
+            completedResults.Count(r => r.Outcome == "Linked"),
+            completedResults.Count(r => r.Outcome == "Reactivated"),
+            completedResults.Count(r => r.Outcome == "AlreadyActive"),
+            completedResults.Count(r => r.Outcome == "Blocked"),
+            completedResults.Count(r => r.Outcome is "Failed" or "Stale"))));
+    }
+
+    private async Task<WorkforceAccessBulkResultItemDto> DispatchMutateAsync(
+        WorkforceEmployeeSummaryDto employee, string? email, string action, string baseline,
+        string display, string okOutcome, string okMessage, CancellationToken cancellationToken)
+    {
+        var result = await workforceAccessClient.MutateAsync(employee.EmployeeId, email, action, baseline, cancellationToken);
+        return result.Outcome switch
+        {
+            "Ok" => new WorkforceAccessBulkResultItemDto(employee.EmployeeId, display, okOutcome, result.AccountState, okMessage),
+            "Conflict" => new WorkforceAccessBulkResultItemDto(employee.EmployeeId, display, "Blocked", result.AccountState, result.Message),
+            "Unavailable" => new WorkforceAccessBulkResultItemDto(employee.EmployeeId, display, "Blocked", result.AccountState, result.Message),
+            _ => new WorkforceAccessBulkResultItemDto(employee.EmployeeId, display, "Stale", result.AccountState, result.Message),
+        };
+    }
+
+    private async Task<IActionResult> MutateAsync(
+        Guid employeeId, string action, WorkforceAccessCommand? command, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageAccess(User))
+        {
+            return Forbid();
+        }
+
+        var employee = await workforceContractService.GetEmployeeAsync(employeeId, User, cancellationToken);
+        if (employee is null)
+        {
+            return NotFound(ApiResponse.Failure("Employee was not found or is not visible in the current scope."));
+        }
+
+        // The reviewed baseline is the operator's choice; absent one, the effective-today
+        // direct-report count recommends it. CoreHR passes the canonical work email so the
+        // browser can never substitute an Employee fact.
+        var baseline = NormalizeBaseline(command?.Baseline) ?? RecommendedBaseline(employee.DirectReportCount);
+
+        var result = await workforceAccessClient.MutateAsync(
+            employee.EmployeeId, NormalizeEmail(employee.WorkEmail), action, baseline, cancellationToken);
+
+        return Ok(ApiResponse<WorkforceAccessCommandResultDto>.Success(new WorkforceAccessCommandResultDto(
+            employee.EmployeeId,
+            result.Outcome,
+            result.AccountState,
+            result.Message,
+            result.AccessRevision is { } rev ? (uint)rev : null)));
+    }
+
+    private static WorkforceAccessCandidateDto BuildCandidate(
+        WorkforceEmployeeSummaryDto employee, WorkforceAccessCandidateResult candidate)
+        => new(
+            employee.EmployeeId,
+            employee.StableEmployeeKey,
+            employee.EmployeeNumber,
+            employee.DisplayName,
+            employee.FullName,
+            employee.WorkEmail,
+            employee.JobTitle,
+            employee.EmploymentStatus,
+            employee.IsActive,
+            employee.OrgUnit,
+            employee.Manager,
+            employee.DirectReportCount,
+            candidate.AccountState,
+            AccountStateLabel(candidate.AccountState),
+            candidate.AccountEmail,
+            RecommendedBaseline(employee.DirectReportCount),
+            // Linking an admin account to its Employee is allowed (it preserves admin
+            // authority additively). Only the ongoing lifecycle is delegated: an active,
+            // bound admin account offers no workforce actions and reads "Managed under
+            // Administrators"; the frontend also suppresses suspend/restore for admins.
+            AvailableActions(candidate.AccountState),
+            candidate.IsAdministrator && AvailableActions(candidate.AccountState).Count == 0
+                ? "Managed under Administrators"
+                : BlockedReason(candidate.AccountState),
+            employee.Version,
+            candidate.IsAdministrator,
+            candidate.AdditionalAccess,
+            candidate.AccessRevision);
+
+    private static string RecommendedBaseline(int directReportCount)
+        => directReportCount > 0 ? WorkforceBaselineChoices.Manager : WorkforceBaselineChoices.Employee;
+
+    private static string? NormalizeBaseline(string? baseline)
+        => string.Equals(baseline, WorkforceBaselineChoices.Manager, StringComparison.OrdinalIgnoreCase)
+            ? WorkforceBaselineChoices.Manager
+            : string.Equals(baseline, WorkforceBaselineChoices.Employee, StringComparison.OrdinalIgnoreCase)
+                ? WorkforceBaselineChoices.Employee
+                : null;
+
+    private static IReadOnlyList<string> AvailableActions(string accountState) => accountState switch
+    {
+        WorkforceAccountStates.NewAccount => ["Activate"],
+        WorkforceAccountStates.ExistingAccountReadyToLink => ["Link"],
+        WorkforceAccountStates.SuspendedAccountReadyToReactivate => ["Reactivate"],
+        WorkforceAccountStates.ExistingAccountReadyToJoinTenant => ["Connect"],
+        _ => [],
+    };
+
+    private static string AccountStateLabel(string accountState) => accountState switch
+    {
+        WorkforceAccountStates.NewAccount => "No account yet",
+        WorkforceAccountStates.ExistingAccountReadyToLink => "Account ready to link",
+        WorkforceAccountStates.Active => "Active",
+        WorkforceAccountStates.BindingConflict => "Linked to a different employee",
+        WorkforceAccountStates.SuspendedAccountReadyToReactivate => "Suspended — can reactivate",
+        WorkforceAccountStates.ExistingAccountReadyToJoinTenant => "Account can join this workspace",
+        WorkforceAccountStates.AccountUnavailable => "Account in use elsewhere",
+        _ => accountState,
+    };
+
+    private static string? BlockedReason(string accountState) => accountState switch
+    {
+        WorkforceAccountStates.BindingConflict => "This account is linked to a different employee. Use correction.",
+        WorkforceAccountStates.AccountUnavailable => "This account is active in another workspace and cannot be used here.",
+        _ => null,
+    };
+
+    private static string? NormalizeEmail(string? email)
+        => string.IsNullOrWhiteSpace(email) ? null : email.Trim().ToLowerInvariant();
 
     [HttpGet("employees/{employeeId:guid}/team")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<WorkforceEmployeeSummaryDto>>), StatusCodes.Status200OK)]

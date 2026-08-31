@@ -62,6 +62,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<WorkforceImportSourceAdapter>();
         services.AddSingleton<WorkforceImportInterpreter>();
         services.AddSingleton<WorkforceImportResolver>();
+        services.AddSingleton<IWorkforceImportTemplateService, WorkforceImportTemplateService>();
         services.AddSingleton<WorkforceImportSemanticContextBuilder>();
         var workforceSemantic = configuration
             .GetSection(WorkforceImportSemanticAssistanceOptions.SectionName)
@@ -104,6 +105,18 @@ public static class ServiceCollectionExtensions
         }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
 
         services.AddHttpClient<IWorkforceBulkProvisioner, WorkforceBulkProvisioner>(client =>
+        {
+            var baseUrl = configuration["ServiceUrls:IdentityApiBaseUrl"];
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                throw new InvalidOperationException(
+                    "ServiceUrls:IdentityApiBaseUrl is not configured. Set it via environment variable or appsettings.");
+            }
+
+            client.BaseAddress = new Uri(EnsureTrailingSlash(baseUrl));
+        });
+
+        services.AddHttpClient<IWorkforceAccessIdentityClient, WorkforceAccessIdentityClient>(client =>
         {
             var baseUrl = configuration["ServiceUrls:IdentityApiBaseUrl"];
             if (string.IsNullOrWhiteSpace(baseUrl))

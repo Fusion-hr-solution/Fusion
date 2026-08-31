@@ -379,7 +379,8 @@ public class WorkforceOrgUnitContractTests
         public Task<WorkforceBulkProvisionResponse> BulkProvisionAsync(
             List<WorkforceBulkProvisionSubject> subjects,
             Guid accessProfileId,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            string? baseline = null)
             => Task.FromResult(new WorkforceBulkProvisionResponse([]));
     }
 }

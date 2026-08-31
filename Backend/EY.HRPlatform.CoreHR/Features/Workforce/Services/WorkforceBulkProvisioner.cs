@@ -1,5 +1,8 @@
 using System.Net.Http.Json;
 using EY.HRPlatform.SharedKernel.Api;
+using EY.HRPlatform.SharedKernel.Auth;
+using EY.HRPlatform.SharedKernel.Multitenancy;
+using EY.HRPlatform.SharedKernel.Security;
 
 namespace EY.HRPlatform.CoreHR.Features.Workforce.Services;
 
@@ -7,7 +10,8 @@ public sealed record WorkforceBulkProvisionSubject(
     Guid EmployeeId,
     string Email,
     string? FirstName,
-    string? LastName);
+    string? LastName,
+    string? Baseline = null);
 
 public sealed record WorkforceBulkProvisionResultItem(
     Guid EmployeeId,
@@ -22,17 +26,27 @@ public interface IWorkforceBulkProvisioner
     Task<WorkforceBulkProvisionResponse> BulkProvisionAsync(
         List<WorkforceBulkProvisionSubject> subjects,
         Guid accessProfileId,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        string? baseline = null);
 }
 
+// Drives Identity bulk provisioning over the signed internal channel. Subjects are
+// CoreHR-resolved canonical Employees; the browser JWT is never forwarded. The acting
+// user is carried for audit attribution and is trusted only because the request is
+// HMAC-signed.
 public sealed class WorkforceBulkProvisioner(
     HttpClient httpClient,
-    IHttpContextAccessor httpContextAccessor) : IWorkforceBulkProvisioner
+    IHttpContextAccessor httpContextAccessor,
+    ITenantContext tenantContext,
+    IInternalServiceRequestSigner signer) : IWorkforceBulkProvisioner
 {
+    private const string BulkProvisionPath = "internal/identity/workforce-accounts/bulk-provision";
+
     public async Task<WorkforceBulkProvisionResponse> BulkProvisionAsync(
         List<WorkforceBulkProvisionSubject> subjects,
         Guid accessProfileId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? baseline = null)
     {
         if (subjects.Count == 0)
         {
@@ -42,8 +56,12 @@ public sealed class WorkforceBulkProvisioner(
         var httpContext = httpContextAccessor.HttpContext
             ?? throw new InvalidOperationException("No active HTTP context is available for bulk provision.");
 
-        if (!httpContext.Request.Headers.TryGetValue("Authorization", out var authorizationHeader))
-            throw new InvalidOperationException("Authorization header is required for bulk provision.");
+        // Tenant from the authenticated claims (via the tenant-resolution middleware),
+        // never a browser-supplied header; passed to Identity as the trusted X-Tenant-Id.
+        if (tenantContext.TenantIdOrDefault is not { } resolvedTenantId || resolvedTenantId == Guid.Empty)
+            throw new InvalidOperationException("A resolved tenant is required for bulk provision.");
+
+        var tenantHeader = resolvedTenantId.ToString();
 
         var requestBody = new
         {
@@ -53,17 +71,27 @@ public sealed class WorkforceBulkProvisioner(
                 s.Email,
                 s.FirstName,
                 s.LastName,
-                AccessProfileId = accessProfileId
+                AccessProfileId = accessProfileId == Guid.Empty ? (Guid?)null : accessProfileId,
+                Baseline = s.Baseline ?? baseline
             }).ToList()
         };
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "api/corehr/employees/workforce-accounts/bulk-provision");
-        request.Headers.TryAddWithoutValidation("Authorization", authorizationHeader.ToString());
+        // Sign against an absolute URI so the signed path matches the server request path.
+        var requestUri = httpClient.BaseAddress is not null
+            ? new Uri(httpClient.BaseAddress, BulkProvisionPath)
+            : new Uri(BulkProvisionPath, UriKind.Relative);
 
-        if (httpContext.Request.Headers.TryGetValue("X-Tenant-Id", out var tenantHeader))
-            request.Headers.TryAddWithoutValidation("X-Tenant-Id", tenantHeader.ToString());
+        using var request = new HttpRequestMessage(HttpMethod.Post, requestUri)
+        {
+            Content = JsonContent.Create(requestBody),
+        };
+        request.Headers.TryAddWithoutValidation("X-Tenant-Id", tenantHeader);
 
-        request.Content = JsonContent.Create(requestBody);
+        var actingUserId = httpContext.User.GetUserId();
+        if (actingUserId != Guid.Empty)
+            request.Headers.TryAddWithoutValidation("X-Acting-User-Id", actingUserId.ToString());
+
+        await signer.SignAsync(request, cancellationToken);
 
         using var response = await httpClient.SendAsync(request, cancellationToken);
 
