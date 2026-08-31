@@ -111,12 +111,15 @@ public static class AccessProfileTemplates
     /// <summary>
     /// Performance participation grants added to each seeded profile only when the
     /// tenant holds the Performance entitlement. This is the entitlement-gated seed
-    /// path referenced by the Performance authorization design (Decision 2): the
-    /// widest breadth an ordinary profile carries in the MVP is <c>@DirectReports</c>
-    /// (managers reviewing their own reports); <c>performance.cycle.view @OrgUnit</c>
-    /// is deliberately left unseeded because Core exposes no canonical OrgUnit-leader
-    /// relationship to bind it to. Broad tenant administration and strategy authority
-    /// ride on <see cref="BuildTenantAdministrator"/> (all four at their widest scope).
+    /// path referenced by the Performance authorization design: the widest aggregate
+    /// visibility an ordinary profile carries in the MVP is <c>@DirectReports</c>
+    /// (managers reviewing their own reports), and <c>performance.cycle.view @OrgUnit</c>
+    /// remains unseeded (viewing aggregate data is not a write authority). The Manager
+    /// profile additionally carries <c>performance.objective.org.manage @Tenant</c>: the
+    /// authority to establish/publish organizational objectives. In the direct MVP this is
+    /// deliberately coarse (tenant-wide); fine-grained per-org-unit scoping is deferred to
+    /// the future tenant Access/Profile design. Broad tenant administration and strategy
+    /// authority ride on <see cref="BuildTenantAdministrator"/>.
     /// </summary>
     private static readonly IReadOnlyDictionary<string, IReadOnlyList<EffectivePermissionGrant>> PerformanceGrantsByInternalKey =
         new Dictionary<string, IReadOnlyList<EffectivePermissionGrant>>(StringComparer.Ordinal)
@@ -130,6 +133,7 @@ public static class AccessProfileTemplates
             [
                 new(PerformancePermissions.CycleView, PermissionScopes.DirectReports),
                 new(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self),
+                new(PerformancePermissions.ObjectiveOrgManage, PermissionScopes.Tenant),
             ],
             ["hr-admin"] =
             [

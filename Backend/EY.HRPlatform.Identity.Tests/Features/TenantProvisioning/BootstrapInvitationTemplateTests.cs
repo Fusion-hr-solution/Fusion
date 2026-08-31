@@ -25,7 +25,7 @@ public sealed class BootstrapInvitationTemplateTests
     {
         var rendered = BootstrapInvitationTemplate.Render(AMessage());
 
-        Assert.Equal("Create your administrator account for Atlas Group", rendered.Subject);
+        Assert.Equal("Set up your Fusion administrator account for Atlas Group", rendered.Subject);
 
         foreach (var body in new[] { rendered.Html, rendered.Text })
         {
@@ -49,8 +49,8 @@ public sealed class BootstrapInvitationTemplateTests
         // action.
         var anchors = rendered.Html.Split("<a ").Length - 1;
         Assert.Equal(1, anchors);
-        Assert.Contains("Create administrator account", rendered.Html);
-        Assert.Contains("Create administrator account", rendered.Text);
+        Assert.Contains("Set up administrator account", rendered.Html);
+        Assert.Contains("Set up administrator account", rendered.Text);
     }
 
     [Fact]
@@ -131,7 +131,7 @@ public sealed class BootstrapInvitationTemplateTests
 
         Assert.Equal("admin@atlas.example", Assert.Single(mail.To).Address);
         Assert.Equal("Fusion", mail.From!.DisplayName);
-        Assert.Equal("Create your administrator account for Atlas Group", mail.Subject);
+        Assert.Equal("Set up your Fusion administrator account for Atlas Group", mail.Subject);
     }
 
     [Fact]

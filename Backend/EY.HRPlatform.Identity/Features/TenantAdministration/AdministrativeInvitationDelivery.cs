@@ -65,11 +65,15 @@ public sealed class AdministrativeInvitationDelivery(
                 })
                 .FirstOrDefaultAsync(cancellationToken);
 
+            // The purpose is carried into the message so the canonical renderer emits
+            // the additional-administrator or recovery variant — never bootstrap's
+            // first-administrator wording, which this path previously inherited.
             var message = new BootstrapInvitationMessage(
                 TenantName: context?.TenantName ?? string.Empty,
                 Email: email,
                 ActivationLink: link,
-                ExpiresAtUtc: context?.ExpiresAt ?? DateTime.UtcNow);
+                ExpiresAtUtc: context?.ExpiresAt ?? DateTime.UtcNow,
+                Purpose: purpose);
 
             var outcome = await emailSender.SendAsync(message, cancellationToken);
 

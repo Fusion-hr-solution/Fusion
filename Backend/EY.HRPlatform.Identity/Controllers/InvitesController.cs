@@ -1,6 +1,9 @@
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Domain.Enums;
+using EY.HRPlatform.Identity.Features.Accounts;
 using EY.HRPlatform.Identity.Features.AccessProfiles;
+using EY.HRPlatform.Identity.Features.TenantProvisioning;
+using EY.HRPlatform.Identity.Features.WorkforceAccounts;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Models.Requests;
@@ -23,19 +26,22 @@ public class InvitesController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly ITrainingServiceClient _trainingClient;
     private readonly IAccessProfileService _accessProfileService;
+    private readonly IWorkforceInvitationAcceptanceService _workforceAcceptance;
 
     public InvitesController(
         AppIdentityDbContext dbContext,
         UserManager<ApplicationUser> userManager,
         IConfiguration configuration,
         ITrainingServiceClient trainingClient,
-        IAccessProfileService accessProfileService)
+        IAccessProfileService accessProfileService,
+        IWorkforceInvitationAcceptanceService workforceAcceptance)
     {
         _dbContext = dbContext;
         _userManager = userManager;
         _configuration = configuration;
         _trainingClient = trainingClient;
         _accessProfileService = accessProfileService;
+        _workforceAcceptance = workforceAcceptance;
     }
 
     /// <summary>
@@ -67,6 +73,16 @@ public class InvitesController : ControllerBase
         // Validate role
         if (!PlatformRole.All.Contains(request.Role))
             return BadRequest(ApiResponse<InviteDto>.Failure($"Invalid role: {request.Role}"));
+
+        // Workforce (Employee/Manager) accounts must be provisioned through the canonical
+        // Workforce Access flow, which issues a selector/secret credential with digest-only
+        // persistence. This legacy endpoint mints a raw-at-rest token, so it may no longer
+        // create a new workforce invitation — the locked cutover forbids a new Workforce
+        // raw-token issuance path. Pre-cutover raw pending invitations are still accepted.
+        if (IsWorkforceUserRole(request.Role))
+            return StatusCode(StatusCodes.Status403Forbidden,
+                ApiResponse<InviteDto>.Failure(
+                    "Workforce access is set up from Workforce Access, not this endpoint."));
 
         // A tenant invitation grants customer-tenant participation, and a Platform
         // Administrator must hold zero customer memberships. No caller may issue
@@ -169,7 +185,8 @@ public class InvitesController : ControllerBase
             CreatedAt = invite.CreatedAt,
             DeliveryStatus = invite.DeliveryStatus,
             DeliveryMessage = invite.DeliveryMessage,
-            DeliveryRecordedAt = invite.DeliveryRecordedAt
+            DeliveryRecordedAt = invite.DeliveryRecordedAt,
+            PasswordRequirements = AccountPasswordPolicy.Describe()
         };
 
         return CreatedAtAction(nameof(ValidateInvite), new { token = invite.Token },
@@ -187,14 +204,10 @@ public class InvitesController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<InviteDto>), StatusCodes.Status410Gone)]
     public async Task<ActionResult<ApiResponse<InviteDto>>> ValidateInvite(string token)
     {
-        // Anonymous endpoint — bypass tenant filter (no auth context)
-        var invite = await _dbContext.InviteTokens
-            .IgnoreQueryFilters()
-            .Include(i => i.Tenant)
-            // Purpose is bound at creation, so a bootstrap invitation can never be
-            // dispatched into the workforce route even if it ever carried a token.
-            .Where(i => i.Purpose == InvitationPurpose.WorkforceAccount)
-            .FirstOrDefaultAsync(i => i.Token == token);
+        // Anonymous endpoint — bypass tenant filter (no auth context). The value carries
+        // either a selector/secret credential (new) or a legacy raw token (transitional);
+        // purpose is bound at creation, so only a Workforce invitation resolves here.
+        var invite = await ResolveWorkforceInvitationAsync(token);
 
         if (invite is null)
             return NotFound(ApiResponse<InviteDto>.Failure("Invalid invitation token."));
@@ -226,7 +239,8 @@ public class InvitesController : ControllerBase
             CreatedAt = invite.CreatedAt,
             DeliveryStatus = invite.DeliveryStatus,
             DeliveryMessage = invite.DeliveryMessage,
-            DeliveryRecordedAt = invite.DeliveryRecordedAt
+            DeliveryRecordedAt = invite.DeliveryRecordedAt,
+            PasswordRequirements = AccountPasswordPolicy.Describe()
         };
 
         return Ok(ApiResponse<InviteDto>.Success(dto));
@@ -246,155 +260,114 @@ public class InvitesController : ControllerBase
         string token,
         [FromBody] AcceptInviteRequest request)
     {
-        // Anonymous endpoint — bypass tenant filter (no auth context)
-        var invite = await _dbContext.InviteTokens
+        // The account, its Active membership, the authoritative Employee binding, the
+        // reviewed baseline, the accepted invitation, and the audit are created together
+        // by the acceptance service — or none of them are. Credential verification,
+        // re-resolution, and the transitional raw-token path live there too.
+        var result = await _workforceAcceptance.AcceptAsync(
+            new WorkforceAcceptanceRequest(
+                Credential: token,
+                Email: null,
+                FirstName: request.FirstName,
+                LastName: request.LastName,
+                Password: request.Password),
+            HttpContext.RequestAborted);
+
+        switch (result.Outcome)
+        {
+            case WorkforceAcceptanceOutcome.Accepted:
+            {
+                var account = await _dbContext.Users
+                    .IgnoreQueryFilters()
+                    .FirstAsync(u => u.Id == result.AccountId);
+                var employeeId = await _dbContext.TenantMemberships
+                    .IgnoreQueryFilters()
+                    .Where(membership => membership.TenantId == result.TenantId
+                        && membership.UserId == account.Id
+                        && membership.Status == TenantMembershipStatus.Active)
+                    .Select(membership => membership.EmployeeId)
+                    .SingleAsync();
+
+                // Fire-and-forget: provision downstream employee profile.
+                _ = _trainingClient.ProvisionEmployeeAsync(account.Id);
+
+                var dto = new UserDto
+                {
+                    Id = account.Id,
+                    EmployeeId = employeeId,
+                    Email = account.Email!,
+                    FullName = account.FullName,
+                    Department = account.Department,
+                    JobTitle = account.JobTitle,
+                    HireDate = account.HireDate,
+                    TenantId = result.TenantId ?? Guid.Empty,
+                    Roles = [],
+                    AccessProfiles = (await _accessProfileService.GetAssignedProfilesAsync(account)).ToList(),
+                };
+
+                return StatusCode(StatusCodes.Status201Created, ApiResponse<UserDto>.Success(dto));
+            }
+
+            case WorkforceAcceptanceOutcome.AlreadyAccepted:
+                return StatusCode(StatusCodes.Status410Gone,
+                    ApiResponse<UserDto>.Failure("This invitation has already been used."));
+
+            case WorkforceAcceptanceOutcome.ExistingAccountConflict:
+            case WorkforceAcceptanceOutcome.EmployeeAlreadyLinked:
+                // Recoverable only through an allowed administrator path — never by
+                // creating a duplicate account here.
+                return Conflict(ApiResponse<UserDto>.Failure(
+                    "This invitation can no longer be completed automatically. Ask an administrator to review workforce access."));
+
+            case WorkforceAcceptanceOutcome.InvalidAccountDetails:
+            {
+                var errors = (result.FieldErrors ?? [])
+                    .Select(error => error.Message)
+                    .DefaultIfEmpty("The submitted account details were rejected.")
+                    .ToArray();
+                return BadRequest(ApiResponse<UserDto>.Failure(errors));
+            }
+
+            default:
+                // Unknown credential, wrong purpose/email, expired, or revoked — one
+                // indistinct answer, so a caller cannot probe for valid credentials.
+                return NotFound(ApiResponse<UserDto>.Failure("This invitation is not valid."));
+        }
+    }
+
+    /// <summary>
+    /// Resolves a Workforce invitation from a presented value: a selector/secret credential
+    /// verified by digest, or — transitionally — a pre-cutover raw token. Read-only; the
+    /// acceptance service does the locked, authoritative resolution.
+    /// </summary>
+    private async Task<InviteToken?> ResolveWorkforceInvitationAsync(string presented)
+    {
+        if (BootstrapCredential.TryParse(presented, out var selector, out var secret))
+        {
+            var bySelector = await _dbContext.InviteTokens
+                .IgnoreQueryFilters()
+                .Include(i => i.Tenant)
+                .FirstOrDefaultAsync(i => i.CredentialSelector == selector);
+
+            if (bySelector is null
+                || bySelector.Purpose != InvitationPurpose.WorkforceAccount
+                || !bySelector.MatchesCredentialDigest(BootstrapCredential.Digest(secret)))
+            {
+                return null;
+            }
+
+            return bySelector;
+        }
+
+        if (string.IsNullOrWhiteSpace(presented))
+            return null;
+
+        var byToken = await _dbContext.InviteTokens
             .IgnoreQueryFilters()
             .Include(i => i.Tenant)
-            .Where(i => i.Purpose == InvitationPurpose.WorkforceAccount)
-            .FirstOrDefaultAsync(i => i.Token == token);
+            .FirstOrDefaultAsync(i => i.Token == presented);
 
-        if (invite is null)
-            return NotFound(ApiResponse<UserDto>.Failure("Invalid invitation token."));
-
-        if (invite.IsRevoked)
-            return StatusCode(StatusCodes.Status410Gone,
-                ApiResponse<UserDto>.Failure("This invitation has been revoked."));
-
-        if (invite.IsUsed)
-            return StatusCode(StatusCodes.Status410Gone,
-                ApiResponse<UserDto>.Failure("This invitation has already been used."));
-
-        if (invite.IsExpired)
-            return StatusCode(StatusCodes.Status410Gone,
-                ApiResponse<UserDto>.Failure("This invitation has expired."));
-
-        // Determine names (from request or invite; treat empty as not provided)
-        var firstName = string.IsNullOrWhiteSpace(request.FirstName) ? invite.FirstName : request.FirstName;
-        var lastName = string.IsNullOrWhiteSpace(request.LastName) ? invite.LastName : request.LastName;
-
-        if (string.IsNullOrWhiteSpace(firstName))
-            return BadRequest(ApiResponse<UserDto>.Failure("First name is required."));
-
-        if (string.IsNullOrWhiteSpace(lastName))
-            return BadRequest(ApiResponse<UserDto>.Failure("Last name is required."));
-
-        // Double-check email isn't registered (cross-tenant uniqueness, race condition protection)
-        var emailTaken = await _dbContext.Users
-            .IgnoreQueryFilters()
-            .AnyAsync(u => u.NormalizedEmail == invite.Email.ToUpperInvariant());
-        if (emailTaken)
-            return BadRequest(ApiResponse<UserDto>.Failure("Email is already registered."));
-
-        // The local Development profile uses EF InMemory, which does not support transactions.
-        IDbContextTransaction? transaction = null;
-        if (_dbContext.Database.IsRelational())
-            transaction = await _dbContext.Database.BeginTransactionAsync();
-
-        // Track whether we created the user so we can clean up on partial failure
-        ApplicationUser? createdUser = null;
-
-        try
-        {
-            // Create the user
-            var user = new ApplicationUser
-            {
-                UserName = invite.Email,
-                Email = invite.Email,
-                EmployeeId = invite.EmployeeId,
-                FirstName = firstName.Trim(),
-                LastName = lastName.Trim(),
-                EmailConfirmed = true, // Invited users are pre-verified
-                HireDate = DateTime.UtcNow
-            };
-
-            var result = await _userManager.CreateAsync(user, request.Password);
-            if (!result.Succeeded)
-            {
-                var errors = result.Errors.Select(e => e.Description).ToArray();
-                return BadRequest(ApiResponse<UserDto>.Failure(errors));
-            }
-
-            createdUser = user;
-
-            // Assign role
-            var roleResult = await _userManager.AddToRoleAsync(user, invite.Role);
-            if (!roleResult.Succeeded)
-            {
-                if (transaction is not null)
-                    await transaction.RollbackAsync();
-
-                var errors = roleResult.Errors.Select(e => e.Description).ToArray();
-                return BadRequest(ApiResponse<UserDto>.Failure(errors));
-            }
-
-            // Defence in depth against a pre-existing invitation issued before the
-            // role was blocked at creation: accepting it must never produce a
-            // Platform Administrator with a customer membership.
-            if (string.Equals(invite.Role, PlatformRole.PlatformAdmin, StringComparison.Ordinal))
-            {
-                if (transaction is not null)
-                    await transaction.RollbackAsync();
-
-                return StatusCode(StatusCodes.Status403Forbidden,
-                    ApiResponse<UserDto>.Failure(
-                        "This invitation cannot be accepted because Platform Administrators cannot hold customer tenant membership."));
-            }
-
-            // Membership is the tenancy authority, so it must exist before any
-            // tenant access is assigned to the new account.
-            _dbContext.TenantMemberships.Add(TenantMembership.Create(user.Id, invite.TenantId));
-            await _dbContext.SaveChangesAsync();
-
-            await _accessProfileService.ApplyInviteProfilesAsync(invite, user);
-
-            // Mark invite as used
-            invite.MarkAccepted(user.Id);
-            await _dbContext.SaveChangesAsync();
-
-            if (transaction is not null)
-                await transaction.CommitAsync();
-
-            createdUser = null; // Success — don't clean up
-
-            // Fire-and-forget: provision downstream employee profile for workforce users.
-            if (invite.EmployeeId.HasValue && IsWorkforceUserRole(invite.Role))
-                _ = _trainingClient.ProvisionEmployeeAsync(user.Id);
-
-            var dto = new UserDto
-            {
-                Id = user.Id,
-                EmployeeId = user.EmployeeId,
-                Email = user.Email!,
-                FullName = user.FullName,
-                Department = user.Department,
-                JobTitle = user.JobTitle,
-                HireDate = user.HireDate,
-                TenantId = invite.TenantId,
-                Roles = [invite.Role],
-                AccessProfiles = (await _accessProfileService.GetAssignedProfilesAsync(user)).ToList(),
-            };
-
-            return StatusCode(StatusCodes.Status201Created,
-                ApiResponse<UserDto>.Success(dto));
-        }
-        catch
-        {
-            if (transaction is not null)
-                await transaction.RollbackAsync();
-
-            throw;
-        }
-        finally
-        {
-            if (transaction is not null)
-                await transaction.DisposeAsync();
-
-            // InMemory cleanup: if user was created but not fully processed, remove it
-            if (createdUser is not null && transaction is null)
-            {
-                try { await _userManager.DeleteAsync(createdUser); } catch { /* best-effort */ }
-            }
-        }
+        return byToken?.Purpose == InvitationPurpose.WorkforceAccount ? byToken : null;
     }
 
     /// <summary>

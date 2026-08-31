@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using EY.HRPlatform.Identity.Features.Accounts;
 
 namespace EY.HRPlatform.Identity.Models.Responses;
 
@@ -51,4 +52,7 @@ public class InviteDto
     public string? DeliveryMessage { get; set; }
 
     public DateTime? DeliveryRecordedAt { get; set; }
+
+    /// <summary>The account rules this recipient must satisfy, from the server policy.</summary>
+    public AccountPasswordRequirements? PasswordRequirements { get; set; }
 }

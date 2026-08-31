@@ -8,9 +8,11 @@ public sealed class WorkforceInvitationEmailOptions
     public bool UseSsl { get; set; } = true;
     public string? Username { get; set; }
     public string? Password { get; set; }
-    public string FromEmail { get; set; } = "no-reply@example.com";
-    public string FromName { get; set; } = "EY HR Platform";
+    public string FromEmail { get; set; } = "no-reply@fusion.local";
+
+    /// <summary>`Fusion` is the visible identity; the subject and body come from the
+    /// canonical renderer, so this is only the transport display name.</summary>
+    public string FromName { get; set; } = "Fusion";
+
     public string? ReplyToEmail { get; set; }
-    public bool UseHtmlBody { get; set; } = true;
-    public string Subject { get; set; } = "Activate your EY HR Platform access";
 }

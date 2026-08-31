@@ -62,7 +62,7 @@ public sealed class BootstrapInvitationDeliveryTests : IAsyncLifetime
 
         // The message the recipient reads names the tenant, the address it was
         // sent to, and when it stops working.
-        Assert.Equal("Create your administrator account for Atlas Group", captured!.Subject);
+        Assert.Equal("Set up your Fusion administrator account for Atlas Group", captured!.Subject);
         Assert.Contains("Atlas Group", captured.Html);
         Assert.Contains(InvitedEmail, captured.Text);
         Assert.Contains("/activate-invitation?credential=", captured.ActivationLink);
@@ -135,7 +135,7 @@ public sealed class BootstrapInvitationDeliveryTests : IAsyncLifetime
         var captured = CapturedBootstrapInvitationEmailSender.LastFor(replacement);
         Assert.NotNull(captured);
         Assert.Contains(replacement, captured!.Text);
-        Assert.Equal("Create your administrator account for Atlas Group", captured.Subject);
+        Assert.Equal("Set up your Fusion administrator account for Atlas Group", captured.Subject);
     }
 
     [SkippableFact]

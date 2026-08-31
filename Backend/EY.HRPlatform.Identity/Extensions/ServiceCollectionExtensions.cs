@@ -55,6 +55,29 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IInternalServiceRequestSigner>(_ => new InternalServiceRequestSigner(
             internalServiceAuthentication));
 
+        // Trusted CoreHR workforce read used by the binding backfill and workforce
+        // access flows. CoreHR owns Employee existence and tenant ownership; Identity
+        // never accepts those facts from a browser. The base URL is validated lazily
+        // so environments that never resolve the directory (tests, control-plane-only)
+        // are unaffected.
+        services.AddHttpClient<Infrastructure.Core.ICoreWorkforceDirectory, Infrastructure.Core.CoreWorkforceDirectory>(client =>
+        {
+            var baseUrl = configuration["ServiceUrls:CoreHRApiBaseUrl"];
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                throw new InvalidOperationException(
+                    "ServiceUrls:CoreHRApiBaseUrl is not configured. Set it via environment variable or appsettings.");
+            }
+
+            client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+        });
+        services.AddScoped<Features.WorkforceBinding.IWorkforceBindingBackfillService, Features.WorkforceBinding.WorkforceBindingBackfillService>();
+        services.AddHostedService<Features.WorkforceBinding.WorkforceBindingBackfillStartupTask>();
+        services.AddScoped<Features.WorkforceAccess.IWorkforceAccountCandidateResolver, Features.WorkforceAccess.WorkforceAccountCandidateResolver>();
+        services.AddScoped<Features.WorkforceAccess.IWorkforceBaselineService, Features.WorkforceAccess.WorkforceBaselineService>();
+        services.AddScoped<Features.WorkforceAccess.IWorkforceIdentityBindingService, Features.WorkforceAccess.WorkforceIdentityBindingService>();
+        services.AddScoped<Features.WorkforceAccess.IWorkforceAccessMutationService, Features.WorkforceAccess.WorkforceAccessMutationService>();
+
         var databaseProvider = configuration["Database:Provider"] ?? "postgres";
         var inMemoryName = configuration["Database:InMemoryName"] ?? "identity_inmemory";
 
@@ -172,7 +195,22 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAccessAuditService, AccessAuditService>();
         services.Configure<WorkforceInvitationEmailOptions>(
             configuration.GetSection("WorkforceInvitationEmail"));
-        services.AddScoped<IWorkforceInvitationEmailSender, SmtpWorkforceInvitationEmailSender>();
+        // Local development can opt into the same SMTP transport as bootstrap
+        // invitations (Mailpit by default). Keep file capture as the safe fallback
+        // when no Workforce SMTP transport is configured.
+        var workforceSmtpConfigured = configuration
+            .GetSection("WorkforceInvitationEmail")
+            .GetValue<bool>(nameof(WorkforceInvitationEmailOptions.Enabled));
+
+        if (workforceSmtpConfigured || !isDevelopment)
+        {
+            services.AddScoped<IWorkforceInvitationEmailSender, SmtpWorkforceInvitationEmailSender>();
+        }
+        else
+        {
+            services.AddScoped<IWorkforceInvitationEmailSender, CapturedWorkforceInvitationEmailSender>();
+        }
+        services.AddScoped<IWorkforceInvitationAcceptanceService, WorkforceInvitationAcceptanceService>();
 
         // 6. Training service client (service-to-service)
         // This integration is fire-and-forget only. When local config is blank,

@@ -58,6 +58,15 @@ public class TenantMembershipConfiguration : IEntityTypeConfiguration<TenantMemb
 
         builder.HasIndex(membership => membership.TenantId);
 
+        // Canonical workforce identity binding. At most one membership per Employee
+        // within a tenant, enforced in the database so no command path can bind one
+        // Employee to two memberships. Null bindings (accounts without a workforce
+        // identity) are excluded from the constraint.
+        builder.HasIndex(membership => new { membership.TenantId, membership.EmployeeId })
+            .IsUnique()
+            .HasFilter("\"EmployeeId\" IS NOT NULL")
+            .HasDatabaseName("IX_TenantMemberships_TenantId_EmployeeId");
+
         // Alternate key that lets access assignments carry a tenant-safe composite
         // foreign key, making a cross-tenant assignment unstorable.
         builder.HasAlternateKey(membership => new

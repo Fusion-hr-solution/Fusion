@@ -1,4 +1,6 @@
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Domain.Enums;
+using EY.HRPlatform.Identity.Features.TenantProvisioning;
 using EY.HRPlatform.SharedKernel.Auth;
 
 namespace EY.HRPlatform.Identity.Tests.Domain;
@@ -9,6 +11,35 @@ public class InviteTokenTests
     private readonly Guid _validUserId = Guid.NewGuid();
     private const string ValidEmail = "test@example.com";
     private const string ValidRole = PlatformRole.Employee;
+
+    [Fact]
+    public void CreateWorkforce_carries_no_raw_token_and_uses_the_workforce_purpose()
+    {
+        var invite = InviteToken.CreateWorkforce(
+            ValidEmail, _validTenantId, ValidRole, _validUserId, employeeId: Guid.NewGuid());
+
+        Assert.Null(invite.Token);
+        Assert.Equal(InvitationPurpose.WorkforceAccount, invite.Purpose);
+    }
+
+    [Fact]
+    public void Rotating_a_workforce_credential_invalidates_the_previous_secret()
+    {
+        var invite = InviteToken.CreateWorkforce(
+            ValidEmail, _validTenantId, ValidRole, _validUserId, employeeId: Guid.NewGuid());
+
+        var first = BootstrapCredential.Issue();
+        invite.IssueCredential(first.Selector, BootstrapCredential.Digest(first.Secret));
+
+        var second = BootstrapCredential.Issue();
+        invite.IssueCredential(second.Selector, BootstrapCredential.Digest(second.Secret));
+
+        // The selector moved and only the new secret verifies: a previously delivered link
+        // stops resolving the moment the credential is rotated on resend.
+        Assert.Equal(second.Selector, invite.CredentialSelector);
+        Assert.True(invite.MatchesCredentialDigest(BootstrapCredential.Digest(second.Secret)));
+        Assert.False(invite.MatchesCredentialDigest(BootstrapCredential.Digest(first.Secret)));
+    }
 
     [Fact]
     public void Create_WithValidInputs_ReturnsInviteToken()

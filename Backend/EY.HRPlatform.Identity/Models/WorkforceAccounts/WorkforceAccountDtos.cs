@@ -23,6 +23,14 @@ public class WorkforceAccountSubjectDto
 public sealed class WorkforceAccountProvisionItemDto : WorkforceAccountSubjectDto
 {
     public Guid? AccessProfileId { get; set; }
+
+    /// <summary>
+    /// The reviewed workforce baseline ("Employee" or "Manager"). When set and
+    /// <see cref="AccessProfileId"/> is absent, Identity resolves it to the seeded
+    /// Employee/Manager access profile for the tenant. The browser never supplies a
+    /// profile GUID for the canonical single-person activation path.
+    /// </summary>
+    public string? Baseline { get; set; }
 }
 
 public sealed class ProvisionWorkforceAccountInviteRequest
@@ -74,6 +82,14 @@ public sealed class WorkforceAccountBulkProvisionResultDto
     public string Message { get; set; } = string.Empty;
     public WorkforceAccountStatusDto Account { get; set; } = new();
 }
+
+/// <summary>One brief append-only workforce-access audit line for the account inspector.</summary>
+public sealed record WorkforceAccessAuditLineDto(
+    string Action,
+    string ActorName,
+    string? ActorRole,
+    DateTime OccurredAt,
+    string Summary);
 
 public sealed class WorkforceAccountSummaryDto
 {

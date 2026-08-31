@@ -12,6 +12,16 @@ public class ApplicationUser : IdentityUser<Guid>
 {
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// LEGACY, non-authoritative. Workforce identity now lives on
+    /// <see cref="TenantMembership.EmployeeId"/> (the tenant-contextual authority
+    /// that claims, sessions, and Self/DirectReports authorization read). This
+    /// global scalar is retained only as the backfill source and rollback data; no
+    /// claim, session, status, or authorization path reads it. It is slated for
+    /// column removal once the remaining display/legacy provisioning callers are
+    /// migrated off it.
+    /// </summary>
     public Guid? EmployeeId { get; set; }
     public string? Department { get; set; }
     public string? JobTitle { get; set; }

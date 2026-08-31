@@ -45,16 +45,20 @@ public sealed class LegacyPathContainmentTests
     }
 
     [Fact]
-    public void A_workforce_invitation_cannot_carry_a_hash_only_credential()
+    public void The_canonical_workforce_factory_uses_a_hash_only_credential_and_no_raw_token()
     {
-        var invitation = InviteToken.Create(
-            "member@atlas.example", Guid.NewGuid(), "Employee", Guid.NewGuid());
+        var invitation = InviteToken.CreateWorkforce(
+            "member@atlas.example", Guid.NewGuid(), "Employee", Guid.NewGuid(), employeeId: Guid.NewGuid());
 
-        // Credential-bearing purposes and the legacy raw-token purpose are
-        // deliberately disjoint: mixing them would put a reusable secret at rest
-        // for a journey that establishes tenant administration.
-        Assert.Throws<InvalidOperationException>(
-            () => invitation.IssueCredential("selector", "digest"));
+        // Workforce joined the hash-only scheme in workforce-access-activation: the
+        // canonical factory carries no reusable raw secret at rest, exactly like the
+        // administrative journeys, and issues a selector/digest credential instead.
+        Assert.Null(invitation.Token);
+        Assert.True(InvitationPurposes.IsCredentialBearing(invitation.Purpose));
+
+        var exception = Record.Exception(() => invitation.IssueCredential("selector", "digest"));
+        Assert.Null(exception);
+        Assert.Equal("selector", invitation.CredentialSelector);
     }
 
     // ── Write-site gate ──────────────────────────────────
@@ -64,6 +68,12 @@ public sealed class LegacyPathContainmentTests
     {
         var offenders = SourceFilesWith(@"\.Suspend\(|\.Reactivate\(")
             .Where(file => !IsContinuityOwned(file))
+
+            // A file elsewhere may still change membership status if it provably runs
+            // the change inside the tenant continuity executor — the same serialization
+            // and final-administrator protection the boundary owns. Workforce activation
+            // reactivates a suspended membership through exactly that executor.
+            .Where(file => !UsesContinuityBoundary(file))
             .ToList();
 
         Assert.True(offenders.Count == 0, Explain("membership status", offenders));

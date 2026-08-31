@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using EY.HRPlatform.Identity.Domain.Entities;
+using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Models.Requests;
@@ -54,7 +55,11 @@ public class UsersController : ControllerBase
             .Select(u => new UserDto
             {
                 Id = u.Id,
-                EmployeeId = u.EmployeeId,
+                EmployeeId = u.TenantMemberships
+                    .Where(membership => membership.TenantId == callerTenantId.Value
+                        && membership.Status == TenantMembershipStatus.Active)
+                    .Select(membership => membership.EmployeeId)
+                    .FirstOrDefault(),
                 Email = u.Email!,
                 FullName = u.FullName,
                 Department = u.Department,
@@ -87,11 +92,18 @@ public class UsersController : ControllerBase
             return NotFound(ApiResponse<UserDto>.Failure("User not found."));
 
         var roles = await _userManager.GetRolesAsync(user);
+        var employeeId = await _dbContext.TenantMemberships
+            .IgnoreQueryFilters()
+            .Where(membership => membership.TenantId == callerTenantId.Value
+                && membership.UserId == user.Id
+                && membership.Status == TenantMembershipStatus.Active)
+            .Select(membership => membership.EmployeeId)
+            .FirstOrDefaultAsync();
 
         var dto = new UserDto
         {
             Id = user.Id,
-            EmployeeId = user.EmployeeId,
+            EmployeeId = employeeId,
             Email = user.Email!,
             FullName = user.FullName,
             Department = user.Department,
@@ -235,7 +247,7 @@ public class UsersController : ControllerBase
             JobTitle = user.JobTitle,
             HireDate = user.HireDate,
             TenantId = tenantId,
-            EmployeeId = user.EmployeeId,
+            EmployeeId = null,
             Roles = [role],
             TemporaryPassword = temporaryPassword // Only returned on creation
         };

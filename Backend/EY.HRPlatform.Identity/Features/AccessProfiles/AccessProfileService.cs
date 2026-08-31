@@ -258,9 +258,14 @@ public sealed class AccessProfileService(
             .ToListAsync(cancellationToken);
 
         var summariesByUserId = await LoadAssignedProfileSummariesByUserIdAsync(tenantId, users.Select(user => user.Id).ToList(), cancellationToken);
+        var employeeIdsByUserId = await LoadActiveEmployeeBindingsByUserIdAsync(
+            tenantId,
+            users.Select(user => user.Id).ToArray(),
+            cancellationToken);
 
         return users.Select(user => MapUserAssignment(
             user,
+            employeeIdsByUserId.GetValueOrDefault(user.Id),
             summariesByUserId.GetValueOrDefault(user.Id, []))).ToList();
     }
 
@@ -353,11 +358,16 @@ public sealed class AccessProfileService(
             tenantId,
             normalizedUserIds,
             cancellationToken);
+        var employeeIdsByUserId = await LoadActiveEmployeeBindingsByUserIdAsync(
+            tenantId,
+            normalizedUserIds,
+            cancellationToken);
         var usersById = users.ToDictionary(user => user.Id);
 
         return normalizedUserIds
             .Select(currentUserId => MapUserAssignment(
                 usersById[currentUserId],
+                employeeIdsByUserId.GetValueOrDefault(currentUserId),
                 profilesByUserId.GetValueOrDefault(currentUserId, [])))
             .ToList();
     }
@@ -383,6 +393,15 @@ public sealed class AccessProfileService(
             return [];
         }
 
+        var hasEmployeeBinding = await dbContext.TenantMemberships
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .AnyAsync(membership => membership.TenantId == tenantId
+                && membership.UserId == user.Id
+                && membership.Status == TenantMembershipStatus.Active
+                && membership.EmployeeId.HasValue,
+                cancellationToken);
+
         var assignments = await dbContext.UserAccessProfiles
             .AsNoTracking()
             .Where(assignment => assignment.TenantId == tenantId && assignment.UserId == user.Id)
@@ -396,7 +415,7 @@ public sealed class AccessProfileService(
             // those accounts; they are compatibility residue, not independent
             // authority. Custom assignments remain visible, and a real
             // employee-linked account keeps its seeded workforce profiles.
-            .Where(profile => user.EmployeeId.HasValue
+            .Where(profile => hasEmployeeBinding
                 || profile.Type != AccessProfileTypes.SystemSeeded)
             .Select(profile => new AccessProfileAssignmentSummaryDto
                 {
@@ -993,11 +1012,12 @@ public sealed class AccessProfileService(
 
     private static UserAccessAssignmentDto MapUserAssignment(
         ApplicationUser user,
+        Guid? employeeId,
         IReadOnlyCollection<AccessProfileAssignmentSummaryDto> accessProfiles)
         => new()
         {
             UserId = user.Id,
-            EmployeeId = user.EmployeeId,
+            EmployeeId = employeeId,
             Email = user.Email ?? string.Empty,
             FullName = user.FullName,
             Department = user.Department,
@@ -1085,6 +1105,15 @@ public sealed class AccessProfileService(
             return [];
         }
 
+        var hasEmployeeBinding = await dbContext.TenantMemberships
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .AnyAsync(membership => membership.TenantId == tenantId
+                && membership.UserId == user.Id
+                && membership.Status == TenantMembershipStatus.Active
+                && membership.EmployeeId.HasValue,
+                cancellationToken);
+
         var assignments = await dbContext.UserAccessProfiles
             .Where(assignment => assignment.TenantId == tenantId && assignment.UserId == user.Id)
             .Join(
@@ -1092,7 +1121,7 @@ public sealed class AccessProfileService(
                 assignment => assignment.AccessProfileId,
                 profile => profile.Id,
                 (_, profile) => profile)
-            .Where(profile => user.EmployeeId.HasValue
+            .Where(profile => hasEmployeeBinding
                 || profile.Type != AccessProfileTypes.SystemSeeded)
             .Select(profile => profile.Id)
             .ToListAsync(cancellationToken);
@@ -1107,6 +1136,21 @@ public sealed class AccessProfileService(
         // after the canonical Tenant Administrator assignment was revoked.
         return assignments;
     }
+
+    private async Task<Dictionary<Guid, Guid?>> LoadActiveEmployeeBindingsByUserIdAsync(
+        Guid tenantId,
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken)
+        => await dbContext.TenantMemberships
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(membership => membership.TenantId == tenantId
+                && membership.Status == TenantMembershipStatus.Active
+                && userIds.Contains(membership.UserId))
+            .ToDictionaryAsync(
+                membership => membership.UserId,
+                membership => membership.EmployeeId,
+                cancellationToken);
 
     private async Task<bool> TryBackfillUserAssignmentsFromRolesAsync(ApplicationUser user, CancellationToken cancellationToken)
     {

@@ -76,9 +76,12 @@ public class TokenService : ITokenService
                 claims.Add(new Claim(CustomClaimTypes.ModuleEntitlement, module.ToString()));
             }
 
-            if (user.EmployeeId.HasValue)
+            // Workforce identity is the tenant-contextual membership binding, never
+            // the retired global account scalar. A membership with no Employee binding
+            // simply carries no employee claim, so Self/DirectReports fail closed.
+            if (context.EmployeeId is { } employeeId)
             {
-                claims.Add(new Claim(CustomClaimTypes.EmployeeId, user.EmployeeId.Value.ToString()));
+                claims.Add(new Claim(CustomClaimTypes.EmployeeId, employeeId.ToString()));
             }
 
             // Tenant permissions are meaningful only inside a customer tenant, so

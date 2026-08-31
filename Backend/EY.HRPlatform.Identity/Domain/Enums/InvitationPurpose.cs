@@ -38,12 +38,15 @@ public static class InvitationPurposes
     /// <summary>
     /// Purposes that use the hash-only selector/digest credential rather than the
     /// legacy raw token. A raw reusable secret is never persisted for these.
+    /// Workforce joined the scheme in the workforce-access-activation change; a
+    /// bounded transitional acceptance path still honours pre-cutover raw tokens.
     /// </summary>
     public static readonly IReadOnlyList<InvitationPurpose> CredentialBearing =
     [
         InvitationPurpose.OrganizationBootstrap,
         InvitationPurpose.TenantAdministrator,
         InvitationPurpose.TenantAdministratorRecovery,
+        InvitationPurpose.WorkforceAccount,
     ];
 
     /// <summary>

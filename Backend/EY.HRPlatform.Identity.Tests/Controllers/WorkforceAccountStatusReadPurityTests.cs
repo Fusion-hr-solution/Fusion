@@ -8,6 +8,7 @@ using EY.HRPlatform.Identity.Models.Responses;
 using EY.HRPlatform.Identity.Models.WorkforceAccounts;
 using EY.HRPlatform.Identity.Tests.TestHelpers;
 using EY.HRPlatform.SharedKernel.Auth;
+using EY.HRPlatform.SharedKernel.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -72,8 +73,32 @@ public sealed class WorkforceAccountStatusReadPurityTests
 
         Assert.Equal("Active", response.ProvisioningState);
         Assert.Equal(user.Id, response.UserId);
-        Assert.Equal(employeeId, await db.Users.IgnoreQueryFilters()
-            .Where(x => x.Id == user.Id).Select(x => x.EmployeeId).SingleAsync());
+        Assert.Equal(employeeId, await db.TenantMemberships.IgnoreQueryFilters()
+            .Where(x => x.UserId == user.Id && x.TenantId == tenantId)
+            .Select(x => x.EmployeeId)
+            .SingleAsync());
+        Assert.False(db.ChangeTracker.HasChanges());
+    }
+
+    [Fact]
+    public async Task StaleGlobalEmployeeId_IsIgnoredInFavorOfTenantMembershipBinding()
+    {
+        var tenantId = Guid.NewGuid();
+        var staleEmployeeId = Guid.NewGuid();
+        var currentEmployeeId = Guid.NewGuid();
+        await using var db = CreateDb(tenantId);
+        var user = AddUser(db, tenantId, "corrected@example.com", currentEmployeeId);
+        user.EmployeeId = staleEmployeeId;
+        await db.SaveChangesAsync();
+        db.ChangeTracker.Clear();
+
+        var current = await ReadAsync(db, tenantId, Subject(currentEmployeeId, "corrected@example.com"));
+        var stale = await ReadAsync(db, tenantId, Subject(staleEmployeeId, "corrected@example.com"));
+
+        Assert.Equal("Active", current.ProvisioningState);
+        Assert.Equal(user.Id, current.UserId);
+        Assert.Equal("Conflict", stale.ProvisioningState);
+        Assert.Equal("EmployeeEmailMismatch", stale.Conflict?.Kind);
         Assert.False(db.ChangeTracker.HasChanges());
     }
 
@@ -113,6 +138,30 @@ public sealed class WorkforceAccountStatusReadPurityTests
         Assert.False(db.ChangeTracker.HasChanges());
     }
 
+    [Fact]
+    public async Task Large_status_batch_returns_one_read_only_result_per_subject_in_order()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = CreateDb(tenantId);
+        var subjects = Enumerable.Range(0, 420)
+            .Select(index => Subject(Guid.NewGuid(), $"status-{index:D3}@example.com"))
+            .ToList();
+        var controller = CreateController(db, tenantId);
+
+        var result = await controller.GetStatuses(new WorkforceAccountStatusesRequest
+        {
+            Subjects = subjects
+        }, CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result.Result);
+        var envelope = Assert.IsType<ApiResponse<List<WorkforceAccountStatusDto>>>(ok.Value);
+        Assert.NotNull(envelope.Data);
+        Assert.Equal(subjects.Count, envelope.Data.Count);
+        Assert.Equal(subjects.Select(subject => subject.EmployeeId), envelope.Data.Select(status => status.EmployeeId));
+        Assert.All(envelope.Data, status => Assert.Equal("Unprovisioned", status.ProvisioningState));
+        Assert.False(db.ChangeTracker.HasChanges());
+    }
+
     private static AppIdentityDbContext CreateDb(Guid tenantId)
         => TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
 
@@ -135,7 +184,12 @@ public sealed class WorkforceAccountStatusReadPurityTests
             IsActive = true,
         };
         db.Users.Add(user);
-        db.TenantMemberships.Add(TenantMembership.Create(user.Id, tenantId));
+        var membership = TenantMembership.Create(user.Id, tenantId);
+        if (employeeId.HasValue)
+        {
+            membership.BindEmployee(employeeId.Value);
+        }
+        db.TenantMemberships.Add(membership);
         return user;
     }
 
@@ -166,30 +220,30 @@ public sealed class WorkforceAccountStatusReadPurityTests
     private static WorkforceAccountsController CreateController(AppIdentityDbContext db, Guid tenantId)
     {
         var userManager = RelationalTestDatabase.CreateUserManager(db);
+        var httpContext = new DefaultHttpContext();
+        // The boundary is HMAC-internal now: the tenant is the trusted signed header,
+        // and authorization is the internal signature, not a JWT permission claim.
+        httpContext.Request.Headers["X-Tenant-Id"] = tenantId.ToString();
+
         var controller = new WorkforceAccountsController(
             db,
             new AccessProfileService(db, userManager),
-            TestTenantContext.WithTenant(tenantId),
             new ConfigurationBuilder().AddInMemoryCollection().Build(),
             new TenantContinuityCommandExecutor(db),
+            new AlwaysAuthorizedInternalCaller(),
             null!)
         {
-            ControllerContext = new ControllerContext
-            {
-                HttpContext = new DefaultHttpContext
-                {
-                    User = new ClaimsPrincipal(new ClaimsIdentity(
-                    [
-                        new Claim(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
-                        new Claim(CustomClaimTypes.TenantId, tenantId.ToString()),
-                        new Claim(
-                            CustomClaimTypes.CorePermission,
-                            CorePermissionClaimValue.Encode(CorePermissions.AccessView, PermissionScopes.Tenant)),
-                    ], "TestAuth"))
-                }
-            }
+            ControllerContext = new ControllerContext { HttpContext = httpContext }
         };
 
         return controller;
+    }
+
+    // The signature is verified by the shared authorizer in production; these read-purity
+    // tests exercise the handler behind an already-authorized internal caller.
+    private sealed class AlwaysAuthorizedInternalCaller : IInternalServiceRequestAuthorizer
+    {
+        public Task<bool> AuthorizeAsync(HttpRequest request, CancellationToken cancellationToken = default)
+            => Task.FromResult(true);
     }
 }

@@ -40,7 +40,7 @@ public sealed class CustomerContextResolver(
             .IgnoreQueryFilters()
             .Where(membership => membership.UserId == user.Id
                 && membership.Status == TenantMembershipStatus.Active)
-            .Select(membership => new { membership.Id, membership.TenantId, membership.AccessRevision })
+            .Select(membership => new { membership.Id, membership.TenantId, membership.EmployeeId, membership.AccessRevision })
             .Take(2) // Two is enough to prove the set is not exactly one.
             .ToListAsync(cancellationToken);
 
@@ -63,6 +63,6 @@ public sealed class CustomerContextResolver(
             .ToListAsync(cancellationToken);
 
         return CustomerContextResult.Authoritative(
-            new CustomerContext(membership.TenantId, membership.Id, modules, membership.AccessRevision));
+            new CustomerContext(membership.TenantId, membership.Id, membership.EmployeeId, modules, membership.AccessRevision));
     }
 }

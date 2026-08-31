@@ -24,6 +24,17 @@ public class TenantMembership : ITenantEntity
     public TenantMembershipStatus Status { get; private set; }
 
     /// <summary>
+    /// Canonical CoreHR Employee this membership represents, or null when the
+    /// account participates in the tenant without a workforce identity. This is the
+    /// single tenant-contextual workforce-identity authority: claims, session
+    /// responses, and Self/DirectReports authorization read it here, never from the
+    /// retired global <c>ApplicationUser.EmployeeId</c> scalar. Uniqueness of
+    /// <c>(TenantId, EmployeeId)</c> is enforced in the database so no command path
+    /// can bind one Employee to two memberships in a tenant.
+    /// </summary>
+    public Guid? EmployeeId { get; private set; }
+
+    /// <summary>
     /// Row version for optimistic concurrency control (mapped to PostgreSQL xmin).
     /// The maintenance drawer echoes it back as If-Match, so a command acting on a
     /// stale view of this administrator is refused rather than silently applied.
@@ -123,6 +134,26 @@ public class TenantMembership : ITenantEntity
         ReactivatedByUserId = actorUserId;
         SuspensionReason = null;
     }
+
+    /// <summary>
+    /// Binds this membership to exactly one canonical CoreHR Employee. Callers MUST
+    /// resolve and verify the Employee (existence, tenant ownership) through the
+    /// trusted CoreHR boundary before binding. The <c>(TenantId, EmployeeId)</c>
+    /// uniqueness constraint refuses a duplicate binding at the database.
+    /// </summary>
+    public void BindEmployee(Guid employeeId)
+    {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID is required.", nameof(employeeId));
+
+        EmployeeId = employeeId;
+    }
+
+    /// <summary>
+    /// Removes the Employee binding while preserving the account, this membership,
+    /// its access assignments, and its history. Used by correction before rebinding.
+    /// </summary>
+    public void ClearEmployee() => EmployeeId = null;
 
     /// <summary>
     /// Invalidates every access token currently carrying this membership's

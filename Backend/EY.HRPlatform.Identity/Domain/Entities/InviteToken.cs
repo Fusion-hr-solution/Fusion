@@ -456,6 +456,46 @@ public class InviteToken : ITenantEntity
     }
 
     /// <summary>
+    /// Creates a Workforce invitation on the hash-only credential scheme. Like the
+    /// administrative factories it carries no legacy raw token; the caller issues a
+    /// selector plus digest credential and keeps the raw secret only long enough to
+    /// build the delivery link.
+    /// </summary>
+    public static InviteToken CreateWorkforce(
+        string email,
+        Guid tenantId,
+        string role,
+        Guid createdByUserId,
+        string? firstName = null,
+        string? lastName = null,
+        Guid? employeeId = null,
+        int expiryDays = 7)
+    {
+        ValidateEmail(email);
+        ValidateTenantId(tenantId);
+        ValidateRole(role);
+        ValidateCreatedBy(createdByUserId);
+        ValidateExpiryDays(expiryDays);
+        ValidateEmployeeId(employeeId);
+
+        return new InviteToken
+        {
+            Id = Guid.NewGuid(),
+            Token = null,
+            Purpose = InvitationPurpose.WorkforceAccount,
+            Email = email.Trim().ToLowerInvariant(),
+            TenantId = tenantId,
+            Role = role,
+            FirstName = NormalizeOptionalName(firstName),
+            LastName = NormalizeOptionalName(lastName),
+            EmployeeId = employeeId,
+            ExpiresAt = DateTime.UtcNow.AddDays(expiryDays),
+            CreatedAt = DateTime.UtcNow,
+            CreatedByUserId = createdByUserId,
+        };
+    }
+
+    /// <summary>
     /// Generates a cryptographically secure 32-byte token, base64url encoded.
     /// </summary>
     private static string GenerateSecureToken()

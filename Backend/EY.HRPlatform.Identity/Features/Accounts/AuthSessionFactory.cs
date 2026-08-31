@@ -83,7 +83,7 @@ public sealed class AuthSessionFactory(
             Email = user.Email!,
             FullName = user.FullName,
             Roles = roles.ToList(),
-            EmployeeId = context is null ? null : user.EmployeeId,
+            EmployeeId = context?.EmployeeId,
             AccessProfiles = assignedProfiles,
             EffectivePermissions = effectivePermissions,
             AccessToken = accessToken,
