@@ -5,7 +5,7 @@
   "scripts": {
     "copy-monaco": "node scripts/copy-monaco.mjs",
     "predev": "node scripts/copy-monaco.mjs",
-    "dev": "next dev --port 3001",
+    "dev": "next dev --port 3001 --turbopack",
     "prebuild": "node scripts/copy-monaco.mjs",
     "build": "next build",
     "start": "next start --port 3001",

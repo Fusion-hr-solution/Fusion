@@ -6,7 +6,8 @@
     "dev:owned": "turbo dev --filter=shell --filter=core --filter=platform --filter=performance",
     "build": "turbo build",
     "lint": "turbo lint",
-    "test": "turbo test",
+    "test": "pnpm check:dev-runtime && turbo test",
+    "check:dev-runtime": "node scripts/verify-dev-runtime.mjs",
     "type-check": "turbo type-check",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
   },
