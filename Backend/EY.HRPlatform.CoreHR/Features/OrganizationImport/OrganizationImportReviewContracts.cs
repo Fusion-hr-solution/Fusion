@@ -122,7 +122,8 @@ public sealed record OrganizationImportReview(
     string CanonicalObservationDigest,
     int DecisionRevision,
     DateTime? DecisionsUpdatedAt,
-    string? DecisionsUpdatedByDisplayName);
+    string? DecisionsUpdatedByDisplayName,
+    IReadOnlyList<OrganizationImportIgnoredColumn> IgnoredColumns);
 
 public sealed record ReplaceOrganizationImportDecisionsRequest(OrganizationImportDecisions Decisions);
 public sealed record CommitOrganizationImportRequest(string SemanticDigest);

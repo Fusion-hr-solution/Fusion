@@ -66,8 +66,12 @@ public sealed class GroqOrganizationImportSemanticProvider(
                         + "use both the vocabulary AND the provided topology in sourceTypeSystem — occurrences, min/max depth, "
                         + "parentTypes, childTypes, whether it occurs on the root, and whether it is leaf-only — and align each "
                         + "source type to the canonical role in canonicalTypeGuidance that best fits its meaning and its position "
-                        + "in the hierarchy. Produce a coherent whole-taxonomy mapping (typically distinct roles map to distinct "
-                        + "canonical types following the source's own top-to-bottom order). Return only useful suggestions. "
+                        + "in the hierarchy. The single source type that occurs on the structural root (occursOnRoot=true, the "
+                        + "shallowest depth) is the enterprise top and maps to the canonical Organization; a source type that does "
+                        + "NOT occur on the root must never map to Organization. Preserve the source's top-to-bottom order: a deeper "
+                        + "source type maps to a canonical role at the same or a deeper level than every shallower source type, never "
+                        + "a shallower one. Produce a coherent whole-taxonomy mapping where distinct roles map to distinct canonical "
+                        + "types in that top-to-bottom order. Return only useful suggestions. "
                         + "Never invent units, identities, relationships, codes, roots, or types. Never map a field to Fusion OrgUnit ID. "
                         + "Rationale must be null or one short business-readable sentence. Do not provide hidden reasoning or chain-of-thought.",
                 },
@@ -81,7 +85,9 @@ public sealed class GroqOrganizationImportSemanticProvider(
             // This is a bounded classification task, not open-ended generation. Low reasoning effort
             // keeps the mapping quality while cutting the hidden reasoning tokens (and the per-request
             // token reservation) so both the field and type calls comfortably fit the provider's
-            // tokens-per-minute budget instead of throttling the second (type) call.
+            // tokens-per-minute budget instead of throttling the second (type) call. The ordering the
+            // model must respect is carried by the system prompt; a deterministic guard withholds the
+            // one mistake low effort still makes (a non-root level landing on the Organization type).
             max_completion_tokens = 800,
             reasoning_effort = "low",
             stream = false,

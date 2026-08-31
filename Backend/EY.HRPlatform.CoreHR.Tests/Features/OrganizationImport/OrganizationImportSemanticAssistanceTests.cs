@@ -84,7 +84,10 @@ public sealed class OrganizationImportSemanticAssistanceTests
         var provider = new StubProvider(request =>
         {
             var valid = SuggestionsFor(request).ToList();
-            var invalidIndex = valid.FindIndex(item => item.IssueKey == "level-type:2");
+            // The level table resolves its shape deterministically, so the vocabulary is asked once
+            // per distinct level type. Invalidate the "Capability" answer; the rest must persist.
+            var capabilityKey = request.Issues.Single(issue => issue.SourceLabel == "Capability").Key;
+            var invalidIndex = valid.FindIndex(item => item.IssueKey == capabilityKey);
             valid[invalidIndex] = valid[invalidIndex] with { TargetKey = "type:00000000-0000-0000-0000-000000000000" };
             return new(valid, 42, 17);
         });
@@ -100,8 +103,8 @@ public sealed class OrganizationImportSemanticAssistanceTests
         Assert.Equal(OrganizationImportSemanticAssistanceState.Available, generated.State);
         Assert.Equal(generated.AttemptId, reused.AttemptId);
         Assert.Equal(1, provider.CallCount);
-        Assert.Equal(4, generated.Suggestions.Count);
-        Assert.DoesNotContain(generated.Suggestions, suggestion => suggestion.IssueKey == "level-type:2");
+        Assert.Equal(3, generated.Suggestions.Count);
+        Assert.DoesNotContain(generated.Suggestions, suggestion => suggestion.SourceLabel == "Capability");
         Assert.Equal(decisionsBefore, (await context.OrganizationImportSessions.SingleAsync(item => item.Id == session.Id)).DecisionsJson);
         Assert.Empty(context.OrgUnits);
         var attempt = await context.OrganizationImportSemanticAttempts.SingleAsync();
@@ -117,7 +120,10 @@ public sealed class OrganizationImportSemanticAssistanceTests
         var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
         await using var context = TestDbContextFactory.Create(tenant);
         var session = await ArrangeDemoAsync(context, tenant.TenantId);
-        var provider = new StubProvider(request => new(SuggestionsFor(request, entityTarget: "Division"), 12, 8));
+        // A coherent top-to-bottom taxonomy (Entity→Organization, Pillar→Division, Capability→
+        // Department, Pod→Team). The whole-taxonomy coherence check now runs against real proposal
+        // nodes, so a parent type may not share a canonical role with its own child.
+        var provider = new StubProvider(request => new(SuggestionsFor(request), 12, 8));
         var service = Service(context, tenant, provider);
         var interpreter = new OrganizationImportInterpreter(context, tenant);
         var review = await interpreter.InterpretAsync(session, CancellationToken.None);
@@ -144,7 +150,9 @@ public sealed class OrganizationImportSemanticAssistanceTests
         context.ChangeTracker.Clear();
         var persistedSession = await context.OrganizationImportSessions.Include(item => item.Source).SingleAsync(item => item.Id == session.Id);
         var decisions = OrganizationImportJson.Deserialize<OrganizationImportDecisions>(persistedSession.DecisionsJson)!.Normalize();
-        Assert.Equal(OrganizationImportShape.LevelColumns, decisions.Shape);
+        // Shape resolves deterministically for a clean level table, so applying vocabulary never
+        // needs to pin it — only the confirmed type meanings are written.
+        Assert.Null(decisions.Shape);
         Assert.Equal(OrganizationalUnitTypeCatalog.OrganizationId, decisions.TypeMappings!["Entity"]);
         Assert.DoesNotContain("Capability", decisions.TypeMappings.Keys, StringComparer.OrdinalIgnoreCase);
         var attempt = await context.OrganizationImportSemanticAttempts.SingleAsync();
@@ -154,6 +162,7 @@ public sealed class OrganizationImportSemanticAssistanceTests
         Assert.Contains(outcomes, item => item.Outcome == OrganizationImportSemanticReviewOutcome.Changed);
         Assert.Contains(outcomes, item => item.Outcome == OrganizationImportSemanticReviewOutcome.Rejected);
         var recomputed = await interpreter.InterpretAsync(persistedSession, CancellationToken.None);
+        Assert.Equal(OrganizationImportShape.ParentReference, recomputed.Shape);
         Assert.Contains(recomputed.ProposalNodes, node => node.RawType == "Capability" && node.TypeId is null);
         Assert.Contains(recomputed.Issues, issue => issue.Code == "UnknownType");
         Assert.Empty(context.OrgUnits);
@@ -555,17 +564,25 @@ public sealed class OrganizationImportSemanticAssistanceTests
             NullLogger<OrganizationImportSemanticAssistanceService>.Instance);
     }
 
+    // A parent-reference source whose Type column is unfamiliar vocabulary (Entity / Strategic Pillar /
+    // Capability / Delivery Pod). This is the genuine semantic-assistance case: the shape resolves
+    // deterministically from the self-referential parent key, and only the free-text type meanings need
+    // the model. (Level-columns sources are typed deterministically by depth and never reach the model.)
     private static async Task<OrganizationImportSession> ArrangeDemoAsync(
         EY.HRPlatform.CoreHR.Infrastructure.Persistence.CoreHRDbContext context,
         Guid tenantId)
     {
         await SeedTypesAsync(context);
         var session = Session(tenantId, new OrganizationSourceTable(
-            [new(0, "Entity"), new(1, "Strategic Pillar"), new(2, "Capability"), new(3, "Delivery Pod")],
+            [new(0, "Business Code"), new(1, "Name"), new(2, "Type"), new(3, "Parent Business Code")],
             [
-                new string?[] { "Asteria", "Customer Growth", "Sales Enablement", "North Pod" },
-                new string?[] { "Asteria", "Customer Growth", "Sales Enablement", "South Pod" },
-                new string?[] { "Asteria", "Operational Excellence", "People Operations", "Talent Pod" },
+                new string?[] { "AST", "Asteria", "Entity", null },
+                new string?[] { "CG", "Customer Growth", "Strategic Pillar", "AST" },
+                new string?[] { "SE", "Sales Enablement", "Capability", "CG" },
+                new string?[] { "NP", "North Pod", "Delivery Pod", "SE" },
+                new string?[] { "SP", "South Pod", "Delivery Pod", "SE" },
+                new string?[] { "PO", "People Operations", "Capability", "CG" },
+                new string?[] { "TP", "Talent Pod", "Delivery Pod", "PO" },
             ]));
         context.OrganizationImportSessions.Add(session);
         await context.SaveChangesAsync();

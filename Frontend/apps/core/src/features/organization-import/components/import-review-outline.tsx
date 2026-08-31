@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { AlertCircle, ChevronDown, ChevronRight, Plus, Sparkles, TriangleAlert, Unlink } from "lucide-react";
+import { AlertCircle, Check, ChevronDown, ChevronRight, Plus, Sparkles, TriangleAlert, Unlink } from "lucide-react";
 import { Badge, cn } from "@repo/ds";
 import type { OrganizationImportIssueSeverity } from "@repo/api";
-import { flattenReviewTree, type ReviewTreeModel } from "../model/import-review-model";
+import { flattenReviewTree, type ReviewTreeModel, type ReviewTreeNode } from "../model/import-review-model";
 
 export interface ImportReviewOutlineProps {
   model: ReviewTreeModel;
@@ -19,7 +19,8 @@ export interface ImportReviewOutlineProps {
   onToggle: (id: string) => void;
 }
 
-const GRID = "grid-cols-[minmax(220px,1fr)_150px_140px_140px]";
+const GRID_WITH_STATUS = "grid-cols-[minmax(220px,1fr)_150px_140px_150px]";
+const GRID_NO_STATUS = "grid-cols-[minmax(240px,1fr)_170px_160px]";
 
 export function ImportReviewOutline({
   model,
@@ -35,6 +36,43 @@ export function ImportReviewOutline({
   const rows = useMemo(() => flattenReviewTree(model, collapsed), [collapsed, model]);
   const [activeId, setActiveId] = useState(selectedId ?? rows[0]?.node.id ?? null);
   const rowRefs = useRef(new Map<string, HTMLDivElement>());
+
+  // "New" only carries information when the import mixes new and existing units. For an all-new
+  // import it is the uniform baseline — the bold name weight already conveys it — so it stays quiet
+  // and the Status column disappears entirely, letting the resulting structure read on its own.
+  const distinguishNew = useMemo(() => {
+    let anyNew = false;
+    let anyExisting = false;
+    for (const node of model.byId.values()) {
+      if (node.isPlaceholder) continue;
+      if (node.isNew) anyNew = true;
+      else anyExisting = true;
+    }
+    return anyNew && anyExisting;
+  }, [model]);
+
+  const statusKind = (
+    node: ReviewTreeNode
+  ): "interpreting" | "attention" | "review" | "matched" | "new" | null => {
+    if (interpretation && !node.isPlaceholder && interpretationIds?.has(node.id))
+      return "interpreting";
+    const severity = attention.get(node.id);
+    if (severity === "Blocker") return "attention";
+    if (severity === "Warning") return "review";
+    if (node.isPlaceholder) return null;
+    if (!node.isNew) return distinguishNew ? "matched" : null;
+    return distinguishNew ? "new" : null;
+  };
+
+  // The Status column earns its place only when at least one row carries real signal — an
+  // exception, an interpretation, or a new/matched distinction worth drawing. Otherwise it is
+  // dropped and the remaining columns breathe.
+  const showStatus = useMemo(
+    () => rows.some((row) => statusKind(row.node) !== null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [rows, attention, interpretation, interpretationIds, distinguishNew]
+  );
+  const gridClass = showStatus ? GRID_WITH_STATUS : GRID_NO_STATUS;
 
   useEffect(() => {
     if (selectedId) setActiveId(selectedId);
@@ -94,21 +132,19 @@ export function ImportReviewOutline({
         role="row"
         className={cn(
           "sticky top-0 z-10 grid border-b bg-muted/60 px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur-sm",
-          GRID
+          gridClass
         )}
       >
         <span role="columnheader">Organizational unit</span>
         <span role="columnheader">Type</span>
         <span role="columnheader">Business code</span>
-        <span role="columnheader">Status</span>
+        {showStatus ? <span role="columnheader">Status</span> : null}
       </div>
       {rows.map((row, index) => {
         const { node } = row;
         const selected = node.id === selectedId;
         const highlighted = highlightedIds.has(node.id) && !selected;
-        const severity = attention.get(node.id);
-        const interpreting =
-          Boolean(interpretation) && !node.isPlaceholder && interpretationIds?.has(node.id);
+        const kind = statusKind(node);
         return (
           <div
             key={node.id}
@@ -126,7 +162,7 @@ export function ImportReviewOutline({
             onClick={() => onSelect(node.id)}
             className={cn(
               "group grid min-h-11 cursor-pointer items-center border-b border-border/60 px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
-              GRID,
+              gridClass,
               selected
                 ? "bg-primary/[0.08]"
                 : highlighted
@@ -187,41 +223,48 @@ export function ImportReviewOutline({
             <span role="gridcell" className="truncate font-mono text-xs text-muted-foreground">
               {node.businessCode || (node.isPlaceholder ? "—" : "")}
             </span>
-            <span role="gridcell" className="min-w-0">
-              {interpreting ? (
-                <span
-                  className={cn(
-                    "inline-flex items-center gap-1 text-xs font-medium text-primary",
-                    interpretation === "interpreting" && "text-primary/80"
-                  )}
-                >
-                  <Sparkles
+            {showStatus ? (
+              <span role="gridcell" className="min-w-0">
+                {kind === "interpreting" ? (
+                  <span
                     className={cn(
-                      "h-3.5 w-3.5 shrink-0",
-                      interpretation === "interpreting" && "animate-pulse motion-reduce:animate-none"
+                      "inline-flex items-center gap-1 text-xs font-medium text-primary",
+                      interpretation === "interpreting" && "text-primary/80"
                     )}
-                  />
-                  {interpretation === "interpreting" ? "Interpreting" : "Suggested"}
-                </span>
-              ) : severity === "Blocker" ? (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-destructive">
-                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                  Needs attention
-                </span>
-              ) : severity === "Warning" ? (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-warning">
-                  <TriangleAlert className="h-3.5 w-3.5 shrink-0" />
-                  Review
-                </span>
-              ) : node.isNew && !node.isPlaceholder ? (
-                <Badge
-                  variant="outline"
-                  className="border-primary bg-primary text-[10px] text-white dark:text-background"
-                >
-                  New
-                </Badge>
-              ) : null}
-            </span>
+                  >
+                    <Sparkles
+                      className={cn(
+                        "h-3.5 w-3.5 shrink-0",
+                        interpretation === "interpreting" && "animate-pulse motion-reduce:animate-none"
+                      )}
+                    />
+                    {interpretation === "interpreting" ? "Interpreting" : "Suggested"}
+                  </span>
+                ) : kind === "attention" ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-destructive">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    Needs attention
+                  </span>
+                ) : kind === "review" ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-warning">
+                    <TriangleAlert className="h-3.5 w-3.5 shrink-0" />
+                    Review
+                  </span>
+                ) : kind === "matched" ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <Check className="h-3.5 w-3.5 shrink-0" />
+                    Matched
+                  </span>
+                ) : kind === "new" ? (
+                  <Badge
+                    variant="outline"
+                    className="border-primary bg-primary text-[10px] text-white dark:text-background"
+                  >
+                    New
+                  </Badge>
+                ) : null}
+              </span>
+            ) : null}
           </div>
         );
       })}

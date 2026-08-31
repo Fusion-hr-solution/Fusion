@@ -10,7 +10,9 @@ import type {
   OrganizationImportSessionDto,
 } from "@repo/api";
 import { todayCalendarDate } from "@/features/organization/model/workspace-state";
-import OrganizationImportWorkspace from "./organization-import-workspace";
+import OrganizationImportWorkspace, {
+  importIntakeTiming,
+} from "./organization-import-workspace";
 
 const mocks = vi.hoisted(() => ({
   canView: true,
@@ -126,6 +128,7 @@ function sourceReady(
         decisionRevision: 0,
         decisionsUpdatedAt: null,
         decisionsUpdatedByDisplayName: null,
+        ignoredColumns: [],
       },
       commitResult: null,
       committedAt: null,
@@ -250,6 +253,9 @@ beforeEach(() => {
   mocks.activeData = [];
   mocks.sessionQuery = null;
   mocks.readiness = { hasPermanentRoot: true };
+  // Neutralise the deliberate intake hold so the hand-off is asserted without waiting on real time.
+  importIntakeTiming.minInterpretMs = 0;
+  importIntakeTiming.readyHoldMs = 0;
   mocks.replace.mockReset();
   mocks.intake.mutateAsync.mockReset();
   mocks.changeDate.mutateAsync.mockReset();
@@ -302,7 +308,7 @@ describe("OrganizationImportWorkspace access and composition", () => {
     expect(screen.getByRole("link", { name: "Back to Organization" })).toHaveAttribute("href", "/organization");
   });
 
-  it("keeps the first viewport in task, date, active, source, utility order", () => {
+  it("keeps the first viewport in task, date, in-progress, then new-source order", () => {
     mocks.activeData = [{
       id: "active-1",
       effectiveDate: "2026-08-12",
@@ -317,15 +323,15 @@ describe("OrganizationImportWorkspace access and composition", () => {
     }];
     render(<OrganizationImportWorkspace />);
     const task = screen.getByRole("heading", { name: "Import structure" });
-    const active = screen.getByRole("heading", { name: "Import in progress" });
-    // Effective date now lives in the page header (context), before the body sections.
     const date = document.getElementById("organization-import-date")!;
-    const source = screen.getByRole("heading", { name: "Upload your file" });
-    const utilities = screen.getByRole("region", { name: "Import utilities" });
+    const active = screen.getByRole("heading", { name: "Import in progress" });
+    // With work in progress, the new-source heading distinguishes the fresh path.
+    const source = screen.getByRole("heading", { name: "Start a new import" });
     expect(task.compareDocumentPosition(date) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(date.compareDocumentPosition(active) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(active.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(source.compareDocumentPosition(utilities) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Utilities are anchored quietly in the page header.
+    expect(screen.getByRole("button", { name: "Download Fusion template" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Resume" })).toHaveAttribute("href", "/organization/import/active-1");
     // Active work carries real recency, not just actor identity.
     expect(screen.getByText(/updated .* by Lin Admin/i)).toBeInTheDocument();
@@ -359,7 +365,8 @@ describe("OrganizationImportWorkspace source intake", () => {
     const file = new File(["xlsx"], "organization.xlsx");
     fireEvent.change(screen.getByLabelText("Choose an organization source file"), { target: { files: [file] } });
     await screen.findByText("Which sheet contains the organization structure?");
-    fireEvent.click(screen.getByRole("button", { name: "South" }));
+    fireEvent.click(screen.getByRole("radio", { name: "South" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     await waitFor(() => expect(mocks.intake.mutateAsync).toHaveBeenCalledTimes(2));
     expect(mocks.intake.mutateAsync.mock.calls[1]![0]).toMatchObject({
       file,
@@ -382,7 +389,9 @@ describe("OrganizationImportWorkspace source intake", () => {
       version: 1,
       effectiveDate: "2026-10-01",
     }));
-    expect(mocks.replace).toHaveBeenCalledWith("/organization/import/session-1");
+    await waitFor(() =>
+      expect(mocks.replace).toHaveBeenCalledWith("/organization/import/session-1")
+    );
   });
 
   it("keeps the selected source while the pre-durable Effective date changes", async () => {
@@ -1013,7 +1022,7 @@ describe("OrganizationImportWorkspace durable route", () => {
   it("renders durable loading and recoverable not-available states", () => {
     mocks.sessionQuery = { data: null, isLoading: true, error: null, refetch: vi.fn() };
     const view = render(<OrganizationImportWorkspace sessionId="session-1" />);
-    expect(screen.getByText("Loading your import.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Loading your import")).toBeInTheDocument();
 
     const refetch = vi.fn();
     mocks.sessionQuery = { data: null, isLoading: false, error: new Error("not found"), refetch };

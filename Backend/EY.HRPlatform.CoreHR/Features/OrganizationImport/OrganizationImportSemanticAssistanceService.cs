@@ -549,6 +549,12 @@ public sealed class OrganizationImportSemanticAssistanceService(
         if (typeSuggestions.Count < 2) return suggestions; // need ≥2 differentiated types to judge collapse
 
         var incoherent = new HashSet<string>(StringComparer.Ordinal);
+        // The canonical "Organization" is the single enterprise root. A source type that does not
+        // occur on the structural root can never be it, whatever the model proposed — withhold that
+        // suggestion so the level falls to grouped confirmation instead of a mid-level "Organization".
+        foreach (var candidate in typeSuggestions)
+            if (Normalize(candidate.Canonical) == "organization" && !candidate.Source.OccursOnRoot)
+                incoherent.Add(candidate.Suggestion.IssueKey);
         foreach (var group in typeSuggestions.GroupBy(x => Normalize(x.Canonical)))
         {
             var members = group.ToList();

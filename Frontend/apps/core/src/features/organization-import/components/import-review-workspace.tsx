@@ -9,6 +9,7 @@ import {
   CalendarDays,
   Check,
   CheckCircle2,
+  EyeOff,
   FileSpreadsheet,
   MoreHorizontal,
   RefreshCw,
@@ -46,6 +47,7 @@ import {
 import {
   translateOrganizationImportError,
   type OrganizationImportDecisions,
+  type OrganizationImportReview,
   type OrganizationImportSemanticReviewedItem,
   type OrganizationImportSessionDto,
   type OrganizationImportShape,
@@ -93,13 +95,7 @@ export function ImportReviewWorkspace({ sessionId }: { sessionId: string }) {
   // on canonical Organization, so the committed session never flashes in between.
   if (handoff) return <ImportHandoff />;
 
-  if (sessionQuery.isLoading)
-    return (
-      <PageContainer width="wide" className="space-y-6">
-        <PageHeader title="Import structure" description="Loading your import." />
-        <PageSkeleton rows={4} label="Loading import" />
-      </PageContainer>
-    );
+  if (sessionQuery.isLoading) return <ImportReviewSkeleton />;
   if (sessionQuery.error)
     return (
       <PageContainer className="space-y-6">
@@ -138,9 +134,72 @@ export function ImportReviewWorkspace({ sessionId }: { sessionId: string }) {
 
 function ImportHandoff() {
   return (
-    <div className="flex h-[calc(100dvh-4rem)] min-h-[640px] flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+    <div className="flex h-full min-h-0 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
       <Spinner className="size-6" aria-hidden />
       <p>Completing import…</p>
+    </div>
+  );
+}
+
+/**
+ * The review's own skeleton — it mirrors the header / interpretation band / tree / footer layout the
+ * review will land on, so the hand-off from the staged intake resolves in place instead of flashing a
+ * generic centred loader and then jumping into a full-height workspace.
+ */
+function ImportReviewSkeleton() {
+  return (
+    <div
+      className="flex h-full min-h-0 flex-col overflow-hidden"
+      role="status"
+      aria-live="polite"
+      aria-label="Loading your import"
+    >
+      <header className="shrink-0 space-y-3 border-b px-6 pb-3 pt-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-2">
+            <div className="h-6 w-44 animate-pulse rounded bg-muted" />
+            <div className="h-3.5 w-72 animate-pulse rounded bg-muted/60" />
+          </div>
+          <div className="h-8 w-44 animate-pulse rounded-xl bg-muted/60" />
+        </div>
+        <div className="h-4 w-52 animate-pulse rounded bg-muted/50" />
+      </header>
+
+      <div className="shrink-0 border-b bg-primary/[0.04] px-6 py-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className="size-5 animate-pulse rounded-md bg-primary/15" />
+          <div className="h-4 w-36 animate-pulse rounded bg-muted/60" />
+          <div className="h-6 w-32 animate-pulse rounded-lg bg-muted/50" />
+          <div className="h-6 w-28 animate-pulse rounded-lg bg-muted/50" />
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-hidden px-4 pt-2">
+        {Array.from({ length: 9 }).map((_, index) => (
+          <div
+            key={index}
+            className="grid grid-cols-[minmax(240px,1fr)_170px_160px] items-center gap-4 border-b border-border/50 py-3"
+          >
+            <div
+              className="flex items-center gap-2"
+              style={{ paddingInlineStart: `${(index % 4) * 22}px` }}
+            >
+              <div className="size-4 shrink-0 animate-pulse rounded bg-muted/50" />
+              <div
+                className="h-4 animate-pulse rounded bg-muted/60"
+                style={{ width: `${120 + ((index * 29) % 130)}px` }}
+              />
+            </div>
+            <div className="h-3.5 w-24 animate-pulse rounded bg-muted/50" />
+            <div className="h-3.5 w-14 animate-pulse rounded bg-muted/40" />
+          </div>
+        ))}
+      </div>
+
+      <footer className="flex shrink-0 items-center justify-between border-t bg-card px-6 py-3 shadow-[0_-6px_16px_-12px_rgb(0_0_0/0.18)]">
+        <div className="h-4 w-64 animate-pulse rounded bg-muted/50" />
+        <div className="h-9 w-36 animate-pulse rounded-lg bg-muted/60" />
+      </footer>
     </div>
   );
 }
@@ -565,7 +624,7 @@ function ActiveReviewWorkspace({
   }, [selection, issues]);
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] min-h-[640px] flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <header className="shrink-0 border-b px-6 pt-5">
         <PageHeader
           title="Import structure"
@@ -679,7 +738,9 @@ function ActiveReviewWorkspace({
           onConfirm={(entries) => void applyTypeMappings(entries)}
         />
       ) : (
-        <div className="relative flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <InterpretationSummary review={review} />
+          <div className="relative flex min-h-0 flex-1">
           <main
             ref={reviewSurfaceRef}
             tabIndex={-1}
@@ -729,11 +790,12 @@ function ActiveReviewWorkspace({
               />
             </aside>
           ) : null}
+          </div>
         </div>
       )}
 
       {review && !understandingPhase && !vocabularyPhase ? (
-        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t bg-background px-6 py-3">
+        <footer className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-t bg-card px-6 py-3 shadow-[0_-6px_16px_-12px_rgb(0_0_0/0.18)]">
           <div className="flex items-center gap-2 text-sm">
             {canCommit ? (
               <CheckCircle2 className="h-4 w-4 text-success" />
@@ -744,7 +806,9 @@ function ActiveReviewWorkspace({
               {!canCommit
                 ? blockerCount === 1
                   ? "1 thing needs your attention before you can finish."
-                  : `${blockerCount} things need your attention before you can finish.`
+                  : blockerCount > 1
+                    ? `${blockerCount} things need your attention before you can finish.`
+                    : "Resolve the remaining items before you can finish."
                 : isNoop
                   ? "Everything in this file already exists in Organization. No changes will be made."
                   : `${createCount} new organizational ${createCount === 1 ? "unit" : "units"} · effective ${formatHumanDate(session.effectiveDate)}`}
@@ -832,6 +896,100 @@ type VocabularyDecision = {
   suggestedTypeId: string | null;
   suggestedLabel: string | null;
 };
+
+const TYPE_RANK: Record<string, number> = {
+  organization: 0,
+  "business unit": 1,
+  division: 2,
+  department: 3,
+  team: 4,
+  unit: 5,
+};
+
+/**
+ * What Fusion made of the raw file, shown once the proposal is ready — the interpretation the
+ * administrator would otherwise never see behind a tree that "just appears". It surfaces the work
+ * structurally, not as prose: the layout Fusion read, the columns it set aside, and — the signature
+ * moment — each of the file's own terms mapped to a Fusion organization type. Only rendered when
+ * Fusion actually translated something (a source term differs from its Fusion type, or a column was
+ * set aside); a native Fusion-template file that needs no interpretation shows nothing here.
+ */
+function InterpretationSummary({ review }: { review: OrganizationImportReview }) {
+  const mappings = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const node of review.proposalNodes) {
+      const from = node.rawType?.trim();
+      const to = node.typeName?.trim();
+      if (!from || !to || from.toLowerCase() === to.toLowerCase()) continue;
+      if (!seen.has(from)) seen.set(from, to);
+    }
+    return [...seen.entries()]
+      .map(([from, to]) => ({ from, to }))
+      .sort(
+        (a, b) => (TYPE_RANK[a.to.toLowerCase()] ?? 9) - (TYPE_RANK[b.to.toLowerCase()] ?? 9)
+      );
+  }, [review.proposalNodes]);
+  const ignored = review.ignoredColumns ?? [];
+
+  if (mappings.length === 0 && ignored.length === 0) return null;
+
+  const layout =
+    review.shape === "LevelColumns"
+      ? "Level hierarchy"
+      : review.shape === "ParentReference"
+        ? "Parent references"
+        : null;
+
+  return (
+    <section
+      aria-label="Fusion’s interpretation"
+      className="shrink-0 overflow-x-auto border-b bg-primary/[0.04] px-6 py-2.5"
+    >
+      <div className="flex min-w-max items-center gap-x-4 gap-y-2">
+        <span className="flex shrink-0 items-center gap-2">
+          <span className="grid size-5 place-items-center rounded-md bg-primary/12 text-primary ring-1 ring-primary/20">
+            <Sparkles className="size-3.5" aria-hidden />
+          </span>
+          <span className="type-label font-semibold text-foreground">
+            Fusion’s interpretation
+          </span>
+          {layout ? (
+            <span className="type-meta text-muted-foreground">· {layout}</span>
+          ) : null}
+        </span>
+
+        {mappings.length ? (
+          <div className="flex items-center gap-1.5">
+            {mappings.map((mapping) => (
+              <span
+                key={mapping.from}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/15 bg-card px-2 py-1 type-meta shadow-[var(--shadow-raised)]"
+              >
+                <span className="max-w-[10rem] truncate text-muted-foreground">
+                  {mapping.from}
+                </span>
+                <ArrowRight className="size-3 shrink-0 text-primary/60" aria-hidden />
+                <span className="font-medium text-foreground">{mapping.to}</span>
+              </span>
+            ))}
+          </div>
+        ) : null}
+
+        {ignored.length ? (
+          <span
+            className="inline-flex shrink-0 items-center gap-1.5 type-meta text-muted-foreground"
+            title={ignored.map((column) => `${column.label} — ${column.reason}`).join("\n")}
+          >
+            <EyeOff className="size-3.5 shrink-0" aria-hidden />
+            {ignored.length === 1
+              ? `Set aside “${ignored[0]!.label}”`
+              : `${ignored.length} columns set aside`}
+          </span>
+        ) : null}
+      </div>
+    </section>
+  );
+}
 
 // The single processing state. Everything Fusion does internally — reading the
 // source, inferring the hierarchy and root, interpreting vocabulary, applying its

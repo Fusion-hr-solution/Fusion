@@ -110,6 +110,8 @@ export interface OrganizationImportIssue {
   code: string; severity: OrganizationImportIssueSeverity; title: string; message: string; affectedCount: number;
   nodeIds: string[]; sourceCells: OrganizationImportSourceCell[]; recoveryActions: string[];
 }
+/** A source column Fusion set aside from the hierarchy because it is a row key, not a level. */
+export interface OrganizationImportIgnoredColumn { columnIndex: number; label: string; reason: string }
 export interface OrganizationImportReview {
   shape: OrganizationImportShape; shapeStatus: OrganizationImportResolutionStatus; shapeOrigin: OrganizationImportResolutionOrigin;
   fieldMappings: OrganizationImportFieldMapping[]; typeOptions: OrganizationImportTypeOption[];
@@ -117,6 +119,7 @@ export interface OrganizationImportReview {
   issues: OrganizationImportIssue[]; existingCount: number; createCount: number; canCommit: boolean;
   semanticDigest: string; canonicalObservationDigest: string; decisionRevision: number;
   decisionsUpdatedAt: string | null; decisionsUpdatedByDisplayName: string | null;
+  ignoredColumns: OrganizationImportIgnoredColumn[];
 }
 export interface OrganizationImportCreatedUnit { proposalNodeId: string; orgUnitId: string; businessCode: string; name: string }
 export interface OrganizationImportCommitResult { sessionId: string; effectiveDate: string; createdUnits: OrganizationImportCreatedUnit[]; noChanges: boolean }

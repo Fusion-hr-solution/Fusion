@@ -200,6 +200,41 @@ public sealed class OrganizationImportInterpretationAndCommitTests
         Assert.DoesNotContain(review.Issues, issue => issue.Code == "ParentUnavailable");
     }
 
+    [Fact]
+    public async Task LevelColumns_WithLeadingIndexColumn_IgnoresIt_ResolvesShape_AndBuildsOneRoot()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        await SeedTypesAsync(context);
+        // The showcase file, re-exported with a leading "index" column (0..8). The index must never
+        // become the top of the organization: shape resolves without AI, the index is set aside and
+        // reported, and the single "Asteria Group" entity is the one structural root.
+        var table = new OrganizationSourceTable(
+            [new(0, "index"), new(1, "Entity"), new(2, "Strategic Pillar"), new(3, "Capability"), new(4, "Delivery Pod")],
+            [
+                new string?[] { "0", "Asteria Group", "Customer Growth", "Customer Experience", "Journey Design Pod" },
+                new string?[] { "1", "Asteria Group", "Customer Growth", "Revenue Operations", "North Market Pod" },
+                new string?[] { "2", "Asteria Group", "Customer Growth", "Revenue Operations", "South Market Pod" },
+                new string?[] { "3", "Asteria Group", "Digital Foundations", "Data Products", "Governance Pod" },
+                new string?[] { "4", "Asteria Group", "Digital Foundations", "Data Products", "Insights Pod" },
+                new string?[] { "5", "Asteria Group", "Operational Excellence", "People Operations", "Talent Pod" },
+            ]);
+        var session = Session(tenant.TenantId, table);
+
+        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
+
+        Assert.Equal(OrganizationImportShape.LevelColumns, review.Shape);
+        Assert.Equal(OrganizationImportResolutionStatus.Resolved, review.ShapeStatus);
+        var ignored = Assert.Single(review.IgnoredColumns);
+        Assert.Equal(0, ignored.ColumnIndex);
+        Assert.Equal("index", ignored.Label);
+        // No node is named after a row number, and "Asteria Group" is the one root.
+        Assert.DoesNotContain(review.ProposalNodes, node => node.Name is "0" or "1" or "2" or "3" or "4" or "5");
+        var root = Assert.Single(review.ProposalNodes, node => node.IsProposalRoot);
+        Assert.Equal("Asteria Group", root.Name);
+        Assert.DoesNotContain(review.Issues, issue => issue.Code is "FreshRootRequired" or "RootCount");
+    }
+
     private static OrganizationImportSession Session(Guid tenantId, OrganizationSourceTable table)
     {
         var actor = Actor();

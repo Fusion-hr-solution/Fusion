@@ -87,7 +87,7 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
         var plausibleShapes = hasOrderedLevelPattern
             ? new[] { OrganizationImportShape.LevelColumns.ToString(), OrganizationImportShape.ParentReference.ToString() }
             : new[] { OrganizationImportShape.ParentReference.ToString(), OrganizationImportShape.LevelColumns.ToString() };
-        var issues = BuildIssues(session, review, fields, hasOrderedLevelPattern);
+        var issues = BuildIssues(session, review, table, fields, hasOrderedLevelPattern);
         if (issues.Count == 0) return null;
 
         var structure = new OrganizationImportSemanticStructuralContext(
@@ -153,6 +153,7 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
     private static List<OrganizationImportSemanticIssue> BuildIssues(
         OrganizationImportSession session,
         OrganizationImportReview review,
+        OrganizationSourceTable table,
         IReadOnlyList<OrganizationImportSemanticFieldContext> fields,
         bool hasOrderedLevelPattern)
     {
@@ -173,10 +174,22 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
                 ]));
         }
 
-        if (hasOrderedLevelPattern || review.Shape == OrganizationImportShape.LevelColumns)
+        if (review.Shape == OrganizationImportShape.LevelColumns)
         {
+            // Shape is settled and the proposal nodes already carry the level vocabulary as their
+            // raw types; those unmapped types are asked exactly once below, as type-value questions.
+            // Asking per column here as well would double every vocabulary decision.
+        }
+        else if (hasOrderedLevelPattern)
+        {
+            // Shape is still being inferred (no proposal nodes yet): ask the model to type each
+            // level column so it can settle level-columns. Row keys the export carried along (an
+            // index/No./id column) are not levels, so they are never offered a level type.
+            OrganizationImportLevelEvidence.SelectLevelColumns(table, out var ignored);
+            var ignoredColumns = ignored.Select(column => column.ColumnIndex).ToHashSet();
             foreach (var field in fields)
             {
+                if (ignoredColumns.Contains(field.ColumnIndex)) continue;
                 if (decisions.TypeMappings!.ContainsKey(field.SourceLabel)) continue;
                 issues.Add(new OrganizationImportSemanticIssue(
                     $"level-type:{field.ColumnIndex}",

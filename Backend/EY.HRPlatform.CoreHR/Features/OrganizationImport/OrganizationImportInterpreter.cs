@@ -79,7 +79,7 @@ public sealed class OrganizationImportInterpreter(CoreHRDbContext dbContext, ITe
             nodes.Count(node => node.Classification == OrganizationImportNodeClassification.Create),
             grouped.All(issue => issue.Severity != OrganizationImportIssueSeverity.Blocker),
             digest, canonical.ObservationDigest, session.DecisionRevision,
-            session.DecisionsUpdatedAt, session.DecisionsUpdatedByDisplayName);
+            session.DecisionsUpdatedAt, session.DecisionsUpdatedByDisplayName, inferred.IgnoredColumns);
     }
 
     private async Task<CanonicalSnapshot> LoadCanonicalAsync(DateOnly effectiveDate, CancellationToken cancellationToken)
@@ -167,17 +167,31 @@ public sealed class OrganizationImportInterpreter(CoreHRDbContext dbContext, ITe
             // column meanings to semantic interpretation.
             : OrganizationImportShapeEvidence.HasParentReferenceStructure(table)
                 ? OrganizationImportShape.ParentReference
+            // A clean ordered-level hierarchy (a coarse top that fans out, no self-referential
+            // key) is level-columns deterministically — even when the level headers are the
+            // organization's own vocabulary. Establishing this without an AI round-trip is what
+            // makes the flow predictable; only the vocabulary→type meaning is left to assistance.
+            : OrganizationImportLevelEvidence.IsLevelColumnsTable(table)
+                ? OrganizationImportShape.LevelColumns
                 : OrganizationImportShape.Unresolved;
         var shape = decisions.Shape ?? deterministicShape;
-        // Once an administrator selects the level-column shape, every source column is part of that
-        // hierarchy. Unmapped columns must remain visible as unresolved work instead of disappearing.
-        var typeLevelColumns = shape == OrganizationImportShape.LevelColumns
-            ? table.Columns.Select(column => column.Index).ToList()
-            : inferredTypeLevelColumns;
+        // In level-column mode every column is a hierarchy level EXCEPT the row keys an export
+        // carries along (an index/No./id column). Those are dropped from the hierarchy and
+        // surfaced quietly; every real level — including one whose vocabulary is still unmapped —
+        // stays visible as review work rather than disappearing.
+        IReadOnlyList<int> typeLevelColumns;
+        IReadOnlyList<OrganizationImportIgnoredColumn> ignoredColumns;
+        if (shape == OrganizationImportShape.LevelColumns)
+            typeLevelColumns = OrganizationImportLevelEvidence.SelectLevelColumns(table, out ignoredColumns);
+        else
+        {
+            typeLevelColumns = inferredTypeLevelColumns;
+            ignoredColumns = [];
+        }
         return new Inference(shape,
             decisions.Shape is not null ? OrganizationImportResolutionStatus.Resolved : deterministicShape == OrganizationImportShape.Unresolved ? OrganizationImportResolutionStatus.Unresolved : OrganizationImportResolutionStatus.Resolved,
             decisions.Shape is not null ? OrganizationImportResolutionOrigin.Administrator : native ? OrganizationImportResolutionOrigin.Native : OrganizationImportResolutionOrigin.Deterministic,
-            mappings, typeLevelColumns);
+            mappings, typeLevelColumns, ignoredColumns);
     }
 
     private static Inference ProtectAuthoritativeMappings(
@@ -244,6 +258,18 @@ public sealed class OrganizationImportInterpreter(CoreHRDbContext dbContext, ITe
             issues.Add(Block("LevelColumnsUnresolved", "Not enough level columns", "This layout needs at least two columns, one per level (for example Division, then Department).", [], ["Choose source structure", "Replace source"]));
             return [];
         }
+        // A level-columns hierarchy is strictly depth-ordered, so each level's canonical type is a
+        // structural fact, not a judgement: on a fresh organization Fusion types it deterministically
+        // from its depth rather than asking a language model to re-derive an ordering it scrambles at an
+        // affordable effort tier. An explicit built-in header or an administrator/AI type decision still
+        // overrides the ladder. When a permanent root already exists the import is an expansion whose
+        // top levels usually match existing units by identity, so the ladder is NOT imposed — those
+        // level types fall to the normal identity/type-vocabulary flow instead of a wrong auto-type.
+        var hasPermanentRoot = canonical.Units.Any(unit => unit.IsRoot);
+        var applyDepthLadder = !hasPermanentRoot;
+        var depthLadder = OrganizationImportLevelEvidence.DepthTypeLadder(levelColumns.Count, hasPermanentRoot: false);
+        var depthByColumn = new Dictionary<int, int>();
+        for (var position = 0; position < levelColumns.Count; position++) depthByColumn[levelColumns[position]] = position;
         var nodes = new List<MutableNode>();
         var byPath = new Dictionary<string, MutableNode>(StringComparer.OrdinalIgnoreCase);
         for (var rowIndex = 0; rowIndex < table.Rows.Count; rowIndex++)
@@ -262,7 +288,7 @@ public sealed class OrganizationImportInterpreter(CoreHRDbContext dbContext, ITe
                     var id = "path:" + Hash(path)[..16];
                     var correction = decisions.NodeCorrections!.GetValueOrDefault(id);
                     var rawLevelType = Clean(table.Columns[column].SourceLabel);
-                    TryBuiltInType(rawLevelType, out var typeName);
+                    var isBuiltInType = TryBuiltInType(rawLevelType, out var typeName);
                     Guid? mappedTypeId = null;
                     if (rawLevelType is not null
                         && decisions.TypeMappings!.TryGetValue(rawLevelType, out var selectedTypeId)
@@ -270,6 +296,17 @@ public sealed class OrganizationImportInterpreter(CoreHRDbContext dbContext, ITe
                     {
                         mappedTypeId = selectedTypeId;
                         typeName = canonical.Types.Single(type => type.Id == selectedTypeId).Name;
+                    }
+                    else if (applyDepthLadder && !isBuiltInType && correction?.TypeId is null
+                        && depthByColumn.TryGetValue(column, out var depth))
+                    {
+                        var ladderType = canonical.Types.FirstOrDefault(
+                            type => Normalize(type.Name) == Normalize(depthLadder[depth]));
+                        if (ladderType is not null)
+                        {
+                            mappedTypeId = ladderType.Id;
+                            typeName = ladderType.Name;
+                        }
                     }
                     node = new MutableNode(id, correction?.Name ?? value, correction?.BusinessCode, false,
                         rawLevelType ?? typeName, correction?.TypeId ?? mappedTypeId, null, correction?.ParentNodeId ?? parentId, correction?.ParentCanonicalId,
@@ -583,7 +620,8 @@ public sealed class OrganizationImportInterpreter(CoreHRDbContext dbContext, ITe
         => new(code, OrganizationImportIssueSeverity.Information, title, message, nodes, recovery);
 
     private sealed record Inference(OrganizationImportShape Shape, OrganizationImportResolutionStatus ShapeStatus,
-        OrganizationImportResolutionOrigin ShapeOrigin, IReadOnlyList<OrganizationImportFieldMapping> Mappings, IReadOnlyList<int> LevelColumns);
+        OrganizationImportResolutionOrigin ShapeOrigin, IReadOnlyList<OrganizationImportFieldMapping> Mappings, IReadOnlyList<int> LevelColumns,
+        IReadOnlyList<OrganizationImportIgnoredColumn> IgnoredColumns);
     private sealed record CanonicalType(Guid Id, string Name);
     private sealed record Reservation(string Code, Guid OrgUnitId);
     private sealed record CanonicalUnit(Guid Id, string Code, uint Version, bool IsRoot, string? Name, Guid? TypeId, string? TypeName, Guid? ParentId, bool IsActive);
