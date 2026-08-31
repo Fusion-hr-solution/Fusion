@@ -19,7 +19,7 @@ import {
   type CycleSettingsDto,
   type ExceptionalApprovePlanRequest,
   type PerformanceAccessDto,
-  type ReturnObjectiveRequest,
+  type PopulationDto,
   type ReturnPlanRequest,
   type SetPlanWeightsRequest,
   type SetPopulationRequest,
@@ -30,7 +30,7 @@ import {
   type UpdateStrategicObjectiveRequest,
   type WorkforceEmployeeSummaryDto,
 } from "@repo/api";
-import { useApiMutation, useApiQuery } from "@repo/api/query";
+import { useApiMutation, useApiQuery, useApiQueryClient } from "@repo/api/query";
 import { resolvePerformanceAccess } from "@/shell/performance-access";
 
 interface EmployeeSearchResponse {
@@ -179,17 +179,9 @@ export function useGoalMutations(cycleId: string) {
       performance.alignGoal(cycleId, args.objectiveId, args.request),
     { invalidateQueries: invalidate }
   );
-  const submit = useApiMutation((objectiveId: string) => performance.submitGoal(cycleId, objectiveId), {
+  const publish = useApiMutation((objectiveId: string) => performance.publishGoal(cycleId, objectiveId), {
     invalidateQueries: invalidate,
   });
-  const approve = useApiMutation((objectiveId: string) => performance.approveGoal(cycleId, objectiveId), {
-    invalidateQueries: invalidate,
-  });
-  const returnForRevision = useApiMutation(
-    (args: { objectiveId: string; request: ReturnObjectiveRequest }) =>
-      performance.returnGoal(cycleId, args.objectiveId, args.request),
-    { invalidateQueries: invalidate }
-  );
   const configureContribution = useApiMutation(
     (args: { objectiveId: string; request: ConfigureContributionRequest }) =>
       performance.configureGoalContribution(cycleId, args.objectiveId, args.request),
@@ -202,7 +194,7 @@ export function useGoalMutations(cycleId: string) {
   const remove = useApiMutation((objectiveId: string) => performance.deleteGoal(cycleId, objectiveId), {
     invalidateQueries: invalidate,
   });
-  return { create, update, align, submit, approve, returnForRevision, configureContribution, lockContribution, remove };
+  return { create, update, align, publish, configureContribution, lockContribution, remove };
 }
 
 // ── Employee plans (Chunk C) ───────────────────────────────────────────────────
@@ -434,17 +426,28 @@ export function useSaveStrategy(cycleId: string) {
 
 export function usePopulationMutations(cycleId: string) {
   const { performance } = useApis();
-  const invalidate = [
-    { queryKey: performanceQueryKeys.population(cycleId) },
-    { queryKey: performanceQueryKeys.cycle(cycleId) },
-    { queryKey: performanceQueryKeys.currentCycle() },
-  ];
+  const queryClient = useApiQueryClient();
+
+  // Scope edits (org selections, include-sub-units) fire often during setup. The PUT
+  // already returns the fully recomputed population, so write it straight into the
+  // cache instead of invalidating and paying a second GET. Overview counts refresh in
+  // the background (fire-and-forget) so the interaction never waits on them.
   const set = useApiMutation(
     (request: SetPopulationRequest) => performance.setPopulation(cycleId, request),
-    { invalidateQueries: invalidate }
+    {
+      onSuccess: (data: PopulationDto) => {
+        queryClient.setQueryData(performanceQueryKeys.population(cycleId), data);
+        void queryClient.invalidateQueries({ queryKey: performanceQueryKeys.currentCycle() });
+      },
+    }
   );
+
   const confirm = useApiMutation(() => performance.confirmPopulation(cycleId), {
-    invalidateQueries: invalidate,
+    invalidateQueries: [
+      { queryKey: performanceQueryKeys.population(cycleId) },
+      { queryKey: performanceQueryKeys.cycle(cycleId) },
+      { queryKey: performanceQueryKeys.currentCycle() },
+    ],
   });
   return { set, confirm };
 }

@@ -39,15 +39,11 @@ export function pathTo(graph: GoalGraph, nodeId: string): GoalNodeDto[] {
 
 export const STATE_TONE: Record<ObjectiveLifecycleState, "neutral" | "info" | "success" | "warning" | "muted"> = {
   Draft: "muted",
-  Submitted: "warning",
-  Approved: "success",
   Published: "success",
 };
 
 export const STATE_LABEL: Record<ObjectiveLifecycleState, string> = {
   Draft: "Draft",
-  Submitted: "Awaiting decision",
-  Approved: "Approved",
   Published: "Published",
 };
 

@@ -2,6 +2,7 @@ import type {
   CycleSummaryDto,
   MeasurementDto,
   MeasurementMethod,
+  MilestoneStateDto,
   OperationalMilestone,
   ReadinessIssueCode,
 } from "@repo/api";
@@ -21,6 +22,21 @@ export const MILESTONE_LABELS: Record<OperationalMilestone, string> = {
   ClosureReady: "Closure ready",
 };
 
+/**
+ * The milestones that belong to *setting the Cycle up*: publish direction, confirm
+ * population, then go live (Planning opened = activation). Everything after that is
+ * automatic, time-driven runtime progress and belongs on Overview, not the setup page.
+ */
+const SETUP_MILESTONES: readonly OperationalMilestone[] = [
+  "StrategicDirectionPublished",
+  "PopulationConfirmed",
+  "PlanningOpened",
+];
+
+export function setupMilestones(milestones: MilestoneStateDto[]): MilestoneStateDto[] {
+  return milestones.filter((m) => SETUP_MILESTONES.includes(m.milestone));
+}
+
 export const READINESS_LABELS: Record<ReadinessIssueCode, string> = {
   InactiveEmployment: "Inactive employment",
   NoPrimaryAssignment: "No primary assignment",
@@ -36,6 +52,18 @@ export function formatDate(value: string | null | undefined): string {
 
 export function formatDateRange(start: string, end: string): string {
   return `${formatDate(start)} – ${formatDate(end)}`;
+}
+
+/**
+ * Parses a user-typed measurement value, distinguishing empty (nothing entered yet) from
+ * non-numeric (e.g. "48M"). Non-numeric input is reported as invalid so the composer can show
+ * inline guidance instead of silently disabling submission.
+ */
+export function parseNumeric(value: string): { num: number | null; invalid: boolean } {
+  const trimmed = value.trim();
+  if (trimmed === "") return { num: null, invalid: false };
+  const num = Number(trimmed);
+  return Number.isFinite(num) ? { num, invalid: false } : { num: null, invalid: true };
 }
 
 export function measurementSummary(measurement: MeasurementDto): string {

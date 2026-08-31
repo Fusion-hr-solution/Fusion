@@ -5,26 +5,22 @@ import {
   ArrowUpRight,
   Check,
   ChevronRight,
-  CircleUser,
   Gauge,
-  History,
   Layers,
   Lock,
-  RotateCcw,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { GoalDetailDto, ObjectiveDecisionDto } from "@repo/api";
+import type { GoalDetailDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { Button } from "@repo/ds/components/ui/button";
 import { Input } from "@repo/ds/components/ui/input";
-import { Textarea } from "@repo/ds/components/ui/textarea";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@repo/ds/components/ui/sheet";
 import { AsyncButton, StatusBadge } from "@repo/ds/shell";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
 import { useGoal, useGoalMutations } from "../../api/use-performance";
-import { formatDate, formatDateRange, measurementSummary } from "../../lib";
+import { formatDateRange, measurementSummary } from "../../lib";
 import { initials, scopeLabel, STATE_LABEL, STATE_TONE } from "./goals-lib";
 
 export function ObjectiveContextPanel({
@@ -113,11 +109,6 @@ function PanelBody({
       </SheetHeader>
 
       <div className="flex-1 space-y-6 p-6">
-        {/* Decision surface — only for the parent-accountable person on a submitted objective. */}
-        {detail.canDecide ? (
-          <DecisionBlock detail={detail} mutations={mutations} onClose={onClose} />
-        ) : null}
-
         {detail.description ? <p className="text-sm leading-relaxed text-muted-foreground">{detail.description}</p> : null}
 
         <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-border">
@@ -165,12 +156,10 @@ function PanelBody({
           </section>
         ) : null}
 
-        {/* History */}
-        {detail.history.length > 0 ? <HistoryTimeline history={detail.history} /> : null}
       </div>
 
       {/* Owner actions */}
-      {isOrg && (detail.canEdit || detail.canSubmit) ? (
+      {isOrg && (detail.canEdit || detail.canPublish) ? (
         <div className="sticky bottom-0 flex items-center justify-between gap-2 border-t bg-background p-4">
           <div className="flex gap-2">
             {detail.canEdit ? (
@@ -194,108 +183,25 @@ function PanelBody({
               </Button>
             ) : null}
           </div>
-          {detail.canSubmit ? (
+          {detail.canPublish ? (
             <AsyncButton
               size="sm"
-              pending={mutations.submit.isLoading}
+              pending={mutations.publish.isLoading}
               onClick={async () => {
                 try {
-                  await mutations.submit.mutateAsync(node.id);
-                  toast.success("Submitted for approval.");
+                  await mutations.publish.mutateAsync(node.id);
+                  toast.success("Published as organizational direction.");
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Could not submit.");
+                  toast.error(error instanceof Error ? error.message : "Could not publish.");
                 }
               }}
             >
-              Submit for approval
+              Publish
             </AsyncButton>
           ) : null}
         </div>
       ) : null}
     </>
-  );
-}
-
-function DecisionBlock({
-  detail,
-  mutations,
-  onClose,
-}: {
-  detail: GoalDetailDto;
-  mutations: ReturnType<typeof useGoalMutations>;
-  onClose: () => void;
-}) {
-  const [returning, setReturning] = useState(false);
-  const [feedback, setFeedback] = useState("");
-  const { node, parent } = detail;
-
-  return (
-    <section className="space-y-4 rounded-2xl border border-primary/30 bg-primary/[0.04] p-5">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">Your decision</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {node.accountablePersonName ?? "The owner"} proposes this objective in support of {parent?.title ?? "your objective"}.
-        </p>
-      </div>
-
-      <dl className="space-y-2 text-sm">
-        <DecisionRow label="Objective" value={node.title} />
-        <DecisionRow label="Accountable" value={node.accountablePersonName ?? "—"} />
-        <DecisionRow label="Measurement" value={detail.measurement ? measurementSummary(detail.measurement) : node.measurementSummary} />
-      </dl>
-
-      {returning ? (
-        <div className="space-y-2">
-          <Textarea
-            value={feedback}
-            onChange={(event) => setFeedback(event.target.value)}
-            rows={3}
-            placeholder="What needs to change before this can be approved?"
-            autoFocus
-          />
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setReturning(false)}>Cancel</Button>
-            <AsyncButton
-              size="sm"
-              variant="outline"
-              pending={mutations.returnForRevision.isLoading}
-              disabled={feedback.trim().length === 0}
-              onClick={async () => {
-                try {
-                  await mutations.returnForRevision.mutateAsync({ objectiveId: node.id, request: { feedback: feedback.trim() } });
-                  toast.success("Returned for revision.");
-                  onClose();
-                } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Could not return.");
-                }
-              }}
-            >
-              Return with feedback
-            </AsyncButton>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={() => setReturning(true)}>
-            <RotateCcw className="size-3.5" data-icon="inline-start" /> Return
-          </Button>
-          <AsyncButton
-            size="sm"
-            pending={mutations.approve.isLoading}
-            onClick={async () => {
-              try {
-                await mutations.approve.mutateAsync(node.id);
-                toast.success("Objective approved.");
-              } catch (error) {
-                toast.error(error instanceof Error ? error.message : "Could not approve.");
-              }
-            }}
-          >
-            <Check className="size-3.5" data-icon="inline-start" /> Approve
-          </AsyncButton>
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -325,7 +231,7 @@ function ContributionSection({
 
   const total = Object.values(weights).reduce((sum, value) => sum + (Number(value) || 0), 0);
   const contributors = detail.children.filter((child) => Number(weights[child.id]) > 0);
-  const allChildrenApproved = contributors.length > 0 && contributors.every((child) => child.state === "Approved");
+  const allChildrenPublished = contributors.length > 0 && contributors.every((child) => child.state === "Published");
 
   if (locked) {
     return (
@@ -421,7 +327,7 @@ function ContributionSection({
             <AsyncButton
               size="sm"
               pending={mutations.lockContribution.isLoading}
-              disabled={total !== 100 || !allChildrenApproved}
+              disabled={total !== 100 || !allChildrenPublished}
               onClick={async () => {
                 try {
                   await mutations.lockContribution.mutateAsync(node.id);
@@ -435,37 +341,10 @@ function ContributionSection({
             </AsyncButton>
           </div>
         ) : null}
-        {canEdit && total === 100 && !allChildrenApproved ? (
-          <p className="text-xs text-muted-foreground">Every contributing objective must be approved before the baseline can lock.</p>
+        {canEdit && total === 100 && !allChildrenPublished ? (
+          <p className="text-xs text-muted-foreground">Every contributing objective must be published before the baseline can lock.</p>
         ) : null}
       </div>
-    </section>
-  );
-}
-
-function HistoryTimeline({ history }: { history: ObjectiveDecisionDto[] }) {
-  const verb: Record<ObjectiveDecisionDto["kind"], string> = {
-    Submitted: "submitted for approval",
-    Approved: "approved",
-    Returned: "returned for revision",
-  };
-  return (
-    <section className="space-y-2">
-      <SectionLabel><span className="inline-flex items-center gap-1.5"><History className="size-3.5" aria-hidden /> History</span></SectionLabel>
-      <ol className="space-y-3 border-l pl-4">
-        {history.map((entry, index) => (
-          <li key={index} className="relative text-sm">
-            <span className="absolute -left-[21px] top-1 size-2 rounded-full bg-border ring-2 ring-background" aria-hidden />
-            <span className="inline-flex items-center gap-1.5">
-              <CircleUser className="size-3.5 text-muted-foreground" aria-hidden />
-              <span className="font-medium">{entry.actorName ?? "Someone"}</span>
-              <span className="text-muted-foreground">{verb[entry.kind]}</span>
-            </span>
-            <span className="ml-1 text-xs text-muted-foreground">· {formatDate(entry.decidedAt.slice(0, 10))}</span>
-            {entry.feedback ? <p className="mt-1 rounded-lg bg-muted/40 px-3 py-2 text-muted-foreground">{entry.feedback}</p> : null}
-          </li>
-        ))}
-      </ol>
     </section>
   );
 }
@@ -480,14 +359,5 @@ function Field({ label, children, className }: { label: string; children: React.
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">{children}</p>;
-}
-
-function DecisionRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="shrink-0 text-xs uppercase tracking-[0.1em] text-muted-foreground">{label}</dt>
-      <dd className="text-right font-medium">{value}</dd>
-    </div>
-  );
+  return <p className="type-eyebrow text-muted-foreground">{children}</p>;
 }

@@ -2,9 +2,9 @@
 
 import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { CycleWorkspaceHeader } from "@/features/performance/components/cycle-workspace-header";
+import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
 import { ContributionExplorer } from "@/features/performance/components/contribution/contribution-explorer";
-import { usePerformanceAccess, useCurrentCycle, useCycles } from "@/features/performance/api/use-performance";
+import { usePerformanceAccess, useCurrentCycle } from "@/features/performance/api/use-performance";
 
 export default function ContributionPage() {
   const access = usePerformanceAccess();
@@ -18,7 +18,6 @@ export default function ContributionPage() {
     scope === "Tenant";
 
   const detail = useCurrentCycle(canEnter);
-  const cycles = useCycles(canEnter);
   const cycle = detail.data?.cycle ?? null;
 
   if (access.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
@@ -42,10 +41,8 @@ export default function ContributionPage() {
 
   return (
     <PageContainer>
-      <div className="space-y-8">
-        <CycleWorkspaceHeader cycle={cycle} cycles={cycles.data} onSelectCycle={() => undefined} />
-        <ContributionExplorer cycleId={cycle.id} cycleName={cycle.name} />
-      </div>
+      <CycleContextBar cycle={cycle} />
+      <ContributionExplorer cycleId={cycle.id} />
     </PageContainer>
   );
 }

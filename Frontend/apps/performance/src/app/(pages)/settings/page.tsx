@@ -1,8 +1,9 @@
 "use client";
 
-import { PageContainer, PageError, PageHeader, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
+import { PageContainer, PageError, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import { usePerformanceAccess, useSettings } from "@/features/performance/api/use-performance";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
+import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { SettingsForm } from "@/features/performance/components/settings-form";
 
 export default function SettingsPage() {
@@ -17,10 +18,9 @@ export default function SettingsPage() {
 
   return (
     <PageContainer>
-      <PageHeader
-        eyebrow="Performance"
-        title="Settings"
-        description="Tenant defaults for how cycles and goals work. These never change a Cycle that is already active."
+      <PerformancePageHeading
+        title="Performance settings"
+        description="Tenant defaults for new cycles. Changing them never alters a Cycle that is already active."
       />
       {settings.isLoading ? (
         <PageSkeleton rows={4} label="Loading settings" />

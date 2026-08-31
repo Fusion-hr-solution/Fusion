@@ -5,3 +5,13 @@
 
 @source "../../../../packages/ds/src/**/*.{ts,tsx}";
 @source "../../../../packages/auth/src/**/*.{ts,tsx}";
+
+/*
+ * Performance runs on a clean white working surface in light mode instead of the
+ * shared off-white canvas, so a sparse page no longer reads as content floating on
+ * grey. Guarded to light only (`:not(.dark)`): dark mode keeps its 0.141 canvas
+ * distinct from 0.21 cards. Grouped surfaces read by their borders on white.
+ */
+:root:not(.dark) {
+  --background: oklch(1 0 0);
+}

@@ -2,11 +2,11 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { CalendarRange, Check, Pencil, Target, Users } from "lucide-react";
+import { Check, Pencil, Target, Users } from "lucide-react";
 import { toast } from "sonner";
 import type { CycleDetailDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
-import { PageContainer, PageError, PagePermissionNotice, PageSkeleton, StatusBadge } from "@repo/ds/shell";
+import { PageContainer, PageError, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { cn } from "@repo/ds/lib/utils";
 import {
@@ -17,8 +17,9 @@ import {
   useStrategy,
   useUpdateCycle,
 } from "@/features/performance/api/use-performance";
-import { formatDate, formatDateRange } from "@/features/performance/lib";
-import { CycleWorkspaceHeader } from "@/features/performance/components/cycle-workspace-header";
+import { setupMilestones } from "@/features/performance/lib";
+import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
+import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { LaunchReadiness } from "@/features/performance/components/launch-readiness";
 import { MilestoneRail } from "@/features/performance/components/milestone-rail";
 import { ActivationReview } from "@/features/performance/components/activation-review";
@@ -26,10 +27,9 @@ import { CycleDetailsDialog } from "@/features/performance/components/cycle-deta
 import { StrategicDirection } from "@/features/performance/components/strategic-direction";
 import { PopulationLens } from "@/features/performance/components/population-lens";
 
-type Area = "details" | "direction" | "population" | "review";
+type Area = "direction" | "population" | "review";
 
-const AREAS: { key: Area; label: string; icon: typeof CalendarRange }[] = [
-  { key: "details", label: "Cycle details", icon: CalendarRange },
+const AREAS: { key: Area; label: string; icon: typeof Target }[] = [
   { key: "direction", label: "Strategic direction", icon: Target },
   { key: "population", label: "Population", icon: Users },
   { key: "review", label: "Review & activate", icon: Check },
@@ -48,12 +48,12 @@ function SetupWorkspace() {
   const searchParams = useSearchParams();
   const access = usePerformanceAccess();
   const canAdminister = access.data?.canAdminister ?? false;
-  // Access is session-derived; the primary Cycle detail and the list load in
-  // parallel — no access→cycles→detail chain.
+  // Access is session-derived; the primary Cycle detail loads directly.
   const detail = useCurrentCycle(canAdminister);
-  const cycles = useCycles(canAdminister);
 
-  const [area, setArea] = useState<Area>("details");
+  const [area, setArea] = useState<Area>("direction");
+  const [editOpen, setEditOpen] = useState(false);
+  const update = useUpdateCycle(detail.data?.cycle.id ?? "");
   useEffect(() => {
     const requested = searchParams.get("area") as Area | null;
     if (requested && AREAS.some((item) => item.key === requested)) setArea(requested);
@@ -86,14 +86,56 @@ function SetupWorkspace() {
 
   return (
     <PageContainer>
+      <CycleContextBar
+        cycle={cycleDetail.cycle}
+        action={
+          !readOnly ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => setEditOpen(true)}
+              aria-label="Edit cycle details"
+              title="Edit cycle details"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Pencil className="size-4" />
+            </Button>
+          ) : null
+        }
+      />
+      <PerformancePageHeading
+        title="Cycle setup"
+        description={
+          readOnly
+            ? "This Cycle is active. Setup is read-only history."
+            : "Prepare direction and population before this Cycle goes live."
+        }
+      />
+      <CycleDetailsDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        cycle={cycleDetail.cycle}
+        onSubmit={async (value) => {
+          await update.mutateAsync({
+            name: value.name,
+            startDate: value.startDate,
+            endDate: value.endDate,
+            planningDeadline: value.planningDeadline,
+          });
+          toast.success("Cycle details saved.");
+        }}
+      />
       <div className="space-y-8">
-        <CycleWorkspaceHeader cycle={cycleDetail.cycle} cycles={cycles.data} onSelectCycle={() => undefined} />
-        <MilestoneRail milestones={cycleDetail.milestones} />
+        <MilestoneRail milestones={setupMilestones(cycleDetail.milestones)} />
 
         <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
-          <nav className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible" aria-label="Setup areas">
+          <nav
+            className="flex gap-1 overflow-x-auto lg:sticky lg:top-6 lg:flex-col lg:self-start lg:overflow-visible"
+            aria-label="Setup areas"
+          >
             {AREAS.map((item) => {
-              const complete = item.key !== "review" && areaComplete(item.key);
+              // Once the Cycle is activated, "Review & activate" is itself complete.
+              const complete = item.key === "review" ? readOnly : areaComplete(item.key);
               const active = area === item.key;
               return (
                 <button
@@ -108,14 +150,13 @@ function SetupWorkspace() {
                 >
                   <item.icon className="size-4" aria-hidden />
                   <span className="flex-1 text-left">{item.label}</span>
-                  {complete ? <Check className="size-3.5 text-success" aria-hidden /> : null}
+                  {complete ? <Check className="size-3.5 text-primary" aria-hidden /> : null}
                 </button>
               );
             })}
           </nav>
 
           <div className="min-w-0">
-            {area === "details" ? <DetailsArea detail={cycleDetail} readOnly={readOnly} /> : null}
             {area === "direction" ? (
               <DirectionArea cycleId={cycleDetail.cycle.id} canPublish={access.data?.canPublishStrategy ?? false} readOnly={readOnly} />
             ) : null}
@@ -125,56 +166,6 @@ function SetupWorkspace() {
         </div>
       </div>
     </PageContainer>
-  );
-}
-
-function DetailsArea({ detail, readOnly }: { detail: CycleDetailDto; readOnly: boolean }) {
-  const update = useUpdateCycle(detail.cycle.id);
-  const [editOpen, setEditOpen] = useState(false);
-  const cycle = detail.cycle;
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">Cycle details</h2>
-          <p className="text-sm text-muted-foreground">The horizon this Cycle runs over.</p>
-        </div>
-        {!readOnly ? (
-          <Button variant="outline" onClick={() => setEditOpen(true)}>
-            <Pencil className="size-3.5" data-icon="inline-start" /> Edit
-          </Button>
-        ) : null}
-      </div>
-
-      <dl className="grid gap-px overflow-hidden rounded-2xl border bg-border sm:grid-cols-3">
-        {[
-          { label: "Period", value: formatDateRange(cycle.startDate, cycle.endDate) },
-          { label: "Planning deadline", value: formatDate(cycle.planningDeadline) },
-          { label: "State", value: <StatusBadge tone={cycle.state === "Active" ? "success" : "info"}>{cycle.state}</StatusBadge> },
-        ].map((item) => (
-          <div key={item.label} className="bg-card p-4">
-            <dt className="text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">{item.label}</dt>
-            <dd className="mt-1 text-sm font-medium">{item.value}</dd>
-          </div>
-        ))}
-      </dl>
-
-      <CycleDetailsDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        cycle={cycle}
-        onSubmit={async (value) => {
-          await update.mutateAsync({
-            name: value.name,
-            startDate: value.startDate,
-            endDate: value.endDate,
-            planningDeadline: value.planningDeadline,
-          });
-          toast.success("Cycle details saved.");
-        }}
-      />
-    </div>
   );
 }
 
@@ -194,10 +185,15 @@ function ReviewArea({ detail }: { detail: CycleDetailDto }) {
 
   if (detail.cycle.state !== "Draft") {
     return (
-      <div className="rounded-2xl border border-success/30 bg-success-subtle p-6">
-        <h2 className="text-lg font-semibold">This Cycle is {detail.cycle.state.toLowerCase()}</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Planning is open. Setup is now read-only history for this Cycle.</p>
-        <Button className="mt-4" variant="outline" onClick={() => router.push("/")}>Go to overview</Button>
+      <div className="space-y-3">
+        <h2 className="type-section-title text-foreground">Review &amp; activate</h2>
+        <p className="text-sm text-muted-foreground">
+          {detail.cycle.name} is {detail.cycle.state.toLowerCase()}. Planning is open and setup is
+          now read-only history for this Cycle.
+        </p>
+        <Button variant="outline" onClick={() => router.push("/")}>
+          Go to overview
+        </Button>
       </div>
     );
   }
@@ -205,8 +201,10 @@ function ReviewArea({ detail }: { detail: CycleDetailDto }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-semibold tracking-tight">Review &amp; activate</h2>
-        <p className="text-sm text-muted-foreground">Everything that must be ready before {detail.cycle.name} goes live.</p>
+        <h2 className="type-section-title text-foreground">Review &amp; activate</h2>
+        <p className="text-sm text-muted-foreground">
+          Everything that must be ready before {detail.cycle.name} goes live.
+        </p>
       </div>
       <LaunchReadiness
         readiness={detail.launchReadiness}

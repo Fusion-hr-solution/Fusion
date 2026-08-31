@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { PageContainer, PageError, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { CycleWorkspaceHeader } from "@/features/performance/components/cycle-workspace-header";
+import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
+import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { ManagerDecisionWorkspace } from "@/features/performance/components/plan/manager-decision-workspace";
 import { PlanReviewQueue } from "@/features/performance/components/plan/plan-review-queue";
-import { usePerformanceAccess, useCurrentCycle, useCycles, usePlanReviews } from "@/features/performance/api/use-performance";
+import { usePerformanceAccess, useCurrentCycle, usePlanReviews } from "@/features/performance/api/use-performance";
 
 export default function ReviewsPage() {
   const access = usePerformanceAccess();
@@ -16,7 +17,6 @@ export default function ReviewsPage() {
     (access.data?.canAdminister ?? false) || scope === "DirectReports" || scope === "OrgUnit" || scope === "Tenant";
 
   const detail = useCurrentCycle(canEnter);
-  const cycles = useCycles(canEnter);
   const cycle = detail.data?.cycle ?? null;
   const reviews = usePlanReviews(cycle?.id ?? null, canReview);
 
@@ -41,31 +41,36 @@ export default function ReviewsPage() {
     );
   }
 
+  const count = reviews.data?.awaitingDecisionCount ?? 0;
+
   return (
     <PageContainer>
-      <div className="space-y-8">
-        <CycleWorkspaceHeader cycle={cycle} cycles={cycles.data} onSelectCycle={() => undefined} />
+      <CycleContextBar cycle={cycle} />
 
-        {openPlanId ? (
-          <ManagerDecisionWorkspace cycleId={cycle.id} planId={openPlanId} onBack={() => setOpenPlanId(null)} />
-        ) : reviews.isLoading ? (
-          <PageSkeleton rows={3} label="Loading reviews" />
-        ) : reviews.error || !reviews.data ? (
-          <PageError title="Reviews unavailable" description={reviews.error?.message} onRetry={reviews.refetch} />
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold tracking-tight">Plans to review</h2>
-              {reviews.data.awaitingDecisionCount > 0 ? (
-                <span className="rounded-full bg-warning/15 px-2 py-0.5 text-xs font-semibold text-warning tabular-nums">
-                  {reviews.data.awaitingDecisionCount}
-                </span>
-              ) : null}
-            </div>
+      {openPlanId ? (
+        // Focused decision: the workspace carries its own back affordance and identity header.
+        <ManagerDecisionWorkspace cycleId={cycle.id} planId={openPlanId} onBack={() => setOpenPlanId(null)} />
+      ) : (
+        <>
+          <PerformancePageHeading
+            title="Reviews"
+            description={
+              reviews.isLoading
+                ? undefined
+                : count === 0
+                  ? "No plans are waiting on you right now."
+                  : `${count} plan${count === 1 ? "" : "s"} need${count === 1 ? "s" : ""} your decision.`
+            }
+          />
+          {reviews.isLoading ? (
+            <PageSkeleton rows={3} label="Loading reviews" />
+          ) : reviews.error || !reviews.data ? (
+            <PageError title="Reviews unavailable" description={reviews.error?.message} onRetry={reviews.refetch} />
+          ) : (
             <PlanReviewQueue plans={reviews.data.plans} onOpen={setOpenPlanId} />
-          </div>
-        )}
-      </div>
+          )}
+        </>
+      )}
     </PageContainer>
   );
 }

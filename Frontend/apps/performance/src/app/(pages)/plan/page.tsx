@@ -2,9 +2,10 @@
 
 import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { CycleWorkspaceHeader } from "@/features/performance/components/cycle-workspace-header";
+import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
+import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { MyPlan } from "@/features/performance/components/plan/my-plan";
-import { usePerformanceAccess, useCurrentCycle, useCycles } from "@/features/performance/api/use-performance";
+import { usePerformanceAccess, useCurrentCycle } from "@/features/performance/api/use-performance";
 
 export default function PlanPage() {
   const access = usePerformanceAccess();
@@ -12,7 +13,6 @@ export default function PlanPage() {
   const canEnter = access.data?.canEnter ?? false;
 
   const detail = useCurrentCycle(canEnter);
-  const cycles = useCycles(canEnter);
   const cycle = detail.data?.cycle ?? null;
 
   if (access.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
@@ -39,10 +39,9 @@ export default function PlanPage() {
 
   return (
     <PageContainer>
-      <div className="space-y-8">
-        <CycleWorkspaceHeader cycle={cycle} cycles={cycles.data} onSelectCycle={() => undefined} />
-        <MyPlan cycle={cycle} />
-      </div>
+      <CycleContextBar cycle={cycle} />
+      <PerformancePageHeading title="My plan" />
+      <MyPlan cycle={cycle} />
     </PageContainer>
   );
 }

@@ -1,43 +1,35 @@
 "use client";
 
 import { Check } from "lucide-react";
-import type { PlanObjectiveDto, PlanReadinessDto } from "@repo/api";
+import type { PlanReadinessDto } from "@repo/api";
 import { AsyncButton } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { pct, weightTone } from "./plan-lib";
 
-const SEGMENT_COLORS = [
-  "bg-primary",
-  "bg-sky-500",
-  "bg-violet-500",
-  "bg-amber-500",
-  "bg-emerald-500",
-  "bg-rose-500",
-];
-
 /**
- * The Live Weight Summary — the always-visible readout of how a plan's weights add up to 100%.
- * A single segmented meter shows each objective's share proportionally; the total leads with a
- * large numeral and a plain readiness line (ready, still to assign, or over). It replaces a
- * validation error with a continuous, legible constraint so an invalid total is understood before
- * Submit is ever pressed.
+ * The always-visible readout of how a plan's weights add up to 100%. One meter shows the
+ * allocated share filling toward the target and any over-allocation; the total leads with a
+ * large numeral and a plain readiness line. It replaces a validation error with a continuous,
+ * legible constraint so an invalid total is understood before Submit is pressed. The per-objective
+ * weights live in the ledger above — this is the sum, not a second colour legend.
  */
 export function LiveWeightSummary({
-  objectives,
   readiness,
   canSubmit,
   onSubmit,
   submitting,
+  submitLabel = "Submit plan",
 }: {
-  objectives: PlanObjectiveDto[];
   readiness: PlanReadinessDto;
   canSubmit: boolean;
   onSubmit: () => void;
   submitting: boolean;
+  submitLabel?: string;
 }) {
   const total = readiness.weightTotal;
   const tone = weightTone(total);
   const remaining = readiness.weightRemaining;
+  const over = total > 100;
 
   const message =
     total === 100
@@ -47,20 +39,25 @@ export function LiveWeightSummary({
         : `Over by ${pct(-remaining)}%`;
 
   return (
-    <section className="rounded-2xl border bg-card p-5">
+    <section className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Plan weight</p>
+          <p className="type-eyebrow text-muted-foreground">Plan weight</p>
           <div className="mt-1 flex items-baseline gap-2">
             <span
               className={cn(
-                "text-4xl font-semibold tabular-nums tracking-tight",
+                "type-metric",
                 tone === "success" ? "text-success" : tone === "danger" ? "text-destructive" : "text-foreground"
               )}
             >
               {pct(total)}%
             </span>
-            <span className={cn("text-sm font-medium", tone === "success" ? "text-success" : "text-muted-foreground")}>
+            <span
+              className={cn(
+                "text-sm font-medium",
+                tone === "success" ? "text-success" : tone === "danger" ? "text-destructive" : "text-muted-foreground"
+              )}
+            >
               {tone === "success" ? (
                 <span className="inline-flex items-center gap-1">
                   <Check className="size-4" aria-hidden /> {message}
@@ -73,25 +70,24 @@ export function LiveWeightSummary({
         </div>
         {onSubmit ? (
           <AsyncButton pending={submitting} disabled={!canSubmit} onClick={onSubmit}>
-            Submit plan
+            {submitLabel}
           </AsyncButton>
         ) : null}
       </div>
 
-      {/* Segmented meter — each objective's proportional share, plus any unassigned remainder. */}
-      <div className="mt-4 flex h-2.5 w-full overflow-hidden rounded-full bg-muted" role="img" aria-label={`Plan weight ${pct(total)} percent of 100`}>
-        {objectives.map((objective, index) => {
-          const weight = objective.planWeight ?? 0;
-          if (weight <= 0) return null;
-          return (
-            <span
-              key={objective.id}
-              className={cn(SEGMENT_COLORS[index % SEGMENT_COLORS.length], "h-full")}
-              style={{ width: `${Math.min(weight, 100)}%` }}
-              title={`${objective.title} · ${pct(weight)}%`}
-            />
-          );
-        })}
+      {/* One meter: allocation toward 100%. Over-allocation shows a destructive overflow cap. */}
+      <div
+        className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-muted"
+        role="img"
+        aria-label={`Plan weight ${pct(total)} percent of 100`}
+      >
+        <span
+          className={cn(
+            "block h-full rounded-full transition-[width]",
+            over ? "bg-destructive" : tone === "success" ? "bg-success" : "bg-primary"
+          )}
+          style={{ width: `${Math.min(total, 100)}%` }}
+        />
       </div>
 
       {readiness.blockers.length > 0 ? (

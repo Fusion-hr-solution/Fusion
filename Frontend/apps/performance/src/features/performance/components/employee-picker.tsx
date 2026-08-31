@@ -12,6 +12,8 @@ import { useEmployeeSearch } from "../api/use-performance";
 export interface PickedEmployee {
   id: string;
   name: string;
+  /** Role / org context, shown under the name once a person is chosen. */
+  subtitle?: string;
 }
 
 export function EmployeePicker({
@@ -31,11 +33,30 @@ export function EmployeePicker({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between font-normal">
-          <span className={cn("flex items-center gap-2 truncate", !value && "text-muted-foreground")}>
-            <UserRound className="size-3.5" aria-hidden />
-            {value ? value.name : placeholder}
-          </span>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn("w-full justify-between font-normal", value && "h-auto py-2")}
+        >
+          {value ? (
+            <span className="flex min-w-0 items-center gap-2.5">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <UserRound className="size-3.5" aria-hidden />
+              </span>
+              <span className="min-w-0 text-left">
+                <span className="block truncate text-sm font-medium text-foreground">{value.name}</span>
+                {value.subtitle ? (
+                  <span className="block truncate text-xs text-muted-foreground">{value.subtitle}</span>
+                ) : null}
+              </span>
+            </span>
+          ) : (
+            <span className="flex items-center gap-2 truncate text-muted-foreground">
+              <UserRound className="size-3.5" aria-hidden />
+              {placeholder}
+            </span>
+          )}
           <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" aria-hidden />
         </Button>
       </PopoverTrigger>
@@ -64,7 +85,14 @@ export function EmployeePicker({
                   key={employee.employeeId}
                   type="button"
                   onClick={() => {
-                    onChange({ id: employee.employeeId, name: employee.displayName });
+                    const subtitle = [employee.jobTitle, employee.orgUnit?.name]
+                      .filter(Boolean)
+                      .join(" · ");
+                    onChange({
+                      id: employee.employeeId,
+                      name: employee.displayName,
+                      subtitle: subtitle || undefined,
+                    });
                     setOpen(false);
                   }}
                   className="flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"

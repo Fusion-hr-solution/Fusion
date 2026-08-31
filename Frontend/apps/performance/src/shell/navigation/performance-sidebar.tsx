@@ -8,8 +8,9 @@ import {
   filterModulesByEntitlement,
   ModuleSidebar,
   ShellUserPanel,
+  type ShellNavSection,
 } from "@repo/ds/shell";
-import { OVERVIEW_NAV } from "@/data/sidebar-nav";
+import { ADMIN_NAV, PRIMARY_NAV } from "@/data/sidebar-nav";
 import { resolvePerformanceAccess } from "@/shell/performance-access";
 
 export function PerformanceSidebar() {
@@ -27,13 +28,15 @@ export function PerformanceSidebar() {
     access.aggregateViewScope === "DirectReports" ||
     access.aggregateViewScope === "OrgUnit" ||
     access.aggregateViewScope === "Tenant";
-  const overviewItems = OVERVIEW_NAV.items.filter((item) => {
-    if (item.href === "/setup" || item.href === "/settings") return access.canAdminister;
+  const primaryItems = PRIMARY_NAV.items.filter((item) => {
     if (item.href === "/plan") return access.canParticipate;
     if (item.href === "/reviews") return canReview;
     if (item.href === "/contribution") return canReview || access.canPublishStrategy;
     return true;
   });
+
+  const sections: ShellNavSection[] = [{ ...PRIMARY_NAV, items: primaryItems }];
+  if (access.canAdminister) sections.push(ADMIN_NAV);
 
   return (
     <ModuleSidebar
@@ -41,7 +44,7 @@ export function PerformanceSidebar() {
       brandSubtitle="Workspace"
       brandIcon={BarChart3}
       activePath={activePath}
-      sections={[{ ...OVERVIEW_NAV, items: overviewItems }]}
+      sections={sections}
       pending={isAuthLoading}
       modules={filterModulesByEntitlement(FUSION_MODULES, user?.moduleEntitlements ?? [])}
       currentModuleKey="performance"

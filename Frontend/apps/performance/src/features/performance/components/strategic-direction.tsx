@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Gauge, MoreHorizontal, Plus, Send, Target, Trash2, UserRound } from "lucide-react";
+import { CalendarRange, Gauge, MoreHorizontal, Pencil, Plus, Send, Trash2, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import type { CycleSummaryDto, StrategicObjectiveDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
@@ -11,8 +11,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@repo/ds/components/ui/dropdown-menu";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@repo/ds/components/ui/empty";
-import { StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { useSaveStrategy } from "../api/use-performance";
 import { formatDateRange, measurementSummary } from "../lib";
@@ -35,6 +33,12 @@ export function StrategicDirection({
 
   const published = objectives.filter((objective) => objective.state === "Published");
   const drafts = objectives.filter((objective) => objective.state !== "Published");
+  const canAuthor = canPublish && !readOnly;
+
+  function openNew() {
+    setEditing(undefined);
+    setEditorOpen(true);
+  }
 
   async function handleSubmit(draft: ObjectiveDraft) {
     if (editing) {
@@ -66,57 +70,37 @@ export function StrategicDirection({
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">Strategic direction</h2>
-          <p className="text-sm text-muted-foreground">
-            The company outcomes this Cycle commits to. Published objectives become the alignment baseline.
-          </p>
-        </div>
-        {canPublish && !readOnly ? (
-          <Button
-            onClick={() => {
-              setEditing(undefined);
-              setEditorOpen(true);
-            }}
-          >
+        <h2 className="type-section-title text-foreground">Strategic direction</h2>
+        {canAuthor && objectives.length > 0 ? (
+          <Button onClick={openNew}>
             <Plus className="size-4" data-icon="inline-start" /> Add objective
           </Button>
         ) : null}
       </div>
 
       {objectives.length === 0 ? (
-        <Empty className="rounded-2xl border border-dashed">
-          <EmptyHeader>
-            <EmptyMedia variant="icon"><Target /></EmptyMedia>
-            <EmptyTitle>No direction set yet</EmptyTitle>
-            <EmptyDescription>
-              Strategic objectives describe where the company is going this Cycle. Publish at least one to open planning.
-            </EmptyDescription>
-          </EmptyHeader>
-          {canPublish && !readOnly ? (
-            <EmptyContent>
-              <Button
-                onClick={() => {
-                  setEditing(undefined);
-                  setEditorOpen(true);
-                }}
-              >
-                <Plus className="size-4" data-icon="inline-start" /> Add the first objective
-              </Button>
-            </EmptyContent>
+        <div className="max-w-lg space-y-4 py-2">
+          <p className="text-sm text-muted-foreground">
+            Strategic objectives are the company outcomes this Cycle commits to. Publish at least
+            one to open alignment and planning.
+          </p>
+          {canAuthor ? (
+            <Button onClick={openNew}>
+              <Plus className="size-4" data-icon="inline-start" /> Add the first objective
+            </Button>
           ) : null}
-        </Empty>
+        </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-7">
           {drafts.length > 0 ? (
             <section className="space-y-3">
-              <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Draft — not yet cascading</p>
-              <div className="grid gap-3">
+              <p className="type-eyebrow text-muted-foreground">In draft · not yet cascading</p>
+              <div className="space-y-3">
                 {drafts.map((objective) => (
                   <ObjectiveCard
                     key={objective.id}
                     objective={objective}
-                    canPublish={canPublish && !readOnly}
+                    canAuthor={canAuthor}
                     onEdit={() => {
                       setEditing(objective);
                       setEditorOpen(true);
@@ -145,10 +129,10 @@ export function StrategicDirection({
 
           {published.length > 0 ? (
             <section className="space-y-3">
-              <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">Published direction</p>
-              <div className="grid gap-3">
+              <p className="type-eyebrow text-muted-foreground">Published direction</p>
+              <div className="space-y-3">
                 {published.map((objective) => (
-                  <ObjectiveCard key={objective.id} objective={objective} canPublish={false} />
+                  <ObjectiveCard key={objective.id} objective={objective} canAuthor={false} />
                 ))}
               </div>
             </section>
@@ -156,85 +140,103 @@ export function StrategicDirection({
         </div>
       )}
 
-      <ObjectiveEditor open={editorOpen} onOpenChange={setEditorOpen} cycle={cycle} objective={editing} onSubmit={handleSubmit} />
+      <ObjectiveEditor
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+        cycle={cycle}
+        objective={editing}
+        onSubmit={handleSubmit}
+      />
     </div>
   );
 }
 
 function ObjectiveCard({
   objective,
-  canPublish,
+  canAuthor,
   onEdit,
   onPublish,
   onDelete,
 }: {
   objective: StrategicObjectiveDto;
-  canPublish: boolean;
+  canAuthor: boolean;
   onEdit?: () => void;
   onPublish?: () => void;
   onDelete?: () => void;
 }) {
-  const isPublished = objective.state === "Published";
+  const isDraft = objective.state !== "Published";
+
   return (
     <article
       className={cn(
-        "group relative rounded-2xl border p-5 transition-colors",
-        isPublished ? "border-border bg-card" : "border-primary/30 bg-primary/[0.03]"
+        "rounded-2xl border p-5",
+        isDraft
+          ? "border-dashed border-primary/40 bg-primary/[0.02]"
+          : "border-primary/25 bg-primary/[0.04]"
       )}
     >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-1">
-          <h3 className="text-base font-semibold tracking-tight">{objective.title}</h3>
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="type-panel-title text-foreground">{objective.title}</h3>
+            {isDraft ? (
+              <span className="inline-flex items-center gap-1 rounded-full border border-dotted border-primary/50 bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
+                Draft
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-primary-foreground">
+                Published
+              </span>
+            )}
+          </div>
           {objective.description ? (
             <p className="max-w-prose text-sm text-muted-foreground">{objective.description}</p>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <StatusBadge tone={isPublished ? "success" : "info"} dot>
-            {isPublished ? "Published" : "Draft"}
-          </StatusBadge>
-          {canPublish ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label="Objective actions">
-                  <MoreHorizontal className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onSelect={onEdit}>Edit</DropdownMenuItem>
-                <DropdownMenuItem onSelect={onDelete} variant="destructive">
-                  <Trash2 className="size-3.5" /> Remove
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
-        </div>
+        {canAuthor ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label="Objective actions">
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={onEdit}>
+                <Pencil className="size-3.5" /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onDelete} variant="destructive">
+                <Trash2 className="size-3.5" /> Remove
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
 
-      <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-        <div className="flex items-center gap-1.5">
-          <UserRound className="size-3.5 text-muted-foreground" aria-hidden />
-          <dt className="sr-only">Accountable</dt>
-          <dd>{objective.accountablePersonName ?? "Accountable person"}</dd>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+          <span className="inline-flex items-center gap-1.5">
+            <UserRound className="size-3.5 text-primary/70" aria-hidden />
+            <span className="font-medium text-foreground">
+              {objective.accountablePersonName ?? "Unassigned"}
+            </span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Gauge className="size-3.5 text-primary/70" aria-hidden />
+            <span className="tabular-nums text-foreground">
+              {measurementSummary(objective.measurement)}
+            </span>
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <CalendarRange className="size-3.5 text-primary/70" aria-hidden />
+            {formatDateRange(objective.startDate, objective.endDate)}
+          </span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <Gauge className="size-3.5 text-muted-foreground" aria-hidden />
-          <dt className="sr-only">Measurement</dt>
-          <dd className="text-muted-foreground">{measurementSummary(objective.measurement)}</dd>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <dt className="sr-only">Period</dt>
-          <dd className="text-muted-foreground">{formatDateRange(objective.startDate, objective.endDate)}</dd>
-        </div>
-      </dl>
-
-      {canPublish && !isPublished ? (
-        <div className="mt-4 flex justify-end">
+        {canAuthor && isDraft ? (
           <Button size="sm" onClick={onPublish}>
             <Send className="size-3.5" data-icon="inline-start" /> Publish
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </article>
   );
 }

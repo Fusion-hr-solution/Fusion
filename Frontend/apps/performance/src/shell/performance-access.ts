@@ -11,6 +11,7 @@ const PERFORMANCE_PERMISSION = {
   cycleManage: "performance.cycle.manage",
   strategyPublish: "performance.strategy.publish",
   objectiveSelfManage: "performance.objective.self.manage",
+  objectiveOrgManage: "performance.objective.org.manage",
 } as const;
 
 /**
@@ -44,6 +45,11 @@ export function resolvePerformanceAccess(
       user,
       PERFORMANCE_PERMISSION.objectiveSelfManage,
       "Self",
+    ),
+    canManageOrgObjectives: hasCorePermission(
+      user,
+      PERFORMANCE_PERMISSION.objectiveOrgManage,
+      "Tenant",
     ),
     aggregateViewScope: resolveAggregateViewScope(user),
   };

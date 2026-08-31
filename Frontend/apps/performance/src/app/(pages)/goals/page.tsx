@@ -10,12 +10,13 @@ import { Button } from "@repo/ds/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@repo/ds/components/ui/tabs";
 import { PageContainer, PageError, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { CycleWorkspaceHeader } from "@/features/performance/components/cycle-workspace-header";
+import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
+import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { AlignmentMap } from "@/features/performance/components/goals/alignment-map";
 import { GoalsList } from "@/features/performance/components/goals/goals-list";
 import { ObjectiveContextPanel } from "@/features/performance/components/goals/objective-context-panel";
 import { OrgObjectiveComposer } from "@/features/performance/components/goals/org-objective-composer";
-import { usePerformanceAccess, useCurrentCycle, useCycles, useGoals, useGoalMutations } from "@/features/performance/api/use-performance";
+import { usePerformanceAccess, useCurrentCycle, useGoals, useGoalMutations } from "@/features/performance/api/use-performance";
 
 export default function GoalsPage() {
   const router = useRouter();
@@ -25,7 +26,6 @@ export default function GoalsPage() {
   const canEnter = access.data?.canEnter ?? false;
 
   const detail = useCurrentCycle(canEnter);
-  const cycles = useCycles(canEnter);
   const cycle = detail.data?.cycle ?? null;
   const goals = useGoals(cycle?.id ?? null, canEnter);
   const mutations = useGoalMutations(cycle?.id ?? "");
@@ -51,26 +51,28 @@ export default function GoalsPage() {
     );
   }
 
-  const canAuthorUnder = (parent: GoalNodeDto) =>
-    (access.data?.canAdminister ?? false) ||
-    (parent.ownershipScope === "Company" && (access.data?.canPublishStrategy ?? false)) ||
-    (myEmployeeId != null && parent.accountablePersonId === myEmployeeId);
-
-  // For the Alignment Map's inline "Add under X" affordances, the map passes the focus node.
-  const canAuthorFromMap = (parent: GoalNodeDto) => canAuthorUnder(parent);
+  // Authoring organizational objectives is governed by organizational-scope management authority
+  // (governed admin, or the org-manage grant). The precise per-org-unit check — the objective's
+  // owning unit must be the caller's own unit or a descendant — is enforced server-side when the
+  // unit is chosen, so this only decides whether to offer the affordance at all.
+  const canAuthorOrgObjectives =
+    (access.data?.canAdminister ?? false) || (access.data?.canManageOrgObjectives ?? false);
 
   return (
     <PageContainer>
-      <div className="space-y-8">
-        <CycleWorkspaceHeader
-          cycle={cycle}
-          cycles={cycles.data}
-          onSelectCycle={() => undefined}
-          actions={cycle.state === "Draft" && (access.data?.canAdminister ?? false) ? (
-            <Button variant="outline" onClick={() => router.push("/setup")}>Cycle setup</Button>
-          ) : undefined}
-        />
-
+      <CycleContextBar cycle={cycle} />
+      <PerformancePageHeading
+        title="Goals"
+        description="How company direction cascades into organizational objectives."
+        actions={
+          cycle.state === "Draft" && (access.data?.canAdminister ?? false) ? (
+            <Button variant="outline" onClick={() => router.push("/setup")}>
+              Cycle setup
+            </Button>
+          ) : undefined
+        }
+      />
+      <div className="space-y-6">
         {goals.isLoading ? (
           <PageSkeleton rows={4} label="Loading goals" />
         ) : goals.error || !goals.data ? (
@@ -82,7 +84,7 @@ export default function GoalsPage() {
                 <TabsTrigger value="alignment"><GitBranch className="size-4" data-icon="inline-start" /> Alignment</TabsTrigger>
                 <TabsTrigger value="list"><ListChecks className="size-4" data-icon="inline-start" /> List</TabsTrigger>
               </TabsList>
-              {goals.data.strategicCount > 0 && (access.data?.canAdminister || access.data?.canPublishStrategy) ? (
+              {goals.data.strategicCount > 0 && canAuthorOrgObjectives ? (
                 <Button
                   size="sm"
                   onClick={() => {
@@ -110,10 +112,7 @@ export default function GoalsPage() {
                 onFocus={setFocusId}
                 onInspect={setPanelId}
                 onCreateUnder={(parent) => setComposer({ parent })}
-                canAuthor={focusId ? (() => {
-                  const focus = goals.data!.nodes.find((n) => n.id === focusId);
-                  return focus ? canAuthorFromMap(focus) : false;
-                })() : (access.data?.canAdminister || access.data?.canPublishStrategy) ?? false}
+                canAuthor={canAuthorOrgObjectives}
               />
             </TabsContent>
 
@@ -151,6 +150,7 @@ export default function GoalsPage() {
           }}
           parent={composer.parent}
           objective={composer.editing}
+          defaultAccountable={myEmployeeId ? { id: myEmployeeId, name: user?.fullName ?? "You" } : null}
           onCreate={async (request) => {
             const result = await mutations.create.mutateAsync(request);
             toast.success("Objective created.");

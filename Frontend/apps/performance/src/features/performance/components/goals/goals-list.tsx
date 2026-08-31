@@ -9,7 +9,7 @@ import { StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { initials, scopeLabel, STATE_LABEL, STATE_TONE } from "./goals-lib";
 
-type Filter = "all" | "attention" | ObjectiveLifecycleState;
+type Filter = "all" | ObjectiveLifecycleState;
 
 export function GoalsList({ overview, onInspect }: { overview: GoalsOverviewDto; onInspect: (id: string) => void }) {
   const [query, setQuery] = useState("");
@@ -19,9 +19,8 @@ export function GoalsList({ overview, onInspect }: { overview: GoalsOverviewDto;
     const org = overview.nodes.filter((node) => node.ownershipScope === "OrgUnit");
     return [
       { key: "all", label: "All", count: overview.nodes.length },
-      { key: "attention", label: "Awaiting decision", count: org.filter((n) => n.state === "Submitted").length },
       { key: "Draft", label: "Draft", count: org.filter((n) => n.state === "Draft").length },
-      { key: "Approved", label: "Approved", count: org.filter((n) => n.state === "Approved").length },
+      { key: "Published", label: "Published", count: org.filter((n) => n.state === "Published").length },
     ];
   }, [overview.nodes]);
 
@@ -29,7 +28,6 @@ export function GoalsList({ overview, onInspect }: { overview: GoalsOverviewDto;
     const term = query.trim().toLowerCase();
     return overview.nodes
       .filter((node) => {
-        if (filter === "attention") return node.state === "Submitted";
         if (filter !== "all") return node.state === filter;
         return true;
       })

@@ -5,11 +5,10 @@ import type { ApiClient } from "./types";
 export type MeasurementMethod = "ManualPercentage" | "NumericTarget" | "WeightedMilestones";
 export type ImprovementDirection = "Increase" | "Decrease";
 export type CycleLifecycleState = "Draft" | "Active" | "Closed";
-export type ObjectiveLifecycleState = "Draft" | "Published" | "Submitted" | "Approved";
+export type ObjectiveLifecycleState = "Draft" | "Published";
 export type PopulationMode = "AllActive" | "ByScope";
 export type ObjectiveOwnershipScope = "Company" | "OrgUnit" | "Employee";
 export type ObjectiveProgressSource = "Direct" | "Calculated";
-export type ObjectiveDecisionKind = "Submitted" | "Approved" | "Returned";
 export type PlanLifecycleState = "Draft" | "Submitted" | "Approved";
 export type PlanApprovalKind = "Normal" | "Exceptional";
 export type PlanDecisionKind = "Submitted" | "Returned" | "Approved" | "ApprovedExceptionally";
@@ -31,6 +30,10 @@ export interface PerformanceAccessDto {
   canAdminister: boolean;
   canPublishStrategy: boolean;
   canParticipate: boolean;
+  /** Holds the organizational-objective management grant (`objective.org.manage @Tenant`). In the
+   *  direct MVP this is coarse tenant-wide authority; it governs whether to offer the "establish
+   *  objective" affordance. The server still enforces the capability on every action. */
+  canManageOrgObjectives: boolean;
   aggregateViewScope: string | null;
 }
 
@@ -197,7 +200,7 @@ export interface GoalsOverviewDto {
   cycleEnd: string;
   strategicCount: number;
   organizationalCount: number;
-  awaitingDecisionCount: number;
+  publishedCount: number;
   draftCount: number;
   nodes: GoalNodeDto[];
 }
@@ -209,14 +212,6 @@ export interface ContributionLinkDto {
   weight: number;
 }
 
-export interface ObjectiveDecisionDto {
-  kind: ObjectiveDecisionKind;
-  actorEmployeeId: string;
-  actorName: string | null;
-  feedback: string | null;
-  decidedAt: string;
-}
-
 export interface GoalDetailDto {
   node: GoalNodeDto;
   description: string | null;
@@ -225,10 +220,8 @@ export interface GoalDetailDto {
   children: GoalNodeDto[];
   measurement: MeasurementDto | null;
   contribution: ContributionLinkDto[];
-  history: ObjectiveDecisionDto[];
   canEdit: boolean;
-  canSubmit: boolean;
-  canDecide: boolean;
+  canPublish: boolean;
   canConfigureContribution: boolean;
 }
 
@@ -257,10 +250,6 @@ export interface UpdateOrganizationalObjectiveRequest {
 
 export interface AlignObjectiveRequest {
   parentObjectiveId: string;
-}
-
-export interface ReturnObjectiveRequest {
-  feedback: string;
 }
 
 export interface ContributionInput {
@@ -585,9 +574,7 @@ export const performancePaths = {
   goals: (cycleId: string) => `/performance/cycles/${cycleId}/goals`,
   goal: (cycleId: string, objectiveId: string) => `/performance/cycles/${cycleId}/goals/${objectiveId}`,
   alignGoal: (cycleId: string, objectiveId: string) => `/performance/cycles/${cycleId}/goals/${objectiveId}/align`,
-  submitGoal: (cycleId: string, objectiveId: string) => `/performance/cycles/${cycleId}/goals/${objectiveId}/submit`,
-  approveGoal: (cycleId: string, objectiveId: string) => `/performance/cycles/${cycleId}/goals/${objectiveId}/approve`,
-  returnGoal: (cycleId: string, objectiveId: string) => `/performance/cycles/${cycleId}/goals/${objectiveId}/return`,
+  publishGoal: (cycleId: string, objectiveId: string) => `/performance/cycles/${cycleId}/goals/${objectiveId}/publish`,
   goalContribution: (cycleId: string, objectiveId: string) => `/performance/cycles/${cycleId}/goals/${objectiveId}/contribution`,
   lockGoalContribution: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/goals/${objectiveId}/contribution/lock`,
@@ -690,12 +677,8 @@ export function createPerformanceApi(client: ApiClient) {
       client.put<GoalDetailDto>(performancePaths.goal(cycleId, objectiveId), request),
     alignGoal: (cycleId: string, objectiveId: string, request: AlignObjectiveRequest) =>
       client.post<GoalDetailDto>(performancePaths.alignGoal(cycleId, objectiveId), request),
-    submitGoal: (cycleId: string, objectiveId: string) =>
-      client.post<GoalDetailDto>(performancePaths.submitGoal(cycleId, objectiveId), {}),
-    approveGoal: (cycleId: string, objectiveId: string) =>
-      client.post<GoalDetailDto>(performancePaths.approveGoal(cycleId, objectiveId), {}),
-    returnGoal: (cycleId: string, objectiveId: string, request: ReturnObjectiveRequest) =>
-      client.post<GoalDetailDto>(performancePaths.returnGoal(cycleId, objectiveId), request),
+    publishGoal: (cycleId: string, objectiveId: string) =>
+      client.post<GoalDetailDto>(performancePaths.publishGoal(cycleId, objectiveId), {}),
     configureGoalContribution: (cycleId: string, objectiveId: string, request: ConfigureContributionRequest) =>
       client.put<GoalDetailDto>(performancePaths.goalContribution(cycleId, objectiveId), request),
     lockGoalContribution: (cycleId: string, objectiveId: string) =>

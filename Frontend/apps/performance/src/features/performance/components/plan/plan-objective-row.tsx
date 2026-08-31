@@ -90,11 +90,13 @@ export function PlanObjectiveRow({
           </div>
         ) : null}
         {showProgress && objective.canUpdateProgress ? (
-          <Button variant="ghost" size="sm" onClick={onOpenProgress}>
+          <Button variant="outline" size="sm" onClick={onOpenProgress}>
             <LineChart className="size-3.5" data-icon="inline-start" /> Update
           </Button>
         ) : showProgress ? (
-          <Button variant="ghost" size="sm" onClick={onOpenProgress}>View</Button>
+          <Button variant="ghost" size="sm" onClick={onOpenProgress}>
+            View
+          </Button>
         ) : null}
       </div>
     </div>

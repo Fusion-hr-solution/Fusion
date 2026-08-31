@@ -37,18 +37,17 @@ export function AlignmentMap({
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb context */}
+      {/* Breadcrumb context — only while focused; the root level needs no crumb
+          (the Cycle name already sits in the context bar above). */}
+      {focus ? (
       <nav className="flex flex-wrap items-center gap-1 text-sm" aria-label="Alignment path">
         <button
           type="button"
           onClick={() => onFocus(null)}
-          className={cn(
-            "rounded-md px-2 py-1 font-medium transition-colors hover:bg-muted",
-            focus ? "text-muted-foreground hover:text-foreground" : "text-foreground"
-          )}
+          className="rounded-md px-2 py-1 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <Building2 className="mr-1.5 inline size-3.5 align-[-2px]" aria-hidden />
-          {overview.cycleName}
+          Direction
         </button>
         {[...trail, ...(focus ? [focus] : [])].map((node, index, all) => (
           <span key={node.id} className="flex items-center gap-1">
@@ -67,6 +66,7 @@ export function AlignmentMap({
           </span>
         ))}
       </nav>
+      ) : null}
 
       {focus ? (
         <FocusView
@@ -78,7 +78,7 @@ export function AlignmentMap({
           onCreateUnder={onCreateUnder}
         />
       ) : (
-        <CompanyView roots={children} onFocus={onFocus} onInspect={onInspect} cycleName={overview.cycleName} />
+        <CompanyView roots={children} onFocus={onFocus} onInspect={onInspect} />
       )}
     </div>
   );
@@ -88,12 +88,10 @@ function CompanyView({
   roots,
   onFocus,
   onInspect,
-  cycleName,
 }: {
   roots: GoalNodeDto[];
   onFocus: (id: string) => void;
   onInspect: (id: string) => void;
-  cycleName: string;
 }) {
   if (roots.length === 0) {
     return (
@@ -108,10 +106,7 @@ function CompanyView({
   }
   return (
     <section className="space-y-4">
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">Strategic direction</span>
-        <span className="text-xs text-muted-foreground">· {cycleName}</span>
-      </div>
+      <p className="type-eyebrow text-muted-foreground">Strategic direction</p>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {roots.map((node) => (
           <ObjectiveCard key={node.id} node={node} onFocus={onFocus} onInspect={onInspect} />
@@ -255,7 +250,7 @@ function ObjectiveCard({
         <Avatar className="size-5">
           <AvatarFallback className="text-[9px]">{initials(node.accountablePersonName)}</AvatarFallback>
         </Avatar>
-        <span className="truncate">{node.accountablePersonName ?? "Accountable person"}</span>
+        <span className="truncate">{node.accountablePersonName ?? "Unassigned"}</span>
       </div>
 
       <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">

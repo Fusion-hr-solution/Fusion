@@ -39,7 +39,8 @@ export function SettingsForm({ settings }: { settings: CycleSettingsDto }) {
 
   return (
     <div className="max-w-2xl">
-      <div className="divide-y">
+      <p className="type-eyebrow mb-1 text-muted-foreground">Planning and objectives</p>
+      <div className="divide-y divide-border border-t border-border">
         <Row
           title="Default measurement method"
           hint="Offered first when a new objective is created. Authors can still choose another."
@@ -113,7 +114,7 @@ export function SettingsForm({ settings }: { settings: CycleSettingsDto }) {
         />
       </div>
 
-      <div className="mt-6 flex items-center justify-end gap-3">
+      <div className="mt-4 flex items-center justify-end gap-3 border-t border-border pt-4">
         {dirty ? <span className="text-sm text-muted-foreground">Unsaved changes</span> : null}
         <AsyncButton
           pending={update.isLoading}

@@ -115,13 +115,14 @@ export function EvidenceUploader({
             {uploading ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Paperclip className="size-3.5" data-icon="inline-start" />}
             {uploading ? "Uploading" : "Attach file"}
           </Button>
+          <span className="text-xs text-muted-foreground">or drop here</span>
+          <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
           <Button variant="ghost" size="sm" onClick={() => setMode("link")}>
             <Link2 className="size-3.5" data-icon="inline-start" /> Link
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setMode("reference")}>
             <Type className="size-3.5" data-icon="inline-start" /> Reference
           </Button>
-          <span className="ml-auto hidden text-xs text-muted-foreground sm:block">or drop a file</span>
         </div>
       ) : null}
 

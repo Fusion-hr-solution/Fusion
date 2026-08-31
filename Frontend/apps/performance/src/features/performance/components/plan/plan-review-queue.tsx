@@ -20,17 +20,16 @@ export function PlanReviewQueue({
 }) {
   if (plans.length === 0) {
     return (
-      <div className="mx-auto max-w-md rounded-2xl border border-dashed p-10 text-center">
-        <Inbox className="mx-auto size-6 text-muted-foreground" aria-hidden />
-        <p className="mt-3 text-base font-medium">Nothing awaiting you</p>
-        <p className="mt-1 text-sm text-muted-foreground">Submitted plans appear here when your reports send them for review.</p>
-      </div>
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Inbox className="size-4" aria-hidden />
+        Submitted plans appear here when your reports send them for review.
+      </p>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border bg-card">
-      <div className="divide-y">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="divide-y divide-border">
         {plans.map((plan) => (
           <button
             key={plan.id}
@@ -38,27 +37,31 @@ export function PlanReviewQueue({
             onClick={() => onOpen(plan.id)}
             className="group flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/40"
           >
-            <Avatar className="size-9">
+            <Avatar className="size-10">
               <AvatarFallback className="text-xs">{initials(plan.employee.name)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium">{plan.employee.name ?? "Employee"}</p>
-              <p className="truncate text-xs text-muted-foreground">{plan.orgUnitName ?? "No organizational unit"}</p>
-            </div>
-            <div className="hidden text-right sm:block">
-              <p className="text-sm tabular-nums">
+              <p className="truncate font-medium text-foreground">{plan.employee.name ?? "Employee"}</p>
+              <p className="truncate text-xs text-muted-foreground">
+                {plan.orgUnitName ?? "No organizational unit"}
+                <span aria-hidden> · </span>
                 {plan.objectiveCount} objective{plan.objectiveCount === 1 ? "" : "s"}
-              </p>
-              <p className={cn("text-xs tabular-nums", plan.weightTotal === 100 ? "text-muted-foreground" : "text-warning")}>
-                {pct(plan.weightTotal)}% weight
+                <span aria-hidden> · </span>
+                <span className={cn("tabular-nums", plan.weightTotal === 100 ? "" : "text-warning")}>
+                  {pct(plan.weightTotal)}% weight
+                </span>
               </p>
             </div>
             {plan.submittedAt ? (
-              <span className="hidden w-28 text-right text-xs text-muted-foreground md:block">
-                {new Date(plan.submittedAt).toLocaleDateString()}
+              <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">
+                Submitted{" "}
+                {new Date(plan.submittedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
               </span>
             ) : null}
-            <ChevronRight className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" aria-hidden />
+            <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary">
+              Review
+              <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+            </span>
           </button>
         ))}
       </div>

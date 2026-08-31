@@ -35,7 +35,7 @@ export function ObjectiveProgressPanel({
           <SheetDescription className="sr-only">Record and review progress for this objective.</SheetDescription>
           {progress ? (
             <div className="mt-2 flex items-baseline gap-2">
-              <span className={cn("text-3xl font-semibold tabular-nums", progress.derivedProgress >= 100 ? "text-success" : "text-foreground")}>
+              <span className={cn("type-metric", progress.derivedProgress >= 100 ? "text-success" : "text-foreground")}>
                 {progress.hasProgress ? `${pct(progress.derivedProgress)}%` : "—"}
               </span>
               <span className="text-sm text-muted-foreground">{progress.hasProgress ? "current progress" : "no progress recorded"}</span>
@@ -59,7 +59,7 @@ export function ObjectiveProgressPanel({
             ) : null}
 
             <div>
-              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">History</p>
+              <p className="mb-3 type-eyebrow text-muted-foreground">History</p>
               <ProgressHistory history={progress.history} downloadHref={(path) => `/api${path}`} />
             </div>
           </div>
