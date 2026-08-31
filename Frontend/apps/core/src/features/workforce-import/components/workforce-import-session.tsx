@@ -2,7 +2,23 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@repo/ds";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@repo/ds";
+import { ChevronDown, FileUp, Trash2 } from "lucide-react";
 import {
   translateWorkforceImportError,
   type WorkforceApplyStatusDto,
@@ -11,11 +27,14 @@ import {
   type WorkforceReviewOutdatedResultDto,
   type WorkforceSemanticSuggestionDto,
 } from "@repo/api";
+import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
 
 import { ImportShell, ImportContentColumn, type ImportStep } from "./import-shell";
 import { WorkforceInterpretation, type StagedDecisions } from "./workforce-interpretation";
 import { WorkforceReviewWorkspace } from "./workforce-review-workspace";
 import { WorkforceApplyState } from "./workforce-apply-state";
+import { ImportProcessing } from "@/features/data-import/components/import-processing";
+import { workforceOnrampConfig } from "@/features/data-import/model/import-descriptor";
 import { useWorkforceApplyStatus, useWorkforceImportApi, useWorkforceImportSession } from "../api/use-workforce-import";
 
 type Phase = "loading" | "preparing" | "interpret" | "review" | "applying" | "expired";
@@ -48,41 +67,23 @@ export function WorkforceImportSession({ sessionId }: { sessionId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
-  const [understanding, setUnderstanding] = useState<string>("Reading employee data");
   const prepared = useRef(false);
+
+  // Give the session a meaningful breadcrumb leaf instead of the generic "Details" fallback.
+  useBreadcrumbLabel(sessionId, "Review");
 
   const applyStatus = useWorkforceApplyStatus(session?.id ?? null, phase === "applying");
 
-  // Fusion understands the source automatically. Deterministic interpretation runs first; when it
-  // leaves column meanings unresolved, semantic assistance runs and confident mappings are accepted
-  // into the proposal without the administrator ever operating the interpretation engine. Only
-  // genuinely ambiguous meaning (or a name/date-format choice) falls through to Needs input.
+  // Deterministic interpretation decides the phase — the same file always routes the same way, never
+  // on whether the AI happened to answer. If deterministic interpretation resolves every required
+  // field, we go straight to review; otherwise the Understand-columns step opens, where AI is offered
+  // as an in-step assist the administrator stays in control of (spec §17), not a silent phase gate.
   const prepare = useCallback(
     async (s: WorkforceImportSessionDto) => {
       setPhase("preparing");
-      setUnderstanding("Reading employee data");
       try {
-        let result = await api.prepare(s.id, s.version);
-        let current = await api.session(s.id);
-
-        if (result.interpretation.unresolvedColumnIndexes.length > 0) {
-          setUnderstanding("Understanding the columns");
-          const suggested = await api.suggestMeanings(s.id).catch(() => null);
-          const mappings: Record<number, string> = {};
-          if (suggested?.available) {
-            for (const suggestion of suggested.suggestions) mappings[suggestion.columnIndex] = suggestion.targetField;
-          }
-          if (Object.keys(mappings).length > 0) {
-            setUnderstanding("Resolving organization and reporting");
-            await api.decide(current.id, current.version, { columnMappings: mappings });
-            current = await api.session(current.id);
-            result = await api.prepare(current.id, current.version);
-            current = await api.session(current.id);
-          }
-          if (!suggested?.available) setSuggestReason(suggested?.reason ?? null);
-        }
-
-        setUnderstanding("Preparing review");
+        const result = await api.prepare(s.id, s.version);
+        const current = await api.session(s.id);
         setInterpretation(result.interpretation);
         setSession(current);
         const needsInterp =
@@ -164,6 +165,22 @@ export function WorkforceImportSession({ sessionId }: { sessionId: string }) {
     }
   }, [api, session]);
 
+  // When the Understand-columns step opens with unresolved columns, read them once up front so each
+  // column arrives already understood (a suggestion to accept), not as a blank "Choose meaning". The
+  // phase stays deterministic; AI only fills the step's content, and manual controls remain if it's down.
+  useEffect(() => {
+    if (
+      phase === "interpret" &&
+      interpretation &&
+      interpretation.unresolvedColumnIndexes.length > 0 &&
+      suggestions === null &&
+      !suggesting &&
+      !suggestReason
+    ) {
+      void onSuggest();
+    }
+  }, [phase, interpretation, suggestions, suggesting, suggestReason, onSuggest]);
+
   const onCommit = useCallback(async () => {
     if (!session) return;
     setBusy(true);
@@ -191,6 +208,39 @@ export function WorkforceImportSession({ sessionId }: { sessionId: string }) {
     }
   }, [api, session, router]);
 
+  // Replace the source in place when the row data itself is wrong — the fix belongs in the file, not in
+  // a hundred inline edits (spec §32). The new source re-runs interpretation and lands back in review.
+  const onReplaceSource = useCallback(
+    async (file: File) => {
+      if (!session) return;
+      setError(null);
+      setBusy(true);
+      try {
+        const updated = await api.replaceSource(session.id, session.version, file);
+        setSession(updated);
+        await prepare(updated);
+      } catch (e) {
+        setError(translateWorkforceImportError(e).message);
+        setPhase("review");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [api, session, prepare]
+  );
+
+  const onDiscard = useCallback(async () => {
+    if (!session) return;
+    setBusy(true);
+    try {
+      await api.discard(session.id, session.version);
+      router.push("/people/import");
+    } catch (e) {
+      setError(translateWorkforceImportError(e).message);
+      setBusy(false);
+    }
+  }, [api, session, router]);
+
   // React to the Apply operation while applying.
   useEffect(() => {
     const status = applyStatus.data;
@@ -206,10 +256,16 @@ export function WorkforceImportSession({ sessionId }: { sessionId: string }) {
 
   const step = STEP[phase];
   const source = session ? { fileName: session.source.fileName } : null;
+  // Source details / replace / discard — an escape hatch available whenever a source exists, so a
+  // wrong or misaligned file is never a dead end (spec §33/§35A).
+  const sourceMenu =
+    session && phase !== "applying" ? (
+      <SourceMenu source={session.source} busy={busy} onReplace={onReplaceSource} onDiscard={onDiscard} />
+    ) : undefined;
 
   if (phase === "review" && session) {
     return (
-      <ImportShell step={step} baseline={session.baselineDate} source={source}>
+      <ImportShell step={step} baseline={session.baselineDate} source={source} sourceActions={sourceMenu}>
         <WorkforceReviewWorkspace
           session={session}
           onSession={setSession}
@@ -223,7 +279,7 @@ export function WorkforceImportSession({ sessionId }: { sessionId: string }) {
   }
 
   return (
-    <ImportShell step={step} baseline={session?.baselineDate} source={source}>
+    <ImportShell step={step} baseline={session?.baselineDate} source={source} sourceActions={sourceMenu}>
       {phase === "applying" && session ? (
         // Full-body so the loader is centered on the page, not inside the review column.
         <WorkforceApplyState
@@ -250,8 +306,15 @@ export function WorkforceImportSession({ sessionId }: { sessionId: string }) {
           />
         </ImportContentColumn>
       ) : (
-        // Full-body so the processing state is centered on the page, like the applying loader.
-        <UnderstandingState status={understanding} />
+        // The same staged processing hand-off the on-ramp shows, so Reading → Understanding → Review
+        // is one continuous treatment rather than a second, different loader.
+        <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-8">
+          <ImportProcessing
+            phase="interpreting"
+            fileName={session?.source.fileName ?? "your file"}
+            copy={workforceOnrampConfig.processing}
+          />
+        </div>
       )}
     </ImportShell>
   );
@@ -261,54 +324,83 @@ const DEFAULT_APPLY: WorkforceApplyStatusDto = {
   status: "Queued", phase: "Preparing", processed: 0, total: null, result: null, reviewOutdated: null, message: null,
 };
 
-const UNDERSTANDING_STEPS = [
-  "Reading employee data",
-  "Understanding the columns",
-  "Resolving organization and reporting",
-  "Preparing review",
-];
-
 /**
- * One stable processing state — never a blank flash or a bare spinner. The heading holds while the
- * quiet sub-status tracks the real operation; the steps ahead are shown dim so the surface has a
- * calm, bounded shape rather than a fake percentage.
+ * Source details as a quiet header control: replace the file when the row data is wrong, or discard the
+ * whole import — the two escape hatches that keep a misaligned source from being a dead end.
  */
-function UnderstandingState({ status }: { status: string }) {
-  const currentIndex = Math.max(0, UNDERSTANDING_STEPS.indexOf(status));
+function SourceMenu({
+  source,
+  busy,
+  onReplace,
+  onDiscard,
+}: {
+  source: WorkforceImportSessionDto["source"];
+  busy: boolean;
+  onReplace: (file: File) => void;
+  onDiscard: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [discardOpen, setDiscardOpen] = useState(false);
   return (
-    // Fills the shell's flex body so the state is centered on both axes of the page,
-    // not within a narrow left-aligned content column.
-    <div className="flex min-h-0 flex-1 items-center justify-center px-6 py-8">
-      <div className="flex max-w-md flex-col items-center text-center">
-        <div className="flex items-center gap-2.5">
-          <span className="size-2 animate-pulse rounded-full bg-primary motion-reduce:animate-none" aria-hidden />
-          <h2 className="type-title font-semibold text-foreground">Understanding your workforce</h2>
-        </div>
-        <p className="mt-1.5 type-body text-muted-foreground">
-          Reading the employee data, understanding the columns, and preparing work and reporting relationships.
-        </p>
-        <ol className="mt-6 space-y-2" aria-live="polite">
-          {UNDERSTANDING_STEPS.map((label, index) => {
-            const state = index < currentIndex ? "done" : index === currentIndex ? "active" : "todo";
-            return (
-              <li key={label} className="flex items-center justify-center gap-2.5 type-meta">
-                <span
-                  aria-hidden
-                  className={
-                    state === "done"
-                      ? "size-1.5 rounded-full bg-primary"
-                      : state === "active"
-                        ? "size-1.5 rounded-full bg-primary animate-pulse motion-reduce:animate-none"
-                        : "size-1.5 rounded-full border border-[var(--color-border)]"
-                  }
-                />
-                <span className={state === "todo" ? "text-muted-foreground/50" : "text-muted-foreground"}>{label}</span>
-              </li>
-            );
-          })}
-        </ol>
-      </div>
-    </div>
+    <>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) onReplace(file);
+        }}
+      />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" disabled={busy} className="text-muted-foreground">
+            Source details
+            <ChevronDown className="size-3.5" aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-64">
+          <div className="px-2 py-1.5">
+            <p className="type-meta text-muted-foreground">Source file</p>
+            <p className="truncate type-label font-medium text-foreground">{source.fileName ?? "—"}</p>
+            {source.selectedSheet ? (
+              <p className="mt-0.5 type-meta text-muted-foreground">Sheet · {source.selectedSheet}</p>
+            ) : null}
+          </div>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled={busy} onClick={() => fileRef.current?.click()}>
+            <FileUp className="size-4" aria-hidden />
+            Replace source…
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem variant="destructive" disabled={busy} onClick={() => setDiscardOpen(true)}>
+            <Trash2 className="size-4" aria-hidden />
+            Discard import
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard this import?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The uploaded source and your review decisions will be removed. No employees have been added.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep import</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={onDiscard}>
+              Discard import
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 

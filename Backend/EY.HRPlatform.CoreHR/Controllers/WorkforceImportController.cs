@@ -21,8 +21,17 @@ public sealed class WorkforceImportController(
     WorkforceImportReviewService review,
     WorkforceImportApplyOperationService apply,
     WorkforceImportSemanticService semantic,
+    IWorkforceImportTemplateService templateService,
     ICoreAccessPolicyService accessPolicy) : ControllerBase
 {
+    [HttpGet("template")]
+    public IActionResult DownloadTemplate()
+    {
+        if (!accessPolicy.CanImportEmployees(User)) return Forbid();
+        var template = templateService.Create();
+        return File(template.Bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", template.FileName);
+    }
+
     [HttpGet("active")]
     public async Task<IActionResult> GetActive(CancellationToken cancellationToken)
     {
@@ -97,16 +106,26 @@ public sealed class WorkforceImportController(
         return Ok(ApiResponse<WorkforceReviewPageDto>.Success(pageDto));
     }
 
+    [HttpGet("{sessionId:guid}/manager-candidates")]
+    public async Task<IActionResult> GetManagerCandidates(Guid sessionId, [FromQuery] string? reference, [FromQuery] string? query, CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanImportEmployees(User)) return Forbid();
+        var result = await Guarded(() => review.GetImportManagerCandidatesAsync(sessionId, reference, query, cancellationToken));
+        if (result is IActionResult error) return error;
+        return Ok(ApiResponse<IReadOnlyList<WorkforceManagerCandidateDto>>.Success((IReadOnlyList<WorkforceManagerCandidateDto>)result!));
+    }
+
     [HttpPut("{sessionId:guid}/decisions")]
     public async Task<IActionResult> ApplyDecision(Guid sessionId, [FromHeader(Name = "If-Match")] string? ifMatch, [FromBody] WorkforceDecisionRequest body, CancellationToken cancellationToken)
     {
         // Resolve a picked manager's public Employee Key to its canonical id (keys, not GUIDs, are public).
         var resolved = body;
-        if (body.ManagerRowNumber is { } row && !string.IsNullOrWhiteSpace(body.ManagerEmployeeKey))
+        if (!string.IsNullOrWhiteSpace(body.ManagerEmployeeKey)
+            && (body.ManagerRowNumber is not null || !string.IsNullOrWhiteSpace(body.ManagerReference)))
         {
             var id = await review.ResolveEmployeeKeyAsync(body.ManagerEmployeeKey!, cancellationToken);
             if (id is null) return UnprocessableEntity(ApiResponse.Failure("That employee could not be found."));
-            resolved = body with { ManagerEmployeeId = id, ManagerRowNumber = row };
+            resolved = body with { ManagerEmployeeId = id };
         }
         return await MutateReview(sessionId, ifMatch, version => review.ApplyDecisionAsync(sessionId, version, doc => resolved.Apply(doc), Actor(), cancellationToken));
     }
@@ -223,7 +242,10 @@ public sealed record WorkforceDecisionRequest(
     string? OrganizationSourceValue, Guid? OrganizationUnitId,
     int? ManagerRowNumber, Guid? ManagerEmployeeId, string? ManagerEmployeeKey, bool? NoManager,
     int? ExcludeRow, int? IncludeRow, int? KeepFusionUnchangedRow, int? KeepAsDistinctRow,
-    bool? NormalizeWorkDatesToBaseline = null)
+    bool? NormalizeWorkDatesToBaseline = null,
+    // Reference-scoped manager resolution: point this manager reference at an existing employee, at a
+    // person in this import, or none — applied to every row reporting to that reference.
+    string? ManagerReference = null, int? ManagerImportRowNumber = null)
 {
     public void Apply(WorkforceImportDecisionDoc doc)
     {
@@ -231,8 +253,26 @@ public sealed record WorkforceDecisionRequest(
         if (DateFormat is not null) doc.DateFormat = DateFormat;
         if (NameFormat is not null) doc.NameFormat = NameFormat;
         if (OrganizationSourceValue is not null && OrganizationUnitId is { } orgId) doc.OrganizationBySourceValue[OrganizationSourceValue.Trim().ToLowerInvariant()] = orgId;
-        if (ManagerRowNumber is { } mr && ManagerEmployeeId is { } mgr) doc.ManagerEmployeeByRow[mr] = mgr;
-        if (ManagerRowNumber is { } nmr && NoManager == true) doc.NoManagerRows.Add(nmr);
+
+        // Reference-scoped manager decision — one choice resolves every report of this reference; setting
+        // one option clears the others so re-deciding is clean.
+        if (!string.IsNullOrWhiteSpace(ManagerReference))
+        {
+            var key = ManagerReference.Trim().ToUpperInvariant();
+            doc.ManagerEmployeeByReference.Remove(key);
+            doc.ManagerImportRowByReference.Remove(key);
+            doc.NoManagerByReference.Remove(key);
+            if (ManagerEmployeeId is { } refMgr) doc.ManagerEmployeeByReference[key] = refMgr;
+            else if (ManagerImportRowNumber is { } refRow) doc.ManagerImportRowByReference[key] = refRow;
+            else if (NoManager == true) doc.NoManagerByReference.Add(key);
+        }
+        else
+        {
+            // Legacy per-row manager decision (kept for compatibility).
+            if (ManagerRowNumber is { } mr && ManagerEmployeeId is { } mgr) doc.ManagerEmployeeByRow[mr] = mgr;
+            if (ManagerRowNumber is { } nmr && NoManager == true) doc.NoManagerRows.Add(nmr);
+        }
+
         if (ExcludeRow is { } ex) doc.ExcludedRows.Add(ex);
         if (IncludeRow is { } inc) doc.ExcludedRows.Remove(inc);
         if (KeepFusionUnchangedRow is { } keep) doc.KeepFusionUnchangedRows.Add(keep);

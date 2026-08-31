@@ -1,5 +1,7 @@
 using System.Reflection;
 using System.Security.Claims;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Spreadsheet;
 using EY.HRPlatform.CoreHR.Controllers;
 using EY.HRPlatform.CoreHR.Features.Employees.Import;
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
@@ -23,8 +25,24 @@ public sealed class WorkforceImportControllerTests
         Assert.Equal("api/corehr/employees/import", route!.Template);
     }
 
+    [Fact]
+    public void Template_service_creates_a_valid_xlsx_with_workforce_headers()
+    {
+        var template = new WorkforceImportTemplateService().Create();
+
+        Assert.Equal("Fusion-workforce-template.xlsx", template.FileName);
+        using var document = SpreadsheetDocument.Open(new MemoryStream(template.Bytes), false);
+        var sheet = document.WorkbookPart!.Workbook.Sheets!.Elements<Sheet>().Single();
+        var worksheet = (WorksheetPart)document.WorkbookPart.GetPartById(sheet.Id!);
+        var headers = worksheet.Worksheet.Descendants<Cell>().Select(cell => cell.InnerText).ToArray();
+
+        Assert.Equal(WorkforceImportTemplateService.SheetName, sheet.Name!.Value);
+        Assert.Equal(WorkforceImportTemplateService.Headers, headers);
+    }
+
     [Theory]
     [InlineData(nameof(WorkforceImportController.Intake), typeof(HttpPostAttribute), "intake")]
+    [InlineData(nameof(WorkforceImportController.DownloadTemplate), typeof(HttpGetAttribute), "template")]
     [InlineData(nameof(WorkforceImportController.SelectHeader), typeof(HttpPutAttribute), "{sessionId:guid}/header")]
     [InlineData(nameof(WorkforceImportController.ChangeBaseline), typeof(HttpPutAttribute), "{sessionId:guid}/baseline")]
     [InlineData(nameof(WorkforceImportController.ReplaceSource), typeof(HttpPostAttribute), "{sessionId:guid}/replace-source")]
@@ -77,7 +95,7 @@ public sealed class WorkforceImportControllerTests
     {
         var policy = new Mock<ICoreAccessPolicyService>();
         policy.Setup(p => p.CanImportEmployees(It.IsAny<ClaimsPrincipal>())).Returns(canImport);
-        return new WorkforceImportController(null!, null!, null!, null!, policy.Object)
+        return new WorkforceImportController(null!, null!, null!, null!, null!, policy.Object)
         {
             ControllerContext = new ControllerContext
             {

@@ -9,6 +9,8 @@ import {
   translateWorkforceImportError,
   type WorkforceDecisionRequest,
   type WorkforceImportSessionDto,
+  type WorkforceIssueCategory,
+  type WorkforceReviewIssueGroupDto,
   type WorkforceReviewResult,
   type WorkforceReviewRowDto,
 } from "@repo/api";
@@ -32,11 +34,34 @@ function useMediaQuery(query: string) {
   return matches;
 }
 const FILTERS: Array<{ key: string; label: string; count: (s: WorkforceImportSessionDto["counts"]) => number; unit?: string; tone?: StatusTone }> = [
-  { key: "NeedsAttention", label: "Needs attention", count: (c) => c.needsAttentionCount, unit: "people", tone: "warning" },
-  { key: "NewEmployee", label: "New", count: (c) => c.newCount },
+  { key: "NeedsAttention", label: "To decide", count: (c) => c.needsAttentionCount, tone: "warning" },
+  { key: "NewEmployee", label: "Ready", count: (c) => c.newCount },
   { key: "ExistingAnchor", label: "Existing", count: (c) => c.existingAnchorCount },
   { key: "Excluded", label: "Excluded", count: (c) => c.excludedCount },
 ];
+
+// What each kind of remaining decision *is*, in product language — so the review says "3 organizations
+// to match · 40 people" instead of one alarming "57 need attention" total. `scope` shows the affected
+// people only when a decision genuinely fans out (grouping collapses many rows into one choice).
+const CATEGORY_COPY: Record<WorkforceIssueCategory, { one: string; many: string; verb: string; error?: boolean }> = {
+  organization: { one: "organization", many: "organizations", verb: "to match" },
+  workdate: { one: "work date", many: "work dates", verb: "to establish" },
+  manager: { one: "manager", many: "managers", verb: "to confirm" },
+  difference: { one: "existing record", many: "existing records", verb: "to review" },
+  identity: { one: "identity", many: "identities", verb: "to check" },
+  lifecycle: { one: "row", many: "rows", verb: "to review" },
+  data: { one: "row", many: "rows", verb: "to fix in your file", error: true },
+};
+
+function describeGroup(g: WorkforceReviewIssueGroupDto): { label: string; scope: string | null; error: boolean } {
+  const copy = CATEGORY_COPY[g.category];
+  const noun = g.decisionCount === 1 ? copy.one : copy.many;
+  return {
+    label: `${g.decisionCount} ${noun} ${copy.verb}`,
+    scope: g.affectedPeople > g.decisionCount ? `${g.affectedPeople} people` : null,
+    error: copy.error ?? false,
+  };
+}
 
 const RESULT_TONE: Record<WorkforceReviewResult, StatusTone> = {
   New: "success",
@@ -92,11 +117,10 @@ export function WorkforceReviewWorkspace({
   const rows = useMemo(() => review.data?.rows ?? [], [review.data]);
   // Distinct decisions still to make (grouped), not the affected-employee count.
   const openIssues = review.data?.summary.counts.openIssueCount ?? counts.needsAttentionCount;
-  // The one grouped migration decision: current work dated before the Organization existed in Fusion.
-  const temporalIssue = useMemo(
-    () => rows.flatMap((r) => r.issues).find((i) => i.decisionKey === "workdate-history"),
-    [rows]
-  );
+  // The remaining work broken down by kind, computed session-wide by the server (not from the current
+  // page) so the breakdown and the temporal band are stable regardless of which rows are visible.
+  const issueGroups = useMemo(() => review.data?.summary.issueGroups ?? [], [review.data]);
+  const temporalGroup = useMemo(() => issueGroups.find((g) => g.category === "workdate"), [issueGroups]);
 
   // When the last blocker clears, don't strand the reviewer on an empty "Needs attention"
   // view — reveal the workforce being created so the Ready region is the real confirmation.
@@ -164,34 +188,57 @@ export function WorkforceReviewWorkspace({
     <div className="flex min-h-0 flex-1 flex-col">
       {outdatedBanner}
 
-      {/* Counts + filters + search. */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-2.5">
-        <div className="flex items-center gap-1">
-          {FILTERS.map((f) => {
-            const n = f.count(counts);
-            const active = filter === f.key;
-            return (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => { setFilter(f.key); setPage(1); }}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 type-meta transition-colors",
-                  active ? "bg-muted font-semibold text-foreground" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {f.tone && n > 0 ? <span className={cn("size-1.5 rounded-full", f.tone === "warning" ? "bg-[var(--color-warning)]" : "bg-current")} aria-hidden /> : null}
-                {f.label}
-                <span className="text-muted-foreground/50" aria-hidden>·</span>
-                <span className="tabular-nums text-muted-foreground">{n}{f.unit ? ` ${f.unit}` : ""}</span>
-              </button>
-            );
-          })}
+      {/* Outcome first: lead with how many are ready, then name the remaining work by its kind
+          (small decision counts) — never a single alarming "N need attention" total. */}
+      <div className="border-b border-border px-6 py-3.5">
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-2">
+              <span className="text-[1.75rem] font-semibold leading-none tabular-nums text-foreground">{counts.newCount}</span>
+              <span className="type-body text-muted-foreground">
+                {counts.newCount === 1 ? "person" : "people"} ready to import
+                {hasBlockers ? (
+                  <>
+                    {" · "}
+                    <span className="font-medium text-foreground tabular-nums">{openIssues}</span>{" "}
+                    {openIssues === 1 ? "decision" : "decisions"} before you add the rest
+                  </>
+                ) : null}
+              </span>
+            </div>
+            {issueGroups.length > 0 ? (
+              <ReviewBreakdown groups={issueGroups} onPick={() => { setFilter("NeedsAttention"); setPage(1); }} />
+            ) : null}
+          </div>
+          <div className="relative shrink-0">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Input value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="Search people…" className="h-8 w-56 pl-8 type-meta" />
+          </div>
         </div>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <Input value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="Search people…" className="h-8 w-56 pl-8 type-meta" />
-        </div>
+      </div>
+
+      {/* Quiet filter tabs — navigation between result groups, not the headline. */}
+      <div className="flex flex-wrap items-center gap-1 border-b border-border px-6 py-1.5">
+        {FILTERS.map((f) => {
+          const n = f.count(counts);
+          const active = filter === f.key;
+          return (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => { setFilter(f.key); setPage(1); }}
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-2.5 py-1 type-meta transition-colors",
+                active ? "bg-muted font-semibold text-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {f.tone && n > 0 ? <span className={cn("size-1.5 rounded-full", f.tone === "warning" ? "bg-[var(--color-warning)]" : "bg-current")} aria-hidden /> : null}
+              {f.label}
+              <span className="text-muted-foreground/50" aria-hidden>·</span>
+              <span className="tabular-nums text-muted-foreground">{n}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Table + inspector. Desktop: table + persistent inspector. Narrow: full-width
@@ -208,7 +255,7 @@ export function WorkforceReviewWorkspace({
         </div>
         {wide ? (
           <aside className="min-h-0 border-l border-border bg-card/40">
-            <WorkforceReviewInspector row={selectedRow} baseline={session.baselineDate} busy={busy} onDecide={applyDecision} />
+            <WorkforceReviewInspector row={selectedRow} baseline={session.baselineDate} sessionId={session.id} busy={busy} onDecide={applyDecision} />
           </aside>
         ) : inspectorOpen && selectedRow ? (
           <>
@@ -222,7 +269,7 @@ export function WorkforceReviewWorkspace({
               >
                 <X className="size-4" aria-hidden />
               </button>
-              <WorkforceReviewInspector row={selectedRow} baseline={session.baselineDate} busy={busy} onDecide={applyDecision} />
+              <WorkforceReviewInspector row={selectedRow} baseline={session.baselineDate} sessionId={session.id} busy={busy} onDecide={applyDecision} />
             </aside>
           </>
         ) : null}
@@ -231,9 +278,10 @@ export function WorkforceReviewWorkspace({
       {/* Command region — stable; explains state or shows Ready summary. */}
       <div className="border-t border-border px-6 py-3">
         {error ? <p className="mb-2 type-meta text-[var(--color-destructive)]">{error}</p> : null}
-        {hasBlockers && temporalIssue ? (
+        {hasBlockers && temporalGroup && issueGroups.length === 1 ? (
+          // Temporal is the only work left — surface the one-click batch as the finishing action.
           <TemporalNormalizationRegion
-            affected={temporalIssue.affectedCount}
+            affected={temporalGroup.affectedPeople}
             baseline={session.baselineDate}
             onNormalize={() => applyDecision({ normalizeWorkDatesToBaseline: true })}
             onReview={() => { setFilter("NeedsAttention"); setPage(1); }}
@@ -243,14 +291,10 @@ export function WorkforceReviewWorkspace({
           <div className="flex items-center justify-between gap-4">
             <p className="type-body text-muted-foreground">
               <span className="font-semibold text-foreground tabular-nums">{openIssues}</span>{" "}
-              {openIssues === 1 ? "issue" : "issues"} to resolve
-              <span className="text-muted-foreground">
-                {" · "}
-                {counts.needsAttentionCount} {counts.needsAttentionCount === 1 ? "employee" : "employees"} affected
-              </span>
+              {openIssues === 1 ? "decision" : "decisions"} left before you can import
             </p>
             <Button variant="outline" onClick={goToNextAttention} disabled={busy}>
-              Next issue
+              Next decision
               <ChevronRight className="size-4" aria-hidden />
             </Button>
           </div>
@@ -260,6 +304,36 @@ export function WorkforceReviewWorkspace({
           <ReadyRegion counts={counts} onCommit={onCommit} committing={committing} />
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Names the remaining work by its kind — "3 organizations to match · 40 people" — so the reviewer
+ * sees a short, honest to-do (a few decisions) instead of a wall of "N need attention". Each kind is
+ * a quiet affordance into the attention queue; genuine data errors read in the destructive tone.
+ */
+function ReviewBreakdown({ groups, onPick }: { groups: WorkforceReviewIssueGroupDto[]; onPick: () => void }) {
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+      {groups.map((g) => {
+        const d = describeGroup(g);
+        return (
+          <button
+            key={g.category}
+            type="button"
+            onClick={onPick}
+            className="flex items-center gap-1.5 type-meta text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span
+              className={cn("size-1.5 shrink-0 rounded-full", d.error ? "bg-[var(--color-destructive)]" : "bg-[var(--color-warning)]")}
+              aria-hidden
+            />
+            <span className="font-medium text-foreground">{d.label}</span>
+            {d.scope ? <span className="text-muted-foreground/80">· {d.scope}</span> : null}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -325,15 +399,17 @@ function ReviewTable({
                 <p className="truncate type-body text-foreground">{row.work.displayTitle ?? "—"}</p>
                 {row.work.organization ? <p className="truncate type-meta text-muted-foreground">{row.work.organization}</p> : null}
               </td>
-              <td className="hidden px-3 py-2.5 type-meta lg:table-cell">
+              <td className="hidden max-w-[12rem] px-3 py-2.5 type-meta lg:table-cell">
                 {row.manager.state === "NoManager" ? (
                   <span className="text-muted-foreground">No manager</span>
                 ) : row.manager.state === "Unresolved" ? (
-                  <span className="text-[var(--color-warning)]">{row.manager.display ?? "Unresolved"}</span>
+                  <span className="block truncate text-[var(--color-warning)]">{row.manager.display ?? "Unresolved"}</span>
                 ) : (
-                  <span className="block min-w-0">
-                    <span className="block truncate text-foreground">{row.manager.display ?? "—"}</span>
-                    {row.manager.subtext ? <span className="block truncate text-muted-foreground">{row.manager.subtext}</span> : null}
+                  // One truncating line, so "Name · also being added" clips as a whole rather than
+                  // breaking into a second cut-off row.
+                  <span className="block truncate text-foreground">
+                    {row.manager.display ?? "—"}
+                    {row.manager.subtext ? <span className="text-muted-foreground"> · {row.manager.subtext.toLowerCase()}</span> : null}
                   </span>
                 )}
               </td>

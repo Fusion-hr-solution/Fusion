@@ -82,13 +82,23 @@ public sealed class WorkforceImportInterpreterTests
     }
 
     [Fact]
-    public void Work_effective_absent_uses_baseline()
+    public void Work_effective_absent_uses_employment_start()
     {
         var row = Run(
             ["First Name", "Last Name", "Employment Start", "Organization", "Title"],
             [["Amina", "Mansour", "2021-02-01", "Ops", "Lead"]]).Rows[0];
-        Assert.Equal(Baseline, row.WorkEffectiveFrom);
+        Assert.Equal(new DateOnly(2021, 2, 1), row.WorkEffectiveFrom); // Employment Start, never the import baseline
         Assert.DoesNotContain(row.Issues, i => i.Field == WorkforceImportField.WorkEffectiveFrom);
+    }
+
+    [Fact]
+    public void Current_assignment_since_maps_to_work_effective_from()
+    {
+        var result = Run(
+            ["First Name", "Last Name", "Employment Start", "Current Assignment Since", "Organization", "Title"],
+            [["Amina", "Mansour", "2021-02-01", "2023-05-15", "Ops", "Lead"]]);
+        Assert.Contains(result.Mappings, m => m.Field == WorkforceImportField.WorkEffectiveFrom);
+        Assert.Equal(new DateOnly(2023, 5, 15), result.Rows[0].WorkEffectiveFrom);
     }
 
     [Fact]

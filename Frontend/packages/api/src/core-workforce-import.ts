@@ -111,6 +111,27 @@ export interface WorkforceReviewCountsDto {
   openIssueCount: number;
 }
 
+/** Stable issue-category keys the review breaks its remaining work down by. */
+export type WorkforceIssueCategory =
+  | "organization"
+  | "workdate"
+  | "manager"
+  | "difference"
+  | "identity"
+  | "lifecycle"
+  | "data";
+
+/**
+ * One kind of outstanding decision, so the review can say what the remaining work *is*
+ * ("3 organizations to match · 40 people") instead of one alarming affected-people total.
+ * `decisionCount` is grouped (shared values counted once); `affectedPeople` is rows touched.
+ */
+export interface WorkforceReviewIssueGroupDto {
+  category: WorkforceIssueCategory;
+  decisionCount: number;
+  affectedPeople: number;
+}
+
 export type WorkforceReviewState = "NoRows" | "NothingNew" | "NothingIncluded" | "Reviewable";
 
 export interface WorkforceReviewSummaryDto {
@@ -120,6 +141,7 @@ export interface WorkforceReviewSummaryDto {
   version: number;
   reviewDigest: string | null;
   affectedRows: number;
+  issueGroups: WorkforceReviewIssueGroupDto[];
 }
 
 export interface WorkforceReviewPageDto {
@@ -128,6 +150,15 @@ export interface WorkforceReviewPageDto {
   pageSize: number;
   totalMatching: number;
   summary: WorkforceReviewSummaryDto;
+}
+
+/** A person being added in this same import, offered as a candidate manager. */
+export interface WorkforceManagerCandidateDto {
+  sourceRowNumber: number;
+  displayName: string;
+  employeeNumber: string | null;
+  numberGenerated: boolean;
+  title: string | null;
 }
 
 export interface WorkforceColumnMappingDto {
@@ -214,6 +245,10 @@ export interface WorkforceDecisionRequest {
   managerRowNumber?: number;
   managerEmployeeKey?: string;
   noManager?: boolean;
+  /** Reference-scoped manager resolution: resolves every row reporting to this manager reference. */
+  managerReference?: string;
+  /** Point the manager reference at a person being added in this same import. */
+  managerImportRowNumber?: number;
   excludeRow?: number;
   includeRow?: number;
   keepFusionUnchangedRow?: number;
@@ -231,6 +266,7 @@ export interface WorkforceImportProblem {
 
 const base = "/corehr/employees/import";
 export const coreWorkforceImportPaths = {
+  template: () => `${base}/template`,
   active: () => `${base}/active`,
   session: (id: string) => `${base}/${id}`,
   intake: () => `${base}/intake`,
@@ -239,6 +275,7 @@ export const coreWorkforceImportPaths = {
   replaceSource: (id: string) => `${base}/${id}/replace-source`,
   prepare: (id: string) => `${base}/${id}/prepare`,
   review: (id: string) => `${base}/${id}/review`,
+  managerCandidates: (id: string) => `${base}/${id}/manager-candidates`,
   decisions: (id: string) => `${base}/${id}/decisions`,
   semanticSuggestions: (id: string) => `${base}/${id}/semantic-suggestions`,
   finish: (id: string) => `${base}/${id}/finish`,
@@ -252,6 +289,8 @@ export const coreWorkforceImportQueryKeys = {
   session: (id: string) => [...coreWorkforceImportQueryKeys.all(), "session", id] as const,
   review: (id: string, filter: string, query: string, page: number) =>
     [...coreWorkforceImportQueryKeys.all(), "review", id, filter, query, page] as const,
+  managerCandidates: (id: string, reference: string, query: string) =>
+    [...coreWorkforceImportQueryKeys.all(), "managerCandidates", id, reference, query] as const,
   commit: (id: string) => [...coreWorkforceImportQueryKeys.all(), "commit", id] as const,
 } as const;
 
@@ -282,6 +321,8 @@ export function translateWorkforceImportError(error: unknown): WorkforceImportPr
 export function createCoreWorkforceImportApi(client: ApiClient) {
   const ifMatch = (version: number) => ({ headers: { "If-Match": workforceImportIfMatch(version) } });
   return {
+    downloadTemplate: (signal?: AbortSignal) =>
+      client.get<Blob>(coreWorkforceImportPaths.template(), { responseType: "blob", signal }),
     active: (signal?: AbortSignal) =>
       client.get<WorkforceImportSessionDto | null>(coreWorkforceImportPaths.active(), { signal }),
     session: (id: string, signal?: AbortSignal) =>
@@ -311,6 +352,11 @@ export function createCoreWorkforceImportApi(client: ApiClient) {
       params: { filter?: string; query?: string; page?: number; pageSize?: number },
       signal?: AbortSignal
     ) => client.get<WorkforceReviewPageDto>(coreWorkforceImportPaths.review(id), { params, signal }),
+    managerCandidates: (
+      id: string,
+      params: { reference?: string; query?: string },
+      signal?: AbortSignal
+    ) => client.get<WorkforceManagerCandidateDto[]>(coreWorkforceImportPaths.managerCandidates(id), { params, signal }),
     decide: (id: string, version: number, decision: WorkforceDecisionRequest) =>
       client.put<WorkforceReviewSummaryDto>(coreWorkforceImportPaths.decisions(id), decision, ifMatch(version)),
     suggestMeanings: (id: string) =>

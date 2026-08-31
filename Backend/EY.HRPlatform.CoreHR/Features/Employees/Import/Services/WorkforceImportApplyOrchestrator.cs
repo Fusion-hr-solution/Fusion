@@ -166,6 +166,24 @@ public sealed class WorkforceImportApplyOrchestrator(
                 onPhase?.Invoke("Saving", ++processed, included.Count);
             }
 
+            // Existing-employee managers were established in a prior import at their own (historical)
+            // assignment date; look those up so an initial relationship never predates the manager's
+            // own assignment. Same-import managers use their resolved establishment date directly.
+            var existingManagerIds = included
+                .Select(r => r.Manager)
+                .Where(m => m.Kind == ManagerResolutionKind.ExistingEmployee && m.EmployeeId is not null)
+                .Select(m => m.EmployeeId!.Value)
+                .Distinct()
+                .ToList();
+            var existingManagerAssignmentFrom = existingManagerIds.Count == 0
+                ? new Dictionary<Guid, DateTime>()
+                : (await context.WorkAssignments.AsNoTracking()
+                        .Where(w => w.IsPrimary && w.EffectiveTo == null && existingManagerIds.Contains(w.EmployeeId))
+                        .Select(w => new { w.EmployeeId, w.EffectiveFrom })
+                        .ToListAsync(cancellationToken))
+                    .GroupBy(w => w.EmployeeId)
+                    .ToDictionary(g => g.Key, g => g.Max(x => x.EffectiveFrom));
+
             // Manager relationships once the same-batch employee graph exists.
             foreach (var row in included)
             {
@@ -176,9 +194,22 @@ public sealed class WorkforceImportApplyOrchestrator(
                     _ => (Guid?)null,
                 };
                 if (managerEmployeeId is null) continue;
-                // The initial primary manager relationship is established on the SAME date as the
-                // subject's work assignment (its resolvedWorkEffectiveDate), not the import baseline.
-                var managerEffective = resolvedRowByNumber[row.SourceRowNumber].ResolvedWorkEffectiveDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+
+                // The initial primary manager relationship begins at the later of the subject's and the
+                // manager's resolved work-assignment dates, so it never predates either assignment (nor
+                // the import baseline). Coherent with ChangeManagerAsync, which requires both parties to
+                // have an active primary assignment on the relationship's effective date.
+                var subjectEffective = resolvedRowByNumber[row.SourceRowNumber].ResolvedWorkEffectiveDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
+                var managerAssignmentEffective = row.Manager.Kind switch
+                {
+                    ManagerResolutionKind.SameImportRow when row.Manager.SameImportSourceRowNumber is int mn
+                        => resolvedRowByNumber[mn].ResolvedWorkEffectiveDate.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc),
+                    ManagerResolutionKind.ExistingEmployee when existingManagerAssignmentFrom.TryGetValue(managerEmployeeId.Value, out var from)
+                        => from,
+                    _ => subjectEffective,
+                };
+                var managerEffective = subjectEffective >= managerAssignmentEffective ? subjectEffective : managerAssignmentEffective;
+
                 var managerResult = await mutation.ChangeManagerAsync(employeeIdByRow[row.SourceRowNumber],
                     new ChangeManagerInput(managerEmployeeId.Value, managerEffective, WorkforceSourceType.Import, sourceRef, session.Id), actorName, cancellationToken);
                 if (managerResult.IsFailure) throw MutationFailure(managerResult.Error.Code);

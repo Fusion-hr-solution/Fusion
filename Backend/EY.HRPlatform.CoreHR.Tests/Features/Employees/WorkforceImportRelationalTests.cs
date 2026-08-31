@@ -631,21 +631,34 @@ public sealed class WorkforceImportRelationalTests
                 // Blank optional email is valid, never fabricated.
                 var amina = await db.Employees.SingleAsync(e => e.FirstName == "Amina");
                 Assert.True(string.IsNullOrWhiteSpace(amina.Email));
-                // Employment keeps the historical hire date; current work is established at the baseline.
+                // Employment keeps the historical hire date; current work is established from each
+                // employee's Employment Start (no source work date), never the import day.
                 var aminaEmployment = await db.Employments.SingleAsync(e => e.EmployeeId == amina.Id && e.EffectiveTo == null);
                 Assert.Equal(new DateOnly(2020, 6, 1), DateOnly.FromDateTime(aminaEmployment.EffectiveFrom));
-                Assert.All(await db.WorkAssignments.ToListAsync(), a => Assert.Equal(today, DateOnly.FromDateTime(a.EffectiveFrom)));
-                // Initial manager relationships are established on the SAME date as the work assignment.
-                Assert.All(await db.ManagerRelationships.Where(m => m.EffectiveTo == null).ToListAsync(),
-                    m => Assert.Equal(today, DateOnly.FromDateTime(m.EffectiveFrom)));
+                var youssef = await db.Employees.SingleAsync(e => e.FirstName == "Youssef");
+                var youssefAssignment = await db.WorkAssignments.SingleAsync(w => w.EmployeeId == youssef.Id && w.EffectiveTo == null);
+                var aminaAssignment = await db.WorkAssignments.SingleAsync(w => w.EmployeeId == amina.Id && w.EffectiveTo == null);
+                var samiAssignment = await db.WorkAssignments.SingleAsync(w => w.EmployeeId == sami.Id && w.EffectiveTo == null);
+                Assert.Equal(new DateOnly(2018, 3, 1), DateOnly.FromDateTime(youssefAssignment.EffectiveFrom));
+                Assert.Equal(new DateOnly(2020, 6, 1), DateOnly.FromDateTime(aminaAssignment.EffectiveFrom));
+                Assert.Equal(new DateOnly(2019, 9, 1), DateOnly.FromDateTime(samiAssignment.EffectiveFrom));
+                Assert.NotEqual(today, DateOnly.FromDateTime(youssefAssignment.EffectiveFrom)); // no longer the import day
+                // The initial primary manager relationship begins at the later of the subject's and the
+                // manager's assignment dates, so it never predates either assignment.
+                var aminaManagerRel = await db.ManagerRelationships.SingleAsync(m => m.SubjectEmployeeId == amina.Id && m.EffectiveTo == null);
+                Assert.Equal(new DateOnly(2020, 6, 1), DateOnly.FromDateTime(aminaManagerRel.EffectiveFrom)); // max(Amina 2020-06, Youssef 2018-03)
+                var samiManagerRel = await db.ManagerRelationships.SingleAsync(m => m.SubjectEmployeeId == sami.Id && m.EffectiveTo == null);
+                Assert.Equal(new DateOnly(2020, 6, 1), DateOnly.FromDateTime(samiManagerRel.EffectiveFrom)); // max(Sami 2019-09, Amina 2020-06)
             }
         });
     }
 
     [RelationalDatabaseFact]
-    public async Task Work_dates_before_organization_history_block_before_apply_with_one_grouped_issue()
+    public async Task Historical_work_dates_before_org_fusion_establishment_are_accepted_and_returned_by_active_as_of()
     {
-        // Current work dated years before the Organization was established in Fusion.
+        // Current work dated years before the Organization was established in Fusion. The unit's Fusion
+        // EstablishedFrom is the import date, not proof the real unit did not exist earlier, so these
+        // establish cleanly (regression: an imported-today OrgUnit accepts a historical WorkAssignment).
         const string csv = "Employee Number,First Name,Last Name,Employment Start,Work Details Effective From,Organization,Title\n"
             + "E-600,Amina,Mansour,2018-01-01,2019-01-01,OPS,Consultant\n"
             + "E-601,Youssef,BenAli,2017-05-01,2020-03-01,OPS,Director\n";
@@ -659,17 +672,37 @@ public sealed class WorkforceImportRelationalTests
             {
                 var current = await db.WorkforceImportSessions.AsNoTracking().SingleAsync(s => s.Id == sessionId);
                 var summary = await Review(db, tenantId).RecomputeAndSaveAsync(sessionId, current.Version, Actor, default);
-                Assert.Equal(2, summary.Counts.NeedsAttention);
-                Assert.False(summary.CanCommit); // never a false "Ready"
-                Assert.Equal(1, summary.Counts.OpenIssueCount); // ONE grouped decision, not two rows
+                Assert.Equal(2, summary.Counts.New);
+                Assert.Equal(0, summary.Counts.NeedsAttention); // historical work dates no longer block
+                Assert.True(summary.CanCommit);
             }
 
             await FreezeAsync(connectionString, tenantId, sessionId);
             await using (var db = CreateDb(connectionString, tenantId))
             {
-                var ex = await Assert.ThrowsAsync<WorkforceImportApplyException>(() => Apply(db, tenantId).ExecuteAsync(sessionId, Actor, null, default));
-                Assert.Equal(WorkforceImportApplyFailureKind.Blocked, ex.Kind);
-                Assert.Equal(0, await db.Employees.CountAsync()); // nothing partially established
+                var result = await Apply(db, tenantId).ExecuteAsync(sessionId, Actor, null, default);
+                Assert.Equal(2, result.AddedEmployeeCount);
+            }
+
+            await using (var db = CreateDb(connectionString, tenantId))
+            {
+                var amina = await db.Employees.SingleAsync(e => e.FirstName == "Amina");
+                var youssef = await db.Employees.SingleAsync(e => e.FirstName == "Youssef");
+                var aminaAssignment = await db.WorkAssignments.SingleAsync(w => w.EmployeeId == amina.Id && w.EffectiveTo == null);
+                var youssefAssignment = await db.WorkAssignments.SingleAsync(w => w.EmployeeId == youssef.Id && w.EffectiveTo == null);
+                Assert.Equal(new DateOnly(2019, 1, 1), DateOnly.FromDateTime(aminaAssignment.EffectiveFrom)); // source work date preserved
+                Assert.Equal(new DateOnly(2020, 3, 1), DateOnly.FromDateTime(youssefAssignment.EffectiveFrom));
+
+                // Core active-as-of resolution returns the historical workforce for a Cycle whose start
+                // predates the import day: as-of 2021-01-01 both are active; before either assignment, none.
+                var snapshots = new EY.HRPlatform.CoreHR.Features.Workforce.Services.InternalWorkforceSnapshotService(db);
+                var asOfBeforeImport = await snapshots.GetAllActiveAsOfAsync(new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), includeInactive: false, default);
+                Assert.Equal(2, asOfBeforeImport.Count);
+                Assert.Contains(asOfBeforeImport, s => s.EmployeeId == amina.Id);
+                Assert.Contains(asOfBeforeImport, s => s.EmployeeId == youssef.Id);
+
+                var asOfBeforeAnyAssignment = await snapshots.GetAllActiveAsOfAsync(new DateTime(2016, 1, 1, 0, 0, 0, DateTimeKind.Utc), includeInactive: false, default);
+                Assert.Empty(asOfBeforeAnyAssignment);
             }
         });
     }
@@ -686,14 +719,14 @@ public sealed class WorkforceImportRelationalTests
             await SeedOpsOrg(connectionString, tenantId, today);
             var sessionId = await IntakeAndReview(connectionString, tenantId, csv, today);
 
-            // Blocked until the administrator explicitly normalizes.
+            // The administrator may still deliberately normalize the whole establishment to the baseline.
             await using (var db = CreateDb(connectionString, tenantId))
             {
                 var current = await db.WorkforceImportSessions.AsNoTracking().SingleAsync(s => s.Id == sessionId);
-                var blocked = await Review(db, tenantId).ApplyDecisionAsync(
+                var normalized = await Review(db, tenantId).ApplyDecisionAsync(
                     sessionId, current.Version, doc => doc.NormalizeWorkDatesToBaseline = true, Actor, default);
-                Assert.True(blocked.CanCommit); // explicit normalization clears the temporal blocker
-                Assert.Equal(2, blocked.Counts.New);
+                Assert.True(normalized.CanCommit);
+                Assert.Equal(2, normalized.Counts.New);
             }
 
             await FreezeAsync(connectionString, tenantId, sessionId);

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Button, Input, cn } from "@repo/ds";
 import { StatusBadge } from "@repo/ds/shell";
-import { Building2, Check, Search, UserRound, UsersRound } from "lucide-react";
+import { Building2, Check, Search, UsersRound } from "lucide-react";
 import type {
   OrganizationHierarchyNodeDto,
   WorkforceDecisionRequest,
@@ -13,6 +13,7 @@ import type {
 import { useOrganizationHierarchy } from "@/features/organization/api/use-organization";
 import { usePeople } from "@/features/people/api/use-people";
 import { EmployeeIdentity, Monogram, formatWorkforceDate } from "@/features/people/components/workforce-ui";
+import { useImportManagerCandidates } from "../api/use-workforce-import";
 
 type Decide = (decision: WorkforceDecisionRequest) => void;
 
@@ -20,6 +21,7 @@ const ORG_CODES = new Set(["OrganizationUnresolved", "OrganizationInvalidToday",
 const MANAGER_CODES = new Set(["ManagerUnresolved", "SelfManager", "ManagerCycle"]);
 const DIFFERENCE_CODES = new Set(["UnsupportedExistingDifference"]);
 const LIFECYCLE_CODES = new Set(["FormerWorkerNotEstablished", "EmploymentEndedBeforeToday", "EmploymentStartAfterBaseline"]);
+const WORKDATE_CODES = new Set(["WorkDatePrecedesOrganizationHistory"]);
 
 /**
  * The contextual inspector. It shows one active meaning for the selected row and its resolution —
@@ -28,11 +30,13 @@ const LIFECYCLE_CODES = new Set(["FormerWorkerNotEstablished", "EmploymentEndedB
 export function WorkforceReviewInspector({
   row,
   baseline,
+  sessionId,
   busy,
   onDecide,
 }: {
   row: WorkforceReviewRowDto | null;
   baseline: string;
+  sessionId: string;
   busy: boolean;
   onDecide: Decide;
 }) {
@@ -55,11 +59,13 @@ export function WorkforceReviewInspector({
         ) : blocker && ORG_CODES.has(blocker.code) ? (
           <OrganizationResolution row={row} issue={blocker} baseline={baseline} busy={busy} onDecide={onDecide} />
         ) : blocker && MANAGER_CODES.has(blocker.code) ? (
-          <ManagerResolution row={row} issue={blocker} busy={busy} onDecide={onDecide} />
+          <ManagerResolution row={row} issue={blocker} sessionId={sessionId} busy={busy} onDecide={onDecide} />
         ) : blocker && DIFFERENCE_CODES.has(blocker.code) ? (
           <ExistingDifference row={row} busy={busy} onDecide={onDecide} />
         ) : blocker && LIFECYCLE_CODES.has(blocker.code) ? (
           <LifecycleGuard row={row} issue={blocker} busy={busy} onDecide={onDecide} />
+        ) : blocker && WORKDATE_CODES.has(blocker.code) ? (
+          <WorkDateResolution row={row} issue={blocker} baseline={baseline} busy={busy} onDecide={onDecide} />
         ) : blocker ? (
           <GenericBlocker row={row} issue={blocker} busy={busy} onDecide={onDecide} />
         ) : row.result === "Existing" ? (
@@ -263,61 +269,122 @@ function UnitButton({ unit, busy, onClick, suggested }: { unit: FlatUnit; busy: 
   );
 }
 
+/**
+ * Resolve an unresolved manager reference. In an establishment import the manager is usually another
+ * person in the same file, so this searches the import cohort first (likely matches surfaced from the
+ * reference) and existing Fusion employees second. The choice is scoped to the *reference*, so one pick
+ * resolves everyone reporting to that manager — never one row at a time.
+ */
 function ManagerResolution({
   row,
   issue,
+  sessionId,
   busy,
   onDecide,
 }: {
   row: WorkforceReviewRowDto;
   issue: WorkforceReviewIssueDto;
+  sessionId: string;
   busy: boolean;
   onDecide: Decide;
 }) {
   const [search, setSearch] = useState("");
-  const { data } = usePeople({ q: search.trim() || null, page: 1, pageSize: 6 });
-  const candidates = (data?.items ?? []).slice(0, 6);
+  const reference = row.manager.display ?? "";
+  const cohort = useImportManagerCandidates(sessionId, reference, search.trim());
+  const { data: peopleData } = usePeople({ q: search.trim() || null, page: 1, pageSize: 5 });
+
+  const importCandidates = (cohort.data ?? []).filter((c) => c.sourceRowNumber !== row.sourceRowNumber).slice(0, 5);
+  const existing = (peopleData?.items ?? []).slice(0, 5);
+  const empty = importCandidates.length === 0 && existing.length === 0;
+
+  const pickImport = (rowNumber: number) => onDecide({ managerReference: reference, managerImportRowNumber: rowNumber });
+  const pickExisting = (employeeKey: string) => onDecide({ managerReference: reference, managerEmployeeKey: employeeKey });
+  const clearManager = () => onDecide({ managerReference: reference, noManager: true });
 
   return (
     <div>
       <AttentionHeading issue={issue} />
-      {row.manager.display ? (
+      {reference ? (
         <div className="rounded-md bg-muted/40 px-3 py-2">
           <p className="type-meta text-muted-foreground">Your file</p>
-          <p className="type-label font-medium text-foreground">{row.manager.display}</p>
+          <p className="type-label font-medium text-foreground">{reference}</p>
         </div>
       ) : null}
+
+      {issue.affectedCount > 1 ? (
+        <p className="mt-3 flex items-center gap-1.5 type-meta text-muted-foreground">
+          <UsersRound className="size-3.5" aria-hidden />
+          <span className="font-medium text-foreground">&quot;{reference}&quot;</span> manages{" "}
+          <span className="font-semibold text-foreground tabular-nums">{issue.affectedCount}</span> people in this import
+        </p>
+      ) : null}
+
       <div className="relative mt-4">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search people…" className="h-8 pl-8 type-meta" />
       </div>
-      <ul className="mt-2 space-y-1">
-        {candidates.map((person) => (
-          <li key={person.employeeKey}>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onDecide({ managerRowNumber: row.sourceRowNumber, managerEmployeeKey: person.employeeKey })}
-              className="w-full rounded-md px-2 py-1.5 text-left hover:bg-muted/60 disabled:opacity-50"
-            >
-              <EmployeeIdentity
-                name={person.displayName}
-                employeeNumber={person.employeeNumber}
-                secondary={[person.work?.jobTitle, person.work?.organizationName].filter(Boolean).join(" · ") || undefined}
-                size="sm"
-              />
-            </button>
-          </li>
-        ))}
-      </ul>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => onDecide({ managerRowNumber: row.sourceRowNumber, noManager: true })}
-        className="mt-3 flex items-center gap-2 type-meta font-medium text-muted-foreground hover:text-foreground disabled:opacity-50"
-      >
-        <UserRound className="size-3.5" aria-hidden /> No manager
-      </button>
+
+      {importCandidates.length > 0 ? (
+        <div className="mt-4">
+          <p className="type-meta uppercase tracking-wide text-muted-foreground">In this import</p>
+          <ul className="mt-2 space-y-1">
+            {importCandidates.map((c) => (
+              <li key={c.sourceRowNumber}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => pickImport(c.sourceRowNumber)}
+                  className="w-full rounded-md px-2 py-1.5 text-left hover:bg-muted/60 disabled:opacity-50"
+                >
+                  <EmployeeIdentity
+                    name={c.displayName}
+                    employeeNumber={c.numberGenerated ? "Generated" : c.employeeNumber}
+                    secondary={c.title ?? undefined}
+                    size="sm"
+                  />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {existing.length > 0 ? (
+        <div className="mt-4">
+          <p className="type-meta uppercase tracking-wide text-muted-foreground">Already in Fusion</p>
+          <ul className="mt-2 space-y-1">
+            {existing.map((person) => (
+              <li key={person.employeeKey}>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => pickExisting(person.employeeKey)}
+                  className="w-full rounded-md px-2 py-1.5 text-left hover:bg-muted/60 disabled:opacity-50"
+                >
+                  <EmployeeIdentity
+                    name={person.displayName}
+                    employeeNumber={person.employeeNumber}
+                    secondary={[person.work?.jobTitle, person.work?.organizationName].filter(Boolean).join(" · ") || undefined}
+                    size="sm"
+                  />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <p className="mt-4 type-meta text-muted-foreground">
+        {empty && search ? "No one matches — " : "Or "}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={clearManager}
+          className="font-medium text-foreground underline-offset-4 hover:underline disabled:opacity-50"
+        >
+          set no manager
+        </button>
+      </p>
     </div>
   );
 }
@@ -353,6 +420,49 @@ function ExistingDifference({
           Exclude row
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Current work dates predate the Organization's Fusion history. The resolution is a business decision,
+ * not an exclusion: establish this cohort's current work (and initial manager) at the baseline. The
+ * action is the same grouped normalization the footer offers, so the inspector never contradicts it.
+ */
+function WorkDateResolution({
+  row,
+  issue,
+  baseline,
+  busy,
+  onDecide,
+}: {
+  row: WorkforceReviewRowDto;
+  issue: WorkforceReviewIssueDto;
+  baseline: string;
+  busy: boolean;
+  onDecide: Decide;
+}) {
+  return (
+    <div>
+      <AttentionHeading issue={issue} />
+      {issue.affectedCount > 1 ? (
+        <p className="flex items-center gap-1.5 type-meta text-muted-foreground">
+          <UsersRound className="size-3.5" aria-hidden />
+          <span className="font-semibold text-foreground tabular-nums">{issue.affectedCount}</span> people have work dated
+          before their Organization existed in Fusion.
+        </p>
+      ) : null}
+      <div className="mt-4 flex flex-col gap-2">
+        <Button size="sm" disabled={busy} onClick={() => onDecide({ normalizeWorkDatesToBaseline: true })}>
+          Establish as of {formatWorkforceDate(baseline)}
+        </Button>
+        <Button size="sm" variant="ghost" disabled={busy} className="text-muted-foreground" onClick={() => onDecide({ excludeRow: row.sourceRowNumber })}>
+          Exclude row
+        </Button>
+      </div>
+      {issue.affectedCount > 1 ? (
+        <p className="mt-3 type-meta text-muted-foreground">Establishing applies to all {issue.affectedCount} people.</p>
+      ) : null}
     </div>
   );
 }

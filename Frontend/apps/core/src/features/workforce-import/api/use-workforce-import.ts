@@ -54,6 +54,21 @@ export function useWorkforceReview(
   );
 }
 
+/** People in this same import who could be the referenced manager (existing employees come from People search). */
+export function useImportManagerCandidates(sessionId: string, reference: string, query: string) {
+  const api = useWorkforceImportApi();
+  const { isAuthenticated, isLoading } = useAuth();
+  return useApiQuery(
+    coreWorkforceImportQueryKeys.managerCandidates(sessionId, reference, query),
+    useCallback(
+      (signal) =>
+        api.managerCandidates(sessionId, { reference: reference || undefined, query: query || undefined }, signal),
+      [api, sessionId, reference, query]
+    ),
+    { enabled: !isLoading && isAuthenticated && Boolean(sessionId), placeholderData: keepPreviousData }
+  );
+}
+
 /** Poll the Apply operation while it is in flight; stop once terminal. */
 export function useWorkforceApplyStatus(sessionId: string | null, active: boolean) {
   const api = useWorkforceImportApi();

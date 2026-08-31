@@ -47,11 +47,17 @@ public sealed record WorkforceResolutionDecisions(
     ISet<int> KeepAsDistinctRows,
     IReadOnlyDictionary<string, Guid> OrganizationBySourceValue,
     IReadOnlyDictionary<int, Guid> ManagerEmployeeByRow,
+    // Reference-scoped manager decisions (keyed by the normalized manager reference), so resolving one
+    // reference resolves every row that reports to it — the "fix once, affect all reports" contract.
+    IReadOnlyDictionary<string, Guid> ManagerEmployeeByReference,
+    IReadOnlyDictionary<string, int> ManagerImportRowByReference,
+    ISet<string> NoManagerByReference,
     bool NormalizeWorkDatesToBaseline = false)
 {
     public static WorkforceResolutionDecisions None { get; } = new(
         new HashSet<int>(), new HashSet<int>(), new HashSet<int>(), new HashSet<int>(),
-        new Dictionary<string, Guid>(), new Dictionary<int, Guid>());
+        new Dictionary<string, Guid>(), new Dictionary<int, Guid>(),
+        new Dictionary<string, Guid>(), new Dictionary<string, int>(), new HashSet<string>());
 }
 
 // ---- Output ----
@@ -111,7 +117,8 @@ public sealed class WorkforceImportResolver
         var workerKeys = CountBy(rows, r => Norm(r.WorkerKey, s => s.Trim().ToUpperInvariant()));
         var rowByWorkerKey = FirstByKey(rows, r => Norm(r.WorkerKey, s => s.Trim().ToUpperInvariant()));
         var rowByNumber = FirstByKey(rows, r => Norm(r.EmployeeNumber, WorkforceCanonicalSnapshot.NormalizeNumber));
-        var index = new SameImportIndex(rowByWorkerKey, rowByNumber);
+        var rowByEmail = FirstByKey(rows, r => Norm(r.WorkEmail, WorkforceCanonicalSnapshot.NormalizeEmail));
+        var index = new SameImportIndex(rowByWorkerKey, rowByNumber, rowByEmail);
         var newRowSignatures = new Dictionary<string, List<int>>(StringComparer.Ordinal);
 
         var resolved = new List<ResolvedWorkforceRow>(rows.Count);
@@ -130,7 +137,8 @@ public sealed class WorkforceImportResolver
     /// <summary>O(1) same-import lookups built once from the interpreted rows.</summary>
     private sealed record SameImportIndex(
         IReadOnlyDictionary<string, NormalizedWorkforceRow> ByWorkerKey,
-        IReadOnlyDictionary<string, NormalizedWorkforceRow> ByEmployeeNumber);
+        IReadOnlyDictionary<string, NormalizedWorkforceRow> ByEmployeeNumber,
+        IReadOnlyDictionary<string, NormalizedWorkforceRow> ByEmail);
 
     private ResolvedWorkforceRow ResolveRow(
         NormalizedWorkforceRow row,
@@ -147,13 +155,14 @@ public sealed class WorkforceImportResolver
         var issues = new List<WorkforceIssue>(row.Issues.Select(i => new WorkforceIssue(i.Code, i.Severity, i.Message, i.Field.ToString())));
 
         // The one effective date the establishment is dated at: the explicit source "work details
-        // effective from" when present, else the baseline fallback — unless the administrator has
-        // explicitly chosen to normalize current work context to the baseline. WorkAssignment and the
-        // initial primary Manager relationship are both established on this date, and Organization
-        // validity is checked at this exact date, so Review and Apply share one readiness definition.
+        // effective from" when present, else the employee's Employment Start (never the import
+        // baseline/today) — unless the administrator has explicitly chosen to normalize current work
+        // context to the baseline. WorkAssignment and the initial primary Manager relationship are
+        // both established from this date, and Organization currency is checked here, so Review and
+        // Apply share one readiness definition.
         var resolvedWorkEffective = decisions.NormalizeWorkDatesToBaseline
             ? baseline
-            : (row.WorkEffectiveFrom ?? baseline);
+            : (row.WorkEffectiveFrom ?? row.EmploymentStart ?? baseline);
 
         if (decisions.ExcludedRows.Contains(row.SourceRowNumber))
             return new ResolvedWorkforceRow(row.SourceRowNumber, WorkforceImportRowClassification.Excluded, null, null,
@@ -366,18 +375,13 @@ public sealed class WorkforceImportResolver
                 "This Organization is already invalid today; import cannot establish current truth against it.", "Organization"));
             return null;
         }
-        // One readiness contract: the writer establishes the work assignment on workEffective and
-        // requires the unit to be active then. A current-work date earlier than the unit's canonical
-        // history predates its existence in Fusion — surface it as ONE grouped, administrator-resolvable
-        // temporal issue (normalize current work to the baseline) rather than a false "Ready" that Apply
-        // would reject. Legacy units without a timeline (EstablishedFrom == MinValue) carry no constraint.
-        if (unit.EstablishedFrom != DateOnly.MinValue && workEffective < unit.EstablishedFrom)
-        {
-            issues.Add(new WorkforceIssue("WorkDatePrecedesOrganizationHistory", Severities.Blocker,
-                "This person's current work details are dated before their Organization existed in Fusion.",
-                "WorkEffectiveFrom", DecisionKey: "workdate-history"));
-            return unit.OrgUnitId;
-        }
+        // Initial establishment may back-date a WorkAssignment before the unit's Fusion
+        // EstablishedFrom. That date is the unit's Fusion import/establishment date, not evidence the
+        // real-world unit did not exist earlier, so a historical work date is not a temporal error
+        // here. The unit must still exist in this tenant and be a valid current target (the
+        // ValidToday check above); given that, an earlier work-effective date is accepted as-is.
+        // workEffective is retained on the signature as the establishment date this check is dated at.
+        _ = workEffective;
         return unit.OrgUnitId;
     }
 
@@ -428,6 +432,37 @@ public sealed class WorkforceImportResolver
             if (sameImport.SourceRowNumber == row.SourceRowNumber)
                 issues.Add(new WorkforceIssue("SelfManager", Severities.Blocker, "An employee cannot be their own manager.", "Manager"));
             return new ResolvedManager(ManagerResolutionKind.SameImportRow, null, sameImport.SourceRowNumber, reference);
+        }
+
+        // Manager by work email — the common real-world case (files reference managers by email). Match
+        // an existing employee first, then someone else being added in the same import.
+        if (reference.Contains('@'))
+        {
+            var email = WorkforceCanonicalSnapshot.NormalizeEmail(reference);
+            if (snapshot.ByWorkEmail.TryGetValue(email, out var existingByEmail))
+                return new ResolvedManager(ManagerResolutionKind.ExistingEmployee, existingByEmail.EmployeeId, null, reference);
+            if (allRows.ByEmail.TryGetValue(email, out var sameByEmail))
+            {
+                if (sameByEmail.SourceRowNumber == row.SourceRowNumber)
+                    issues.Add(new WorkforceIssue("SelfManager", Severities.Blocker, "An employee cannot be their own manager.", "Manager"));
+                return new ResolvedManager(ManagerResolutionKind.SameImportRow, null, sameByEmail.SourceRowNumber, reference);
+            }
+        }
+
+        // Administrator decision for this reference — one choice resolves everyone reporting to it.
+        if (decisions.NoManagerByReference.Contains(normalizedRef))
+            return new ResolvedManager(ManagerResolutionKind.None, null, null, reference);
+        if (decisions.ManagerEmployeeByReference.TryGetValue(normalizedRef, out var chosenManager))
+        {
+            if (chosenManager == FusionSelf(row, snapshot))
+                issues.Add(new WorkforceIssue("SelfManager", Severities.Blocker, "An employee cannot be their own manager.", "Manager"));
+            return new ResolvedManager(ManagerResolutionKind.ExistingEmployee, chosenManager, null, reference);
+        }
+        if (decisions.ManagerImportRowByReference.TryGetValue(normalizedRef, out var chosenImportRow))
+        {
+            if (chosenImportRow == row.SourceRowNumber)
+                issues.Add(new WorkforceIssue("SelfManager", Severities.Blocker, "An employee cannot be their own manager.", "Manager"));
+            return new ResolvedManager(ManagerResolutionKind.SameImportRow, null, chosenImportRow, reference);
         }
 
         // An explicitly asserted manager that cannot be resolved is a blocker (No manager is an explicit decision).

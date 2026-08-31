@@ -104,7 +104,7 @@ public sealed class WorkforceImportInterpreter
         (WorkforceImportField.PreferredName, ["preferred name", "known as", "nickname"]),
         (WorkforceImportField.WorkEmail, ["work email", "email", "e-mail", "email address", "courriel", "adresse email"]),
         (WorkforceImportField.EmploymentStart, ["employment start", "start date", "hire date", "date embauche", "date d'embauche", "date of joining", "joining date", "date début", "seniority date"]),
-        (WorkforceImportField.WorkEffectiveFrom, ["work details effective from", "effective from", "assignment start", "position start"]),
+        (WorkforceImportField.WorkEffectiveFrom, ["work details effective from", "effective from", "assignment start", "position start", "current assignment since", "assignment since"]),
         (WorkforceImportField.Organization, ["organization", "organisation", "org unit", "organization code", "org code", "department", "département", "departement", "business unit", "division", "team", "service"]),
         (WorkforceImportField.DisplayTitle, ["display title", "title", "job title", "poste", "poste occupé", "role", "current title", "position title", "fonction"]),
         (WorkforceImportField.Location, ["location", "work location", "office", "site", "lieu", "ville"]),
@@ -285,15 +285,18 @@ public sealed class WorkforceImportInterpreter
         var employmentStart = ParseDate(Cell(WorkforceImportField.EmploymentStart), decisions.DateFormat, WorkforceImportField.EmploymentStart, required: true, issues);
         var employmentEnd = ParseDate(Cell(WorkforceImportField.EmploymentEnd), decisions.DateFormat, WorkforceImportField.EmploymentEnd, required: false, issues);
 
-        // Work-effective-date establishment rule (corrected invariant):
-        //   absent            -> baseline
+        // Work-effective-date establishment rule (initial establishment):
+        //   absent            -> Employment Start (never the import baseline/today)
         //   present & valid   -> the supplied date (>= EmploymentStart, <= baseline)
-        //   present & invalid -> blocker, NEVER a silent baseline fallback
+        //   present & invalid -> blocker, NEVER a silent fallback
         DateOnly? workEffective;
         var rawWorkEffective = Cell(WorkforceImportField.WorkEffectiveFrom);
         if (string.IsNullOrWhiteSpace(rawWorkEffective))
         {
-            workEffective = baseline;
+            // Establishment dates current work from the employee's Employment Start when the source
+            // carries no explicit work-effective date. Dating it at the import baseline would make a
+            // historically employed person look unassigned before the import day.
+            workEffective = employmentStart;
         }
         else
         {

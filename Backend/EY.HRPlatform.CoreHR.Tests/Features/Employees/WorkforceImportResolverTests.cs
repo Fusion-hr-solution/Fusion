@@ -16,7 +16,7 @@ public sealed class WorkforceImportResolverTests
         string? title = "Consultant", string? email = null, string? managerRef = null, string? workerKey = null,
         string? managerKey = null, string? status = null, DateOnly? end = null, DateOnly? start = null,
         string? fusionEmp = null, string? fusionOrg = null, string? fusionMgr = null, DateOnly? workEffective = null)
-        => new(n, fusionEmp, fusionOrg, fusionMgr, number, first, last, null, email, start ?? new DateOnly(2021, 2, 1), workEffective ?? Baseline, org, title, null,
+        => new(n, fusionEmp, fusionOrg, fusionMgr, number, first, last, null, email, start ?? new DateOnly(2021, 2, 1), workEffective ?? start ?? new DateOnly(2021, 2, 1), org, title, null,
             managerRef, workerKey, managerKey, status, end, []);
 
     private static CanonicalEmployeeRef Emp(string number, string first, string last, bool former = false, string? email = null, string? title = null, string? org = null)
@@ -75,7 +75,7 @@ public sealed class WorkforceImportResolverTests
         Assert.True(Has(blocked, "UnsupportedExistingDifference"));
 
         var kept = Only(Resolve([Row(1, number: "E-1", title: "Director", org: "OPS")], snap,
-            new WorkforceResolutionDecisions(new HashSet<int>(), new HashSet<int> { 1 }, new HashSet<int>(), new HashSet<int>(), new Dictionary<string, Guid>(), new Dictionary<int, Guid>())));
+            new WorkforceResolutionDecisions(new HashSet<int>(), new HashSet<int> { 1 }, new HashSet<int>(), new HashSet<int>(), new Dictionary<string, Guid>(), new Dictionary<int, Guid>(), new Dictionary<string, Guid>(), new Dictionary<string, int>(), new HashSet<string>())));
         Assert.Equal(WorkforceImportRowClassification.ExistingAnchor, kept.Classification);
     }
 
@@ -121,7 +121,7 @@ public sealed class WorkforceImportResolverTests
         Assert.DoesNotContain(distinguished.Rows, r => Has(r, "IndistinguishableDuplicateRow"));
 
         var kept = Resolve([Row(1), Row(2)], Snapshot(),
-            new WorkforceResolutionDecisions(new HashSet<int>(), new HashSet<int>(), new HashSet<int>(), new HashSet<int> { 1, 2 }, new Dictionary<string, Guid>(), new Dictionary<int, Guid>()));
+            new WorkforceResolutionDecisions(new HashSet<int>(), new HashSet<int>(), new HashSet<int>(), new HashSet<int> { 1, 2 }, new Dictionary<string, Guid>(), new Dictionary<int, Guid>(), new Dictionary<string, Guid>(), new Dictionary<string, int>(), new HashSet<string>()));
         Assert.DoesNotContain(kept.Rows, r => Has(r, "IndistinguishableDuplicateRow"));
     }
 
@@ -133,7 +133,7 @@ public sealed class WorkforceImportResolverTests
 
         var resolved = Resolve(rows, Snapshot(),
             new WorkforceResolutionDecisions(new HashSet<int>(), new HashSet<int>(), new HashSet<int>(), new HashSet<int>(),
-                new Dictionary<string, Guid> { ["mystery"] = OpsUnit }, new Dictionary<int, Guid>()));
+                new Dictionary<string, Guid> { ["mystery"] = OpsUnit }, new Dictionary<int, Guid>(), new Dictionary<string, Guid>(), new Dictionary<string, int>(), new HashSet<string>()));
         Assert.All(resolved.Rows, r => Assert.Equal(OpsUnit, r.ResolvedOrgUnitId));
     }
 
@@ -174,6 +174,50 @@ public sealed class WorkforceImportResolverTests
     }
 
     [Fact]
+    public void Manager_by_email_resolves_to_same_import_row_or_existing_employee()
+    {
+        // The common real-world case: the file references the manager by email.
+        var sameImport = Resolve([
+            Row(1, number: "A", managerRef: "boss@x.com"),
+            Row(2, number: "B", first: "Boss", last: "One", email: "boss@x.com"),
+        ], Snapshot());
+        Assert.Equal(ManagerResolutionKind.SameImportRow, sameImport.Rows[0].Manager.Kind);
+        Assert.Equal(2, sameImport.Rows[0].Manager.SameImportSourceRowNumber);
+        Assert.False(Has(sameImport.Rows[0], "ManagerUnresolved"));
+
+        var mgr = Emp("M-1", "Youssef", "BenAli", email: "youssef@x.com");
+        var existing = Only(Resolve([Row(1, number: "A", managerRef: "youssef@x.com")], Snapshot([mgr])));
+        Assert.Equal(ManagerResolutionKind.ExistingEmployee, existing.Manager.Kind);
+        Assert.Equal(mgr.EmployeeId, existing.Manager.EmployeeId);
+    }
+
+    [Fact]
+    public void Reference_scoped_manager_decision_resolves_every_report()
+    {
+        var rows = new[]
+        {
+            Row(1, number: "A", managerRef: "GHOST"),
+            Row(2, number: "B", first: "Bob", last: "Two", managerRef: "GHOST"),
+            Row(3, number: "C", first: "Boss", last: "One"),
+        };
+        var before = Resolve(rows, Snapshot());
+        Assert.True(Has(before.Rows[0], "ManagerUnresolved"));
+        Assert.True(Has(before.Rows[1], "ManagerUnresolved"));
+
+        // One decision on the reference "GHOST" points both reports at the same-import row 3.
+        var decision = new WorkforceResolutionDecisions(
+            new HashSet<int>(), new HashSet<int>(), new HashSet<int>(), new HashSet<int>(),
+            new Dictionary<string, Guid>(), new Dictionary<int, Guid>(),
+            new Dictionary<string, Guid>(), new Dictionary<string, int> { ["GHOST"] = 3 }, new HashSet<string>());
+        var after = Resolve(rows, Snapshot(), decision);
+        Assert.Equal(ManagerResolutionKind.SameImportRow, after.Rows[0].Manager.Kind);
+        Assert.Equal(3, after.Rows[0].Manager.SameImportSourceRowNumber);
+        Assert.Equal(ManagerResolutionKind.SameImportRow, after.Rows[1].Manager.Kind);
+        Assert.False(Has(after.Rows[0], "ManagerUnresolved"));
+        Assert.False(Has(after.Rows[1], "ManagerUnresolved"));
+    }
+
+    [Fact]
     public void Self_and_cycle_are_blocked()
     {
         var self = Resolve([Row(1, number: "A", managerRef: "A")], Snapshot());
@@ -187,7 +231,7 @@ public sealed class WorkforceImportResolverTests
     public void Excluding_a_manager_leaves_dependents_unresolved()
     {
         var p = Resolve([Row(1, number: "A", managerRef: "B"), Row(2, number: "B", first: "Boss", last: "One")], Snapshot(),
-            new WorkforceResolutionDecisions(new HashSet<int> { 2 }, new HashSet<int>(), new HashSet<int>(), new HashSet<int>(), new Dictionary<string, Guid>(), new Dictionary<int, Guid>()));
+            new WorkforceResolutionDecisions(new HashSet<int> { 2 }, new HashSet<int>(), new HashSet<int>(), new HashSet<int>(), new Dictionary<string, Guid>(), new Dictionary<int, Guid>(), new Dictionary<string, Guid>(), new Dictionary<string, int>(), new HashSet<string>()));
         Assert.Equal(WorkforceImportRowClassification.Excluded, p.Rows[1].Classification);
         Assert.True(Has(p.Rows[0], "ManagerUnresolved"));
     }
@@ -207,7 +251,7 @@ public sealed class WorkforceImportResolverTests
     public void Generated_number_is_information_not_blocker()
     {
         var r = Only(Resolve([Row(1)], Snapshot(),
-            new WorkforceResolutionDecisions(new HashSet<int>(), new HashSet<int>(), new HashSet<int>(), new HashSet<int> { 1 }, new Dictionary<string, Guid>(), new Dictionary<int, Guid>())));
+            new WorkforceResolutionDecisions(new HashSet<int>(), new HashSet<int>(), new HashSet<int>(), new HashSet<int> { 1 }, new Dictionary<string, Guid>(), new Dictionary<int, Guid>(), new Dictionary<string, Guid>(), new Dictionary<string, int>(), new HashSet<string>())));
         Assert.True(r.Issues.Any(i => i.Code == "EmployeeNumberGenerated" && i.Severity == Severities.Information));
         Assert.Equal(WorkforceImportRowClassification.NewEmployee, r.Classification);
     }
@@ -256,10 +300,10 @@ public sealed class WorkforceImportResolverTests
     // ---- Temporal establishment / one-readiness-contract ----
 
     [Fact]
-    public void Absent_work_date_resolves_to_baseline()
+    public void Absent_work_date_resolves_to_employment_start()
     {
-        var r = Only(Resolve([Row(1, number: "A", workEffective: null)], Snapshot(establishedFrom: new DateOnly(2026, 8, 1))));
-        Assert.Equal(Baseline, r.ResolvedWorkEffectiveDate);
+        var r = Only(Resolve([Row(1, number: "A", start: new DateOnly(2022, 4, 1), workEffective: null)], Snapshot(establishedFrom: new DateOnly(2026, 8, 1))));
+        Assert.Equal(new DateOnly(2022, 4, 1), r.ResolvedWorkEffectiveDate); // Employment Start, never the import baseline
         Assert.Equal(WorkforceImportRowClassification.NewEmployee, r.Classification);
     }
 
@@ -274,27 +318,28 @@ public sealed class WorkforceImportResolverTests
     }
 
     [Fact]
-    public void Work_date_before_org_history_is_grouped_temporal_blocker()
+    public void Historical_work_date_before_org_fusion_establishment_is_accepted()
     {
+        // The unit's Fusion EstablishedFrom is the import/establishment date, not proof the real unit
+        // did not exist earlier; a historical work date against a valid current unit establishes cleanly.
         var r = Only(Resolve(
             [Row(1, number: "A", workEffective: new DateOnly(2023, 3, 1))],
             Snapshot(establishedFrom: new DateOnly(2026, 8, 19))));
-        Assert.Equal(WorkforceImportRowClassification.NeedsAttention, r.Classification);
-        var issue = Assert.Single(r.Issues.Where(i => i.Code == "WorkDatePrecedesOrganizationHistory"));
-        Assert.Equal("workdate-history", issue.DecisionKey); // one grouped decision for every affected row
+        Assert.Equal(WorkforceImportRowClassification.NewEmployee, r.Classification);
+        Assert.False(Has(r, "WorkDatePrecedesOrganizationHistory"));
+        Assert.Equal(new DateOnly(2023, 3, 1), r.ResolvedWorkEffectiveDate);
     }
 
     [Fact]
-    public void Many_rows_before_org_history_share_one_grouped_decision()
+    public void Many_rows_before_org_fusion_establishment_all_establish()
     {
         var snap = Snapshot(establishedFrom: new DateOnly(2026, 8, 19));
         var p = Resolve(
             [Row(1, number: "A", workEffective: new DateOnly(2023, 3, 1)),
              Row(2, number: "B", first: "Sami", last: "Ali", workEffective: new DateOnly(2022, 1, 1))],
             snap);
-        Assert.All(p.Rows, r => Assert.True(Has(r, "WorkDatePrecedesOrganizationHistory")));
-        var keys = p.Rows.SelectMany(r => r.Issues).Where(i => i.DecisionKey is not null).Select(i => i.DecisionKey).Distinct().ToList();
-        Assert.Equal(["workdate-history"], keys);
+        Assert.All(p.Rows, r => Assert.False(Has(r, "WorkDatePrecedesOrganizationHistory")));
+        Assert.All(p.Rows, r => Assert.Equal(WorkforceImportRowClassification.NewEmployee, r.Classification));
     }
 
     [Fact]
@@ -304,7 +349,7 @@ public sealed class WorkforceImportResolverTests
         var baseline = new DateOnly(2026, 8, 19);
         var decisions = new WorkforceResolutionDecisions(
             new HashSet<int>(), new HashSet<int>(), new HashSet<int>(), new HashSet<int>(),
-            new Dictionary<string, Guid>(), new Dictionary<int, Guid>(), NormalizeWorkDatesToBaseline: true);
+            new Dictionary<string, Guid>(), new Dictionary<int, Guid>(), new Dictionary<string, Guid>(), new Dictionary<string, int>(), new HashSet<string>(), NormalizeWorkDatesToBaseline: true);
         var r = Only(Resolve([Row(1, number: "A", workEffective: new DateOnly(2023, 3, 1))], snap, decisions, baseline: baseline));
         Assert.False(Has(r, "WorkDatePrecedesOrganizationHistory"));
         Assert.Equal(WorkforceImportRowClassification.NewEmployee, r.Classification);

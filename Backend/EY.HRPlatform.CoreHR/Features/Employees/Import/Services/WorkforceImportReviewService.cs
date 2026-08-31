@@ -27,14 +27,26 @@ public sealed record WorkforceReviewRowDto(
 
 public sealed record WorkforceReviewCountsDto(int NeedsAttention, int New, int Existing, int Excluded, int Total, int OpenIssueCount);
 
+/// <summary>
+/// One kind of outstanding decision, so the review can say what the remaining work *is* — "3 organizations
+/// to match · 40 people" — instead of a single alarming affected-people total. <c>Category</c> is a stable
+/// key the client maps to product language; <c>DecisionCount</c> is grouped (shared values counted once),
+/// <c>AffectedPeople</c> is how many rows the category touches.
+/// </summary>
+public sealed record WorkforceReviewIssueGroupDto(string Category, int DecisionCount, int AffectedPeople);
+
 /// <summary>The distinct product states the review can be in — the frontend never infers these from counters.</summary>
 public enum WorkforceReviewState { NoRows, NothingNew, NothingIncluded, Reviewable }
 
 public sealed record WorkforceReviewSummaryDto(
-    WorkforceReviewCountsDto Counts, bool CanCommit, WorkforceReviewState State, uint Version, string? ReviewDigest, int AffectedRows);
+    WorkforceReviewCountsDto Counts, bool CanCommit, WorkforceReviewState State, uint Version, string? ReviewDigest, int AffectedRows,
+    IReadOnlyList<WorkforceReviewIssueGroupDto> IssueGroups);
 
 public sealed record WorkforceReviewPageDto(
     IReadOnlyList<WorkforceReviewRowDto> Rows, int Page, int PageSize, int TotalMatching, WorkforceReviewSummaryDto Summary);
+
+/// <summary>A person being added in this same import, offered as a candidate manager.</summary>
+public sealed record WorkforceManagerCandidateDto(int SourceRowNumber, string DisplayName, string? EmployeeNumber, bool NumberGenerated, string? Title);
 
 public sealed record WorkforceColumnMappingDto(int ColumnIndex, string? SourceLabel, string Field, string Origin);
 public sealed record WorkforceInterpretationSummaryDto(
@@ -60,6 +72,11 @@ public sealed class WorkforceImportDecisionDoc
     public HashSet<int> KeepAsDistinctRows { get; set; } = [];
     public Dictionary<string, Guid> OrganizationBySourceValue { get; set; } = [];
     public Dictionary<int, Guid> ManagerEmployeeByRow { get; set; } = [];
+    // Reference-scoped manager decisions (normalized manager reference → resolution), so one choice
+    // resolves every row reporting to that manager.
+    public Dictionary<string, Guid> ManagerEmployeeByReference { get; set; } = [];
+    public Dictionary<string, int> ManagerImportRowByReference { get; set; } = [];
+    public HashSet<string> NoManagerByReference { get; set; } = [];
 
     /// <summary>
     /// The administrator explicitly chose to establish current work details (and the initial manager
@@ -85,6 +102,7 @@ public sealed class WorkforceImportDecisionDoc
 
     public WorkforceResolutionDecisions ToResolutionDecisions() => new(
         ExcludedRows, KeepFusionUnchangedRows, NoManagerRows, KeepAsDistinctRows, OrganizationBySourceValue, ManagerEmployeeByRow,
+        ManagerEmployeeByReference, ManagerImportRowByReference, NoManagerByReference,
         NormalizeWorkDatesToBaseline);
 }
 
@@ -126,7 +144,7 @@ public sealed class WorkforceImportReviewService(
         var (affected, _) = await RecomputeAsync(session, cancellationToken);
         try { await context.SaveChangesAsync(cancellationToken); }
         catch (DbUpdateConcurrencyException) { throw new WorkforceImportConcurrencyException(sessionId); }
-        return Summarize(session, affected, await ComputeOpenIssueCountAsync(sessionId, cancellationToken));
+        return Summarize(session, affected, await ComputeOpenIssuesAsync(sessionId, cancellationToken));
     }
 
     /// <summary>Recompute the whole proposal and persist row projections without a decision change (e.g. after intake/header/baseline).</summary>
@@ -137,7 +155,7 @@ public sealed class WorkforceImportReviewService(
         var (affected, _) = await RecomputeAsync(session, cancellationToken);
         try { await context.SaveChangesAsync(cancellationToken); }
         catch (DbUpdateConcurrencyException) { throw new WorkforceImportConcurrencyException(sessionId); }
-        return Summarize(session, affected, await ComputeOpenIssueCountAsync(sessionId, cancellationToken));
+        return Summarize(session, affected, await ComputeOpenIssuesAsync(sessionId, cancellationToken));
     }
 
     /// <summary>Recompute and return both the (mostly quiet) interpretation summary and the review summary — the "Preparing workforce" step.</summary>
@@ -154,7 +172,7 @@ public sealed class WorkforceImportReviewService(
             interpretation.UnresolvedRequiredFields.Select(f => f.ToString()).ToList(),
             interpretation.NameFormatDecisionNeeded,
             interpretation.DateFormatDecisionNeeded);
-        return new WorkforcePrepareResultDto(summary, Summarize(session, affected, await ComputeOpenIssueCountAsync(sessionId, cancellationToken)));
+        return new WorkforcePrepareResultDto(summary, Summarize(session, affected, await ComputeOpenIssuesAsync(sessionId, cancellationToken)));
     }
 
     private async Task<(int Affected, WorkforceInterpretationResult Interpretation)> RecomputeAsync(WorkforceImportSession session, CancellationToken cancellationToken)
@@ -224,8 +242,53 @@ public sealed class WorkforceImportReviewService(
             .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
 
         var rows = pageRows.Select(ToRowDto).ToList();
-        var openIssueCount = await ComputeOpenIssueCountAsync(sessionId, cancellationToken);
-        return new WorkforceReviewPageDto(rows, page, pageSize, total, Summarize(session, 0, openIssueCount));
+        var openIssues = await ComputeOpenIssuesAsync(sessionId, cancellationToken);
+        return new WorkforceReviewPageDto(rows, page, pageSize, total, Summarize(session, 0, openIssues));
+    }
+
+    /// <summary>
+    /// People in THIS import who could be the manager — because in an establishment import the manager
+    /// is usually also being added, not already in Fusion. With no query, we search on a name hint
+    /// derived from the unresolved reference (the surname-ish token, or an email's local part) so likely
+    /// matches surface first; a typed query searches by name/number. Existing employees are offered
+    /// separately by the People search on the client.
+    /// </summary>
+    public async Task<IReadOnlyList<WorkforceManagerCandidateDto>> GetImportManagerCandidatesAsync(
+        Guid sessionId, string? reference, string? query, CancellationToken cancellationToken)
+    {
+        var term = (query ?? string.Empty).Trim();
+        if (term.Length == 0 && !string.IsNullOrWhiteSpace(reference)) term = DeriveNameHint(reference);
+        var folded = term.ToLowerInvariant();
+
+        // The candidate pool is one import session (bounded), and the searchable name lives inside a jsonb
+        // projection — which Postgres won't ILIKE directly — so match on the deserialized display name in
+        // memory. Ordered by source row; capped at the few the picker shows.
+        var rows = await context.WorkforceImportRows.AsNoTracking()
+            .Where(r => r.SessionId == sessionId && r.Classification != WorkforceImportRowClassification.Excluded)
+            .OrderBy(r => r.SourceRowNumber)
+            .Select(r => new { r.SourceRowNumber, r.NormalizedProposalJson })
+            .ToListAsync(cancellationToken);
+
+        var results = new List<WorkforceManagerCandidateDto>();
+        foreach (var r in rows)
+        {
+            if (r.NormalizedProposalJson is null) continue;
+            var p = JsonSerializer.Deserialize<ReviewProjection>(r.NormalizedProposalJson) ?? new ReviewProjection();
+            if (folded.Length > 0 && !p.DisplayName.ToLowerInvariant().Contains(folded)) continue;
+            results.Add(new WorkforceManagerCandidateDto(r.SourceRowNumber, p.DisplayName, p.EmployeeNumber, p.NumberGenerated, p.DisplayTitle));
+            if (results.Count >= 8) break;
+        }
+        return results;
+    }
+
+    /// <summary>A search hint from an unresolved reference: an email's local part or the last name-ish token.</summary>
+    private static string DeriveNameHint(string reference)
+    {
+        var value = reference.Trim();
+        var at = value.IndexOf('@');
+        if (at > 0) value = value[..at];
+        var tokens = value.Split(['.', '_', '-', ' '], StringSplitOptions.RemoveEmptyEntries);
+        return tokens.Length > 0 ? tokens[^1] : value;
     }
 
     private WorkforceReviewRowDto ToRowDto(WorkforceImportRow row)
@@ -293,44 +356,88 @@ public sealed class WorkforceImportReviewService(
         }
     }
 
-    private WorkforceReviewSummaryDto Summarize(WorkforceImportSession session, int affected, int openIssueCount)
+    private WorkforceReviewSummaryDto Summarize(
+        WorkforceImportSession session, int affected,
+        (int OpenIssueCount, IReadOnlyList<WorkforceReviewIssueGroupDto> Groups) issues)
     {
         var counts = new WorkforceReviewCountsDto(session.NeedsAttentionCount, session.NewCount, session.ExistingAnchorCount, session.ExcludedCount,
-            session.NewCount + session.ExistingAnchorCount + session.NeedsAttentionCount + session.ExcludedCount, openIssueCount);
+            session.NewCount + session.ExistingAnchorCount + session.NeedsAttentionCount + session.ExcludedCount, issues.OpenIssueCount);
         var state = counts.Total == 0 ? WorkforceReviewState.NoRows
             : session.NewCount == 0 && session.ExistingAnchorCount > 0 && session.NeedsAttentionCount == 0 ? WorkforceReviewState.NothingNew
             : session.NewCount == 0 && session.NeedsAttentionCount == 0 ? WorkforceReviewState.NothingIncluded
             : WorkforceReviewState.Reviewable;
         var canCommit = session.NeedsAttentionCount == 0 && session.NewCount > 0;
-        return new WorkforceReviewSummaryDto(counts, canCommit, state, session.Version, session.ReviewDigest, affected);
+        return new WorkforceReviewSummaryDto(counts, canCommit, state, session.Version, session.ReviewDigest, affected, issues.Groups);
     }
 
+    /// <summary>Stable category key for a blocker, so the review can name the *kind* of remaining work.</summary>
+    private static string IssueCategory(string code) => code switch
+    {
+        "OrganizationUnresolved" or "OrganizationInvalidToday" or "OrganizationMissing" or "FusionOrganizationReferenceUnresolved" => "organization",
+        "WorkDatePrecedesOrganizationHistory" => "workdate",
+        "ManagerUnresolved" or "SelfManager" or "ManagerCycle" => "manager",
+        "UnsupportedExistingDifference" => "difference",
+        "FormerWorkerNotEstablished" or "EmploymentEndedBeforeToday" or "EmploymentStartAfterBaseline" or "FormerEmployeeLifecycleConflict" => "lifecycle",
+        "NameMissing" or "DisplayTitleMissing" or "EmploymentStartMissing" or "DateUnparseable" => "data",
+        _ => "identity",
+    };
+
     /// <summary>
-    /// The number of distinct decisions the reviewer still has to make — not the number of affected
-    /// rows. Grouped decisions (an ambiguous Organization value, an unresolved manager reference) each
-    /// count once no matter how many employees they touch; a row-specific blocker counts once per row.
-    /// Bounded: only rows still needing attention carry unresolved blockers.
+    /// The distinct decisions the reviewer still has to make — not the number of affected rows — plus a
+    /// per-category breakdown so the review can say what the work *is* ("3 organizations to match · 40
+    /// people") instead of one alarming total. Grouped decisions (an ambiguous Organization value, an
+    /// unresolved manager reference) each count once no matter how many employees they touch; a
+    /// row-specific blocker counts once per row. Bounded: only rows still needing attention carry blockers.
     /// </summary>
-    private async Task<int> ComputeOpenIssueCountAsync(Guid sessionId, CancellationToken cancellationToken)
+    private async Task<(int OpenIssueCount, IReadOnlyList<WorkforceReviewIssueGroupDto> Groups)> ComputeOpenIssuesAsync(
+        Guid sessionId, CancellationToken cancellationToken)
     {
         var jsons = await context.WorkforceImportRows.AsNoTracking()
             .Where(r => r.SessionId == sessionId && r.Classification == WorkforceImportRowClassification.NeedsAttention)
             .Select(r => r.IssueStateJson)
             .ToListAsync(cancellationToken);
 
-        var groupedKeys = new HashSet<string>(StringComparer.Ordinal);
-        var rowSpecificIssues = 0;
+        // Per category: distinct grouped decision keys, count of rows carrying a row-specific blocker,
+        // and how many people the category touches.
+        var catGroupedKeys = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        var catRowSpecific = new Dictionary<string, int>(StringComparer.Ordinal);
+        var catPeople = new Dictionary<string, int>(StringComparer.Ordinal);
+
         foreach (var json in jsons)
         {
             if (json is null) continue;
             var issues = JsonSerializer.Deserialize<List<WorkforceReviewIssueDto>>(json) ?? [];
             var blockers = issues.Where(i => i.Severity == Severities.Blocker).ToList();
             if (blockers.Count == 0) continue;
-            var keyed = blockers.Where(b => b.DecisionKey is not null).ToList();
-            foreach (var b in keyed) groupedKeys.Add(b.DecisionKey!);
-            if (keyed.Count == 0) rowSpecificIssues++;
+
+            var categoriesOnRow = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var b in blockers)
+            {
+                var cat = IssueCategory(b.Code);
+                categoriesOnRow.Add(cat);
+                if (b.DecisionKey is not null)
+                {
+                    if (!catGroupedKeys.TryGetValue(cat, out var set)) catGroupedKeys[cat] = set = new(StringComparer.Ordinal);
+                    set.Add(b.DecisionKey);
+                }
+            }
+            foreach (var cat in categoriesOnRow)
+            {
+                catPeople[cat] = catPeople.GetValueOrDefault(cat) + 1;
+                if (blockers.Any(b => b.DecisionKey is null && IssueCategory(b.Code) == cat))
+                    catRowSpecific[cat] = catRowSpecific.GetValueOrDefault(cat) + 1;
+            }
         }
-        return groupedKeys.Count + rowSpecificIssues;
+
+        int decisionCount(string cat) => (catGroupedKeys.GetValueOrDefault(cat)?.Count ?? 0) + catRowSpecific.GetValueOrDefault(cat);
+        var order = new[] { "organization", "workdate", "manager", "difference", "identity", "lifecycle", "data" };
+        var groups = order
+            .Where(catPeople.ContainsKey)
+            .Select(cat => new WorkforceReviewIssueGroupDto(cat, decisionCount(cat), catPeople[cat]))
+            .ToList();
+        // The headline total is the sum of the visible category counts, so hero, footer, and the
+        // breakdown chips can never disagree.
+        return (groups.Sum(g => g.DecisionCount), groups);
     }
 
     private async Task<WorkforceImportSession> LoadSessionAsync(Guid sessionId, CancellationToken cancellationToken)
