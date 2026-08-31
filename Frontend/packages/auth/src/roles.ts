@@ -303,6 +303,25 @@ export function canManageCoreAccess(user: AuthUser | null): boolean {
 }
 
 /**
+ * Seeing the Workforce Access workspace: the workforce invitation/link surface.
+ *
+ * Gated on the workforce access permissions only — deliberately narrower than
+ * {@link canAccessCoreAccess}, which also accepts the Tenant Administrator
+ * assignment permissions that belong to Administrators, not Workforce Access.
+ */
+export function canViewWorkforceAccess(user: AuthUser | null): boolean {
+  return (
+    hasCorePermission(user, CORE_PERMISSION.accessView, "Tenant") ||
+    hasCorePermission(user, CORE_PERMISSION.accessManage, "Tenant")
+  );
+}
+
+/** Committing workforce access mutations (invite, link, reactivate, connect). */
+export function canManageWorkforceAccess(user: AuthUser | null): boolean {
+  return hasCorePermission(user, CORE_PERMISSION.accessManage, "Tenant");
+}
+
+/**
  * Reading the tenant's administrators, invitations, and access activity.
  *
  * Deliberately narrower than {@link canAccessCoreAccess}: that also accepts the

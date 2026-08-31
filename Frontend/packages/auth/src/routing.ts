@@ -119,8 +119,11 @@ export function resolveDefaultProductDestination(
     if (canAccessCoreSettings(user)) return "/core/settings";
     if (canAccessCorePeople(user)) return "/core/employees";
     if (canAccessCoreOrgChart(user)) return "/core/organization";
-    if (canAccessCoreTeam(user)) return "/core/team";
+    // Own profile is a safer default than the manager Team workspace. Team stays
+    // reachable via navigation, but must never be a blind landing for a user
+    // without genuine team context (the /core/team "Failed to load team" defect).
     if (canAccessOwnCoreProfile(user)) return "/core/profile";
+    if (canAccessCoreTeam(user)) return "/core/team";
   }
 
   if (hasModuleEntitlement(user, CUSTOMER_MODULES.performance)) {

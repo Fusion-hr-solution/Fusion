@@ -1,6 +1,10 @@
 import type { ApiClient } from "./types";
 
-export type PeopleEmploymentState = "Active" | "Scheduled" | "Former" | "Incomplete";
+export type PeopleEmploymentState =
+  | "Active"
+  | "Scheduled"
+  | "Former"
+  | "Incomplete";
 export type PeopleOrganizationScope = "Direct" | "Subtree";
 export type PeopleSortField = "Name" | "EmployeeNumber" | "EmploymentDate";
 export type PeopleSortDirection = "Asc" | "Desc";
@@ -123,7 +127,11 @@ export interface PeopleProfileDto {
   primaryManager: PeopleManagerDto | null;
   directReportCount: number;
   directReports: PeopleProfileReportDto[];
-  completeness: "Complete" | "EmploymentUnavailable" | "WorkDetailsUnavailable" | string;
+  completeness:
+    | "Complete"
+    | "EmploymentUnavailable"
+    | "WorkDetailsUnavailable"
+    | string;
   version: number;
   /** The effective date this snapshot was resolved for (Today by default). */
   viewedDate: string;
@@ -167,8 +175,18 @@ export interface EndEmploymentRequestBody {
   note?: string | null;
 }
 
+export interface UpdateWorkEmailRequestBody {
+  workEmail: string;
+}
+
 export interface PeopleAccessStatusDto {
-  state: "Linked" | "NoFusionAccess" | string;
+  state:
+    | "NoAccess"
+    | "InvitationPending"
+    | "Active"
+    | "Suspended"
+    | "NeedsReview"
+    | string;
   label: string;
   detail: string | null;
 }
@@ -254,15 +272,24 @@ export interface EstablishmentResultDto {
 
 export const corePeoplePaths = {
   people: () => "/corehr/employees/people",
-  profile: (employeeKey: string) => `/corehr/employees/people/${encodeURIComponent(employeeKey)}`,
-  timeline: (employeeKey: string) => `/corehr/employees/people/${encodeURIComponent(employeeKey)}/timeline`,
-  accessStatus: (employeeKey: string) => `/corehr/employees/people/${encodeURIComponent(employeeKey)}/access-status`,
+  profile: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}`,
+  timeline: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/timeline`,
+  accessStatus: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/access-status`,
   managerOptions: () => "/corehr/employees/people/manager-options",
   establishmentReview: () => "/corehr/employees/people/establishment-review",
-  changeWork: (employeeKey: string) => `/corehr/employees/people/${encodeURIComponent(employeeKey)}/change-work`,
-  changeManager: (employeeKey: string) => `/corehr/employees/people/${encodeURIComponent(employeeKey)}/change-manager`,
-  endEmployment: (employeeKey: string) => `/corehr/employees/people/${encodeURIComponent(employeeKey)}/end-employment`,
-  endEmploymentPreview: (employeeKey: string) => `/corehr/employees/people/${encodeURIComponent(employeeKey)}/end-employment/preview`,
+  changeWork: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/change-work`,
+  changeManager: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/change-manager`,
+  endEmployment: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/end-employment`,
+  endEmploymentPreview: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/end-employment/preview`,
+  updateWorkEmail: (employeeKey: string) =>
+    `/corehr/employees/people/${encodeURIComponent(employeeKey)}/work-email`,
   hire: () => "/corehr/employees/hire",
   addExisting: () => "/corehr/employees/add-existing",
 } as const;
@@ -270,14 +297,22 @@ export const corePeoplePaths = {
 export const corePeopleQueryKeys = {
   all: () => ["corePeople"] as const,
   lists: () => [...corePeopleQueryKeys.all(), "list"] as const,
-  list: (params: PeopleQueryParams) => [...corePeopleQueryKeys.lists(), params] as const,
+  list: (params: PeopleQueryParams) =>
+    [...corePeopleQueryKeys.lists(), params] as const,
   profiles: () => [...corePeopleQueryKeys.all(), "profile"] as const,
   profile: (employeeKey: string, asOf?: string | null) =>
     [...corePeopleQueryKeys.profiles(), employeeKey, asOf ?? "today"] as const,
-  timeline: (employeeKey: string) => [...corePeopleQueryKeys.profiles(), employeeKey, "timeline"] as const,
+  timeline: (employeeKey: string) =>
+    [...corePeopleQueryKeys.profiles(), employeeKey, "timeline"] as const,
   endEmploymentPreview: (employeeKey: string, lastEmployedDate: string) =>
-    [...corePeopleQueryKeys.profiles(), employeeKey, "end-preview", lastEmployedDate] as const,
-  accessStatus: (employeeKey: string) => [...corePeopleQueryKeys.profiles(), employeeKey, "access"] as const,
+    [
+      ...corePeopleQueryKeys.profiles(),
+      employeeKey,
+      "end-preview",
+      lastEmployedDate,
+    ] as const,
+  accessStatus: (employeeKey: string) =>
+    [...corePeopleQueryKeys.profiles(), employeeKey, "access"] as const,
   managerOptions: (effectiveDate: string, q: string) =>
     [...corePeopleQueryKeys.all(), "managerOptions", effectiveDate, q] as const,
 } as const;
@@ -290,36 +325,78 @@ export function createCorePeopleApi(client: ApiClient) {
         params: { ...params },
         signal,
       }),
-    profile: (employeeKey: string, asOf?: string | null, signal?: AbortSignal) =>
+    profile: (
+      employeeKey: string,
+      asOf?: string | null,
+      signal?: AbortSignal
+    ) =>
       client.get<PeopleProfileDto>(corePeoplePaths.profile(employeeKey), {
         params: asOf ? { asOf } : undefined,
         signal,
       }),
     timeline: (employeeKey: string, signal?: AbortSignal) =>
-      client.get<PeopleTimelineDto>(corePeoplePaths.timeline(employeeKey), { signal }),
-    endEmploymentPreview: (employeeKey: string, lastEmployedDate: string, signal?: AbortSignal) =>
-      client.get<EndEmploymentPreviewDto>(corePeoplePaths.endEmploymentPreview(employeeKey), {
-        params: { lastEmployedDate },
+      client.get<PeopleTimelineDto>(corePeoplePaths.timeline(employeeKey), {
         signal,
       }),
+    endEmploymentPreview: (
+      employeeKey: string,
+      lastEmployedDate: string,
+      signal?: AbortSignal
+    ) =>
+      client.get<EndEmploymentPreviewDto>(
+        corePeoplePaths.endEmploymentPreview(employeeKey),
+        {
+          params: { lastEmployedDate },
+          signal,
+        }
+      ),
     changeWork: (employeeKey: string, request: ChangeWorkRequestBody) =>
-      client.post<MaintenanceResultDto>(corePeoplePaths.changeWork(employeeKey), request),
-    changeManager: (employeeKey: string, request: ChangeManagerByKeyRequestBody) =>
-      client.post<MaintenanceResultDto>(corePeoplePaths.changeManager(employeeKey), request),
+      client.post<MaintenanceResultDto>(
+        corePeoplePaths.changeWork(employeeKey),
+        request
+      ),
+    changeManager: (
+      employeeKey: string,
+      request: ChangeManagerByKeyRequestBody
+    ) =>
+      client.post<MaintenanceResultDto>(
+        corePeoplePaths.changeManager(employeeKey),
+        request
+      ),
     endEmployment: (employeeKey: string, request: EndEmploymentRequestBody) =>
-      client.post<MaintenanceResultDto>(corePeoplePaths.endEmployment(employeeKey), request),
+      client.post<MaintenanceResultDto>(
+        corePeoplePaths.endEmployment(employeeKey),
+        request
+      ),
+    updateWorkEmail: (
+      employeeKey: string,
+      request: UpdateWorkEmailRequestBody,
+      expectedVersion: number
+    ) =>
+      client.put<void>(corePeoplePaths.updateWorkEmail(employeeKey), request, {
+        headers: { "If-Match": `"${expectedVersion}"` },
+      }),
     accessStatus: (employeeKey: string, signal?: AbortSignal) =>
-      client.get<PeopleAccessStatusDto>(corePeoplePaths.accessStatus(employeeKey), { signal }),
+      client.get<PeopleAccessStatusDto>(
+        corePeoplePaths.accessStatus(employeeKey),
+        { signal }
+      ),
     managerOptions: (effectiveDate: string, q = "", signal?: AbortSignal) =>
       client.get<ManagerOptionDto[]>(corePeoplePaths.managerOptions(), {
         params: { effectiveDate, q, limit: 30 },
         signal,
       }),
     establishmentReview: (request: EstablishmentReviewRequest) =>
-      client.post<EstablishmentReviewDto>(corePeoplePaths.establishmentReview(), request),
+      client.post<EstablishmentReviewDto>(
+        corePeoplePaths.establishmentReview(),
+        request
+      ),
     hire: (request: HireEmployeeRequest) =>
       client.post<EstablishmentResultDto>(corePeoplePaths.hire(), request),
     addExisting: (request: AddExistingEmployeeRequest) =>
-      client.post<EstablishmentResultDto>(corePeoplePaths.addExisting(), request),
+      client.post<EstablishmentResultDto>(
+        corePeoplePaths.addExisting(),
+        request
+      ),
   };
 }

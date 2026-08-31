@@ -124,6 +124,30 @@ describe("default product destination", () => {
     }))).toBe("/core/organization");
   });
 
+  it("never blind-defaults a profile-capable manager into the Team workspace", () => {
+    // A DirectReports employee-view grant satisfies both own-profile and Team;
+    // the safer own-profile landing must win over /core/team.
+    expect(resolveDefaultProductDestination(user({
+      employeeId: "emp-1",
+      roles: ["Manager"],
+      effectivePermissions: [
+        { ...grant("core.employee.view"), scope: "DirectReports", allowedScopes: ["DirectReports"] },
+      ],
+    }))).toBe("/core/profile");
+  });
+
+  it("lands a genuine team-only user on the Team workspace as a last resort", () => {
+    // Only a DirectReports team-view grant (no profile/roster access) still
+    // resolves to Team, so real managers keep a meaningful default.
+    expect(resolveDefaultProductDestination(user({
+      employeeId: "emp-1",
+      roles: ["Manager"],
+      effectivePermissions: [
+        { ...grant("core.team.view"), scope: "DirectReports", allowedScopes: ["DirectReports"] },
+      ],
+    }))).toBe("/core/team");
+  });
+
   it("returns no destination when the account has no usable context", () => {
     expect(resolveDefaultProductDestination(user({
       tenantId: null,

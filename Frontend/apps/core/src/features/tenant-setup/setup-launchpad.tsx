@@ -6,8 +6,10 @@ import {
   ArrowRight,
   Building2,
   ChartNoAxesCombined,
+  Check,
   Info,
   KeyRound,
+  Lock,
   Settings2,
   ShieldCheck,
   Users,
@@ -15,14 +17,16 @@ import {
 } from "lucide-react";
 import {
   canViewTenantAdministration,
+  canViewWorkforceAccess,
   useAuth,
   type AuthUser,
 } from "@repo/auth";
-import { Button } from "@repo/ds";
+import { Button, cn } from "@repo/ds";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
 import { useEmployeeRoster } from "@/app/(pages)/employees/use-employees";
 import { useTenantAccessSummary } from "@/features/tenant-access/api/use-tenant-access";
+import { useAccessRosterSummary } from "@/features/workforce-access/api/use-workforce-access";
 import { useOrganizationReadiness } from "@/features/organization/api/use-organization";
 import { canViewCoreOrganization } from "@repo/auth";
 import {
@@ -51,6 +55,38 @@ const CAPABILITY_ICON: Record<string, LucideIcon> = {
 };
 
 /**
+ * A capability's visual family on the launchpad. This is presentation only —
+ * the authoritative `CapabilityState` stays in `compose.ts`. The ladder marker,
+ * the spine connector, and the readiness meter all read from this so a single
+ * mapping governs how state looks across the surface.
+ */
+type NodeTone = "ready" | "next" | "neutral" | "blocked" | "planned";
+
+const MARKER_TONE: Record<NodeTone, string> = {
+  ready: "bg-success-subtle text-success ring-1 ring-inset ring-success/30",
+  next: "bg-warning-subtle text-warning ring-1 ring-inset ring-warning/45",
+  neutral: "bg-muted text-foreground/75 ring-1 ring-inset ring-border",
+  blocked: "bg-muted/50 text-muted-foreground/80 ring-1 ring-inset ring-border",
+  planned: "border border-dashed border-border text-muted-foreground/60",
+};
+
+const SEGMENT_TONE: Record<NodeTone, string> = {
+  ready: "bg-success",
+  next: "bg-warning",
+  neutral: "bg-muted-foreground/30",
+  blocked: "bg-muted-foreground/20",
+  planned: "bg-muted-foreground/15",
+};
+
+function toneForState(state: CapabilityState): NodeTone {
+  if (state === "ready") return "ready";
+  if (state === "in-progress") return "next";
+  if (state === "blocked") return "blocked";
+  if (state === "planned") return "planned";
+  return "neutral";
+}
+
+/**
  * Canonical tenant-level setup launchpad.
  *
  * This surface composes authoritative reads from Identity and Core. It owns no
@@ -67,7 +103,10 @@ export default function SetupLaunchpad() {
     return (
       <PageContainer className="space-y-6">
         <header className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight">Getting started</h1>
+          <span className="type-eyebrow text-muted-foreground">
+            Tenant setup
+          </span>
+          <h1 className="type-page-title">Getting started</h1>
         </header>
         <PagePermissionNotice
           title="You do not have access to this page"
@@ -90,17 +129,23 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
     canViewTenantAdministration(user)
   );
   const workforce = useEmployeeRoster(WORKFORCE_PRESENCE_QUERY);
+  const workforceAccess = useAccessRosterSummary(canViewWorkforceAccess(user));
+  const workforceAccessSummary = workforceAccess.error
+    ? null
+    : workforceAccess.isLoading
+      ? undefined
+      : (workforceAccess.data ?? null);
 
   const workforceTotalCount = workforce.error
     ? null
     : workforce.isLoading
       ? undefined
-      : workforce.data?.totalCount ?? null;
+      : (workforce.data?.totalCount ?? null);
   const effectiveSetupState = organizationReadiness.error
     ? null
     : organizationReadiness.isLoading
       ? undefined
-      : organizationReadiness.data ?? null;
+      : (organizationReadiness.data ?? null);
 
   const composed = useMemo(
     () =>
@@ -109,8 +154,9 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
         entitlements: user.moduleEntitlements ?? [],
         setupState: effectiveSetupState,
         workforceTotalCount,
+        workforceAccessSummary,
       }),
-    [effectiveSetupState, user, workforceTotalCount]
+    [effectiveSetupState, user, workforceTotalCount, workforceAccessSummary]
   );
 
   const isInitialLoading =
@@ -133,8 +179,7 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
       return left.capability.order - right.capability.order;
     });
   const variant = deriveLaunchpadVariant(visible, workforceTotalCount);
-  const tenantName =
-    accessSummary.data?.tenantName?.trim() || "your tenant";
+  const tenantName = accessSummary.data?.tenantName?.trim() || "your tenant";
 
   return (
     <LaunchpadView
@@ -180,42 +225,112 @@ export function LaunchpadView({
           ? "Review and manage your tenant foundation."
           : "Continue building and managing your tenant foundation.";
 
+  // Readiness is measured over the real, ownable foundation — the pieces a
+  // tenant actually stands up — so planned/entitlement rows never dilute the
+  // count. The recommended step is included: it is foundation that is not yet
+  // ready, which is exactly what the meter should show as remaining.
+  const foundation = [recommendation, ...entries].filter(
+    (entry): entry is ComposedCapability =>
+      entry != null &&
+      entry.capability.group === "foundation" &&
+      entry.capability.availability === "implemented"
+  );
+  const readyCount = foundation.filter((entry) => entry.state === "ready").length;
+
   return (
-    <PageContainer className="mx-auto max-w-6xl space-y-8 pb-12">
-      <header className="max-w-3xl space-y-2">
-        <h1 className="text-balance text-3xl font-semibold tracking-tight">
-          {heading}
-        </h1>
-        <p className="max-w-2xl text-pretty text-sm leading-6 text-muted-foreground sm:text-base">
-          {description}
-        </p>
+    <PageContainer className="mx-auto max-w-4xl space-y-9 pb-14">
+      <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <div className="max-w-2xl space-y-2.5">
+          <span className="type-eyebrow text-muted-foreground">Tenant setup</span>
+          <h1 className="type-display text-balance">{heading}</h1>
+          <p className="type-body max-w-xl text-pretty text-muted-foreground">
+            {description}
+          </p>
+        </div>
+        {foundation.length > 0 ? (
+          <ReadinessMeter
+            segments={foundation}
+            recommendationKey={recommendation?.capability.key ?? null}
+            readyCount={readyCount}
+          />
+        ) : null}
       </header>
 
-      {recommendation ? (
-        <RecommendationPanel entry={recommendation} />
+      {recommendation ? <RecommendationPanel entry={recommendation} /> : null}
+
+      {entries.length > 0 ? (
+        <section aria-labelledby="tenant-foundation-heading" className="space-y-5">
+          <div className="flex items-baseline justify-between gap-4">
+            <h2
+              id="tenant-foundation-heading"
+              className="type-subsection-title text-foreground"
+            >
+              Tenant foundation
+            </h2>
+            <span className="type-meta text-muted-foreground">
+              {readyCount} of {foundation.length} ready
+            </span>
+          </div>
+
+          <div className="relative">
+            {entries.map((entry, index) => (
+              <LadderNode
+                key={entry.capability.key}
+                entry={entry}
+                isLast={index === entries.length - 1}
+                onRetry={() => onRetry(entry.capability.key)}
+              />
+            ))}
+          </div>
+        </section>
       ) : null}
-
-      <section aria-labelledby="tenant-foundation-heading" className="space-y-4">
-        <div className="flex items-end justify-between gap-4 border-b pb-3">
-          <h2
-            id="tenant-foundation-heading"
-            className="text-base font-semibold tracking-tight"
-          >
-            Tenant foundation
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {entries.map((entry) => (
-            <CapabilityCard
-              key={entry.capability.key}
-              entry={entry}
-              onRetry={() => onRetry(entry.capability.key)}
-            />
-          ))}
-        </div>
-      </section>
     </PageContainer>
+  );
+}
+
+/**
+ * A compact, structural read on how much of the tenant foundation stands up.
+ * One segment per foundational area, toned by state — the numeral and the
+ * segments carry the progress, not a sentence.
+ */
+function ReadinessMeter({
+  segments,
+  recommendationKey,
+  readyCount,
+}: {
+  segments: ComposedCapability[];
+  recommendationKey: string | null;
+  readyCount: number;
+}) {
+  return (
+    <div className="flex shrink-0 flex-col gap-2.5 rounded-2xl border bg-card px-5 py-4 shadow-raised sm:min-w-[13.5rem]">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="type-eyebrow text-muted-foreground">Foundation</span>
+        <span className="type-meta text-muted-foreground">
+          <span className="type-metric align-baseline text-base text-foreground">
+            {readyCount}
+          </span>{" "}
+          / {segments.length} ready
+        </span>
+      </div>
+      <div className="flex gap-1" aria-hidden>
+        {segments.map((segment) => {
+          const tone =
+            segment.capability.key === recommendationKey
+              ? "next"
+              : toneForState(segment.state);
+          return (
+            <span
+              key={segment.capability.key}
+              className={cn(
+                "h-1.5 flex-1 rounded-full transition-colors",
+                SEGMENT_TONE[tone]
+              )}
+            />
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -239,30 +354,36 @@ function RecommendationPanel({ entry }: { entry: ComposedCapability }) {
   return (
     <section
       aria-labelledby="recommended-destination-heading"
-      className="overflow-hidden rounded-2xl border border-primary/55 bg-card shadow-sm"
+      className="relative overflow-hidden rounded-2xl border border-primary/40 bg-primary/[0.06] p-6 shadow-raised sm:p-7"
     >
-      <div className="grid gap-5 p-5 sm:grid-cols-[1fr_auto] sm:items-center sm:p-6">
-        <div className="flex min-w-0 gap-4">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/16 text-primary-foreground dark:text-primary">
-            <Icon className="size-5" aria-hidden />
-          </div>
-          <div className="min-w-0 space-y-1.5">
-            <p className="text-xs font-semibold text-muted-foreground">
+      {/* A quiet brand seam anchoring the one active step, not a decorative glow. */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-primary"
+      />
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 gap-5">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary ring-1 ring-inset ring-primary/30">
+            <Icon className="size-6" aria-hidden />
+          </span>
+          <div className="min-w-0 space-y-2">
+            <span className="type-eyebrow flex items-center gap-2 text-primary">
+              <span className="size-1.5 rounded-full bg-primary" aria-hidden />
               Recommended next step
-            </p>
+            </span>
             <h2
               id="recommended-destination-heading"
-              className="text-balance text-lg font-semibold"
+              className="type-page-title text-balance"
             >
               {title}
             </h2>
-            <p className="max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">
+            <p className="type-body max-w-xl text-pretty text-muted-foreground">
               {description}
             </p>
           </div>
         </div>
 
-        <Button asChild className="w-full sm:w-auto">
+        <Button asChild size="lg" className="w-full shrink-0 sm:w-auto">
           <Link href={entry.capability.route ?? "#"}>
             {action}
             <ArrowRight className="size-4" aria-hidden />
@@ -273,63 +394,108 @@ function RecommendationPanel({ entry }: { entry: ComposedCapability }) {
   );
 }
 
-function CapabilityCard({
+function LadderNode({
   entry,
+  isLast,
   onRetry,
 }: {
   entry: ComposedCapability;
+  isLast: boolean;
   onRetry: () => void;
 }) {
   const { capability, state, blockedBy, detail, isActionable } = entry;
-  const Icon = CAPABILITY_ICON[capability.key] ?? Info;
+  const tone = toneForState(state);
+  const CapabilityGlyph = CAPABILITY_ICON[capability.key] ?? Info;
+  const Glyph =
+    state === "ready" ? Check : state === "blocked" ? Lock : CapabilityGlyph;
   const unavailableText = unavailableLabel(state, blockedBy);
   const action = actionLabel(entry);
+  const isQuiet = state === "planned" || state === "blocked";
 
   return (
-    <article className="group flex min-h-44 flex-col rounded-2xl border bg-card p-5 transition-colors duration-200 hover:border-foreground/20 motion-reduce:transition-none">
-      <div className="flex min-w-0 items-start gap-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground/75">
-          <Icon className="size-4" aria-hidden />
-        </div>
-        <div className="min-w-0 space-y-1.5">
-          <h3 className="text-base font-semibold">{capability.title}</h3>
-          <p className="text-pretty text-sm leading-6 text-muted-foreground">
+    <article className="group flex gap-4 sm:gap-5">
+      {/* Full-height spine: the marker carries state, the connector carries
+          sequence. This replaces the old corner glyph with a functional node. */}
+      <div className="flex w-11 shrink-0 flex-col items-center">
+        <span
+          className={cn(
+            "relative z-10 flex size-11 items-center justify-center rounded-xl transition-colors",
+            MARKER_TONE[tone]
+          )}
+        >
+          <Glyph
+            className={cn("size-5", state === "ready" && "stroke-[2.5]")}
+            aria-hidden
+          />
+        </span>
+        {!isLast ? (
+          <span
+            aria-hidden
+            className={cn(
+              "mt-1 w-px flex-1 rounded-full",
+              state === "ready" ? "bg-success/35" : "bg-border"
+            )}
+          />
+        ) : null}
+      </div>
+
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 flex-col gap-3 pt-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-6",
+          isLast ? "pb-1" : "pb-8"
+        )}
+      >
+        <div className={cn("min-w-0 space-y-1", isQuiet && "opacity-80")}>
+          <h3 className="type-subsection-title text-foreground">
+            {capability.title}
+          </h3>
+          <p className="type-meta max-w-md text-pretty text-muted-foreground">
             {capability.purpose}
           </p>
         </div>
-      </div>
 
-      <div className="mt-auto flex min-h-9 flex-wrap items-end justify-between gap-x-3 gap-y-2 border-t pt-4 text-sm">
-        <div className="min-w-0">
+        <div className="flex shrink-0 flex-col items-start gap-1.5 sm:items-end">
           {detail ? (
-            <span className="text-muted-foreground">{detail}</span>
+            <span
+              className={cn(
+                "type-meta inline-flex items-center gap-1.5",
+                state === "ready" ? "text-success" : "text-muted-foreground"
+              )}
+            >
+              {state === "ready" ? (
+                <span className="size-1.5 rounded-full bg-success" aria-hidden />
+              ) : null}
+              {detail}
+            </span>
           ) : unavailableText ? (
-            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-              <Info className="size-3.5 shrink-0" aria-hidden />
+            <span className="type-meta text-muted-foreground">
               {unavailableText}
             </span>
           ) : null}
-        </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-1">
-          {state === "unknown" ? (
-            <button
-              type="button"
-              onClick={onRetry}
-              className="inline-flex min-h-9 items-center rounded-lg px-2 font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Retry status
-            </button>
-          ) : null}
-          {isActionable && capability.route ? (
-            <Link
-              href={capability.route}
-              className="inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2 font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {action}
-              <ArrowRight className="size-3.5" aria-hidden />
-            </Link>
-          ) : null}
+          <div className="flex items-center gap-3">
+            {state === "unknown" ? (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="type-label inline-flex min-h-8 items-center rounded-lg text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Retry status
+              </button>
+            ) : null}
+            {isActionable && capability.route ? (
+              <Link
+                href={capability.route}
+                className="type-label group/action inline-flex min-h-8 items-center gap-1.5 rounded-lg text-foreground underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {action}
+                <ArrowRight
+                  className="size-3.5 transition-transform group-hover/action:translate-x-0.5"
+                  aria-hidden
+                />
+              </Link>
+            ) : null}
+          </div>
         </div>
       </div>
     </article>
@@ -364,23 +530,33 @@ function actionLabel(entry: ComposedCapability): string {
 
 export function LaunchpadSkeleton() {
   return (
-    <PageContainer className="mx-auto max-w-6xl pb-12">
+    <PageContainer className="mx-auto max-w-4xl pb-14">
       <div
-        className="space-y-8"
+        className="space-y-9"
         role="status"
         aria-busy="true"
         aria-label="Loading tenant setup"
       >
-        <div className="max-w-3xl space-y-3">
-          <Skeleton className="h-9 w-72 max-w-full" />
-          <Skeleton className="h-5 w-[34rem] max-w-full" />
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-2xl space-y-3">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-9 w-72 max-w-full" />
+            <Skeleton className="h-5 w-[30rem] max-w-full" />
+          </div>
+          <Skeleton className="h-[4.75rem] w-full rounded-2xl sm:w-[13.5rem]" />
         </div>
-        <Skeleton className="h-36 w-full rounded-2xl" />
-        <div className="space-y-4">
-          <Skeleton className="h-6 w-36" />
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <Skeleton key={index} className="h-44 rounded-2xl" />
+        <Skeleton className="h-32 w-full rounded-2xl" />
+        <div className="space-y-5">
+          <Skeleton className="h-5 w-40" />
+          <div className="space-y-8">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="flex gap-5">
+                <Skeleton className="size-11 shrink-0 rounded-xl" />
+                <div className="flex-1 space-y-2 pt-0.5">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3.5 w-64 max-w-full" />
+                </div>
+              </div>
             ))}
           </div>
         </div>

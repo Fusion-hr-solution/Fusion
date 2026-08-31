@@ -27,6 +27,7 @@ vi.mock("@repo/auth", () => ({
   canViewTenantAdministration: (user: AuthUser | null) =>
     user?.userId === "admin",
   canViewCoreOrganization: (user: AuthUser | null) => user?.userId === "admin",
+  canViewWorkforceAccess: (user: AuthUser | null) => user?.userId === "admin",
 }));
 
 vi.mock("@/features/organization/api/use-organization", () => ({
@@ -39,6 +40,10 @@ vi.mock("@/features/tenant-access/api/use-tenant-access", () => ({
 
 vi.mock("@/app/(pages)/employees/use-employees", () => ({
   useEmployeeRoster: mocks.rosterHook,
+}));
+
+vi.mock("@/features/workforce-access/api/use-workforce-access", () => ({
+  useAccessRosterSummary: () => ({ data: null, isLoading: false, error: null }),
 }));
 
 import SetupLaunchpad, {
@@ -229,9 +234,10 @@ describe("Tenant Setup launchpad presentation", () => {
   it("renders a hierarchy-shaped loading skeleton", () => {
     render(<LaunchpadSkeleton />);
 
-    expect(
-      screen.getByLabelText("Loading tenant setup")
-    ).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByLabelText("Loading tenant setup")).toHaveAttribute(
+      "aria-busy",
+      "true"
+    );
   });
 });
 

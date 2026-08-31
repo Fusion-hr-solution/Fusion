@@ -42,6 +42,10 @@ export interface ComposeInput {
   setupState: OrganizationReadinessDto | null | undefined;
   /** Canonical employee total. `undefined` while loading, `null` when unavailable. */
   workforceTotalCount: number | null | undefined;
+  /** Workforce Access distribution. `undefined` loading, `null` failed/unavailable. */
+  workforceAccessSummary?:
+    | { activeAccountCount: number; invitePendingCount: number; notInvitedCount: number }
+    | null;
   capabilities?: SetupCapability[];
 }
 
@@ -84,6 +88,7 @@ export function composeSetupCapabilities({
   entitlements,
   setupState,
   workforceTotalCount,
+  workforceAccessSummary,
   capabilities = SETUP_CAPABILITIES,
 }: ComposeInput): ComposedCapability[] {
   const ordered = [...capabilities].sort((a, b) => a.order - b.order);
@@ -156,6 +161,25 @@ export function composeSetupCapabilities({
           capability,
           workforceTotalCount > 0 ? "ready" : "not-started"
         ),
+        isActionable: true,
+      };
+    }
+
+    if (capability.key === "workforce-access") {
+      // Authoritative distribution from Workforce Access. A failed read keeps the
+      // route but declines to invent counts (no fake "tenant complete" score).
+      if (workforceAccessSummary === undefined || workforceAccessSummary === null) {
+        return { ...base(capability, "available"), isActionable: true };
+      }
+      const { activeAccountCount, invitePendingCount, notInvitedCount } =
+        workforceAccessSummary;
+      const detail =
+        `${activeAccountCount} with access` +
+        (invitePendingCount > 0 ? ` · ${invitePendingCount} pending` : "") +
+        (notInvitedCount > 0 ? ` · ${notInvitedCount} without` : "");
+      return {
+        ...base(capability, activeAccountCount > 0 ? "ready" : "in-progress"),
+        detail,
         isActionable: true,
       };
     }

@@ -1,4 +1,5 @@
 /** Anonymous invite validate / accept (Identity). */
+import type { AccountPasswordRequirementsDto } from "./tenant-access";
 
 export interface InviteDto {
   id: string;
@@ -14,6 +15,7 @@ export interface InviteDto {
   isExpired: boolean;
   isUsed: boolean;
   createdAt: string;
+  passwordRequirements?: AccountPasswordRequirementsDto | null;
 }
 
 export interface AcceptInviteRequest {

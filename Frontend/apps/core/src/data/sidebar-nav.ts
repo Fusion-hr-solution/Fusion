@@ -1,5 +1,6 @@
 import {
   ClipboardList,
+  KeyRound,
   LayoutDashboard,
   Network,
   Settings2,
@@ -33,7 +34,10 @@ export const ADMIN_NAV: ShellNavSection = {
       shellRoute: true,
       icon: ClipboardList,
     },
-    { label: "Access", href: "/access", icon: ShieldCheck },
+    { label: "Workforce access", href: "/workforce-access", icon: KeyRound },
+    // Feature 02 keeps the `/core/access` route; the customer-facing name is
+    // "Administrators" — who administers this tenant, distinct from workforce access.
+    { label: "Administrators", href: "/access", icon: ShieldCheck },
     { label: "Settings", href: "/settings", icon: Settings2 },
   ],
 };

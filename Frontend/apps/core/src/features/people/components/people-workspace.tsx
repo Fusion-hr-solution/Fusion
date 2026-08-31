@@ -35,6 +35,7 @@ import { PageContainer, PageHeader } from "@repo/ds/shell";
 import {
   canImportCoreEmployees,
   canManageCoreEmployees,
+  canManageWorkforceAccess,
   useAuth,
 } from "@repo/auth";
 import type {
@@ -363,6 +364,7 @@ export default function PeopleWorkspace() {
   const { user } = useAuth();
   const canManage = canManageCoreEmployees(user);
   const canImport = canImportCoreEmployees(user);
+  const canManageAccess = canManageWorkforceAccess(user);
   const q = searchParams.get("q") ?? "";
   const [search, setSearch] = useState(q);
   const stateParam = searchParams.get("status");
@@ -438,19 +440,29 @@ export default function PeopleWorkspace() {
       <PageHeader title="People" actions={headerActions} />
 
       {importBatch ? (
-        <div className="mb-5 flex flex-wrap items-center gap-3">
-          <p className="type-title font-semibold text-foreground">
-            <span className="tabular-nums">{cohortCount}</span>{" "}
-            {cohortCount === 1 ? "employee added" : "employees added"}
-          </p>
-          <button
-            type="button"
-            onClick={() => updateUrl({ importBatch: null, page: null }, true)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 type-meta font-medium text-foreground ring-1 ring-inset ring-primary/25 transition-colors hover:bg-primary/15"
-          >
-            Added in this import
-            <X className="size-3.5" aria-hidden />
-          </button>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-l-2 border-primary bg-primary/[0.06] px-5 py-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="type-title font-semibold text-foreground">
+              <span className="tabular-nums">{people.data ? cohortCount : "…"}</span>{" "}
+              {cohortCount === 1 ? "person added to your workforce" : "people added to your workforce"}
+            </p>
+            <button
+              type="button"
+              onClick={() => updateUrl({ importBatch: null, page: null }, true)}
+              className="inline-flex items-center gap-1.5 type-meta font-medium text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            >
+              Added in this import
+              <X className="size-3.5" aria-hidden />
+            </button>
+          </div>
+          {canManageAccess ? (
+            <Button asChild>
+              <Link href={`/workforce-access?importBatch=${importBatch}`}>
+              Review workforce access
+                <ArrowRight className="size-4" />
+              </Link>
+            </Button>
+          ) : null}
         </div>
       ) : null}
 

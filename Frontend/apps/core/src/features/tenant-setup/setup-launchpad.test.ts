@@ -27,6 +27,7 @@ const ADMIN = {
     "core.structure.publish",
     "core.employee.view",
     "core.organization.manage",
+    "core.access.manage",
     "access.assignments.manage"
   ),
   moduleEntitlements: ["core"],

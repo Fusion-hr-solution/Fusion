@@ -59,7 +59,9 @@ describe("resolveInviteAcceptanceDestination", () => {
     ).toBe("/profile");
   });
 
-  it("sends managers to My Team", () => {
+  it("sends a profile-capable manager to My Profile, not straight to Team", () => {
+    // A DirectReports employee-view grant satisfies both own-profile and Team.
+    // Activation must not blind-land a user on Team; the profile wins.
     expect(
       resolveInviteAcceptanceDestination(createAuthUser({
         roles: ["Manager"],
@@ -68,6 +70,18 @@ describe("resolveInviteAcceptanceDestination", () => {
           grant("core.team.view", "DirectReports"),
           grant("core.employee.view", "DirectReports"),
         ],
+      }))
+    ).toBe("/profile");
+  });
+
+  it("sends a genuine team-only manager to My Team as a last resort", () => {
+    // Only a DirectReports team-view grant (no profile/roster access) resolves
+    // to Team, so real managers still reach it on activation.
+    expect(
+      resolveInviteAcceptanceDestination(createAuthUser({
+        roles: ["Manager"],
+        employeeId: "emp-1",
+        effectivePermissions: [grant("core.team.view", "DirectReports")],
       }))
     ).toBe("/team");
   });

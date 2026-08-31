@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { employeeRosterQueryKeys } from "@/app/(pages)/employees/employee-query-keys";
-import type { WorkforceAccountStatusDto } from "@/app/(pages)/employees/employee-roster.types";
 import {
   useProvisionWorkforceAccountInvite,
   useResendWorkforceAccountInvite,

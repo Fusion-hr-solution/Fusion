@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Button, Input, Label, cn } from "@repo/ds";
+import { Button, Input, Label, Spinner, cn } from "@repo/ds";
+import {
+  InvitationTransactionFrame,
+  InvitationTransactionLoading,
+  InvitationTransactionTerminalFrame,
+  InvitationWordmark,
+} from "@repo/ds/shell";
 import { persistAuth } from "@repo/auth";
 import {
   ArrowRight,
@@ -40,12 +46,9 @@ import {
  * It is the one surface on this page that does not follow the theme: an
  * invitation arrives cold, from an organization the recipient may not yet
  * recognise, and the ink half gives the page a fixed centre of gravity that
- * reads the same whichever theme the recipient's browser asks for. The values
- * are the dark theme's own tuned tokens written as literals, so the panel is not
- * a new palette — it is the palette Fusion already ships, pinned.
+ * reads the same whichever theme the recipient's browser asks for. The shared
+ * invitation frame owns that fixed surface across every invitation purpose.
  */
-const PANEL_SURFACE = "bg-[hsl(240_16%_7%)]";
-const PANEL_TEXT = "text-[hsl(240_14%_96%)]";
 const PANEL_MUTED = "text-[hsl(240_8%_67%)]";
 const PANEL_RULE = "border-[hsl(240_8%_22%)]";
 
@@ -144,33 +147,27 @@ export function ActivateInvitation({
   // instead of a split with an empty half.
   if (phase.kind === "terminal") {
     return (
-      <FocusedFrame>
+      <InvitationTransactionTerminalFrame>
         <Terminal outcome={phase.outcome} journey={journey} />
-      </FocusedFrame>
+      </InvitationTransactionTerminalFrame>
     );
   }
 
+  if (phase.kind === "loading") {
+    return <InvitationTransactionLoading />;
+  }
+
   return (
-    <SplitFrame
-      context={
-        phase.kind === "form" ? (
-          <TenantContext entry={phase.entry} journey={journey} />
-        ) : (
-          <ContextSkeleton />
-        )
-      }
+    <InvitationTransactionFrame
+      context={<TenantContext entry={phase.entry} journey={journey} />}
     >
-      {phase.kind === "form" ? (
-        <AccountForm
-          entry={phase.entry}
-          credential={credential}
-          journey={journey}
-          onTerminal={(outcome) => setPhase({ kind: "terminal", outcome })}
-        />
-      ) : (
-        <FormSkeleton />
-      )}
-    </SplitFrame>
+      <AccountForm
+        entry={phase.entry}
+        credential={credential}
+        journey={journey}
+        onTerminal={(outcome) => setPhase({ kind: "terminal", outcome })}
+      />
+    </InvitationTransactionFrame>
   );
 }
 
@@ -187,83 +184,9 @@ export function ActivateInvitation({
  * whose invitation this is, then what to do about it — and the ink panel keeps
  * the boundary between reading and acting legible in the stack.
  */
-function SplitFrame({
-  context,
-  children,
-}: {
-  context: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <main className="min-h-screen lg:grid lg:grid-cols-[44fr_56fr]">
-      <div
-        className={cn(
-          "relative overflow-hidden border-b border-[hsl(240_8%_18%)] px-6 py-12 sm:px-10 lg:border-b-0 lg:border-r lg:py-16",
-          PANEL_SURFACE,
-          PANEL_TEXT
-        )}
-      >
-        {/* A single warm source top-left, so the panel is lit rather than
-            filled. Low enough that the ink stays ink. */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 [background-image:radial-gradient(45rem_32rem_at_8%_-8%,hsl(47_100%_50%/0.13),transparent_62%),radial-gradient(38rem_30rem_at_92%_108%,hsl(240_60%_60%/0.10),transparent_60%)]"
-        />
-        <div className="relative h-full">{context}</div>
-      </div>
-
-      {/* In dark mode the canvas is within a few percent of the ink panel, which
-          erases the split. The task surface lifts to the card layer so the two
-          halves stay distinct in both themes. */}
-      <div className="relative flex items-center justify-center bg-background px-6 py-12 dark:bg-[hsl(240_13%_11%)] sm:px-10 lg:py-16">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 [background-image:radial-gradient(40rem_28rem_at_50%_-10%,hsl(var(--foreground)/0.045),transparent_65%)]"
-        />
-        {/* Below `lg` the two halves are stacked, so they share one measure and
-            line up down the page. The split narrows the form to a focused
-            column. */}
-        <div className="relative w-full max-w-[34rem] lg:max-w-[28rem]">{children}</div>
-      </div>
-    </main>
-  );
-}
-
 /** The terminal states, which have no second half to show. */
-function FocusedFrame({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="relative flex min-h-screen flex-col overflow-hidden px-6 py-12 sm:px-10">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 [background-image:radial-gradient(45rem_30rem_at_50%_-12%,hsl(var(--foreground)/0.05),transparent_65%)]"
-      />
-      {/* Composed as one unit rather than a heading adrift in the middle of an
-          empty page: the identity sits directly above the surface carrying the
-          state, so the stopping point reads as finished rather than as a page
-          that failed to load. */}
-      <div className="relative flex flex-1 items-center justify-center py-10">
-        <div className="w-full max-w-[29rem]">
-          <Wordmark className="text-foreground" />
-          <div className="mt-6 rounded-2xl border bg-background p-7 shadow-[0_1px_2px_hsl(var(--foreground)/0.04),0_12px_32px_-12px_hsl(var(--foreground)/0.14)] sm:p-8">
-            {children}
-          </div>
-        </div>
-      </div>
-    </main>
-  );
-}
-
 function Wordmark({ className }: { className?: string }) {
-  return (
-    <p
-      className={cn(
-        "text-[0.8125rem] font-semibold uppercase tracking-[0.24em]",
-        className
-      )}
-    >
-      Fusion
-    </p>
-  );
+  return <InvitationWordmark className={className} />;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -293,7 +216,9 @@ function TenantContext({
           and the organization it is happening for carries the display size. The
           tenant is what the recipient is checking, so the tenant is the hero. */}
       <h1 className="mt-6 lg:mt-16">
-        <span className={cn("block text-lg font-normal lg:text-xl", PANEL_MUTED)}>
+        <span
+          className={cn("block text-lg font-normal lg:text-xl", PANEL_MUTED)}
+        >
           {journey.contextLead}
         </span>
         <span className="mt-2 block break-words text-[2rem] font-semibold leading-[1.08] tracking-[-0.025em] lg:mt-3 lg:text-[3rem]">
@@ -301,7 +226,12 @@ function TenantContext({
         </span>
       </h1>
 
-      <p className={cn("mt-6 max-w-[46ch] text-sm leading-7 lg:text-base", PANEL_MUTED)}>
+      <p
+        className={cn(
+          "mt-6 max-w-[46ch] text-sm leading-7 lg:text-base",
+          PANEL_MUTED
+        )}
+      >
         {journey.contextBody}
       </p>
 
@@ -314,14 +244,18 @@ function TenantContext({
         )}
       >
         <div>
-          <dt className={cn("text-xs uppercase tracking-[0.12em]", PANEL_MUTED)}>
+          <dt
+            className={cn("text-xs uppercase tracking-[0.12em]", PANEL_MUTED)}
+          >
             Access granted
           </dt>
           <dd className="mt-2 font-medium">Administrator</dd>
         </div>
         {expiry ? (
           <div>
-            <dt className={cn("text-xs uppercase tracking-[0.12em]", PANEL_MUTED)}>
+            <dt
+              className={cn("text-xs uppercase tracking-[0.12em]", PANEL_MUTED)}
+            >
               Invitation expires
             </dt>
             <dd className="mt-2 font-medium">{expiry}</dd>
@@ -342,7 +276,10 @@ function TenantContext({
  */
 function TenantSigil({ tenantName }: { tenantName: string }) {
   return (
-    <div aria-hidden="true" className="my-14 hidden flex-1 place-items-center lg:grid">
+    <div
+      aria-hidden="true"
+      className="my-14 hidden flex-1 place-items-center lg:grid"
+    >
       <div className="relative grid aspect-square w-full max-w-[19rem] place-items-center motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-700">
         <span className="absolute inset-0 rounded-[2.5rem] border border-white/[0.07]" />
         <span className="absolute inset-[13%] rounded-[2rem] border border-white/[0.11]" />
@@ -506,7 +443,10 @@ function AccountForm({
     try {
       const response = await fetch(journey.acceptPath, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify({
           credential,
           firstName: form.firstName.trim(),
@@ -546,11 +486,17 @@ function AccountForm({
       const reason = body?.data?.reason as string | undefined;
 
       if (reason === "invalid_details") {
-        const fields = (body?.data?.fieldErrors ?? []) as ActivationFieldError[];
+        const fields = (body?.data?.fieldErrors ??
+          []) as ActivationFieldError[];
         setErrors(
           fields.length > 0
             ? fields
-            : [{ field: "password", message: "This password was not accepted." }]
+            : [
+                {
+                  field: "password",
+                  message: "This password was not accepted.",
+                },
+              ]
         );
         setPending(false);
         summaryRef.current?.focus();
@@ -600,7 +546,10 @@ function AccountForm({
           role="alert"
           className="mt-5 flex items-start gap-2.5 rounded-xl border border-destructive/25 bg-destructive/[0.06] px-4 py-3 text-sm leading-6 text-destructive"
         >
-          <TriangleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+          <TriangleAlert
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0"
+          />
           {retryable}
         </p>
       ) : (
@@ -667,7 +616,9 @@ function AccountForm({
               key={check.label}
               className={cn(
                 "flex items-center gap-2 text-xs transition-colors",
-                check.satisfied ? "font-medium text-foreground" : "text-muted-foreground"
+                check.satisfied
+                  ? "font-medium text-foreground"
+                  : "text-muted-foreground"
               )}
             >
               {/* Unmet is a dot, not an empty ring: a row of hollow circles
@@ -711,9 +662,6 @@ function AccountForm({
         />
       </div>
 
-      {/* Fusion's spinner-only convention. Implemented here rather than imported
-          from the shared design system: that package targets the Tailwind v4
-          apps, and the shell has not migrated. */}
       <Button
         type="submit"
         disabled={pending}
@@ -733,10 +681,7 @@ function AccountForm({
         </span>
         {pending ? (
           <span className="absolute inset-0 flex items-center justify-center">
-            <span
-              aria-hidden="true"
-              className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-            />
+            <Spinner aria-hidden="true" />
           </span>
         ) : null}
       </Button>
@@ -820,47 +765,5 @@ function FieldError({ message }: { message?: string }) {
       <TriangleAlert aria-hidden="true" className="mt-0.5 size-3 shrink-0" />
       {message}
     </p>
-  );
-}
-
-/* -------------------------------------------------------------------------- */
-/* Loading                                                                    */
-/* -------------------------------------------------------------------------- */
-
-/** Both halves are shaped like what they resolve into, so the page does not jump. */
-function ContextSkeleton() {
-  return (
-    <div className="mx-auto flex h-full max-w-[34rem] flex-col lg:max-w-[33rem]">
-      <Wordmark />
-      <div className="animate-pulse" aria-hidden="true">
-        <div className="mt-12 size-12 rounded-xl bg-white/10 lg:hidden" />
-        <div className="mt-6 h-6 w-64 rounded-lg bg-white/[0.07] lg:mt-16 lg:h-7" />
-        <div className="mt-3 space-y-3">
-          <div className="h-9 w-full rounded-lg bg-white/10 lg:h-12" />
-          <div className="h-9 w-2/3 rounded-lg bg-white/10 lg:h-12" />
-        </div>
-        <div className="mt-7 space-y-2.5">
-          <div className="h-4 w-5/6 rounded bg-white/[0.06]" />
-          <div className="h-4 w-3/5 rounded bg-white/[0.06]" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FormSkeleton() {
-  return (
-    <div className="animate-pulse" aria-hidden="true">
-      <div className="h-8 w-3/4 rounded-lg bg-muted" />
-      <div className="mt-7 h-[6.25rem] rounded-2xl bg-muted" />
-      <div className="mt-7 grid gap-5 sm:grid-cols-2">
-        <div className="h-[4.5rem] rounded-xl bg-muted" />
-        <div className="h-[4.5rem] rounded-xl bg-muted" />
-      </div>
-      <div className="mt-5 h-[4.5rem] rounded-xl bg-muted" />
-      <div className="mt-3.5 h-[4.5rem] rounded-xl bg-muted" />
-      <div className="mt-5 h-[4.5rem] rounded-xl bg-muted" />
-      <div className="mt-8 h-12 rounded-xl bg-muted" />
-    </div>
   );
 }

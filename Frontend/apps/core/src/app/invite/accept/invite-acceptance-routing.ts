@@ -37,12 +37,14 @@ export function resolveInviteAcceptanceDestination(
     return "/people";
   }
 
-  if (canAccessCoreTeam(user)) {
-    return "/team";
-  }
-
+  // Own profile precedes the manager Team workspace: activation must never land a
+  // user on Team without genuine team context. Team stays reachable via navigation.
   if (canAccessOwnCoreProfile(user)) {
     return "/profile";
+  }
+
+  if (canAccessCoreTeam(user)) {
+    return "/team";
   }
 
   return "/";

@@ -4,6 +4,7 @@ import {
   canAccessCoreSetup,
   canViewTenantAdministration,
   canViewCoreOrganization,
+  canViewWorkforceAccess,
 } from "@repo/auth";
 
 /**
@@ -97,10 +98,12 @@ export const SETUP_CAPABILITIES: SetupCapability[] = [
     title: "Workforce access",
     purpose: "Connect workforce identities to Fusion accounts and access.",
     group: "foundation",
-    availability: "planned",
+    availability: "implemented",
+    route: "/workforce-access",
+    actionLabel: "Manage workforce access",
     prerequisites: ["workforce"],
     order: 50,
-    isAuthorized: canViewTenantAdministration,
+    isAuthorized: canViewWorkforceAccess,
   },
   {
     key: "performance",

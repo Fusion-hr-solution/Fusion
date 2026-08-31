@@ -8,36 +8,70 @@ import {
   PageHeader,
   PageEmpty,
   PageError,
-  PagePermissionNotice,
   StatusBadge,
 } from "@repo/ds/shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TeamPageSkeleton } from "@/shell/route-skeletons";
 import { canAccessTeamWorkspace } from "@/lib/employee-roster-access";
-import { useEmployeeReportingLines } from "@/app/(pages)/employees/use-employees";
+import {
+  useEmployeeDetailsById,
+  useEmployeeReportingLines,
+} from "@/app/(pages)/employees/use-employees";
 
 export default function TeamWorkspace() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const employeeId = user?.employeeId ?? null;
   const canAccess = canAccessTeamWorkspace(user);
-  const { data, error, isLoading, isFetching, refetch } =
-    useEmployeeReportingLines(canAccess ? employeeId : null);
+
+  // Reporting lines are keyed by the stable employee key, not the raw employee id
+  // (the auth token carries the GUID). Resolve the details record first to obtain
+  // the stable key, exactly as the self-profile page does.
+  const { data: details, error: detailsError, isLoading: isDetailsLoading } =
+    useEmployeeDetailsById(canAccess ? employeeId : null);
+  const stableEmployeeKey = details?.stableEmployeeKey ?? null;
+  const {
+    data,
+    error: reportingError,
+    isLoading: isReportingLoading,
+    isFetching,
+    refetch,
+  } = useEmployeeReportingLines(stableEmployeeKey);
+
+  const error = detailsError ?? reportingError;
   const directReports = data?.directReports ?? [];
 
-  if (isAuthLoading || (canAccess && isLoading && !data && !error)) {
+  // A linked employee can always fall back to their own profile; an unlinked
+  // admin falls back to the Core overview.
+  const exitHref = employeeId ? "/profile" : "/";
+  const exitLabel = employeeId ? "Go to your profile" : "Go to overview";
+
+  if (isAuthLoading) {
     return <TeamPageSkeleton />;
   }
 
   if (!canAccess || !employeeId) {
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="My Team" description="Manager workspace only." />
-        <PagePermissionNotice
-          title="No team workspace available"
-          description="Contact a tenant HR administrator to link your manager record."
+        <PageHeader title="My Team" description="Direct reports." />
+        <PageEmpty
+          icon={Users}
+          title="No team to manage"
+          description="The team workspace shows people who report to you. You don't have any direct reports right now."
+          action={
+            <Link
+              href={exitHref}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              {exitLabel}
+            </Link>
+          }
         />
       </PageContainer>
     );
+  }
+
+  if ((isDetailsLoading || isReportingLoading) && !data && !error) {
+    return <TeamPageSkeleton />;
   }
 
   if (error && !data) {
@@ -45,10 +79,18 @@ export default function TeamWorkspace() {
       <PageContainer className="space-y-6">
         <PageHeader title="My Team" description="Direct reports." />
         <PageError
-          title="Failed to load team"
-          description="Could not load team data. Try again in a moment."
+          title="Team couldn't load"
+          description="Your team didn't load just now. Try again in a moment."
           onRetry={() => refetch()}
         />
+        <div className="text-center">
+          <Link
+            href={exitHref}
+            className="text-sm text-muted-foreground hover:text-foreground hover:underline"
+          >
+            {exitLabel}
+          </Link>
+        </div>
       </PageContainer>
     );
   }

@@ -1,28 +1,8 @@
-import type {
-  EmployeeRosterQueryParams,
-  WorkforceAccountSubject,
-} from "./employee-roster.types";
+import type { EmployeeRosterQueryParams } from "./employee-roster.types";
 
 function normalizeEmployeeRosterSearch(search?: string): string | null {
   const trimmed = search?.trim();
   return trimmed ? trimmed : null;
-}
-
-function normalizeWorkforceAccountSubject(subject: WorkforceAccountSubject) {
-  return {
-    employeeId: subject.employeeId,
-    email: normalizeEmployeeRosterSearch(subject.email)?.toLowerCase() ?? null,
-    firstName: normalizeEmployeeRosterSearch(subject.firstName ?? undefined),
-    lastName: normalizeEmployeeRosterSearch(subject.lastName ?? undefined),
-  };
-}
-
-function normalizeWorkforceAccountSubjects(
-  subjects: WorkforceAccountSubject[]
-) {
-  return [...subjects]
-    .map(normalizeWorkforceAccountSubject)
-    .sort((left, right) => left.employeeId.localeCompare(right.employeeId));
 }
 
 export function normalizeEmployeeRosterQuery(

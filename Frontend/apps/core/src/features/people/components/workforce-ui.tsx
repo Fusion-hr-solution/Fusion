@@ -64,7 +64,7 @@ export function Monogram({
           ? "bg-primary/12 text-foreground ring-1 ring-inset ring-primary/25"
           : "bg-muted text-muted-foreground",
         MONOGRAM_SIZE[size],
-        className,
+        className
       )}
     >
       {initials(name)}
@@ -102,7 +102,7 @@ export function EmployeeIdentity({
       href={href}
       className={cn(
         "type-label font-semibold underline-offset-4 outline-none hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring",
-        linkClassName,
+        linkClassName
       )}
     >
       {name}
@@ -117,12 +117,119 @@ export function EmployeeIdentity({
       <div className="min-w-0">
         <div className="truncate leading-tight">{nameNode}</div>
         {employeeNumber ? (
-          <div className="mt-0.5 type-code text-xs text-muted-foreground">{employeeNumber}</div>
+          <div className="mt-0.5 type-code text-xs text-muted-foreground">
+            {employeeNumber}
+          </div>
         ) : null}
         {secondary ? (
-          <div className="mt-0.5 type-meta truncate text-muted-foreground">{secondary}</div>
+          <div className="mt-0.5 type-meta truncate text-muted-foreground">
+            {secondary}
+          </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Human-first identity used when access, relationship, or profile decisions need
+ * more context than a roster name. Work context stays readable as one sentence so
+ * the person remains the visual anchor instead of a stack of metadata fields.
+ */
+export function PersonIdentity({
+  name,
+  email,
+  jobTitle,
+  organization,
+  employeeNumber,
+  href,
+  size = "md",
+  accent = false,
+  missingEmailLabel = "Work email missing",
+  className,
+}: {
+  name: string;
+  email?: string | null;
+  jobTitle?: string | null;
+  organization?: string | null;
+  employeeNumber?: string | null;
+  href?: string;
+  size?: MonogramSize;
+  accent?: boolean;
+  missingEmailLabel?: string;
+  className?: string;
+}) {
+  const workContext = [jobTitle, organization].filter(Boolean).join(" · ");
+
+  return (
+    <div className={cn("flex min-w-0 items-center gap-3", className)}>
+      <Monogram name={name} size={size} accent={accent} />
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-baseline gap-2">
+          {href ? (
+            <Link
+              href={href}
+              className="type-label truncate font-semibold underline-offset-4 outline-none hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {name}
+            </Link>
+          ) : (
+            <span className="type-label truncate font-semibold text-foreground">
+              {name}
+            </span>
+          )}
+          {employeeNumber ? (
+            <span className="hidden shrink-0 type-code text-xs text-muted-foreground xl:inline">
+              {employeeNumber}
+            </span>
+          ) : null}
+        </div>
+        {workContext ? (
+          <p className="mt-0.5 truncate type-meta text-muted-foreground">
+            {workContext}
+          </p>
+        ) : null}
+        <p
+          className={cn(
+            "mt-0.5 truncate type-meta",
+            email
+              ? "text-muted-foreground"
+              : "font-medium text-warning-foreground"
+          )}
+        >
+          {email || missingEmailLabel}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** A named human relationship, never a bare manager id or property row. */
+export function PersonRelationship({
+  label,
+  name,
+  detail,
+  href,
+  emptyLabel = "Not assigned",
+  className,
+}: {
+  label: string;
+  name?: string | null;
+  detail?: ReactNode;
+  href?: string;
+  emptyLabel?: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("border-l-2 border-primary/60 pl-4", className)}>
+      <p className="type-eyebrow text-muted-foreground">{label}</p>
+      {name ? (
+        <div className="mt-2">
+          <EmployeeIdentity name={name} href={href} secondary={detail} accent />
+        </div>
+      ) : (
+        <p className="mt-1 type-body text-muted-foreground">{emptyLabel}</p>
+      )}
     </div>
   );
 }
@@ -149,16 +256,27 @@ export function OrgPath({
    * still travels as a hover title for disambiguation. */
   showAncestry?: boolean;
 }) {
-  const segments = path.split("/").map((segment) => segment.trim()).filter(Boolean);
+  const segments = path
+    .split("/")
+    .map((segment) => segment.trim())
+    .filter(Boolean);
   const unit = (name && name.trim()) || segments.at(-1) || path;
   const ancestry = segments.slice(0, -1).join(" / ");
   return (
     <span className={cn("block min-w-0", className)}>
-      <span className={cn("block truncate type-body", unitClassName)} title={ancestry ? path : undefined}>
+      <span
+        className={cn("block truncate type-body", unitClassName)}
+        title={ancestry ? path : undefined}
+      >
         {unit}
       </span>
       {showAncestry && ancestry ? (
-        <span className={cn("block truncate type-meta text-muted-foreground", ancestryClassName)}>
+        <span
+          className={cn(
+            "block truncate type-meta text-muted-foreground",
+            ancestryClassName
+          )}
+        >
           {ancestry}
         </span>
       ) : null}
@@ -193,7 +311,7 @@ export function EmploymentStatus({
  */
 export function formatWorkforceDate(
   value: string | null | undefined,
-  options?: { month?: "short" | "long" },
+  options?: { month?: "short" | "long" }
 ): string {
   if (!value) return "";
   const iso = value.length <= 10 ? `${value}T00:00:00Z` : value;

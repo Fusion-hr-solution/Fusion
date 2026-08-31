@@ -80,10 +80,10 @@ export default function AccessWorkspace() {
   if (!canView) {
     return (
       <PageContainer width="wide" className="max-w-4xl space-y-6">
-        <PageHeader title="Access" />
+        <PageHeader title="Administrators" />
         <PagePermissionNotice
           title="You do not have access to this page"
-          description="Ask an administrator if you need to manage access for this tenant."
+          description="Ask an administrator if you need to manage who administers this tenant."
         />
       </PageContainer>
     );
@@ -105,7 +105,7 @@ export default function AccessWorkspace() {
             <span className="type-eyebrow text-muted-foreground">{summary.data.tenantName}</span>
           ) : undefined
         }
-        title="Access"
+        title="Administrators"
         actions={
           canManage ? (
             <Button onClick={() => setInviteOpen(true)}>Invite administrator</Button>

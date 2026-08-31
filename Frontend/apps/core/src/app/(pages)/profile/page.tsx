@@ -3,14 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { User } from "lucide-react";
-import {
-  canAccessCoreAccess,
-  canAccessCoreOrgChart,
-  canManageCoreAccess,
-  canManageCoreEmployees,
-  canManageCoreReporting,
-  useAuth,
-} from "@repo/auth";
+import { useAuth } from "@repo/auth";
 import {
   PageContainer,
   PageHeader,
@@ -19,11 +12,7 @@ import {
 } from "@repo/ds/shell";
 import { MyProfilePageSkeleton } from "@/shell/route-skeletons";
 import { useTenantSettings } from "@/features/settings/api/use-tenant-settings";
-import { useEmployeeFieldPolicy } from "@/features/employees/shared/employee-field-visibility";
-import {
-  EmployeeProfileWorkspace,
-  type EmployeeProfileWorkspaceProps,
-} from "@/features/employees/profile/employee-profile-workspace";
+import { MyProfileWorkspace } from "@/features/employees/profile/my-profile-workspace";
 import {
   useEmployeeDetailsById,
   useEmployeeReportingLines,
@@ -32,14 +21,8 @@ import {
 export default function MyProfilePage() {
   const { user, isLoading: authLoading } = useAuth();
   const employeeId = user?.employeeId ?? null;
-  const canManageEmployee = canManageCoreEmployees(user);
-  const canManageReporting = canManageCoreReporting(user);
-  const canManageAccess = canManageCoreAccess(user);
-  const canViewAccess = canAccessCoreAccess(user) || canManageAccess;
-  const canUseOrgChart = canAccessCoreOrgChart(user);
   const canViewProfile = !!employeeId;
 
-  const fieldPolicy = useEmployeeFieldPolicy(canViewProfile, "employee");
   const { data: settings } = useTenantSettings(canViewProfile);
 
   const {
@@ -59,7 +42,10 @@ export default function MyProfilePage() {
   if (!employeeId) {
     return (
       <PageContainer className="space-y-6">
-        <PageHeader title="My Profile" description="No linked employee record." />
+        <PageHeader
+          title="My Profile"
+          description="No linked employee record."
+        />
         <PageEmpty
           icon={User}
           title="No linked employee profile"
@@ -105,19 +91,12 @@ export default function MyProfilePage() {
     user?.employeeId === details.id &&
     settings?.selfService.canEditPhone !== false;
 
-  const workspaceProps: EmployeeProfileWorkspaceProps = {
-    details,
-    reportingLines,
-    fieldPolicy,
-    user,
-    canManageEmployee,
-    canManageReporting,
-    canViewAccess,
-    canManageAccess,
-    canUseOrgChart,
-    canEditOwnPreferredName,
-    canEditOwnPhone,
-  };
-
-  return <EmployeeProfileWorkspace {...workspaceProps} />;
+  return (
+    <MyProfileWorkspace
+      details={details}
+      reportingLines={reportingLines}
+      canEditPreferredName={canEditOwnPreferredName}
+      canEditPhone={canEditOwnPhone}
+    />
+  );
 }

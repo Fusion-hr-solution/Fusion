@@ -10,7 +10,7 @@ import {
 } from "@repo/ds/shell";
 import {
   useAuth,
-  canSeeCoreAccessNavigation,
+  canViewWorkforceAccess,
   canViewCoreOrganization,
   canSeeCoreSettingsNavigation,
   canViewTenantAdministration,
@@ -33,7 +33,10 @@ export function CoreSidebar() {
   const activePath = pathname.replace(/^\/core/, "") || "/";
   const { user, logout, isLoading: isAuthLoading } = useAuth();
   const canSeeSetup = canViewTenantAdministration(user);
-  const canSeeAccess = canSeeCoreAccessNavigation(user);
+  // Administrators (Feature 02) is visible only through tenant-administration
+  // visibility — Access Profile configuration permissions alone must not expose it.
+  const canSeeAdministrators = canViewTenantAdministration(user);
+  const canSeeWorkforceAccess = canViewWorkforceAccess(user);
   const canSeeSettings = canSeeCoreSettingsNavigation(user);
   const canSeeEmployeeRoster = canSeeEmployeeRosterNavigation(user);
   const canSeeOrganization = canViewCoreOrganization(user);
@@ -49,7 +52,8 @@ export function CoreSidebar() {
   });
   const adminItems = ADMIN_NAV.items.filter((item) => {
     if (item.href === "/getting-started") return canSeeSetup;
-    if (item.href === "/access") return canSeeAccess;
+    if (item.href === "/workforce-access") return canSeeWorkforceAccess;
+    if (item.href === "/access") return canSeeAdministrators;
     if (item.href === "/settings") return canSeeSettings;
     return canSeeSetup;
   });

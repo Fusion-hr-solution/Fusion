@@ -48,6 +48,7 @@ export type WorkforceAccessState =
   | "NotInvited"
   | "InvitePending"
   | "ActiveAccount"
+  | "Suspended"
   | "NeedsReview";
 
 export type WorkforceAccessDeliveryState = "Sent" | "Suppressed" | "Failed";
@@ -66,6 +67,9 @@ export interface WorkforceAccessSubjectSummaryDto {
   preferredName: string | null;
   displayName: string;
   workEmail: string;
+  jobTitle: string | null;
+  orgUnitName: string | null;
+  workLocation: string | null;
   employmentStatus: string;
   isActive: boolean;
   directReportCount: number;
@@ -160,6 +164,7 @@ export interface WorkforceAccessRosterSummaryDto {
   invitePendingCount: number;
   activeAccountCount: number;
   needsReviewCount: number;
+  suspendedCount: number;
 }
 
 export const coreWorkforcePaths = {
@@ -171,9 +176,12 @@ export const coreWorkforcePaths = {
   accessSubjectsSummary: () => "/corehr/workforce/access-subjects/summary",
   accessSubjectsPreview: () => "/corehr/workforce/access-subjects/preview",
   bulkInvite: () => "/corehr/workforce/access-subjects/bulk-invite",
-  team: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/team`,
-  downline: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/downline`,
-  managerChain: (employeeId: string) => `/corehr/workforce/employees/${employeeId}/manager-chain`,
+  team: (employeeId: string) =>
+    `/corehr/workforce/employees/${employeeId}/team`,
+  downline: (employeeId: string) =>
+    `/corehr/workforce/employees/${employeeId}/downline`,
+  managerChain: (employeeId: string) =>
+    `/corehr/workforce/employees/${employeeId}/manager-chain`,
   orgUnits: () => "/corehr/workforce/org-units",
   orgUnitTree: () => "/corehr/workforce/org-units/tree",
 } as const;
@@ -185,8 +193,16 @@ export const coreWorkforceQueryKeys = {
   employee: (employeeId: string) =>
     [...coreWorkforceQueryKeys.employees(), employeeId] as const,
   resolve: (employeeIds: readonly string[]) =>
-    [...coreWorkforceQueryKeys.employees(), "resolve", [...employeeIds].sort()] as const,
-  search: (params: { search?: string | null; page: number; pageSize: number }) =>
+    [
+      ...coreWorkforceQueryKeys.employees(),
+      "resolve",
+      [...employeeIds].sort(),
+    ] as const,
+  search: (params: {
+    search?: string | null;
+    page: number;
+    pageSize: number;
+  }) =>
     [
       ...coreWorkforceQueryKeys.employees(),
       "search",
@@ -203,6 +219,10 @@ export const coreWorkforceQueryKeys = {
     employeeStatus?: "Active" | "Inactive" | null;
     deliveryState?: WorkforceAccessDeliveryState | null;
     employeeKey?: string | null;
+    baseline?: string | null;
+    cohort?: string | null;
+    orgUnitId?: string | null;
+    organizationScope?: string | null;
     page: number;
     pageSize: number;
   }) =>
@@ -216,6 +236,10 @@ export const coreWorkforceQueryKeys = {
         employeeStatus: params.employeeStatus ?? null,
         deliveryState: params.deliveryState ?? null,
         employeeKey: params.employeeKey ?? null,
+        baseline: params.baseline ?? null,
+        cohort: params.cohort ?? null,
+        orgUnitId: params.orgUnitId ?? null,
+        organizationScope: params.organizationScope ?? null,
         page: params.page,
         pageSize: params.pageSize,
       },
@@ -228,6 +252,10 @@ export const coreWorkforceQueryKeys = {
     profileId?: string | null;
     employeeStatus?: "Active" | "Inactive" | null;
     employeeKey?: string | null;
+    baseline?: string | null;
+    cohort?: string | null;
+    orgUnitId?: string | null;
+    organizationScope?: string | null;
   }) =>
     [
       ...coreWorkforceQueryKeys.all(),
@@ -238,15 +266,27 @@ export const coreWorkforceQueryKeys = {
         profileId: params.profileId ?? null,
         employeeStatus: params.employeeStatus ?? null,
         employeeKey: params.employeeKey ?? null,
+        baseline: params.baseline ?? null,
+        cohort: params.cohort ?? null,
+        orgUnitId: params.orgUnitId ?? null,
+        organizationScope: params.organizationScope ?? null,
       },
     ] as const,
   team: (employeeId: string) =>
     [...coreWorkforceQueryKeys.employees(), employeeId, "team"] as const,
   managerChain: (employeeId: string) =>
-    [...coreWorkforceQueryKeys.employees(), employeeId, "manager-chain"] as const,
+    [
+      ...coreWorkforceQueryKeys.employees(),
+      employeeId,
+      "manager-chain",
+    ] as const,
   orgUnits: (includeInactive: boolean) =>
     [...coreWorkforceQueryKeys.all(), "org-units", includeInactive] as const,
-  orgUnitTree: (params: { rootId?: string | null; maxDepth?: number; includeInactive?: boolean }) =>
+  orgUnitTree: (params: {
+    rootId?: string | null;
+    maxDepth?: number;
+    includeInactive?: boolean;
+  }) =>
     [
       ...coreWorkforceQueryKeys.all(),
       "org-unit-tree",

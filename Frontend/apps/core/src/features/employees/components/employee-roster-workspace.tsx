@@ -13,11 +13,7 @@ import {
   canManageCoreEmployees,
   useAuth,
 } from "@repo/auth";
-import {
-  DEFAULT_PAGE_SIZE,
-  PAGE_SIZE_OPTIONS,
-  type PageSize,
-} from "@/lib/table-config";
+import { PAGE_SIZE_OPTIONS, type PageSize } from "@/lib/table-config";
 import {
   PageContainer,
   PageHeader,
@@ -539,13 +535,6 @@ export default function EmployeeRosterWorkspace() {
   const handleRowClick = useCallback(
     (employee: EmployeeRosterRow) => {
       router.push(`/employees/${employee.stableEmployeeKey}`);
-    },
-    [router]
-  );
-
-  const handleNavigateToEmployee = useCallback(
-    (employeeKey: string) => {
-      router.push(`/employees/${employeeKey}`);
     },
     [router]
   );
