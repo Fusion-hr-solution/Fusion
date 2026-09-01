@@ -32,7 +32,7 @@ import {
 import { AsyncButton } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { MEASUREMENT_LABELS, parseNumeric } from "../lib";
-import { EmployeePicker, type PickedEmployee } from "./employee-picker";
+import { EmployeePicker, type PickedEmployee } from "@repo/workforce-ui";
 
 interface MilestoneRow {
   title: string;

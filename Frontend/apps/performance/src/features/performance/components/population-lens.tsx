@@ -33,7 +33,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@repo/ds/components/ui/
 import { AsyncButton, PageError, StatusBadge } from "@repo/ds/shell";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
-import { usePopulation, usePopulationMutations, useOrgHierarchy } from "../api/use-performance";
+import { useOrgHierarchy } from "@repo/workforce-ui";
+import { usePopulation, usePopulationMutations } from "../api/use-performance";
 import { READINESS_LABELS, formatDate } from "../lib";
 import { computeOrgStates, type OrgUnitState } from "./population-lib";
 

@@ -1,12 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowRight,
   ArrowUpRight,
   Building2,
   Gauge,
+  GripVertical,
   Info,
   ListChecks,
   Percent,
@@ -36,6 +54,7 @@ import {
   ButtonGroup,
   ButtonGroupText,
 } from "@repo/ds/components/ui/button-group";
+import { DatePicker } from "@repo/ds/components/ui/date-picker";
 import { Input } from "@repo/ds/components/ui/input";
 import { Label } from "@repo/ds/components/ui/label";
 import { Textarea } from "@repo/ds/components/ui/textarea";
@@ -51,16 +70,26 @@ import { cn } from "@repo/ds/lib/utils";
 import { parseNumeric } from "../../lib";
 import { CycleContextBar } from "../cycle-context-bar";
 import { PerformancePageHeading } from "../performance-page-heading";
-import { EmployeePicker, type PickedEmployee } from "../employee-picker";
-import { OrgUnitPicker, type PickedOrgUnit } from "./org-unit-picker";
+import {
+  EmployeePicker,
+  OrgUnitPicker,
+  type PickedEmployee,
+  type PickedOrgUnit,
+} from "@repo/workforce-ui";
 import { initials, scopeLabel } from "./goals-lib";
 import { useGoalMutations } from "../../api/use-performance";
 
 const GOALS_HREF = "/goals";
 
 interface MilestoneRow {
+  /** Stable identity for drag-reordering and list keys — order carries meaning, so it can't be index. */
+  id: string;
   title: string;
   weight: string;
+}
+
+function emptyMilestone(): MilestoneRow {
+  return { id: crypto.randomUUID(), title: "", weight: "" };
 }
 
 /**
@@ -134,10 +163,11 @@ export function OrgObjectiveComposer({
   const [milestones, setMilestones] = useState<MilestoneRow[]>(
     measurement?.milestones && measurement.milestones.length > 0
       ? measurement.milestones.map((m) => ({
+          id: crypto.randomUUID(),
           title: m.title,
           weight: String(m.weight),
         }))
-      : [{ title: "", weight: "" }]
+      : [emptyMilestone()]
   );
   const [busy, setBusy] = useState<null | "draft" | "publish">(null);
 
@@ -388,24 +418,22 @@ export function OrgObjectiveComposer({
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="og-start">Start</Label>
-              <Input
+              <DatePicker
                 id="og-start"
-                type="date"
                 value={startDate}
                 min={minDate}
-                max={maxDate}
-                onChange={(event) => setStartDate(event.target.value)}
+                max={endDate || maxDate}
+                onChange={setStartDate}
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="og-end">End</Label>
-              <Input
+              <DatePicker
                 id="og-end"
-                type="date"
                 value={endDate}
-                min={minDate}
+                min={startDate || minDate}
                 max={maxDate}
-                onChange={(event) => setEndDate(event.target.value)}
+                onChange={setEndDate}
               />
             </div>
           </div>
@@ -483,26 +511,18 @@ export function OrgObjectiveComposer({
               ) : null}
 
               {method === "ManualPercentage" ? (
-                <p className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-                  A single completion percentage the accountable person updates
+                <MeasureNote icon={Percent} title="Updated manually">
+                  The accountable person updates a single completion percentage
                   over the period.
-                </p>
+                </MeasureNote>
               ) : null}
             </div>
           ) : (
-            <div className="flex gap-2.5 rounded-xl border border-info/25 bg-info-subtle px-4 py-3">
-              <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
-              <div className="text-sm">
-                <p className="font-medium text-foreground">
-                  You&rsquo;ll add contributors later
-                </p>
-                <p className="mt-0.5 text-muted-foreground">
-                  This objective&rsquo;s progress adds up from the objectives
-                  beneath it. Once those are published, you choose how much each
-                  one counts toward the total.
-                </p>
-              </div>
-            </div>
+            <MeasureNote icon={Info} title="You’ll add contributors later">
+              This objective&rsquo;s progress adds up from the objectives beneath
+              it. Once those are published, you choose how much each one counts
+              toward the total.
+            </MeasureNote>
           )}
         </Block>
       </div>
@@ -533,38 +553,33 @@ function ParentDirectionBand({ parent }: { parent: GoalNodeDto }) {
           <p className="mt-1.5 truncate text-lg font-semibold tracking-tight text-foreground">
             {parent.title}
           </p>
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <Building2 className="size-3.5" aria-hidden />{" "}
-              {scopeLabel(parent)}
+        </div>
+        <StatusBadge tone="success" dot>
+          Published
+        </StatusBadge>
+      </div>
+      <div className="mt-3 flex w-full flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+        <span className="inline-flex items-center gap-2">
+          <Building2 className="size-4 text-muted-foreground/80" aria-hidden />{" "}
+          <span className="font-medium text-foreground">{scopeLabel(parent)}</span>
+        </span>
+        {parent.accountablePersonName ? (
+          <span className="inline-flex items-center gap-2">
+            <Avatar className="size-6">
+              <AvatarFallback className="text-[0.625rem]">
+                {initials(parent.accountablePersonName)}
+              </AvatarFallback>
+            </Avatar>
+            <span className="font-medium text-foreground">
+              {parent.accountablePersonName}
             </span>
-            {parent.accountablePersonName ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Avatar className="size-5">
-                  <AvatarFallback className="text-[9px]">
-                    {initials(parent.accountablePersonName)}
-                  </AvatarFallback>
-                </Avatar>
-                {parent.accountablePersonName}
-              </span>
-            ) : null}
-          </div>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-7">
-          <StatusBadge tone="success" dot>
-            Published
-          </StatusBadge>
-          {summary ? (
-            <div className="text-right">
-              <p className="type-eyebrow text-muted-foreground/70">
-                Measurement
-              </p>
-              <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
-                {summary}
-              </p>
-            </div>
-          ) : null}
-        </div>
+          </span>
+        ) : null}
+        {summary ? (
+          <span className="ml-auto font-semibold tabular-nums text-primary">
+            {summary}
+          </span>
+        ) : null}
       </div>
     </div>
   );
@@ -584,6 +599,30 @@ function Block({
       <h2 className="type-section-title text-foreground">{title}</h2>
       <div className="mt-4 space-y-4">{children}</div>
     </section>
+  );
+}
+
+// ── Measurement note (shared passive-mode explainer) ─────────────────────────────
+// Both passive measurement modes — Manual percentage and Calculate-from-contributors —
+// have nothing to configure, so each is presented with the same icon + title + body note.
+
+function MeasureNote({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: typeof Info;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex gap-2.5 rounded-xl border border-info/25 bg-info-subtle px-4 py-3">
+      <Icon className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
+      <div className="text-sm">
+        <p className="font-medium text-foreground">{title}</p>
+        <p className="mt-0.5 text-muted-foreground">{children}</p>
+      </div>
+    </div>
   );
 }
 
@@ -608,7 +647,7 @@ function SourceCard({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "group flex items-center gap-3 rounded-xl border p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "group flex items-start gap-3 rounded-xl border p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         active
           ? "border-primary bg-primary/[0.06] ring-1 ring-primary/40"
           : "border-border hover:border-primary/40 hover:bg-muted/40"
@@ -813,66 +852,61 @@ function MilestoneEditor({
   const remaining = 100 - weightSum;
   const ready = weightSum === 100;
   const over = weightSum > 100;
+  const sensors = useSensors(
+    // A small drag threshold keeps a click inside the title/weight fields from starting a drag.
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over: target } = event;
+    if (!target || active.id === target.id) return;
+    onChange((rows) => {
+      const from = rows.findIndex((row) => row.id === active.id);
+      const to = rows.findIndex((row) => row.id === target.id);
+      return from === -1 || to === -1 ? rows : arrayMove(rows, from, to);
+    });
+  }
+
+  const setTitle = (id: string, title: string) =>
+    onChange((rows) => rows.map((row) => (row.id === id ? { ...row, title } : row)));
+  const setWeight = (id: string, weight: string) =>
+    onChange((rows) => rows.map((row) => (row.id === id ? { ...row, weight } : row)));
+  const removeRow = (id: string) =>
+    onChange((rows) => (rows.length > 1 ? rows.filter((row) => row.id !== id) : rows));
+
   return (
     <div className="space-y-3 rounded-xl border border-border/70 bg-muted/30 p-4">
-      <div className="space-y-2">
-        {milestones.map((row, index) => (
-          <div key={index} className="flex items-center gap-2.5">
-            <span className="w-5 shrink-0 text-center text-sm tabular-nums text-muted-foreground">
-              {index + 1}
-            </span>
-            <Input
-              value={row.title}
-              onChange={(event) =>
-                onChange((rows) =>
-                  rows.map((item, i) =>
-                    i === index ? { ...item, title: event.target.value } : item
-                  )
-                )
-              }
-              placeholder={`Milestone ${index + 1}`}
-              className="flex-1"
-            />
-            <ButtonGroup className="w-28 shrink-0">
-              <Input
-                type="number"
-                value={row.weight}
-                onChange={(event) =>
-                  onChange((rows) =>
-                    rows.map((item, i) =>
-                      i === index
-                        ? { ...item, weight: event.target.value }
-                        : item
-                    )
-                  )
-                }
-                placeholder="0"
-                className="text-right tabular-nums"
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext
+          items={milestones.map((row) => row.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="space-y-2">
+            {milestones.map((row, index) => (
+              <SortableMilestoneRow
+                key={row.id}
+                row={row}
+                index={index}
+                canRemove={milestones.length > 1}
+                onTitle={(value) => setTitle(row.id, value)}
+                onWeight={(value) => setWeight(row.id, value)}
+                onRemove={() => removeRow(row.id)}
               />
-              <ButtonGroupText>%</ButtonGroupText>
-            </ButtonGroup>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() =>
-                onChange((rows) =>
-                  rows.length > 1 ? rows.filter((_, i) => i !== index) : rows
-                )
-              }
-              disabled={milestones.length === 1}
-              aria-label={`Remove milestone ${index + 1}`}
-            >
-              <Trash2 className="size-3.5" />
-            </Button>
+            ))}
           </div>
-        ))}
-      </div>
+        </SortableContext>
+      </DndContext>
       <div className="flex items-center justify-between border-t border-border/60 pt-3">
         <Button
           variant="ghost"
           size="sm"
           onClick={() =>
-            onChange((rows) => [...rows, { title: "", weight: "" }])
+            onChange((rows) => [...rows, emptyMilestone()])
           }
         >
           <Plus className="size-3.5" data-icon="inline-start" /> Add milestone
@@ -899,6 +933,71 @@ function MilestoneEditor({
           </span>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SortableMilestoneRow({
+  row,
+  index,
+  canRemove,
+  onTitle,
+  onWeight,
+  onRemove,
+}: {
+  row: MilestoneRow;
+  index: number;
+  canRemove: boolean;
+  onTitle: (value: string) => void;
+  onWeight: (value: string) => void;
+  onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: row.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        "flex items-center gap-2.5 rounded-lg",
+        isDragging && "relative z-10 bg-card shadow-overlay"
+      )}
+    >
+      <button
+        type="button"
+        className="flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+        aria-label={`Reorder milestone ${index + 1}`}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-4" aria-hidden />
+      </button>
+      <Input
+        value={row.title}
+        onChange={(event) => onTitle(event.target.value)}
+        placeholder={`Milestone ${index + 1}`}
+        className="flex-1"
+      />
+      <ButtonGroup className="w-28 shrink-0">
+        <Input
+          type="number"
+          value={row.weight}
+          onChange={(event) => onWeight(event.target.value)}
+          placeholder="0"
+          className="text-right tabular-nums"
+        />
+        <ButtonGroupText>%</ButtonGroupText>
+      </ButtonGroup>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        onClick={onRemove}
+        disabled={!canRemove}
+        aria-label={`Remove milestone ${index + 1}`}
+      >
+        <Trash2 className="size-3.5" />
+      </Button>
     </div>
   );
 }

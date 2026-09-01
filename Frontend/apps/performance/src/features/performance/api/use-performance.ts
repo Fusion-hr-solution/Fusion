@@ -3,10 +3,6 @@
 import { useMemo } from "react";
 import { useAuth } from "@repo/auth";
 import {
-  coreOrganizationQueryKeys,
-  coreWorkforcePaths,
-  coreWorkforceQueryKeys,
-  createCoreOrganizationApi,
   createPerformanceApi,
   createPlatformApiClient,
   performanceQueryKeys,
@@ -28,27 +24,19 @@ import {
   type UpdateOrganizationalObjectiveRequest,
   type UpdatePlanObjectiveRequest,
   type UpdateStrategicObjectiveRequest,
-  type WorkforceEmployeeSummaryDto,
 } from "@repo/api";
 import { useApiMutation, useApiQuery, useApiQueryClient } from "@repo/api/query";
 import { resolvePerformanceAccess } from "@/shell/performance-access";
-
-interface EmployeeSearchResponse {
-  items: WorkforceEmployeeSummaryDto[];
-}
 
 function useApis() {
   const client = useMemo(() => createPlatformApiClient(), []);
   return useMemo(
     () => ({
       performance: createPerformanceApi(client),
-      organization: createCoreOrganizationApi(client),
     }),
     [client]
   );
 }
-
-const todayIso = () => new Date().toISOString().slice(0, 10);
 
 /**
  * Performance capabilities for the current user, derived from the authenticated
@@ -330,30 +318,6 @@ export function useProgressMutations(cycleId: string, objectiveId: string) {
   );
   const uploadEvidence = useApiMutation((file: File) => performance.uploadEvidence(cycleId, file));
   return { submit, uploadEvidence, evidenceDownloadPath: (id: string) => performance.evidenceDownloadPath(cycleId, id) };
-}
-
-export function useOrgHierarchy(enabled = true) {
-  const { organization } = useApis();
-  const asOf = todayIso();
-  return useApiQuery(
-    coreOrganizationQueryKeys.hierarchy(asOf),
-    (signal) => organization.hierarchy(asOf, signal),
-    { enabled, staleTime: 60_000 }
-  );
-}
-
-export function useEmployeeSearch(term: string) {
-  const client = useMemo(() => createPlatformApiClient(), []);
-  const trimmed = term.trim();
-  return useApiQuery(
-    [...coreWorkforceQueryKeys.all(), "performance-picker", trimmed] as const,
-    (signal) =>
-      client.get<EmployeeSearchResponse>(coreWorkforcePaths.search(), {
-        params: { search: trimmed || null, page: 1, pageSize: 8 },
-        signal,
-      }),
-    { enabled: trimmed.length >= 2, staleTime: 30_000 }
-  );
 }
 
 // ── Mutations ────────────────────────────────────────────────────────────────
