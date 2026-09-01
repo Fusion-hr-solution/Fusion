@@ -116,10 +116,11 @@ public static class AccessProfileTemplates
     /// (managers reviewing their own reports), and <c>performance.cycle.view @OrgUnit</c>
     /// remains unseeded (viewing aggregate data is not a write authority). The Manager
     /// profile additionally carries <c>performance.objective.org.manage @Tenant</c>: the
-    /// authority to establish/publish organizational objectives. In the direct MVP this is
-    /// deliberately coarse (tenant-wide); fine-grained per-org-unit scoping is deferred to
-    /// the future tenant Access/Profile design. Broad tenant administration and strategy
-    /// authority ride on <see cref="BuildTenantAdministrator"/>.
+    /// authority to establish/publish organizational objectives, paired with read-only
+    /// <c>core.organization.view @Tenant</c> so an author can read the org tree to choose a
+    /// scope. In the direct MVP this is deliberately coarse (tenant-wide); fine-grained
+    /// per-org-unit scoping is deferred to the future tenant Access/Profile design. Broad
+    /// tenant administration and strategy authority ride on <see cref="BuildTenantAdministrator"/>.
     /// </summary>
     private static readonly IReadOnlyDictionary<string, IReadOnlyList<EffectivePermissionGrant>> PerformanceGrantsByInternalKey =
         new Dictionary<string, IReadOnlyList<EffectivePermissionGrant>>(StringComparer.Ordinal)
@@ -134,6 +135,12 @@ public static class AccessProfileTemplates
                 new(PerformancePermissions.CycleView, PermissionScopes.DirectReports),
                 new(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self),
                 new(PerformancePermissions.ObjectiveOrgManage, PermissionScopes.Tenant),
+                // Establishing/publishing organizational objectives requires reading the org
+                // tree to choose a scope, so the org-authoring authority above is paired with
+                // read-only tenant org visibility. Granted here (not on the base Manager
+                // template) so it rides in only with the Performance entitlement that adds
+                // org authoring — a non-Performance Manager stays scoped to their direct team.
+                new(CorePermissions.OrganizationView, PermissionScopes.Tenant),
             ],
             ["hr-admin"] =
             [
