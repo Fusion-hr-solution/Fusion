@@ -46,14 +46,14 @@ export function ManagerDecisionWorkspace({
   return (
     <div className="space-y-6 pb-4">
       <Link
-        href="/reviews"
+        href="/team"
         onClick={(event) => {
           event.preventDefault();
           onBack();
         }}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
-        <ArrowLeft className="size-4" aria-hidden /> All reviews
+        <ArrowLeft className="size-4" aria-hidden /> All plans
       </Link>
 
       {/* Who and what. */}

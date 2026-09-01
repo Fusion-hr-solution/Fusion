@@ -4,6 +4,7 @@ import { PageSkeleton } from "@repo/ds/shell";
 import { Toaster } from "@repo/ds/components/ui/sonner";
 import { PerformancePagesShell } from "@/shell/performance-pages-shell";
 import { PerformanceWorkspaceAccessBoundary } from "@/shell/performance-workspace-access-boundary";
+import { BreadcrumbOverridesProvider } from "@/shell/breadcrumb-overrides";
 
 // The module frame (sidebar, top bar) renders unconditionally and stays present
 // while the session restores. Auth/access resolution and route data loading are
@@ -13,13 +14,15 @@ import { PerformanceWorkspaceAccessBoundary } from "@/shell/performance-workspac
 export default function PagesLayout({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
-      <PerformancePagesShell>
-        <Suspense fallback={<PageSkeleton rows={4} label="Loading Performance" />}>
-          <PerformanceWorkspaceAccessBoundary>
-            {children}
-          </PerformanceWorkspaceAccessBoundary>
-        </Suspense>
-      </PerformancePagesShell>
+      <BreadcrumbOverridesProvider>
+        <PerformancePagesShell>
+          <Suspense fallback={<PageSkeleton rows={4} label="Loading Performance" />}>
+            <PerformanceWorkspaceAccessBoundary>
+              {children}
+            </PerformanceWorkspaceAccessBoundary>
+          </Suspense>
+        </PerformancePagesShell>
+      </BreadcrumbOverridesProvider>
       <Toaster />
     </AuthProvider>
   );

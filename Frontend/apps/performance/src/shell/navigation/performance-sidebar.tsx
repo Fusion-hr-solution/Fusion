@@ -28,10 +28,14 @@ export function PerformanceSidebar() {
     access.aggregateViewScope === "DirectReports" ||
     access.aggregateViewScope === "OrgUnit" ||
     access.aggregateViewScope === "Tenant";
+  // Organization Goals is an organization-direction surface, not a universal employee
+  // destination: organizational read (canReview) plus strategic/org-objective responsibility.
+  // Absorbing Contribution here does not narrow who could already reach it.
+  const canViewOrgGoals = canReview || access.canPublishStrategy || access.canManageOrgObjectives;
   const primaryItems = PRIMARY_NAV.items.filter((item) => {
+    if (item.href === "/goals") return canViewOrgGoals;
     if (item.href === "/plan") return access.canParticipate;
-    if (item.href === "/reviews") return canReview;
-    if (item.href === "/contribution") return canReview || access.canPublishStrategy;
+    if (item.href === "/team") return canReview;
     return true;
   });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Building2, ChevronDown, ChevronRight, Search } from "lucide-react";
+import { Building2, ChevronDown, ChevronRight, ChevronsUpDown, Search } from "lucide-react";
 import type { OrganizationHierarchyNodeDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import { Input } from "@repo/ds/components/ui/input";
@@ -96,7 +96,7 @@ export function OrgUnitPicker({
               Select an organizational unit
             </span>
           )}
-          <ChevronDown className="size-3.5 shrink-0 opacity-50" aria-hidden />
+          <ChevronsUpDown className="size-3.5 shrink-0 opacity-50" aria-hidden />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[var(--radix-popover-trigger-width)] p-0">

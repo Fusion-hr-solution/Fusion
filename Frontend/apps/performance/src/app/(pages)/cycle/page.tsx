@@ -35,15 +35,15 @@ const AREAS: { key: Area; label: string; icon: typeof Target }[] = [
   { key: "review", label: "Review & activate", icon: Check },
 ];
 
-export default function SetupPage() {
+export default function CyclePage() {
   return (
     <Suspense fallback={<PageSkeleton rows={4} label="Loading Cycle" />}>
-      <SetupWorkspace />
+      <CycleWorkspace />
     </Suspense>
   );
 }
 
-function SetupWorkspace() {
+function CycleWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const access = usePerformanceAccess();
@@ -69,7 +69,7 @@ function SetupWorkspace() {
 
   if (access.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
   if (!canAdminister) {
-    return <PagePermissionNotice title="Administration only" description="Cycle setup is available to performance administrators." />;
+    return <PagePermissionNotice title="Administration only" description="Cycle administration is available to performance administrators." />;
   }
   if (detail.isLoading) return <PageSkeleton rows={4} label="Loading Cycle" />;
   if (detail.error) {
@@ -104,7 +104,7 @@ function SetupWorkspace() {
         }
       />
       <PerformancePageHeading
-        title="Cycle setup"
+        title="Cycle"
         description={
           readOnly
             ? "This Cycle is active. Setup is read-only history."

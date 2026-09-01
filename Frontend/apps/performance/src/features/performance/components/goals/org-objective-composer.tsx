@@ -1,10 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, ArrowUpRight, Calculator, Gauge, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Building2,
+  Gauge,
+  Info,
+  ListChecks,
+  Percent,
+  Plus,
+  Sigma,
+  Target,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  UserRound,
+} from "lucide-react";
 import { toast } from "sonner";
 import type {
   CreateOrganizationalObjectiveRequest,
+  CycleSummaryDto,
   GoalDetailDto,
   GoalNodeDto,
   ImprovementDirection,
@@ -13,15 +30,12 @@ import type {
   ObjectiveProgressSource,
   UpdateOrganizationalObjectiveRequest,
 } from "@repo/api";
+import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { Button } from "@repo/ds/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@repo/ds/components/ui/dialog";
+  ButtonGroup,
+  ButtonGroupText,
+} from "@repo/ds/components/ui/button-group";
 import { Input } from "@repo/ds/components/ui/input";
 import { Label } from "@repo/ds/components/ui/label";
 import { Textarea } from "@repo/ds/components/ui/textarea";
@@ -32,452 +46,550 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ds/components/ui/select";
-import { AsyncButton } from "@repo/ds/shell";
+import { PageContainer, StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
-import { MEASUREMENT_LABELS, parseNumeric } from "../../lib";
+import { parseNumeric } from "../../lib";
+import { CycleContextBar } from "../cycle-context-bar";
+import { PerformancePageHeading } from "../performance-page-heading";
 import { EmployeePicker, type PickedEmployee } from "../employee-picker";
 import { OrgUnitPicker, type PickedOrgUnit } from "./org-unit-picker";
-import { scopeLabel } from "./goals-lib";
+import { initials, scopeLabel } from "./goals-lib";
+import { useGoalMutations } from "../../api/use-performance";
+
+const GOALS_HREF = "/goals";
 
 interface MilestoneRow {
   title: string;
   weight: string;
 }
 
+/**
+ * The Create / Edit Organizational Objective composer — a focused, deep-linkable authoring
+ * surface (route: /goals/new?parent=<id> and /goals/<id>/edit), not a modal. Its grammar is
+ * Parent direction → Objective definition → Scope & accountability → "How will progress be
+ * measured?" → measurement configuration → Draft / Publish. Scope and accountability are kept
+ * visibly distinct concepts; Direct vs Calculated is the single progress-source question, and
+ * the three real Direct methods (manual %, numeric target, weighted milestones) sit beneath it.
+ * Draft is a resumable state, and the happy path ends in Publish once requirements are met.
+ */
 export function OrgObjectiveComposer({
-  open,
-  onOpenChange,
+  cycle,
   parent,
   objective,
   defaultAccountable,
-  onCreate,
-  onUpdate,
 }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  cycle: CycleSummaryDto;
   parent: GoalNodeDto;
   objective?: GoalDetailDto;
   /** Convenience default for a new objective's accountable person (the signed-in user); editable. */
   defaultAccountable?: PickedEmployee | null;
-  onCreate: (request: CreateOrganizationalObjectiveRequest) => Promise<void>;
-  onUpdate: (request: UpdateOrganizationalObjectiveRequest) => Promise<void>;
 }) {
+  const router = useRouter();
+  const mutations = useGoalMutations(cycle.id);
   const isEdit = Boolean(objective);
+  // Child dates are bounded by the parent objective (which is itself bounded by the Cycle),
+  // so the parent's window is the authoritative min/max the server enforces.
   const minDate = parent.startDate;
   const maxDate = parent.endDate;
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [person, setPerson] = useState<PickedEmployee | null>(null);
-  const [orgUnit, setOrgUnit] = useState<PickedOrgUnit | null>(null);
-  const [startDate, setStartDate] = useState(minDate);
-  const [endDate, setEndDate] = useState(maxDate);
-  const [source, setSource] = useState<ObjectiveProgressSource>("Direct");
-  const [method, setMethod] = useState<MeasurementMethod>("NumericTarget");
-  const [baseline, setBaseline] = useState("");
-  const [target, setTarget] = useState("");
-  const [unit, setUnit] = useState("");
-  const [direction, setDirection] = useState<ImprovementDirection>("Increase");
-  const [milestones, setMilestones] = useState<MilestoneRow[]>([{ title: "", weight: "" }]);
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    const node = objective?.node;
-    setTitle(node?.title ?? "");
-    setDescription(objective?.description ?? "");
-    setPerson(
-      node
-        ? { id: node.accountablePersonId, name: node.accountablePersonName ?? "Accountable person" }
-        : defaultAccountable ?? null
-    );
-    setOrgUnit(
-      node?.orgUnitId ? { id: node.orgUnitId, name: node.orgUnitName ?? "Selected unit", path: [] } : null
-    );
-    setStartDate(node?.startDate ?? minDate);
-    setEndDate(node?.endDate ?? maxDate);
-    setSource(node?.progressSource ?? "Direct");
-    const m = objective?.measurement;
-    setMethod(m?.method ?? "NumericTarget");
-    setBaseline(m?.baseline != null ? String(m.baseline) : "");
-    setTarget(m?.target != null ? String(m.target) : "");
-    setUnit(m?.unit ?? "");
-    setDirection(m?.direction ?? "Increase");
-    setMilestones(
-      m?.milestones && m.milestones.length > 0
-        ? m.milestones.map((milestone) => ({ title: milestone.title, weight: String(milestone.weight) }))
-        : [{ title: "", weight: "" }]
-    );
-  }, [open, objective, minDate, maxDate, defaultAccountable]);
+  const node = objective?.node;
+  const [title, setTitle] = useState(node?.title ?? "");
+  const [description, setDescription] = useState(objective?.description ?? "");
+  const [person, setPerson] = useState<PickedEmployee | null>(
+    node
+      ? {
+          id: node.accountablePersonId,
+          name: node.accountablePersonName ?? "Accountable person",
+        }
+      : (defaultAccountable ?? null)
+  );
+  const [orgUnit, setOrgUnit] = useState<PickedOrgUnit | null>(
+    node?.orgUnitId
+      ? {
+          id: node.orgUnitId,
+          name: node.orgUnitName ?? "Selected unit",
+          path: [],
+        }
+      : null
+  );
+  const [startDate, setStartDate] = useState(node?.startDate ?? minDate);
+  const [endDate, setEndDate] = useState(node?.endDate ?? maxDate);
+  const [source, setSource] = useState<ObjectiveProgressSource>(
+    node?.progressSource ?? "Direct"
+  );
+  const measurement = objective?.measurement;
+  const [method, setMethod] = useState<MeasurementMethod>(
+    measurement?.method ?? "NumericTarget"
+  );
+  const [baseline, setBaseline] = useState(
+    measurement?.baseline != null ? String(measurement.baseline) : ""
+  );
+  const [target, setTarget] = useState(
+    measurement?.target != null ? String(measurement.target) : ""
+  );
+  const [unit, setUnit] = useState(measurement?.unit ?? "");
+  const [direction, setDirection] = useState<ImprovementDirection>(
+    measurement?.direction ?? "Increase"
+  );
+  const [milestones, setMilestones] = useState<MilestoneRow[]>(
+    measurement?.milestones && measurement.milestones.length > 0
+      ? measurement.milestones.map((m) => ({
+          title: m.title,
+          weight: String(m.weight),
+        }))
+      : [{ title: "", weight: "" }]
+  );
+  const [busy, setBusy] = useState<null | "draft" | "publish">(null);
 
   const base = parseNumeric(baseline);
   const tgt = parseNumeric(target);
   const numericInvalid = base.invalid || tgt.invalid;
-  const sameValue = base.num !== null && tgt.num !== null && base.num === tgt.num;
-  const weightSum = milestones.reduce((total, row) => total + (Number(row.weight) || 0), 0);
+  const sameValue =
+    base.num !== null && tgt.num !== null && base.num === tgt.num;
+  const weightSum = milestones.reduce(
+    (total, row) => total + (Number(row.weight) || 0),
+    0
+  );
+  const namedMilestones = milestones.filter((row) => row.title.trim() !== "");
 
-  const directValid =
-    source !== "Direct" ||
-    method !== "NumericTarget" ||
-    (base.num !== null && tgt.num !== null && unit.trim() !== "" && !sameValue);
-  const milestonesValid =
-    source !== "Direct" ||
-    method !== "WeightedMilestones" ||
-    (milestones.every((row) => row.title.trim() !== "" && Number(row.weight) > 0) && weightSum === 100);
-  const orgValid = isEdit || orgUnit !== null;
-  const valid =
-    title.trim() !== "" && person !== null && orgValid && endDate > startDate && directValid && milestonesValid;
+  // ── Readiness ──────────────────────────────────────────────────────────────
+  // A Draft can be saved once it is structurally valid — the same minimums the domain enforces
+  // when it constructs the objective (title, scope, accountable, dates, and a well-formed
+  // measurement). Publish adds exactly one gate: weighted-milestone weights must total 100%.
+  const missing: string[] = [];
+  if (title.trim() === "") missing.push("a title");
+  if (!isEdit && orgUnit === null) missing.push("an organizational scope");
+  if (person === null) missing.push("an accountable person");
+  if (!(endDate > startDate)) missing.push("valid dates");
+  if (source === "Direct" && method === "NumericTarget") {
+    if (base.num === null || tgt.num === null || numericInvalid)
+      missing.push("a baseline and target");
+    else if (sameValue) missing.push("a target that differs from the baseline");
+    if (unit.trim() === "") missing.push("a unit");
+  }
+  if (source === "Direct" && method === "WeightedMilestones") {
+    const everyRowValid = milestones.every(
+      (row) =>
+        row.title.trim() !== "" &&
+        Number(row.weight) > 0 &&
+        Number(row.weight) <= 100
+    );
+    if (namedMilestones.length === 0 || !everyRowValid)
+      missing.push("named milestones with weights");
+  }
+  const canSaveDraft = missing.length === 0;
 
-  const preview = useMemo(() => {
-    if (source === "Calculated") return "Calculated from contributors";
-    if (method === "NumericTarget") {
-      const arrow = direction === "Decrease" ? "↓" : "→";
-      return `${baseline || "?"} ${arrow} ${target || "?"} ${unit}`.trim();
-    }
-    if (method === "WeightedMilestones") {
-      const named = milestones.filter((row) => row.title.trim() !== "").length;
-      return `${named} milestone${named === 1 ? "" : "s"} · ${weightSum}%`;
-    }
-    return "Manual completion %";
-  }, [source, method, baseline, target, unit, direction, milestones, weightSum]);
+  const weightedIncomplete =
+    source === "Direct" && method === "WeightedMilestones" && weightSum !== 100;
+  const publishBlocker = !canSaveDraft
+    ? null // draft-level requirements are surfaced first
+    : weightedIncomplete
+      ? weightSum < 100
+        ? `Milestone weights total ${weightSum}% — assign ${100 - weightSum}% more to publish.`
+        : `Milestone weights total ${weightSum}% — remove ${weightSum - 100}% to publish.`
+      : null;
+  const canPublish = canSaveDraft && publishBlocker === null;
 
   function buildMeasurement(): MeasurementInput | null {
     if (source === "Calculated") return null;
     if (method === "NumericTarget")
-      return { method, baseline: base.num ?? 0, target: tgt.num ?? 0, unit: unit.trim(), direction };
+      return {
+        method,
+        baseline: base.num ?? 0,
+        target: tgt.num ?? 0,
+        unit: unit.trim(),
+        direction,
+      };
     if (method === "WeightedMilestones")
-      return { method, milestones: milestones.map((row) => ({ title: row.title.trim(), weight: Number(row.weight) })) };
+      return {
+        method,
+        milestones: namedMilestones.map((row) => ({
+          title: row.title.trim(),
+          weight: Number(row.weight),
+        })),
+      };
     return { method: "ManualPercentage" };
   }
 
-  async function handleSubmit() {
-    setSubmitting(true);
+  function createRequest(): CreateOrganizationalObjectiveRequest {
+    return {
+      orgUnitId: orgUnit!.id,
+      orgUnitName: orgUnit!.name,
+      title: title.trim(),
+      description: description.trim() || null,
+      accountablePersonId: person!.id,
+      parentObjectiveId: parent.id,
+      startDate,
+      endDate,
+      progressSource: source,
+      measurement: buildMeasurement(),
+    };
+  }
+
+  function updateRequest(): UpdateOrganizationalObjectiveRequest {
+    return {
+      title: title.trim(),
+      description: description.trim() || null,
+      accountablePersonId: person!.id,
+      startDate,
+      endDate,
+      progressSource: source,
+      measurement: buildMeasurement(),
+    };
+  }
+
+  function returnToGoals() {
+    router.push(`${GOALS_HREF}?focus=${parent.id}`);
+  }
+
+  async function handleSaveDraft() {
+    setBusy("draft");
     try {
       if (isEdit) {
-        await onUpdate({
-          title: title.trim(),
-          description: description.trim() || null,
-          accountablePersonId: person!.id,
-          startDate,
-          endDate,
-          progressSource: source,
-          measurement: buildMeasurement(),
+        await mutations.update.mutateAsync({
+          objectiveId: objective!.node.id,
+          request: updateRequest(),
         });
       } else {
-        await onCreate({
-          orgUnitId: orgUnit!.id,
-          orgUnitName: orgUnit!.name,
-          title: title.trim(),
-          description: description.trim() || null,
-          accountablePersonId: person!.id,
-          parentObjectiveId: parent.id,
-          startDate,
-          endDate,
-          progressSource: source,
-          measurement: buildMeasurement(),
-        });
+        await mutations.create.mutateAsync(createRequest());
       }
-      onOpenChange(false);
+      toast.success("Draft saved.");
+      returnToGoals();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save the objective.");
-    } finally {
-      setSubmitting(false);
+      toast.error(
+        error instanceof Error ? error.message : "Could not save the draft."
+      );
+      setBusy(null);
+    }
+  }
+
+  async function handlePublish() {
+    setBusy("publish");
+    try {
+      let objectiveId: string;
+      if (isEdit) {
+        objectiveId = objective!.node.id;
+        await mutations.update.mutateAsync({
+          objectiveId,
+          request: updateRequest(),
+        });
+      } else {
+        const created = await mutations.create.mutateAsync(createRequest());
+        objectiveId = created.node.id;
+      }
+      try {
+        await mutations.publish.mutateAsync(objectiveId);
+      } catch (publishError) {
+        // The draft is safely persisted; publishing is what failed. Keep the work by taking the
+        // author to that draft's editor rather than discarding it.
+        toast.error(
+          publishError instanceof Error
+            ? publishError.message
+            : "The draft was saved but could not be published."
+        );
+        router.push(`${GOALS_HREF}/${objectiveId}/edit`);
+        return;
+      }
+      toast.success("Published as organizational direction.");
+      returnToGoals();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not save the objective."
+      );
+      setBusy(null);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit objective" : "New organizational objective"}</DialogTitle>
-          <DialogDescription className="sr-only">
-            Define an objective that supports {parent.title}.
-          </DialogDescription>
-        </DialogHeader>
+    <PageContainer width="narrow">
+      <CycleContextBar cycle={cycle} />
+      <PerformancePageHeading
+        back={{ href: GOALS_HREF, label: "Organization Goals" }}
+        eyebrow={
+          isEdit ? (
+            <StatusBadge tone="muted" dot>
+              Draft
+            </StatusBadge>
+          ) : (
+            <span className="type-eyebrow text-muted-foreground">
+              New organizational objective
+            </span>
+          )
+        }
+        title={isEdit ? "Edit objective" : "Create organizational objective"}
+      />
 
-        {/* Upstream relationship — stays visible while authoring. */}
-        <div className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/30 p-3">
-          <ArrowUpRight className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-          <div className="min-w-0">
-            <p className="type-eyebrow text-muted-foreground">Supports</p>
-            <p className="truncate text-sm font-medium text-foreground">{parent.title}</p>
-            <p className="truncate text-xs text-muted-foreground">{scopeLabel(parent)}</p>
+      <ParentDirectionBand parent={parent} />
+
+      <div className="mt-6 space-y-6">
+        <Block title="Objective details">
+          <div className="space-y-1.5">
+            <Label htmlFor="og-title">
+              Title <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="og-title"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Improve talent development execution"
+              autoFocus
+            />
           </div>
-        </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="og-desc">
+              Description{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
+            </Label>
+            <Textarea
+              id="og-desc"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={2}
+              placeholder="The contribution this objective makes to the direction above."
+            />
+          </div>
+          <div className="h-px bg-border/60" />
 
-        <div className="grid gap-x-8 gap-y-5 py-1 md:grid-cols-[1.05fr_1fr]">
-          {/* Definition */}
-          <div className="space-y-4">
+          {/* Scope, accountable person, and dates complete the objective's definition; scope and
+              accountability remain two distinct concepts, shown side by side. */}
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="og-title">Objective</Label>
-              <Input
-                id="og-title"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                placeholder="Improve first-contact resolution"
-                autoFocus
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="og-desc">
-                Rationale <span className="font-normal text-muted-foreground">(optional)</span>
+              <Label className="flex items-center gap-1.5">
+                <Building2
+                  className="size-3.5 text-muted-foreground"
+                  aria-hidden
+                />
+                Organizational scope <span className="text-destructive">*</span>
               </Label>
-              <Textarea
-                id="og-desc"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                rows={2}
-                placeholder="The contribution this objective makes to the direction above."
-              />
-            </div>
-
-            {!isEdit ? (
-              <div className="space-y-1.5">
-                <Label>Owned by</Label>
+              {isEdit ? (
+                <div className="flex h-8 items-center gap-2 rounded-xl border border-border bg-muted/40 px-2.5 text-sm">
+                  <span className="truncate font-medium">
+                    {node?.orgUnitName ?? "Owning unit"}
+                  </span>
+                </div>
+              ) : (
                 <OrgUnitPicker value={orgUnit} onChange={setOrgUnit} />
-              </div>
-            ) : null}
-
+              )}
+            </div>
             <div className="space-y-1.5">
-              <Label>Accountable person</Label>
+              <Label className="flex items-center gap-1.5">
+                <UserRound
+                  className="size-3.5 text-muted-foreground"
+                  aria-hidden
+                />
+                Accountable person <span className="text-destructive">*</span>
+              </Label>
               <EmployeePicker value={person} onChange={setPerson} />
             </div>
+          </div>
 
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label htmlFor="og-start">From</Label>
-                  <Input
-                    id="og-start"
-                    type="date"
-                    value={startDate}
-                    min={minDate}
-                    max={maxDate}
-                    onChange={(event) => setStartDate(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="og-end">To</Label>
-                  <Input
-                    id="og-end"
-                    type="date"
-                    value={endDate}
-                    min={minDate}
-                    max={maxDate}
-                    onChange={(event) => setEndDate(event.target.value)}
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">Within the parent period.</p>
+              <Label htmlFor="og-start">Start</Label>
+              <Input
+                id="og-start"
+                type="date"
+                value={startDate}
+                min={minDate}
+                max={maxDate}
+                onChange={(event) => setStartDate(event.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="og-end">End</Label>
+              <Input
+                id="og-end"
+                type="date"
+                value={endDate}
+                min={minDate}
+                max={maxDate}
+                onChange={(event) => setEndDate(event.target.value)}
+              />
             </div>
           </div>
+        </Block>
 
-          {/* Progress source + measurement */}
-          <div className="space-y-4 md:border-l md:border-border/60 md:pl-8">
-            <div className="space-y-2">
-              <Label>How progress is determined</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <SourceOption
-                  active={source === "Direct"}
-                  icon={Gauge}
-                  title="Direct"
-                  detail="Measured on this objective"
-                  onClick={() => setSource("Direct")}
-                />
-                <SourceOption
-                  active={source === "Calculated"}
-                  icon={Calculator}
-                  title="Calculated"
-                  detail="Rolls up from contributors"
-                  onClick={() => setSource("Calculated")}
-                />
-              </div>
-            </div>
-
-            {source === "Direct" ? (
-              <div className="space-y-3">
-                <Select value={method} onValueChange={(next) => setMethod(next as MeasurementMethod)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(MEASUREMENT_LABELS) as MeasurementMethod[]).map((key) => (
-                      <SelectItem key={key} value={key}>
-                        {MEASUREMENT_LABELS[key]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {method === "NumericTarget" ? (
-                  <div className="space-y-3">
-                    <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2.5">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="og-base">Baseline</Label>
-                        <Input
-                          id="og-base"
-                          inputMode="decimal"
-                          value={baseline}
-                          onChange={(event) => setBaseline(event.target.value)}
-                          placeholder="20"
-                          aria-invalid={base.invalid}
-                        />
-                      </div>
-                      <ArrowRight className="mb-2.5 size-4 text-muted-foreground" aria-hidden />
-                      <div className="space-y-1.5">
-                        <Label htmlFor="og-target">Target</Label>
-                        <Input
-                          id="og-target"
-                          inputMode="decimal"
-                          value={target}
-                          onChange={(event) => setTarget(event.target.value)}
-                          placeholder="80"
-                          aria-invalid={tgt.invalid}
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label htmlFor="og-unit">Unit</Label>
-                        <Input
-                          id="og-unit"
-                          value={unit}
-                          onChange={(event) => setUnit(event.target.value)}
-                          placeholder="%, days, NPS…"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Direction</Label>
-                        <Select
-                          value={direction}
-                          onValueChange={(next) => setDirection(next as ImprovementDirection)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Increase">Higher is better</SelectItem>
-                            <SelectItem value="Decrease">Lower is better</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    {numericInvalid ? (
-                      <p className="text-sm text-destructive">
-                        Enter a number — put units like M€ or % in the Unit field.
-                      </p>
-                    ) : sameValue ? (
-                      <p className="text-sm text-destructive">Baseline and target must differ.</p>
-                    ) : null}
-                  </div>
-                ) : null}
-
-                {method === "WeightedMilestones" ? (
-                  <div className="space-y-2.5">
-                    {milestones.map((row, index) => (
-                      <div key={index} className="flex items-center gap-2.5">
-                        <span className="w-5 shrink-0 text-sm tabular-nums text-muted-foreground">
-                          {index + 1}
-                        </span>
-                        <Input
-                          value={row.title}
-                          onChange={(event) =>
-                            setMilestones((rows) =>
-                              rows.map((item, i) => (i === index ? { ...item, title: event.target.value } : item))
-                            )
-                          }
-                          placeholder={`Milestone ${index + 1}`}
-                          className="flex-1"
-                        />
-                        <div className="relative w-24 shrink-0">
-                          <Input
-                            type="number"
-                            value={row.weight}
-                            onChange={(event) =>
-                              setMilestones((rows) =>
-                                rows.map((item, i) => (i === index ? { ...item, weight: event.target.value } : item))
-                              )
-                            }
-                            placeholder="0"
-                            className="pr-7 text-right"
-                          />
-                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                            %
-                          </span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() =>
-                            setMilestones((rows) => (rows.length > 1 ? rows.filter((_, i) => i !== index) : rows))
-                          }
-                          disabled={milestones.length === 1}
-                          aria-label={`Remove milestone ${index + 1}`}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
-                    ))}
-                    <div className="flex items-center justify-between pt-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setMilestones((rows) => [...rows, { title: "", weight: "" }])}
-                      >
-                        <Plus className="size-3.5" data-icon="inline-start" /> Add milestone
-                      </Button>
-                      <span
-                        className={cn(
-                          "text-sm font-medium tabular-nums",
-                          weightSum === 100
-                            ? "text-success"
-                            : weightSum > 100
-                              ? "text-destructive"
-                              : "text-muted-foreground"
-                        )}
-                      >
-                        {weightSum}%
-                        {weightSum === 100 ? " · balanced" : weightSum > 100 ? " · over" : ` · ${100 - weightSum} left`}
-                      </span>
-                    </div>
-                  </div>
-                ) : null}
-
-                {method === "ManualPercentage" ? (
-                  <p className="text-sm text-muted-foreground">
-                    A single completion percentage the accountable person updates.
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <p className="rounded-xl border border-border/70 bg-muted/30 px-3.5 py-2.5 text-sm text-muted-foreground">
-                Progress rolls up from the contributing children you configure once they exist and are
-                published.
-              </p>
-            )}
-
-            <div className="rounded-xl border border-border/70 bg-muted/30 px-3.5 py-2.5">
-              <p className="type-eyebrow text-muted-foreground">Outcome</p>
-              <p className="mt-0.5 text-sm font-medium tabular-nums text-foreground">{preview}</p>
-            </div>
+        <Block title="Measurement">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <SourceCard
+              active={source === "Direct"}
+              icon={Gauge}
+              title="Measure directly"
+              detail="Track this objective with its own business measure."
+              onClick={() => setSource("Direct")}
+            />
+            <SourceCard
+              active={source === "Calculated"}
+              icon={Sigma}
+              title="Calculate from contributors"
+              detail="Roll up from published direct child objectives."
+              onClick={() => setSource("Calculated")}
+            />
           </div>
-        </div>
 
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
-            Cancel
-          </Button>
-          <AsyncButton pending={submitting} disabled={!valid} onClick={handleSubmit}>
-            {isEdit ? "Save objective" : "Create objective"}
-          </AsyncButton>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          {source === "Direct" ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <p className="type-eyebrow text-muted-foreground">
+                  Measure directly using
+                </p>
+                <div className="grid grid-cols-3 gap-2.5">
+                  <MethodChip
+                    active={method === "NumericTarget"}
+                    icon={Target}
+                    title="Numeric target"
+                    onClick={() => setMethod("NumericTarget")}
+                  />
+                  <MethodChip
+                    active={method === "WeightedMilestones"}
+                    icon={ListChecks}
+                    title="Weighted milestones"
+                    onClick={() => setMethod("WeightedMilestones")}
+                  />
+                  <MethodChip
+                    active={method === "ManualPercentage"}
+                    icon={Percent}
+                    title="Manual percentage"
+                    onClick={() => setMethod("ManualPercentage")}
+                  />
+                </div>
+              </div>
+
+              {method === "NumericTarget" ? (
+                <NumericTargetEditor
+                  baseline={baseline}
+                  target={target}
+                  unit={unit}
+                  direction={direction}
+                  baselineInvalid={base.invalid}
+                  targetInvalid={tgt.invalid}
+                  numericInvalid={numericInvalid}
+                  sameValue={sameValue}
+                  onBaseline={setBaseline}
+                  onTarget={setTarget}
+                  onUnit={setUnit}
+                  onDirection={setDirection}
+                />
+              ) : null}
+
+              {method === "WeightedMilestones" ? (
+                <MilestoneEditor
+                  milestones={milestones}
+                  weightSum={weightSum}
+                  onChange={setMilestones}
+                />
+              ) : null}
+
+              {method === "ManualPercentage" ? (
+                <p className="rounded-xl border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                  A single completion percentage the accountable person updates
+                  over the period.
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="flex gap-2.5 rounded-xl border border-info/25 bg-info-subtle px-4 py-3">
+              <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
+              <div className="text-sm">
+                <p className="font-medium text-foreground">
+                  You&rsquo;ll add contributors later
+                </p>
+                <p className="mt-0.5 text-muted-foreground">
+                  This objective&rsquo;s progress adds up from the objectives
+                  beneath it. Once those are published, you choose how much each
+                  one counts toward the total.
+                </p>
+              </div>
+            </div>
+          )}
+        </Block>
+      </div>
+
+      <ActionBar
+        busy={busy}
+        canSaveDraft={canSaveDraft}
+        canPublish={canPublish}
+        onCancel={() => router.push(GOALS_HREF)}
+        onSaveDraft={handleSaveDraft}
+        onPublish={handlePublish}
+      />
+    </PageContainer>
   );
 }
 
-function SourceOption({
+// ── Parent direction ───────────────────────────────────────────────────────────
+
+function ParentDirectionBand({ parent }: { parent: GoalNodeDto }) {
+  const summary = parent.measurementSummary?.trim();
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="type-eyebrow inline-flex items-center gap-1.5 text-primary">
+            <ArrowUpRight className="size-3.5" aria-hidden /> Parent objective
+          </p>
+          <p className="mt-1.5 truncate text-lg font-semibold tracking-tight text-foreground">
+            {parent.title}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <Building2 className="size-3.5" aria-hidden />{" "}
+              {scopeLabel(parent)}
+            </span>
+            {parent.accountablePersonName ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Avatar className="size-5">
+                  <AvatarFallback className="text-[9px]">
+                    {initials(parent.accountablePersonName)}
+                  </AvatarFallback>
+                </Avatar>
+                {parent.accountablePersonName}
+              </span>
+            ) : null}
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-7">
+          <StatusBadge tone="success" dot>
+            Published
+          </StatusBadge>
+          {summary ? (
+            <div className="text-right">
+              <p className="type-eyebrow text-muted-foreground/70">
+                Measurement
+              </p>
+              <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+                {summary}
+              </p>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Layout ──────────────────────────────────────────────────────────────────────
+
+function Block({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+      <h2 className="type-section-title text-foreground">{title}</h2>
+      <div className="mt-4 space-y-4">{children}</div>
+    </section>
+  );
+}
+
+// ── Progress-source card (2, horizontal: bigger icon + title + one line) ──────────
+
+function SourceCard({
   active,
   icon: Icon,
   title,
@@ -494,16 +606,339 @@ function SourceOption({
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "flex flex-col gap-1 rounded-lg border p-3 text-left transition-colors",
-        active ? "border-primary bg-primary/[0.05]" : "border-border hover:border-primary/40 hover:bg-muted/40"
-      )}
       aria-pressed={active}
+      className={cn(
+        "group flex items-center gap-3 rounded-xl border p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        active
+          ? "border-primary bg-primary/[0.06] ring-1 ring-primary/40"
+          : "border-border hover:border-primary/40 hover:bg-muted/40"
+      )}
     >
-      <span className="flex items-center gap-1.5 text-sm font-medium">
-        <Icon className={cn("size-4", active ? "text-primary" : "text-muted-foreground")} aria-hidden /> {title}
+      <span
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors",
+          active
+            ? "bg-primary/15 text-primary"
+            : "bg-muted text-muted-foreground group-hover:text-foreground"
+        )}
+      >
+        <Icon className="size-5" aria-hidden />
       </span>
-      <span className="text-xs text-muted-foreground">{detail}</span>
+      <span className="min-w-0">
+        <span className="block text-sm font-medium text-foreground">
+          {title}
+        </span>
+        <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+          {detail}
+        </span>
+      </span>
     </button>
+  );
+}
+
+// ── Direct-method chip (3, one row, icon + label only) ────────────────────────────
+
+function MethodChip({
+  active,
+  icon: Icon,
+  title,
+  onClick,
+}: {
+  active: boolean;
+  icon: typeof Gauge;
+  title: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "group flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        active
+          ? "border-primary bg-primary/[0.06] ring-1 ring-primary/40"
+          : "border-border hover:border-primary/40 hover:bg-muted/40"
+      )}
+    >
+      <Icon
+        className={cn(
+          "size-4 shrink-0",
+          active
+            ? "text-primary"
+            : "text-muted-foreground group-hover:text-foreground"
+        )}
+        aria-hidden
+      />
+      <span className="text-sm font-medium text-foreground">{title}</span>
+    </button>
+  );
+}
+
+// ── Numeric target editor ─────────────────────────────────────────────────────────
+
+function NumericTargetEditor({
+  baseline,
+  target,
+  unit,
+  direction,
+  baselineInvalid,
+  targetInvalid,
+  numericInvalid,
+  sameValue,
+  onBaseline,
+  onTarget,
+  onUnit,
+  onDirection,
+}: {
+  baseline: string;
+  target: string;
+  unit: string;
+  direction: ImprovementDirection;
+  baselineInvalid: boolean;
+  targetInvalid: boolean;
+  numericInvalid: boolean;
+  sameValue: boolean;
+  onBaseline: (v: string) => void;
+  onTarget: (v: string) => void;
+  onUnit: (v: string) => void;
+  onDirection: (v: ImprovementDirection) => void;
+}) {
+  const suffix = unitSuffix(unit);
+  return (
+    <div className="space-y-3 rounded-xl border border-border/70 bg-muted/30 p-4">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="og-base">
+            Baseline <span className="text-destructive">*</span>
+          </Label>
+          <ButtonGroup className="w-full">
+            <Input
+              id="og-base"
+              inputMode="decimal"
+              value={baseline}
+              onChange={(event) => onBaseline(event.target.value)}
+              placeholder="40"
+              aria-invalid={baselineInvalid}
+              className="text-right tabular-nums"
+            />
+            {suffix ? <ButtonGroupText>{suffix}</ButtonGroupText> : null}
+          </ButtonGroup>
+        </div>
+        <ArrowRight className="mb-3 size-4 text-muted-foreground" aria-hidden />
+        <div className="space-y-1.5">
+          <Label htmlFor="og-target">
+            Target <span className="text-destructive">*</span>
+          </Label>
+          <ButtonGroup className="w-full">
+            <Input
+              id="og-target"
+              inputMode="decimal"
+              value={target}
+              onChange={(event) => onTarget(event.target.value)}
+              placeholder="70"
+              aria-invalid={targetInvalid}
+              className="text-right tabular-nums"
+            />
+            {suffix ? <ButtonGroupText>{suffix}</ButtonGroupText> : null}
+          </ButtonGroup>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="og-unit">
+            Unit <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="og-unit"
+            value={unit}
+            onChange={(event) => onUnit(event.target.value)}
+            placeholder="%, days, NPS…"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>Direction</Label>
+          <Select
+            value={direction}
+            onValueChange={(next) => onDirection(next as ImprovementDirection)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Increase">
+                <TrendingUp className="text-muted-foreground" aria-hidden />
+                Higher is better
+              </SelectItem>
+              <SelectItem value="Decrease">
+                <TrendingDown className="text-muted-foreground" aria-hidden />
+                Lower is better
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      {numericInvalid ? (
+        <p className="text-sm text-destructive">
+          Enter a number — put units like M€ or % in the Unit field.
+        </p>
+      ) : sameValue ? (
+        <p className="text-sm text-destructive">
+          Baseline and target must differ.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** The unit shown as an attached suffix on the numeric inputs — only when short enough to read inline. */
+function unitSuffix(unit: string): string | null {
+  const label = unit.trim();
+  return label !== "" && label.length <= 4 ? label : null;
+}
+
+// ── Weighted milestone editor ──────────────────────────────────────────────────────
+
+function MilestoneEditor({
+  milestones,
+  weightSum,
+  onChange,
+}: {
+  milestones: MilestoneRow[];
+  weightSum: number;
+  onChange: (
+    next: MilestoneRow[] | ((rows: MilestoneRow[]) => MilestoneRow[])
+  ) => void;
+}) {
+  const remaining = 100 - weightSum;
+  const ready = weightSum === 100;
+  const over = weightSum > 100;
+  return (
+    <div className="space-y-3 rounded-xl border border-border/70 bg-muted/30 p-4">
+      <div className="space-y-2">
+        {milestones.map((row, index) => (
+          <div key={index} className="flex items-center gap-2.5">
+            <span className="w-5 shrink-0 text-center text-sm tabular-nums text-muted-foreground">
+              {index + 1}
+            </span>
+            <Input
+              value={row.title}
+              onChange={(event) =>
+                onChange((rows) =>
+                  rows.map((item, i) =>
+                    i === index ? { ...item, title: event.target.value } : item
+                  )
+                )
+              }
+              placeholder={`Milestone ${index + 1}`}
+              className="flex-1"
+            />
+            <ButtonGroup className="w-28 shrink-0">
+              <Input
+                type="number"
+                value={row.weight}
+                onChange={(event) =>
+                  onChange((rows) =>
+                    rows.map((item, i) =>
+                      i === index
+                        ? { ...item, weight: event.target.value }
+                        : item
+                    )
+                  )
+                }
+                placeholder="0"
+                className="text-right tabular-nums"
+              />
+              <ButtonGroupText>%</ButtonGroupText>
+            </ButtonGroup>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                onChange((rows) =>
+                  rows.length > 1 ? rows.filter((_, i) => i !== index) : rows
+                )
+              }
+              disabled={milestones.length === 1}
+              aria-label={`Remove milestone ${index + 1}`}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between border-t border-border/60 pt-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() =>
+            onChange((rows) => [...rows, { title: "", weight: "" }])
+          }
+        >
+          <Plus className="size-3.5" data-icon="inline-start" /> Add milestone
+        </Button>
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs text-muted-foreground">
+            {ready
+              ? "Ready to publish"
+              : over
+                ? `${weightSum - 100}% over`
+                : `${remaining}% to allocate`}
+          </span>
+          <span
+            className={cn(
+              "min-w-[3.25rem] rounded-md px-2 py-0.5 text-center text-sm font-semibold tabular-nums",
+              ready
+                ? "bg-success-subtle text-success"
+                : over
+                  ? "bg-destructive/10 text-destructive"
+                  : "bg-muted text-muted-foreground"
+            )}
+          >
+            {weightSum}%
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Action bar ────────────────────────────────────────────────────────────────────
+
+function ActionBar({
+  busy,
+  canSaveDraft,
+  canPublish,
+  onCancel,
+  onSaveDraft,
+  onPublish,
+}: {
+  busy: null | "draft" | "publish";
+  canSaveDraft: boolean;
+  canPublish: boolean;
+  onCancel: () => void;
+  onSaveDraft: () => void;
+  onPublish: () => void;
+}) {
+  return (
+    <div className="sticky bottom-0 z-10 mt-10 -mx-6 border-t border-border bg-background/95 px-6 py-3.5 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="flex items-center justify-between gap-3">
+        <Button variant="ghost" onClick={onCancel} disabled={busy !== null}>
+          Cancel
+        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={onSaveDraft}
+            disabled={!canSaveDraft || busy !== null}
+          >
+            {busy === "draft" ? "Saving…" : "Save as draft"}
+          </Button>
+          <Button onClick={onPublish} disabled={!canPublish || busy !== null}>
+            {busy === "publish" ? "Publishing…" : "Publish objective"}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

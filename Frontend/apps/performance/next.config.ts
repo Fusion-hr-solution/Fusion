@@ -22,6 +22,11 @@ const nextConfig: NextConfig = {
         basePath: false,
         permanent: false,
       },
+      // Surface-ownership consolidation: the former feature-chunk routes hand off to
+      // their durable owners. Query strings (e.g. `?area=`) are forwarded automatically.
+      { source: "/setup", destination: "/cycle", permanent: false },
+      { source: "/reviews", destination: "/team", permanent: false },
+      { source: "/contribution", destination: "/goals", permanent: false },
     ];
   },
 };

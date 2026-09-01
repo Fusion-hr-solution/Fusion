@@ -9,7 +9,7 @@ import { ManagerDecisionWorkspace } from "@/features/performance/components/plan
 import { PlanReviewQueue } from "@/features/performance/components/plan/plan-review-queue";
 import { usePerformanceAccess, useCurrentCycle, usePlanReviews } from "@/features/performance/api/use-performance";
 
-export default function ReviewsPage() {
+export default function TeamPerformancePage() {
   const access = usePerformanceAccess();
   const canEnter = access.data?.canEnter ?? false;
   const scope = access.data?.aggregateViewScope ?? null;
@@ -26,8 +26,8 @@ export default function ReviewsPage() {
   if (!canReview) {
     return (
       <PagePermissionNotice
-        title="No plans to review"
-        description="Plan review is available to managers responsible for a team in an active cycle."
+        title="No team to review"
+        description="Team Performance is available to managers responsible for a team in an active cycle."
       />
     );
   }
@@ -36,7 +36,7 @@ export default function ReviewsPage() {
   if (!cycle) {
     return (
       <PageContainer>
-        <PagePermissionNotice title="No cycle yet" description="Plan reviews open once a cycle is active." />
+        <PagePermissionNotice title="No cycle yet" description="Team Performance opens once a cycle is active." />
       </PageContainer>
     );
   }
@@ -53,7 +53,7 @@ export default function ReviewsPage() {
       ) : (
         <>
           <PerformancePageHeading
-            title="Reviews"
+            title="Team Performance"
             description={
               reviews.isLoading
                 ? undefined
@@ -63,9 +63,9 @@ export default function ReviewsPage() {
             }
           />
           {reviews.isLoading ? (
-            <PageSkeleton rows={3} label="Loading reviews" />
+            <PageSkeleton rows={3} label="Loading team" />
           ) : reviews.error || !reviews.data ? (
-            <PageError title="Reviews unavailable" description={reviews.error?.message} onRetry={reviews.refetch} />
+            <PageError title="Team unavailable" description={reviews.error?.message} onRetry={reviews.refetch} />
           ) : (
             <PlanReviewQueue plans={reviews.data.plans} onOpen={setOpenPlanId} />
           )}

@@ -1,19 +1,19 @@
-import { ClipboardCheck, GitBranch, LayoutDashboard, ListChecks, Settings, TrendingUp, UserRoundCheck } from "lucide-react";
+import { GitBranch, LayoutDashboard, ListChecks, Settings, UserRoundCheck, Users } from "lucide-react";
 import type { ShellNavSection } from "@repo/ds/shell";
 
 /**
- * Primary Performance navigation: the perspectives an employee moves through in one
- * living Cycle. Cycle setup and Settings are administrative lifecycle work, not peers
- * of My plan, so they live in a demoted admin section below — reached, when relevant,
- * from Overview. Review/Contribution visibility is responsibility-gated at render.
+ * Primary Performance navigation: the durable business surfaces, not feature chunks.
+ * Organization Goals owns company + organizational direction (contribution is a lens within
+ * it, not a peer). Team Performance is the manager's durable team responsibility. Cycle and
+ * Settings are administrative and live in the demoted admin section below. Organization Goals
+ * and Team Performance visibility is responsibility-gated at render.
  */
 export const PRIMARY_NAV: ShellNavSection = {
   items: [
     { label: "Overview", href: "/", icon: LayoutDashboard, exact: true },
-    { label: "Goals", href: "/goals", icon: GitBranch },
+    { label: "Organization Goals", href: "/goals", icon: GitBranch },
     { label: "My plan", href: "/plan", icon: UserRoundCheck },
-    { label: "Reviews", href: "/reviews", icon: ClipboardCheck },
-    { label: "Contribution", href: "/contribution", icon: TrendingUp },
+    { label: "Team Performance", href: "/team", icon: Users },
   ],
 };
 
@@ -21,7 +21,7 @@ export const PRIMARY_NAV: ShellNavSection = {
 export const ADMIN_NAV: ShellNavSection = {
   title: "Administration",
   items: [
-    { label: "Cycle setup", href: "/setup", icon: ListChecks },
+    { label: "Cycle", href: "/cycle", icon: ListChecks },
     { label: "Settings", href: "/settings", icon: Settings },
   ],
 };

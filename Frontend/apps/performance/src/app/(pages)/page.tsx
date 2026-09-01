@@ -117,7 +117,7 @@ function NoCycleEntry({ canAdminister }: { canAdminister: boolean }) {
             planningDeadline: value.planningDeadline,
           });
           toast.success(`${created.name} created.`);
-          router.push("/setup");
+          router.push("/cycle");
         }}
       />
     </PageContainer>
@@ -146,7 +146,7 @@ function CycleOverview({
         title="Overview"
         actions={
           canAdminister && isDraft ? (
-            <Button onClick={() => router.push("/setup")}>Continue setup</Button>
+            <Button onClick={() => router.push("/cycle")}>Continue setup</Button>
           ) : undefined
         }
       />
@@ -197,7 +197,7 @@ function ReviewsCallout({ cycleId }: { cycleId: string }) {
           ) : null}
         </div>
         <Button asChild className="ml-auto">
-          <Link href="/reviews">
+          <Link href="/team">
             Review
             <ArrowRight className="size-4" data-icon="inline-end" />
           </Link>
@@ -277,7 +277,7 @@ function AdminDraftCommand({ detail }: { detail: CycleDetailDto }) {
     <>
       <LaunchReadiness
         readiness={detail.launchReadiness}
-        onOpenArea={(area) => router.push(`/setup?area=${area}`)}
+        onOpenArea={(area) => router.push(`/cycle?area=${area}`)}
         onActivate={() => setReviewOpen(true)}
         activating={activate.isLoading}
       />
@@ -333,7 +333,7 @@ function AdminActiveCommand({ detail }: { detail: CycleDetailDto }) {
 
         <div className="flex flex-col items-start gap-1">
           <Button variant="ghost" asChild className="px-2">
-            <Link href="/setup">Manage cycle</Link>
+            <Link href="/cycle">Manage cycle</Link>
           </Button>
           <Button variant="ghost" asChild className="px-2">
             <Link href="/settings">Settings</Link>
