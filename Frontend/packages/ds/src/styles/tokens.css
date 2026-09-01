@@ -171,16 +171,16 @@
      *   sm   6px  nested detail inside an already-rounded surface
      *   md   8px  menu items, dense affordances
      *   lg  10px  chips, monogram tiles, inline badges
-     *   xl  14px  controls — buttons, inputs, selects, textareas
-     *   2xl 16px  containers — cards, dialogs, popovers, panels
+     *   xl  10px  controls — buttons, inputs, selects, textareas (preset Medium)
+     *   2xl 14px  containers — cards, dialogs, popovers, panels (preset Medium)
      *   3xl 24px  large feature surfaces
      *   4xl 32px  decorative frames
      */
     --radius-sm: 0.375rem;
     --radius-md: 0.5rem;
     --radius-lg: 0.625rem;
-    --radius-xl: 0.875rem;
-    --radius-2xl: 1rem;
+    --radius-xl: 0.625rem;
+    --radius-2xl: 0.875rem;
     --radius-3xl: 1.5rem;
     --radius-4xl: 2rem;
     /* Elevation → `shadow-raised` / `shadow-overlay` utilities. */
