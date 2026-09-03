@@ -13,6 +13,7 @@ import {
   useGoal,
   usePerformanceAccess,
 } from "@/features/performance/api/use-performance";
+import { useWorkforceMe } from "@/features/performance/api/use-workforce-me";
 
 export default function NewObjectivePage() {
   return (
@@ -26,6 +27,7 @@ function NewObjectiveWorkspace() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const parentId = searchParams.get("parent");
+  const scopeId = searchParams.get("scope");
 
   const access = usePerformanceAccess();
   const a = access.data;
@@ -34,6 +36,15 @@ function NewObjectiveWorkspace() {
   const detail = useCurrentCycle(canAuthor);
   const cycle = detail.data?.cycle ?? null;
   const parent = useGoal(cycle?.id ?? null, canAuthor ? parentId : null);
+  // Resolve the preselected scope's name from the actor's own workforce context. The scoped
+  // landing only offers the actor's own organizational unit, so this is a self-service lookup —
+  // no roster grant needed. If the hint doesn't match (or can't resolve), the picker stays empty.
+  const me = useWorkforceMe(canAuthor && Boolean(scopeId));
+  const org = me.data?.employee?.orgUnit;
+  const defaultOrgUnit =
+    scopeId && org && org.orgUnitId === scopeId
+      ? { id: org.orgUnitId, name: org.name, path: [] }
+      : null;
 
   if (access.isLoading) return <ComposerSkeleton />;
   if (!canAuthor) {
@@ -82,6 +93,7 @@ function NewObjectiveWorkspace() {
       defaultAccountable={
         user?.employeeId ? { id: user.employeeId, name: user.fullName ?? "You" } : null
       }
+      defaultOrgUnit={defaultOrgUnit}
     />
   );
 }

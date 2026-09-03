@@ -1,15 +1,13 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Plus, TrendingUp } from "lucide-react";
-import { toast } from "sonner";
+import { ArrowLeft, TrendingUp } from "lucide-react";
 import { Button } from "@repo/ds/components/ui/button";
 import { PageContainer, PageError, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
-import { ObjectiveCascade } from "@/features/performance/components/goals/objective-cascade";
 import {
   EMPTY_FILTER,
   FilteredObjectives,
@@ -18,8 +16,11 @@ import {
   type GoalsFilterState,
 } from "@/features/performance/components/goals/goals-filter";
 import { ObjectiveContextPanel } from "@/features/performance/components/goals/objective-context-panel";
+import { ObjectiveWorkspace } from "@/features/performance/components/goals/objective-workspace";
+import { buildCreateHref, type UnitContext } from "@/features/performance/components/goals/working-context-lib";
 import { ContributionExplorer } from "@/features/performance/components/contribution/contribution-explorer";
 import { usePerformanceAccess, useCurrentCycle, useGoals } from "@/features/performance/api/use-performance";
+import { useWorkforceMe } from "@/features/performance/api/use-workforce-me";
 
 type View = "cascade" | "contribution";
 
@@ -38,27 +39,46 @@ function GoalsWorkspace() {
   const a = access.data;
   const scope = a?.aggregateViewScope ?? null;
   const hasOrgRead = scope === "DirectReports" || scope === "OrgUnit" || scope === "Tenant";
-  // Organization Goals is an organization-direction surface, not a universal employee
-  // destination: it opens for organizational/strategic/admin responsibility or organizational
-  // read authority. Ordinary Self-only participants reach direction through Overview, not here.
+  // Organization Goals is an organization-direction surface, not a universal employee destination:
+  // it opens for organizational/strategic/admin responsibility or organizational read authority.
+  // Ordinary Self-only participants reach direction through Overview, not here.
   const canViewOrgGoals =
     (a?.canAdminister ?? false) ||
     (a?.canPublishStrategy ?? false) ||
     (a?.canManageOrgObjectives ?? false) ||
     hasOrgRead;
-  // Contribution keeps its own, current audience (leadership org-read + strategy/admin), narrower
-  // than Goals itself — an org-objective author without a view grant sees Goals but not this lens.
   const canExplore = (a?.canAdminister ?? false) || (a?.canPublishStrategy ?? false) || hasOrgRead;
+  // Authority (not placement) decides the default context. A tenant-wide actor (administration, or
+  // tenant-breadth read) is responsible for the whole organization, so they land organization-wide;
+  // everyone else is centered on the unit they actually belong to. Both drill the same hierarchy.
+  const broad = (a?.canAdminister ?? false) || scope === "Tenant";
+  const canReachSetup = (a?.canAdminister ?? false) || (a?.canPublishStrategy ?? false);
 
   const detail = useCurrentCycle(canViewOrgGoals);
   const cycle = detail.data?.cycle ?? null;
   const goals = useGoals(cycle?.id ?? null, canViewOrgGoals);
+  // The actor's own organizational context — resolved from real workforce data, never fabricated.
+  // Only workforce (non-broad) actors need it for their default unit context.
+  const me = useWorkforceMe(canViewOrgGoals && !broad);
 
   const [view, setView] = useState<View>("cascade");
   const [filter, setFilter] = useState<GoalsFilterState>(EMPTY_FILTER);
-  // Returning from the composer reveals the parent whose cascade the new/edited objective lives in.
+  // Drill focus. Seeded from `focus` so returning from the composer reveals the parent branch.
   const [focusId, setFocusId] = useState<string | null>(() => searchParams.get("focus"));
   const [panelId, setPanelId] = useState<string | null>(null);
+
+  const ownUnit: UnitContext | null = useMemo(() => {
+    const org = me.data?.employee?.orgUnit;
+    if (!org) return null;
+    return {
+      orgUnitId: org.orgUnitId,
+      name: org.name,
+      type: org.type,
+      path: org.path,
+      memberCount: me.data?.orgUnitMemberCount ?? null,
+      isOwnUnit: true,
+    };
+  }, [me.data]);
 
   if (access.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
   if (!canViewOrgGoals) {
@@ -78,12 +98,12 @@ function GoalsWorkspace() {
   }
 
   // Authoring organizational objectives is governed by organizational-scope management authority
-  // (governed admin, or the org-manage grant). The precise per-org-unit check — the objective's
-  // owning unit must be the caller's own unit or a descendant — is enforced server-side when the
-  // unit is chosen, so this only decides whether to offer the affordance at all.
+  // (governed admin, or the org-manage grant). The precise per-org-unit check is enforced
+  // server-side when the unit is chosen, so this only decides whether to offer the affordance.
   const canAuthorOrgObjectives = (a?.canAdminister ?? false) || (a?.canManageOrgObjectives ?? false);
 
-  const openComposer = (parentId: string) => router.push(`/goals/new?parent=${parentId}`);
+  const openComposer = (parentId: string, orgUnitId?: string | null) =>
+    router.push(buildCreateHref(parentId, orgUnitId));
 
   // The contribution lens is a preserved, quiet secondary entry — a full-page swap, not a co-equal
   // landing tab. Cycle context stays; the lens brings its own heading and internal drill path.
@@ -104,49 +124,31 @@ function GoalsWorkspace() {
   }
 
   const overview = goals.data;
-  const showFiltered = overview != null && isFilterActive(filter);
+  const meResolving = !broad && me.isLoading;
+  // Filter/search is a broad-context utility; it folds in the retired List view when engaged.
+  const showFiltered = broad && overview != null && isFilterActive(filter);
+
+  // Organization-wide and every established context is a read/explore surface. Authoring an
+  // organizational objective is offered only from that scope's own empty working context — where the
+  // parent objective and organizational scope are both already unambiguous — never as a generic
+  // "create anywhere" action here (parent + owning unit would be ambiguous).
+  const actions = overview ? (
+    <>
+      {canExplore ? (
+        <Button variant="ghost" size="sm" onClick={() => setView("contribution")}>
+          <TrendingUp className="size-4" data-icon="inline-start" /> Contribution
+        </Button>
+      ) : null}
+      {broad ? <GoalsFilter overview={overview} value={filter} onChange={setFilter} /> : null}
+    </>
+  ) : undefined;
 
   return (
     <PageContainer>
       <CycleContextBar cycle={cycle} />
-      <PerformancePageHeading
-        title="Organization Goals"
-        description="Planning & Direction"
-        actions={
-          overview ? (
-            <>
-              {canExplore ? (
-                <Button variant="ghost" size="sm" onClick={() => setView("contribution")}>
-                  <TrendingUp className="size-4" data-icon="inline-start" /> Contribution
-                </Button>
-              ) : null}
-              <GoalsFilter overview={overview} value={filter} onChange={setFilter} />
-              {overview.strategicCount > 0 && canAuthorOrgObjectives ? (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    // Default parent: the focused node if it is a published baseline, else the
-                    // first published strategic root. Creation cannot align beneath a Draft.
-                    const nodes = overview.nodes;
-                    const focus = focusId ? nodes.find((n) => n.id === focusId) : undefined;
-                    const root = nodes.find((n) => n.ownershipScope === "Company" && n.isAlignmentBaseline);
-                    const parent = (focus && focus.isAlignmentBaseline ? focus : root) ?? null;
-                    if (!parent) {
-                      toast.error("Publish strategic direction before adding organizational objectives.");
-                      return;
-                    }
-                    openComposer(parent.id);
-                  }}
-                >
-                  <Plus className="size-4" data-icon="inline-start" /> Create objective
-                </Button>
-              ) : null}
-            </>
-          ) : undefined
-        }
-      />
+      <PerformancePageHeading title="Organization Goals" description="Planning & Direction" actions={actions} />
 
-      {goals.isLoading ? (
+      {goals.isLoading || meResolving ? (
         <PageSkeleton rows={4} label="Loading goals" />
       ) : goals.error || !overview ? (
         <PageError title="Goals unavailable" description={goals.error?.message} onRetry={goals.refetch} />
@@ -158,13 +160,18 @@ function GoalsWorkspace() {
           onClear={() => setFilter(EMPTY_FILTER)}
         />
       ) : (
-        <ObjectiveCascade
+        <ObjectiveWorkspace
+          cycleId={cycle.id}
           overview={overview}
           focusId={focusId}
+          ownUnit={ownUnit}
+          broad={broad}
+          canAuthor={canAuthorOrgObjectives}
+          canReachSetup={canReachSetup}
           onFocus={setFocusId}
           onInspect={setPanelId}
-          onCreateUnder={(parent) => openComposer(parent.id)}
-          canAuthor={canAuthorOrgObjectives}
+          onCreate={(parentId, orgUnitId) => openComposer(parentId, orgUnitId)}
+          onResumeDraft={(id) => router.push(`/goals/${id}/edit`)}
         />
       )}
 

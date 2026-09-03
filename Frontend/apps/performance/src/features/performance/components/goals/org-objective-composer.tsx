@@ -106,12 +106,15 @@ export function OrgObjectiveComposer({
   parent,
   objective,
   defaultAccountable,
+  defaultOrgUnit,
 }: {
   cycle: CycleSummaryDto;
   parent: GoalNodeDto;
   objective?: GoalDetailDto;
   /** Convenience default for a new objective's accountable person (the signed-in user); editable. */
   defaultAccountable?: PickedEmployee | null;
+  /** Preselected organizational scope when launched from a scoped landing (the actor's own unit); editable. */
+  defaultOrgUnit?: PickedOrgUnit | null;
 }) {
   const router = useRouter();
   const mutations = useGoalMutations(cycle.id);
@@ -139,7 +142,7 @@ export function OrgObjectiveComposer({
           name: node.orgUnitName ?? "Selected unit",
           path: [],
         }
-      : null
+      : (defaultOrgUnit ?? null)
   );
   const [startDate, setStartDate] = useState(node?.startDate ?? minDate);
   const [endDate, setEndDate] = useState(node?.endDate ?? maxDate);
