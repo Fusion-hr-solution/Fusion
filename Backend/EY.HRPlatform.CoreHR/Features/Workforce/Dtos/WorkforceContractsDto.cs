@@ -96,7 +96,11 @@ public sealed record WorkforceCurrentUserContextDto(
     IReadOnlyList<string> Roles,
     WorkforceEmployeeSummaryDto? Employee,
     WorkforceManagerScopeDto? ManagerScope,
-    bool IsWorkforceLinked);
+    bool IsWorkforceLinked,
+    // Active headcount of the caller's OWN current org unit (the unit itself, not descendants),
+    // for self-orientation ("the organization I'm acting for"). Own-unit count only — no roster
+    // visibility is exposed. Null when the caller has no current org-unit assignment.
+    int? OrgUnitMemberCount = null);
 
 public sealed record WorkforceEmployeeResolveRequest(
     IReadOnlyList<Guid> EmployeeIds);

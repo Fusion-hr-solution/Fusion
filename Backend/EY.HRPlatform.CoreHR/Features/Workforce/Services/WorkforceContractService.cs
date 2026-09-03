@@ -102,6 +102,16 @@ public sealed class WorkforceContractService(
                 false)
             : null;
 
+        // Headcount of the caller's own current org unit — count only, from canonical primary
+        // assignments. This is the caller's own unit, so no roster-visibility scope applies.
+        int? orgUnitMemberCount = null;
+        if (employee?.OrgUnit is { } ownUnit)
+        {
+            var members = await canonicalResolver.GetEmployeeIdsInOrgUnitAsync(
+                ownUnit.OrgUnitId, null, cancellationToken);
+            orgUnitMemberCount = members.Count;
+        }
+
         return new WorkforceCurrentUserContextDto(
             user.GetUserId(),
             tenantContext.TenantId,
@@ -113,7 +123,8 @@ public sealed class WorkforceContractService(
                 .ToArray(),
             employee,
             managerScope,
-            employee is not null);
+            employee is not null,
+            orgUnitMemberCount);
     }
 
     public async Task<WorkforceEmployeeSummaryDto?> GetEmployeeAsync(
