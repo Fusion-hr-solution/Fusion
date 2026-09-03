@@ -76,7 +76,7 @@ export function measurementSummary(measurement: MeasurementDto): string {
       return `${measurement.milestones.length} milestone${measurement.milestones.length === 1 ? "" : "s"}`;
     case "ManualPercentage":
     default:
-      return "Manual completion %";
+      return "Manual percentage";
   }
 }
 

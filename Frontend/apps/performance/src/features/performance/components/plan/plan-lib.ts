@@ -13,7 +13,7 @@ export const PLAN_STATE_TONE: Record<PlanLifecycleState, "muted" | "warning" | "
 };
 
 export const MEASUREMENT_METHOD_LABEL: Record<MeasurementMethod, string> = {
-  ManualPercentage: "Manual completion",
+  ManualPercentage: "Manual percentage",
   NumericTarget: "Numeric target",
   WeightedMilestones: "Weighted milestones",
 };

@@ -122,7 +122,7 @@ export function ObjectiveEditor({
       const named = milestones.filter((row) => row.title.trim() !== "").length;
       return `${named} milestone${named === 1 ? "" : "s"} · ${weightSum}%`;
     }
-    return "Manual completion %";
+    return "Manual percentage";
   }, [method, baseline, target, unit, direction, milestones, weightSum]);
 
   function buildMeasurement(): MeasurementInput {

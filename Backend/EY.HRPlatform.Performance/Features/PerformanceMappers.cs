@@ -67,7 +67,7 @@ public static class PerformanceMappers
                 $"{Trim(measurement.Baseline)} → {Trim(measurement.Target)} {measurement.Unit}".Trim(),
             MeasurementMethod.WeightedMilestones =>
                 $"{measurement.Milestones.Count} milestone{(measurement.Milestones.Count == 1 ? "" : "s")}",
-            _ => "Manual completion %",
+            _ => "Manual percentage",
         };
     }
 
