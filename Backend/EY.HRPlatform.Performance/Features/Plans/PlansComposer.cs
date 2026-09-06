@@ -85,6 +85,7 @@ public static class PlansComposer
             plan.ResponsibleManagerId is null ? null : new PersonRefDto(plan.ResponsibleManagerId.Value, plan.ResponsibleManagerName),
             plan.State,
             plan.SubmittedAt,
+            plan.UpdatedAt ?? plan.CreatedAt,
             plan.ApprovedAt,
             plan.ApprovalKind,
             plan.IsLocked,

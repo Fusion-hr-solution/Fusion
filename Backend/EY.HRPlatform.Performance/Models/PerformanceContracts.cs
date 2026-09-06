@@ -317,6 +317,7 @@ public sealed record EmployeePlanDto(
     PersonRefDto? ResponsibleManager,
     PlanLifecycleState State,
     DateTime? SubmittedAt,
+    DateTime LastSavedAt,
     DateTime? ApprovedAt,
     PlanApprovalKind? ApprovalKind,
     bool IsLocked,
@@ -331,11 +332,19 @@ public sealed record EmployeePlanDto(
     bool CanDecide,
     bool CanApproveExceptionally);
 
-/// <summary>Whether the caller has a plan in this Cycle yet, and the plan if so.</summary>
+/// <summary>Whether the caller has a plan in this Cycle yet, and the plan if so. When the caller
+/// participates but has not started a plan, <see cref="Preview"/> carries the reviewer and scope
+/// drawn from their participant baseline so the not-started surface can name them before authoring.</summary>
 public sealed record MyPlanStateDto(
     bool ParticipatesInCycle,
     bool HasPlan,
-    EmployeePlanDto? Plan);
+    EmployeePlanDto? Plan,
+    PlanPreviewDto? Preview = null);
+
+/// <summary>The reviewer and scope an employee will plan against, resolved from their participant baseline before a plan exists.</summary>
+public sealed record PlanPreviewDto(
+    PersonRefDto? Reviewer,
+    string? OrgUnitName);
 
 /// <summary>One alignable upstream objective an employee objective may connect to (published strategic or approved organizational).</summary>
 public sealed record AlignmentTargetDto(

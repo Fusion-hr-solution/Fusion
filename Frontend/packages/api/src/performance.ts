@@ -313,6 +313,7 @@ export interface EmployeePlanDto {
   responsibleManager: PersonRefDto | null;
   state: PlanLifecycleState;
   submittedAt: string | null;
+  lastSavedAt: string;
   approvedAt: string | null;
   approvalKind: PlanApprovalKind | null;
   isLocked: boolean;
@@ -326,10 +327,16 @@ export interface EmployeePlanDto {
   canApproveExceptionally: boolean;
 }
 
+export interface PlanPreviewDto {
+  reviewer: PersonRefDto | null;
+  orgUnitName: string | null;
+}
+
 export interface MyPlanStateDto {
   participatesInCycle: boolean;
   hasPlan: boolean;
   plan: EmployeePlanDto | null;
+  preview: PlanPreviewDto | null;
 }
 
 export interface AlignmentTargetDto {

@@ -94,14 +94,21 @@ public sealed class GetMyPlanHandler(PerformanceDbContext db, ICoreWorkforceClie
         if (cycle is null) return Result.Failure<MyPlanStateDto>(Error.NotFound("Cycle", request.CycleId));
 
         var employeeId = request.Actor.CallerEmployeeId;
-        var participates = await Db.Participants.AsNoTracking().AnyAsync(p => p.CycleId == cycle.Id && p.EmployeeId == employeeId, cancellationToken);
-        if (!participates)
+        var participant = await Db.Participants.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.CycleId == cycle.Id && p.EmployeeId == employeeId, cancellationToken);
+        if (participant is null)
             return Result.Success(new MyPlanStateDto(false, false, null));
 
         var plan = await Db.EmployeePlans.AsNoTracking().Include(p => p.Decisions)
             .FirstOrDefaultAsync(p => p.CycleId == cycle.Id && p.EmployeeId == employeeId, cancellationToken);
         if (plan is null)
-            return Result.Success(new MyPlanStateDto(true, false, null));
+        {
+            var reviewer = participant.ManagerEmployeeId is null
+                ? null
+                : new PersonRefDto(participant.ManagerEmployeeId.Value, participant.ManagerDisplayName ?? string.Empty);
+            var preview = new PlanPreviewDto(reviewer, participant.OrgUnitName);
+            return Result.Success(new MyPlanStateDto(true, false, null, preview));
+        }
 
         var standaloneAllowed = await StandaloneAllowedAsync(cancellationToken);
         var dto = await PlansComposer.BuildPlanAsync(Db, Workforce, cycle, plan, standaloneAllowed, request.Actor, cancellationToken);
