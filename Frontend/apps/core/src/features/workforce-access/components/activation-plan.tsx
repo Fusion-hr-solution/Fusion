@@ -587,7 +587,7 @@ function PlanRow({
 
           {!blocked && editable && editing ? (
             <div
-              className="inline-flex rounded-xl border bg-background p-0.5 shadow-sm"
+              className="inline-flex rounded-xl border bg-background p-0.5"
               role="group"
               aria-label={`Access recommendation for ${person.displayName}`}
             >

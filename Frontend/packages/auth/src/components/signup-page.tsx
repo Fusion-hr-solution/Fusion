@@ -7,7 +7,6 @@ import {
   Button,
   Card,
   CardHeader,
-  CardTitle,
   CardDescription,
   CardContent,
   CardFooter,
@@ -42,7 +41,7 @@ export function SignUpPage({
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-8">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Invitation required</CardTitle>
+          <h1 className="type-page-title">Invitation required</h1>
           <CardDescription>
             Platform access starts from a trusted employee record.
           </CardDescription>

@@ -72,7 +72,7 @@ export function ImportProcessing({
     : Math.min(96, Math.round(((activeStep + 0.5) / steps.length) * 100));
 
   return (
-    <div className="w-full max-w-md overflow-hidden rounded-2xl border border-primary/20 bg-primary/[0.04] px-7 py-9 shadow-[var(--shadow-raised)]">
+    <div className="w-full max-w-md overflow-hidden rounded-2xl border border-primary/20 bg-primary/[0.04] px-7 py-9 shadow-raised">
       <div className="flex flex-col items-center text-center">
         <div className="relative grid size-16 place-items-center">
           {done ? null : (

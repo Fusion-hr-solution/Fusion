@@ -40,7 +40,7 @@ export function BaselineControl({
   return (
     <div>
       <div className="flex items-center gap-3">
-        <span className="grid size-9 place-items-center rounded-[0.625rem] bg-foreground/[0.06] text-muted-foreground">
+        <span className="grid size-9 place-items-center rounded-object bg-foreground/[0.06] text-muted-foreground">
           <CalendarDays className="size-4" aria-hidden />
         </span>
         <div>

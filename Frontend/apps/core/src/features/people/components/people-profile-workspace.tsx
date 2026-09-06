@@ -133,7 +133,7 @@ function ProfileSkeleton() {
       <div className="mx-auto max-w-5xl">
         <Skeleton className="mb-8 h-5 w-20" />
         <div className="flex items-center gap-5 border-b pb-8">
-          <Skeleton className="size-16 rounded-[0.625rem]" />
+          <Skeleton className="size-16 rounded-object" />
           <div className="space-y-2.5">
             <Skeleton className="h-9 w-72" />
             <Skeleton className="h-4 w-56" />

@@ -296,7 +296,7 @@ export function ActivationCompleted({
   return (
     <section
       aria-labelledby="activation-title"
-      className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-xl border border-border bg-card px-5 py-4 shadow-xs"
+      className="flex flex-wrap items-center gap-x-5 gap-y-3 rounded-xl border border-border bg-card px-5 py-4"
     >
       <div className="flex min-w-0 flex-1 items-center gap-3.5">
         <IconTile icon={CheckCircle2} tone="positive" />

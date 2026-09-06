@@ -103,9 +103,9 @@ export function RecordSurface({
         "flex flex-col overflow-hidden rounded-2xl border bg-card",
         emphasis
           ? isAttention
-            ? "border-destructive/35 shadow-sm"
-            : "border-border shadow-sm"
-          : "border-border shadow-xs",
+            ? "border-destructive/35 shadow-raised"
+            : "border-border shadow-raised"
+          : "border-border",
         className
       )}
     >

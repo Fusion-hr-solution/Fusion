@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   CardHeader,
-  CardTitle,
   CardDescription,
   CardContent,
   CardFooter,
@@ -114,7 +113,7 @@ export function SignInPage({
     <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome back</CardTitle>
+          <h1 className="type-page-title">Welcome back</h1>
           <CardDescription>
             Sign in to your account to continue
           </CardDescription>

@@ -59,7 +59,7 @@ export function Monogram({
     <span
       aria-hidden="true"
       className={cn(
-        "grid shrink-0 place-items-center rounded-[0.625rem] font-semibold tracking-tight tabular-nums",
+        "grid shrink-0 place-items-center rounded-object font-semibold tracking-tight tabular-nums",
         accent
           ? "bg-primary/12 text-foreground ring-1 ring-inset ring-primary/25"
           : "bg-muted text-muted-foreground",

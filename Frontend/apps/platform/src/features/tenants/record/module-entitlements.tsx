@@ -168,7 +168,7 @@ function ModuleCard({ entitlement }: { entitlement: ModuleEntitlement }) {
       className={cn(
         "flex flex-col gap-3 rounded-2xl border p-4",
         isGranted
-          ? "border-border bg-card shadow-xs"
+          ? "border-border bg-card"
           : isUnavailable
             ? "border-dashed border-border bg-muted/25"
             : "border-border bg-card/60"

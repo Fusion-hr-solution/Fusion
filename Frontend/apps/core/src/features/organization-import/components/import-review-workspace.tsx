@@ -196,7 +196,7 @@ function ImportReviewSkeleton() {
         ))}
       </div>
 
-      <footer className="flex shrink-0 items-center justify-between border-t bg-card px-6 py-3 shadow-[0_-6px_16px_-12px_rgb(0_0_0/0.18)]">
+      <footer className="flex shrink-0 items-center justify-between border-t bg-card px-6 py-3">
         <div className="h-4 w-64 animate-pulse rounded bg-muted/50" />
         <div className="h-9 w-36 animate-pulse rounded-lg bg-muted/60" />
       </footer>
@@ -771,7 +771,7 @@ function ActiveReviewWorkspace({
           </main>
           {selection.kind !== "none" ? (
             <aside
-              className="min-h-0 w-[400px] shrink-0 border-l bg-background max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:w-[380px] max-xl:shadow-xl"
+                className="min-h-0 w-[400px] shrink-0 border-l bg-background max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:w-[380px] max-xl:shadow-overlay"
               aria-label="Import review panel"
             >
               <ImportInspector
@@ -795,7 +795,7 @@ function ActiveReviewWorkspace({
       )}
 
       {review && !understandingPhase && !vocabularyPhase ? (
-        <footer className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-t bg-card px-6 py-3 shadow-[0_-6px_16px_-12px_rgb(0_0_0/0.18)]">
+        <footer className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-3 border-t bg-card px-6 py-3">
           <div className="flex items-center gap-2 text-sm">
             {canCommit ? (
               <CheckCircle2 className="h-4 w-4 text-success" />
@@ -963,7 +963,7 @@ function InterpretationSummary({ review }: { review: OrganizationImportReview })
             {mappings.map((mapping) => (
               <span
                 key={mapping.from}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/15 bg-card px-2 py-1 type-meta shadow-[var(--shadow-raised)]"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/15 bg-card px-2 py-1 type-meta shadow-raised"
               >
                 <span className="max-w-[10rem] truncate text-muted-foreground">
                   {mapping.from}

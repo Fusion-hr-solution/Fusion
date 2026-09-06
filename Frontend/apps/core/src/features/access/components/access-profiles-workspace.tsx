@@ -477,7 +477,7 @@ export function AccessProfilesWorkspace({
                     onClick={() => setSelectedProfileId(profile.id)}
                     className={`w-full rounded-lg border px-3 py-3 text-left transition-all ${
                       isSelected
-                        ? "border-primary/60 bg-primary/[3%] shadow-sm ring-1 ring-primary/15"
+                        ? "border-primary/60 bg-primary/[3%] shadow-raised ring-1 ring-primary/15"
                         : "hover:border-primary/30 hover:bg-muted/10"
                     }`}
                   >

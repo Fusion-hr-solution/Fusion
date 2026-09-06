@@ -149,12 +149,12 @@ function SummaryCard({
             // selection is a difference in weight and not only in hue. The
             // surface stays a faint wash: a heavier amber fill goes muddy over
             // the dark canvas.
-            "border-primary bg-primary/[0.05] shadow-sm inset-ring-1 inset-ring-primary/40 dark:bg-primary/[0.07]"
+            "border-primary bg-primary/[0.05] shadow-raised inset-ring-1 inset-ring-primary/40 dark:bg-primary/[0.07]"
           : // Unselected is deliberate, not dimmed: full card surface, real
             // border, and a hover that lifts rather than merely tints. The lift
             // is neutral on purpose — the accent belongs to selection, and an
             // amber hover would read as more selected than the selected card.
-            "border-border bg-card shadow-xs hover:border-foreground/25 hover:bg-foreground/[0.03] hover:shadow-sm"
+            "border-border bg-card hover:border-foreground/25 hover:bg-foreground/[0.03] hover:shadow-raised"
       )}
     >
       <span className="flex items-start justify-between gap-3">

@@ -452,7 +452,7 @@ function SectionCard({
   return (
     <section
       aria-labelledby={headingId}
-      className="rounded-2xl border border-border bg-card shadow-xs"
+      className="rounded-2xl border border-border bg-card"
     >
       <div className="flex items-start gap-3 border-b border-border px-5 py-4">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
@@ -514,7 +514,7 @@ function ProvisioningSummary({
   return (
     <aside
       aria-labelledby="provisioning-summary-title"
-      className="min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-xs lg:sticky lg:top-6"
+      className="min-w-0 overflow-hidden rounded-xl border border-border bg-card lg:sticky lg:top-6"
     >
       <h2
         id="provisioning-summary-title"

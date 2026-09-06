@@ -66,7 +66,7 @@ const AMBER_TILE = "bg-[hsl(47_100%_52%)] text-[hsl(29_83%_20%)]";
  * it. The pair reads as one brand-coloured focus state and still clears 3:1.
  */
 const FIELD =
-  "h-11 rounded-xl border-input/80 bg-background shadow-sm transition " +
+  "h-11 rounded-xl border-input/80 bg-background transition " +
   "hover:border-foreground/30 " +
   "focus-visible:border-foreground focus-visible:ring-2 focus-visible:ring-primary " +
   "focus-visible:ring-offset-0 focus-visible:shadow-none " +
@@ -701,7 +701,7 @@ function InvitedAddress({ email }: { email: string | null }) {
   if (!email) return null;
 
   return (
-    <div className="mt-7 flex gap-3.5 rounded-2xl border bg-muted/40 p-4 shadow-sm">
+    <div className="mt-7 flex gap-3.5 rounded-2xl border bg-muted/40 p-4">
       <IconChip
         icon={Lock}
         className="mt-0.5 size-8 rounded-lg bg-foreground/[0.06] text-foreground/70 ring-1 ring-inset ring-foreground/10"

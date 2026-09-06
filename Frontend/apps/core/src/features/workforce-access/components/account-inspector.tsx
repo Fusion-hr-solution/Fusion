@@ -271,7 +271,7 @@ function InspectorContent({
                       className={cn(
                         "rounded-md px-3 py-1.5 type-label transition-colors",
                         baseline === choice
-                          ? "bg-foreground text-background shadow-sm"
+                          ? "bg-foreground text-background shadow-raised"
                           : "text-muted-foreground hover:text-foreground"
                       )}
                     >
@@ -451,7 +451,7 @@ function InspectorActions({
   restoreLoading: boolean;
 }) {
   return (
-    <div className="border-t bg-background px-7 py-4 shadow-[0_-8px_20px_-20px_rgba(0,0,0,0.4)]">
+    <div className="border-t bg-background px-7 py-4">
       {data.availableActions.length > 0 && canManage ? (
         <div className="space-y-2">
           {data.availableActions.map((action) => (

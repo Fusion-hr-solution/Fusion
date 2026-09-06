@@ -97,7 +97,7 @@ function Segmented<T extends string>({
       {options.map((option) => (
         <label
           key={option.value}
-          className="cursor-pointer rounded-lg px-3.5 py-1.5 type-label text-muted-foreground transition-colors has-data-[state=checked]:bg-background has-data-[state=checked]:text-foreground has-data-[state=checked]:shadow-sm focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none"
+          className="cursor-pointer rounded-lg px-3.5 py-1.5 type-label text-muted-foreground transition-colors has-data-[state=checked]:bg-background has-data-[state=checked]:text-foreground has-data-[state=checked]:shadow-raised focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none"
         >
           <RadioGroupItem value={option.value} className="sr-only" />
           {option.label}

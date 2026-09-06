@@ -260,7 +260,7 @@ export function WorkforceReviewWorkspace({
         ) : inspectorOpen && selectedRow ? (
           <>
             <div className="fixed inset-0 z-40 bg-foreground/20 backdrop-blur-[1px]" onClick={() => setInspectorOpen(false)} aria-hidden />
-            <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-card shadow-[var(--shadow-overlay)]">
+            <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col bg-card shadow-overlay">
               <button
                 type="button"
                 onClick={() => setInspectorOpen(false)}

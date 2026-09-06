@@ -194,7 +194,7 @@ function PeopleSkeleton() {
       </div>
       {Array.from({ length: 7 }, (_, index) => (
         <div key={index} className="flex items-center gap-4 border-b px-4 py-4 last:border-b-0">
-          <Skeleton className="size-9 rounded-[0.625rem]" />
+          <Skeleton className="size-9 rounded-object" />
           <div className="flex-1 space-y-2"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-24" /></div>
           <div className="hidden flex-1 space-y-2 sm:block"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-44" /></div>
           <Skeleton className="h-5 w-20 rounded-full" />
@@ -333,7 +333,7 @@ function EstablishAction({
     >
       <span
         className={cn(
-          "grid size-11 shrink-0 place-items-center rounded-[0.625rem]",
+          "grid size-11 shrink-0 place-items-center rounded-object",
           tone === "primary" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
         )}
       >

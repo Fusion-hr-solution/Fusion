@@ -885,7 +885,7 @@ export default function OrganizationWorkspace() {
                 </Button>
               ) : null}
               {urlState.search.trim().length >= 2 ? (
-                <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 max-h-80 overflow-y-auto rounded-xl border bg-popover p-1 shadow-lg">
+                <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 max-h-80 overflow-y-auto rounded-xl border bg-popover p-1 shadow-overlay">
                   {search.isLoading ? (
                     <div className="space-y-2 p-3">
                       <Skeleton className="h-9 w-full" />
@@ -944,7 +944,7 @@ export default function OrganizationWorkspace() {
               <ToggleGroupItem
                 value="chart"
                 aria-label="Chart view"
-                className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-sm"
+                className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
               >
                 <Network className="h-4 w-4" />
                 Chart
@@ -952,7 +952,7 @@ export default function OrganizationWorkspace() {
               <ToggleGroupItem
                 value="outline"
                 aria-label="Outline view"
-                className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-sm"
+                className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
               >
                 <ListTree className="h-4 w-4" />
                 Outline
@@ -1085,7 +1085,7 @@ export default function OrganizationWorkspace() {
               correction !== null ||
               (urlState.selectedId && inspectorOpen)) ? (
               <aside
-                className="min-h-0 w-[360px] shrink-0 border-l bg-background max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-xl"
+                className="min-h-0 w-[360px] shrink-0 border-l bg-background max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-overlay"
                 aria-label="Organization panel"
               >
                 {unitForm !== null ? (

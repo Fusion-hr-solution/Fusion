@@ -1984,7 +1984,7 @@ export function EmployeeProfileWorkspace({
         </TabsList>
 
         <TabsContent value="profile" className="grid gap-4 xl:grid-cols-2">
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+          <section className="rounded-2xl border border-border bg-card p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-foreground">
                 Profile
@@ -2006,7 +2006,7 @@ export function EmployeeProfileWorkspace({
             </div>
             <DefinitionGrid items={personalDetails} />
           </section>
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+          <section className="rounded-2xl border border-border bg-card p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-foreground">
                 Record health
@@ -2064,7 +2064,7 @@ export function EmployeeProfileWorkspace({
         </TabsContent>
 
         <TabsContent value="employment" className="grid gap-4 xl:grid-cols-2">
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+          <section className="rounded-2xl border border-border bg-card p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-foreground">
                 Employment
@@ -2086,7 +2086,7 @@ export function EmployeeProfileWorkspace({
             </div>
             <DefinitionGrid items={employmentDetails} />
           </section>
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+          <section className="rounded-2xl border border-border bg-card p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-foreground">
                 Employment summary
@@ -2114,7 +2114,7 @@ export function EmployeeProfileWorkspace({
         </TabsContent>
 
         <TabsContent value="assignment" className="grid gap-4 xl:grid-cols-2">
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+          <section className="rounded-2xl border border-border bg-card p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-foreground">
                 Work assignment
@@ -2136,7 +2136,7 @@ export function EmployeeProfileWorkspace({
             </div>
             <DefinitionGrid items={assignmentDetails} />
           </section>
-          <section className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+          <section className="rounded-2xl border border-border bg-card p-5">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-foreground">
                 Current role
@@ -2212,7 +2212,7 @@ export function EmployeeProfileWorkspace({
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-card p-5 shadow-xs">
+                <div className="rounded-2xl border border-border bg-card p-5">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <h2 className="text-sm font-semibold text-foreground">
                       Manager relationship
