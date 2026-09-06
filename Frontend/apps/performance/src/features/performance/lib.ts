@@ -54,6 +54,20 @@ export function formatDateRange(start: string, end: string): string {
   return `${formatDate(start)} – ${formatDate(end)}`;
 }
 
+/** A full ISO timestamp as a readable date and time, e.g. "5 Sep 2026, 3:24 PM". */
+export function formatDateTime(value: string | null | undefined): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 /**
  * Parses a user-typed measurement value, distinguishing empty (nothing entered yet) from
  * non-numeric (e.g. "48M"). Non-numeric input is reported as invalid so the composer can show

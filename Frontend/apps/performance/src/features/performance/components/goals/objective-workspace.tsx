@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import type { GoalNodeDto, GoalsOverviewDto } from "@repo/api";
+import { ScopeMark } from "../scope-mark";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { Button } from "@repo/ds/components/ui/button";
 import {
@@ -456,7 +457,7 @@ function DirectionCard({
   return (
     <div>
       {sectionLabel ? <p className="type-eyebrow mb-2 text-muted-foreground">{sectionLabel}</p> : null}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card">
         <span aria-hidden className="absolute inset-y-0 left-0 w-1 bg-primary/30" />
         <div className="relative p-5 pl-6 sm:p-6 sm:pl-7">
           <Button
@@ -548,10 +549,10 @@ function CurrentScopeCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border bg-card p-5 pl-6 shadow-sm sm:p-6 sm:pl-7",
+        "relative overflow-hidden rounded-2xl border bg-card p-5 pl-6 sm:p-6 sm:pl-7",
         own
-          ? "border-primary/50 shadow-md shadow-primary/10 ring-1 ring-primary/25"
-          : "border-foreground/25 shadow-md ring-1 ring-foreground/10",
+          ? "border-primary/50 shadow-raised ring-1 ring-primary/25"
+          : "border-foreground/25 shadow-raised ring-1 ring-foreground/10",
       )}
     >
       <span
@@ -768,7 +769,7 @@ function ChildObjectiveCard({
   const isDraft = node.state === "Draft";
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm transition-colors hover:border-primary/40 sm:p-5">
+    <div className="group relative overflow-hidden rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40 sm:p-5">
       <div className="absolute right-4 top-4 sm:right-5 sm:top-5">
         {isDraft ? (
           <Button variant="outline" size="sm" onClick={() => onResumeDraft(node.id)}>
@@ -1093,18 +1094,3 @@ function MeasurementFact({ node }: { node: GoalNodeDto }) {
  * ticks. A purpose-drawn "direction" glyph, distinct from a generic target icon. Inherits
  * `currentColor` for the rings; the center is the primary accent.
  */
-function ScopeMark({ className, muted }: { className?: string; muted?: boolean }) {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" className={className} aria-hidden role="img">
-      <circle cx="24" cy="24" r="17" stroke="currentColor" strokeWidth="1.5" opacity="0.35" />
-      <circle cx="24" cy="24" r="11" stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
-      <circle cx="24" cy="24" r="4.5" className={muted ? "fill-current" : "fill-primary"} />
-      <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5">
-        <path d="M24 3.5v6" />
-        <path d="M24 38.5v6" />
-        <path d="M3.5 24h6" />
-        <path d="M38.5 24h6" />
-      </g>
-    </svg>
-  );
-}

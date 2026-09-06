@@ -1,11 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import { PageContainer, PageError, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
-import { ManagerDecisionWorkspace } from "@/features/performance/components/plan/manager-decision-workspace";
 import { PlanReviewQueue } from "@/features/performance/components/plan/plan-review-queue";
 import { usePerformanceAccess, useCurrentCycle, usePlanReviews } from "@/features/performance/api/use-performance";
 
@@ -19,8 +17,6 @@ export default function TeamPerformancePage() {
   const detail = useCurrentCycle(canEnter);
   const cycle = detail.data?.cycle ?? null;
   const reviews = usePlanReviews(cycle?.id ?? null, canReview);
-
-  const [openPlanId, setOpenPlanId] = useState<string | null>(null);
 
   if (access.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
   if (!canReview) {
@@ -46,30 +42,22 @@ export default function TeamPerformancePage() {
   return (
     <PageContainer>
       <CycleContextBar cycle={cycle} />
-
-      {openPlanId ? (
-        // Focused decision: the workspace carries its own back affordance and identity header.
-        <ManagerDecisionWorkspace cycleId={cycle.id} planId={openPlanId} onBack={() => setOpenPlanId(null)} />
+      <PerformancePageHeading
+        title="Team Performance"
+        description={
+          reviews.isLoading
+            ? undefined
+            : count === 0
+              ? "No plans are waiting on you right now."
+              : `${count} plan${count === 1 ? "" : "s"} need${count === 1 ? "s" : ""} your decision.`
+        }
+      />
+      {reviews.isLoading ? (
+        <PageSkeleton rows={3} label="Loading team" />
+      ) : reviews.error || !reviews.data ? (
+        <PageError title="Team unavailable" description={reviews.error?.message} onRetry={reviews.refetch} />
       ) : (
-        <>
-          <PerformancePageHeading
-            title="Team Performance"
-            description={
-              reviews.isLoading
-                ? undefined
-                : count === 0
-                  ? "No plans are waiting on you right now."
-                  : `${count} plan${count === 1 ? "" : "s"} need${count === 1 ? "s" : ""} your decision.`
-            }
-          />
-          {reviews.isLoading ? (
-            <PageSkeleton rows={3} label="Loading team" />
-          ) : reviews.error || !reviews.data ? (
-            <PageError title="Team unavailable" description={reviews.error?.message} onRetry={reviews.refetch} />
-          ) : (
-            <PlanReviewQueue plans={reviews.data.plans} onOpen={setOpenPlanId} />
-          )}
-        </>
+        <PlanReviewQueue plans={reviews.data.plans} />
       )}
     </PageContainer>
   );

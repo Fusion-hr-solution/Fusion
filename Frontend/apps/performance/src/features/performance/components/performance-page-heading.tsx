@@ -28,7 +28,7 @@ export function PerformancePageHeading({
   className?: string;
 }) {
   return (
-    <div className={cn("mb-6", className)}>
+    <div className={cn("mb-4", className)}>
       {back ? (
         <Link
           href={back.href}
@@ -55,7 +55,9 @@ export function PerformancePageHeading({
           ) : null}
         </div>
         {actions ? (
-          <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {actions}
+          </div>
         ) : null}
       </div>
     </div>

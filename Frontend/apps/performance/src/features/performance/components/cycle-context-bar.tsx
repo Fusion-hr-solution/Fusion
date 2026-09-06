@@ -38,7 +38,7 @@ export function CycleContextBar({
   return (
     <div
       className={cn(
-        "mb-5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm",
+        "mb-5 flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm",
         className
       )}
     >

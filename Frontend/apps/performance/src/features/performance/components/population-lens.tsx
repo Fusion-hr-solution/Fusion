@@ -153,7 +153,7 @@ function PopulationLensBody({
               className={cn(
                 "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                 selection.mode === mode
-                  ? "bg-primary text-primary-foreground shadow-sm"
+                  ? "bg-primary text-primary-foreground shadow-raised"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >

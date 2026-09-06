@@ -27,7 +27,7 @@ export function ComposerSkeleton() {
       </div>
 
       {/* Parent objective band */}
-      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="w-full space-y-2">
             <Skeleton className="h-3 w-28" />
@@ -40,7 +40,7 @@ export function ComposerSkeleton() {
 
       {/* Objective details block */}
       <div className="mt-6 space-y-6">
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+        <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
           <Skeleton className="h-5 w-36" />
           <div className="mt-4 space-y-4">
             <Field />
@@ -61,7 +61,7 @@ export function ComposerSkeleton() {
         </div>
 
         {/* Measurement block */}
-        <div className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+        <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
           <Skeleton className="h-5 w-32" />
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <Skeleton className="h-[68px] w-full rounded-xl" />

@@ -12,7 +12,7 @@ export const PRIMARY_NAV: ShellNavSection = {
   items: [
     { label: "Overview", href: "/", icon: LayoutDashboard, exact: true },
     { label: "Organization Goals", href: "/goals", icon: GitBranch },
-    { label: "My plan", href: "/plan", icon: UserRoundCheck },
+    { label: "My Plan", href: "/plan", icon: UserRoundCheck },
     { label: "Team Performance", href: "/team", icon: Users },
   ],
 };

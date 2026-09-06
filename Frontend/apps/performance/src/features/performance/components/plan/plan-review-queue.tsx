@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ChevronRight, Inbox } from "lucide-react";
 import type { PlanReviewSummaryDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
@@ -8,16 +9,10 @@ import { initials, pct } from "./plan-lib";
 
 /**
  * The review queue — submitted plans awaiting this manager's decision, ordered oldest first so the
- * longest-waiting agreement surfaces first. Each row is scannable (who, plan shape, when) and opens
- * the decision workspace. Not a table: the person leads, the plan shape is secondary context.
+ * longest-waiting agreement surfaces first. Each row is scannable (who, plan shape, when) and links to
+ * the canonical Plan review resource. Not a table: the person leads, the plan shape is secondary context.
  */
-export function PlanReviewQueue({
-  plans,
-  onOpen,
-}: {
-  plans: PlanReviewSummaryDto[];
-  onOpen: (planId: string) => void;
-}) {
+export function PlanReviewQueue({ plans }: { plans: PlanReviewSummaryDto[] }) {
   if (plans.length === 0) {
     return (
       <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -31,11 +26,10 @@ export function PlanReviewQueue({
     <div className="overflow-hidden rounded-2xl border border-border bg-card">
       <div className="divide-y divide-border">
         {plans.map((plan) => (
-          <button
+          <Link
             key={plan.id}
-            type="button"
-            onClick={() => onOpen(plan.id)}
-            className="group flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/40"
+            href={`/team/${plan.id}`}
+            className="group flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:bg-muted/40"
           >
             <Avatar className="size-10">
               <AvatarFallback className="text-xs">{initials(plan.employee.name)}</AvatarFallback>
@@ -62,7 +56,7 @@ export function PlanReviewQueue({
               Review
               <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
             </span>
-          </button>
+          </Link>
         ))}
       </div>
     </div>

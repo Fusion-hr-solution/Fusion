@@ -5,7 +5,8 @@ import { ContentUnavailable } from "@/features/performance/components/content-un
 import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { MyPlan } from "@/features/performance/components/plan/my-plan";
-import { usePerformanceAccess, useCurrentCycle } from "@/features/performance/api/use-performance";
+import { NotStartedBadge, PlanStateBadge } from "@/features/performance/components/plan/plan-header";
+import { usePerformanceAccess, useCurrentCycle, useMyPlan } from "@/features/performance/api/use-performance";
 
 export default function PlanPage() {
   const access = usePerformanceAccess();
@@ -14,6 +15,11 @@ export default function PlanPage() {
 
   const detail = useCurrentCycle(canEnter);
   const cycle = detail.data?.cycle ?? null;
+
+  // Read the plan here too (same query key as MyPlan — deduped) so the agreement state can sit with
+  // the page title as heading metadata rather than as a separate row below it.
+  const planState = useMyPlan(cycle?.id ?? null, canParticipate);
+  const plan = planState.data?.plan ?? null;
 
   if (access.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
   if (!canParticipate) {
@@ -40,7 +46,19 @@ export default function PlanPage() {
   return (
     <PageContainer>
       <CycleContextBar cycle={cycle} />
-      <PerformancePageHeading title="My plan" />
+      <PerformancePageHeading
+        title={
+          <span className="inline-flex flex-wrap items-center gap-2.5">
+            My Plan
+            {plan && plan.objectives.length > 0 ? (
+              <PlanStateBadge plan={plan} />
+            ) : planState.data ? (
+              <NotStartedBadge />
+            ) : null}
+          </span>
+        }
+        description="Planning & Agreement"
+      />
       <MyPlan cycle={cycle} />
     </PageContainer>
   );

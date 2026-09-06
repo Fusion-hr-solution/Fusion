@@ -60,12 +60,19 @@ export function BreadcrumbOverridesProvider({ children }: { children: ReactNode 
  */
 export function useBreadcrumbLabel(segment: string, label: string | undefined) {
   const ctx = useContext(BreadcrumbOverridesContext);
+  // Depend on the stable setter/clearer, not the whole context value: `ctx` changes identity on every
+  // override write (its `overrides` map is a dependency of the memo), so listing `ctx` here makes the
+  // effect re-run after its own write — cleanup clears the label, the body re-sets it, and that write
+  // changes `ctx` again, looping until React bails ("Maximum update depth exceeded"). The callbacks are
+  // `useCallback([])`-stable, so keying on them runs the effect once per segment/label.
+  const setOverride = ctx?.setOverride;
+  const clearOverride = ctx?.clearOverride;
 
   useEffect(() => {
-    if (!ctx || !segment || !label) return;
-    ctx.setOverride(segment, label);
-    return () => ctx.clearOverride(segment);
-  }, [ctx, segment, label]);
+    if (!setOverride || !clearOverride || !segment || !label) return;
+    setOverride(segment, label);
+    return () => clearOverride(segment);
+  }, [setOverride, clearOverride, segment, label]);
 }
 
 export function useBreadcrumbOverridesMap(): OverridesMap {
