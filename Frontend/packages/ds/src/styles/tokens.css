@@ -1,5 +1,7 @@
 
-@import "@fontsource-variable/inter/wght.css";
+@import "@fontsource-variable/geist/wght.css";
+@import "@fontsource-variable/geist-mono/wght.css";
+@import "@fontsource-variable/lora/wght.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -7,11 +9,16 @@
     /* Native form controls (select option lists, date pickers, scrollbars) follow the
        active theme; without this they stay light and render white-on-white in dark mode. */
     color-scheme: light;
-    --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    /* Kept as a semantically separate heading token even though it resolves to Inter today. */
+    /* Fusion's typography separates the system voice from the human voice:
+       Geist carries product chrome and operational data; Lora is reserved for
+       page openings, major moments, and authored narrative. */
+    --font-sans: "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-heading: var(--font-sans);
-    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-    --background: oklch(1 0 0);
+    --font-editorial: "Lora Variable", Georgia, "Times New Roman", serif;
+    --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    /* A quiet canvas step keeps working surfaces legible without turning the
+       product into white/gray soup. Cards and overlays remain true white. */
+    --background: oklch(0.985 0.001 286.375);
     --foreground: oklch(0.141 0.005 285.823);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.141 0.005 285.823);
@@ -44,7 +51,7 @@
     --chart-3: oklch(0.666 0.179 58.318);
     --chart-4: oklch(0.555 0.163 48.998);
     --chart-5: oklch(0.473 0.137 46.201);
-    --radius: 0.625rem;
+    --radius: 0.75rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.141 0.005 285.823);
     --sidebar-primary: oklch(0.681 0.162 75.834);
@@ -117,6 +124,7 @@
 @theme inline {
     --font-sans: var(--font-sans);
     --font-heading: var(--font-heading);
+    --font-editorial: var(--font-editorial);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -165,24 +173,40 @@
      * Badge, written as a pill, came out a rectangle, and every xs/sm button
      * lost its corners too.
      *
-     * Each tier has a job, and a control sits two steps below the surface
-     * holding it so the two never share a corner:
+     * Each tier has a job. The upper end intentionally jumps into the large
+     * radius family used by Fusion's soft, rounded product surfaces. Radius
+     * values above half the element's size naturally clamp into pills/circles.
      *
-     *   sm   6px  nested detail inside an already-rounded surface
-     *   md   8px  menu items, dense affordances
-     *   lg  10px  chips, monogram tiles, inline badges
-     *   xl  10px  controls — buttons, inputs, selects, textareas (preset Medium)
-     *   2xl 14px  containers — cards, dialogs, popovers, panels (preset Medium)
-     *   3xl 24px  large feature surfaces
-     *   4xl 32px  decorative frames
+     *   none  0px  intentional square corners
+     *   xs    4px  nested detail inside an already-rounded surface
+     *   sm    8px  menu items and compact affordances
+     *   md   12px  controls — buttons, inputs, selects, textareas
+     *   lg   16px  larger inset objects and feature tiles
+     *   xl   20px  generous object groups and medium compositions
+     *   2xl  32px  cards, dialogs, popovers, panels
+     *   3xl 128px  feature surfaces and organic compositions
+     *   4xl 256px  intentional capsules/circles only
      */
-    --radius-sm: 0.375rem;
-    --radius-md: 0.5rem;
-    --radius-lg: 0.625rem;
-    --radius-xl: 0.625rem;
-    --radius-2xl: 0.875rem;
-    --radius-3xl: 1.5rem;
-    --radius-4xl: 2rem;
+    --radius-none: 0;
+    --radius-xs: 0.25rem;
+    --radius-sm: 0.5rem;
+    --radius-md: 0.75rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.25rem;
+    --radius-2xl: 2rem;
+    --radius-3xl: 8rem;
+    --radius-4xl: 16rem;
+    /* Semantic geometry. Prefer these inside @repo/ds so component roles stay
+       stable even if the numeric scale is recalibrated later. Small objects
+       stay at the 12px md tier so compact icon buttons do not become pills;
+       generic surfaces use the 20px xl family, while feature cards can opt
+       into the 32px 2xl family and the 128/256px tiers stay composition-only. */
+    --radius-detail: var(--radius-xs);
+    --radius-affordance: var(--radius-sm);
+    --radius-object: var(--radius-md);
+    --radius-control: var(--radius-md);
+    --radius-surface: var(--radius-xl);
+    --radius-feature: var(--radius-2xl);
     /* Elevation → `shadow-raised` / `shadow-overlay` utilities. */
     --shadow-raised: var(--shadow-raised);
     --shadow-overlay: var(--shadow-overlay);
@@ -199,6 +223,7 @@
     }
   body {
     @apply bg-background text-foreground;
+    font-kerning: normal;
     }
   html {
     @apply font-sans;
@@ -218,18 +243,22 @@
  * one-to-one mapping to HTML elements.
  */
 @utility type-display {
-    font-family: var(--font-heading);
+    font-family: var(--font-editorial);
     font-size: 1.875rem;
     line-height: 1.15;
-    font-weight: 600;
-    letter-spacing: -0.02em;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    font-optical-sizing: auto;
+    text-wrap: balance;
 }
 @utility type-page-title {
-    font-family: var(--font-heading);
-    font-size: 1.4rem;
+    font-family: var(--font-editorial);
+    font-size: 1.5rem;
     line-height: 1.2;
-    font-weight: 600;
-    letter-spacing: -0.02em;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    font-optical-sizing: auto;
+    text-wrap: balance;
 }
 @utility type-section-title {
     font-family: var(--font-heading);
@@ -237,6 +266,7 @@
     line-height: 1.4;
     font-weight: 600;
     letter-spacing: -0.01em;
+    text-wrap: balance;
 }
 @utility type-subsection-title {
     font-size: 0.875rem;
@@ -258,6 +288,16 @@
     font-size: 0.875rem;
     line-height: 1.5;
     font-weight: 400;
+}
+@utility type-narrative {
+    max-width: 70ch;
+    font-family: var(--font-editorial);
+    font-size: 1rem;
+    line-height: 1.6;
+    font-weight: 400;
+    letter-spacing: -0.005em;
+    font-optical-sizing: auto;
+    text-wrap: pretty;
 }
 @utility type-label {
     font-size: 0.875rem;
@@ -287,4 +327,5 @@
     font-size: 0.8125rem;
     line-height: 1.5;
     font-weight: 400;
+    font-variant-ligatures: none;
 }

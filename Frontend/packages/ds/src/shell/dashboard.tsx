@@ -42,7 +42,7 @@ export function KpiStat({
           {label}
         </p>
         {Icon ? (
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-object bg-muted text-muted-foreground">
             <Icon className="size-4" />
           </span>
         ) : href ? (
@@ -59,7 +59,7 @@ export function KpiStat({
   );
 
   const base = cn(
-    "group/kpi flex flex-col rounded-xl border border-border bg-card p-4 shadow-xs",
+    "group/kpi flex flex-col rounded-surface border border-border bg-card p-4",
     href && "transition-colors hover:border-primary/40 hover:bg-muted/10",
     className
   );
@@ -136,7 +136,7 @@ export function DashboardPanel({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-card p-4 shadow-xs",
+        "rounded-surface border border-border bg-card p-4",
         className
       )}
     >

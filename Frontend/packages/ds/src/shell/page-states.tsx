@@ -27,7 +27,7 @@ function StateShell({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-card/40 px-6 py-14 text-center",
+        "flex flex-col items-center justify-center rounded-surface border border-dashed border-border bg-card/40 px-6 py-14 text-center",
         className
       )}
     >
@@ -123,7 +123,7 @@ export interface PageListSkeletonProps {
 export function PageListSkeleton({ rows = 3, className, label }: PageListSkeletonProps) {
   return (
     <div className={cn("space-y-3", className)} aria-busy aria-label={label ?? "Loading list"}>
-      <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="rounded-surface border border-border bg-card p-6">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
           <div className="min-w-0 flex-1 space-y-2.5">
             <Skeleton className="h-5 w-28 rounded-full" />
@@ -146,7 +146,7 @@ export function PageListSkeleton({ rows = 3, className, label }: PageListSkeleto
       {Array.from({ length: rows }).map((_, i) => (
         <div
           key={i}
-          className="flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-4"
+          className="flex items-center gap-4 rounded-control border border-border bg-card px-5 py-4"
         >
           <div className="min-w-0 flex-1 space-y-2">
             <Skeleton className="h-4 w-48 max-w-full" />

@@ -87,11 +87,11 @@ export function ModuleSidebar({
             <DropdownMenu>
               <DropdownMenuTrigger
                 className={cn(
-                  "flex items-center gap-2.5 rounded-md p-1.5 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                  "flex items-center gap-2.5 rounded-affordance p-1.5 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring",
                   collapsed && "justify-center"
                 )}
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-object bg-sidebar-primary text-sidebar-primary-foreground">
                   <BrandIcon className="h-5 w-5" />
                 </span>
                 {!collapsed ? (
@@ -146,7 +146,7 @@ export function ModuleSidebar({
                 collapsed && "justify-center"
               )}
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-object bg-sidebar-primary text-sidebar-primary-foreground">
                 <BrandIcon className="h-5 w-5" />
               </span>
               {!collapsed ? (
@@ -215,7 +215,7 @@ export function ModuleSidebar({
                   const content = (
                     <span
                       className={cn(
-                        "group relative flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium transition-colors",
+                        "group relative flex items-center gap-3 rounded-affordance px-2.5 py-2 text-sm font-medium transition-colors",
                         active
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
                           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
@@ -311,7 +311,7 @@ export function ModuleSidebar({
             type="button"
             onClick={() => setCollapsed((v) => !v)}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="absolute -right-5 top-7 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/70 shadow-sm transition-colors hover:text-sidebar-foreground md:-right-3 md:top-9 md:h-6 md:w-6"
+            className="absolute -right-5 top-7 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/70 shadow-raised transition-colors hover:text-sidebar-foreground md:-right-3 md:top-9 md:h-6 md:w-6"
           >
             {collapsed ? (
               <ChevronRight className="h-3.5 w-3.5" />

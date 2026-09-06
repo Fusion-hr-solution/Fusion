@@ -38,7 +38,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-md border border-border bg-background p-0.5",
+        "inline-flex items-center gap-0.5 rounded-object border border-border bg-background p-0.5",
         className
       )}
       role="group"
@@ -54,7 +54,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
             onClick={() => switchTo(code)}
             aria-pressed={active}
             className={cn(
-              "min-h-11 min-w-11 rounded-sm px-2 text-xs font-semibold uppercase tracking-wide transition-colors md:min-h-0 md:min-w-0 md:px-1.5 md:py-0.5 md:text-[10px]",
+              "min-h-11 min-w-11 rounded-detail px-2 text-xs font-semibold uppercase tracking-wide transition-colors md:min-h-0 md:min-w-0 md:px-1.5 md:py-0.5 md:text-[10px]",
               active
                 ? "bg-foreground text-background"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground"

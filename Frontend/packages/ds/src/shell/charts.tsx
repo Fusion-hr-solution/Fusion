@@ -118,6 +118,72 @@ export function DonutChart({
   );
 }
 
+/**
+ * A single-value allocation gauge: one donut ring where the filled arc is the allocated share and the
+ * remainder reads as a quiet track, with a centered value + label. For "how much of a whole is
+ * committed" (plan weight toward 100%, milestone weight, coverage) — not a multi-slice breakdown.
+ * Over-allocation fills the whole ring in the given tone. Colour is caller-driven so it can carry
+ * semantic state (composing / complete / over).
+ */
+export function AllocationGauge({
+  value,
+  max = 100,
+  tone = "var(--primary)",
+  centerValue,
+  centerLabel,
+  centerClassName,
+  height = 160,
+  className,
+}: {
+  value: number;
+  max?: number;
+  tone?: string;
+  centerValue: string;
+  centerLabel?: string;
+  centerClassName?: string;
+  height?: number;
+  className?: string;
+}) {
+  const allocated = Math.max(0, Math.min(value, max));
+  const remaining = Math.max(0, max - value);
+  const over = value >= max;
+  const data = over
+    ? [{ name: "allocated", value: max }]
+    : [
+        { name: "allocated", value: allocated },
+        { name: "remaining", value: remaining },
+      ];
+
+  return (
+    <div className={cn("relative mx-auto", className)} style={{ height, width: height }}>
+      {/* Fixed square: size the chart explicitly rather than via ResponsiveContainer, whose
+          ResizeObserver measures a parent that never changes and drives a re-render feedback loop
+          ("Maximum update depth exceeded"). The gauge always knows its size (the `height` prop). */}
+      <PieChart width={height} height={height}>
+        <Pie
+          data={data}
+          dataKey="value"
+          innerRadius="72%"
+          outerRadius="100%"
+          startAngle={90}
+          endAngle={-270}
+          stroke="none"
+          cornerRadius={allocated > 0 && allocated < max ? 8 : 0}
+          paddingAngle={0}
+          isAnimationActive={false}
+        >
+          <Cell fill={tone} />
+          {!over ? <Cell fill="var(--muted)" /> : null}
+        </Pie>
+      </PieChart>
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+        <span className={cn("type-metric leading-none", centerClassName)}>{centerValue}</span>
+        {centerLabel ? <span className="mt-1 text-xs text-muted-foreground">{centerLabel}</span> : null}
+      </div>
+    </div>
+  );
+}
+
 /** Horizontal bar chart for "count by category" (org units, departments, etc.). */
 export function BarChartMini({
   data,

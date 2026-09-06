@@ -55,6 +55,7 @@ export {
 export type { KpiStatProps, DashboardSectionProps } from "./dashboard";
 export {
   DonutChart,
+  AllocationGauge,
   BarChartMini,
   ColumnChart,
   ProgressMeter,

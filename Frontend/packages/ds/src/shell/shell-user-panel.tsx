@@ -70,7 +70,7 @@ export function ShellUserPanel({
       <a
         href={signInHref}
         className={cn(
-          "flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
+          "flex items-center gap-2 rounded-affordance px-2 py-2 text-sm font-medium text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground",
           collapsed && "justify-center"
         )}
       >
@@ -91,7 +91,7 @@ export function ShellUserPanel({
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "flex w-full items-center gap-2.5 rounded-md p-1.5 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+          "flex w-full items-center gap-2.5 rounded-affordance p-1.5 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring",
           collapsed && "justify-center"
         )}
       >

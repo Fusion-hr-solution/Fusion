@@ -50,20 +50,20 @@ export function InvitationTransactionLoading() {
         <div className="mx-auto flex h-full max-w-[34rem] flex-col lg:max-w-[33rem]" aria-hidden="true">
           <InvitationWordmark />
           <div className="mt-12 animate-pulse motion-reduce:animate-none lg:mt-16">
-            <div className="h-7 w-44 rounded-lg bg-white/[0.08]" />
-            <div className="mt-3 h-12 w-full rounded-lg bg-white/[0.1]" />
-            <div className="mt-3 h-12 w-2/3 rounded-lg bg-white/[0.08]" />
+            <div className="h-7 w-44 rounded-object bg-white/[0.08]" />
+            <div className="mt-3 h-12 w-full rounded-control bg-white/[0.1]" />
+            <div className="mt-3 h-12 w-2/3 rounded-control bg-white/[0.08]" />
             <div className="mt-8 h-4 w-5/6 rounded bg-white/[0.06]" />
           </div>
         </div>
       }
     >
       <div className="animate-pulse space-y-5 motion-reduce:animate-none" aria-label="Loading invitation">
-        <div className="h-8 w-3/4 rounded-lg bg-muted" />
-        <div className="h-16 rounded-2xl bg-muted/60" />
-        <div className="h-11 rounded-xl bg-muted" />
-        <div className="h-11 rounded-xl bg-muted" />
-        <div className="h-11 rounded-xl bg-muted" />
+        <div className="h-8 w-3/4 rounded-object bg-muted" />
+        <div className="h-16 rounded-surface bg-muted/60" />
+        <div className="h-11 rounded-control bg-muted" />
+        <div className="h-11 rounded-control bg-muted" />
+        <div className="h-11 rounded-control bg-muted" />
       </div>
     </InvitationTransactionFrame>
   );
@@ -79,7 +79,7 @@ export function InvitationTransactionTerminalFrame({
     <main className="flex min-h-screen items-center justify-center bg-background px-6 py-12 sm:px-10">
       <div className="w-full max-w-[29rem]">
         <InvitationWordmark className="text-foreground" />
-        <div className="mt-6 rounded-2xl border bg-background p-7 shadow-raised sm:p-8">
+        <div className="mt-6 rounded-surface border bg-background p-7 shadow-raised sm:p-8">
           {children}
         </div>
       </div>
