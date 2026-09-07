@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Clock, Landmark, RotateCcw } from "lucide-react";
+import { Check, Clock, Landmark, LineChart, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import type { AlignmentTargetDto, CycleSummaryDto, EmployeePlanDto, PlanObjectiveDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
@@ -31,6 +31,7 @@ import { ObjectiveDetailDrawer } from "./objective-detail-drawer";
 import { PlanBannerMark } from "./plan-banner";
 import { PlanDirection } from "./plan-direction";
 import { PlanObjectiveRow } from "./plan-objective-row";
+import { PlanProgressCard } from "./plan-progress-card";
 import { initials, pct } from "./plan-lib";
 
 /**
@@ -81,10 +82,12 @@ export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: 
       />
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
-        <ObjectiveLedgerReadOnly plan={plan} targets={targets} />
+        <ObjectiveLedgerReadOnly plan={plan} targets={targets} cycleId={cycle.id} />
 
         <aside className="space-y-4 lg:sticky lg:top-6">
           <ReviewContextCard plan={plan} firstName={firstName} />
+          {/* Once approved, the manager reads the same canonical execution truth the employee sees. */}
+          {plan.isLocked ? <PlanProgressCard plan={plan} /> : null}
           <ReviewDecision plan={plan} cycleId={cycle.id} planId={planId} firstName={firstName} />
         </aside>
       </div>
@@ -144,10 +147,17 @@ function ReviewHeading({ plan }: { plan: EmployeePlanDto }) {
                 </span>
               </>
             ) : null}
-            <span className="inline-flex items-center gap-1.5">
-              <Clock className="size-3.5" aria-hidden />
-              Submitted for your review
-            </span>
+            {plan.state === "Approved" ? (
+              <span className="inline-flex items-center gap-1.5">
+                <LineChart className="size-3.5" aria-hidden />
+                Tracking execution
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5">
+                <Clock className="size-3.5" aria-hidden />
+                Submitted for your review
+              </span>
+            )}
           </p>
         </div>
       </div>
@@ -230,8 +240,21 @@ function ContextFact({ label, value, valueClass }: { label: string; value: strin
   );
 }
 
-/** The complete submitted ledger, read for judgement — the same objective rows as My Plan, no actions. */
-function ObjectiveLedgerReadOnly({ plan, targets }: { plan: EmployeePlanDto; targets: AlignmentTargetDto[] }) {
+/**
+ * The complete ledger, read for the manager's responsibility — the same objective rows as My Plan, no
+ * authoring or recording actions. While the plan is submitted it reads as the baseline under review; once
+ * approved and locked it grows the same execution band and progress-bearing detail drawer the employee
+ * sees, so the manager tracks the identical execution truth — minus the controls that are the owner's.
+ */
+function ObjectiveLedgerReadOnly({
+  plan,
+  targets,
+  cycleId,
+}: {
+  plan: EmployeePlanDto;
+  targets: AlignmentTargetDto[];
+  cycleId: string;
+}) {
   const [detailId, setDetailId] = useState<string | null>(null);
 
   const scopeByTitle = useMemo(() => {
@@ -253,16 +276,19 @@ function ObjectiveLedgerReadOnly({ plan, targets }: { plan: EmployeePlanDto; tar
   return (
     <section className="rounded-2xl border border-border bg-card">
       <div className="flex items-center gap-2 border-b border-border px-5 py-3">
-        <span className="type-eyebrow text-muted-foreground">Submitted objectives</span>
+        <span className="type-eyebrow text-muted-foreground">{plan.isLocked ? "Objectives" : "Submitted objectives"}</span>
         <span className="text-xs tabular-nums text-muted-foreground">{plan.objectives.length}</span>
       </div>
       <div className="space-y-3 p-4">
         {plan.objectives.map((objective, index) => (
+          // On an approved plan the row grows its execution band (current value + progress) — read-only,
+          // with no Update progress: recording is the owner's, gated away here.
           <PlanObjectiveRow
             key={objective.id}
             index={index}
             objective={objective}
             alignmentScope={scopeFor(objective)}
+            showProgress={plan.isLocked}
             active={detailId === objective.id}
             onViewDetails={() => setDetailId(objective.id)}
           />
@@ -277,6 +303,9 @@ function ObjectiveLedgerReadOnly({ plan, targets }: { plan: EmployeePlanDto; tar
         onOpenChange={(open) => {
           if (!open) setDetailId(null);
         }}
+        // On a locked plan the drawer carries current progress + history; record mode stays hidden because
+        // the objective is not the manager's to update (`canUpdateProgress` is false server-side).
+        cycleId={plan.isLocked ? cycleId : undefined}
       />
     </section>
   );
