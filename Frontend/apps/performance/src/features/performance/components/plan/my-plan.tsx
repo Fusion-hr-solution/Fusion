@@ -4,15 +4,20 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
+  CalendarCheck,
   CalendarDays,
   Check,
+  CheckCircle2,
   Clock,
   FileText,
   History,
   Lightbulb,
+  ListChecks,
   MessageSquareQuote,
   Plus,
   Quote,
+  Target,
+  UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -41,7 +46,7 @@ import { PlanObjectiveRow } from "./plan-objective-row";
 import { PlanSubmissionChecks } from "./plan-submission-checks";
 import { PlanSubmissionStatus } from "./plan-submission-status";
 import { initials, pct, weightTone } from "./plan-lib";
-import { ObjectiveProgressPanel } from "../progress/objective-progress-panel";
+import { PlanProgressCard } from "./plan-progress-card";
 
 export function MyPlan({ cycle }: { cycle: CycleSummaryDto }) {
   const cycleId = cycle.id;
@@ -52,7 +57,6 @@ export function MyPlan({ cycle }: { cycle: CycleSummaryDto }) {
   const mutations = usePlanMutations(cycleId);
 
   const [composer, setComposer] = useState<{ objective?: PlanObjectiveDto } | null>(null);
-  const [progressFor, setProgressFor] = useState<string | null>(null);
 
   // Organization Goals is an organization-direction surface, not a universal employee destination:
   // the same gate the sidebar uses. "View in Organization Goals" stays hidden for self-only actors.
@@ -180,8 +184,8 @@ export function MyPlan({ cycle }: { cycle: CycleSummaryDto }) {
     </>
   ) : plan.isLocked ? (
     <>
-      <PlanSubmissionStatus plan={plan} />
-      <PlanProgressSummary plan={plan} />
+      <PlanStatusCard plan={plan} />
+      <PlanProgressCard plan={plan} emptyDescription="Plan progress begins once you update your objectives." />
     </>
   ) : null;
 
@@ -201,7 +205,6 @@ export function MyPlan({ cycle }: { cycle: CycleSummaryDto }) {
             targets={targets}
             onAdd={() => setComposer({})}
             onEdit={(objective) => setComposer({ objective })}
-            onOpenProgress={(id) => setProgressFor(id)}
             onRemove={async (id) => {
               try {
                 await mutations.removeObjective.mutateAsync(id);
@@ -232,15 +235,6 @@ export function MyPlan({ cycle }: { cycle: CycleSummaryDto }) {
       ) : null}
 
       {composerNode}
-
-      <ObjectiveProgressPanel
-        cycleId={cycleId}
-        objectiveId={progressFor}
-        open={progressFor !== null}
-        onOpenChange={(open) => {
-          if (!open) setProgressFor(null);
-        }}
-      />
     </div>
   );
 }
@@ -256,16 +250,16 @@ function ObjectiveLedger({
   onAdd,
   onEdit,
   onRemove,
-  onOpenProgress,
 }: {
   plan: EmployeePlanDto;
   targets: AlignmentTargetDto[];
   onAdd: () => void;
   onEdit: (objective: PlanObjectiveDto) => void;
   onRemove: (objectiveId: string) => void;
-  onOpenProgress: (objectiveId: string) => void;
 }) {
-  const [detailId, setDetailId] = useState<string | null>(null);
+  // One drawer, two modes: the eye opens details; Update progress opens the same drawer in record mode.
+  const [drawer, setDrawer] = useState<{ id: string; mode: "details" | "record" } | null>(null);
+  const detailId = drawer?.id ?? null;
 
   // Resolve each aligned objective's parent scope label (e.g. "Talent Pod") once from the targets.
   const scopeByTitle = useMemo(() => {
@@ -302,6 +296,8 @@ function ObjectiveLedger({
       ) : (
         <div className="space-y-3 p-4">
           {plan.objectives.map((objective, index) => (
+            // On a locked plan the row grows an execution band (progress ring, latest reported value,
+            // Update progress) while the baseline above it stays read-only.
             <PlanObjectiveRow
               key={objective.id}
               index={index}
@@ -311,8 +307,8 @@ function ObjectiveLedger({
               active={detailId === objective.id}
               onEdit={plan.canAuthor ? () => onEdit(objective) : undefined}
               onRemove={plan.canAuthor ? () => onRemove(objective.id) : undefined}
-              onOpenProgress={plan.isLocked ? () => onOpenProgress(objective.id) : undefined}
-              onViewDetails={() => setDetailId(objective.id)}
+              onOpenProgress={plan.isLocked ? () => setDrawer({ id: objective.id, mode: "record" }) : undefined}
+              onViewDetails={() => setDrawer({ id: objective.id, mode: "details" })}
             />
           ))}
         </div>
@@ -322,10 +318,12 @@ function ObjectiveLedger({
         objective={detail}
         index={detailIndex}
         alignmentScope={detail ? scopeFor(detail) : undefined}
-        open={detailId !== null}
+        open={drawer !== null}
         onOpenChange={(open) => {
-          if (!open) setDetailId(null);
+          if (!open) setDrawer(null);
         }}
+        cycleId={plan.isLocked ? plan.cycleId : undefined}
+        initialMode={drawer?.mode ?? "details"}
       />
     </section>
   );
@@ -624,32 +622,35 @@ function GoalsTextLink() {
 }
 
 /**
- * Plan progress for a locked plan — one weighted meter, self-explanatory through the ledger beneath it
- * (each objective already shows its own progress and weight). No rainbow segments.
+ * The approved baseline, compact. Once execution is underway this is quiet context — the agreement is
+ * settled — so it states the four facts that still matter (who approved it, when, how many objectives,
+ * fully allocated) and nothing of the finished submission timeline. It sits above Plan Progress, which
+ * carries the now-primary execution metric.
  */
-function PlanProgressSummary({ plan }: { plan: EmployeePlanDto }) {
-  const complete = plan.planProgress >= 100;
+function PlanStatusCard({ plan }: { plan: EmployeePlanDto }) {
+  const approval = [...plan.history]
+    .reverse()
+    .find((h) => h.kind === "Approved" || h.kind === "ApprovedExceptionally");
+  const approver = approval?.actorName ?? plan.responsibleManager?.name ?? null;
+  const approvedOn = plan.approvedAt ? formatDate(plan.approvedAt.slice(0, 10)) : null;
+  const count = plan.objectives.length;
+
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="type-eyebrow text-muted-foreground">Plan progress</p>
-          <p className={cn("mt-1 type-metric text-foreground", complete && "text-success")}>{pct(plan.planProgress)}%</p>
-        </div>
-        <p className="pb-1 text-xs text-muted-foreground">
-          Weighted across {plan.objectives.length} objective{plan.objectives.length === 1 ? "" : "s"}
-        </p>
+      <p className="type-eyebrow text-muted-foreground">Plan status</p>
+      <div className="mt-4 flex items-center gap-3">
+        <CheckCircle2 className="size-8 shrink-0 text-success" aria-hidden />
+        <p className="text-lg font-semibold tracking-tight text-foreground">Approved &amp; locked</p>
       </div>
-      <div
-        className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-muted"
-        role="img"
-        aria-label={`Plan progress ${pct(plan.planProgress)} percent`}
-      >
-        <span
-          className={cn("block h-full rounded-full", complete ? "bg-success" : "bg-primary")}
-          style={{ width: `${Math.min(plan.planProgress, 100)}%` }}
-        />
-      </div>
+      <dl className="mt-4 space-y-3.5">
+        {approver ? (
+          <SnapshotFact icon={UserRound} label={`Approved by ${approver}`} />
+        ) : null}
+        {approvedOn ? <SnapshotFact icon={CalendarCheck} label="Approved" value={approvedOn} /> : null}
+        <SnapshotFact icon={ListChecks} label={`${count} objective${count === 1 ? "" : "s"}`} />
+        <SnapshotFact icon={Target} label={`${pct(plan.readiness.weightTotal)}% allocated`} />
+      </dl>
     </section>
   );
 }
+

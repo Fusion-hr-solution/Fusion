@@ -204,6 +204,9 @@ public static class PlansComposer
             objective.PlanWeight,
             objective.HasProgress,
             decimal.Round(objective.DerivedProgress, 2),
+            objective.CurrentPercentage,
+            objective.CurrentActual,
+            objective.LastProgressAt,
             canUpdateProgress);
 
     private static bool ConnectsToStrategic(Objective objective, GoalsComposer.Graph graph)

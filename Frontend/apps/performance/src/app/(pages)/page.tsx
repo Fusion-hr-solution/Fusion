@@ -245,7 +245,7 @@ function MyPlanCallout({
     cta = "View plan";
   } else {
     headline = "Plan approved";
-    sub = `${plan.planProgress}% progress · keep it up to date`;
+    sub = `${Math.round(plan.planProgress)}% progress · keep it up to date`;
     cta = "Update progress";
   }
 

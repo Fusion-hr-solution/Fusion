@@ -21,6 +21,7 @@ namespace EY.HRPlatform.Performance.Features.Progress;
 public sealed record ProgressActorContext(Guid CallerEmployeeId, bool IsAdmin, bool CanReviewReports);
 
 public sealed record GetObjectiveProgressQuery(Guid CycleId, Guid ObjectiveId, ProgressActorContext Actor) : IQuery<Result<ObjectiveProgressDto>>;
+public sealed record GetProgressHistoryPageQuery(Guid CycleId, Guid ObjectiveId, string? Cursor, int Limit, ProgressActorContext Actor) : IQuery<Result<ProgressHistoryPageDto>>;
 public sealed record SubmitProgressCommand(Guid CycleId, Guid ObjectiveId, SubmitProgressRequest Request, ProgressActorContext Actor) : ICommand<Result<ObjectiveProgressDto>>;
 
 /// <summary>An authorized reference to a stored evidence file, resolved after a named-detail check.</summary>
@@ -71,6 +72,27 @@ public sealed class GetObjectiveProgressHandler(PerformanceDbContext db, ICoreWo
 
         var dto = await ProgressComposer.BuildAsync(db, workforce, objective, plan, request.Actor, cancellationToken);
         return Result.Success(dto);
+    }
+}
+
+public sealed class GetProgressHistoryPageHandler(PerformanceDbContext db, ICoreWorkforceClient workforce)
+    : IQueryHandler<GetProgressHistoryPageQuery, Result<ProgressHistoryPageDto>>
+{
+    public async Task<Result<ProgressHistoryPageDto>> Handle(GetProgressHistoryPageQuery request, CancellationToken cancellationToken)
+    {
+        var objective = await db.Objectives.AsNoTracking().Include(o => o.Measurement)
+            .FirstOrDefaultAsync(o => o.Id == request.ObjectiveId && o.CycleId == request.CycleId, cancellationToken);
+        if (objective is null) return Result.Failure<ProgressHistoryPageDto>(Error.NotFound("Objective", request.ObjectiveId));
+
+        var plan = objective.EmployeePlanId is null ? null
+            : await db.EmployeePlans.AsNoTracking().FirstOrDefaultAsync(p => p.Id == objective.EmployeePlanId, cancellationToken);
+
+        if (!ProgressComposer.CanSeeNamedDetail(objective, plan, request.Actor))
+            return Result.Failure<ProgressHistoryPageDto>(Error.Forbidden("Progress.ViewForbidden", "You are not authorized to view this objective's progress detail."));
+
+        var limit = request.Limit <= 0 ? ProgressComposer.HistoryPageSize : request.Limit;
+        var (items, nextCursor) = await ProgressComposer.BuildHistoryPageAsync(db, workforce, objective, plan, request.Actor, request.Cursor, limit, cancellationToken);
+        return Result.Success(new ProgressHistoryPageDto(items, nextCursor));
     }
 }
 

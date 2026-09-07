@@ -28,11 +28,18 @@ const STATE_LABEL: Record<CycleSummaryDto["state"], string> = {
 export function CycleContextBar({
   cycle,
   action,
+  showPlanningDeadline = true,
   className,
 }: {
   cycle: CycleSummaryDto;
   /** Optional trailing control (e.g. an edit affordance), pushed to the far right. */
   action?: ReactNode;
+  /**
+   * Whether to show the planning deadline. Once a surface has moved past planning (e.g. an approved,
+   * locked plan under execution), the deadline is stale guidance — the caller drops it rather than
+   * showing a passed date as if it still mattered.
+   */
+  showPlanningDeadline?: boolean;
   className?: string;
 }) {
   return (
@@ -51,11 +58,15 @@ export function CycleContextBar({
         <CalendarRange className="size-3.5" aria-hidden />
         {formatDateRange(cycle.startDate, cycle.endDate)}
       </span>
-      <span aria-hidden className="text-border">|</span>
-      <span className="text-muted-foreground">
-        Planning by{" "}
-        <span className="text-foreground/80">{formatDate(cycle.planningDeadline)}</span>
-      </span>
+      {showPlanningDeadline ? (
+        <>
+          <span aria-hidden className="text-border">|</span>
+          <span className="text-muted-foreground">
+            Planning by{" "}
+            <span className="text-foreground/80">{formatDate(cycle.planningDeadline)}</span>
+          </span>
+        </>
+      ) : null}
       {action ? <div className="ml-auto">{action}</div> : null}
     </div>
   );

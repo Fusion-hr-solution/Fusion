@@ -284,6 +284,11 @@ public sealed record PlanObjectiveDto(
     // Progress (Chunk D) — meaningful once the plan is locked.
     bool HasProgress,
     decimal DerivedProgress,
+    // Latest reported measurement values, straight from the domain — the raw current value read the
+    // employee sees, distinct from DerivedProgress. Null until a progress event exists.
+    decimal? CurrentPercentage,
+    decimal? CurrentActual,
+    DateTime? LastProgressAt,
     bool CanUpdateProgress);
 
 /// <summary>Live readiness of a plan for submission — the whole-plan invariants, computed continuously.</summary>
@@ -426,7 +431,14 @@ public sealed record ProgressUpdateDto(
     bool IsCorrection,
     PersonRefDto Author,
     DateTime RecordedAt,
-    IReadOnlyList<EvidenceDto> Evidence);
+    IReadOnlyList<EvidenceDto> Evidence,
+    // The objective's derived progress immediately after this update, and its signed change from the
+    // previous update (the first update's delta is measured from the objective's unstarted 0).
+    decimal ResultingProgress,
+    decimal DeltaProgress);
+
+/// <summary>One page of an objective's progress history, newest first, with the cursor for the next older page.</summary>
+public sealed record ProgressHistoryPageDto(IReadOnlyList<ProgressUpdateDto> Items, string? NextCursor);
 
 public sealed record ProgressMilestoneDto(Guid Id, string Title, decimal Weight, bool IsCompleted);
 
@@ -446,7 +458,9 @@ public sealed record ObjectiveProgressDto(
     ImprovementDirection? Direction,
     IReadOnlyList<ProgressMilestoneDto> Milestones,
     bool CanUpdate,
-    IReadOnlyList<ProgressUpdateDto> History);
+    IReadOnlyList<ProgressUpdateDto> History,
+    // Cursor for the next older page of History; null when the first page already holds all of it.
+    string? HistoryNextCursor);
 
 /// <summary>Staged file descriptor returned by the evidence upload, folded into the progress submit.</summary>
 public sealed record EvidenceDescriptorDto(string StorageKey, string FileName, string ContentType, long SizeBytes);

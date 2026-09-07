@@ -43,9 +43,13 @@ export default function PlanPage() {
     );
   }
 
+  // Once the plan is approved and locked, the surface has moved from planning to execution: the page
+  // subtitle follows, and the stale planning deadline drops out of the Cycle context.
+  const executing = plan?.isLocked ?? false;
+
   return (
     <PageContainer>
-      <CycleContextBar cycle={cycle} />
+      <CycleContextBar cycle={cycle} showPlanningDeadline={!executing} />
       <PerformancePageHeading
         title={
           <span className="inline-flex flex-wrap items-center gap-2.5">
@@ -57,7 +61,7 @@ export default function PlanPage() {
             ) : null}
           </span>
         }
-        description="Planning & Agreement"
+        description={executing ? "Execution & progress" : "Planning & Agreement"}
       />
       <MyPlan cycle={cycle} />
     </PageContainer>

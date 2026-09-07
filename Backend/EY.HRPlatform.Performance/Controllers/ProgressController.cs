@@ -36,6 +36,14 @@ public sealed class ProgressController(IMediator mediator, IPerformanceAccessPol
         return MapResult(await mediator.Send(new GetObjectiveProgressQuery(cycleId, objectiveId, Actor), cancellationToken));
     }
 
+    [HttpGet("objectives/{objectiveId:guid}/progress/history")]
+    public async Task<ActionResult<ApiResponse<ProgressHistoryPageDto>>> History(
+        Guid cycleId, Guid objectiveId, [FromQuery] string? cursor, [FromQuery] int? limit, CancellationToken cancellationToken)
+    {
+        if (!policy.CanEnterPerformance(User)) return Forbid();
+        return MapResult(await mediator.Send(new GetProgressHistoryPageQuery(cycleId, objectiveId, cursor, limit ?? 0, Actor), cancellationToken));
+    }
+
     [HttpPost("objectives/{objectiveId:guid}/progress")]
     public async Task<ActionResult<ApiResponse<ObjectiveProgressDto>>> Submit(
         Guid cycleId, Guid objectiveId, [FromBody] SubmitProgressRequest request, CancellationToken cancellationToken)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@repo/auth";
 import {
   createPerformanceApi,
@@ -19,6 +19,7 @@ import {
   type ReturnPlanRequest,
   type SetPlanWeightsRequest,
   type SetPopulationRequest,
+  type ProgressUpdateDto,
   type SubmitProgressRequest,
   type UpdateCycleRequest,
   type UpdateOrganizationalObjectiveRequest,
@@ -318,6 +319,48 @@ export function useProgressMutations(cycleId: string, objectiveId: string) {
   );
   const uploadEvidence = useApiMutation((file: File) => performance.uploadEvidence(cycleId, file));
   return { submit, uploadEvidence, evidenceDownloadPath: (id: string) => performance.evidenceDownloadPath(cycleId, id) };
+}
+
+/**
+ * Progressive loading for an objective's progress history. Seeded with the first page the progress surface
+ * already carries, it appends older keyset-paginated pages on demand. Resets whenever the objective changes
+ * or a new update lands at the top (a submit), so the accumulated tail never drifts from the refreshed head.
+ */
+export function useProgressHistoryPager(
+  cycleId: string,
+  objectiveId: string,
+  firstPage: ProgressUpdateDto[],
+  firstCursor: string | null
+) {
+  const { performance } = useApis();
+  const [extra, setExtra] = useState<ProgressUpdateDto[]>([]);
+  const [cursor, setCursor] = useState<string | null>(firstCursor);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const topId = firstPage[0]?.id ?? null;
+  useEffect(() => {
+    setExtra([]);
+    setCursor(firstCursor);
+  }, [objectiveId, topId, firstCursor]);
+
+  const loadMore = useCallback(async () => {
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await performance.getObjectiveProgressHistory(cycleId, objectiveId, cursor);
+      setExtra((prev) => [...prev, ...page.items]);
+      setCursor(page.nextCursor);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [performance, cycleId, objectiveId, cursor, loadingMore]);
+
+  return {
+    items: extra.length > 0 ? [...firstPage, ...extra] : firstPage,
+    hasMore: cursor != null,
+    loadingMore,
+    loadMore,
+  };
 }
 
 // ── Mutations ────────────────────────────────────────────────────────────────

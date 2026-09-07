@@ -7,7 +7,7 @@ import { PageError, PageSkeleton } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { PerformancePageHeading } from "../performance-page-heading";
 import { useContribution, useContributionDetail } from "../../api/use-performance";
-import { pct } from "../progress/progress-lib";
+import { pct, progressPct } from "../progress/progress-lib";
 
 /**
  * The Contribution Explorer. Progress is the primary figure and is always stated as progress —
@@ -226,7 +226,7 @@ function ContributorRow({ contributor }: { contributor: ContributionContributorD
           contributor.hasProgress ? "text-foreground" : "text-muted-foreground/70"
         )}
       >
-        {contributor.hasProgress ? `${pct(contributor.reportedProgress)}% progress` : "No progress yet"}
+        {contributor.hasProgress ? `${progressPct(contributor.reportedProgress)}% progress` : "No progress yet"}
       </span>
     </div>
   );
@@ -244,7 +244,7 @@ function ProgressReadout({ node, large = false }: { node: ContributionNodeDto; l
             complete ? "text-success" : "text-foreground"
           )}
         >
-          {node.hasProgress ? `${pct(node.reportedProgress)}%` : "—"}
+          {node.hasProgress ? `${progressPct(node.reportedProgress)}%` : "—"}
         </span>
         <span className="text-xs text-muted-foreground">{node.hasProgress ? "progress" : "no progress yet"}</span>
       </div>

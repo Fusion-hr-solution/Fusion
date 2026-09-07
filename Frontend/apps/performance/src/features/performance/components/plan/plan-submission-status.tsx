@@ -13,6 +13,8 @@ interface StatusStep {
   key: string;
   label: string;
   detail?: ReactNode;
+  /** A small, quiet value shown on the same row as the label, trailing it (e.g. the submitted date). */
+  inlineDetail?: ReactNode;
   /** A quieter second line beneath the detail (e.g. what was submitted). */
   subDetail?: ReactNode;
   tone: StepTone;
@@ -49,7 +51,7 @@ export function PlanSubmissionStatus({ plan }: { plan: EmployeePlanDto }) {
     {
       key: "submitted",
       label: "Plan submitted",
-      detail: submittedOn ? <Key>{submittedOn}</Key> : null,
+      inlineDetail: submittedOn,
       subDetail: (
         <>
           <Key>{count}</Key> objective{count === 1 ? "" : "s"} ·{" "}
@@ -131,20 +133,25 @@ function Step({ step, last }: { step: StatusStep; last: boolean }) {
       ) : null}
       <Marker tone={step.tone} />
       <div className="min-w-0 pb-0.5">
-        <p
-          className={cn(
-            "text-sm leading-tight",
-            step.tone === "current"
-              ? "font-semibold text-foreground"
-              : step.tone === "returned"
-                ? "font-semibold text-warning"
-                : step.tone === "done"
-                  ? "font-medium text-foreground"
-                  : "font-medium text-muted-foreground"
-          )}
-        >
-          {step.label}
-        </p>
+        <div className="flex items-baseline gap-2">
+          <p
+            className={cn(
+              "text-sm leading-tight",
+              step.tone === "current"
+                ? "font-semibold text-foreground"
+                : step.tone === "returned"
+                  ? "font-semibold text-warning"
+                  : step.tone === "done"
+                    ? "font-medium text-foreground"
+                    : "font-medium text-muted-foreground"
+            )}
+          >
+            {step.label}
+          </p>
+          {step.inlineDetail ? (
+            <span className="text-xs text-muted-foreground">{step.inlineDetail}</span>
+          ) : null}
+        </div>
         {step.detail ? (
           <p className="mt-0.5 text-xs text-muted-foreground">{step.detail}</p>
         ) : null}

@@ -34,10 +34,8 @@ export function EvidenceUploader({
   const fileInput = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [mode, setMode] = useState<"none" | "link" | "reference">("none");
+  const [mode, setMode] = useState<"none" | "link">("none");
   const [linkUrl, setLinkUrl] = useState("");
-  const [linkLabel, setLinkLabel] = useState("");
-  const [refText, setRefText] = useState("");
 
   async function handleFiles(files: FileList | null) {
     const file = files?.[0];
@@ -80,6 +78,7 @@ export function EvidenceUploader({
                 ) : null}
               </span>
               <Button
+                type="button"
                 variant="ghost"
                 size="icon-sm"
                 aria-label="Remove evidence"
@@ -92,7 +91,7 @@ export function EvidenceUploader({
         </ul>
       ) : null}
 
-      {/* Drop zone / actions. */}
+      {/* Actions — two clean affordances; the file button also accepts a drop. */}
       {mode === "none" ? (
         <div
           onDragOver={(e) => {
@@ -105,23 +104,22 @@ export function EvidenceUploader({
             setDragging(false);
             void handleFiles(e.dataTransfer.files);
           }}
-          className={cn(
-            "flex flex-wrap items-center gap-2 rounded-lg border border-dashed px-3 py-2.5 text-sm transition-colors",
-            dragging ? "border-primary bg-primary/[0.04]" : "border-border"
-          )}
+          className="flex flex-wrap items-center gap-2.5"
         >
           <input ref={fileInput} type="file" className="hidden" onChange={(e) => void handleFiles(e.target.files)} />
-          <Button variant="ghost" size="sm" disabled={uploading} onClick={() => fileInput.current?.click()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={uploading}
+            onClick={() => fileInput.current?.click()}
+            className={cn(dragging && "border-primary bg-primary/[0.04]")}
+          >
             {uploading ? <Loader2 className="size-3.5 animate-spin" data-icon="inline-start" /> : <Paperclip className="size-3.5" data-icon="inline-start" />}
             {uploading ? "Uploading" : "Attach file"}
           </Button>
-          <span className="text-xs text-muted-foreground">or drop here</span>
-          <span aria-hidden className="mx-0.5 h-4 w-px bg-border" />
-          <Button variant="ghost" size="sm" onClick={() => setMode("link")}>
-            <Link2 className="size-3.5" data-icon="inline-start" /> Link
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setMode("reference")}>
-            <Type className="size-3.5" data-icon="inline-start" /> Reference
+          <Button type="button" variant="outline" size="sm" onClick={() => setMode("link")}>
+            <Link2 className="size-3.5" data-icon="inline-start" /> Add link
           </Button>
         </div>
       ) : null}
@@ -129,40 +127,19 @@ export function EvidenceUploader({
       {mode === "link" ? (
         <div className="space-y-2 rounded-lg border p-3">
           <Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://…" autoFocus />
-          <Input value={linkLabel} onChange={(e) => setLinkLabel(e.target.value)} placeholder="Label (optional)" />
           <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setMode("none")}>Cancel</Button>
+            <Button type="button" variant="ghost" size="sm" onClick={() => setMode("none")}>Cancel</Button>
             <Button
+              type="button"
               size="sm"
               disabled={linkUrl.trim() === ""}
               onClick={() => {
-                onChange([...items, { kind: "Link", url: linkUrl.trim(), label: linkLabel.trim() || null }]);
+                onChange([...items, { kind: "Link", url: linkUrl.trim(), label: null }]);
                 setLinkUrl("");
-                setLinkLabel("");
                 setMode("none");
               }}
             >
               <Plus className="size-3.5" data-icon="inline-start" /> Add link
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
-      {mode === "reference" ? (
-        <div className="space-y-2 rounded-lg border p-3">
-          <Input value={refText} onChange={(e) => setRefText(e.target.value)} placeholder="A short supporting reference" autoFocus />
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setMode("none")}>Cancel</Button>
-            <Button
-              size="sm"
-              disabled={refText.trim() === ""}
-              onClick={() => {
-                onChange([...items, { kind: "Reference", referenceText: refText.trim() }]);
-                setRefText("");
-                setMode("none");
-              }}
-            >
-              <Plus className="size-3.5" data-icon="inline-start" /> Add reference
             </Button>
           </div>
         </div>

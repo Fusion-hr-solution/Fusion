@@ -279,6 +279,10 @@ export interface PlanObjectiveDto {
   planWeight: number | null;
   hasProgress: boolean;
   derivedProgress: number;
+  /** Latest reported raw values — the current value the employee reads, distinct from derivedProgress. Null until progress exists. */
+  currentPercentage: number | null;
+  currentActual: number | null;
+  lastProgressAt: string | null;
   canUpdateProgress: boolean;
 }
 
@@ -419,6 +423,15 @@ export interface ProgressUpdateDto {
   author: PersonRefDto;
   recordedAt: string;
   evidence: EvidenceDto[];
+  /** Objective's derived progress immediately after this update. */
+  resultingProgress: number;
+  /** Signed change from the previous update (first update measured from an unstarted 0). */
+  deltaProgress: number;
+}
+
+export interface ProgressHistoryPageDto {
+  items: ProgressUpdateDto[];
+  nextCursor: string | null;
 }
 
 export interface ProgressMilestoneDto {
@@ -444,6 +457,8 @@ export interface ObjectiveProgressDto {
   milestones: ProgressMilestoneDto[];
   canUpdate: boolean;
   history: ProgressUpdateDto[];
+  /** Cursor for the next older page of history; null when the first page holds all of it. */
+  historyNextCursor: string | null;
 }
 
 export interface EvidenceDescriptorDto {
@@ -600,6 +615,8 @@ export const performancePaths = {
     `/performance/cycles/${cycleId}/plans/${planId}/exceptional-approve`,
   objectiveProgress: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/objectives/${objectiveId}/progress`,
+  objectiveProgressHistory: (cycleId: string, objectiveId: string) =>
+    `/performance/cycles/${cycleId}/objectives/${objectiveId}/progress/history`,
   evidenceUpload: (cycleId: string) => `/performance/cycles/${cycleId}/evidence/upload`,
   evidenceDownload: (cycleId: string, evidenceId: string) => `/performance/cycles/${cycleId}/evidence/${evidenceId}`,
   contribution: (cycleId: string) => `/performance/cycles/${cycleId}/contribution`,
@@ -724,6 +741,14 @@ export function createPerformanceApi(client: ApiClient) {
     // Progress & contribution (Chunk D)
     getObjectiveProgress: (cycleId: string, objectiveId: string, signal?: AbortSignal) =>
       client.get<ObjectiveProgressDto>(performancePaths.objectiveProgress(cycleId, objectiveId), { signal }),
+    getObjectiveProgressHistory: (cycleId: string, objectiveId: string, cursor: string | null, limit?: number, signal?: AbortSignal) => {
+      const params = new URLSearchParams();
+      if (cursor) params.set("cursor", cursor);
+      if (limit) params.set("limit", String(limit));
+      const qs = params.toString();
+      const base = performancePaths.objectiveProgressHistory(cycleId, objectiveId);
+      return client.get<ProgressHistoryPageDto>(qs ? `${base}?${qs}` : base, { signal });
+    },
     submitProgress: (cycleId: string, objectiveId: string, request: SubmitProgressRequest) =>
       client.post<ObjectiveProgressDto>(performancePaths.objectiveProgress(cycleId, objectiveId), request),
     uploadEvidence: (cycleId: string, file: File) => {

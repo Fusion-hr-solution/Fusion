@@ -16,41 +16,16 @@ namespace EY.HRPlatform.Performance.Features.Progress;
 /// </summary>
 public static class ProgressComposer
 {
+    /// <summary>The history page size — the first page shipped with the surface, and the default "load more" size.</summary>
+    public const int HistoryPageSize = 6;
+
     public static async Task<ObjectiveProgressDto> BuildAsync(
         PerformanceDbContext db, ICoreWorkforceClient workforce, Objective objective, EmployeePlan? plan, ProgressActorContext actor, CancellationToken cancellationToken)
     {
-        var updates = await db.ProgressUpdates.AsNoTracking()
-            .Include(u => u.Evidence)
-            .Where(u => u.ObjectiveId == objective.Id)
-            .OrderByDescending(u => u.RecordedAt)
-            .ToListAsync(cancellationToken);
-
-        var authorIds = updates.Select(u => u.AuthorEmployeeId).Distinct().ToList();
-        var names = new Dictionary<Guid, string>();
-        if (authorIds.Count > 0)
-        {
-            var snapshots = await workforce.ResolveAsync(DateTime.UtcNow, authorIds, cancellationToken);
-            foreach (var snapshot in snapshots) names[snapshot.EmployeeId] = snapshot.DisplayName;
-        }
-
-        var milestones = objective.Measurement?.Milestones ?? [];
-        var milestoneTitles = milestones.ToDictionary(m => m.Id, m => m.Title);
-
-        var canSeeNamedDetail = CanSeeNamedDetail(objective, plan, actor);
-        var history = updates.Select(update => new ProgressUpdateDto(
-            update.Id,
-            update.Kind,
-            update.Value,
-            update.MilestoneId,
-            update.MilestoneId is not null ? milestoneTitles.GetValueOrDefault(update.MilestoneId.Value) : null,
-            update.ContextNote,
-            update.IsCorrection,
-            new PersonRefDto(update.AuthorEmployeeId, names.GetValueOrDefault(update.AuthorEmployeeId)),
-            update.RecordedAt,
-            update.Evidence.Select(item => ToEvidenceDto(item, objective.CycleId, canSeeNamedDetail)).ToList()))
-            .ToList();
+        var (items, nextCursor) = await BuildHistoryPageAsync(db, workforce, objective, plan, actor, null, HistoryPageSize, cancellationToken);
 
         var measurement = objective.Measurement;
+        var milestones = measurement?.Milestones ?? [];
         return new ObjectiveProgressDto(
             objective.Id,
             objective.Title,
@@ -66,8 +41,116 @@ public static class ProgressComposer
             measurement?.Direction,
             milestones.Select(m => new ProgressMilestoneDto(m.Id, m.Title, m.Weight, m.IsCompleted)).ToList(),
             CanUpdate(objective, plan, actor),
-            history);
+            items,
+            nextCursor);
     }
+
+    /// <summary>
+    /// One newest-first page of an objective's history. Keyset-paginated on <see cref="ProgressUpdate.RecordedAt"/>
+    /// so paging is stable as older pages load. Each item carries its resulting derived progress and the signed
+    /// change from the prior update, computed by replaying the full append-only trail in chronological order —
+    /// the only faithful way to attribute a delta to a milestone toggle, whose event value alone cannot express it.
+    /// </summary>
+    public static async Task<(IReadOnlyList<ProgressUpdateDto> Items, string? NextCursor)> BuildHistoryPageAsync(
+        PerformanceDbContext db, ICoreWorkforceClient workforce, Objective objective, EmployeePlan? plan,
+        ProgressActorContext actor, string? cursor, int limit, CancellationToken cancellationToken)
+    {
+        limit = Math.Clamp(limit, 1, 50);
+        var trail = await BuildTrailAsync(db, objective, cancellationToken);
+
+        var query = db.ProgressUpdates.AsNoTracking()
+            .Include(u => u.Evidence)
+            .Where(u => u.ObjectiveId == objective.Id);
+        if (DecodeCursor(cursor) is DateTime before)
+            query = query.Where(u => u.RecordedAt < before);
+
+        // Fetch one extra to learn whether an older page exists without a second round-trip.
+        var rows = await query.OrderByDescending(u => u.RecordedAt).Take(limit + 1).ToListAsync(cancellationToken);
+        var hasMore = rows.Count > limit;
+        var page = hasMore ? rows.Take(limit).ToList() : rows;
+        var nextCursor = hasMore ? EncodeCursor(page[^1].RecordedAt) : null;
+
+        var authorIds = page.Select(u => u.AuthorEmployeeId).Distinct().ToList();
+        var names = new Dictionary<Guid, string>();
+        if (authorIds.Count > 0)
+        {
+            var snapshots = await workforce.ResolveAsync(DateTime.UtcNow, authorIds, cancellationToken);
+            foreach (var snapshot in snapshots) names[snapshot.EmployeeId] = snapshot.DisplayName;
+        }
+
+        var milestoneTitles = (objective.Measurement?.Milestones ?? []).ToDictionary(m => m.Id, m => m.Title);
+        var canSeeNamedDetail = CanSeeNamedDetail(objective, plan, actor);
+
+        var items = page.Select(update =>
+        {
+            var (resulting, delta) = trail.GetValueOrDefault(update.Id);
+            return new ProgressUpdateDto(
+                update.Id,
+                update.Kind,
+                update.Value,
+                update.MilestoneId,
+                update.MilestoneId is not null ? milestoneTitles.GetValueOrDefault(update.MilestoneId.Value) : null,
+                update.ContextNote,
+                update.IsCorrection,
+                new PersonRefDto(update.AuthorEmployeeId, names.GetValueOrDefault(update.AuthorEmployeeId)),
+                update.RecordedAt,
+                update.Evidence.Select(item => ToEvidenceDto(item, objective.CycleId, canSeeNamedDetail)).ToList(),
+                resulting,
+                delta);
+        }).ToList();
+
+        return (items, nextCursor);
+    }
+
+    /// <summary>
+    /// Replays every update oldest-first to derive each one's resulting objective progress and its change from the
+    /// prior state. Reuses the domain's measurement formula for manual/numeric; for weighted milestones it folds the
+    /// completed-weight set forward (the live measurement reflects only the final state, so it cannot be reused here).
+    /// Evidence is not loaded — this pass needs only kind, value, and milestone id.
+    /// </summary>
+    private static async Task<Dictionary<Guid, (decimal Resulting, decimal Delta)>> BuildTrailAsync(
+        PerformanceDbContext db, Objective objective, CancellationToken cancellationToken)
+    {
+        var ascending = await db.ProgressUpdates.AsNoTracking()
+            .Where(u => u.ObjectiveId == objective.Id)
+            .OrderBy(u => u.RecordedAt)
+            .Select(u => new { u.Id, u.Kind, u.Value, u.MilestoneId })
+            .ToListAsync(cancellationToken);
+
+        var measurement = objective.Measurement;
+        var weights = (measurement?.Milestones ?? []).ToDictionary(m => m.Id, m => m.Weight);
+        var completed = new HashSet<Guid>();
+        decimal? percentage = null;
+        decimal? actual = null;
+        var previous = 0m;
+
+        var trail = new Dictionary<Guid, (decimal, decimal)>(ascending.Count);
+        foreach (var u in ascending)
+        {
+            switch (u.Kind)
+            {
+                case ProgressEventKind.PercentageSet: percentage = u.Value; break;
+                case ProgressEventKind.NumericActual: actual = u.Value; break;
+                case ProgressEventKind.MilestoneCompleted when u.MilestoneId is Guid mc: completed.Add(mc); break;
+                case ProgressEventKind.MilestoneReopened when u.MilestoneId is Guid mr: completed.Remove(mr); break;
+            }
+
+            var resulting = measurement is null ? 0m
+                : measurement.Method == MeasurementMethod.WeightedMilestones
+                    ? completed.Sum(id => weights.GetValueOrDefault(id))
+                    : measurement.DerivedProgress(percentage, actual);
+            resulting = decimal.Round(resulting, 2);
+            trail[u.Id] = (resulting, decimal.Round(resulting - previous, 2));
+            previous = resulting;
+        }
+
+        return trail;
+    }
+
+    private static string EncodeCursor(DateTime recordedAt) => recordedAt.ToString("O");
+
+    private static DateTime? DecodeCursor(string? cursor)
+        => DateTime.TryParse(cursor, null, System.Globalization.DateTimeStyles.RoundtripKind, out var value) ? value : null;
 
     public static EvidenceItem ToEvidence(EvidenceInput input, Guid tenantId)
         => input.Kind switch

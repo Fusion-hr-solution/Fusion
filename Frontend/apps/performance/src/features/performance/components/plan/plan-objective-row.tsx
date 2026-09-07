@@ -22,8 +22,15 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ds/components/ui/dropdown-menu";
 import { cn } from "@repo/ds/lib/utils";
-import { formatDateRange } from "../../lib";
-import { MEASUREMENT_METHOD_LABEL, pct } from "./plan-lib";
+import { formatDate, formatDateRange } from "../../lib";
+import {
+  MEASUREMENT_METHOD_LABEL,
+  PROGRESS_TONE_BG,
+  PROGRESS_TONE_TEXT,
+  formatMeasureValue,
+  objectiveProgressTone,
+  pct,
+} from "./plan-lib";
 
 /**
  * One objective inside a plan, read as a numbered ledger row rather than a nested card. The title and
@@ -59,6 +66,7 @@ export function PlanObjectiveRow({
   const weight = objective.planWeight ?? 0;
   const progress = objective.derivedProgress;
   const capped = Math.min(progress, 100);
+  const tone = objectiveProgressTone(objective.isAligned, progress);
   const canAuthor = Boolean(onEdit || onRemove);
   const measurement = objective.measurement;
 
@@ -151,9 +159,9 @@ export function PlanObjectiveRow({
         {measurement?.method === "NumericTarget" ? (
           <MetaCell icon={Target} label="Target">
             <span className="inline-flex items-center gap-1.5 tabular-nums">
-              {formatValue(measurement.baseline, measurement.unit)}
+              {formatMeasureValue(measurement.baseline, measurement.unit)}
               <ArrowRight className="size-3 text-muted-foreground" aria-hidden />
-              {formatValue(measurement.target, measurement.unit)}
+              {formatMeasureValue(measurement.target, measurement.unit)}
               {measurement.direction ? (
                 <span className="text-muted-foreground">
                   · {measurement.direction === "Decrease" ? "Decrease" : "Increase"}
@@ -198,42 +206,111 @@ export function PlanObjectiveRow({
         ) : null}
       </div>
 
-      {/* Progress track for a locked plan — missing reads as missing, not 0%. */}
+      {/* Execution row for a locked plan: the approved measurement, its latest reported truth, and the
+          two actions. Missing progress reads as missing (a dash and "not reported yet"), never as 0%. */}
       {showProgress ? (
-        <div className="mt-3 flex items-center gap-3 pl-14">
-          <div className="h-1.5 w-40 max-w-full overflow-hidden rounded-full bg-muted">
-            {objective.hasProgress ? (
-              <span
-                className={cn("block h-full rounded-full", progress >= 100 ? "bg-success" : "bg-primary")}
-                style={{ width: `${capped}%` }}
-              />
+        <div className="mt-4 flex items-center gap-4 border-t border-border/60 pt-4">
+          <ExecutionState objective={objective} tone={tone} capped={capped} />
+
+          <div className="flex shrink-0 items-center gap-1.5">
+            {onOpenProgress ? (
+              objective.canUpdateProgress ? (
+                <Button variant="outline" size="sm" onClick={onOpenProgress}>
+                  <LineChart className="size-3.5" data-icon="inline-start" /> Update progress
+                </Button>
+              ) : (
+                <Button variant="ghost" size="sm" onClick={onOpenProgress}>
+                  View
+                </Button>
+              )
+            ) : null}
+            {onViewDetails ? (
+              <Button
+                variant="outline"
+                size="icon-sm"
+                onClick={onViewDetails}
+                aria-label={`View details for ${objective.title}`}
+                aria-pressed={active}
+                className={cn(
+                  active && "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                )}
+              >
+                <Eye className="size-4" />
+              </Button>
             ) : null}
           </div>
-          <span
-            className={cn(
-              "text-xs tabular-nums",
-              objective.hasProgress
-                ? progress >= 100
-                  ? "text-success"
-                  : "text-muted-foreground"
-                : "text-muted-foreground/60"
-            )}
-          >
-            {objective.hasProgress ? `${pct(progress)}%` : "Not started"}
-          </span>
-          {onOpenProgress ? (
-            objective.canUpdateProgress ? (
-              <Button variant="outline" size="sm" className="ml-auto" onClick={onOpenProgress}>
-                <LineChart className="size-3.5" data-icon="inline-start" /> Update
-              </Button>
-            ) : (
-              <Button variant="ghost" size="sm" className="ml-auto" onClick={onOpenProgress}>
-                View
-              </Button>
-            )
-          ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * The measurement-aware current-state block: a full-width progress meter over its own vocabulary —
+ * numeric shows the raw current value (distinct from the derived progress the bar fills to); manual
+ * shows the reported percentage; weighted milestones show completion truth. Missing progress never
+ * coerces to 0% — the bar stays empty and it reads as not reported yet.
+ */
+function ExecutionState({
+  objective,
+  tone,
+  capped,
+}: {
+  objective: PlanObjectiveDto;
+  tone: ReturnType<typeof objectiveProgressTone>;
+  capped: number;
+}) {
+  const measurement = objective.measurement;
+  const method = measurement?.method;
+  const has = objective.hasProgress;
+  const updated = objective.lastProgressAt ? formatDate(objective.lastProgressAt.slice(0, 10)) : null;
+
+  let label: string;
+  let value: React.ReactNode;
+  if (method === "WeightedMilestones") {
+    const total = measurement?.milestones.length ?? 0;
+    const done = measurement?.milestones.filter((m) => m.isCompleted).length ?? 0;
+    label = "Milestone progress";
+    value = (
+      <span className={cn("tabular-nums", has ? PROGRESS_TONE_TEXT[tone] : "text-muted-foreground/60")}>
+        {done} of {total} milestone{total === 1 ? "" : "s"} {has ? "completed" : "updated"}
+      </span>
+    );
+  } else if (method === "ManualPercentage") {
+    label = "Current progress";
+    value = has ? (
+      <span className={cn("tabular-nums", PROGRESS_TONE_TEXT[tone])}>{pct(objective.currentPercentage ?? 0)}%</span>
+    ) : (
+      <span className="text-muted-foreground/50">—</span>
+    );
+  } else {
+    label = "Current value";
+    value = has ? (
+      <span className={cn("tabular-nums", PROGRESS_TONE_TEXT[tone])}>
+        {formatMeasureValue(objective.currentActual, measurement?.unit ?? null)}
+      </span>
+    ) : (
+      <span className="text-muted-foreground/50">—</span>
+    );
+  }
+
+  return (
+    <div className="min-w-0 flex-1">
+      <p className="type-eyebrow text-muted-foreground/70">{label}</p>
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        {has ? (
+          <span
+            className={cn("block h-full rounded-full", PROGRESS_TONE_BG[tone])}
+            style={{ width: `${capped}%` }}
+          />
+        ) : null}
+      </div>
+      <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <span className="text-sm font-semibold">{value}</span>
+        <span className="text-xs text-muted-foreground">
+          {has ? (updated ? `Updated ${updated}` : null) : "Progress not reported yet"}
+        </span>
+      </div>
     </div>
   );
 }
@@ -256,10 +333,4 @@ function MetaCell({
       <dd className="mt-1 whitespace-nowrap text-foreground">{children}</dd>
     </div>
   );
-}
-
-function formatValue(value: number | null, unit: string | null): string {
-  if (value === null) return "—";
-  const trimmed = Number.isInteger(value) ? String(value) : String(value);
-  return unit ? `${trimmed}${unit}` : trimmed;
 }
