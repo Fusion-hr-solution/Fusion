@@ -32,6 +32,7 @@ import { PlanBannerMark } from "./plan-banner";
 import { PlanDirection } from "./plan-direction";
 import { PlanObjectiveRow } from "./plan-objective-row";
 import { PlanProgressCard } from "./plan-progress-card";
+import { PlanApprovedStatus } from "./plan-approved-status";
 import { initials, pct } from "./plan-lib";
 
 /**
@@ -85,8 +86,13 @@ export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: 
         <ObjectiveLedgerReadOnly plan={plan} targets={targets} cycleId={cycle.id} />
 
         <aside className="space-y-4 lg:sticky lg:top-6">
-          <ReviewContextCard plan={plan} firstName={firstName} />
-          {/* Once approved, the manager reads the same canonical execution truth the employee sees. */}
+          {/* Approved reads as the same settled agreement the owner sees — one shared status card; the
+              open states keep the review-context lead that frames the pending decision. */}
+          {plan.isLocked ? (
+            <PlanApprovedStatus plan={plan} perspective="reviewer" subjectFirstName={firstName} />
+          ) : (
+            <ReviewContextCard plan={plan} firstName={firstName} />
+          )}
           {plan.isLocked ? <PlanProgressCard plan={plan} /> : null}
           <ReviewDecision plan={plan} cycleId={cycle.id} planId={planId} firstName={firstName} />
         </aside>
@@ -172,42 +178,34 @@ function ReviewHeading({ plan }: { plan: EmployeePlanDto }) {
  */
 function ReviewContextCard({ plan, firstName }: { plan: EmployeePlanDto; firstName: string }) {
   const submittedOn = plan.submittedAt ? formatDate(plan.submittedAt.slice(0, 10)) : null;
-  const approvedOn = plan.approvedAt ? formatDate(plan.approvedAt.slice(0, 10)) : null;
   const count = plan.objectives.length;
   const total = plan.readiness.weightTotal;
 
-  const approved = plan.state === "Approved";
+  // Approved plans render the shared PlanApprovedStatus instead, so this card frames only the open states.
   const returned = plan.state === "Draft" && plan.history.some((h) => h.kind === "Returned");
 
-  const lead = approved
+  const lead = returned
     ? {
-        icon: Check,
-        tint: "text-success bg-success/12 ring-success/20",
-        title: "Plan approved",
-        detail: `You approved ${firstName}'s plan${approvedOn ? ` on ${approvedOn}` : ""}. It is now the locked baseline.`,
+        icon: RotateCcw,
+        tint: "text-warning bg-warning/12 ring-warning/20",
+        title: "Changes requested",
+        detail: `Returned to ${firstName} to revise and resubmit.`,
       }
-    : returned
+    : plan.canDecide
       ? {
-          icon: RotateCcw,
-          tint: "text-warning bg-warning/12 ring-warning/20",
-          title: "Changes requested",
-          detail: `Returned to ${firstName} to revise and resubmit.`,
+          icon: Clock,
+          tint: "text-primary bg-primary/12 ring-primary/20",
+          title: "Awaiting your review",
+          detail: `Review ${firstName}'s submitted commitments and make a plan-level decision.`,
         }
-      : plan.canDecide
-        ? {
-            icon: Clock,
-            tint: "text-primary bg-primary/12 ring-primary/20",
-            title: "Awaiting your review",
-            detail: `Review ${firstName}'s submitted commitments and make a plan-level decision.`,
-          }
-        : {
-            icon: Clock,
-            tint: "text-muted-foreground bg-muted ring-border",
-            title: "Submitted for review",
-            detail: plan.responsibleManager?.name
-              ? `Held for ${plan.responsibleManager.name}'s decision.`
-              : "Held for the reviewer's decision.",
-          };
+      : {
+          icon: Clock,
+          tint: "text-muted-foreground bg-muted ring-border",
+          title: "Submitted for review",
+          detail: plan.responsibleManager?.name
+            ? `Held for ${plan.responsibleManager.name}'s decision.`
+            : "Held for the reviewer's decision.",
+        };
   const Icon = lead.icon;
 
   return (
@@ -223,7 +221,7 @@ function ReviewContextCard({ plan, firstName }: { plan: EmployeePlanDto; firstNa
       </div>
 
       <dl className="mt-5 grid grid-cols-3 gap-3 border-t border-border pt-4">
-        <ContextFact label={approved ? "Approved" : "Submitted"} value={approved ? approvedOn ?? "—" : submittedOn ?? "—"} />
+        <ContextFact label="Submitted" value={submittedOn ?? "—"} />
         <ContextFact label="Objectives" value={String(count)} />
         <ContextFact label="Allocated" value={`${pct(total)}%`} valueClass={total === 100 ? "text-success" : undefined} />
       </dl>

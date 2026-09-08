@@ -322,6 +322,41 @@ export function useProgressMutations(cycleId: string, objectiveId: string) {
 }
 
 /**
+ * Opens a file-evidence item in a new tab. The download endpoint is bearer-authenticated, so a plain
+ * link cannot carry the token; this fetches the file as a Blob through the authenticated client and hands
+ * the tab a same-origin object URL. The blank tab is opened synchronously inside the click gesture so the
+ * popup blocker permits it, then pointed at the blob once it resolves. `openingId` marks the row in flight.
+ */
+export function useEvidenceOpener(cycleId: string | null) {
+  const { performance } = useApis();
+  const [openingId, setOpeningId] = useState<string | null>(null);
+
+  const open = useCallback(
+    async (evidenceId: string) => {
+      if (!cycleId || typeof window === "undefined") return;
+      const tab = window.open("about:blank", "_blank");
+      setOpeningId(evidenceId);
+      try {
+        const blob = await performance.downloadEvidence(cycleId, evidenceId);
+        const url = URL.createObjectURL(blob);
+        if (tab) tab.location.href = url;
+        else window.open(url, "_blank");
+        // Revoke once the tab has had time to load the resource.
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      } catch (error) {
+        tab?.close();
+        throw error;
+      } finally {
+        setOpeningId(null);
+      }
+    },
+    [cycleId, performance]
+  );
+
+  return { open, openingId };
+}
+
+/**
  * Progressive loading for an objective's progress history. Seeded with the first page the progress surface
  * already carries, it appends older keyset-paginated pages on demand. Resets whenever the objective changes
  * or a new update lands at the top (a submit), so the accumulated tail never drifts from the refreshed head.

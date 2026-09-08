@@ -4,20 +4,15 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
-  CalendarCheck,
   CalendarDays,
   Check,
-  CheckCircle2,
   Clock,
   FileText,
   History,
   Lightbulb,
-  ListChecks,
   MessageSquareQuote,
   Plus,
   Quote,
-  Target,
-  UserRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -47,6 +42,7 @@ import { PlanSubmissionChecks } from "./plan-submission-checks";
 import { PlanSubmissionStatus } from "./plan-submission-status";
 import { initials, pct, weightTone } from "./plan-lib";
 import { PlanProgressCard } from "./plan-progress-card";
+import { PlanApprovedStatus } from "./plan-approved-status";
 
 export function MyPlan({ cycle }: { cycle: CycleSummaryDto }) {
   const cycleId = cycle.id;
@@ -184,7 +180,7 @@ export function MyPlan({ cycle }: { cycle: CycleSummaryDto }) {
     </>
   ) : plan.isLocked ? (
     <>
-      <PlanStatusCard plan={plan} />
+      <PlanApprovedStatus plan={plan} perspective="owner" />
       <PlanProgressCard plan={plan} emptyDescription="Plan progress begins once you update your objectives." />
     </>
   ) : null;
@@ -618,39 +614,6 @@ function GoalsTextLink() {
       View in Goals
       <ArrowUpRight className="size-3.5" aria-hidden />
     </Link>
-  );
-}
-
-/**
- * The approved baseline, compact. Once execution is underway this is quiet context — the agreement is
- * settled — so it states the four facts that still matter (who approved it, when, how many objectives,
- * fully allocated) and nothing of the finished submission timeline. It sits above Plan Progress, which
- * carries the now-primary execution metric.
- */
-function PlanStatusCard({ plan }: { plan: EmployeePlanDto }) {
-  const approval = [...plan.history]
-    .reverse()
-    .find((h) => h.kind === "Approved" || h.kind === "ApprovedExceptionally");
-  const approver = approval?.actorName ?? plan.responsibleManager?.name ?? null;
-  const approvedOn = plan.approvedAt ? formatDate(plan.approvedAt.slice(0, 10)) : null;
-  const count = plan.objectives.length;
-
-  return (
-    <section className="rounded-2xl border border-border bg-card p-5">
-      <p className="type-eyebrow text-muted-foreground">Plan status</p>
-      <div className="mt-4 flex items-center gap-3">
-        <CheckCircle2 className="size-8 shrink-0 text-success" aria-hidden />
-        <p className="text-lg font-semibold tracking-tight text-foreground">Approved &amp; locked</p>
-      </div>
-      <dl className="mt-4 space-y-3.5">
-        {approver ? (
-          <SnapshotFact icon={UserRound} label={`Approved by ${approver}`} />
-        ) : null}
-        {approvedOn ? <SnapshotFact icon={CalendarCheck} label="Approved" value={approvedOn} /> : null}
-        <SnapshotFact icon={ListChecks} label={`${count} objective${count === 1 ? "" : "s"}`} />
-        <SnapshotFact icon={Target} label={`${pct(plan.readiness.weightTotal)}% allocated`} />
-      </dl>
-    </section>
   );
 }
 

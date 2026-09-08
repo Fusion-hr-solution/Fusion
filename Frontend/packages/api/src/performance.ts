@@ -758,6 +758,9 @@ export function createPerformanceApi(client: ApiClient) {
     },
     evidenceDownloadPath: (cycleId: string, evidenceId: string) =>
       performancePaths.evidenceDownload(cycleId, evidenceId),
+    /** Fetches a file-evidence item as a Blob with auth attached — a plain link cannot carry the bearer token. */
+    downloadEvidence: (cycleId: string, evidenceId: string, signal?: AbortSignal) =>
+      client.get<Blob>(performancePaths.evidenceDownload(cycleId, evidenceId), { responseType: "blob", signal }),
     getContribution: (cycleId: string, signal?: AbortSignal) =>
       client.get<ContributionOverviewDto>(performancePaths.contribution(cycleId), { signal }),
     getContributionDetail: (cycleId: string, objectiveId: string, signal?: AbortSignal) =>

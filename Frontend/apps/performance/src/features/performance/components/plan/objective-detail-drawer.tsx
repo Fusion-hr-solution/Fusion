@@ -24,7 +24,7 @@ import { AsyncButton, PageError, PageSkeleton } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { ScopeMark } from "../scope-mark";
 import { formatDate } from "../../lib";
-import { useObjectiveProgress, useProgressHistoryPager, useProgressMutations } from "../../api/use-performance";
+import { useEvidenceOpener, useObjectiveProgress, useProgressHistoryPager, useProgressMutations } from "../../api/use-performance";
 import { DerivedCard, ProgressUpdateComposer } from "../progress/progress-update-composer";
 import { ProgressHistoryTimeline } from "../progress/progress-history-timeline";
 import {
@@ -116,6 +116,7 @@ function ObjectiveDetailBody({
     progressQuery.data?.history ?? [],
     progressQuery.data?.historyNextCursor ?? null
   );
+  const evidenceOpener = useEvidenceOpener(cycleId);
 
   const [mode, setMode] = useState<DrawerMode>(canRecord ? initialMode : "details");
   // Re-seed when the drawer is pointed at a different objective (or reopened): honor the requested mode,
@@ -246,6 +247,8 @@ function ObjectiveDetailBody({
             hasMore={historyPager.hasMore}
             loadingMore={historyPager.loadingMore}
             onLoadMore={historyPager.loadMore}
+            onOpenFile={evidenceOpener.open}
+            openingFileId={evidenceOpener.openingId}
             canRecord={canRecord}
             onRecord={() => setMode("record")}
           />
@@ -438,6 +441,8 @@ function ProgressSections({
   hasMore,
   loadingMore,
   onLoadMore,
+  onOpenFile,
+  openingFileId,
   canRecord,
   onRecord,
 }: {
@@ -447,6 +452,9 @@ function ProgressSections({
   hasMore: boolean;
   loadingMore: boolean;
   onLoadMore: () => void;
+  /** Opens a file-evidence item through the authenticated client. */
+  onOpenFile: (evidenceId: string) => void;
+  openingFileId: string | null;
   /** Owner on a still-updatable objective — reveals the Record progress action. */
   canRecord: boolean;
   onRecord: () => void;
@@ -516,6 +524,8 @@ function ProgressSections({
             hasMore={hasMore}
             loadingMore={loadingMore}
             onLoadMore={onLoadMore}
+            onOpenFile={onOpenFile}
+            openingFileId={openingFileId}
           />
         )}
       </section>
