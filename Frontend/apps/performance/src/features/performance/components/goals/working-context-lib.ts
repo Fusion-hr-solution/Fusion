@@ -169,16 +169,6 @@ export function resolveWorkspace(
 }
 
 /**
- * The contextual create route. Carries the parent objective and, when known, the organizational
- * scope the objective is being established for so the composer can default to it —
- * `/goals/new?parent=<objectiveId>&scope=<orgUnitId>`.
- */
-export function buildCreateHref(parentId: string, orgUnitId?: string | null): string {
-  const scope = orgUnitId ? `&scope=${encodeURIComponent(orgUnitId)}` : "";
-  return `/goals/new?parent=${encodeURIComponent(parentId)}${scope}`;
-}
-
-/**
  * The organization's own name — the root of a materialized org path ("Asteria Group / … / Talent
  * Pod"), the top "Organization"-type unit and thus the real company/brand name. Used to attribute a
  * company-scoped strategic objective. Returns null for a bare/single-segment path so the label

@@ -1,18 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  Flag,
-  Info,
-  LineChart,
-  Minus,
-  Percent,
-  Plus,
-  Target,
-  TrendingDown,
-  TrendingUp,
-  UserRound,
-} from "lucide-react";
+import { Minus, Plus, Target, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import type {
   AddPlanObjectiveRequest,
@@ -40,14 +29,6 @@ import {
   SelectTrigger,
 } from "@repo/ds/components/ui/select";
 import {
-  Autocomplete,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from "@repo/ds/components/ui/combobox";
-import {
   DateRangePicker,
   type DateRangeValue,
 } from "@repo/ds/components/ui/date-range-picker";
@@ -56,32 +37,19 @@ import { cn } from "@repo/ds/lib/utils";
 import { parseNumeric } from "../../lib";
 import { pct } from "./plan-lib";
 import {
-  MilestoneEditor,
   milestoneWeightSum,
   milestonesFromMeasurement,
   type MilestoneRow,
 } from "../measurement/milestone-editor";
+import {
+  MeasurementEditor,
+  type MeasurementMethod,
+} from "../measurement/measurement-editor";
 
 const TITLE_MAX = 300;
 const DESCRIPTION_MAX = 2000;
 
-/** Common measurement units offered as suggestions — any custom unit can still be typed. */
-const UNIT_OPTIONS = [
-  "Percent (%)",
-  "Count",
-  "Days",
-  "Hours",
-  "Score",
-  "NPS",
-  "Ratio",
-  "Currency",
-];
-
 type AlignMode = "aligned" | "standalone";
-type MeasurementMethod =
-  | "ManualPercentage"
-  | "NumericTarget"
-  | "WeightedMilestones";
 
 /**
  * The Employee Objective Composer — a large contextual modal opened by "Add objective" from My Plan,
@@ -483,60 +451,23 @@ export function PlanGoalComposer({
               title="Measurement"
               hint="How will you measure progress on this objective?"
             >
-              <div className="grid gap-3 sm:grid-cols-3">
-                <ChoiceTile
-                  active={method === "ManualPercentage"}
-                  icon={Percent}
-                  title="Manual percentage"
-                  detail="Update progress as a percentage throughout the cycle."
-                  onClick={() => setMethod("ManualPercentage")}
-                />
-                <ChoiceTile
-                  active={method === "NumericTarget"}
-                  icon={LineChart}
-                  title="Numeric target"
-                  detail="Define a target with a numeric start and end value."
-                  onClick={() => setMethod("NumericTarget")}
-                />
-                <ChoiceTile
-                  active={method === "WeightedMilestones"}
-                  icon={Flag}
-                  title="Weighted milestones"
-                  detail="Break the objective into milestones with assigned weights."
-                  onClick={() => setMethod("WeightedMilestones")}
-                />
-              </div>
-
-              {method === "ManualPercentage" ? (
-                <div className="flex items-center gap-2.5 rounded-lg border border-info/25 bg-info-subtle px-3.5 py-2.5 text-sm text-info">
-                  <Info className="size-4 shrink-0" aria-hidden />
-                  You will manually update progress from 0% to 100% during the
-                  cycle.
-                </div>
-              ) : null}
-
-              {method === "NumericTarget" ? (
-                <NumericTargetEditor
-                  baseline={baseline}
-                  target={target}
-                  unit={unit}
-                  direction={direction}
-                  numericInvalid={numericInvalid}
-                  sameValue={numericSameValue}
-                  onBaseline={setBaseline}
-                  onTarget={setTarget}
-                  onUnit={setUnit}
-                  onDirection={setDirection}
-                />
-              ) : null}
-
-              {method === "WeightedMilestones" ? (
-                <MilestoneEditor
-                  milestones={milestones}
-                  weightSum={milestoneSum}
-                  onChange={setMilestones}
-                />
-              ) : null}
+              <MeasurementEditor
+                method={method}
+                onMethodChange={setMethod}
+                baseline={baseline}
+                target={target}
+                unit={unit}
+                direction={direction}
+                numericInvalid={numericInvalid}
+                numericSameValue={numericSameValue}
+                onBaseline={setBaseline}
+                onTarget={setTarget}
+                onUnit={setUnit}
+                onDirection={setDirection}
+                milestones={milestones}
+                milestoneWeightSum={milestoneSum}
+                onMilestonesChange={setMilestones}
+              />
             </Section>
 
             {/* 4. Plan weight */}
@@ -741,190 +672,6 @@ function ChoiceTile({
         )}
         aria-hidden
       />
-    </button>
-  );
-}
-
-// ── Numeric target editor (baseline → target, unit, direction) ────────────────────────
-
-function NumericTargetEditor({
-  baseline,
-  target,
-  unit,
-  direction,
-  numericInvalid,
-  sameValue,
-  onBaseline,
-  onTarget,
-  onUnit,
-  onDirection,
-}: {
-  baseline: string;
-  target: string;
-  unit: string;
-  direction: ImprovementDirection;
-  numericInvalid: boolean;
-  sameValue: boolean;
-  onBaseline: (v: string) => void;
-  onTarget: (v: string) => void;
-  onUnit: (v: string) => void;
-  onDirection: (v: ImprovementDirection) => void;
-}) {
-  const error = numericInvalid
-    ? "Enter a number — put a label like M€ or % in the Unit field."
-    : sameValue
-      ? "Baseline and target must differ."
-      : null;
-  return (
-    <div className="space-y-3 rounded-xl border border-border/70 bg-muted/30 p-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <NumericField
-          id="pg-baseline"
-          label="Baseline"
-          value={baseline}
-          placeholder="42"
-          invalid={numericInvalid || sameValue}
-          onChange={onBaseline}
-        />
-        <NumericField
-          id="pg-target"
-          label="Target"
-          value={target}
-          placeholder="70"
-          invalid={numericInvalid || sameValue}
-          onChange={onTarget}
-        />
-        <div className="space-y-1.5">
-          <Label htmlFor="pg-unit">
-            Unit <span className="text-destructive">*</span>
-          </Label>
-          <UnitCombobox value={unit} onChange={onUnit} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Direction</Label>
-          <div className="grid grid-cols-2 gap-1 rounded-lg border border-border p-0.5">
-            <DirectionOption
-              active={direction === "Increase"}
-              icon={TrendingUp}
-              label="Increase"
-              onClick={() => onDirection("Increase")}
-            />
-            <DirectionOption
-              active={direction === "Decrease"}
-              icon={TrendingDown}
-              label="Decrease"
-              onClick={() => onDirection("Decrease")}
-            />
-          </div>
-        </div>
-      </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-    </div>
-  );
-}
-
-/** Unit picker: a live text field with common-unit suggestions that still accepts any custom unit. */
-function UnitCombobox({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <Autocomplete
-      items={UNIT_OPTIONS}
-      value={value}
-      onValueChange={onChange}
-      // Show every common unit on focus (empty query), then narrow as the user types — the default
-      // filter hides the whole list until there's input, which leaves an empty popup on open.
-      filter={(item, query) => {
-        const q = query.trim().toLowerCase();
-        return q === "" || String(item).toLowerCase().includes(q);
-      }}
-      open={open}
-      onOpenChange={setOpen}
-    >
-      <ComboboxInput
-        id="pg-unit"
-        placeholder="Percent (%)"
-        className="w-full"
-      />
-      <ComboboxContent className="pointer-events-auto">
-        <ComboboxEmpty>Uses “{value.trim()}” as a custom unit.</ComboboxEmpty>
-        {/* Function child: Base UI filters `items` by the input and renders only the matches,
-            which is also what registers each item for highlight and click/keyboard selection. */}
-        <ComboboxList>
-          {(u: string) => (
-            <ComboboxItem key={u} value={u}>
-              {u}
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
-    </Autocomplete>
-  );
-}
-
-function NumericField({
-  id,
-  label,
-  value,
-  placeholder,
-  invalid,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  placeholder: string;
-  invalid: boolean;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id}>
-        {label} <span className="text-destructive">*</span>
-      </Label>
-      <Input
-        id={id}
-        inputMode="decimal"
-        value={value}
-        placeholder={placeholder}
-        aria-invalid={invalid}
-        onChange={(e) => onChange(e.target.value)}
-        className="tabular-nums"
-      />
-    </div>
-  );
-}
-
-function DirectionOption({
-  active,
-  icon: Icon,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  icon: typeof TrendingUp;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "flex h-8 items-center justify-center gap-1.5 rounded-md px-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        active
-          ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:text-foreground"
-      )}
-    >
-      <Icon className="size-4 shrink-0" aria-hidden />
-      {label}
     </button>
   );
 }

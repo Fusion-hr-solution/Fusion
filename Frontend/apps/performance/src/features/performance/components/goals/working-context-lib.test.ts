@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GoalNodeDto } from "@repo/api";
-import { buildCreateHref, resolveWorkspace, rootOrgLabel, type UnitContext } from "./working-context-lib";
+import { resolveWorkspace, rootOrgLabel, type UnitContext } from "./working-context-lib";
 
 /** Minimal node factory — only the fields the derivation reads. */
 function node(partial: Partial<GoalNodeDto> & Pick<GoalNodeDto, "id" | "ownershipScope">): GoalNodeDto {
@@ -194,15 +194,5 @@ describe("rootOrgLabel", () => {
   it("returns null for a single-segment or empty path", () => {
     expect(rootOrgLabel("Talent Pod")).toBeNull();
     expect(rootOrgLabel(null)).toBeNull();
-  });
-});
-
-describe("buildCreateHref", () => {
-  it("carries both the parent objective and the organizational scope", () => {
-    expect(buildCreateHref("strat-1", "org-talent")).toBe("/goals/new?parent=strat-1&scope=org-talent");
-  });
-  it("omits scope when the organizational unit is unknown", () => {
-    expect(buildCreateHref("strat-1")).toBe("/goals/new?parent=strat-1");
-    expect(buildCreateHref("strat-1", null)).toBe("/goals/new?parent=strat-1");
   });
 });
