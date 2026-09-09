@@ -3,7 +3,6 @@
 import { useMemo, useState, type ReactNode } from "react";
 import {
   ArrowRight,
-  CircleDashed,
   ExternalLink,
   Gauge,
   Layers,
@@ -24,7 +23,7 @@ import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { Button } from "@repo/ds/components/ui/button";
 import { StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
-import { ObjectiveContextPanel } from "../goals/objective-context-panel";
+import { OrgObjectiveDetailDrawer } from "../goals/org-objective-detail-drawer";
 import {
   OrgComposerHost,
   type ComposerState,
@@ -196,21 +195,12 @@ export function TeamDirection({
         )}
       </div>
 
-      <ObjectiveContextPanel
+      <OrgObjectiveDetailDrawer
         cycleId={cycle.id}
         objectiveId={panelId}
         open={panelId !== null}
         onOpenChange={(open) => {
           if (!open) setPanelId(null);
-        }}
-        // Team Performance has no in-place drill; following a related objective opens it in the
-        // canonical Organization Goals surface where the full hierarchy lives.
-        onFocus={(id) => {
-          window.location.href = `/performance/goals?focus=${id}`;
-        }}
-        onEdit={(d) => {
-          setPanelId(null);
-          setComposer({ mode: "edit", objectiveId: d.node.id });
         }}
       />
 
@@ -285,18 +275,22 @@ function UpstreamCard({
         </p>
       </div>
 
-      {/* Inherited progress, full width beneath the scope line. */}
-      <div className="mb-1.5 mt-4">
-        <ProgressBar progress={progress} tone="muted" />
-      </div>
-
-      <div className="mt-auto flex flex-wrap items-start gap-x-8 gap-y-3 border-t border-border/60 pt-4">
-        <AccountableFact name={node.accountablePersonName} />
-        <MeasurementFact node={node} progress={progress} />
-        <ViewDetailsLink
-          className="ml-auto self-center"
-          onClick={() => onInspect(node.id)}
-        />
+      {/* Progress + meta as one bottom-anchored group, structured identically to the team card so the
+          bars and dividers line up across both cards regardless of title/height differences. */}
+      {/* Footer skeleton shared with the team card — progress over one row of facts + actions. The facts
+          stay on a single line (no wrap) so both cards' footers are the same height and their progress
+          bars and rows line up regardless of how many actions each carries. */}
+      <div className="mt-auto">
+        <div className="mb-1.5 pt-4">
+          <ProgressBar progress={progress} tone="muted" />
+        </div>
+        <div className="flex items-center gap-4 border-t border-border/60 pt-4">
+          <div className="flex min-w-0 flex-1 items-start gap-x-6">
+            <AccountableFact name={node.accountablePersonName} />
+            <MeasurementFact node={node} progress={progress} />
+          </div>
+          <ViewDetailsLink className="shrink-0" onClick={() => onInspect(node.id)} />
+        </div>
       </div>
     </div>
   );
@@ -335,9 +329,6 @@ function TeamObjectiveCard({
   // Direct-measurement objectives expose the manual recorder; calculated ones roll up and never do.
   const canRecord =
     Boolean(progress?.canUpdate) && node.progressSource === "Direct";
-  const showExecution = Boolean(
-    progress && (progress.hasProgress || progress.canUpdate)
-  );
 
   return (
     <div
@@ -372,19 +363,19 @@ function TeamObjectiveCard({
         </p>
       </div>
 
-      {/* Progress + meta anchored as one bottom group, so the gap from the progress block to the
-          divider stays fixed regardless of the progress block's height (bar vs. empty state). */}
+      {/* Progress + meta anchored as one bottom group, structured identically to the upstream card so
+          both cards' bars and dividers align. */}
       <div className="mt-auto">
-        {showExecution ? (
-          <div className="mb-1.5 pt-4">
-            <ProgressBar progress={progress} />
-          </div>
-        ) : null}
+        <div className="mb-1.5 pt-4">
+          <ProgressBar progress={progress} />
+        </div>
 
-        <div className="flex flex-wrap items-start gap-x-8 gap-y-3 border-t border-border/60 pt-4">
-          <AccountableFact name={node.accountablePersonName} />
-          <MeasurementFact node={node} progress={progress} />
-          <div className="ml-auto flex shrink-0 items-center gap-2 self-center">
+        <div className="flex items-center gap-4 border-t border-border/60 pt-4">
+          <div className="flex min-w-0 flex-1 items-start gap-x-6">
+            <AccountableFact name={node.accountablePersonName} />
+            <MeasurementFact node={node} progress={progress} />
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
           {isDraft ? (
             <>
               {canDelete ? (
@@ -411,14 +402,15 @@ function TeamObjectiveCard({
                 Resume editing
               </Button>
             </>
-          ) : (
-            <ViewDetailsLink onClick={() => onInspect(node.id)} />
-          )}
-          {canRecord ? (
+          ) : canRecord ? (
+            // Update progress is the primary action; details stay reachable by clicking the title, so the
+            // redundant View details link is dropped here to keep the facts + action on one clean row.
             <Button size="sm" onClick={onRecord}>
               Update progress
             </Button>
-          ) : null}
+          ) : (
+            <ViewDetailsLink onClick={() => onInspect(node.id)} />
+          )}
           </div>
         </div>
       </div>
@@ -641,7 +633,9 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
       <dt className="type-eyebrow text-muted-foreground/70">{label}</dt>
-      <dd className="mt-1.5">{children}</dd>
+      {/* A fixed value height, vertically centered — so a value with an avatar (Accountable) and a plain
+          text value (Measurement) sit on the same line rather than at different heights. */}
+      <dd className="mt-1.5 flex min-h-7 items-center">{children}</dd>
     </div>
   );
 }
@@ -718,9 +712,9 @@ function MeasurementFact({
 
     return (
       <Fact label="Measurement">
-        <span className="flex items-center gap-1.5 text-sm font-medium leading-snug text-foreground">
-          <Icon className="size-3.5 text-muted-foreground" aria-hidden />
-          {method}
+        <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+          <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          <span className="truncate whitespace-nowrap">{method}</span>
         </span>
       </Fact>
     );
@@ -728,7 +722,7 @@ function MeasurementFact({
 
   return (
     <Fact label="Measurement">
-      <span className="text-sm font-medium tabular-nums text-foreground">
+      <span className="block truncate whitespace-nowrap text-sm font-medium tabular-nums text-foreground">
         {summary}
       </span>
     </Fact>

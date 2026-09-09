@@ -20,6 +20,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import type { MeasurementDto, PlanObjectiveDto, ProgressUpdateDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@repo/ds/components/ui/sheet";
+import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { AsyncButton, PageError, PageSkeleton } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { ScopeMark } from "../scope-mark";
@@ -49,6 +50,14 @@ type DrawerMode = "details" | "record";
  * `cycleId` is set (the owner's locked plan) and the objective can still be updated. The reviewer opens
  * the same drawer without `cycleId` and gets details alone.
  */
+/**
+ * What kind of objective the drawer is reading. "plan" is an employee's plan objective (the default,
+ * carrying a plan weight and the aligned/standalone distinction). "organizational" is a strategic or
+ * organizational objective — no plan weight, and its identity is its scope rather than plan alignment —
+ * reused here so an organizational objective reads in the same drawer as a plan objective.
+ */
+export type ObjectiveDetailVariant = "plan" | "organizational";
+
 export function ObjectiveDetailDrawer({
   objective,
   index,
@@ -57,6 +66,8 @@ export function ObjectiveDetailDrawer({
   onOpenChange,
   cycleId,
   initialMode,
+  variant = "plan",
+  kindLabel,
 }: {
   objective: PlanObjectiveDto | null;
   /** Zero-based position in the ledger — shown as the same two-digit chip the row carries. */
@@ -69,6 +80,10 @@ export function ObjectiveDetailDrawer({
   cycleId?: string | null;
   /** Which mode to open into — "record" only takes effect on the owner's locked, still-updatable objective. */
   initialMode?: DrawerMode;
+  /** Objective kind — "organizational" drops the plan-weight facet and reads by scope. Defaults to "plan". */
+  variant?: ObjectiveDetailVariant;
+  /** For the organizational variant, the header's scope chip (e.g. "Company strategic objective"). */
+  kindLabel?: string;
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -80,10 +95,40 @@ export function ObjectiveDetailDrawer({
             alignmentScope={alignmentScope}
             cycleId={open ? cycleId ?? null : null}
             initialMode={initialMode ?? "details"}
+            variant={variant}
+            kindLabel={kindLabel}
           />
-        ) : null}
+        ) : (
+          // Only reached when the objective is fetched on open (the organizational reader); keeps a title
+          // present for accessibility and shows the drawer's shape while the detail loads.
+          <DrawerLoading />
+        )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+/** The titled loading state while an objective is fetched on open (organizational reader). */
+function DrawerLoading() {
+  return (
+    <>
+      <div className="border-b border-border px-5 pb-4 pt-5 pr-12">
+        <SheetTitle className="sr-only">Objective details</SheetTitle>
+        <SheetDescription className="sr-only">Loading objective details.</SheetDescription>
+        <div className="flex items-start gap-3.5">
+          <Skeleton className="size-10 shrink-0 rounded-lg" />
+          <div className="w-full space-y-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-40" />
+          </div>
+        </div>
+      </div>
+      <div className="space-y-4 px-5 py-5">
+        <Skeleton className="h-16 w-full rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-2xl" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+      </div>
+    </>
   );
 }
 
@@ -93,13 +138,18 @@ function ObjectiveDetailBody({
   alignmentScope,
   cycleId,
   initialMode,
+  variant,
+  kindLabel,
 }: {
   objective: PlanObjectiveDto;
   index: number;
   alignmentScope?: string;
   cycleId: string | null;
   initialMode: DrawerMode;
+  variant: ObjectiveDetailVariant;
+  kindLabel?: string;
 }) {
+  const isOrg = variant === "organizational";
   const weight = objective.planWeight ?? 0;
   const measurement = objective.measurement;
   const parentTitle = objective.directionPath.at(-1);
@@ -139,7 +189,7 @@ function ObjectiveDetailBody({
 
   return (
     <>
-      <DrawerHeader objective={objective} index={index} />
+      <DrawerHeader objective={objective} index={index} variant={variant} kindLabel={kindLabel} />
       <SheetDescription className="sr-only">
         Full details for the objective {objective.title}.
       </SheetDescription>
@@ -173,7 +223,9 @@ function ObjectiveDetailBody({
           ) : (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
               <Unlink className="size-3.5 shrink-0" aria-hidden />
-              Not aligned to organizational direction — a standalone role objective.
+              {isOrg
+                ? "A top-level strategic objective — the apex of this direction."
+                : "Not aligned to organizational direction — a standalone role objective."}
             </p>
           )}
         </Section>
@@ -213,7 +265,9 @@ function ObjectiveDetailBody({
           ) : null}
         </Card>
 
-        <div className="grid grid-cols-2 gap-4">
+        {/* Timeline, and (plan objectives only) the plan-weight gauge. An organizational objective has no
+            plan weight, so the timeline stands alone at full width. */}
+        <div className={cn("grid gap-4", isOrg ? "grid-cols-1" : "grid-cols-2")}>
           {/* Timeline — the objective's window read as a start→end sequence. */}
           <Card
             icon={<CalendarDays className="size-5" aria-hidden />}
@@ -221,23 +275,25 @@ function ObjectiveDetailBody({
             title="Timeline"
             subtitle="Cycle duration"
           >
-            <ol className="flex h-full min-h-[7.5rem] flex-col">
-              <TimelinePoint label="Start date" value={formatDate(objective.startDate)} connector />
+            <ol className={cn("flex flex-col", isOrg ? "min-h-0 flex-row gap-8" : "h-full min-h-[7.5rem]")}>
+              <TimelinePoint label="Start date" value={formatDate(objective.startDate)} connector={!isOrg} />
               <TimelinePoint label="End date" value={formatDate(objective.endDate)} />
             </ol>
           </Card>
 
-          {/* Plan weight — the share this objective holds, read as a single gauge. */}
-          <Card
-            icon={<PieChart className="size-5" aria-hidden />}
-            iconTint="bg-muted text-muted-foreground ring-border"
-            title="Plan weight"
-            subtitle="Share of overall plan"
-          >
-            <div className="flex items-center justify-center pt-1">
-              <WeightDonut value={weight} />
-            </div>
-          </Card>
+          {/* Plan weight — the share this objective holds, read as a single gauge (plan objectives only). */}
+          {isOrg ? null : (
+            <Card
+              icon={<PieChart className="size-5" aria-hidden />}
+              iconTint="bg-muted text-muted-foreground ring-border"
+              title="Plan weight"
+              subtitle="Share of overall plan"
+            >
+              <div className="flex items-center justify-center pt-1">
+                <WeightDonut value={weight} />
+              </div>
+            </Card>
+          )}
         </div>
 
         {cycleId ? (
@@ -259,7 +315,17 @@ function ObjectiveDetailBody({
 }
 
 /** The shared drawer header — number chip, title, and the objective's kind, mirroring the ledger row. */
-function DrawerHeader({ objective, index }: { objective: PlanObjectiveDto; index: number }) {
+function DrawerHeader({
+  objective,
+  index,
+  variant,
+  kindLabel,
+}: {
+  objective: PlanObjectiveDto;
+  index: number;
+  variant: ObjectiveDetailVariant;
+  kindLabel?: string;
+}) {
   return (
     <div className="border-b border-border px-5 pb-4 pt-5 pr-12">
       <div className="flex items-start gap-3.5">
@@ -269,7 +335,12 @@ function DrawerHeader({ objective, index }: { objective: PlanObjectiveDto; index
         <div className="min-w-0">
           <SheetTitle className="text-[0.95rem] leading-snug tracking-tight">{objective.title}</SheetTitle>
           <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs">
-            {objective.isAligned ? (
+            {variant === "organizational" ? (
+              <span className="inline-flex items-center gap-1.5 font-medium text-primary">
+                <Target className="size-3 shrink-0" aria-hidden />
+                {kindLabel ?? "Organizational objective"}
+              </span>
+            ) : objective.isAligned ? (
               <span className="inline-flex items-center gap-1.5 font-medium text-primary">
                 <Target className="size-3 shrink-0" aria-hidden />
                 Aligned objective
@@ -314,7 +385,7 @@ function RecordProgressBody({
 
   return (
     <>
-      <DrawerHeader objective={objective} index={index} />
+      <DrawerHeader objective={objective} index={index} variant="plan" />
       <SheetDescription className="sr-only">Record progress for the objective {objective.title}.</SheetDescription>
 
       {/* Only the content scrolls; the footer stays pinned to the drawer's base regardless of content height. */}
