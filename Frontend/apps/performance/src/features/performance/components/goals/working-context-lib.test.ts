@@ -24,6 +24,9 @@ function node(partial: Partial<GoalNodeDto> & Pick<GoalNodeDto, "id" | "ownershi
     childCount: partial.childCount ?? 0,
     contributorCount: partial.contributorCount ?? 0,
     contributionToParent: partial.contributionToParent ?? null,
+    publishedAt: partial.publishedAt ?? null,
+    createdAt: partial.createdAt ?? "2026-01-01T00:00:00Z",
+    updatedAt: partial.updatedAt ?? null,
   };
 }
 

@@ -19,6 +19,7 @@ namespace EY.HRPlatform.Performance.Features.Plans;
 public sealed record GetMyPlanQuery(Guid CycleId, PlanActorContext Actor) : IQuery<Result<MyPlanStateDto>>;
 public sealed record GetAlignmentTargetsQuery(Guid CycleId, PlanActorContext Actor) : IQuery<Result<IReadOnlyList<AlignmentTargetDto>>>;
 public sealed record GetPlanReviewsQuery(Guid CycleId, PlanActorContext Actor) : IQuery<Result<PlanReviewListDto>>;
+public sealed record GetTeamRosterQuery(Guid CycleId, PlanActorContext Actor) : IQuery<Result<TeamRosterDto>>;
 public sealed record GetPlanForReviewQuery(Guid CycleId, Guid PlanId, PlanActorContext Actor) : IQuery<Result<EmployeePlanDto>>;
 
 // ── Commands ───────────────────────────────────────────────────────────────────
@@ -150,6 +151,49 @@ public sealed class GetPlanReviewsHandler(PerformanceDbContext db, ICoreWorkforc
             .ToList();
 
         return Result.Success(new PlanReviewListDto(cycle.Id, cycle.Name, summaries.Count, summaries));
+    }
+}
+
+public sealed class GetTeamRosterHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
+    : PlanHandlerBase(db, workforce, tenant), IQueryHandler<GetTeamRosterQuery, Result<TeamRosterDto>>
+{
+    public async Task<Result<TeamRosterDto>> Handle(GetTeamRosterQuery request, CancellationToken cancellationToken)
+    {
+        var cycle = await Db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
+        if (cycle is null) return Result.Failure<TeamRosterDto>(Error.NotFound("Cycle", request.CycleId));
+
+        // Roster membership: a manager sees the participants who report to them; an administrator sees the
+        // whole confirmed roster. This is the manager/report relationship only — decision authority is
+        // resolved per plan and is deliberately not implied by membership.
+        var participantsQuery = Db.Participants.AsNoTracking().Where(p => p.CycleId == cycle.Id);
+        if (!request.Actor.IsAdmin)
+            participantsQuery = participantsQuery.Where(p => p.ManagerEmployeeId == request.Actor.CallerEmployeeId);
+        var participants = await participantsQuery.ToListAsync(cancellationToken);
+
+        var plans = await Db.EmployeePlans.AsNoTracking().Include(p => p.Decisions)
+            .Where(p => p.CycleId == cycle.Id)
+            .ToListAsync(cancellationToken);
+        var planByEmployee = plans
+            .GroupBy(p => p.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var graph = await GoalsComposer.LoadGraphAsync(Db, Workforce, cycle, cancellationToken);
+        var cycleOpen = !cycle.IsClosed;
+
+        var members = participants
+            .Select(p => PlansComposer.ToRosterMember(
+                p, planByEmployee.GetValueOrDefault(p.EmployeeId), graph, request.Actor, cycleOpen))
+            .OrderBy(m => m.EmployeeName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var needsReview = members.Count(m => m.CanReview);
+        var planning = members.Count(m =>
+            m.Status is RosterPlanStatus.NotStarted or RosterPlanStatus.Draft or RosterPlanStatus.ReturnedForChanges);
+        var approved = members.Count(m => m.Status == RosterPlanStatus.Approved);
+        var noProgress = members.Count(m => m.Status == RosterPlanStatus.Approved && !m.HasProgress);
+
+        return Result.Success(new TeamRosterDto(
+            cycle.Id, cycle.Name, members.Count, needsReview, planning, approved, noProgress, members));
     }
 }
 

@@ -12,6 +12,8 @@ export type ObjectiveProgressSource = "Direct" | "Calculated";
 export type PlanLifecycleState = "Draft" | "Submitted" | "Approved";
 export type PlanApprovalKind = "Normal" | "Exceptional";
 export type PlanDecisionKind = "Submitted" | "Returned" | "Approved" | "ApprovedExceptionally";
+export type RosterPlanStatus = "NotStarted" | "Draft" | "ReturnedForChanges" | "Submitted" | "Approved";
+export type RosterActivityKind = "None" | "DraftUpdated" | "Returned" | "Submitted" | "ProgressUpdated";
 export type ProgressEventKind = "PercentageSet" | "NumericActual" | "MilestoneCompleted" | "MilestoneReopened";
 export type EvidenceKind = "File" | "Link" | "Reference";
 export type ReadinessIssueCode = "InactiveEmployment" | "NoPrimaryAssignment" | "MissingManager";
@@ -190,6 +192,12 @@ export interface GoalNodeDto {
   childCount: number;
   contributorCount: number;
   contributionToParent: number | null;
+  /** When this objective was published as direction; null while it is still a Draft. */
+  publishedAt: string | null;
+  /** When the objective was created. */
+  createdAt: string;
+  /** When the objective was last edited; null if never edited since creation. */
+  updatedAt: string | null;
 }
 
 export interface GoalsOverviewDto {
@@ -372,6 +380,38 @@ export interface PlanReviewListDto {
   cycleName: string;
   awaitingDecisionCount: number;
   plans: PlanReviewSummaryDto[];
+}
+
+export interface TeamRosterMemberDto {
+  employeeId: string;
+  employeeName: string | null;
+  jobTitle: string | null;
+  orgUnitName: string | null;
+  planId: string | null;
+  status: RosterPlanStatus;
+  objectiveCount: number;
+  weightTotal: number;
+  /** Objectives that have reported progress — meaningful once the plan is Approved. */
+  updatedCount: number;
+  hasProgress: boolean;
+  planProgress: number;
+  activityKind: RosterActivityKind;
+  activityAt: string | null;
+  /** The strong "Review plan" action: a Submitted plan the caller may actually decide. */
+  canReview: boolean;
+  /** The quiet inspection action: an existing plan the caller may open. */
+  canView: boolean;
+}
+
+export interface TeamRosterDto {
+  cycleId: string;
+  cycleName: string;
+  totalPeople: number;
+  needsReviewCount: number;
+  planningCount: number;
+  approvedCount: number;
+  noProgressCount: number;
+  members: TeamRosterMemberDto[];
 }
 
 export interface AddPlanObjectiveRequest {
@@ -608,6 +648,7 @@ export const performancePaths = {
   planWeights: (cycleId: string) => `/performance/cycles/${cycleId}/plan/weights`,
   submitPlan: (cycleId: string) => `/performance/cycles/${cycleId}/plan/submit`,
   planReviews: (cycleId: string) => `/performance/cycles/${cycleId}/plans/reviews`,
+  teamRoster: (cycleId: string) => `/performance/cycles/${cycleId}/plans/roster`,
   planDetail: (cycleId: string, planId: string) => `/performance/cycles/${cycleId}/plans/${planId}`,
   returnPlan: (cycleId: string, planId: string) => `/performance/cycles/${cycleId}/plans/${planId}/return`,
   approvePlan: (cycleId: string, planId: string) => `/performance/cycles/${cycleId}/plans/${planId}/approve`,
@@ -639,6 +680,7 @@ export const performanceQueryKeys = {
   myPlan: (cycleId: string) => [...performanceQueryKeys.all(), "my-plan", cycleId] as const,
   alignmentTargets: (cycleId: string) => [...performanceQueryKeys.all(), "alignment-targets", cycleId] as const,
   planReviews: (cycleId: string) => [...performanceQueryKeys.all(), "plan-reviews", cycleId] as const,
+  teamRoster: (cycleId: string) => [...performanceQueryKeys.all(), "team-roster", cycleId] as const,
   planDetail: (cycleId: string, planId: string) =>
     [...performanceQueryKeys.all(), "plan", cycleId, planId] as const,
   objectiveProgress: (cycleId: string, objectiveId: string) =>
@@ -729,6 +771,8 @@ export function createPerformanceApi(client: ApiClient) {
       client.post<EmployeePlanDto>(performancePaths.submitPlan(cycleId), {}),
     getPlanReviews: (cycleId: string, signal?: AbortSignal) =>
       client.get<PlanReviewListDto>(performancePaths.planReviews(cycleId), { signal }),
+    getTeamRoster: (cycleId: string, signal?: AbortSignal) =>
+      client.get<TeamRosterDto>(performancePaths.teamRoster(cycleId), { signal }),
     getPlanDetail: (cycleId: string, planId: string, signal?: AbortSignal) =>
       client.get<EmployeePlanDto>(performancePaths.planDetail(cycleId, planId), { signal }),
     returnPlan: (cycleId: string, planId: string, request: ReturnPlanRequest) =>

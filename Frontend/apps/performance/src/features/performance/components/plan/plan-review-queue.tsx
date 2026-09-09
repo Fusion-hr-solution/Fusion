@@ -15,10 +15,7 @@ import { initials, pct } from "./plan-lib";
 export function PlanReviewQueue({ plans }: { plans: PlanReviewSummaryDto[] }) {
   if (plans.length === 0) {
     return (
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Inbox className="size-4" aria-hidden />
-        Submitted plans appear here when your reports send them for review.
-      </p>
+      <p className="flex items-center gap-2 text-sm text-muted-foreground"></p>
     );
   }
 
@@ -32,16 +29,26 @@ export function PlanReviewQueue({ plans }: { plans: PlanReviewSummaryDto[] }) {
             className="group flex w-full items-center gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:bg-muted/40"
           >
             <Avatar className="size-10">
-              <AvatarFallback className="text-xs">{initials(plan.employee.name)}</AvatarFallback>
+              <AvatarFallback className="text-xs">
+                {initials(plan.employee.name)}
+              </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-foreground">{plan.employee.name ?? "Employee"}</p>
+              <p className="truncate font-medium text-foreground">
+                {plan.employee.name ?? "Employee"}
+              </p>
               <p className="truncate text-xs text-muted-foreground">
                 {plan.orgUnitName ?? "No organizational unit"}
                 <span aria-hidden> · </span>
-                {plan.objectiveCount} objective{plan.objectiveCount === 1 ? "" : "s"}
+                {plan.objectiveCount} objective
+                {plan.objectiveCount === 1 ? "" : "s"}
                 <span aria-hidden> · </span>
-                <span className={cn("tabular-nums", plan.weightTotal === 100 ? "" : "text-warning")}>
+                <span
+                  className={cn(
+                    "tabular-nums",
+                    plan.weightTotal === 100 ? "" : "text-warning"
+                  )}
+                >
                   {pct(plan.weightTotal)}% weight
                 </span>
               </p>
@@ -49,12 +56,18 @@ export function PlanReviewQueue({ plans }: { plans: PlanReviewSummaryDto[] }) {
             {plan.submittedAt ? (
               <span className="hidden shrink-0 text-xs text-muted-foreground sm:block">
                 Submitted{" "}
-                {new Date(plan.submittedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}
+                {new Date(plan.submittedAt).toLocaleDateString(undefined, {
+                  day: "numeric",
+                  month: "short",
+                })}
               </span>
             ) : null}
             <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary">
               Review
-              <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+              <ChevronRight
+                className="size-4 transition-transform group-hover:translate-x-0.5"
+                aria-hidden
+              />
             </span>
           </Link>
         ))}

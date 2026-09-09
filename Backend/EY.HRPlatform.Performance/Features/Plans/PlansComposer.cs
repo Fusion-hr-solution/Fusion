@@ -1,6 +1,7 @@
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
+using EY.HRPlatform.Performance.Domain.Population;
 using EY.HRPlatform.Performance.Features.Goals;
 using EY.HRPlatform.Performance.Features.Progress;
 using EY.HRPlatform.Performance.Infrastructure.Core;
@@ -173,6 +174,81 @@ public static class PlansComposer
             objectives.Count(o => !o.IsAligned),
             plan.SubmittedAt);
     }
+
+    /// <summary>
+    /// One people-roster row: a Cycle participant enriched with their plan's real lifecycle, execution
+    /// facts, latest activity, and the caller's actual action authority. A participant with no plan reads
+    /// as Not started (never a fabricated Draft); a returned Draft is distinguished from a fresh Draft by
+    /// the plan's most recent decision. Decision authority (<c>CanReview</c>) is the responsible-manager
+    /// relationship, never the mere fact of roster membership.
+    /// </summary>
+    public static TeamRosterMemberDto ToRosterMember(
+        Participant participant, EmployeePlan? plan, GoalsComposer.Graph graph, PlanActorContext actor, bool cycleOpen)
+    {
+        if (plan is null)
+            return new TeamRosterMemberDto(
+                participant.EmployeeId, participant.DisplayName, participant.JobTitle, participant.OrgUnitName,
+                PlanId: null, RosterPlanStatus.NotStarted,
+                ObjectiveCount: 0, WeightTotal: 0m, UpdatedCount: 0, HasProgress: false, PlanProgress: 0m,
+                RosterActivityKind.None, ActivityAt: null, CanReview: false, CanView: false);
+
+        var objectives = graph.All.Where(o => o.EmployeePlanId == plan.Id).ToList();
+        var updatedCount = objectives.Count(o => o.HasProgress);
+        var hasProgress = updatedCount > 0;
+
+        // A returned plan is back in Draft; the most recent decision being a return tells the manager the
+        // employee now owns the next step, which reads differently from a plan never yet submitted.
+        var isReturnedDraft = plan.State == PlanLifecycleState.Draft
+            && plan.Decisions.OrderBy(d => d.DecidedAt).LastOrDefault()?.Kind == PlanDecisionKind.Returned;
+        var status = plan.State switch
+        {
+            PlanLifecycleState.Approved => RosterPlanStatus.Approved,
+            PlanLifecycleState.Submitted => RosterPlanStatus.Submitted,
+            _ => isReturnedDraft ? RosterPlanStatus.ReturnedForChanges : RosterPlanStatus.Draft,
+        };
+
+        var (activityKind, activityAt) = ResolveRosterActivity(plan, objectives, status, hasProgress);
+
+        var isResponsibleManager = actor.CanReviewReports
+            && plan.ResponsibleManagerId is not null
+            && plan.ResponsibleManagerId == actor.CallerEmployeeId;
+        var canReview = cycleOpen && plan.State == PlanLifecycleState.Submitted && (isResponsibleManager || actor.IsAdmin);
+        // A manager can inspect a plan only once it has been put forward — Submitted, Approved, or returned
+        // for changes (a Draft that carries decision history). A never-submitted Draft is the employee's
+        // private workspace: there is nothing for the manager to review yet, and the canonical review
+        // surface only speaks the submitted/returned/approved states, so exposing it there would mislabel it.
+        var hasBeenPutForward = plan.State != PlanLifecycleState.Draft || plan.Decisions.Count > 0;
+        var canView = hasBeenPutForward && (actor.IsAdmin || isResponsibleManager || plan.EmployeeId == actor.CallerEmployeeId);
+
+        return new TeamRosterMemberDto(
+            participant.EmployeeId, participant.DisplayName, participant.JobTitle, participant.OrgUnitName,
+            plan.Id, status,
+            objectives.Count, objectives.Sum(o => o.PlanWeight ?? 0m), updatedCount, hasProgress,
+            ProgressCalc.PlanProgress(objectives),
+            activityKind, activityAt, canReview, canView);
+    }
+
+    /// <summary>
+    /// The single most-recent meaningful event for the roster's "Latest activity" column, kept as the
+    /// distinct concept it is (a submission date is not a progress-update date). An approved plan's
+    /// activity is its execution — approval itself is the baseline, so an approved plan not yet reporting
+    /// has no activity to show rather than a misleading approval timestamp.
+    /// </summary>
+    private static (RosterActivityKind Kind, DateTime? At) ResolveRosterActivity(
+        EmployeePlan plan, IReadOnlyList<Objective> objectives, RosterPlanStatus status, bool hasProgress)
+        => status switch
+        {
+            RosterPlanStatus.Submitted => (RosterActivityKind.Submitted, plan.SubmittedAt),
+            RosterPlanStatus.ReturnedForChanges => (RosterActivityKind.Returned, plan.Decisions
+                .Where(d => d.Kind == PlanDecisionKind.Returned)
+                .OrderBy(d => d.DecidedAt)
+                .Select(d => (DateTime?)d.DecidedAt)
+                .LastOrDefault()),
+            RosterPlanStatus.Approved => hasProgress
+                ? (RosterActivityKind.ProgressUpdated, objectives.Where(o => o.LastProgressAt is not null).Max(o => o.LastProgressAt))
+                : (RosterActivityKind.None, null),
+            _ => (RosterActivityKind.DraftUpdated, plan.UpdatedAt ?? plan.CreatedAt),
+        };
 
     // ── Authorization helpers ────────────────────────────────────────────────
 

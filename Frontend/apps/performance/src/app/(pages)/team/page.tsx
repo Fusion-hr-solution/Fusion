@@ -1,11 +1,12 @@
 "use client";
 
-import { PageContainer, PageError, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
+import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
-import { PlanReviewQueue } from "@/features/performance/components/plan/plan-review-queue";
-import { usePerformanceAccess, useCurrentCycle, usePlanReviews } from "@/features/performance/api/use-performance";
+import { TeamDirection } from "@/features/performance/components/team/team-direction";
+import { YourPeople } from "@/features/performance/components/team/your-people";
+import { usePerformanceAccess, useCurrentCycle, useTeamRoster } from "@/features/performance/api/use-performance";
 
 export default function TeamPerformancePage() {
   const access = usePerformanceAccess();
@@ -13,10 +14,14 @@ export default function TeamPerformancePage() {
   const scope = access.data?.aggregateViewScope ?? null;
   const canReview =
     (access.data?.canAdminister ?? false) || scope === "DirectReports" || scope === "OrgUnit" || scope === "Tenant";
+  // Organization Goals gate, mirrored from that surface, so the section-level link is offered only to
+  // actors who can legitimately open it.
+  const canViewOrgGoals =
+    canReview || (access.data?.canPublishStrategy ?? false) || (access.data?.canManageOrgObjectives ?? false);
 
   const detail = useCurrentCycle(canEnter);
   const cycle = detail.data?.cycle ?? null;
-  const reviews = usePlanReviews(cycle?.id ?? null, canReview);
+  const roster = useTeamRoster(cycle?.id ?? null, canReview);
 
   if (access.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
   if (!canReview) {
@@ -37,28 +42,23 @@ export default function TeamPerformancePage() {
     );
   }
 
-  const count = reviews.data?.awaitingDecisionCount ?? 0;
+  const count = roster.data?.needsReviewCount ?? 0;
 
   return (
-    <PageContainer>
+    <PageContainer width="wide">
       <CycleContextBar cycle={cycle} />
       <PerformancePageHeading
         title="Team Performance"
         description={
-          reviews.isLoading
+          roster.isLoading || !roster.data
             ? undefined
             : count === 0
               ? "No plans are waiting on you right now."
               : `${count} plan${count === 1 ? "" : "s"} need${count === 1 ? "s" : ""} your decision.`
         }
       />
-      {reviews.isLoading ? (
-        <PageSkeleton rows={3} label="Loading team" />
-      ) : reviews.error || !reviews.data ? (
-        <PageError title="Team unavailable" description={reviews.error?.message} onRetry={reviews.refetch} />
-      ) : (
-        <PlanReviewQueue plans={reviews.data.plans} />
-      )}
+      <TeamDirection cycle={cycle} canViewOrgGoals={canViewOrgGoals} />
+      <YourPeople roster={roster} />
     </PageContainer>
   );
 }

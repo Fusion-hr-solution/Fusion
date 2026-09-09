@@ -153,7 +153,10 @@ public static class GoalsComposer
             objective.ContributionWeightTotal,
             childCount,
             objective.ContributionLinks.Count,
-            contributionToParent);
+            contributionToParent,
+            objective.PublishedAt,
+            objective.CreatedAt,
+            objective.UpdatedAt);
     }
 
     // ── Authorization helpers ────────────────────────────────────────────────

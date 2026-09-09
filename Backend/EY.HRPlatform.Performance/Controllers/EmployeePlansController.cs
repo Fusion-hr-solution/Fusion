@@ -97,6 +97,13 @@ public sealed class EmployeePlansController(IMediator mediator, IPerformanceAcce
         return MapResult(await mediator.Send(new GetPlanReviewsQuery(cycleId, Actor), cancellationToken));
     }
 
+    [HttpGet("plans/roster")]
+    public async Task<ActionResult<ApiResponse<TeamRosterDto>>> Roster(Guid cycleId, CancellationToken cancellationToken)
+    {
+        if (!policy.CanReviewDirectReports(User) && !policy.CanAdministerCycles(User)) return Forbid();
+        return MapResult(await mediator.Send(new GetTeamRosterQuery(cycleId, Actor), cancellationToken));
+    }
+
     [HttpGet("plans/{planId:guid}")]
     public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> PlanDetail(Guid cycleId, Guid planId, CancellationToken cancellationToken)
     {

@@ -215,6 +215,16 @@ export function usePlanReviews(cycleId: string | null, enabled = true) {
   );
 }
 
+/** The manager's people roster for a Cycle — every report enriched with real plan lifecycle + progress. */
+export function useTeamRoster(cycleId: string | null, enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.teamRoster(cycleId ?? "none"),
+    (signal) => performance.getTeamRoster(cycleId as string, signal),
+    { enabled: Boolean(cycleId) && enabled }
+  );
+}
+
 export function usePlanDetail(cycleId: string | null, planId: string | null) {
   const { performance } = useApis();
   return useApiQuery(

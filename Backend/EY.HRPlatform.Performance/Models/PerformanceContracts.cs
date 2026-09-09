@@ -197,7 +197,12 @@ public sealed record GoalNodeDto(
     int ChildCount,
     int ContributorCount,
     // This node's contribution weight to its parent, if the parent counts it as a contributor.
-    decimal? ContributionToParent);
+    decimal? ContributionToParent,
+    // When this objective was published as direction; null while it is still a Draft.
+    DateTime? PublishedAt,
+    // Creation and last-edit timestamps — used to show a Draft's "saved" date.
+    DateTime CreatedAt,
+    DateTime? UpdatedAt);
 
 /// <summary>The whole cycle's objective graph plus operational counts for the Goals area.</summary>
 public sealed record GoalsOverviewDto(
@@ -381,6 +386,77 @@ public sealed record PlanReviewListDto(
     string CycleName,
     int AwaitingDecisionCount,
     IReadOnlyList<PlanReviewSummaryDto> Plans);
+
+/// <summary>
+/// The lifecycle position of a roster member's plan as the manager reads it. Combines the plan
+/// aggregate's lifecycle with two presentation distinctions the roster needs: a participant with no
+/// plan yet (<see cref="NotStarted"/>), and a Draft whose most recent decision was a return, which the
+/// employee now owns again (<see cref="ReturnedForChanges"/>). Never a fabricated status — each is
+/// derived from real plan state.
+/// </summary>
+public enum RosterPlanStatus
+{
+    NotStarted = 0,
+    Draft = 1,
+    ReturnedForChanges = 2,
+    Submitted = 3,
+    Approved = 4,
+}
+
+/// <summary>
+/// The kind of the single most-recent meaningful event on a roster member's plan, so the manager reads
+/// a submission date and a progress-update date as the distinct concepts they are. <see cref="None"/>
+/// covers a member with no reportable activity (no plan, or an approved plan not yet reporting progress).
+/// </summary>
+public enum RosterActivityKind
+{
+    None = 0,
+    DraftUpdated = 1,
+    Returned = 2,
+    Submitted = 3,
+    ProgressUpdated = 4,
+}
+
+/// <summary>
+/// One row of the manager's people roster for a Cycle — a participant enriched with their plan's real
+/// lifecycle, execution facts, latest activity, and the caller's actual action authority. Roster
+/// membership (the manager/report relationship) is deliberately distinct from decision authority
+/// (<see cref="CanReview"/>): being a report does not by itself grant plan-decision capability.
+/// </summary>
+public sealed record TeamRosterMemberDto(
+    Guid EmployeeId,
+    string? EmployeeName,
+    string? JobTitle,
+    string? OrgUnitName,
+    Guid? PlanId,
+    RosterPlanStatus Status,
+    int ObjectiveCount,
+    decimal WeightTotal,
+    // Objectives that have reported progress — meaningful once the plan is Approved.
+    int UpdatedCount,
+    bool HasProgress,
+    decimal PlanProgress,
+    RosterActivityKind ActivityKind,
+    DateTime? ActivityAt,
+    // CanReview: the strong "Review plan" action — a Submitted plan the caller may actually decide.
+    bool CanReview,
+    // CanView: the quiet inspection action — an existing plan the caller may open.
+    bool CanView);
+
+/// <summary>
+/// The manager's people roster with lifecycle summary counts. Counts are computed from real membership
+/// (never inferred health or roll-ups): people who need the caller's review, people still planning
+/// (not started / draft / returned), approved people, and approved people not yet reporting progress.
+/// </summary>
+public sealed record TeamRosterDto(
+    Guid CycleId,
+    string CycleName,
+    int TotalPeople,
+    int NeedsReviewCount,
+    int PlanningCount,
+    int ApprovedCount,
+    int NoProgressCount,
+    IReadOnlyList<TeamRosterMemberDto> Members);
 
 public sealed record AddPlanObjectiveRequest(
     string Title,
