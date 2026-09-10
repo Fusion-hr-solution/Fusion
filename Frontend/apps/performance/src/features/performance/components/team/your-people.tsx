@@ -282,20 +282,19 @@ export function YourPeople({
           </div>
         </>
       )}
-
-      <AddPeopleCallout />
     </section>
   );
 }
 
 /**
  * Membership is owned by the organization, not the cycle — a manager who is missing someone can't add
- * them here, so this points them to where it is actually done rather than dead-ending. Plain anchor: the
- * Organization area lives in a different MFE, so the link must escape this app's basePath through the shell.
+ * them here, so this points them to where it is actually done rather than dead-ending. It sits outside the
+ * roster section as a page-level footer. Plain anchor: the Organization area lives in a different MFE, so
+ * the link must escape this app's basePath through the shell.
  */
-function AddPeopleCallout() {
+export function AddPeopleCallout() {
   return (
-    <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4">
+    <div className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4">
       <Lightbulb className="size-5 shrink-0 text-primary" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground">Need to add someone to your team?</p>

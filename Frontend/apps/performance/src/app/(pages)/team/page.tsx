@@ -5,7 +5,7 @@ import { ContentUnavailable } from "@/features/performance/components/content-un
 import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { TeamDirection } from "@/features/performance/components/team/team-direction";
-import { YourPeople } from "@/features/performance/components/team/your-people";
+import { AddPeopleCallout, YourPeople } from "@/features/performance/components/team/your-people";
 import { usePerformanceAccess, useCurrentCycle, useTeamRoster } from "@/features/performance/api/use-performance";
 
 export default function TeamPerformancePage() {
@@ -59,6 +59,7 @@ export default function TeamPerformancePage() {
       />
       <TeamDirection cycle={cycle} canViewOrgGoals={canViewOrgGoals} />
       <YourPeople roster={roster} />
+      <AddPeopleCallout />
     </PageContainer>
   );
 }
