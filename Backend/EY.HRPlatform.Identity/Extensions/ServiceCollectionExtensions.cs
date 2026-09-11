@@ -143,6 +143,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICustomerContextResolver, CustomerContextResolver>();
         services.AddScoped<ITenantProvisioningService, TenantProvisioningService>();
         services.AddScoped<IBootstrapInvitationRecoveryService, BootstrapInvitationRecoveryService>();
+        services.AddScoped<ITenantLifecycleService, TenantLifecycleService>();
+        services.AddScoped<ITenantProfileService, TenantProfileService>();
         services.AddScoped<ITenantDetailProjection, TenantDetailProjection>();
         services.AddScoped<ITenantOverviewProjection, TenantOverviewProjection>();
         services.AddScoped<ITenantActivityProjection, TenantActivityProjection>();

@@ -20,6 +20,8 @@ namespace EY.HRPlatform.Identity.Controllers;
 public sealed class PlatformTenantsController(
     ITenantProvisioningService provisioning,
     IBootstrapInvitationRecoveryService recovery,
+    ITenantLifecycleService lifecycle,
+    ITenantProfileService profile,
     ITenantDetailProjection tenantDetail,
     ITenantOverviewProjection tenantOverview,
     ITenantActivityProjection tenantActivity) : ControllerBase
@@ -139,6 +141,68 @@ public sealed class PlatformTenantsController(
             : Ok(ApiResponse<TenantDetailDto>.Success(detail));
     }
 
+    /// <summary>
+    /// Tenant lifecycle: deactivate (remove customer access) or reactivate.
+    /// Both preserve tenant data; deactivation is reversible.
+    /// </summary>
+    [HttpPost("{tenantId:guid}/deactivate")]
+    public Task<ActionResult<ApiResponse<object?>>> Deactivate(Guid tenantId, CancellationToken ct = default)
+        => RunLifecycleAsync(() => lifecycle.DeactivateAsync(tenantId, User.GetUserId(), ct));
+
+    [HttpPost("{tenantId:guid}/reactivate")]
+    public Task<ActionResult<ApiResponse<object?>>> Reactivate(Guid tenantId, CancellationToken ct = default)
+        => RunLifecycleAsync(() => lifecycle.ReactivateAsync(tenantId, User.GetUserId(), ct));
+
+    /// <summary>
+    /// Renames the tenant's organization display name. The tenant key and other
+    /// immutable provisioning facts are unaffected.
+    /// </summary>
+    [HttpPost("{tenantId:guid}/rename")]
+    public async Task<ActionResult<ApiResponse<object?>>> Rename(
+        Guid tenantId,
+        [FromBody] RenameTenantRequest request,
+        CancellationToken ct = default)
+    {
+        var result = await profile.RenameAsync(tenantId, request.Name, User.GetUserId(), ct);
+
+        if (result.IsSuccess)
+        {
+            return new OkObjectResult(ApiResponse<object?>.Success(null));
+        }
+
+        var failure = ApiResponse<object?>.Failure(
+            result.Error.Message, new FailureCode(result.Error.Code));
+
+        return result.Error.Code switch
+        {
+            "tenant.not_found" => new NotFoundObjectResult(failure),
+            "tenant.invalid_name" => new BadRequestObjectResult(failure),
+            _ => new BadRequestObjectResult(failure),
+        };
+    }
+
+    private static async Task<ActionResult<ApiResponse<object?>>> RunLifecycleAsync(
+        Func<Task<SharedKernel.Results.Result>> action)
+    {
+        var result = await action();
+
+        if (result.IsSuccess)
+        {
+            return new OkObjectResult(ApiResponse<object?>.Success(null));
+        }
+
+        var failure = ApiResponse<object?>.Failure(
+            result.Error.Message, new FailureCode(result.Error.Code));
+
+        return result.Error.Code switch
+        {
+            "tenant.not_found" => new NotFoundObjectResult(failure),
+            // Already in the requested state: the caller refreshes to the truth.
+            "tenant.invalid_lifecycle_state" => new ConflictObjectResult(failure),
+            _ => new BadRequestObjectResult(failure),
+        };
+    }
+
     [HttpPost("{tenantId:guid}/bootstrap-invitation/{invitationId:guid}/resend")]
     public Task<ActionResult<ApiResponse<Guid>>> Resend(Guid tenantId, Guid invitationId, CancellationToken ct = default)
         => RunRecoveryAsync(() => recovery.ResendAsync(tenantId, invitationId, User.GetUserId(), ct));
@@ -186,6 +250,11 @@ public sealed class PlatformTenantsController(
 public sealed record ReplaceAdministratorRequest
 {
     public string Email { get; init; } = string.Empty;
+}
+
+public sealed record RenameTenantRequest
+{
+    public string Name { get; init; } = string.Empty;
 }
 
 /// <summary>

@@ -9,6 +9,14 @@ public sealed record TenantDetailDto
     public Guid TenantId { get; init; }
     public string Name { get; init; } = string.Empty;
     public string Slug { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Tenant lifecycle: true while customers may access the tenant, false once
+    /// Platform has deactivated it. Distinct from administrator activation — a
+    /// tenant is active from creation regardless of whether its administrator has
+    /// yet accepted control.
+    /// </summary>
+    public bool IsActive { get; init; }
     public string AdministratorActivationStatus { get; init; } = string.Empty;
     public string Locale { get; init; } = string.Empty;
     public string TimeZone { get; init; } = string.Empty;
@@ -178,6 +186,7 @@ public sealed class TenantDetailProjection(AppIdentityDbContext dbContext) : ITe
             TenantId = tenant.Id,
             Name = tenant.Name,
             Slug = tenant.Slug,
+            IsActive = tenant.IsActive,
             AdministratorActivationStatus = tenant.AdministratorActivationStatus.ToString(),
             Locale = tenant.Locale,
             TimeZone = tenant.TimeZone,
