@@ -9,8 +9,18 @@ import {
 function draft(overrides: Partial<ProvisioningDraft> = {}): ProvisioningDraft {
   return {
     name: "Acme Tunisia",
+    tenantSlug: "acme-tunisia",
+    legalEntityName: "",
+    internalReferenceCode: "",
+    shortDescription: "",
     timeZone: "Africa/Tunis",
     locale: "en-US",
+    country: "TN",
+    dateFormat: "DD/MM/YYYY",
+    firstName: "John",
+    lastName: "Doe",
+    adminRole: "tenant-hr-admin",
+    sendInvitation: true,
     selectedModuleKeys: [],
     administratorEmail: "admin@acme.tn",
     ...overrides,
@@ -34,6 +44,18 @@ describe("validateDraft", () => {
     expect(errors.name).toBeDefined();
     expect(errors.administratorEmail).toBeDefined();
     expect(errors.timeZone).toBeUndefined();
+  });
+
+  it("requires the administrator's first and last name", () => {
+    const errors = validateDraft(draft({ firstName: "  ", lastName: "" }));
+
+    expect(errors.firstName).toBeDefined();
+    expect(errors.lastName).toBeDefined();
+  });
+
+  it("requires a slug in a valid shape", () => {
+    expect(validateDraft(draft({ tenantSlug: "" })).tenantSlug).toBeDefined();
+    expect(validateDraft(draft({ tenantSlug: "Acme Corp" })).tenantSlug).toBeDefined();
   });
 });
 

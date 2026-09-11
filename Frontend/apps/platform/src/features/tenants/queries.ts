@@ -99,12 +99,14 @@ export function useTenantDetail(tenantId: string) {
 }
 
 export function useProvisionTenant(
-  onProvisioned: (tenantId: string) => void
+  onProvisioned: (tenantId: string) => void,
+  onFailed?: (error: Error) => void
 ) {
   return useApiMutation(
     (input: ProvisionTenantInput) => provisionTenant(input),
     {
       onSuccess: (result) => onProvisioned(result.tenantId),
+      onError: (error) => onFailed?.(error),
       invalidateQueries: [{ queryKey: tenantKeys.all }],
     }
   );

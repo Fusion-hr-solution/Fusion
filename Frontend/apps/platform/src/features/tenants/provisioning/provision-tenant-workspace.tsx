@@ -1,19 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  Blocks,
-  Building2,
-  Globe2,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@repo/ds/components/ui/button";
-import { Input } from "@repo/ds/components/ui/input";
-import { Label } from "@repo/ds/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,34 +15,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@repo/ds/components/ui/alert-dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@repo/ds/components/ui/popover";
-import { Separator } from "@repo/ds/components/ui/separator";
-import { cn } from "@repo/ds/lib/utils";
-import { AsyncButton, PageContainer } from "@repo/ds/shell";
-import { failureKind, failureMessage } from "../api";
+import { toast } from "sonner";
+import { PageContainer } from "@repo/ds/shell";
 import { useProvisionableModules, useProvisionTenant } from "../queries";
-import {
-  buildModuleOptions,
-  selectedModulesFor,
-  type ProvisioningModuleOption,
-} from "./module-catalogue";
-import { ModuleGrid } from "./module-grid";
+import { buildModuleOptions, selectedModulesFor } from "./module-catalogue";
 import {
   DEFAULT_LOCALE,
   DEFAULT_TIME_ZONE,
-  LOCALE_OPTIONS,
-  PLATFORM_DEFAULT_LOCALE,
-  labelForLocale,
-  labelForTimeZone,
   resolveInitialTimeZone,
-  timeZoneOffset,
-  timeZoneOptions,
 } from "./provisioning-options";
-import { SearchableSelect } from "./searchable-select";
+import {
+  DEFAULT_COUNTRY,
+  DEFAULT_DATE_FORMAT,
+} from "./regional-presentation-options";
+import { DEFAULT_ADMIN_ROLE } from "./admin-role-options";
+import { PROVISIONING_STEPS, ProvisioningStepper } from "./provision-stepper";
+import { StepNavigation } from "./step-navigation";
+import { OrganizationStep } from "./steps/organization-step";
+import { RegionProductsStep } from "./steps/region-products-step";
+import { InitialAdminStep } from "./steps/initial-admin-step";
+import { ReviewStep } from "./steps/review-step";
+import type { ProvisioningStepProps } from "./steps/types";
+import { failureMessage } from "../api";
 import {
   fieldForFailure,
   validateDraft,
@@ -59,24 +44,55 @@ import {
   type ProvisioningDraft,
 } from "./provisioning-form-state";
 
+/** The step rendered at each index, aligned with {@link PROVISIONING_STEPS}. */
+const STEP_COMPONENTS = [
+  OrganizationStep,
+  RegionProductsStep,
+  InitialAdminStep,
+  ReviewStep,
+] as const;
+
 /**
- * Provisioning a tenant, as one page.
+ * Which draft fields each step is responsible for. Continuing past a step
+ * requires its own fields to be valid; nothing further ahead is judged, and the
+ * final step owns no field of its own because it only confirms.
+ */
+const STEP_FIELDS: (keyof FieldErrors)[][] = [
+  ["name", "tenantSlug"],
+  ["timeZone", "locale"],
+  ["firstName", "lastName", "administratorEmail"],
+  [],
+];
+
+/**
+ * Provisioning a tenant, as a wizard.
  *
- * Everything the decision needs is visible at once and editable at any point:
- * there is no wizard, no step order, and no review page, because none of these
- * choices depends on an earlier one. The summary on the right restates the
- * commitment where it is made, so nothing has to be carried across a navigation.
- *
- * Success is a destination rather than a message — the tenant's own record is
- * the authoritative result, so the page navigates straight to it.
+ * The decision is broken into four steps in the order they are made. The
+ * workspace owns the whole draft, the validation, and the navigation; each step
+ * renders only its slice and reports edits back, so a step can be built or
+ * refined on its own. Success is a destination rather than a message — the
+ * tenant's own record is the authoritative result, so the page navigates
+ * straight to it.
  */
 export function ProvisionTenantWorkspace() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const [currentStep, setCurrentStep] = useState(0);
   const [draft, setDraft] = useState<ProvisioningDraft>({
     name: "",
+    tenantSlug: "",
+    legalEntityName: "",
+    internalReferenceCode: "",
+    shortDescription: "",
     timeZone: DEFAULT_TIME_ZONE,
     locale: DEFAULT_LOCALE,
+    country: DEFAULT_COUNTRY,
+    dateFormat: DEFAULT_DATE_FORMAT,
+    firstName: "",
+    lastName: "",
+    adminRole: DEFAULT_ADMIN_ROLE,
+    sendInvitation: true,
     selectedModuleKeys: [],
     administratorEmail: "",
   });
@@ -99,37 +115,45 @@ export function ProvisionTenantWorkspace() {
     [catalogue.data]
   );
 
-  // Several hundred zones, and their offsets do not move while the form is
-  // open, so the list is built once rather than on every keystroke.
-  const zoneOptions = useMemo(
-    () =>
-      timeZoneOptions().map((zone) => ({
-        value: zone.value,
-        label: zone.label,
-        detail: zone.offset,
-        keywords: zone.keywords,
-        group: zone.region,
-      })),
-    []
-  );
-
-  const localeOptions = useMemo(
-    () =>
-      LOCALE_OPTIONS.map((locale) => ({
-        value: locale.value,
-        label: locale.label,
-        // The code is shown beside the readable name, and searched for too.
-        detail: locale.value || undefined,
-        keywords: `${locale.keywords} ${locale.value}`,
-      })),
-    []
-  );
-
   const idempotencyKey = useIdempotencyKey(draft);
 
-  const provision = useProvisionTenant((tenantId) => {
-    router.push(`/tenants/${tenantId}`);
-  });
+  // Success is continuous: the request runs with the button in its pending
+  // state, then the operator lands on the tenant's own record with a toast
+  // confirming what happened — no interstitial dialog to dismiss.
+  const provision = useProvisionTenant(
+    (tenantId) => {
+      const invitee =
+        [draft.firstName.trim(), draft.lastName.trim()].filter(Boolean).join(" ") ||
+        draft.administratorEmail.trim();
+      toast.success("Tenant provisioned", {
+        description: `${draft.name.trim()} is ready.${
+          invitee ? ` ${invitee} has been invited as tenant administrator.` : ""
+        }`,
+      });
+      router.push(`/tenants/${tenantId}`);
+    },
+    // A refused submit is put back where it can be fixed: a failure the server
+    // ties to a field (a duplicate name, a rejected email) sets that field's
+    // error and returns the operator to the step that owns it, using the
+    // server's own message. Failures with no field (a reused key, an
+    // unreachable service) stay on Review, where the banner and toast explain
+    // that the outcome is unknown and a plain retry is safe.
+    (error) => {
+      const field = fieldForFailure(error);
+      if (field) {
+        const message =
+          failureMessage(error) ?? "This value was rejected. Adjust it and try again.";
+        setErrors((current) => ({ ...current, [field]: message }));
+        const step = STEP_FIELDS.findIndex((fields) => fields.includes(field));
+        if (step >= 0) setCurrentStep(step);
+        return;
+      }
+      toast.error("Tenant not provisioned", {
+        description:
+          "The request did not complete. Review the details below and try again.",
+      });
+    }
+  );
 
   const submissionFailure = provision.error;
   const submissionField = submissionFailure
@@ -144,7 +168,6 @@ export function ProvisionTenantWorkspace() {
   }, []);
 
   const isDirty = hasMeaningfulEdits(draft, defaultTimeZone.current);
-
   useUnsavedWorkGuard(isDirty && !provision.isLoading && !provision.data);
 
   // Returning to the directory should land on the list the operator left, not
@@ -159,12 +182,6 @@ export function ProvisionTenantWorkspace() {
     setErrors((current) => ({ ...current, [key]: undefined }));
   }
 
-  /**
-   * Checked when the operator leaves a field, so an ordinary mistake is
-   * answered as soon as they are finished with it rather than only when they
-   * try to commit. Only the field they left is judged — reporting errors on
-   * fields they have not reached yet would be scolding, not helping.
-   */
   function validateField(field: keyof FieldErrors) {
     const found = validateDraft(draft);
     setErrors((current) => ({ ...current, [field]: found[field] }));
@@ -179,19 +196,44 @@ export function ProvisionTenantWorkspace() {
     }));
   }
 
-  function submit(event: React.FormEvent) {
-    event.preventDefault();
+  const isLast = currentStep === PROVISIONING_STEPS.length - 1;
+  const isFirst = currentStep === 0;
 
-    // A second submission while the first is in flight would provision twice if
-    // the key were regenerated, so it is refused outright.
+  const found = validateDraft(draft);
+
+  // The catalogue is a provisioning dependency, not decoration: until it is
+  // read the page cannot say which modules the tenant would be entitled to, so
+  // committing would mean approving a summary that may not match the result.
+  const hasCatalogue = Boolean(catalogue.data);
+  const isReady = hasCatalogue && Object.keys(found).length === 0;
+
+  function goBack() {
+    setCurrentStep((step) => Math.max(0, step - 1));
+  }
+
+  /**
+   * The forward action. Advancing is never blocked — the operator can move
+   * through the steps in any order. Only the final commit holds out for a
+   * valid, fully-loaded draft, and if anything is invalid it returns to the
+   * step that owns the problem rather than failing silently.
+   */
+  function onPrimary() {
+    if (!isLast) {
+      setCurrentStep((step) => step + 1);
+      return;
+    }
+
     if (provision.isLoading) {
       return;
     }
 
-    const found = validateDraft(draft);
-    setErrors(found);
-    if (Object.keys(found).length > 0) {
-      focusFirstInvalid(found);
+    const nextErrors = validateDraft(draft);
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      const invalidStep = STEP_FIELDS.findIndex((fields) =>
+        fields.some((field) => nextErrors[field])
+      );
+      if (invalidStep >= 0) setCurrentStep(invalidStep);
       return;
     }
 
@@ -207,170 +249,70 @@ export function ProvisionTenantWorkspace() {
     });
   }
 
-  const fieldErrors: FieldErrors = submissionField
-    ? {
-        ...errors,
-        [submissionField]: failureMessage(submissionFailure) ?? undefined,
-      }
-    : errors;
-
-  // The catalogue is a provisioning dependency, not decoration. Until it is
-  // read, the page cannot say which modules the tenant would be entitled to, so
-  // committing would mean approving a summary that may not match the result.
-  const hasCatalogue = Boolean(catalogue.data);
-  const isReady =
-    hasCatalogue && Object.keys(validateDraft(draft)).length === 0;
+  const StepComponent = STEP_COMPONENTS[currentStep] ?? OrganizationStep;
+  const stepProps: ProvisioningStepProps = {
+    draft,
+    errors,
+    update,
+    validateField,
+    toggleModule,
+  };
 
   return (
-    <PageContainer width="wide">
-      <BackToTenants href={returnHref} isDirty={isDirty} />
+    <PageContainer width="default">
+      <div className="mx-auto max-w-5xl">
+        <BackToTenants href={returnHref} isDirty={isDirty} />
 
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          Provision tenant
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Create the tenant foundation and invite its first administrator.
-        </p>
-      </header>
+        <header className="mb-6">
+          <h1 className="type-page-title text-foreground">Provision tenant</h1>
+          <p className="type-body-secondary mt-1 text-muted-foreground">
+            Set up a new tenant for your organization.
+          </p>
+        </header>
 
-      <form onSubmit={submit} noValidate>
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
-          <div className="min-w-0 space-y-5">
-            <SectionCard
-              icon={Building2}
-              title="Tenant and administrator"
-              description="Who the tenant is, and who establishes access to it."
-            >
-              <div className="space-y-5">
-                <Field
-                  id="tenant-name"
-                  label="Tenant display name"
-                  required
-                  error={fieldErrors.name}
-                >
-                  <Input
-                    id="tenant-name"
-                    value={draft.name}
-                    placeholder="e.g. Northwind Tunisia"
-                    onChange={(event) => update("name", event.target.value)}
-                    autoComplete="organization"
-                    aria-invalid={Boolean(fieldErrors.name)}
-                    onBlur={() => validateField("name")}
-                    aria-describedby={
-                      fieldErrors.name ? "tenant-name-error" : undefined
-                    }
-                  />
-                </Field>
+        <ProvisioningStepper
+          currentStep={currentStep}
+          onStepChange={setCurrentStep}
+          className="mb-8"
+        />
 
-                {/* The tenant and the person who administers it are separate
-                    concepts, so the form separates them visibly rather than
-                    running them together as adjacent fields. */}
-                <Separator />
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            onPrimary();
+          }}
+          noValidate
+        >
+          {isLast ? (
+            // The final step commits, so its primary action — and any refusal of
+            // it — live inside the review panel rather than in the shared bar.
+            <ReviewStep
+              {...stepProps}
+              onEditStep={setCurrentStep}
+              onProvision={onPrimary}
+              canProvision={isReady}
+              provisionPending={provision.isLoading}
+              provisionFailure={submissionField ? null : submissionFailure}
+            />
+          ) : (
+            <>
+              <StepComponent {...stepProps} />
 
-                <Field
-                  id="administrator-email"
-                  label="Initial administrator email"
-                  required
-                  hint="Receives the invitation to establish administrator access."
-                  error={fieldErrors.administratorEmail}
-                >
-                  <Input
-                    id="administrator-email"
-                    type="email"
-                    value={draft.administratorEmail}
-                    placeholder="e.g. admin@northwind.tn"
-                    onChange={(event) =>
-                      update("administratorEmail", event.target.value)
-                    }
-                    autoComplete="email"
-                    // Validated on blur, never while typing: an address is
-                    // invalid for most of the time it is being entered, and
-                    // nothing here reveals whether an account already exists.
-                    onBlur={() => validateField("administratorEmail")}
-                    aria-invalid={Boolean(fieldErrors.administratorEmail)}
-                    aria-describedby={describedBy(
-                      "administrator-email",
-                      Boolean(fieldErrors.administratorEmail)
-                    )}
-                  />
-                </Field>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              icon={Globe2}
-              title="Regional defaults"
-              description="Controls how dates, times, and language are presented for this tenant."
-            >
-              <div className="grid gap-5 sm:grid-cols-2">
-                <Field
-                  id="tenant-time-zone"
-                  label="Default time zone"
-                  required
-                  error={fieldErrors.timeZone}
-                >
-                  <SearchableSelect
-                    id="tenant-time-zone"
-                    options={zoneOptions}
-                    value={draft.timeZone}
-                    placeholder="Select a time zone"
-                    searchPlaceholder="Search city, region or offset"
-                    emptyMessage="No time zone matches."
-                    invalid={Boolean(fieldErrors.timeZone)}
-                    describedBy={
-                      fieldErrors.timeZone ? "tenant-time-zone-error" : undefined
-                    }
-                    onChange={(value) => update("timeZone", value)}
-                    onBlur={() => validateField("timeZone")}
-                  />
-                </Field>
-
-                <Field
-                  id="tenant-locale"
-                  label="Default locale"
-                  error={fieldErrors.locale}
-                >
-                  <SearchableSelect
-                    id="tenant-locale"
-                    options={localeOptions}
-                    value={draft.locale}
-                    placeholder="Select a locale"
-                    searchPlaceholder="Search language, country or code"
-                    emptyMessage="No locale matches."
-                    invalid={Boolean(fieldErrors.locale)}
-                    onChange={(value) => update("locale", value)}
-                  />
-                </Field>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              icon={Blocks}
-              title="Module entitlements"
-              description="What this tenant is entitled to use."
-            >
-              <ModuleGrid
-                options={options}
-                selectedKeys={draft.selectedModuleKeys}
-                isLoading={catalogue.isLoading}
-                error={catalogue.error}
-                onRetry={catalogue.refetch}
-                onToggle={toggleModule}
+              <StepNavigation
+                isFirst={isFirst}
+                isLast={isLast}
+                onBack={goBack}
+                onPrimary={onPrimary}
+                // Forward movement is never blocked; the commit lives on the
+                // review step, so this bar never carries it.
+                primaryDisabled={false}
+                primaryPending={provision.isLoading}
+                failure={null}
               />
-            </SectionCard>
-          </div>
-
-          <ProvisioningSummary
-            draft={draft}
-            options={options}
-            hasCatalogue={hasCatalogue}
-            isReady={isReady}
-            isSubmitting={provision.isLoading}
-            failure={submissionField ? null : submissionFailure}
-          />
-        </div>
-      </form>
+            </>
+          )}
+        </form>
+      </div>
     </PageContainer>
   );
 }
@@ -431,376 +373,6 @@ function BackToTenants({ href, isDirty }: { href: string; isDirty: boolean }) {
 }
 
 /**
- * A section of the decision, headed by what it is about rather than by its
- * position. There are no step numbers and no completion ticks: every section is
- * always editable and they are submitted together, so implying an order would
- * describe a workflow this page does not have.
- */
-function SectionCard({
-  icon: Icon,
-  title,
-  description,
-  children,
-}: {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  const headingId = `section-${title.replace(/\s+/g, "-").toLowerCase()}`;
-
-  return (
-    <section
-      aria-labelledby={headingId}
-      className="rounded-2xl border border-border bg-card"
-    >
-      <div className="flex items-start gap-3 border-b border-border px-5 py-4">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          <Icon aria-hidden="true" className="size-[18px]" />
-        </span>
-        <div className="min-w-0">
-          <h2 id={headingId} className="text-sm font-semibold text-foreground">
-            {title}
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
-        </div>
-      </div>
-
-      <div className="px-5 py-5">{children}</div>
-    </section>
-  );
-}
-
-/**
- * The commitment, restated where it is made.
- *
- * It separates what was decided from what will result: the tenant's status and
- * identifier do not exist yet, so they sit under a heading that says as much
- * rather than being listed alongside entered values as though already true.
- */
-function ProvisioningSummary({
-  draft,
-  options,
-  hasCatalogue,
-  isReady,
-  isSubmitting,
-  failure,
-}: {
-  draft: ProvisioningDraft;
-  options: ProvisioningModuleOption[];
-  hasCatalogue: boolean;
-  isReady: boolean;
-  isSubmitting: boolean;
-  failure: Error | null;
-}) {
-  const included = useMemo(
-    () => options.filter((option) => option.availability === "included"),
-    [options]
-  );
-  const selected = useMemo(
-    () =>
-      options.filter(
-        (option) =>
-          option.availability === "selectable" &&
-          draft.selectedModuleKeys.includes(option.key)
-      ),
-    [options, draft.selectedModuleKeys]
-  );
-
-  // Constructs an `Intl.DateTimeFormat`, and this summary re-renders on every
-  // keystroke in the name and email fields.
-  const offset = useMemo(() => timeZoneOffset(draft.timeZone), [draft.timeZone]);
-
-  return (
-    <aside
-      aria-labelledby="provisioning-summary-title"
-      className="min-w-0 overflow-hidden rounded-xl border border-border bg-card lg:sticky lg:top-6"
-    >
-      <h2
-        id="provisioning-summary-title"
-        className="border-b border-border px-5 py-3.5 text-sm font-semibold text-foreground"
-      >
-        Provisioning summary
-      </h2>
-
-      <div className="space-y-4 px-5 py-4">
-        <SummaryGroup label="Decision">
-          <SummaryRow label="Tenant" value={draft.name.trim()} />
-          <SummaryRow
-            label="Initial administrator"
-            value={draft.administratorEmail.trim()}
-          />
-        </SummaryGroup>
-
-        <SummaryGroup label="Configuration">
-          <SummaryRow
-            label="Regional defaults"
-            // The offset is carried through, because a zone name alone is not
-            // what most people verify a time zone by.
-            value={`${labelForTimeZone(draft.timeZone)} (${offset}) · ${
-              draft.locale === PLATFORM_DEFAULT_LOCALE
-                ? "Platform default"
-                : labelForLocale(draft.locale)
-            }`}
-          />
-          <EntitlementRow
-            included={included}
-            selected={selected}
-            hasCatalogue={hasCatalogue}
-          />
-        </SummaryGroup>
-
-        {/* Stated as a consequence, not as current truth. */}
-        <SummaryGroup label="After provisioning">
-          <SummaryRow
-            label="Tenant status"
-            value="Awaiting administrator activation"
-          />
-          <SummaryRow label="Tenant ID" value="Generated automatically" muted />
-        </SummaryGroup>
-      </div>
-
-      <div className="border-t border-border px-5 py-4">
-        {failure ? <SubmissionFailure error={failure} /> : null}
-
-        <AsyncButton
-          type="submit"
-          size="lg"
-          className="w-full"
-          disabled={!isReady}
-          pending={isSubmitting}
-        >
-          Provision tenant
-        </AsyncButton>
-
-        {!isReady && !isSubmitting ? (
-          <p className="mt-2 text-center text-xs text-muted-foreground">
-            {hasCatalogue
-              ? "Enter a tenant name and administrator email to continue."
-              : "Module entitlements must load before a tenant can be provisioned."}
-          </p>
-        ) : null}
-      </div>
-    </aside>
-  );
-}
-
-function SummaryGroup({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div>
-      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {label}
-      </p>
-      <dl className="space-y-2 text-sm">{children}</dl>
-    </div>
-  );
-}
-
-function SummaryRow({
-  label,
-  value,
-  muted = false,
-}: {
-  label: string;
-  value: string;
-  muted?: boolean;
-}) {
-  // "Not entered" rather than a dash: a dash could mean empty, unknown, or not
-  // applicable, and the operator is about to commit to this.
-  const isEmpty = value.trim().length === 0;
-
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="shrink-0 text-muted-foreground">{label}</dt>
-      {/* Values wrap rather than truncate: a clipped decision summary is worse
-          than a taller one. */}
-      <dd
-        className={cn(
-          "min-w-0 [overflow-wrap:anywhere] text-right font-medium",
-          isEmpty || muted ? "text-muted-foreground" : "text-foreground",
-          isEmpty && "italic"
-        )}
-      >
-        {isEmpty ? "Not entered" : value}
-      </dd>
-    </div>
-  );
-}
-
-/**
- * Entitlements read as a phrase while they stay short, and collapse to a count
- * with a disclosure once naming them all would crowd the summary. Unavailable
- * modules can never appear here — they are not in the selected set.
- */
-function EntitlementRow({
-  included,
-  selected,
-  hasCatalogue,
-}: {
-  included: ProvisioningModuleOption[];
-  selected: ProvisioningModuleOption[];
-  hasCatalogue: boolean;
-}) {
-  // Before the catalogue is read the entitlements are genuinely unknown, and a
-  // blank value would read as "none" — which is both wrong and the one reading
-  // that would let an operator commit without noticing.
-  if (!hasCatalogue) {
-    return (
-      <div className="flex items-baseline justify-between gap-3">
-        <dt className="shrink-0 text-muted-foreground">Entitlements</dt>
-        <dd className="min-w-0 text-right italic font-medium text-muted-foreground">
-          Not loaded
-        </dd>
-      </div>
-    );
-  }
-
-  const includedNames = included.map((option) => option.label);
-  const selectedNames = selected.map((option) => option.label);
-  const all = [...includedNames, ...selectedNames];
-
-  const isCompact = selectedNames.length > 2;
-
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="shrink-0 text-muted-foreground">Entitlements</dt>
-      <dd className="min-w-0 text-right font-medium text-foreground">
-        {isCompact ? (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className="rounded-sm underline decoration-dotted underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                {includedNames.join(" + ")} + {selectedNames.length} optional
-                modules
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-56 p-3">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Entitlements
-              </p>
-              <ul className="space-y-1.5 text-left text-sm">
-                {all.map((name) => (
-                  <li key={name} className="text-foreground">
-                    {name}
-                  </li>
-                ))}
-              </ul>
-            </PopoverContent>
-          </Popover>
-        ) : (
-          all.join(" + ")
-        )}
-      </dd>
-    </div>
-  );
-}
-
-/**
- * What a refused submission actually tells the operator.
- *
- * The distinction that matters is whether the outcome is known. Provisioning
- * commits the tenant before the response is returned, so a timeout or a gateway
- * failure can arrive after the tenant exists. Claiming "no tenant was created"
- * there would be a guarantee this page cannot make, and acting on it — starting
- * again with different details — is how an estate ends up with a stranded
- * tenant nobody is looking for.
- *
- * Validation and permission failures are different: those are refused before
- * anything is committed, so they can safely say so. For the ambiguous ones the
- * honest instruction is to retry unchanged, which reuses the same idempotency
- * key and therefore either completes the original request or returns its
- * existing result rather than provisioning a second tenant.
- */
-function SubmissionFailure({ error }: { error: Error }) {
-  const kind = failureKind(error);
-  const message =
-    kind === "permission"
-      ? "Your Platform administration access has changed. Sign in again to provision a tenant."
-      : kind === "validation"
-        ? (failureMessage(error) ??
-          "The request was rejected before anything was created. Your entries are kept.")
-        : kind === "conflict"
-          ? (failureMessage(error) ??
-            "This request conflicts with one already recorded.")
-          : kind === "unavailable"
-            ? "Provisioning did not complete and the outcome is unknown. Submit again without changing anything — the retry is safe and will not create a second tenant. If it keeps failing, check the tenant list before entering different details."
-            : (failureMessage(error) ??
-              "Provisioning did not complete and the outcome is unknown. Submit again without changing anything — the retry is safe and will not create a second tenant.");
-
-  return (
-    <p
-      role="alert"
-      className="mb-3 flex items-start gap-2 text-sm text-destructive"
-    >
-      <AlertTriangle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-      <span>{message}</span>
-    </p>
-  );
-}
-
-function describedBy(id: string, hasError: boolean): string | undefined {
-  const ids = [`${id}-hint`, hasError ? `${id}-error` : null].filter(Boolean);
-  return ids.length > 0 ? ids.join(" ") : undefined;
-}
-
-function Field({
-  id,
-  label,
-  required = false,
-  hint,
-  error,
-  children,
-}: {
-  id: string;
-  label: string;
-  required?: boolean;
-  hint?: string;
-  error?: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor={id}>
-        {label}
-        {/* The asterisk is decorative; the requirement is announced by the
-            input's own validity, and spelled out for anyone reading the label. */}
-        {required ? (
-          <>
-            <span aria-hidden="true" className="ml-0.5 text-destructive">
-              *
-            </span>
-            <span className="sr-only"> (required)</span>
-          </>
-        ) : null}
-      </Label>
-
-      {children}
-
-      {hint ? (
-        <p id={`${id}-hint`} className="text-xs text-muted-foreground">
-          {hint}
-        </p>
-      ) : null}
-
-      {error ? (
-        <p id={`${id}-error`} className="text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-
-/**
  * One key per distinct request. Retrying an unchanged request reuses it, so a
  * repeat cannot provision twice; editing and resubmitting earns a new one, so
  * the changed request is not refused as a conflicting reuse of the old key.
@@ -837,10 +409,20 @@ function hasMeaningfulEdits(
 ): boolean {
   return (
     draft.name.trim().length > 0 ||
+    draft.tenantSlug.trim().length > 0 ||
+    draft.legalEntityName.trim().length > 0 ||
+    draft.internalReferenceCode.trim().length > 0 ||
+    draft.shortDescription.trim().length > 0 ||
     draft.administratorEmail.trim().length > 0 ||
     draft.selectedModuleKeys.length > 0 ||
     draft.locale !== DEFAULT_LOCALE ||
-    draft.timeZone !== defaultTimeZone
+    draft.timeZone !== defaultTimeZone ||
+    draft.country !== DEFAULT_COUNTRY ||
+    draft.dateFormat !== DEFAULT_DATE_FORMAT ||
+    draft.firstName.trim().length > 0 ||
+    draft.lastName.trim().length > 0 ||
+    draft.adminRole !== DEFAULT_ADMIN_ROLE ||
+    draft.sendInvitation !== true
   );
 }
 
@@ -859,19 +441,4 @@ function useUnsavedWorkGuard(active: boolean) {
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [active]);
-}
-
-function focusFirstInvalid(errors: FieldErrors) {
-  const order = ["name", "administratorEmail", "timeZone", "locale"] as const;
-  const ids: Record<(typeof order)[number], string> = {
-    name: "tenant-name",
-    administratorEmail: "administrator-email",
-    timeZone: "tenant-time-zone",
-    locale: "tenant-locale",
-  };
-
-  const first = order.find((field) => errors[field]);
-  if (first) {
-    document.getElementById(ids[first])?.focus();
-  }
 }

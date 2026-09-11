@@ -60,8 +60,8 @@ function resolveModule(
 const ENTITLEMENT_DESCRIPTION: Record<string, string> = {
   core: "Workforce and organization foundation",
   performance: "Goals, reviews and feedback",
-  learning: "Training and onboarding programmes",
-  recruitment: "Hiring pipeline and candidates",
+  learning: "Training and onboarding",
+  recruitment: "Hiring pipeline.",
   onboarding: "New-hire journeys",
   interview: "Candidate assessments",
 };
@@ -75,7 +75,9 @@ export function buildModuleOptions(
     provisionable.map((entry) => [entry.module.toLowerCase(), entry.module])
   );
   const mandatoryModules = new Set(
-    provisionable.filter((entry) => entry.mandatory).map((entry) => entry.module)
+    provisionable
+      .filter((entry) => entry.mandatory)
+      .map((entry) => entry.module)
   );
 
   const options = FUSION_MODULES.map((registryModule) => {
@@ -113,7 +115,8 @@ export function buildModuleOptions(
 
   return options.sort(
     (a, b) =>
-      rank[a.availability] - rank[b.availability] || a.label.localeCompare(b.label)
+      rank[a.availability] - rank[b.availability] ||
+      a.label.localeCompare(b.label)
   );
 }
 
