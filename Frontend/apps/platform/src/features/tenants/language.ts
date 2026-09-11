@@ -115,6 +115,9 @@ const EVENT_TITLE: Record<string, string> = {
   InvitationReissued: "Invitation reissued",
   ActivationRejected: "Activation rejected",
   BootstrapCompleted: "Administrator activated",
+  TenantDeactivated: "Tenant deactivated",
+  TenantReactivated: "Tenant reactivated",
+  TenantProfileChanged: "Tenant profile updated",
 };
 
 /**
@@ -193,6 +196,26 @@ export function formatDateTime(value: string): string {
     minute: "2-digit",
   });
   return dateTimeFormat.format(new Date(value));
+}
+
+/**
+ * A short "how long ago" phrase for recent moments, falling back to an absolute
+ * date once it is old enough that the elapsed time stops being the useful fact.
+ */
+export function relativeFromNow(value: string): string {
+  const seconds = Math.round((Date.now() - new Date(value).getTime()) / 1000);
+  if (seconds < 45) return "moments ago";
+
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+
+  return formatDate(value);
 }
 
 /** Whole days from now, negative once the moment has passed. */

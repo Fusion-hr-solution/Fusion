@@ -9,8 +9,25 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { ArrowLeft, Check, Copy, SearchX } from "lucide-react";
+import { Ban, Check, Copy, MoreHorizontal, RotateCcw, SearchX } from "lucide-react";
 import { Button } from "@repo/ds/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@repo/ds/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@repo/ds/components/ui/alert-dialog";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import {
   Tooltip,
@@ -18,20 +35,18 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@repo/ds/components/ui/tooltip";
+import { toast } from "sonner";
 import { cn } from "@repo/ds/lib/utils";
 import { PageContainer, PageEmpty, PageError, StatusBadge } from "@repo/ds/shell";
-import { failureKind, type TenantDetail } from "../api";
-import { TENANT_STATUS_LABEL, TENANT_STATUS_TONE, formatDate } from "../language";
+import { failureKind, failureMessage, type TenantDetail } from "../api";
 import { TenantMonogram } from "../overview/tenant-monogram";
-import { useTenantDetail } from "../queries";
+import { useTenantDetail, useTenantLifecycle } from "../queries";
 import {
   RECORD_DESTINATIONS,
   destinationHref,
-  directoryHref,
   isActiveDestination,
   recordQuery,
 } from "./record-routes";
-import { provisioningOrigin } from "./tenant-record-facts";
 
 /**
  * The tenant's durable Platform record.
@@ -119,13 +134,6 @@ export function TenantRecordShell({
 
   return (
     <PageContainer width="default">
-      <Button asChild variant="ghost" size="sm" className="mb-2 -ml-2">
-        <Link href={directoryHref(from)}>
-          <ArrowLeft aria-hidden="true" className="size-4" />
-          Tenants
-        </Link>
-      </Button>
-
       {isLoading ? <RecordSkeleton /> : null}
 
       {!isLoading && error ? (
@@ -151,47 +159,221 @@ export function TenantRecordShell({
  * It is derived from the name rather than stored — a reading aid, not a brand,
  * and deliberately square so it cannot be mistaken for a person's avatar.
  *
- * The identifying facts sit in one separated strip rather than as three loose
- * strings, so they read as the record's metadata rather than as a sentence.
+ * The header establishes only the resource: who it is, whether it is usable, and
+ * its canonical key. The status shown is the tenant's lifecycle — an existing
+ * tenant is Active until Platform deactivates it, a capability the record does
+ * not model yet — and deliberately not the administrator's invitation state,
+ * which is a separate concern and belongs in the body. Provisioning facts,
+ * created date, and internal id stay out of the header so it does not become a
+ * fact sheet; they live in the Overview profile.
  */
 function RecordHeader({ tenant }: { tenant: TenantDetail }) {
-  const origin = provisioningOrigin(tenant.history);
-
   return (
-    <header className="mb-5 flex min-w-0 items-start gap-3.5 sm:gap-4">
+    <header className="mb-6 flex min-w-0 items-center gap-4 sm:gap-5">
       <TenantMonogram
         name={tenant.name}
-        className="mt-0.5 size-11 rounded-xl text-sm sm:size-12"
+        className="size-14 rounded-xl text-base sm:size-16 sm:text-lg"
       />
 
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <h1 className="min-w-0 break-words text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <h1 className="type-display min-w-0 break-words text-foreground">
             {tenant.name}
           </h1>
-          <StatusBadge
-            tone={TENANT_STATUS_TONE[tenant.administratorActivationStatus]}
-            dot
-          >
-            {TENANT_STATUS_LABEL[tenant.administratorActivationStatus]}
+          <StatusBadge tone={tenant.isActive ? "success" : "neutral"} dot>
+            {tenant.isActive ? "Active" : "Deactivated"}
           </StatusBadge>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-y-1 text-xs text-muted-foreground">
-          <span className="pr-3">
-            <TenantIdentifier tenantId={tenant.tenantId} />
-          </span>
-          <span className="border-l border-border px-3">
-            Created {formatDate(tenant.createdAt)}
-          </span>
-          {origin?.actorName ? (
-            <span className="border-l border-border px-3">
-              Provisioned by {origin.actorName}
-            </span>
-          ) : null}
+        <div className="mt-1">
+          <TenantKey slug={tenant.slug} />
         </div>
       </div>
+
+      <TenantLifecycleMenu tenant={tenant} />
     </header>
+  );
+}
+
+/**
+ * The record's overflow: tenant lifecycle only.
+ *
+ * An Active tenant can be deactivated; a deactivated one can be reactivated —
+ * and nothing else lives here. Profile edits, product entitlements, and
+ * invitation recovery act on their own objects elsewhere; this menu governs the
+ * single platform-owned state that has no home of its own.
+ *
+ * Deactivation removes customer access, so it is confirmed before it runs and
+ * says plainly what it does and does not touch. Reactivation restores access
+ * and needs no confirmation. Both settle by refetching the record, so the
+ * header status reflects the authoritative outcome.
+ */
+function TenantLifecycleMenu({ tenant }: { tenant: TenantDetail }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // Busy across the whole task, not just the request: the mutation invalidates
+  // the record, and neither control should free up until that refetched result
+  // has settled. `mutateAsync` resolves only after the awaited invalidation.
+  const [running, setRunning] = useState(false);
+  const deactivate = useTenantLifecycle("deactivate");
+  const reactivate = useTenantLifecycle("reactivate");
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Tenant actions"
+            className="size-9 shrink-0 self-start text-muted-foreground"
+          >
+            <MoreHorizontal aria-hidden="true" className="size-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuItem
+            onSelect={() => {
+              void navigator.clipboard.writeText(tenant.tenantId).catch(() => {
+                // Clipboard access can be refused; nothing else depends on it.
+              });
+            }}
+          >
+            <Copy />
+            Copy tenant ID
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          {tenant.isActive ? (
+            <DropdownMenuItem
+              variant="destructive"
+              onSelect={() => setConfirmOpen(true)}
+            >
+              <Ban />
+              Deactivate tenant
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              disabled={running || reactivate.isLoading}
+              onSelect={(event) => {
+                event.preventDefault();
+                setRunning(true);
+                void reactivate
+                  .mutateAsync(tenant.tenantId)
+                  .then(() =>
+                    toast.success("Tenant reactivated", {
+                      description: `${tenant.name} is active again and available to its users.`,
+                    })
+                  )
+                  .catch((error) =>
+                    toast.error("Couldn't reactivate the tenant", {
+                      description: failureMessage(error) ?? undefined,
+                    })
+                  )
+                  .finally(() => setRunning(false));
+              }}
+            >
+              <RotateCcw />
+              Reactivate tenant
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Deactivate {tenant.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Its users will no longer be able to sign in to Fusion. All tenant
+              data is kept, and you can reactivate the tenant at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={running || deactivate.isLoading}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={running || deactivate.isLoading}
+              onClick={(event) => {
+                event.preventDefault();
+                setRunning(true);
+                void deactivate
+                  .mutateAsync(tenant.tenantId)
+                  .then(() => {
+                    setConfirmOpen(false);
+                    toast.success("Tenant deactivated", {
+                      description: `${tenant.name}'s users can no longer sign in to Fusion.`,
+                    });
+                  })
+                  .catch((error) => {
+                    // The record refetches on settle; the dialog stays open so
+                    // the operator sees the attempt did not take.
+                    toast.error("Couldn't deactivate the tenant", {
+                      description: failureMessage(error) ?? undefined,
+                    });
+                  })
+                  .finally(() => setRunning(false));
+              }}
+            >
+              {running || deactivate.isLoading
+                ? "Deactivating…"
+                : "Deactivate tenant"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+/**
+ * The tenant key.
+ *
+ * The human-readable, effectively immutable identifier a Platform Admin uses to
+ * refer to this tenant — so it is shown in full and copied whole rather than
+ * hidden behind the internal UUID. Copy is the whole interaction here; the key
+ * is short enough to read, so it is the control, not a label beside one.
+ */
+function TenantKey({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(slug);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard access can be refused; the key is still readable in place.
+    }
+  }
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={copy}
+            aria-label={copied ? "Tenant key copied" : `Copy tenant key ${slug}`}
+            className="group -ml-1 inline-flex min-h-7 items-center gap-1.5 rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
+          >
+            <span className="font-mono">{slug}</span>
+            {copied ? (
+              <Check
+                aria-hidden="true"
+                className="size-3.5 text-success"
+              />
+            ) : (
+              <Copy
+                aria-hidden="true"
+                className="size-3.5 text-muted-foreground/70 transition-colors group-hover:text-primary motion-reduce:transition-none"
+              />
+            )}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>{copied ? "Copied" : "Copy tenant key"}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -219,7 +401,7 @@ function RecordNavigation({
       // auto too, which let the strip scroll vertically by a stray pixel.
       className="-mx-6 mb-6 overflow-x-auto overflow-y-hidden border-b border-border px-6"
     >
-      <ul className="flex w-max min-w-full gap-0.5">
+      <ul className="flex w-max min-w-full gap-7">
         {RECORD_DESTINATIONS.map((destination) => {
           const href = destinationHref(tenantId, destination.segment);
           const isActive = isActiveDestination(
@@ -227,7 +409,6 @@ function RecordNavigation({
             tenantId,
             destination.segment
           );
-          const Icon = destination.icon;
 
           return (
             <li key={destination.segment || "overview"}>
@@ -237,20 +418,13 @@ function RecordNavigation({
                 // not carried by weight and a rule alone.
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "-mb-px inline-flex items-center gap-2 whitespace-nowrap rounded-t-md border-b-2 px-3 py-2.5 text-sm transition-colors motion-reduce:transition-none",
-                  "focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+                  "-mb-px inline-flex items-center whitespace-nowrap border-b-2 py-3 text-sm transition-colors motion-reduce:transition-none",
+                  "focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                   isActive
-                    ? "border-primary bg-primary/[0.06] font-semibold text-foreground"
-                    : "border-transparent text-muted-foreground hover:bg-foreground/[0.035] hover:text-foreground"
+                    ? "border-primary font-semibold text-foreground"
+                    : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
                 )}
               >
-                <Icon
-                  aria-hidden="true"
-                  className={cn(
-                    "size-4 shrink-0",
-                    isActive ? "text-primary" : "text-muted-foreground/80"
-                  )}
-                />
                 {destination.label}
               </Link>
             </li>
@@ -359,20 +533,21 @@ function RecordFailure({ error, onRetry }: { error: Error; onRetry: () => void }
 function RecordSkeleton() {
   return (
     <div aria-busy aria-label="Loading tenant">
-      <div className="mb-5 flex items-start gap-4">
-        <Skeleton className="size-12 shrink-0 rounded-xl" />
+      <div className="mb-6 flex items-center gap-5">
+        <Skeleton className="size-16 shrink-0 rounded-xl" />
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-3">
-            <Skeleton className="h-8 w-56" />
-            <Skeleton className="h-6 w-44 rounded-full" />
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-6 w-24 rounded-full" />
           </div>
-          <Skeleton className="mt-2 h-3.5 w-72 max-w-full" />
+          <Skeleton className="mt-2 h-4 w-32" />
         </div>
+        <Skeleton className="size-9 shrink-0 self-start rounded-md" />
       </div>
 
-      <div className="mb-6 flex gap-4 border-b border-border pb-3">
+      <div className="mb-6 flex gap-7 border-b border-border pb-3">
         {RECORD_DESTINATIONS.map((destination) => (
-          <Skeleton key={destination.segment || "overview"} className="h-4 w-24" />
+          <Skeleton key={destination.segment || "overview"} className="h-4 w-20" />
         ))}
       </div>
 

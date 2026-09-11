@@ -1,13 +1,3 @@
-import {
-  Activity,
-  Boxes,
-  KeyRound,
-  LayoutDashboard,
-  ScrollText,
-  Settings2,
-  type LucideIcon,
-} from "lucide-react";
-
 /**
  * Where the tenant record's destinations are, and how a link to one is built.
  *
@@ -22,20 +12,24 @@ export interface RecordDestination {
   /** Appended to the tenant route. Empty is the record's base destination. */
   segment: string;
   label: string;
-  icon: LucideIcon;
 }
 
 /**
  * Fixed, and in this order, for every tenant in every state. An operator who
- * learns where Audit is on one tenant must not have to look for it on another.
+ * learns where Products is on one tenant must not have to look for it on
+ * another.
+ *
+ * Four destinations, not six: the record shows only what Platform legitimately
+ * owns, and that is Overview (summary), Access (administrative continuity),
+ * Products (entitlements), and Activity (control-plane audit). Operations and
+ * Settings are deferred until they hold something substantial rather than kept
+ * as empty tabs.
  */
 export const RECORD_DESTINATIONS: RecordDestination[] = [
-  { segment: "", label: "Overview", icon: LayoutDashboard },
-  { segment: "access", label: "Access", icon: KeyRound },
-  { segment: "entitlements", label: "Entitlements", icon: Boxes },
-  { segment: "operations", label: "Operations", icon: Activity },
-  { segment: "audit", label: "Audit", icon: ScrollText },
-  { segment: "settings", label: "Settings", icon: Settings2 },
+  { segment: "", label: "Overview" },
+  { segment: "access", label: "Access" },
+  { segment: "products", label: "Products" },
+  { segment: "activity", label: "Activity" },
 ];
 
 /** The tenant's base route, which is also its Overview destination. */

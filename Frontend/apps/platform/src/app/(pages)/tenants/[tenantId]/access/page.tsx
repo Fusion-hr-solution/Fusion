@@ -1,5 +1,4 @@
-import { TenantAccessDestination } from "@/features/tenants/record/access-page";
-
-export default function TenantPage() {
-  return <TenantAccessDestination />;
+// Tenant record — Access. Intentionally blank pending redesign.
+export default function TenantAccessPage() {
+  return null;
 }

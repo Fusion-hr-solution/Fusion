@@ -13,10 +13,8 @@ describe("RECORD_DESTINATIONS", () => {
     expect(RECORD_DESTINATIONS.map((entry) => entry.label)).toEqual([
       "Overview",
       "Access",
-      "Entitlements",
-      "Operations",
-      "Audit",
-      "Settings",
+      "Products",
+      "Activity",
     ]);
   });
 
@@ -68,10 +66,10 @@ describe("isActiveDestination", () => {
   it("matches through the shell's base path", () => {
     // The browser shows `/platform/...`; the app routes without it.
     expect(
-      isActiveDestination(`/platform/tenants/${TENANT_ID}/audit`, TENANT_ID, "audit")
+      isActiveDestination(`/platform/tenants/${TENANT_ID}/activity`, TENANT_ID, "activity")
     ).toBe(true);
     expect(
-      isActiveDestination(`/tenants/${TENANT_ID}/audit`, TENANT_ID, "audit")
+      isActiveDestination(`/tenants/${TENANT_ID}/activity`, TENANT_ID, "activity")
     ).toBe(true);
   });
 
@@ -95,7 +93,7 @@ describe("isActiveDestination", () => {
 
   it("does not match another tenant's record", () => {
     expect(
-      isActiveDestination("/platform/tenants/other-tenant/audit", TENANT_ID, "audit")
+      isActiveDestination("/platform/tenants/other-tenant/activity", TENANT_ID, "activity")
     ).toBe(false);
   });
 });

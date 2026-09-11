@@ -124,6 +124,11 @@ export interface TenantDetail {
   tenantId: string;
   name: string;
   slug: string;
+  /**
+   * Tenant lifecycle: true while customers may access the tenant, false once
+   * Platform has deactivated it. Separate from administrator activation.
+   */
+  isActive: boolean;
   administratorActivationStatus: TenantActivationStatus;
   locale: string;
   timeZone: string;
@@ -282,6 +287,23 @@ export function replaceInvitation(
 
 export function reissueInvitation(tenantId: string, invitationId: string) {
   return client.post<string>(`${invitationPath(tenantId, invitationId)}/reissue`);
+}
+
+/**
+ * Tenant lifecycle. Deactivation removes customer access and is reversible;
+ * neither call touches tenant business data.
+ */
+export function deactivateTenant(tenantId: string) {
+  return client.post<null>(`${BASE}/${tenantId}/deactivate`);
+}
+
+export function reactivateTenant(tenantId: string) {
+  return client.post<null>(`${BASE}/${tenantId}/reactivate`);
+}
+
+/** Renames the organization display name. The tenant key is unaffected. */
+export function renameTenant(tenantId: string, name: string) {
+  return client.post<null>(`${BASE}/${tenantId}/rename`, { name });
 }
 
 /**

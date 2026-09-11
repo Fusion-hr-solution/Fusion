@@ -9,6 +9,7 @@ import {
 import type { RecoveryAction } from "./api";
 import {
   ACTIVITY_PREVIEW_LIMIT,
+  deactivateTenant,
   getTenant,
   getTenantContinuityHealth,
   initiateAdministratorRecovery,
@@ -16,7 +17,9 @@ import {
   listRecentActivity,
   listTenants,
   provisionTenant,
+  reactivateTenant,
   reissueInvitation,
+  renameTenant,
   replaceInvitation,
   resendInvitation,
   revokeInvitation,
@@ -109,6 +112,30 @@ export function useProvisionTenant(
       onError: (error) => onFailed?.(error),
       invalidateQueries: [{ queryKey: tenantKeys.all }],
     }
+  );
+}
+
+/**
+ * The tenant lifecycle transition. Both outcomes — success and a stale-state
+ * conflict — settle by refetching the record, so the page ends on the
+ * authoritative Active/Deactivated state rather than on what was attempted.
+ */
+export function useTenantLifecycle(action: "deactivate" | "reactivate") {
+  return useApiMutation(
+    (tenantId: string) =>
+      action === "deactivate"
+        ? deactivateTenant(tenantId)
+        : reactivateTenant(tenantId),
+    { invalidateQueries: () => [{ queryKey: tenantKeys.all }] }
+  );
+}
+
+/** Renames the organization display name, then refetches the affected record. */
+export function useRenameTenant() {
+  return useApiMutation(
+    (args: { tenantId: string; name: string }) =>
+      renameTenant(args.tenantId, args.name),
+    { invalidateQueries: () => [{ queryKey: tenantKeys.all }] }
   );
 }
 
