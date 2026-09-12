@@ -50,6 +50,7 @@ function compose(overrides: {
   entitlements?: string[];
   setupState?: OrganizationReadinessDto | null | undefined;
   workforceTotalCount?: number | null | undefined;
+  administratorCount?: number | null | undefined;
   capabilities?: SetupCapability[];
 }) {
   return composeSetupCapabilities({
@@ -62,6 +63,8 @@ function compose(overrides: {
       "workforceTotalCount" in overrides
         ? overrides.workforceTotalCount
         : 0,
+    administratorCount:
+      "administratorCount" in overrides ? overrides.administratorCount : 1,
     capabilities: overrides.capabilities,
   });
 }
@@ -117,13 +120,17 @@ describe("setup capability catalog", () => {
     const composed = compose({});
     const foundation = capabilitiesInGroup(composed, "foundation");
 
+    // The buildout ladder is the sequential foundation only; tenant
+    // configuration is administration, not a rung, so it groups apart.
     expect(foundation.map((entry) => entry.capability.key)).toEqual([
       "administrator-access",
-      "tenant-configuration",
       "organization",
       "workforce",
       "workforce-access",
     ]);
+    expect(
+      capabilitiesInGroup(composed, "administration").map((e) => e.capability.key)
+    ).toEqual(["tenant-configuration"]);
     expect(capabilitiesInGroup(composed, "module").map((e) => e.capability.key)).toEqual([
       "performance",
     ]);
@@ -131,12 +138,27 @@ describe("setup capability catalog", () => {
 });
 
 describe("composed capability state", () => {
-  it("makes administrator access available without workforce data", () => {
-    const entry = byKey(compose({}), "administrator-access");
+  it("marks administrator access ready once the tenant has an administrator", () => {
+    const entry = byKey(compose({ administratorCount: 2 }), "administrator-access");
 
-    expect(entry.state).toBe("available");
+    expect(entry.state).toBe("ready");
+    expect(entry.detail).toBe("2 administrators");
     expect(entry.isActionable).toBe(true);
     expect(entry.capability.route).toBe("/access");
+  });
+
+  it("stays ready without a count, since a visible reader is an administrator", () => {
+    const entry = byKey(compose({ administratorCount: null }), "administrator-access");
+
+    expect(entry.state).toBe("ready");
+    expect(entry.detail).toBeNull();
+  });
+
+  it("declines to guess administrator access while the count is loading", () => {
+    const entry = byKey(compose({ administratorCount: undefined }), "administrator-access");
+
+    expect(entry.state).toBe("unknown");
+    expect(entry.isActionable).toBe(true);
   });
 
   it("reads organization progress from the owning capability", () => {

@@ -46,11 +46,31 @@ export interface TenantAdministratorDto {
   blockedReason: string | null;
   /** Echoed back as If-Match so a stale screen cannot apply a surprising change. */
   version: number;
+  /**
+   * Who established this authority — a person's name where an account acted, or a
+   * stable system phrase ("System (tenant activation)", "Platform recovery") where
+   * none did. Shown as provenance in the maintenance panel.
+   */
+  addedBy: string;
+}
+
+/** An administrator whose authority was revoked and not re-granted. */
+export interface RemovedAdministratorDto {
+  membershipId: string;
+  userId: string;
+  name: string;
+  email: string;
+  removedAt: string;
+  /** Who removed the access, or "Removed themselves" for a self-removal. */
+  removedBy: string;
+  reason: string | null;
 }
 
 export interface AdministratorInvitationDto {
   invitationId: string;
   email: string;
+  /** Recipient's name as captured on the invitation; empty if none was given. */
+  name: string;
   state: AdministratorInvitationState;
   purpose: string;
   issuedAt: string;
@@ -135,6 +155,10 @@ export type AdministratorInvitationEntryState =
 /** Password rules stated by the service, so the form has one source rather than a copy that drifts. */
 export interface AccountPasswordRequirementsDto {
   minimumLength: number;
+  /** Upper bound the service enforces; advisory on the client. */
+  maximumLength?: number;
+  /** At least one letter of either case. */
+  requiresLetter?: boolean;
   requiresDigit: boolean;
   requiresLowercase: boolean;
   requiresUppercase: boolean;
@@ -161,6 +185,7 @@ export interface AcceptAdministratorInvitationRequest {
 export const tenantAccessPaths = {
   summary: () => "/identity/tenant-access/summary",
   administrators: () => "/identity/tenant-access/administrators",
+  removedAdministrators: () => "/identity/tenant-access/administrators/removed",
   suspend: (membershipId: string) =>
     `/identity/tenant-access/administrators/${membershipId}/suspend`,
   reactivate: (membershipId: string) =>
@@ -186,6 +211,8 @@ export const tenantAccessQueryKeys = {
   all: () => ["tenant-access"] as const,
   summary: () => [...tenantAccessQueryKeys.all(), "summary"] as const,
   administrators: () => [...tenantAccessQueryKeys.all(), "administrators"] as const,
+  removedAdministrators: () =>
+    [...tenantAccessQueryKeys.all(), "administrators", "removed"] as const,
   invitations: (includeHistorical = false) =>
     [...tenantAccessQueryKeys.all(), "invitations", includeHistorical] as const,
   recentActivity: () => [...tenantAccessQueryKeys.all(), "activity", "recent"] as const,

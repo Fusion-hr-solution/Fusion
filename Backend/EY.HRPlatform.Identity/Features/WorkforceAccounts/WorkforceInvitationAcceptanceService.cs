@@ -353,7 +353,8 @@ public sealed class WorkforceInvitationAcceptanceService(
             LastName = lastName,
             IsActive = true,
             EmailConfirmed = true,
-            HireDate = DateTime.UtcNow,
+            // No hire date on the identity account: the authoritative employment
+            // dates live on the bound CoreHR employee record (EmployeeId above).
         };
 
         var created = await userManager.CreateAsync(account, request.Password!);

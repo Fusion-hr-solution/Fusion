@@ -20,7 +20,7 @@ import {
 /** Whether the capability exists in the product today. */
 export type CapabilityAvailability = "implemented" | "planned";
 
-export type CapabilityGroup = "foundation" | "module";
+export type CapabilityGroup = "foundation" | "administration" | "module";
 
 export interface SetupCapability {
   key: string;
@@ -59,10 +59,10 @@ export const SETUP_CAPABILITIES: SetupCapability[] = [
     title: "Tenant configuration",
     purpose:
       "Set tenant identity, regional, communication, and experience defaults.",
-    group: "foundation",
+    group: "administration",
     availability: "planned",
     prerequisites: [],
-    order: 20,
+    order: 55,
     isAuthorized: canAccessCoreSetup,
   },
   {

@@ -145,6 +145,9 @@ export interface ProvisionTenantInput {
   /** Optional entitlements only. Core HR is added by the platform regardless. */
   modules: TenantModule[];
   administratorEmail: string;
+  /** Optional. Pre-fills the administrator's name on their activation form. */
+  administratorFirstName?: string;
+  administratorLastName?: string;
   /** Makes an honest retry idempotent instead of provisioning twice. */
   idempotencyKey: string;
 }

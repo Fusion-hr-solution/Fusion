@@ -736,6 +736,9 @@ importers:
       '@repo/api':
         specifier: workspace:*
         version: link:../api
+      '@repo/ds':
+        specifier: workspace:*
+        version: link:../ds
       '@repo/ui':
         specifier: workspace:*
         version: link:../ui

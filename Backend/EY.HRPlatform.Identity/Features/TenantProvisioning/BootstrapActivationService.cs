@@ -103,7 +103,10 @@ public sealed record BootstrapEntry(
     BootstrapEntryState State,
     string? TenantName = null,
     string? InvitedEmail = null,
-    DateTime? ExpiresAtUtc = null);
+    DateTime? ExpiresAtUtc = null,
+    string? FirstName = null,
+    string? LastName = null,
+    string? Role = null);
 
 public interface IBootstrapActivationService
 {
@@ -198,7 +201,10 @@ public sealed class BootstrapActivationService(
             BootstrapEntryState.AccountCreation,
             tenant.Name,
             invitation.Email,
-            invitation.ExpiresAt);
+            invitation.ExpiresAt,
+            invitation.FirstName,
+            invitation.LastName,
+            invitation.Role);
     }
 
     public async Task<BootstrapActivationResult> ActivateAsync(
@@ -438,7 +444,9 @@ public sealed class BootstrapActivationService(
             // Email control was proven by possession of the invitation link.
             EmailConfirmed = true,
             IsActive = true,
-            HireDate = DateTime.UtcNow,
+            // No hire date: this is a tenant administrator identity, not Core
+            // workforce truth. Core owns employment dates if this person is later
+            // represented as an employee.
         };
 
         IdentityResult result;

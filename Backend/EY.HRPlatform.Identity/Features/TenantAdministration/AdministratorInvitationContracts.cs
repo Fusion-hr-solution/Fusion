@@ -92,7 +92,10 @@ public sealed record AdministrativeInvitationEntry(
     InvitationPurpose? Purpose = null,
     string? TenantName = null,
     string? InvitedEmail = null,
-    DateTime? ExpiresAtUtc = null);
+    DateTime? ExpiresAtUtc = null,
+    string? FirstName = null,
+    string? LastName = null,
+    string? Role = null);
 
 public enum AdministrativeAcceptanceOutcome
 {

@@ -54,6 +54,9 @@ public sealed class AdministratorInvitationAcceptanceController(
             TenantName = entry.TenantName,
             InvitedEmail = entry.InvitedEmail,
             ExpiresAt = entry.ExpiresAtUtc,
+            FirstName = entry.FirstName,
+            LastName = entry.LastName,
+            Role = entry.Role,
             PasswordRequirements = entry.State == AdministrativeInvitationEntryState.AccountCreation
                 ? AccountPasswordPolicy.Describe()
                 : null,
@@ -177,6 +180,13 @@ public sealed class AdministratorEntryDto
     public string? TenantName { get; set; }
     public string? InvitedEmail { get; set; }
     public DateTime? ExpiresAt { get; set; }
+
+    /// <summary>Pre-filled from the invitation when it captured them; still editable.</summary>
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+
+    /// <summary>The access this invitation grants, for the context panel.</summary>
+    public string? Role { get; set; }
 
     /// <summary>
     /// The rules the service will actually enforce, so the form states its

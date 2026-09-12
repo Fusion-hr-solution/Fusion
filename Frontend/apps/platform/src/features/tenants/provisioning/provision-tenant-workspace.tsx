@@ -245,6 +245,8 @@ export function ProvisionTenantWorkspace() {
       // identifier to travel even if its key were somehow selected.
       modules: selectedModulesFor(options, draft.selectedModuleKeys),
       administratorEmail: draft.administratorEmail.trim(),
+      administratorFirstName: draft.firstName.trim() || undefined,
+      administratorLastName: draft.lastName.trim() || undefined,
       idempotencyKey,
     });
   }

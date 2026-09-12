@@ -395,7 +395,9 @@ public class InviteToken : ITenantEntity
         string email,
         Guid tenantId,
         Guid createdByUserId,
-        int expiryDays = 7)
+        int expiryDays = 7,
+        string? firstName = null,
+        string? lastName = null)
     {
         ValidateEmail(email);
         ValidateTenantId(tenantId);
@@ -410,6 +412,8 @@ public class InviteToken : ITenantEntity
             Email = email.Trim().ToLowerInvariant(),
             TenantId = tenantId,
             Role = PlatformRole.OrgAdmin,
+            FirstName = NormalizeOptionalName(firstName),
+            LastName = NormalizeOptionalName(lastName),
             ExpiresAt = DateTime.UtcNow.AddDays(expiryDays),
             CreatedAt = DateTime.UtcNow,
             CreatedByUserId = createdByUserId,
@@ -426,7 +430,9 @@ public class InviteToken : ITenantEntity
         Guid tenantId,
         Guid createdByUserId,
         InvitationPurpose purpose,
-        int expiryDays = 7)
+        int expiryDays = 7,
+        string? firstName = null,
+        string? lastName = null)
     {
         if (!InvitationPurposes.IsAdministrative(purpose))
             throw new ArgumentException(
@@ -444,6 +450,11 @@ public class InviteToken : ITenantEntity
             Purpose = purpose,
             Email = email.Trim().ToLowerInvariant(),
             TenantId = tenantId,
+
+            // Pre-filled onto the acceptance form; still editable by the recipient,
+            // exactly as the platform first-administrator invitation captures them.
+            FirstName = NormalizeOptionalName(firstName),
+            LastName = NormalizeOptionalName(lastName),
 
             // Role is legacy compatibility data on this entity. Authority comes
             // from the canonical Tenant Administrator assignment created at

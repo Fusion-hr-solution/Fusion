@@ -15,6 +15,10 @@ export type ActivationEntryState =
 
 export interface PasswordRequirements {
   minimumLength: number;
+  /** Upper bound; advisory on the client, enforced by the service. */
+  maximumLength?: number;
+  /** At least one letter of either case. */
+  requiresLetter?: boolean;
   requiresDigit: boolean;
   requiresLowercase: boolean;
   requiresUppercase: boolean;
@@ -26,6 +30,11 @@ export interface ActivationEntry {
   tenantName: string | null;
   invitedEmail: string | null;
   expiresAt: string | null;
+  /** Pre-filled from the invitation when it captured them; still editable. */
+  firstName?: string | null;
+  lastName?: string | null;
+  /** The access this invitation grants, for the context panel. */
+  role?: string | null;
   passwordRequirements: PasswordRequirements | null;
 }
 
@@ -144,6 +153,9 @@ export function passwordChecks(
     },
   ];
 
+  if (requirements.requiresLetter) {
+    checks.push({ label: "A letter", satisfied: /[a-zA-Z]/.test(password) });
+  }
   if (requirements.requiresUppercase) {
     checks.push({ label: "An uppercase letter", satisfied: /[A-Z]/.test(password) });
   }
@@ -286,8 +298,17 @@ export interface ActivationJourney {
   /** Why this person is here, in one sentence. */
   contextBody: string;
 
+  /** The access this invitation grants, shown on the context panel. */
+  roleLabel: string;
+
   /** The form heading. */
   formHeading: string;
+
+  /**
+   * The sentence under the form heading. `{tenant}` is replaced with the
+   * inviting organization's name.
+   */
+  formLead: string;
 
   /**
    * Copy for stopping points where this journey has to say something different
@@ -309,7 +330,9 @@ export const BOOTSTRAP_JOURNEY: ActivationJourney = {
   contextLead: "Create administrator access for",
   contextBody:
     "You have been invited to become this tenant's first administrator. Create your account to continue.",
-  formHeading: "Create your administrator account",
+  roleLabel: "Tenant Administrator",
+  formHeading: "Set up your account",
+  formLead: "Accept your invitation from {tenant} to create your Fusion account.",
 };
 
 /** An additional administrator, invited by an existing one. */
@@ -320,7 +343,9 @@ export const ADMINISTRATOR_JOURNEY: ActivationJourney = {
   contextLead: "Create administrator access for",
   contextBody:
     "You have been invited to administer this tenant. Create your account to continue.",
-  formHeading: "Create your administrator account",
+  roleLabel: "Tenant Administrator",
+  formHeading: "Set up your account",
+  formLead: "Accept your invitation from {tenant} to create your Fusion account.",
   terminalOverrides: {
     expired: {
       title: "This invitation has expired",
@@ -355,7 +380,9 @@ export const RECOVERY_JOURNEY: ActivationJourney = {
   contextBody:
     "This tenant has no administrator who can sign in. Completing this restores customer-controlled " +
     "administration. Fusion Platform operators do not receive access to this tenant.",
-  formHeading: "Create your administrator account",
+  roleLabel: "Tenant Administrator",
+  formHeading: "Set up your account",
+  formLead: "Restore administrator access for {tenant} by creating your Fusion account.",
   terminalOverrides: {
     expired: {
       title: "This recovery invitation has expired",

@@ -46,6 +46,8 @@ export interface ComposeInput {
   workforceAccessSummary?:
     | { activeAccountCount: number; invitePendingCount: number; notInvitedCount: number }
     | null;
+  /** Count of active tenant administrators. `undefined` loading, `null` unavailable. */
+  administratorCount?: number | null;
   capabilities?: SetupCapability[];
 }
 
@@ -89,6 +91,7 @@ export function composeSetupCapabilities({
   setupState,
   workforceTotalCount,
   workforceAccessSummary,
+  administratorCount,
   capabilities = SETUP_CAPABILITIES,
 }: ComposeInput): ComposedCapability[] {
   const ordered = [...capabilities].sort((a, b) => a.order - b.order);
@@ -180,6 +183,25 @@ export function composeSetupCapabilities({
       return {
         ...base(capability, activeAccountCount > 0 ? "ready" : "in-progress"),
         detail,
+        isActionable: true,
+      };
+    }
+
+    if (capability.key === "administrator-access") {
+      // A reader who can see this row is, by authorization, a tenant
+      // administrator — so access is established the moment this page renders.
+      // The count refines the detail; a failed read keeps it ready without one.
+      if (administratorCount === undefined) {
+        return { ...base(capability, "unknown"), isActionable: true };
+      }
+      // A visible reader is themselves a usable administrator, so access is
+      // ready even if the count read failed; the count only refines the detail.
+      return {
+        ...base(capability, "ready"),
+        detail:
+          administratorCount && administratorCount > 0
+            ? `${administratorCount} ${administratorCount === 1 ? "administrator" : "administrators"}`
+            : null,
         isActionable: true,
       };
     }

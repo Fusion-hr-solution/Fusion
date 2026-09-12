@@ -91,6 +91,15 @@ public sealed record ProvisionTenantRequest
 
     public string AdministratorEmail { get; init; } = string.Empty;
 
+    /// <summary>
+    /// Optional. Pre-fills the first administrator's name on the activation form
+    /// so they are not asked to retype what the operator already knows. Cosmetic:
+    /// it is not part of the idempotency fingerprint, and the recipient can still
+    /// correct it when they set up their account.
+    /// </summary>
+    public string? AdministratorFirstName { get; init; }
+    public string? AdministratorLastName { get; init; }
+
     /// <summary>Caller-supplied key that makes a retry idempotent.</summary>
     public string IdempotencyKey { get; init; } = string.Empty;
 

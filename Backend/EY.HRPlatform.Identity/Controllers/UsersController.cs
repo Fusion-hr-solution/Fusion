@@ -197,7 +197,9 @@ public class UsersController : ControllerBase
             LastName = request.LastName,
             Department = request.Department,
             JobTitle = request.JobTitle,
-            HireDate = DateTime.SpecifyKind(request.HireDate, DateTimeKind.Utc),
+            HireDate = request.HireDate is { } hireDate
+                ? DateTime.SpecifyKind(hireDate, DateTimeKind.Utc)
+                : null,
             EmailConfirmed = false
         };
 

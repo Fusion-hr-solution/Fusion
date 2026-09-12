@@ -15,6 +15,8 @@ public interface IAdministratorInvitationService
         string email,
         Guid actorUserId,
         InvitationPurpose purpose = InvitationPurpose.TenantAdministrator,
+        string? firstName = null,
+        string? lastName = null,
         CancellationToken cancellationToken = default);
 
     Task<InvitationCommandResult> ResendAsync(
@@ -52,6 +54,8 @@ public sealed class AdministratorInvitationService(
         string email,
         Guid actorUserId,
         InvitationPurpose purpose = InvitationPurpose.TenantAdministrator,
+        string? firstName = null,
+        string? lastName = null,
         CancellationToken cancellationToken = default)
     {
         // Recovery is a Platform-initiated exception to customer control, and it is
@@ -94,7 +98,7 @@ public sealed class AdministratorInvitationService(
         }
 
         var invitation = InviteToken.CreateAdministrative(
-            normalized, tenantId, actorUserId, purpose, ExpiryDays);
+            normalized, tenantId, actorUserId, purpose, ExpiryDays, firstName, lastName);
 
         var credential = BootstrapCredential.Issue();
         invitation.IssueCredential(credential.Selector, BootstrapCredential.Digest(credential.Secret));
@@ -338,7 +342,10 @@ public sealed class AdministratorInvitationService(
             invitation.Purpose,
             tenant.Name,
             invitation.Email,
-            invitation.ExpiresAt);
+            invitation.ExpiresAt,
+            invitation.FirstName,
+            invitation.LastName,
+            invitation.Role);
     }
 
     // ── plumbing ─────────────────────────────────────────

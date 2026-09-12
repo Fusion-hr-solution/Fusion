@@ -27,8 +27,10 @@ export function RecentActivity() {
     <section className="rounded-2xl border border-border bg-card p-5">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <Clock aria-hidden="true" className="size-5 text-muted-foreground" />
-          <h3 className="text-sm font-semibold text-foreground">Recent activity</h3>
+          <Clock aria-hidden="true" className="size-8 text-muted-foreground" />
+          <h3 className="text-sm font-semibold text-foreground">
+            Recent activity
+          </h3>
         </div>
         {entries.length > 0 ? (
           <Link
@@ -41,7 +43,9 @@ export function RecentActivity() {
       </header>
 
       {entries.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">No activity recorded yet.</p>
+        <p className="mt-4 text-sm text-muted-foreground">
+          No activity recorded yet.
+        </p>
       ) : (
         <ol className="mt-4">
           {entries.map((entry, index) => (
@@ -138,6 +142,8 @@ function describe(eventType: string, failed: boolean): string {
     case "TenantProfileChanged":
       return "The tenant profile was updated.";
     default:
-      return failed ? "The update did not complete." : "An update was recorded.";
+      return failed
+        ? "The update did not complete."
+        : "An update was recorded.";
   }
 }

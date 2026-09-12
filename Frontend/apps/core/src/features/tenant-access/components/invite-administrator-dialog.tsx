@@ -35,19 +35,29 @@ export function InviteAdministratorDialog({
   onOpenChange,
   onInvited,
 }: InviteAdministratorDialogProps) {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const invite = useInviteAdministrator();
 
   useEffect(() => {
     if (open) {
+      setFirstName("");
+      setLastName("");
       setEmail("");
       setProblem(null);
     }
   }, [open]);
 
-  const trimmed = email.trim();
-  const canSubmit = trimmed.length > 0 && !invite.isLoading;
+  const trimmedEmail = email.trim();
+  const trimmedFirst = firstName.trim();
+  const trimmedLast = lastName.trim();
+  const canSubmit =
+    trimmedEmail.length > 0 &&
+    trimmedFirst.length > 0 &&
+    trimmedLast.length > 0 &&
+    !invite.isLoading;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -58,8 +68,12 @@ export function InviteAdministratorDialog({
     setProblem(null);
 
     try {
-      const result = await invite.mutateAsync(trimmed);
-      onInvited(trimmed, result.deliveryFailed);
+      const result = await invite.mutateAsync({
+        email: trimmedEmail,
+        firstName: trimmedFirst,
+        lastName: trimmedLast,
+      });
+      onInvited(trimmedEmail, result.deliveryFailed);
       onOpenChange(false);
     } catch (error) {
       // The address stays in the field on every recoverable failure — retyping it
@@ -94,24 +108,49 @@ export function InviteAdministratorDialog({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-2 py-4">
-            <Label htmlFor="administrator-email">Email address</Label>
-            <Input
-              id="administrator-email"
-              type="email"
-              value={email}
-              autoFocus
-              autoComplete="off"
-              placeholder="name@example.com"
-              aria-invalid={problem !== null}
-              aria-describedby={problem ? "administrator-email-problem" : undefined}
-              onChange={(event) => setEmail(event.target.value)}
-            />
-            {problem ? (
-              <p id="administrator-email-problem" role="alert" className="text-sm text-destructive">
-                {problem}
-              </p>
-            ) : null}
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="administrator-first-name">First name</Label>
+                <Input
+                  id="administrator-first-name"
+                  value={firstName}
+                  autoFocus
+                  autoComplete="off"
+                  placeholder="Jane"
+                  onChange={(event) => setFirstName(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="administrator-last-name">Last name</Label>
+                <Input
+                  id="administrator-last-name"
+                  value={lastName}
+                  autoComplete="off"
+                  placeholder="Doe"
+                  onChange={(event) => setLastName(event.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="administrator-email">Email address</Label>
+              <Input
+                id="administrator-email"
+                type="email"
+                value={email}
+                autoComplete="off"
+                placeholder="name@example.com"
+                aria-invalid={problem !== null}
+                aria-describedby={problem ? "administrator-email-problem" : undefined}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+              {problem ? (
+                <p id="administrator-email-problem" role="alert" className="text-sm text-destructive">
+                  {problem}
+                </p>
+              ) : null}
+            </div>
           </div>
 
           <DialogFooter>

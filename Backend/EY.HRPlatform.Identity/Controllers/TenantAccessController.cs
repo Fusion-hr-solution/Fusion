@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace EY.HRPlatform.Identity.Controllers;
 
-public sealed record InviteAdministratorRequest(string Email);
+public sealed record InviteAdministratorRequest(string Email, string? FirstName, string? LastName);
 
 public sealed record ReplaceInvitationEmailRequest(string Email);
 
@@ -44,6 +44,12 @@ public sealed class TenantAccessController(
     public async Task<IActionResult> Administrators(CancellationToken cancellationToken)
         => Resolve(out var tenantId, requireManage: false, out var refusal)
             ? Success(await projection.GetAdministratorsAsync(tenantId, cancellationToken))
+            : refusal;
+
+    [HttpGet("administrators/removed")]
+    public async Task<IActionResult> RemovedAdministrators(CancellationToken cancellationToken)
+        => Resolve(out var tenantId, requireManage: false, out var refusal)
+            ? Success(await projection.GetRemovedAdministratorsAsync(tenantId, cancellationToken))
             : refusal;
 
     [HttpGet("invitations")]
@@ -87,7 +93,8 @@ public sealed class TenantAccessController(
 
         return Translate(await invitations.IssueAsync(
             tenantId, request.Email, User.GetUserId(),
-            InvitationPurpose.TenantAdministrator, cancellationToken));
+            InvitationPurpose.TenantAdministrator,
+            request.FirstName, request.LastName, cancellationToken));
     }
 
     [HttpPost("invitations/{invitationId:guid}/resend")]

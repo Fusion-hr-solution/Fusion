@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, within } from "@testing-library/react";
 import type { AuthUser } from "@repo/auth";
+import type { ContinuityState } from "@repo/api";
 import { SETUP_CAPABILITIES } from "./catalog";
 import type {
   CapabilityState,
@@ -82,10 +83,14 @@ function renderView({
     entry("workforce", "blocked", false, { blockedBy: "Organization" }),
     WORKFORCE_ACCESS,
   ],
+  continuity = "AtRisk" as ContinuityState,
+  activeAdministrators = 1 as number | null,
 }: {
   variant?: LaunchpadVariant;
   recommendation?: ComposedCapability | null;
   entries?: ComposedCapability[];
+  continuity?: ContinuityState | null;
+  activeAdministrators?: number | null;
 } = {}) {
   return render(
     <LaunchpadView
@@ -93,6 +98,8 @@ function renderView({
       variant={variant}
       recommendation={recommendation}
       entries={entries}
+      continuity={continuity}
+      activeAdministrators={activeAdministrators}
       onRetry={vi.fn()}
     />
   );
@@ -124,6 +131,49 @@ describe("Tenant Setup launchpad presentation", () => {
     ).toHaveLength(1);
   });
 
+  it("separates administrative continuity from the buildout ladder", () => {
+    renderView();
+
+    const administration = screen
+      .getByRole("heading", { name: "Administration & configuration" })
+      .closest("section");
+    expect(administration).not.toBeNull();
+
+    const continuityCard = screen
+      .getByRole("heading", { name: "Administrator continuity" })
+      .closest("article");
+    expect(continuityCard).not.toBeNull();
+    expect(
+      within(continuityCard as HTMLElement).getByText("At risk")
+    ).toBeInTheDocument();
+    expect(
+      within(continuityCard as HTMLElement).getByText("1 active administrator")
+    ).toBeInTheDocument();
+    expect(
+      within(continuityCard as HTMLElement).getByRole("link", {
+        name: /Manage access/i,
+      })
+    ).toHaveAttribute("href", "/access");
+
+    // Administrator access stays a rung, but only as a marker: management is not
+    // duplicated onto the ladder.
+    const foundation = screen
+      .getByRole("heading", { name: "Tenant foundation" })
+      .closest("section");
+    expect(
+      within(foundation as HTMLElement).queryByRole("link", {
+        name: /Manage access/i,
+      })
+    ).not.toBeInTheDocument();
+
+    // Tenant configuration is administration, not a buildout rung.
+    expect(
+      within(administration as HTMLElement).getByRole("heading", {
+        name: "Tenant configuration",
+      })
+    ).toBeInTheDocument();
+  });
+
   it("renders the underway and mature copy from authoritative variants", () => {
     const { rerender } = render(
       <LaunchpadView
@@ -131,6 +181,8 @@ describe("Tenant Setup launchpad presentation", () => {
         variant="underway"
         recommendation={entry("organization", "in-progress", true)}
         entries={[ADMIN_ACCESS]}
+        continuity={null}
+        activeAdministrators={null}
         onRetry={vi.fn()}
       />
     );
@@ -148,6 +200,8 @@ describe("Tenant Setup launchpad presentation", () => {
         variant="mature"
         recommendation={null}
         entries={[entry("organization", "ready", true)]}
+        continuity={null}
+        activeAdministrators={null}
         onRetry={vi.fn()}
       />
     );

@@ -115,14 +115,115 @@ export function TeamPageSkeleton() {
   );
 }
 
+/** Loading skeleton for the Administrators workspace — same shape the page fills. */
 export function AccessPageSkeleton() {
   return (
-    <TitledPageLoading
-      title="Access"
-      description="Activate accounts and manage access for workforce users."
-      rows={8}
-      label="Loading access workspace"
-    />
+    <PageContainer width="wide" className="space-y-8">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-40" />
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-96 max-w-full" />
+        </div>
+        <Skeleton className="h-9 w-36 shrink-0" />
+      </div>
+
+      <div className="flex flex-col gap-6 rounded-2xl border bg-muted/30 p-5 lg:flex-row lg:items-center lg:gap-8">
+        <div className="flex flex-1 items-start gap-4">
+          <Skeleton className="size-11 shrink-0 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-40" />
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-3 w-80 max-w-full" />
+          </div>
+        </div>
+        <div className="flex items-center gap-8">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-7 w-8" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ))}
+          <Skeleton className="h-9 w-36" />
+        </div>
+      </div>
+
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="min-w-0 space-y-6">
+          <Skeleton className="h-9 w-full sm:max-w-xs" />
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-44" />
+            <AccessTableSkeleton rows={2} />
+          </div>
+        </div>
+
+        <aside className="hidden xl:block">
+          <div className="space-y-5 rounded-2xl border bg-card p-5">
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-10 rounded-full" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+            </div>
+            <div className="space-y-3 border-t pt-4">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="flex justify-between">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2 border-t pt-4">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-xl" />
+              ))}
+            </div>
+          </div>
+        </aside>
+      </div>
+    </PageContainer>
+  );
+}
+
+function AccessTableSkeleton({ rows }: { rows: number }) {
+  return (
+    <div className="overflow-hidden rounded-xl border">
+      <div className="border-b bg-muted/40 px-4 py-3">
+        <Skeleton className="h-3 w-24" />
+      </div>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 border-b px-4 py-3.5 last:border-b-0">
+          <Skeleton className="size-9 shrink-0 rounded-full" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3.5 w-40" />
+            <Skeleton className="h-3 w-56 max-w-full" />
+          </div>
+          <Skeleton className="hidden h-5 w-16 sm:block" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Loading skeleton for the activity log — a feed, not a master-detail. */
+export function ActivityLogPageSkeleton() {
+  return (
+    <PageContainer width="wide" className="max-w-3xl space-y-8">
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-32" />
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-80 max-w-full" />
+      </div>
+      <div className="space-y-4 border-l pl-6">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} className="flex items-baseline justify-between gap-4">
+            <Skeleton className="h-4 w-72 max-w-full" />
+            <Skeleton className="h-3 w-20 shrink-0" />
+          </div>
+        ))}
+      </div>
+    </PageContainer>
   );
 }
 
@@ -257,6 +358,7 @@ export function getRoutePageSkeleton(corePath: string): ReactNode {
   if (corePath === "/settings") return <SettingsPageSkeleton />;
   if (corePath === "/access/profiles")
     return <TitledPageLoading title="Access profiles" rows={4} label="Opening access profile settings" />;
+  if (corePath === "/access/activity") return <ActivityLogPageSkeleton />;
   if (corePath.startsWith("/access")) return <AccessPageSkeleton />;
   if (corePath === "/getting-started" || corePath === "/setup")
     return <SetupPageSkeleton />;

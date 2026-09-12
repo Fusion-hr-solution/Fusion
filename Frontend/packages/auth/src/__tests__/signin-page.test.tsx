@@ -71,16 +71,14 @@ describe("SignInPage", () => {
 
     it("renders sign in button", () => {
       renderSignInPage();
-      expect(screen.getByRole("button", { name: /sign in/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
     });
 
     it("does not expose self-service signup", () => {
       renderSignInPage();
 
       expect(screen.queryByRole("link", { name: /sign up/i })).toBeNull();
-      expect(
-        screen.getByText(/ask your HR administrator for an invitation link/i)
-      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /sign up/i })).toBeNull();
     });
   });
 
@@ -91,7 +89,7 @@ describe("SignInPage", () => {
 
       await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
       await userEvent.type(screen.getByLabelText(/password/i), "password123");
-      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+      await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
       await waitFor(() => {
         expect(mockedService.login).toHaveBeenCalledWith({
@@ -107,7 +105,7 @@ describe("SignInPage", () => {
 
       await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
       await userEvent.type(screen.getByLabelText(/password/i), "password123");
-      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+      await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
       await waitFor(() => {
         expect(mockLocationAssign).toHaveBeenCalledWith("/");
@@ -135,7 +133,7 @@ describe("SignInPage", () => {
 
       await userEvent.type(screen.getByLabelText(/email/i), "admin@example.com");
       await userEvent.type(screen.getByLabelText(/password/i), "password123");
-      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+      await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
       await waitFor(() => expect(mockLocationAssign).toHaveBeenCalledWith("/getting-started"));
     });
@@ -164,7 +162,7 @@ describe("SignInPage", () => {
 
       await userEvent.type(screen.getByLabelText(/email/i), "admin@example.com");
       await userEvent.type(screen.getByLabelText(/password/i), "password123");
-      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+      await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
       await waitFor(() => expect(mockLocationAssign).toHaveBeenCalledWith("/getting-started"));
     });
@@ -178,7 +176,7 @@ describe("SignInPage", () => {
 
       await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
       await userEvent.type(screen.getByLabelText(/password/i), "password123");
-      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+      await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
       await waitFor(() => {
         expect(mockLocationAssign).toHaveBeenCalledWith("/core/welcome?activation=1");
@@ -194,7 +192,7 @@ describe("SignInPage", () => {
 
       await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
       await userEvent.type(screen.getByLabelText(/password/i), "password123");
-      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+      await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
       await waitFor(() => {
         expect(mockLocationAssign).toHaveBeenCalledWith("/core/welcome?activation=1");
@@ -208,7 +206,7 @@ describe("SignInPage", () => {
 
       await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
       await userEvent.type(screen.getByLabelText(/password/i), "password123");
-      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+      await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
       await waitFor(() => {
         expect(onSuccess).toHaveBeenCalled();
@@ -224,7 +222,7 @@ describe("SignInPage", () => {
 
       await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
       await userEvent.type(screen.getByLabelText(/password/i), "wrongpassword");
-      await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+      await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
       await waitFor(() => {
         expect(screen.getByText(/invalid email or password/i)).toBeInTheDocument();
@@ -238,7 +236,7 @@ describe("SignInPage", () => {
       await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
       await userEvent.type(screen.getByLabelText(/password/i), "password123");
       
-      const submitButton = screen.getByRole("button", { name: /sign in/i });
+      const submitButton = screen.getByRole("button", { name: "Sign in" });
       await userEvent.click(submitButton);
 
       await waitFor(() => {

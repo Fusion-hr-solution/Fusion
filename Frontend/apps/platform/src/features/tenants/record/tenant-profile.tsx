@@ -44,7 +44,7 @@ export function TenantProfile() {
         <div className="flex items-center gap-2.5">
           <FileText
             aria-hidden="true"
-            className="size-5 text-muted-foreground"
+            className="size-8 text-muted-foreground"
           />
           <h3 className="text-sm font-semibold text-foreground">
             Tenant profile

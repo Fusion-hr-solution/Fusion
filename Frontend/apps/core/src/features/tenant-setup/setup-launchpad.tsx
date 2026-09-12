@@ -21,9 +21,14 @@ import {
   useAuth,
   type AuthUser,
 } from "@repo/auth";
+import type { ContinuityState } from "@repo/api";
 import { Button, cn } from "@repo/ds";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
-import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
+import { PageContainer, PagePermissionNotice, StatusBadge } from "@repo/ds/shell";
+import {
+  CONTINUITY_LABEL,
+  CONTINUITY_TONE,
+} from "@/features/tenant-access/components/access-language";
 import { useEmployeeRoster } from "@/app/(pages)/employees/use-employees";
 import { useTenantAccessSummary } from "@/features/tenant-access/api/use-tenant-access";
 import { useAccessRosterSummary } from "@/features/workforce-access/api/use-workforce-access";
@@ -60,22 +65,30 @@ const CAPABILITY_ICON: Record<string, LucideIcon> = {
  * the spine connector, and the readiness meter all read from this so a single
  * mapping governs how state looks across the surface.
  */
-type NodeTone = "ready" | "next" | "neutral" | "blocked" | "planned";
+type NodeTone =
+  | "ready"
+  | "next"
+  | "neutral"
+  | "blocked"
+  | "planned"
+  | "available";
 
 const MARKER_TONE: Record<NodeTone, string> = {
   ready: "bg-success-subtle text-success ring-1 ring-inset ring-success/30",
   next: "bg-warning-subtle text-warning ring-1 ring-inset ring-warning/45",
   neutral: "bg-muted text-foreground/75 ring-1 ring-inset ring-border",
-  blocked: "bg-muted/50 text-muted-foreground/80 ring-1 ring-inset ring-border",
+  blocked: "bg-muted text-muted-foreground ring-1 ring-inset ring-border",
   planned: "border border-dashed border-border text-muted-foreground/60",
+  available: "bg-warning-subtle text-warning ring-1 ring-inset ring-warning/45",
 };
 
 const SEGMENT_TONE: Record<NodeTone, string> = {
   ready: "bg-success",
   next: "bg-warning",
   neutral: "bg-muted-foreground/30",
-  blocked: "bg-muted-foreground/20",
+  blocked: "bg-muted-foreground/25",
   planned: "bg-muted-foreground/15",
+  available: "bg-warning",
 };
 
 function toneForState(state: CapabilityState): NodeTone {
@@ -146,6 +159,11 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
     : organizationReadiness.isLoading
       ? undefined
       : (organizationReadiness.data ?? null);
+  const administratorCount = accessSummary.error
+    ? null
+    : accessSummary.isLoading
+      ? undefined
+      : (accessSummary.data?.activeAdministrators ?? null);
 
   const composed = useMemo(
     () =>
@@ -155,8 +173,15 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
         setupState: effectiveSetupState,
         workforceTotalCount,
         workforceAccessSummary,
+        administratorCount,
       }),
-    [effectiveSetupState, user, workforceTotalCount, workforceAccessSummary]
+    [
+      effectiveSetupState,
+      user,
+      workforceTotalCount,
+      workforceAccessSummary,
+      administratorCount,
+    ]
   );
 
   const isInitialLoading =
@@ -172,14 +197,26 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
   const recommendation = recommendedNextStep(visible);
   const recommendationKey = recommendation?.capability.key ?? null;
   const entries = visible
-    .filter((entry) => entry.capability.key !== recommendationKey)
-    .sort((left, right) => {
-      if (left.capability.key === "organization") return -1;
-      if (right.capability.key === "organization") return 1;
-      return left.capability.order - right.capability.order;
-    });
+    // Organization always keeps its place in the ladder, even when it is the
+    // recommended next step, so the foundation reads in full order.
+    .filter(
+      (entry) =>
+        entry.capability.key === "organization" ||
+        entry.capability.key !== recommendationKey
+    )
+    .sort((left, right) => left.capability.order - right.capability.order);
   const variant = deriveLaunchpadVariant(visible, workforceTotalCount);
   const tenantName = accessSummary.data?.tenantName?.trim() || "your tenant";
+
+  // Administrative continuity is a live tenant-health read, not a buildout step.
+  // The launchpad already fetched it; a failed read yields `null` rather than an
+  // invented "healthy" state.
+  const continuity: ContinuityState | null =
+    accessSummary.error || !accessSummary.data
+      ? null
+      : accessSummary.data.continuity;
+  const activeAdministrators =
+    typeof administratorCount === "number" ? administratorCount : null;
 
   return (
     <LaunchpadView
@@ -187,6 +224,8 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
       variant={variant}
       recommendation={recommendation}
       entries={entries}
+      continuity={continuity}
+      activeAdministrators={activeAdministrators}
       onRetry={(key) => {
         if (key === "organization" || organizationReadiness.error) {
           void organizationReadiness.refetch();
@@ -206,12 +245,16 @@ export function LaunchpadView({
   variant,
   recommendation,
   entries,
+  continuity,
+  activeAdministrators,
   onRetry,
 }: {
   tenantName: string;
   variant: LaunchpadVariant;
   recommendation: ComposedCapability | null;
   entries: ComposedCapability[];
+  continuity: ContinuityState | null;
+  activeAdministrators: number | null;
   onRetry: (key: string) => void;
 }) {
   const heading =
@@ -229,19 +272,53 @@ export function LaunchpadView({
   // tenant actually stands up — so planned/entitlement rows never dilute the
   // count. The recommended step is included: it is foundation that is not yet
   // ready, which is exactly what the meter should show as remaining.
-  const foundation = [recommendation, ...entries].filter(
-    (entry): entry is ComposedCapability =>
-      entry != null &&
-      entry.capability.group === "foundation" &&
-      entry.capability.availability === "implemented"
+  // The buildout ladder: the sequential foundation a tenant stands up. Its rungs
+  // carry linear progress, so the administration surfaces are pulled out below.
+  // Administrator access stays as a rung — it is the first thing established —
+  // but only as a state marker; its management moves to the continuity card so it
+  // is never a double affordance.
+  const ladderEntries = entries
+    .filter((entry) => entry.capability.group === "foundation")
+    .map((entry) =>
+      entry.capability.key === "administrator-access"
+        ? { ...entry, detail: null, isActionable: false }
+        : entry
+    );
+  const administrationEntries = entries.filter(
+    (entry) => entry.capability.group === "administration"
   );
-  const readyCount = foundation.filter((entry) => entry.state === "ready").length;
+  const moduleEntries = entries.filter(
+    (entry) => entry.capability.group === "module"
+  );
+
+  const foundation = [recommendation, ...ladderEntries]
+    .filter(
+      (entry): entry is ComposedCapability =>
+        entry != null && entry.capability.group === "foundation"
+    )
+    // Organization can now be both the recommendation and a ladder entry, so
+    // collapse to one segment per capability to keep meter keys unique.
+    .filter(
+      (entry, index, all) =>
+        all.findIndex(
+          (candidate) => candidate.capability.key === entry.capability.key
+        ) === index
+    )
+    // Segments follow the ladder's order rather than leading with the
+    // recommendation, so the meter reads left-to-right as the rungs do.
+    .sort((left, right) => left.capability.order - right.capability.order);
+  const readyCount = foundation.filter(
+    (entry) => entry.state === "ready"
+  ).length;
+
+  const hasAdministration =
+    administrationEntries.length > 0 || activeAdministrators !== null;
 
   return (
-    <PageContainer className="mx-auto max-w-4xl space-y-9 pb-14">
+    <PageContainer className="mx-auto max-w-5xl space-y-9 pb-14">
       <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-2xl space-y-2.5">
-          <span className="type-eyebrow text-muted-foreground">Tenant setup</span>
+          <span className="type-eyebrow text-primary">Tenant setup</span>
           <h1 className="type-display text-balance">{heading}</h1>
           <p className="type-body max-w-xl text-pretty text-muted-foreground">
             {description}
@@ -258,8 +335,11 @@ export function LaunchpadView({
 
       {recommendation ? <RecommendationPanel entry={recommendation} /> : null}
 
-      {entries.length > 0 ? (
-        <section aria-labelledby="tenant-foundation-heading" className="space-y-5">
+      {ladderEntries.length > 0 ? (
+        <section
+          aria-labelledby="tenant-foundation-heading"
+          className="space-y-5"
+        >
           <div className="flex items-baseline justify-between gap-4">
             <h2
               id="tenant-foundation-heading"
@@ -273,18 +353,159 @@ export function LaunchpadView({
           </div>
 
           <div className="relative">
-            {entries.map((entry, index) => (
+            {ladderEntries.map((entry, index) => (
               <LadderNode
                 key={entry.capability.key}
                 entry={entry}
-                isLast={index === entries.length - 1}
+                isLast={index === ladderEntries.length - 1}
                 onRetry={() => onRetry(entry.capability.key)}
               />
             ))}
           </div>
         </section>
       ) : null}
+
+      {hasAdministration ? (
+        <section
+          aria-labelledby="tenant-administration-heading"
+          className="space-y-5"
+        >
+          <h2
+            id="tenant-administration-heading"
+            className="type-subsection-title text-foreground"
+          >
+            Administration &amp; configuration
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {activeAdministrators !== null || continuity !== null ? (
+              <ContinuityCard
+                continuity={continuity}
+                activeAdministrators={activeAdministrators}
+              />
+            ) : null}
+            {administrationEntries.map((entry) => (
+              <AdministrationCard key={entry.capability.key} entry={entry} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {moduleEntries.length > 0 ? (
+        <section aria-labelledby="tenant-modules-heading" className="space-y-5">
+          <h2
+            id="tenant-modules-heading"
+            className="type-subsection-title text-foreground"
+          >
+            Modules
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {moduleEntries.map((entry) => (
+              <AdministrationCard key={entry.capability.key} entry={entry} />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </PageContainer>
+  );
+}
+
+/**
+ * Administrative continuity — a live tenant-health read, deliberately outside the
+ * buildout ladder. The badge carries the state (Secure / At risk / No
+ * administrator) in the same vocabulary the Access page uses; the action is the
+ * one entry point to manage it. No advisory sentence: the state and the action
+ * carry it, the detail lives one click away on Access.
+ */
+function ContinuityCard({
+  continuity,
+  activeAdministrators,
+}: {
+  continuity: ContinuityState | null;
+  activeAdministrators: number | null;
+}) {
+  const countLabel =
+    activeAdministrators === null
+      ? null
+      : `${activeAdministrators} active ${
+          activeAdministrators === 1 ? "administrator" : "administrators"
+        }`;
+
+  return (
+    <article className="flex items-center gap-4 rounded-2xl border bg-card p-4 shadow-raised sm:p-5">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground/75 ring-1 ring-inset ring-border">
+        <ShieldCheck className="size-5" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <h3 className="type-subsection-title text-foreground">
+            Administrator continuity
+          </h3>
+          {continuity ? (
+            <StatusBadge tone={CONTINUITY_TONE[continuity]} dot>
+              {CONTINUITY_LABEL[continuity]}
+            </StatusBadge>
+          ) : null}
+        </div>
+        {countLabel ? (
+          <p className="type-meta text-muted-foreground">{countLabel}</p>
+        ) : null}
+      </div>
+      <Link
+        href="/access"
+        className="type-label group/action inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg text-foreground underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        Manage access
+        <ArrowRight
+          className="size-3.5 transition-transform group-hover/action:translate-x-0.5"
+          aria-hidden
+        />
+      </Link>
+    </article>
+  );
+}
+
+/**
+ * A tenant-administration or module capability that is not a buildout rung — a
+ * quiet card carrying its own state (an action when reachable, "Not available in
+ * this build" when planned).
+ */
+function AdministrationCard({ entry }: { entry: ComposedCapability }) {
+  const { capability, state, isActionable } = entry;
+  const Glyph = CAPABILITY_ICON[capability.key] ?? Info;
+  const unavailableText = unavailableLabel(state, entry.blockedBy);
+  const action = actionLabel(entry);
+
+  return (
+    <article className="flex items-center gap-4 rounded-2xl border bg-card p-4 shadow-raised sm:p-5">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground/75 ring-1 ring-inset ring-border">
+        <Glyph className="size-5" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1 space-y-1">
+        <h3 className="type-subsection-title text-foreground">
+          {capability.title}
+        </h3>
+        <p className="type-meta text-pretty text-muted-foreground">
+          {capability.purpose}
+        </p>
+      </div>
+
+      {isActionable && capability.route ? (
+        <Link
+          href={capability.route}
+          className="type-label group/action inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg text-foreground underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {action}
+          <ArrowRight
+            className="size-3.5 transition-transform group-hover/action:translate-x-0.5"
+            aria-hidden
+          />
+        </Link>
+      ) : unavailableText ? (
+        <span className="type-meta shrink-0 text-muted-foreground">
+          {unavailableText}
+        </span>
+      ) : null}
+    </article>
   );
 }
 
@@ -404,7 +625,12 @@ function LadderNode({
   onRetry: () => void;
 }) {
   const { capability, state, blockedBy, detail, isActionable } = entry;
-  const tone = toneForState(state);
+  // Immediately available items (actionable now, not yet ready) read green like
+  // a live affordance; blocked items ("Available after … setup") read primary.
+  const tone: NodeTone =
+    isActionable && state !== "ready" && capability.route
+      ? "available"
+      : toneForState(state);
   const CapabilityGlyph = CAPABILITY_ICON[capability.key] ?? Info;
   const Glyph =
     state === "ready" ? Check : state === "blocked" ? Lock : CapabilityGlyph;
@@ -463,7 +689,10 @@ function LadderNode({
               )}
             >
               {state === "ready" ? (
-                <span className="size-1.5 rounded-full bg-success" aria-hidden />
+                <span
+                  className="size-1.5 rounded-full bg-success"
+                  aria-hidden
+                />
               ) : null}
               {detail}
             </span>
@@ -530,7 +759,7 @@ function actionLabel(entry: ComposedCapability): string {
 
 export function LaunchpadSkeleton() {
   return (
-    <PageContainer className="mx-auto max-w-4xl pb-14">
+    <PageContainer className="mx-auto max-w-5xl pb-14">
       <div
         className="space-y-9"
         role="status"

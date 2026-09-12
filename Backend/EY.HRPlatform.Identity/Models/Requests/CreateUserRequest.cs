@@ -24,10 +24,11 @@ public class CreateUserRequest
     public string? JobTitle { get; set; }
 
     /// <summary>
-    /// The user's hire date. Required field.
+    /// Optional, non-authoritative. An identity account is not workforce truth;
+    /// employment dates belong to CoreHR. Left unset for administrator and other
+    /// identity-only accounts.
     /// </summary>
-    [Required]
-    public DateTime HireDate { get; set; }
+    public DateTime? HireDate { get; set; }
 
     /// <summary>
     /// Required role to assign to the new user. Employee and Manager access must be

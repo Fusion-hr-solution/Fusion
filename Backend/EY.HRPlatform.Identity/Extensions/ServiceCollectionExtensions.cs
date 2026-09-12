@@ -113,6 +113,8 @@ public static class ServiceCollectionExtensions
             options.User.RequireUniqueEmail = true;
         })
             .AddEntityFrameworkStores<AppIdentityDbContext>()
+            .AddPasswordValidator<LetterPasswordValidator>()
+            .AddPasswordValidator<MaximumLengthPasswordValidator>()
             .AddDefaultTokenProviders();
 
         // 3. Register JWT authentication

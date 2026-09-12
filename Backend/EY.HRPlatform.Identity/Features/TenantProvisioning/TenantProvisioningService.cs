@@ -73,7 +73,9 @@ public sealed class TenantProvisioningService(
                 request.AdministratorEmail,
                 tenant.Id,
                 actorAccountId,
-                BootstrapInvitationExpiryDays);
+                BootstrapInvitationExpiryDays,
+                request.AdministratorFirstName,
+                request.AdministratorLastName);
             invitation.IssueCredential(
                 credential.Selector,
                 BootstrapCredential.Digest(credential.Secret));

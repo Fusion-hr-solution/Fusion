@@ -57,11 +57,38 @@ public sealed record TenantAdministratorListItem(
     DateTime AccessEstablishedAt,
     bool IsUsable,
     string? BlockedReason,
-    uint Version);
+    uint Version,
+    /// <summary>
+    /// Who established this authority, resolved to a person's name where one acted
+    /// and to a stable system phrase where none did. The maintenance panel shows it
+    /// as provenance, so "how did this access come to exist" is answerable without
+    /// opening the activity log.
+    /// </summary>
+    string AddedBy);
+
+/// <summary>
+/// An administrator whose authority has been revoked and not re-granted. Kept as a
+/// distinct read because a removed administrator is history the tenant needs to
+/// account for, not an operational row that can be acted on.
+/// </summary>
+public sealed record RemovedAdministratorListItem(
+    Guid MembershipId,
+    Guid UserId,
+    string Name,
+    string Email,
+    DateTime RemovedAt,
+    string RemovedBy,
+    string? Reason);
 
 public sealed record AdministratorInvitationListItem(
     Guid InvitationId,
     string Email,
+    /// <summary>
+    /// The recipient's name as captured on the invitation, or empty when it was
+    /// issued without one. Unconfirmed until acceptance, but shown so the pending
+    /// list reads the same as the administrator list.
+    /// </summary>
+    string Name,
     string State,
     string Purpose,
     DateTime IssuedAt,
@@ -91,6 +118,9 @@ public interface ITenantAccessProjection
     Task<TenantAccessSummary> GetSummaryAsync(Guid tenantId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<TenantAdministratorListItem>> GetAdministratorsAsync(
+        Guid tenantId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RemovedAdministratorListItem>> GetRemovedAdministratorsAsync(
         Guid tenantId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<AdministratorInvitationListItem>> GetInvitationsAsync(
@@ -203,6 +233,8 @@ public sealed class TenantAccessProjection(AppIdentityDbContext dbContext) : ITe
                 assignment.TenantMembershipId,
                 assignment.UserId,
                 assignment.GrantedAt,
+                assignment.GrantedByActorType,
+                assignment.GrantedByUserId,
                 Status = assignment.TenantMembership!.Status,
                 Version = assignment.TenantMembership!.Version,
                 FirstName = assignment.User!.FirstName,
@@ -212,6 +244,11 @@ public sealed class TenantAccessProjection(AppIdentityDbContext dbContext) : ITe
             .OrderBy(item => item.FirstName)
             .ThenBy(item => item.LastName)
             .ToListAsync(cancellationToken);
+
+        var grantorNames = await ResolveNamesAsync(
+            administrators.Where(item => item.GrantedByUserId.HasValue)
+                .Select(item => item.GrantedByUserId!.Value),
+            cancellationToken);
 
         return administrators.Select(item =>
         {
@@ -228,8 +265,116 @@ public sealed class TenantAccessProjection(AppIdentityDbContext dbContext) : ITe
                 // A pending invitation does not satisfy continuity: nobody has
                 // accepted it, so it cannot administer anything yet.
                 isUsable && usable.Count == 1 ? FinalAdministratorReason : null,
-                item.Version);
+                item.Version,
+                DescribeAddedBy(item.GrantedByActorType, item.GrantedByUserId, grantorNames));
         }).ToList();
+    }
+
+    public async Task<IReadOnlyList<RemovedAdministratorListItem>> GetRemovedAdministratorsAsync(
+        Guid tenantId, CancellationToken cancellationToken = default)
+    {
+        // A membership with any unrevoked authority is not removed — a grant that
+        // followed a revocation makes the person a current administrator again.
+        var stillActive = await dbContext.TenantAdministratorAssignments
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(assignment => assignment.TenantId == tenantId && assignment.RevokedAt == null)
+            .Select(assignment => assignment.TenantMembershipId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        var revoked = await dbContext.TenantAdministratorAssignments
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Where(assignment => assignment.TenantId == tenantId
+                && assignment.RevokedAt != null
+                && !stillActive.Contains(assignment.TenantMembershipId))
+            .Select(assignment => new
+            {
+                assignment.TenantMembershipId,
+                assignment.UserId,
+                assignment.RevokedAt,
+                assignment.RevokedByUserId,
+                assignment.RevocationReason,
+                FirstName = assignment.User!.FirstName,
+                LastName = assignment.User!.LastName,
+                Email = assignment.User!.Email,
+            })
+            .ToListAsync(cancellationToken);
+
+        // The most recent revocation per membership is the one that ended their
+        // access; earlier revoked grants are part of the same person's history.
+        var latest = revoked
+            .GroupBy(item => item.TenantMembershipId)
+            .Select(group => group.OrderByDescending(item => item.RevokedAt).First())
+            .OrderByDescending(item => item.RevokedAt)
+            .ToList();
+
+        var revokerNames = await ResolveNamesAsync(
+            latest.Where(item => item.RevokedByUserId.HasValue && item.RevokedByUserId != item.UserId)
+                .Select(item => item.RevokedByUserId!.Value),
+            cancellationToken);
+
+        return latest.Select(item => new RemovedAdministratorListItem(
+            item.TenantMembershipId,
+            item.UserId,
+            $"{item.FirstName} {item.LastName}".Trim(),
+            item.Email ?? string.Empty,
+            item.RevokedAt!.Value,
+            item.RevokedByUserId == item.UserId
+                ? "Removed themselves"
+                : item.RevokedByUserId is { } id
+                    && revokerNames.TryGetValue(id, out var name)
+                    && !string.IsNullOrWhiteSpace(name)
+                        ? name
+                        : "An administrator",
+            string.IsNullOrWhiteSpace(item.RevocationReason) ? null : item.RevocationReason))
+            .ToList();
+    }
+
+    /// <summary>Resolves a set of account ids to display names in one query.</summary>
+    private async Task<Dictionary<Guid, string>> ResolveNamesAsync(
+        IEnumerable<Guid> userIds, CancellationToken cancellationToken)
+    {
+        var ids = userIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        return await dbContext.Users
+            .AsNoTracking()
+            .IgnoreQueryFilters()
+            .Where(user => ids.Contains(user.Id))
+            .ToDictionaryAsync(
+                user => user.Id,
+                user => $"{user.FirstName} {user.LastName}".Trim(),
+                cancellationToken);
+    }
+
+    /// <summary>
+    /// The human answer to "who added this administrator". A person's name where an
+    /// account acted; a stable system phrase where the grant came from the tenant's
+    /// own activation or from Platform recovery, which have no acting administrator.
+    /// </summary>
+    private static string DescribeAddedBy(
+        TenantAdministratorGrantActor actorType,
+        Guid? grantorId,
+        IReadOnlyDictionary<Guid, string> names)
+    {
+        var grantorName = grantorId is { } id
+            && names.TryGetValue(id, out var name)
+            && !string.IsNullOrWhiteSpace(name)
+                ? name
+                : null;
+
+        return actorType switch
+        {
+            TenantAdministratorGrantActor.BootstrapActivation => "System (tenant activation)",
+            TenantAdministratorGrantActor.PlatformRecovery => "Platform recovery",
+            TenantAdministratorGrantActor.InvitationAcceptance => grantorName ?? "Invitation accepted",
+            _ => grantorName ?? "An administrator",
+        };
     }
 
     public async Task<IReadOnlyList<AdministratorInvitationListItem>> GetInvitationsAsync(
@@ -249,6 +394,7 @@ public sealed class TenantAccessProjection(AppIdentityDbContext dbContext) : ITe
             .Select(item => new AdministratorInvitationListItem(
                 item.Id,
                 item.Email,
+                $"{item.FirstName} {item.LastName}".Trim(),
                 item.State.ToString(),
                 item.Purpose.ToString(),
                 item.CredentialIssuedAt ?? item.CreatedAt,

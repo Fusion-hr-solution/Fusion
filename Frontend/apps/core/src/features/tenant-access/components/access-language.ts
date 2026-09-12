@@ -15,17 +15,26 @@ import type { StatusTone } from "@repo/ds/shell";
 
 export type AccessTone = "neutral" | "positive" | "caution" | "muted";
 
-export const ADMINISTRATOR_STATUS_LABEL: Record<TenantAdministratorStatus, string> = {
+export const ADMINISTRATOR_STATUS_LABEL: Record<
+  TenantAdministratorStatus,
+  string
+> = {
   Active: "Active",
   Suspended: "Suspended",
 };
 
-export const ADMINISTRATOR_STATUS_TONE: Record<TenantAdministratorStatus, AccessTone> = {
+export const ADMINISTRATOR_STATUS_TONE: Record<
+  TenantAdministratorStatus,
+  AccessTone
+> = {
   Active: "positive",
   Suspended: "caution",
 };
 
-export const INVITATION_STATE_LABEL: Record<AdministratorInvitationState, string> = {
+export const INVITATION_STATE_LABEL: Record<
+  AdministratorInvitationState,
+  string
+> = {
   Pending: "Invitation pending",
   Accepted: "Accepted",
   Expired: "Expired",
@@ -33,7 +42,10 @@ export const INVITATION_STATE_LABEL: Record<AdministratorInvitationState, string
   Superseded: "Replaced",
 };
 
-export const INVITATION_STATE_TONE: Record<AdministratorInvitationState, AccessTone> = {
+export const INVITATION_STATE_TONE: Record<
+  AdministratorInvitationState,
+  AccessTone
+> = {
   Pending: "caution",
   Accepted: "positive",
   Expired: "muted",
@@ -65,8 +77,10 @@ export const CONTINUITY_TONE: Record<ContinuityState, StatusTone> = {
  */
 export const CONTINUITY_ADVISORY: Record<ContinuityState, string | null> = {
   Healthy: null,
-  AtRisk: "One administrator is a single point of failure. Invite another so access can't be lost with them.",
-  RecoveryRequired: "No one can administer this tenant. Invite an administrator to restore access.",
+  AtRisk:
+    "One administrator is a single point of failure. Invite another so access can't be lost with them.",
+  RecoveryRequired:
+    "No one can administer this tenant. Invite an administrator to restore access.",
 };
 
 /**
@@ -78,14 +92,11 @@ export const COPY = {
 
   soleAdministrator: "Sole administrator",
 
-  /** Shown at the moment an action is attempted, not permanently on the page. */
-  finalAdministratorBlock:
-    "Another active administrator is required before this access can be suspended or removed.",
-
   suspendConsequence:
     "This person will no longer be able to access this tenant. Their account and administrator assignment will remain.",
 
-  reactivateConsequence: "This person will be able to access this tenant again.",
+  reactivateConsequence:
+    "This person will be able to access this tenant again.",
 
   removeConsequence:
     "This person will lose Tenant Administrator permissions. Their Fusion account and access history will remain.",
@@ -101,8 +112,10 @@ export const COPY = {
 
   duplicatePending: "A pending invitation already exists for this address.",
   existingAccount: "This address already belongs to a Fusion account.",
-  authorizationChanged: "You no longer have permission to invite administrators.",
-  staleState: "This changed while you were looking at it. The latest state is now shown.",
+  authorizationChanged:
+    "You no longer have permission to invite administrators.",
+  staleState:
+    "This changed while you were looking at it. The latest state is now shown.",
 
   noAdministrators: "No one administers this tenant yet.",
   noActivity: "Nothing has changed here yet.",
@@ -119,13 +132,15 @@ export const ACTIVITY_LABEL: Record<string, string> = {
   AdministratorInvitationEmailReplaced: "Invitation address changed",
   AdministratorInvitationRevoked: "Invitation revoked",
   AdministratorInvitationAccepted: "Invitation accepted",
-  AdministratorInvitationRejectedExistingAccount: "Invitation could not be accepted",
+  AdministratorInvitationRejectedExistingAccount:
+    "Invitation could not be accepted",
   MembershipSuspended: "Access suspended",
   MembershipReactivated: "Access reactivated",
   AdministratorAuthorityGranted: "Administrator access established",
   AdministratorAuthorityRevoked: "Administrator access removed",
   AdministratorAuthoritySelfRemoved: "Administrator removed their own access",
-  FinalAdministratorActionBlocked: "Action blocked to keep the tenant administered",
+  FinalAdministratorActionBlocked:
+    "Action blocked to keep the tenant administered",
   PlatformRecoveryInitiated: "Recovery started",
   PlatformRecoveryInvitationAccepted: "Recovery invitation accepted",
   PlatformRecoveryCompleted: "Administrator access recovered",
@@ -144,7 +159,11 @@ export function actorLabel(actorName: string): string | null {
   return trimmed.length === 0 || trimmed === UNRESOLVED_ACTOR ? null : trimmed;
 }
 
-const DAY = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" });
+const DAY = new Intl.DateTimeFormat(undefined, {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
 const MOMENT = new Intl.DateTimeFormat(undefined, {
   day: "numeric",
   month: "short",
@@ -158,4 +177,22 @@ export function formatDay(value: string): string {
 
 export function formatMoment(value: string): string {
   return MOMENT.format(new Date(value));
+}
+
+/**
+ * A whole-day relative distance from now, so an expiry reads "in 14 days" rather
+ * than making the reader subtract two calendar dates. Past values read "expired".
+ */
+export function formatRelativeDays(value: string): string {
+  const days = Math.round(
+    (new Date(value).getTime() - Date.now()) / 86_400_000
+  );
+  if (days < 0) return "expired";
+  if (days === 0) return "today";
+  if (days === 1) return "tomorrow";
+  return `in ${days} days`;
+}
+
+export function isPast(value: string): boolean {
+  return new Date(value).getTime() < Date.now();
 }

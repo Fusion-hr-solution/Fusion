@@ -9,6 +9,7 @@ import {
   type AccessActivityItemDto,
   type AdministratorInvitationDto,
   type InvitationCommandResponse,
+  type RemovedAdministratorDto,
   type TenantAccessProblemType,
   type TenantAccessSummaryDto,
   type TenantAdministratorDto,
@@ -97,6 +98,21 @@ export function useTenantAdministrators(enabled = true) {
   });
 }
 
+export function useRemovedAdministrators(enabled = true) {
+  const { isAuthenticated } = useAuth();
+  const client = useMemo(() => createPlatformApiClient(), []);
+
+  const queryFn = useCallback(
+    (signal: AbortSignal) =>
+      client.get<RemovedAdministratorDto[]>(tenantAccessPaths.removedAdministrators(), { signal }),
+    [client]
+  );
+
+  return useApiQuery(tenantAccessQueryKeys.removedAdministrators(), queryFn, {
+    enabled: isAuthenticated && enabled,
+  });
+}
+
 export function useAdministratorInvitations(includeHistorical = false, enabled = true) {
   const { isAuthenticated } = useAuth();
   const client = useMemo(() => createPlatformApiClient(), []);
@@ -132,13 +148,23 @@ export function useRecentAccessActivity(enabled = true) {
 
 // ── Invitations ────────────────────────────────────────
 
+export interface InviteAdministratorInput {
+  email: string;
+  firstName: string;
+  lastName: string;
+}
+
 export function useInviteAdministrator() {
   const client = useMemo(() => createPlatformApiClient(), []);
   const queryClient = useApiQueryClient();
 
-  return useApiMutation<InvitationCommandResponse, string>(
-    (email) =>
-      client.post<InvitationCommandResponse>(tenantAccessPaths.invitations(), { email }),
+  return useApiMutation<InvitationCommandResponse, InviteAdministratorInput>(
+    ({ email, firstName, lastName }) =>
+      client.post<InvitationCommandResponse>(tenantAccessPaths.invitations(), {
+        email,
+        firstName,
+        lastName,
+      }),
     { onSuccess: () => refreshAccessWorkspace(queryClient) }
   );
 }

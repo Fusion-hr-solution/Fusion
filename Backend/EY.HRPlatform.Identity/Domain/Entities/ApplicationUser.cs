@@ -25,7 +25,16 @@ public class ApplicationUser : IdentityUser<Guid>
     public Guid? EmployeeId { get; set; }
     public string? Department { get; set; }
     public string? JobTitle { get; set; }
-    public DateTime HireDate { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// LEGACY, non-authoritative workforce data. Identity answers "who can sign
+    /// in?"; Core answers "who works here, and since when?". An identity account
+    /// created for administration or before any Core employment link therefore
+    /// carries no hire date — this is <c>null</c> — and where the person is also a
+    /// Core employee the authoritative dates live on their CoreHR employment /
+    /// work-assignment records, never here.
+    /// </summary>
+    public DateTime? HireDate { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
