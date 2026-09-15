@@ -43,6 +43,11 @@ export {
   InvitationTransactionTerminalFrame,
   InvitationWordmark,
 } from "./invitation-transaction";
+export { InvitationContextPanel } from "./invitation-context-panel";
+export type { InvitationContextRow } from "./invitation-context-panel";
+export { InvitationTerminalCard } from "./invitation-terminal-card";
+export { PasswordStrengthField } from "./password-strength-field";
+export type { PasswordCheck } from "./password-strength-field";
 export { AsyncButton } from "./async-button";
 export { StatusBadge } from "./status-badge";
 export type { StatusBadgeProps, StatusTone } from "./status-badge";

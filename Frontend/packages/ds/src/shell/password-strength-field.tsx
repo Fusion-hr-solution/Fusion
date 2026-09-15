@@ -1,21 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Check, Eye, EyeOff, Lock, X } from "lucide-react";
 import {
   Field,
   FieldError,
   FieldLabel,
+} from "../components/ui/field";
+import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
-  cn,
-} from "@repo/ds";
-import { Check, Eye, EyeOff, Lock, X } from "lucide-react";
-import {
-  passwordChecks,
-  type PasswordRequirements,
-} from "../../lib/activation";
+} from "../components/ui/input-group";
+import { cn } from "../lib/utils";
+
+/** One required rule, as checkable state the recipient can see while typing. */
+export interface PasswordCheck {
+  label: string;
+  satisfied: boolean;
+}
 
 /**
  * Create-password field with live requirement feedback, after reui's c-input-23:
@@ -25,13 +29,17 @@ import {
  * actually enforce — those rows gate the submit. The meter is advisory only: it
  * rewards optional strength (an uppercase letter, a symbol, extra length) so a
  * password can read "Medium" while already being valid. The meter never blocks.
+ *
+ * The field is data-agnostic: the caller computes `checks` from whichever
+ * password-requirements shape its own API returns and passes them in, so this
+ * component carries no product data types.
  */
 export function PasswordStrengthField({
   id,
   label,
   value,
   onChange,
-  requirements,
+  checks,
   error,
   autoComplete = "new-password",
 }: {
@@ -39,14 +47,12 @@ export function PasswordStrengthField({
   label: string;
   value: string;
   onChange: (value: string) => void;
-  requirements: PasswordRequirements | null;
+  /** The required rules, already evaluated against `value` by the caller. */
+  checks: PasswordCheck[];
   error?: string;
   autoComplete?: string;
 }) {
   const [reveal, setReveal] = useState(false);
-
-  // The required rules — the authority for whether the password is acceptable.
-  const checks = passwordChecks(value, requirements);
 
   // Advisory strength, scored over required rules plus optional complexity.
   const score = useMemo(() => strengthScore(value), [value]);

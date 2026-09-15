@@ -20,10 +20,12 @@ import {
   cn,
 } from "@repo/ds";
 import {
+  InvitationContextPanel,
+  InvitationTerminalCard,
   InvitationTransactionFrame,
   InvitationTransactionLoading,
   InvitationTransactionTerminalFrame,
-  InvitationWordmark,
+  PasswordStrengthField,
 } from "@repo/ds/shell";
 import { persistAuth } from "@repo/auth";
 import {
@@ -56,7 +58,6 @@ import {
   passwordChecks,
   validateForm,
 } from "../../lib/activation";
-import { PasswordStrengthField } from "./password-strength-field";
 
 type Phase =
   | { kind: "loading" }
@@ -172,80 +173,28 @@ function TenantContext({
     entry.role && entry.role.includes(" ") ? entry.role : journey.roleLabel;
 
   return (
-    <div className="mx-auto flex h-full max-w-[34rem] flex-col lg:max-w-[33rem]">
-      <InvitationWordmark />
-
-      <div className="mt-8 lg:mt-10">
-        <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.24em] text-primary/90">
-          You&rsquo;re invited
-        </p>
-        {/* The organization carries the display size: it is what the recipient
-            is checking, so the tenant is the hero. */}
-        <h1 className="mt-3 break-words font-editorial text-[2.25rem] font-medium leading-[1.05] tracking-[-0.02em] lg:text-[2.75rem]">
-          Join {tenantName}
-        </h1>
-        <p className="mt-3 max-w-[44ch] text-[0.9375rem] leading-6 text-muted-foreground lg:text-base">
-          You&rsquo;ve been invited to set up your Fusion account and get
-          started with {tenantName}.
-        </p>
-      </div>
-
-      <dl className="mt-8 divide-y divide-white/[0.07] overflow-hidden rounded-surface border border-white/[0.09] bg-white/[0.02]">
-        <ContextRow icon={Building2} label="Organization" value={tenantName} />
-        <ContextRow icon={Users} label="Assigned role" value={role} />
-        {entry.invitedEmail ? (
-          <ContextRow
-            icon={Mail}
-            label="Invitation sent to"
-            value={entry.invitedEmail}
-          />
-        ) : null}
-      </dl>
-
-      <p className="mt-5 flex items-start gap-2.5 text-[0.8125rem] leading-6 text-muted-foreground">
-        <Lock aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-        <span className="max-w-[46ch]">
-          This invitation is secure and tied to the invited email address. Only
-          the intended recipient can use this link.
-        </span>
-      </p>
-
-      <div className="mt-auto hidden items-center gap-3 pt-10 lg:flex">
-        <span className="h-px w-8 bg-white/25" />
-        <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
-          People work together
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function ContextRow({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="flex items-center gap-4 px-5 py-3">
-      <span className="grid size-9 shrink-0 place-items-center rounded-object bg-white/[0.05] text-muted-foreground ring-1 ring-inset ring-white/[0.08]">
-        <Icon aria-hidden="true" className="size-4" />
-      </span>
-      <div className="min-w-0">
-        <dt className="text-[0.6875rem] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-          {label}
-        </dt>
-        <dd
-          title={value}
-          className="mt-0.5 truncate text-[0.9375rem] font-medium text-foreground"
-        >
-          {value}
-        </dd>
-      </div>
-    </div>
+    <InvitationContextPanel
+      eyebrow="You're invited"
+      // The organization carries the display size: it is what the recipient
+      // is checking, so the tenant is the hero.
+      heading={`Join ${tenantName}`}
+      lead={`You've been invited to set up your Fusion account and get started with ${tenantName}.`}
+      rows={[
+        { icon: Building2, label: "Organization", value: tenantName },
+        { icon: Users, label: "Assigned role", value: role },
+        ...(entry.invitedEmail
+          ? [
+              {
+                icon: Mail,
+                label: "Invitation sent to",
+                value: entry.invitedEmail,
+              },
+            ]
+          : []),
+      ]}
+      securityNote="This invitation is secure and tied to the invited email address. Only the intended recipient can use this link."
+      footerLabel="People work together"
+    />
   );
 }
 
@@ -274,61 +223,15 @@ function Terminal({
   journey: ActivationJourney;
 }) {
   const state = journeyTerminalState(journey, outcome);
-  const Icon = TERMINAL_ICON[outcome] ?? TriangleAlert;
-  const resolved = RESOLVED.has(outcome);
 
   return (
-    <div>
-      <IconChip
-        icon={Icon}
-        className={cn(
-          "size-12 rounded-2xl",
-          resolved
-            ? "bg-foreground/[0.06] text-foreground ring-1 ring-inset ring-foreground/10"
-            : "bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/20"
-        )}
-        iconClassName="size-[1.375rem]"
-      />
-
-      <h1 className="mt-6 font-heading text-[1.625rem] font-semibold leading-[1.2] tracking-[-0.02em] text-foreground">
-        {state.title}
-      </h1>
-      <p className="mt-3 text-[0.9375rem] leading-7 text-muted-foreground">
-        {state.detail}
-      </p>
-
-      {state.action ? (
-        <Button
-          asChild
-          size="lg"
-          className="group mt-8 h-11 rounded-control px-5 font-semibold"
-        >
-          <a href={state.action.href}>
-            {state.action.label}
-            <ArrowRight
-              aria-hidden="true"
-              className="transition-transform group-hover:translate-x-0.5"
-            />
-          </a>
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
-function IconChip({
-  icon: Icon,
-  className,
-  iconClassName,
-}: {
-  icon: LucideIcon;
-  className?: string;
-  iconClassName?: string;
-}) {
-  return (
-    <span className={cn("grid shrink-0 place-items-center", className)}>
-      <Icon aria-hidden="true" className={cn("size-4", iconClassName)} />
-    </span>
+    <InvitationTerminalCard
+      variant={RESOLVED.has(outcome) ? "resolved" : "error"}
+      icon={TERMINAL_ICON[outcome] ?? TriangleAlert}
+      title={state.title}
+      detail={state.detail}
+      action={state.action}
+    />
   );
 }
 
@@ -559,7 +462,7 @@ function AccountForm({
           id="password"
           label="Create password"
           value={form.password}
-          requirements={entry.passwordRequirements}
+          checks={checks}
           error={passwordError}
           onChange={(value) => update("password", value)}
         />
