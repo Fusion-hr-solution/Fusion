@@ -51,6 +51,8 @@ vi.mock("@repo/auth", () => ({
   }),
   canManageCoreEmployees: () => true,
   canViewWorkforceAccess: () => true,
+  canAccessCoreTeam: () => true,
+  canAccessCorePeople: () => true,
 }));
 
 vi.mock("../api/use-people", () => ({
@@ -148,7 +150,7 @@ beforeEach(() => {
 });
 
 describe("PeopleProfileWorkspace", () => {
-  it("renders the identity header and one connected workforce summary", () => {
+  it("renders the shared worker-profile composition for another worker", () => {
     mockProfile.mockReturnValue(q({ data: profile() }));
     render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
 
@@ -156,12 +158,12 @@ describe("PeopleProfileWorkspace", () => {
       screen.getByRole("heading", { level: 1, name: "Ada Lovelace" })
     ).toBeInTheDocument();
     expect(screen.getAllByText("E000123").length).toBeGreaterThan(0);
-    // an asymmetric object page, not a four-card entity dashboard
-    expect(screen.getByText("Current work")).toBeInTheDocument();
+    // the canonical composition, not the old people-only object page
+    expect(screen.getByText("Current assignment")).toBeInTheDocument();
+    expect(screen.getByText("Organization & reporting")).toBeInTheDocument();
     expect(screen.getByText("Employment")).toBeInTheDocument();
-    expect(screen.getByText("Reporting to")).toBeInTheDocument();
-    expect(screen.getByText("Fusion account")).toBeInTheDocument();
-    expect(screen.getByText("Work identity")).toBeInTheDocument();
+    expect(screen.getByText("Fusion access")).toBeInTheDocument();
+    expect(screen.getByText("Work contact")).toBeInTheDocument();
     // contextual change actions are present on the Today view for managers
     expect(
       screen.getByRole("link", { name: /Change work/i })
@@ -213,14 +215,14 @@ describe("PeopleProfileWorkspace", () => {
       })
     );
     render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
-    expect(screen.getAllByText("No manager").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/No manager/i).length).toBeGreaterThan(0);
     expect(
       screen.getAllByText(/Work details unavailable/i).length
     ).toBeGreaterThan(0);
     expect(screen.queryByText(/Direct reports/i)).not.toBeInTheDocument();
   });
 
-  it("presents a Scheduled employee as a normal lifecycle state with a planned start", () => {
+  it("presents a Scheduled worker as a normal lifecycle state with a planned start", () => {
     mockProfile.mockReturnValue(
       q({
         data: profile({
@@ -238,7 +240,7 @@ describe("PeopleProfileWorkspace", () => {
     expect(screen.getAllByText(/Starts .*2099/).length).toBeGreaterThan(0);
   });
 
-  it("omits Contact entirely when neither email nor phone is present", () => {
+  it("shows Not set for a missing work email and phone in Work contact", () => {
     mockProfile.mockReturnValue(
       q({
         data: profile({
@@ -256,8 +258,7 @@ describe("PeopleProfileWorkspace", () => {
       })
     );
     render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
-    expect(screen.queryByText("Contact")).not.toBeInTheDocument();
-    expect(screen.getByText("Work identity")).toBeInTheDocument();
+    expect(screen.getByText("Work contact")).toBeInTheDocument();
     expect(screen.getAllByText("Not set").length).toBeGreaterThan(0);
   });
 
@@ -290,7 +291,6 @@ describe("PeopleProfileWorkspace", () => {
 
     render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
 
-    expect(screen.getByText("Work email")).toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: /Add work email/i })
     ).toHaveLength(2);
@@ -308,7 +308,7 @@ describe("PeopleProfileWorkspace", () => {
     ["NeedsReview", "Needs review", "Review workforce access"],
     ["NoAccess", "No Fusion access", "Set up workforce access"],
   ])(
-    "renders truthful %s Fusion account state",
+    "renders truthful %s Fusion access state",
     (state, label, actionLabel) => {
       mockProfile.mockReturnValue(q({ data: profile() }));
       mockAccess.mockReturnValue(
@@ -382,7 +382,7 @@ describe("PeopleProfileWorkspace", () => {
   it("renders a non-disclosing not-found state for unknown or cross-tenant keys", () => {
     mockProfile.mockReturnValue(q({ error: new Error("not found") }));
     render(<PeopleProfileWorkspace employeeKey="E-MISSING" />);
-    expect(screen.getByText("Employee not found")).toBeInTheDocument();
+    expect(screen.getByText("Worker not found")).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /Back to People/i })
     ).toBeInTheDocument();

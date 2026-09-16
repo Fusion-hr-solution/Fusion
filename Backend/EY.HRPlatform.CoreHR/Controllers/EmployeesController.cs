@@ -128,10 +128,18 @@ public class EmployeesController(
         [FromQuery] DateTime? asOf,
         CancellationToken cancellationToken)
     {
-        if (!accessPolicy.CanViewTenantEmployees(User))
+        // Any worker in the tenant may open a colleague's profile; the audience
+        // controls how much is projected. Cross-tenant keys are excluded by the
+        // DbContext tenant filter and surface as NotFound.
+        var audience = accessPolicy.GetEmployeeReadAudience(User);
+        if (accessPolicy.GetEmployeeViewScope(User) is null)
             return Forbid();
 
-        var result = await sender.Send(new PeopleProfileQuery(employeeKey, asOf), cancellationToken);
+        // Temporal as-of exploration is a manager/HR affordance, not a colleague one.
+        var effectiveAsOf = audience == EmployeeReadAudience.Employee ? null : asOf;
+        var result = await sender.Send(
+            new PeopleProfileQuery(employeeKey, effectiveAsOf, audience),
+            cancellationToken);
         if (result.IsFailure)
             return NotFound(ApiResponse.Failure("Employee was not found."));
 
@@ -145,7 +153,8 @@ public class EmployeesController(
         string employeeKey,
         CancellationToken cancellationToken)
     {
-        if (!accessPolicy.CanViewTenantEmployees(User))
+        // History is a manager/HR view, not part of the colleague directory projection.
+        if (!accessPolicy.CanViewTeam(User))
             return Forbid();
 
         var result = await sender.Send(new PeopleTimelineQuery(employeeKey), cancellationToken);

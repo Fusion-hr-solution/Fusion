@@ -194,6 +194,7 @@ export interface EmployeeDetailsWorkAssignmentDto {
 export interface EmployeeDetailsManagerDto {
   relationshipId: string;
   managerEmployeeId: string;
+  managerStableEmployeeKey: string;
   managerWorkAssignmentId: string;
   managerFirstName: string;
   managerLastName: string;

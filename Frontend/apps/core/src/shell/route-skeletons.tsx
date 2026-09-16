@@ -7,6 +7,7 @@ import {
 } from "@repo/ds/shell";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { WorkerProfileSkeleton } from "@/features/people/components/worker-profile/worker-profile-skeleton";
 
 // ── Route skeleton registry ─────────────────────────────────────────────────
 // One dedicated loading skeleton per route, shared by every loading surface:
@@ -77,13 +78,7 @@ export function EmployeesPageSkeleton({ label }: { label?: string }) {
 }
 
 export function EmployeeProfilePageSkeleton() {
-  return (
-    <TitledPageLoading
-      title="Employee Profile"
-      description="Loading employee profile."
-      label="Loading employee profile..."
-    />
-  );
+  return <WorkerProfileSkeleton showBackLink />;
 }
 
 export function EmployeeImportPageSkeleton() {
@@ -97,13 +92,7 @@ export function EmployeeImportPageSkeleton() {
 }
 
 export function MyProfilePageSkeleton() {
-  return (
-    <TitledPageLoading
-      title="My Profile"
-      description="Loading profile."
-      label="Loading your profile..."
-    />
-  );
+  return <WorkerProfileSkeleton showEyebrow />;
 }
 
 export function TeamPageSkeleton() {

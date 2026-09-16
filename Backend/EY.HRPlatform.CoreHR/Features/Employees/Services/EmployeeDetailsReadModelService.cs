@@ -74,6 +74,7 @@ public sealed class EmployeeDetailsReadModelService(
                 : new EmployeeCurrentManagerDto(
                     facts.Manager.RelationshipId,
                     facts.Manager.ManagerEmployeeId,
+                    facts.ManagerEmployee.StableEmployeeKey,
                     facts.Manager.ManagerWorkAssignmentId,
                     facts.ManagerEmployee.FirstName,
                     facts.ManagerEmployee.LastName,

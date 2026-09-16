@@ -6,7 +6,8 @@ import type {
   EmployeeDetailsDto,
   EmployeeReportingLinesDto,
 } from "@/app/(pages)/employees/employee-roster.types";
-import { MyProfileWorkspace } from "./my-profile-workspace";
+import { WorkerProfile } from "./worker-profile";
+import { fromSelfDetails } from "./worker-profile-view";
 
 vi.mock("next/link", () => ({
   default: ({
@@ -18,10 +19,6 @@ vi.mock("next/link", () => ({
       {children}
     </a>
   ),
-}));
-
-vi.mock("@/app/(pages)/employees/use-employees", () => ({
-  useUpdateMyProfile: () => ({ isLoading: false, mutateAsync: vi.fn() }),
 }));
 
 const details: EmployeeDetailsDto = {
@@ -56,6 +53,7 @@ const details: EmployeeDetailsDto = {
   currentManager: {
     relationshipId: "relationship-1",
     managerEmployeeId: "manager-1",
+    managerStableEmployeeKey: "AST-1000",
     managerWorkAssignmentId: "manager-assignment-1",
     managerFirstName: "Alexandre",
     managerLastName: "Idrissi",
@@ -118,45 +116,51 @@ const reportingLines: EmployeeReportingLinesDto = {
   downlineCount: 1,
 };
 
-describe("MyProfileWorkspace", () => {
-  it("anchors the worker record, manager relationship, and team without internal record metadata", () => {
-    render(
-      <MyProfileWorkspace
-        details={details}
-        reportingLines={reportingLines}
-        canEditPreferredName
-        canEditPhone
-      />
-    );
+describe("WorkerProfile (self projection)", () => {
+  it("anchors the worker record, manager, and team from the self view", () => {
+    const view = fromSelfDetails(details, reportingLines, {});
+    render(<WorkerProfile view={view} eyebrow="Profile" />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "Profile" })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { level: 2, name: "Amina Mestiri" })
+      screen.getByRole("heading", { level: 1, name: "Amina Mestiri" })
     ).toBeInTheDocument();
     expect(screen.getByText("Current assignment")).toBeInTheDocument();
     expect(screen.getByText("Employment")).toBeInTheDocument();
     expect(screen.getAllByText("Alexandre Idrissi").length).toBeGreaterThan(0);
     expect(screen.getByText("Direct reports · 1")).toBeInTheDocument();
     expect(screen.getByText("Sami Trabelsi")).toBeInTheDocument();
-    // Internal record metadata never leaks onto the self-service profile.
-    expect(screen.queryByText("Full name")).not.toBeInTheDocument();
-    expect(screen.queryByText("Record health")).not.toBeInTheDocument();
-    expect(screen.queryByText("Created")).not.toBeInTheDocument();
+    // manager and reports deep-link into the shared people profile route
+    expect(
+      screen.getAllByRole("link", { name: /Alexandre Idrissi/ })[0]
+    ).toHaveAttribute("href", "/people/AST-1000");
+    expect(screen.getByRole("link", { name: /Sami Trabelsi/ })).toHaveAttribute(
+      "href",
+      "/people/AST-1002"
+    );
   });
 
-  it("hides the Fusion access and Assignment history cards until self-context loads", () => {
-    render(
-      <MyProfileWorkspace
-        details={details}
-        reportingLines={reportingLines}
-        canEditPreferredName
-        canEditPhone
-      />
-    );
+  it("hides the Fusion access and History cards until self-context loads", () => {
+    const view = fromSelfDetails(details, reportingLines, {});
+    render(<WorkerProfile view={view} eyebrow="Profile" />);
 
     expect(screen.queryByText("Fusion access")).not.toBeInTheDocument();
-    expect(screen.queryByText("Employment timeline")).not.toBeInTheDocument();
+    expect(screen.queryByText("History")).not.toBeInTheDocument();
+  });
+
+  it("renders the rich self access facts once context is present", () => {
+    const view = fromSelfDetails(details, reportingLines, {
+      access: {
+        state: "Active",
+        label: "Active",
+        linkedEmail: "amina@asteria.example",
+        accessProfiles: ["Employee"],
+        lastSignInAt: "2026-09-10T08:00:00Z",
+      },
+    });
+    render(<WorkerProfile view={view} eyebrow="Profile" accessState="ready" />);
+
+    expect(screen.getByText("Fusion access")).toBeInTheDocument();
+    expect(screen.getByText("Last sign-in")).toBeInTheDocument();
+    expect(screen.getByText("Access profile")).toBeInTheDocument();
   });
 });

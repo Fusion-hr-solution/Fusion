@@ -49,6 +49,7 @@ public sealed record EmployeeCurrentWorkAssignmentDto(
 public sealed record EmployeeCurrentManagerDto(
     Guid RelationshipId,
     Guid ManagerEmployeeId,
+    string ManagerStableEmployeeKey,
     Guid ManagerWorkAssignmentId,
     string ManagerFirstName,
     string ManagerLastName,

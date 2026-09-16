@@ -760,6 +760,7 @@ describe("useEmployeeDetails", () => {
       currentManager: {
         relationshipId: "manager-1",
         managerEmployeeId: "mgr-1",
+        managerStableEmployeeKey: "MGR-1",
         managerWorkAssignmentId: "assignment-2",
         managerFirstName: "Bob",
         managerLastName: "Jones",

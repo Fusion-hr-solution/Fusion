@@ -1,5 +1,6 @@
 using EY.HRPlatform.CoreHR.Domain.Entities;
 using EY.HRPlatform.CoreHR.Domain.Enums;
+using EY.HRPlatform.CoreHR.Features.Employees.Services;
 using EY.HRPlatform.CoreHR.Features.Organization;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
@@ -8,7 +9,14 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.CoreHR.Features.People;
 
-public sealed record PeopleProfileQuery(string EmployeeKey, DateTime? AsOf = null) : IQuery<Result<PeopleProfileDto>>;
+/// <param name="Audience">
+/// The viewer's read audience. HR admins and managers see the full record; a plain
+/// colleague (Employee) receives a reduced workforce-directory projection.
+/// </param>
+public sealed record PeopleProfileQuery(
+    string EmployeeKey,
+    DateTime? AsOf = null,
+    EmployeeReadAudience Audience = EmployeeReadAudience.HrAdmin) : IQuery<Result<PeopleProfileDto>>;
 
 public sealed record PeopleProfileIdentityDto(
     string EmployeeKey,
@@ -192,6 +200,24 @@ public sealed class PeopleProfileQueryHandler(
             isAsOf ? asOf!.Value : today,
             isAsOf,
             upcoming);
+
+        // A plain colleague sees workforce-directory context only: identity, current
+        // work, org, and reporting relationships — never employment tenure/type or
+        // scheduled changes. History and Fusion-access are withheld at the endpoint.
+        if (request.Audience == EmployeeReadAudience.Employee)
+        {
+            result = result with
+            {
+                Employment = result.Employment with
+                {
+                    Start = null,
+                    End = null,
+                    EmploymentType = null,
+                },
+                Upcoming = Array.Empty<PeopleUpcomingChangeDto>(),
+            };
+        }
+
         return Result.Success(result);
     }
 
