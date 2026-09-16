@@ -28,6 +28,7 @@ import type {
   EmployeeRosterItem,
   EmployeeRosterPageDto,
   EmployeeRosterQueryParams,
+  MyProfileContextDto,
   WorkforceReadinessSummaryDto,
 } from "./employee-roster.types";
 
@@ -597,6 +598,27 @@ export function useEmployeeDetails(
       enabled: isAuthenticated && canAccess && !!employeeKey,
     }
   );
+}
+
+export function useMyProfileContext(
+  enabled: boolean
+): UseApiQueryResult<MyProfileContextDto> {
+  const { isAuthenticated } = useAuth();
+  const client = useMemo(() => createPlatformApiClient(), []);
+  const canAccess = useCanAccessProfile();
+
+  const queryFn = useCallback(
+    (signal: AbortSignal) =>
+      client.get<MyProfileContextDto>(
+        `${EMPLOYEE_ROSTER_PATH}/me/profile-context`,
+        { signal }
+      ),
+    [client]
+  );
+
+  return useApiQuery(employeeRosterQueryKeys.myProfileContext(), queryFn, {
+    enabled: isAuthenticated && canAccess && enabled,
+  });
 }
 
 export function useEmployeeDetailsById(

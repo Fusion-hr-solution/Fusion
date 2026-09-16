@@ -16,6 +16,7 @@ import { MyProfileWorkspace } from "@/features/employees/profile/my-profile-work
 import {
   useEmployeeDetailsById,
   useEmployeeReportingLines,
+  useMyProfileContext,
 } from "../employees/use-employees";
 
 export default function MyProfilePage() {
@@ -34,6 +35,9 @@ export default function MyProfilePage() {
   const { data: reportingLines } = useEmployeeReportingLines(
     details?.stableEmployeeKey ?? null
   );
+
+  const { data: profileContext, isLoading: isContextLoading } =
+    useMyProfileContext(canViewProfile);
 
   if (authLoading) {
     return <MyProfilePageSkeleton />;
@@ -95,6 +99,9 @@ export default function MyProfilePage() {
     <MyProfileWorkspace
       details={details}
       reportingLines={reportingLines}
+      timeline={profileContext?.timeline}
+      access={profileContext?.access ?? null}
+      isContextLoading={isContextLoading}
       canEditPreferredName={canEditOwnPreferredName}
       canEditPhone={canEditOwnPhone}
     />

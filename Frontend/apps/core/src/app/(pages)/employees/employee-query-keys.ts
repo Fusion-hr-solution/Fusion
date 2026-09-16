@@ -49,6 +49,8 @@ export const employeeRosterQueryKeys = {
     [...employeeRosterQueryKeys.all(), "details", "by-key", employeeKey] as const,
   detailsById: (employeeId: string) =>
     [...employeeRosterQueryKeys.all(), "details", "by-id", employeeId] as const,
+  myProfileContext: () =>
+    [...employeeRosterQueryKeys.all(), "my-profile-context"] as const,
   readinessSummary: () =>
     [...employeeRosterQueryKeys.all(), "readiness-summary"] as const,
   workforceAccounts: () =>

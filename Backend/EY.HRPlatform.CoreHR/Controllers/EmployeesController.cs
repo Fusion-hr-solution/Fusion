@@ -481,6 +481,36 @@ public class EmployeesController(
     }
 
     /// <summary>
+    /// Self-service extras for the signed-in worker's own profile: their assignment
+    /// history and a lean view of their own Fusion access. Scoped strictly to the
+    /// caller's own employee id, resolved from authenticated claims.
+    /// </summary>
+    [HttpGet("me/profile-context")]
+    [ProducesResponseType(typeof(EY.HRPlatform.SharedKernel.Api.ApiResponse<MyProfileContextDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetMyProfileContext(CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanViewOwnProfile(User))
+        {
+            return Forbid();
+        }
+
+        if (User.GetEmployeeId() is not { } employeeId)
+        {
+            return NotFound(ApiResponse.Failure("No linked employee record."));
+        }
+
+        var result = await sender.Send(new MyProfileContextQuery(employeeId), cancellationToken);
+        if (result.IsFailure)
+        {
+            return NotFound(ApiResponse.Failure(result.Error.Message));
+        }
+
+        return Ok(EY.HRPlatform.SharedKernel.Api.ApiResponse<MyProfileContextDto>.Success(result.Value));
+    }
+
+    /// <summary>
     /// Get reporting-line summary by stable employee key (visible URLs use this).
     /// </summary>
     [HttpGet("by-key/{employeeKey}/reporting-lines")]

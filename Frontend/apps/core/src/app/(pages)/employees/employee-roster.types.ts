@@ -1,3 +1,5 @@
+import type { PeopleTimelineDto } from "@repo/api";
+
 export type EmployeeRosterStatus = "Active" | "Inactive";
 
 export type EmployeeReadinessFilter =
@@ -227,6 +229,21 @@ export interface EmployeeDetailsDto {
   version: number;
   fullName: string;
   displayName: string;
+}
+
+/** A signed-in worker's own Fusion access, projected for their profile. */
+export interface MyFusionAccessDto {
+  state: string;
+  label: string;
+  linkedEmail: string | null;
+  accessProfiles: string[];
+  lastSignInAt: string | null;
+}
+
+/** Self-service extras for the current worker's own profile. */
+export interface MyProfileContextDto {
+  timeline: PeopleTimelineDto;
+  access: MyFusionAccessDto | null;
 }
 
 export type WorkforceAccountProvisioningState =

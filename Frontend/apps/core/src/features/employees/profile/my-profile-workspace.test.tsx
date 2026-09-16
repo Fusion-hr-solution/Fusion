@@ -119,7 +119,7 @@ const reportingLines: EmployeeReportingLinesDto = {
 };
 
 describe("MyProfileWorkspace", () => {
-  it("anchors the employee, ownership, manager relationship, and team without admin record metadata", () => {
+  it("anchors the worker record, manager relationship, and team without internal record metadata", () => {
     render(
       <MyProfileWorkspace
         details={details}
@@ -130,16 +130,33 @@ describe("MyProfileWorkspace", () => {
     );
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "Amina Mestiri" })
+      screen.getByRole("heading", { level: 1, name: "Profile" })
     ).toBeInTheDocument();
-    expect(screen.getByText("Managed by you")).toBeInTheDocument();
-    expect(screen.getByText("Managed by HR")).toBeInTheDocument();
-    expect(screen.getByText("Alexandre Idrissi")).toBeInTheDocument();
-    expect(screen.getByText("1 direct report")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Amina Mestiri" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Current assignment")).toBeInTheDocument();
+    expect(screen.getByText("Employment")).toBeInTheDocument();
+    expect(screen.getAllByText("Alexandre Idrissi").length).toBeGreaterThan(0);
+    expect(screen.getByText("Direct reports · 1")).toBeInTheDocument();
     expect(screen.getByText("Sami Trabelsi")).toBeInTheDocument();
+    // Internal record metadata never leaks onto the self-service profile.
     expect(screen.queryByText("Full name")).not.toBeInTheDocument();
-    expect(screen.queryByText("Work email")).not.toBeInTheDocument();
     expect(screen.queryByText("Record health")).not.toBeInTheDocument();
     expect(screen.queryByText("Created")).not.toBeInTheDocument();
+  });
+
+  it("hides the Fusion access and Assignment history cards until self-context loads", () => {
+    render(
+      <MyProfileWorkspace
+        details={details}
+        reportingLines={reportingLines}
+        canEditPreferredName
+        canEditPhone
+      />
+    );
+
+    expect(screen.queryByText("Fusion access")).not.toBeInTheDocument();
+    expect(screen.queryByText("Employment timeline")).not.toBeInTheDocument();
   });
 });
