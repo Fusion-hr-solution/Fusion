@@ -2,16 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
 import { AlertTriangle, ArrowRight, CalendarPlus } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@repo/ds/components/ui/button";
 import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import type { CycleDetailDto } from "@repo/api";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import {
-  useActivateCycle,
-  useCreateCycle,
   useCurrentCycle,
   useMyPlan,
   usePerformanceAccess,
@@ -23,8 +19,11 @@ import { CycleContextBar } from "@/features/performance/components/cycle-context
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { LaunchReadiness } from "@/features/performance/components/launch-readiness";
 import { MilestoneRail } from "@/features/performance/components/milestone-rail";
-import { ActivationReview } from "@/features/performance/components/activation-review";
-import { CycleDetailsDialog } from "@/features/performance/components/cycle-details-dialog";
+import {
+  deriveSetupState,
+  earliestIncompleteStep,
+  setupStepHref,
+} from "@/features/performance/components/cycle-setup/setup-readiness";
 
 const LIFECYCLE = ["Direction", "Population", "Planning", "Progress"] as const;
 
@@ -71,8 +70,6 @@ export default function OverviewPage() {
 /** First entry, before any Cycle exists — compact, no decorative illustration. */
 function NoCycleEntry({ canAdminister }: { canAdminister: boolean }) {
   const router = useRouter();
-  const createCycle = useCreateCycle();
-  const [createOpen, setCreateOpen] = useState(false);
 
   return (
     <PageContainer>
@@ -94,7 +91,7 @@ function NoCycleEntry({ canAdminister }: { canAdminister: boolean }) {
 
         {canAdminister ? (
           <div className="mt-7">
-            <Button size="lg" onClick={() => setCreateOpen(true)}>
+            <Button size="lg" onClick={() => router.push("/cycle/setup/details")}>
               <CalendarPlus className="size-4" data-icon="inline-start" />
               Create cycle
             </Button>
@@ -105,21 +102,6 @@ function NoCycleEntry({ canAdminister }: { canAdminister: boolean }) {
           </p>
         )}
       </div>
-
-      <CycleDetailsDialog
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onSubmit={async (value) => {
-          const created = await createCycle.mutateAsync({
-            name: value.name,
-            startDate: value.startDate,
-            endDate: value.endDate,
-            planningDeadline: value.planningDeadline,
-          });
-          toast.success(`${created.name} created.`);
-          router.push("/cycle");
-        }}
-      />
     </PageContainer>
   );
 }
@@ -138,6 +120,7 @@ function CycleOverview({
   const router = useRouter();
   const cycleId = detail.cycle.id;
   const isDraft = detail.cycle.state === "Draft";
+  const draftStep = earliestIncompleteStep(deriveSetupState(detail));
 
   return (
     <PageContainer>
@@ -146,7 +129,10 @@ function CycleOverview({
         title="Overview"
         actions={
           canAdminister && isDraft ? (
-            <Button onClick={() => router.push("/cycle")}>Continue setup</Button>
+            <Button onClick={() => router.push(setupStepHref(draftStep))}>
+              Continue cycle setup
+              <ArrowRight className="size-4" data-icon="inline-end" />
+            </Button>
           ) : undefined
         }
       />
@@ -268,29 +254,13 @@ function MyPlanCallout({
   );
 }
 
+/**
+ * Overview observes; it does not launch. For a Draft it shows a read-only readiness summary —
+ * the single canonical launch path lives in the cycle-setup Review step, reached via the
+ * "Continue cycle setup" action above.
+ */
 function AdminDraftCommand({ detail }: { detail: CycleDetailDto }) {
-  const router = useRouter();
-  const activate = useActivateCycle(detail.cycle.id);
-  const [reviewOpen, setReviewOpen] = useState(false);
-
-  return (
-    <>
-      <LaunchReadiness
-        readiness={detail.launchReadiness}
-        onOpenArea={(area) => router.push(`/cycle?area=${area}`)}
-        onActivate={() => setReviewOpen(true)}
-        activating={activate.isLoading}
-      />
-      <ActivationReview
-        open={reviewOpen}
-        onOpenChange={setReviewOpen}
-        detail={detail}
-        onActivate={async () => {
-          await activate.mutateAsync();
-        }}
-      />
-    </>
-  );
+  return <LaunchReadiness readiness={detail.launchReadiness} />;
 }
 
 function AdminActiveCommand({ detail }: { detail: CycleDetailDto }) {

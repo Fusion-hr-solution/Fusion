@@ -16,7 +16,11 @@ export type RosterPlanStatus = "NotStarted" | "Draft" | "ReturnedForChanges" | "
 export type RosterActivityKind = "None" | "DraftUpdated" | "Returned" | "Submitted" | "ProgressUpdated";
 export type ProgressEventKind = "PercentageSet" | "NumericActual" | "MilestoneCompleted" | "MilestoneReopened";
 export type EvidenceKind = "File" | "Link" | "Reference";
-export type ReadinessIssueCode = "InactiveEmployment" | "NoPrimaryAssignment" | "MissingManager";
+export type ReadinessIssueCode =
+  | "InactiveEmployment"
+  | "NoPrimaryAssignment"
+  | "MissingManager"
+  | "InactiveManager";
 export type OperationalMilestone =
   | "StrategicDirectionPublished"
   | "PopulationConfirmed"
@@ -50,6 +54,7 @@ export interface CycleSettingsDto {
 export interface CycleSummaryDto {
   id: string;
   name: string;
+  description: string | null;
   startDate: string;
   endDate: string;
   planningDeadline: string;
@@ -83,6 +88,7 @@ export interface CycleDetailDto {
   draftStrategyCount: number;
   populationConfirmed: boolean;
   confirmedParticipantCount: number;
+  otherActiveCycleExists: boolean;
 }
 
 export interface MilestoneDto {
@@ -129,12 +135,14 @@ export interface PopulationCandidateDto {
   orgUnitName: string | null;
   managerEmployeeId: string | null;
   managerDisplayName: string | null;
+  managerIsActive: boolean;
   isActive: boolean;
   byExplicitInclusion: boolean;
   isExcluded: boolean;
   exclusionReason: string | null;
   isEligible: boolean;
   countsToRoster: boolean;
+  hasValidReviewer: boolean;
   issues: ReadinessIssueDto[];
 }
 
@@ -162,6 +170,8 @@ export interface PopulationDto {
   readyCount: number;
   needsAttentionCount: number;
   excludedCount: number;
+  reviewerReadyCount: number;
+  reviewerRequiredCount: number;
   candidates: PopulationCandidateDto[];
 }
 
@@ -574,6 +584,7 @@ export interface CreateCycleRequest {
   startDate: string;
   endDate: string;
   planningDeadline?: string | null;
+  description?: string | null;
 }
 
 export interface UpdateCycleRequest {
@@ -581,6 +592,7 @@ export interface UpdateCycleRequest {
   startDate: string;
   endDate: string;
   planningDeadline: string;
+  description?: string | null;
 }
 
 export interface MeasurementInput {

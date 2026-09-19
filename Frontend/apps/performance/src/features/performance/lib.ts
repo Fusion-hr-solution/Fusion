@@ -37,11 +37,25 @@ export function setupMilestones(milestones: MilestoneStateDto[]): MilestoneState
   return milestones.filter((m) => SETUP_MILESTONES.includes(m.milestone));
 }
 
-export const READINESS_LABELS: Record<ReadinessIssueCode, string> = {
-  InactiveEmployment: "Inactive employment",
-  NoPrimaryAssignment: "No primary assignment",
-  MissingManager: "No manager on record",
-};
+/**
+ * The secondary detail line for a readiness issue, dated to the cycle's eligibility date where it
+ * matters. The short title comes from the server (`issue.label`); this composes the specific
+ * consequence the admin needs to act on.
+ */
+export function readinessIssueDetail(code: ReadinessIssueCode, eligibilityDate: string): string {
+  switch (code) {
+    case "InactiveEmployment":
+      return `Employment is not active as of ${formatDate(eligibilityDate)}.`;
+    case "NoPrimaryAssignment":
+      return `No active primary assignment as of ${formatDate(eligibilityDate)}.`;
+    case "MissingManager":
+      return "A valid manager is required for plan reviews.";
+    case "InactiveManager":
+      return `The assigned manager is not active as of ${formatDate(eligibilityDate)}.`;
+    default:
+      return "";
+  }
+}
 
 export function formatDate(value: string | null | undefined): string {
   if (!value) return "—";

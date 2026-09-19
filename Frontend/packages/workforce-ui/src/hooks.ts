@@ -18,19 +18,21 @@ interface EmployeeSearchResponse {
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 /**
- * The tenant organization hierarchy as of today, over the shared Core Organization
- * transport. Cached briefly and shared by any caller keyed on the same as-of date.
- * `enabled` lets a caller defer fetching until it actually needs the tree.
+ * The tenant organization hierarchy over the shared Core Organization transport, resolved as of a
+ * given date (defaults to today). Callers that select workforce as-of a specific date — e.g. a
+ * Performance cycle's start/eligibility date — pass that date so the tree matches the temporal
+ * context the membership is resolved against. Cached briefly and shared by any caller keyed on the
+ * same as-of date; `enabled` lets a caller defer fetching until it actually needs the tree.
  */
-export function useOrgHierarchy(enabled = true) {
+export function useOrgHierarchy(enabled = true, asOf?: string) {
   const organization = useMemo(
     () => createCoreOrganizationApi(createPlatformApiClient()),
     []
   );
-  const asOf = todayIso();
+  const effectiveAsOf = asOf ?? todayIso();
   return useApiQuery(
-    coreOrganizationQueryKeys.hierarchy(asOf),
-    (signal) => organization.hierarchy(asOf, signal),
+    coreOrganizationQueryKeys.hierarchy(effectiveAsOf),
+    (signal) => organization.hierarchy(effectiveAsOf, signal),
     { enabled, staleTime: 60_000 }
   );
 }

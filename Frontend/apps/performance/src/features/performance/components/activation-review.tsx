@@ -45,17 +45,6 @@ export function ActivationReview({
         </>
       ),
     },
-    {
-      label: "Direction",
-      value: (
-        <>
-          <span className="font-semibold tabular-nums text-primary">
-            {detail.publishedStrategyCount}
-          </span>{" "}
-          published objective{detail.publishedStrategyCount === 1 ? "" : "s"}
-        </>
-      ),
-    },
     { label: "Settings", value: "Locked to this Cycle" },
   ];
 

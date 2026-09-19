@@ -5,7 +5,7 @@ import type { LaunchReadinessDto } from "@repo/api";
 import { AsyncButton } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 
-const AREA_ORDER = ["details", "direction", "population"] as const;
+const AREA_ORDER = ["details", "population"] as const;
 
 /**
  * What remains before the Cycle can go live, as one readiness checklist rather than a
