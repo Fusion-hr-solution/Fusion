@@ -70,4 +70,41 @@ public sealed class InternalWorkforceSnapshotServiceTests
         Assert.Equal(managerA.Id, snapshot.Manager!.EmployeeId);
         Assert.Equal("Maya Lead", snapshot.Manager.DisplayName);
     }
+
+    [Fact]
+    public async Task GetAllActiveAsOfAsync_ReturnsActiveEmployeeWithNoPrimaryAssignment_WithNullOrgUnit()
+    {
+        var tenantId = Guid.NewGuid();
+        await using var db = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
+        var start = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var asOf = new DateTime(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var engineering = OrgUnit.Create(tenantId, "ENG", "Engineering", "Department", null);
+        var assigned = Employee.Create(tenantId, "Ava", "Assigned", "ava@example.com", start, employeeNumber: TestEmployeeNumbers.Next());
+        var unassigned = Employee.Create(tenantId, "Ben", "Broken", "ben@example.com", start, employeeNumber: TestEmployeeNumbers.Next());
+        db.AddRange(engineering, assigned, unassigned);
+        await db.SaveChangesAsync();
+
+        var assignedEmployment = Employment.Start(tenantId, assigned.Id, start, null, WorkforceSourceType.Manual);
+        var unassignedEmployment = Employment.Start(tenantId, unassigned.Id, start, null, WorkforceSourceType.Manual);
+        db.AddRange(assignedEmployment, unassignedEmployment);
+        await db.SaveChangesAsync();
+
+        // Only the first employee has a primary assignment; the second has active employment but none.
+        var assignment = WorkAssignment.Create(tenantId, assignedEmployment.Id, assigned.Id, engineering.Id, "Engineer", null, true, start, null, WorkforceSourceType.Manual);
+        db.Add(assignment);
+        await db.SaveChangesAsync();
+
+        var snapshots = await new InternalWorkforceSnapshotService(db)
+            .GetAllActiveAsOfAsync(asOf, includeInactive: false, CancellationToken.None);
+
+        // The broken-assignment employee is still returned so the gap can be surfaced as a
+        // readiness issue, with a null org unit rather than dropping out of the population.
+        Assert.Equal(2, snapshots.Count);
+        var broken = snapshots.Single(snapshot => snapshot.EmployeeId == unassigned.Id);
+        Assert.True(broken.IsActive);
+        Assert.Null(broken.OrgUnit);
+        var ok = snapshots.Single(snapshot => snapshot.EmployeeId == assigned.Id);
+        Assert.NotNull(ok.OrgUnit);
+    }
 }

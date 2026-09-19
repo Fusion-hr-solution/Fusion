@@ -13,6 +13,10 @@ public sealed class PerformanceCycle : PerformanceAggregate
     private PerformanceCycle() { }
 
     public string Name { get; private set; } = string.Empty;
+
+    /// <summary>Optional free-text context for the horizon. Plain metadata; never gates anything.</summary>
+    public string? Description { get; private set; }
+
     public DateOnly StartDate { get; private set; }
     public DateOnly EndDate { get; private set; }
     public DateOnly PlanningDeadline { get; private set; }
@@ -33,7 +37,8 @@ public sealed class PerformanceCycle : PerformanceAggregate
         string name,
         DateOnly startDate,
         DateOnly endDate,
-        DateOnly planningDeadline)
+        DateOnly planningDeadline,
+        string? description = null)
     {
         if (tenantId == Guid.Empty) throw new ArgumentException("TenantId is required.", nameof(tenantId));
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("A Cycle requires a name.", nameof(name));
@@ -44,6 +49,7 @@ public sealed class PerformanceCycle : PerformanceAggregate
         {
             TenantId = tenantId,
             Name = name.Trim(),
+            Description = NormalizeDescription(description),
             StartDate = startDate,
             EndDate = endDate,
             PlanningDeadline = planningDeadline,
@@ -51,18 +57,22 @@ public sealed class PerformanceCycle : PerformanceAggregate
         };
     }
 
-    public void UpdateDraftDetails(string name, DateOnly startDate, DateOnly endDate, DateOnly planningDeadline)
+    public void UpdateDraftDetails(string name, DateOnly startDate, DateOnly endDate, DateOnly planningDeadline, string? description = null)
     {
         RequireDraft();
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("A Cycle requires a name.", nameof(name));
         ValidateDates(startDate, endDate, planningDeadline);
 
         Name = name.Trim();
+        Description = NormalizeDescription(description);
         StartDate = startDate;
         EndDate = endDate;
         PlanningDeadline = planningDeadline;
         MarkUpdated();
     }
+
+    private static string? NormalizeDescription(string? description)
+        => string.IsNullOrWhiteSpace(description) ? null : description.Trim();
 
     /// <summary>Whether the Cycle's own dates form a valid, activatable range.</summary>
     public bool HasValidDates => EndDate > StartDate

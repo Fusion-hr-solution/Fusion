@@ -14,6 +14,7 @@ public sealed record PopulationCandidate(
     string? OrgUnitName,
     Guid? ManagerEmployeeId,
     string? ManagerDisplayName,
+    bool ManagerIsActive,
     bool IsActive,
     bool ByExplicitInclusion,
     bool IsExcluded,
@@ -25,6 +26,9 @@ public sealed record PopulationCandidate(
 
     /// <summary>Counts toward the confirmed roster: eligible and not excluded.</summary>
     public bool CountsToRoster => IsEligible && !IsExcluded;
+
+    /// <summary>A valid, active reviewer (accountable manager) resolves for this candidate.</summary>
+    public bool HasValidReviewer => !Issues.Any(ReadinessIssue.IsReviewerIssue);
 }
 
 /// <summary>The full resolved population for a Cycle: candidates, readiness, and the rule.</summary>
@@ -37,6 +41,12 @@ public sealed record PopulationResolution(
     public int ReadyCount => Candidates.Count(candidate => candidate.CountsToRoster);
     public int NeedsAttentionCount => Candidates.Count(candidate => !candidate.IsExcluded && !candidate.IsEligible);
     public int ExcludedCount => Candidates.Count(candidate => candidate.IsExcluded);
+
+    /// <summary>In-scope (non-excluded) candidates with a valid, active reviewer.</summary>
+    public int ReviewerReadyCount => Candidates.Count(candidate => !candidate.IsExcluded && candidate.HasValidReviewer);
+
+    /// <summary>In-scope (non-excluded) candidates — the reviewer-coverage denominator.</summary>
+    public int ReviewerRequiredCount => Candidates.Count(candidate => !candidate.IsExcluded);
 
     /// <summary>Candidates whose hard issues are neither resolved nor excluded — block activation.</summary>
     public IReadOnlyList<PopulationCandidate> UnresolvedBlockers

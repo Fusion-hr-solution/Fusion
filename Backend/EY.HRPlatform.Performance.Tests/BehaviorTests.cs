@@ -102,7 +102,7 @@ public sealed class BehaviorTests
     }
 
     [Fact]
-    public async Task Activation_is_blocked_without_published_strategy_or_confirmed_population()
+    public async Task Activation_is_blocked_without_a_confirmed_population()
     {
         var (store, _, cycleId) = await ArrangeAsync();
 
@@ -110,7 +110,285 @@ public sealed class BehaviorTests
         var result = await new ActivateCycleHandler(db).Handle(new ActivateCycleCommand(cycleId), default);
 
         Assert.True(result.IsFailure);
-        Assert.Contains("strategic objective", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+        // Strategy is no longer a launch prerequisite; the population gate is what blocks here.
+        Assert.Contains("population", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("strategic", result.Error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Activation_succeeds_without_any_published_strategy()
+    {
+        var (store, workforce, cycleId) = await ArrangeAsync();
+        var resolver = new PopulationResolutionService(workforce);
+        workforce.Add("Amina", orgUnitId: Guid.NewGuid(), managerId: Guid.NewGuid());
+
+        await using (var db = store.NewContext())
+        {
+            await new SetPopulationHandler(db, store.Tenant, resolver).Handle(
+                new SetPopulationCommand(cycleId, new SetPopulationRequest(PopulationMode.AllActive, [], [], [])), default);
+        }
+        await using (var db = store.NewContext())
+        {
+            var confirm = await new ConfirmPopulationHandler(db, store.Tenant, resolver).Handle(new ConfirmPopulationCommand(cycleId), default);
+            Assert.True(confirm.IsSuccess, confirm.IsFailure ? confirm.Error.Message : null);
+        }
+
+        await using (var db = store.NewContext())
+        {
+            var activate = await new ActivateCycleHandler(db).Handle(new ActivateCycleCommand(cycleId), default);
+            Assert.True(activate.IsSuccess, activate.IsFailure ? activate.Error.Message : null);
+            Assert.Equal(CycleLifecycleState.Active, activate.Value.Cycle.State);
+        }
+    }
+
+    [Fact]
+    public async Task Planning_deadline_defaults_from_the_tenant_settings_offset()
+    {
+        var store = TestStore.ForNewTenant();
+        await using (var db = store.NewContext())
+        {
+            var settings = CycleSettings.CreateDefault(store.TenantId);
+            settings.Update(MeasurementMethod.NumericTarget, 3, 6, planningDeadlineOffsetDays: 45, allowStandaloneObjectives: true);
+            db.CycleSettings.Add(settings);
+            await db.SaveChangesAsync();
+        }
+
+        await using (var db = store.NewContext())
+        {
+            var created = await new CreateCycleHandler(db, store.Tenant).Handle(
+                new CreateCycleCommand(new CreateCycleRequest("FY2026", Start, End, PlanningDeadline: null)), default);
+
+            Assert.True(created.IsSuccess, created.IsFailure ? created.Error.Message : null);
+            Assert.Equal(Start.AddDays(45), created.Value.PlanningDeadline);
+        }
+    }
+
+    [Fact]
+    public async Task Moving_the_start_date_reopens_a_confirmed_population_and_drops_participants()
+    {
+        var (store, workforce, cycleId) = await ArrangeAsync();
+        var resolver = new PopulationResolutionService(workforce);
+        workforce.Add("Amina", orgUnitId: Guid.NewGuid(), managerId: Guid.NewGuid());
+
+        await using (var db = store.NewContext())
+        {
+            await new SetPopulationHandler(db, store.Tenant, resolver).Handle(
+                new SetPopulationCommand(cycleId, new SetPopulationRequest(PopulationMode.AllActive, [], [], [])), default);
+        }
+        await using (var db = store.NewContext())
+        {
+            var confirm = await new ConfirmPopulationHandler(db, store.Tenant, resolver).Handle(new ConfirmPopulationCommand(cycleId), default);
+            Assert.True(confirm.IsSuccess, confirm.IsFailure ? confirm.Error.Message : null);
+        }
+
+        var newStart = Start.AddDays(7);
+        await using (var db = store.NewContext())
+        {
+            var update = await new UpdateCycleHandler(db).Handle(
+                new UpdateCycleCommand(cycleId, new UpdateCycleRequest("FY2026", newStart, End, newStart.AddDays(30))), default);
+            Assert.True(update.IsSuccess, update.IsFailure ? update.Error.Message : null);
+        }
+
+        await using (var db = store.NewContext())
+        {
+            var definition = await db.PopulationDefinitions.AsNoTracking().FirstAsync(d => d.CycleId == cycleId);
+            Assert.False(definition.IsConfirmed);
+            Assert.Equal(newStart, definition.EligibilityDate);
+            Assert.Empty(await db.Participants.AsNoTracking().Where(p => p.CycleId == cycleId).ToListAsync());
+        }
+    }
+
+    [Fact]
+    public async Task Editing_only_name_or_description_keeps_the_population_confirmed()
+    {
+        var (store, workforce, cycleId) = await ArrangeAsync();
+        var resolver = new PopulationResolutionService(workforce);
+        workforce.Add("Amina", orgUnitId: Guid.NewGuid(), managerId: Guid.NewGuid());
+
+        await using (var db = store.NewContext())
+        {
+            await new SetPopulationHandler(db, store.Tenant, resolver).Handle(
+                new SetPopulationCommand(cycleId, new SetPopulationRequest(PopulationMode.AllActive, [], [], [])), default);
+        }
+        await using (var db = store.NewContext())
+        {
+            await new ConfirmPopulationHandler(db, store.Tenant, resolver).Handle(new ConfirmPopulationCommand(cycleId), default);
+        }
+
+        await using (var db = store.NewContext())
+        {
+            var update = await new UpdateCycleHandler(db).Handle(
+                new UpdateCycleCommand(cycleId, new UpdateCycleRequest("Renamed", Start, End, Start.AddDays(30), Description: "A new note")), default);
+            Assert.True(update.IsSuccess, update.IsFailure ? update.Error.Message : null);
+        }
+
+        await using (var db = store.NewContext())
+        {
+            var definition = await db.PopulationDefinitions.AsNoTracking().FirstAsync(d => d.CycleId == cycleId);
+            Assert.True(definition.IsConfirmed);
+            Assert.Single(await db.Participants.AsNoTracking().Where(p => p.CycleId == cycleId).ToListAsync());
+        }
+    }
+
+    [Fact]
+    public async Task A_participant_without_a_manager_blocks_confirmation_until_excluded()
+    {
+        var (store, workforce, cycleId) = await ArrangeAsync();
+        var resolver = new PopulationResolutionService(workforce);
+        var org = Guid.NewGuid();
+        var noManager = workforce.Add("Amina", orgUnitId: org, managerId: null);
+        workforce.Add("Bilel", orgUnitId: org, managerId: Guid.NewGuid());
+
+        await using (var db = store.NewContext())
+        {
+            var set = await new SetPopulationHandler(db, store.Tenant, resolver).Handle(
+                new SetPopulationCommand(cycleId, new SetPopulationRequest(PopulationMode.AllActive, [], [], [])), default);
+            Assert.True(set.IsSuccess);
+            var amina = set.Value.Candidates.Single(c => c.EmployeeId == noManager.EmployeeId);
+            Assert.False(amina.IsEligible);
+            Assert.False(amina.CountsToRoster);
+        }
+
+        await using (var db = store.NewContext())
+        {
+            var confirm = await new ConfirmPopulationHandler(db, store.Tenant, resolver).Handle(new ConfirmPopulationCommand(cycleId), default);
+            Assert.True(confirm.IsFailure);
+            Assert.Contains("attention", confirm.Error.Message, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Excluding the reviewer-less participant with a reason clears the blocker.
+        await using (var db = store.NewContext())
+        {
+            await new SetPopulationHandler(db, store.Tenant, resolver).Handle(
+                new SetPopulationCommand(cycleId, new SetPopulationRequest(
+                    PopulationMode.AllActive, [], [], [new ExclusionInput(noManager.EmployeeId, "No reviewer")])), default);
+        }
+        await using (var db = store.NewContext())
+        {
+            var confirm = await new ConfirmPopulationHandler(db, store.Tenant, resolver).Handle(new ConfirmPopulationCommand(cycleId), default);
+            Assert.True(confirm.IsSuccess, confirm.IsFailure ? confirm.Error.Message : null);
+        }
+    }
+
+    [Fact]
+    public async Task An_inactive_manager_is_a_reviewer_issue_that_blocks_confirmation()
+    {
+        var (store, workforce, cycleId) = await ArrangeAsync();
+        var resolver = new PopulationResolutionService(workforce);
+        var org = Guid.NewGuid();
+        var inactiveMgr = workforce.Add("Mila", orgUnitId: org, managerId: Guid.NewGuid(), managerActive: false);
+        workforce.Add("Bilel", orgUnitId: org, managerId: Guid.NewGuid());
+
+        await using (var db = store.NewContext())
+        {
+            var set = await new SetPopulationHandler(db, store.Tenant, resolver).Handle(
+                new SetPopulationCommand(cycleId, new SetPopulationRequest(PopulationMode.AllActive, [], [], [])), default);
+            Assert.True(set.IsSuccess);
+            var mila = set.Value.Candidates.Single(c => c.EmployeeId == inactiveMgr.EmployeeId);
+            Assert.False(mila.IsEligible);
+            Assert.False(mila.HasValidReviewer);
+            Assert.Contains(mila.Issues, i => i.Code == ReadinessIssueCode.InactiveManager && i.IsHard);
+            // The manager is still named (with inactive state) so the surface can show who it is.
+            Assert.NotNull(mila.ManagerDisplayName);
+            Assert.False(mila.ManagerIsActive);
+        }
+
+        await using (var db = store.NewContext())
+        {
+            var confirm = await new ConfirmPopulationHandler(db, store.Tenant, resolver).Handle(new ConfirmPopulationCommand(cycleId), default);
+            Assert.True(confirm.IsFailure);
+        }
+    }
+
+    [Fact]
+    public async Task A_self_referential_manager_is_not_a_valid_reviewer()
+    {
+        var (store, workforce, cycleId) = await ArrangeAsync();
+        var resolver = new PopulationResolutionService(workforce);
+        var selfMgr = workforce.Add("Sole", orgUnitId: Guid.NewGuid(), managerIsSelf: true);
+
+        await using var db = store.NewContext();
+        var set = await new SetPopulationHandler(db, store.Tenant, resolver).Handle(
+            new SetPopulationCommand(cycleId, new SetPopulationRequest(PopulationMode.AllActive, [], [], [])), default);
+        Assert.True(set.IsSuccess);
+        var sole = set.Value.Candidates.Single(c => c.EmployeeId == selfMgr.EmployeeId);
+        Assert.False(sole.IsEligible);
+        Assert.False(sole.HasValidReviewer);
+        Assert.Contains(sole.Issues, i => i.Code == ReadinessIssueCode.MissingManager);
+        // A self-manager is not surfaced as a resolved reviewer.
+        Assert.Null(sole.ManagerEmployeeId);
+    }
+
+    [Fact]
+    public async Task Reviewer_coverage_counts_only_valid_reviewers_among_non_excluded()
+    {
+        var (store, workforce, cycleId) = await ArrangeAsync();
+        var resolver = new PopulationResolutionService(workforce);
+        var org = Guid.NewGuid();
+        workforce.Add("Ready1", orgUnitId: org, managerId: Guid.NewGuid());
+        workforce.Add("Ready2", orgUnitId: org, managerId: Guid.NewGuid());
+        workforce.Add("BadReviewer", orgUnitId: org, managerId: Guid.NewGuid(), managerActive: false);
+        var toExclude = workforce.Add("Contractor", orgUnitId: org, managerId: Guid.NewGuid());
+
+        await using var db = store.NewContext();
+        var set = await new SetPopulationHandler(db, store.Tenant, resolver).Handle(
+            new SetPopulationCommand(cycleId, new SetPopulationRequest(
+                PopulationMode.AllActive, [], [], [new ExclusionInput(toExclude.EmployeeId, "External contractor")])), default);
+        Assert.True(set.IsSuccess);
+        // 4 resolved, 1 excluded => 3 in scope; 2 have a valid reviewer (the inactive-manager one does not).
+        Assert.Equal(3, set.Value.ReviewerRequiredCount);
+        Assert.Equal(2, set.Value.ReviewerReadyCount);
+        Assert.Equal(1, set.Value.ExcludedCount);
+    }
+
+    [Fact]
+    public async Task Re_sending_an_equivalent_population_rule_preserves_confirmation()
+    {
+        var (store, workforce, cycleId) = await ArrangeAsync();
+        var resolver = new PopulationResolutionService(workforce);
+        var org = Guid.NewGuid();
+        workforce.Add("Amina", orgUnitId: org, managerId: Guid.NewGuid());
+        workforce.Add("Bilel", orgUnitId: org, managerId: Guid.NewGuid());
+
+        await using (var db = store.NewContext())
+        {
+            await new SetPopulationHandler(db, store.Tenant, resolver).Handle(
+                new SetPopulationCommand(cycleId, new SetPopulationRequest(
+                    PopulationMode.ByScope, [new OrgUnitSelectionInput(org, true)], [], [])), default);
+        }
+        await using (var db = store.NewContext())
+        {
+            var confirm = await new ConfirmPopulationHandler(db, store.Tenant, resolver).Handle(new ConfirmPopulationCommand(cycleId), default);
+            Assert.True(confirm.IsSuccess, confirm.IsFailure ? confirm.Error.Message : null);
+        }
+
+        // Re-send the same normalized rule: confirmation and the participant snapshot survive.
+        await using (var db = store.NewContext())
+        {
+            var resent = await new SetPopulationHandler(db, store.Tenant, resolver).Handle(
+                new SetPopulationCommand(cycleId, new SetPopulationRequest(
+                    PopulationMode.ByScope, [new OrgUnitSelectionInput(org, true)], [], [])), default);
+            Assert.True(resent.IsSuccess);
+            Assert.True(resent.Value.Selection.IsConfirmed);
+        }
+        await using (var db = store.NewContext())
+        {
+            Assert.Equal(2, await db.Participants.CountAsync(p => p.CycleId == cycleId));
+        }
+
+        // A real change (drop descendant intent) reopens confirmation and clears the snapshot.
+        await using (var db = store.NewContext())
+        {
+            var changed = await new SetPopulationHandler(db, store.Tenant, resolver).Handle(
+                new SetPopulationCommand(cycleId, new SetPopulationRequest(
+                    PopulationMode.ByScope, [new OrgUnitSelectionInput(org, false)], [], [])), default);
+            Assert.True(changed.IsSuccess);
+            Assert.False(changed.Value.Selection.IsConfirmed);
+        }
+        await using (var db = store.NewContext())
+        {
+            Assert.Equal(0, await db.Participants.CountAsync(p => p.CycleId == cycleId));
+        }
     }
 
     [Fact]

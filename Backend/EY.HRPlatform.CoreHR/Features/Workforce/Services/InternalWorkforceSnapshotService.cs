@@ -21,9 +21,12 @@ public interface IInternalWorkforceSnapshotService
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// All active/eligible employees for the tenant as-of a date: those with active employment
-    /// and an active primary assignment on that date. Additive convenience so Performance can
-    /// resolve an "all eligible active" population entirely through the snapshot contract.
+    /// All employees with active employment for the tenant as-of a date. Assignment and reviewer
+    /// state are reported per employee but do not gate membership: an active employee with a
+    /// broken or missing primary assignment is still returned (with a null org unit) so the
+    /// consumer can surface the gap as a readiness issue rather than silently receiving a smaller
+    /// population. Additive convenience so Performance can resolve an "all active" population
+    /// entirely through the snapshot contract.
     /// </summary>
     Task<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>> GetAllActiveAsOfAsync(
         DateTime asOf,
@@ -101,23 +104,16 @@ public sealed class InternalWorkforceSnapshotService(CoreHRDbContext dbContext) 
     {
         var at = Normalize(asOf);
 
-        // Eligible = active employment AND an active primary assignment on the as-of date.
-        // Resolved through the same tenant-filtered machinery as by-scope; the query filter
-        // scopes every set to the caller's tenant, so no cross-tenant workforce leaks.
-        var activeEmploymentIds = dbContext.Employments
+        // Membership = active employment on the as-of date. Assignment readiness is evaluated by
+        // BuildSnapshotsAsync (org unit is null when there is no active primary assignment), so
+        // an active worker with a broken assignment stays visible instead of dropping out of the
+        // population. The query filter scopes every set to the caller's tenant — no leaks.
+        var employeeIds = await dbContext.Employments
             .AsNoTracking()
             .Where(e => e.Status == EmploymentStatus.Active
                 && e.EffectiveFrom <= at
                 && (e.EffectiveTo == null || at < e.EffectiveTo))
-            .Select(e => e.Id);
-
-        var employeeIds = await dbContext.WorkAssignments
-            .AsNoTracking()
-            .Where(w => w.IsPrimary
-                && activeEmploymentIds.Contains(w.EmploymentId)
-                && w.EffectiveFrom <= at
-                && (w.EffectiveTo == null || at < w.EffectiveTo))
-            .Select(w => w.EmployeeId)
+            .Select(e => e.EmployeeId)
             .Distinct()
             .ToListAsync(cancellationToken);
 

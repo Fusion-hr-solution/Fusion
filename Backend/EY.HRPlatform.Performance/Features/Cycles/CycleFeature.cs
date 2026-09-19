@@ -77,12 +77,18 @@ public sealed class CreateCycleHandler(PerformanceDbContext db, ITenantContext t
     public async Task<Result<CycleSummaryDto>> Handle(CreateCycleCommand command, CancellationToken cancellationToken)
     {
         var request = command.Request;
-        var planningDeadline = request.PlanningDeadline ?? DerivePlanningDeadline(request.StartDate, request.EndDate);
+
+        // The planning-deadline default is tenant policy, not a magic constant: honour an explicit
+        // client value, otherwise offset the start date by the tenant's configured offset.
+        var settings = await db.CycleSettings.AsNoTracking().FirstOrDefaultAsync(cancellationToken)
+            ?? CycleSettings.CreateDefault(tenant.TenantId);
+        var planningDeadline = request.PlanningDeadline
+            ?? DerivePlanningDeadline(request.StartDate, request.EndDate, settings.PlanningDeadlineOffsetDays);
 
         PerformanceCycle cycle;
         try
         {
-            cycle = PerformanceCycle.CreateDraft(tenant.TenantId, request.Name, request.StartDate, request.EndDate, planningDeadline);
+            cycle = PerformanceCycle.CreateDraft(tenant.TenantId, request.Name, request.StartDate, request.EndDate, planningDeadline, request.Description);
         }
         catch (ArgumentException ex)
         {
@@ -94,9 +100,9 @@ public sealed class CreateCycleHandler(PerformanceDbContext db, ITenantContext t
         return PerformanceMappers.ToSummary(cycle);
     }
 
-    private static DateOnly DerivePlanningDeadline(DateOnly start, DateOnly end)
+    private static DateOnly DerivePlanningDeadline(DateOnly start, DateOnly end, int offsetDays)
     {
-        var candidate = start.AddDays(30);
+        var candidate = start.AddDays(offsetDays);
         return candidate <= end ? candidate : start.AddDays(1) <= end ? start.AddDays(1) : end;
     }
 }
@@ -113,13 +119,30 @@ public sealed class UpdateCycleHandler(PerformanceDbContext db)
             return Result.Failure<CycleSummaryDto>(Error.Conflict("Cycle.NotDraft", "Only a Draft Cycle can be edited."));
 
         var request = command.Request;
+        var previousStart = cycle.StartDate;
         try
         {
-            cycle.UpdateDraftDetails(request.Name, request.StartDate, request.EndDate, request.PlanningDeadline);
+            cycle.UpdateDraftDetails(request.Name, request.StartDate, request.EndDate, request.PlanningDeadline, request.Description);
         }
         catch (ArgumentException ex)
         {
             return Result.Failure<CycleSummaryDto>(Error.Validation("Cycle.Invalid", ex.Message));
+        }
+
+        // Population is resolved as-of the Cycle start date. Moving the start date invalidates any
+        // confirmed roster, so realign the eligibility date, drop the confirmation, and clear the
+        // frozen participant rows — the population must then be re-resolved and re-confirmed.
+        // Name/description/end/deadline edits leave a confirmed population untouched.
+        if (request.StartDate != previousStart)
+        {
+            var definition = await db.PopulationDefinitions.FirstOrDefaultAsync(d => d.CycleId == cycle.Id, cancellationToken);
+            if (definition is not null)
+            {
+                definition.RealignEligibility(request.StartDate);
+                var participants = await db.Participants.Where(p => p.CycleId == cycle.Id).ToListAsync(cancellationToken);
+                if (participants.Count > 0)
+                    db.Participants.RemoveRange(participants);
+            }
         }
 
         await db.SaveChangesAsync(cancellationToken);

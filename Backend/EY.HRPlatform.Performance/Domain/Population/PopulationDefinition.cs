@@ -103,11 +103,87 @@ public sealed class PopulationDefinition : PerformanceAggregate
         MarkUpdated();
     }
 
+    /// <summary>
+    /// Realigns eligibility to a new as-of date (the Cycle's start date). Because the roster is
+    /// resolved as-of this date, moving it invalidates any prior confirmation — the caller must
+    /// re-resolve and re-confirm against the new date.
+    /// </summary>
+    public void RealignEligibility(DateOnly eligibilityDate)
+    {
+        GuardDraft();
+        if (eligibilityDate == EligibilityDate) return;
+        EligibilityDate = eligibilityDate;
+        IsConfirmed = false;
+        ConfirmedAt = null;
+        MarkUpdated();
+    }
+
     private void GuardDraft()
     {
         // The confirmed-vs-draft distinction here is about the population rule while the
         // Cycle is still Draft. The Cycle aggregate guards that population is only edited
         // before activation; this aggregate carries no lifecycle of its own beyond confirm.
+    }
+
+    /// <summary>
+    /// Whether the given selection is effectively identical to the current one after the same
+    /// normalization <see cref="SetSelection"/> applies (dedup, trimmed reasons, order-independent).
+    /// Lets the caller treat an equivalent re-send as a no-op and preserve confirmation, rather
+    /// than reopening the population every time the same rule is PUT.
+    /// </summary>
+    public bool MatchesSelection(
+        PopulationMode mode,
+        IEnumerable<(Guid OrgUnitId, bool IncludeDescendants)> orgUnitSelections,
+        IEnumerable<Guid> inclusions,
+        IEnumerable<(Guid EmployeeId, string Reason)> exclusions)
+    {
+        if (mode != Mode) return false;
+
+        var incomingOrg = mode == PopulationMode.ByScope
+            ? NormalizeOrgSelections(orgUnitSelections)
+            : new HashSet<(Guid, bool)>();
+        var currentOrg = NormalizeOrgSelections(
+            _orgUnitSelections.Select(selection => (selection.OrgUnitId, selection.IncludeDescendants)));
+        if (!incomingOrg.SetEquals(currentOrg)) return false;
+
+        var incomingInclusions = (inclusions ?? []).Where(id => id != Guid.Empty).ToHashSet();
+        var currentInclusions = _inclusions.Select(inclusion => inclusion.EmployeeId).ToHashSet();
+        if (!incomingInclusions.SetEquals(currentInclusions)) return false;
+
+        var incomingExclusions = NormalizeExclusions(exclusions);
+        var currentExclusions = NormalizeExclusions(
+            _exclusions.Select(exclusion => (exclusion.EmployeeId, exclusion.Reason)));
+        return incomingExclusions.SetEquals(currentExclusions);
+    }
+
+    private static HashSet<(Guid, bool)> NormalizeOrgSelections(
+        IEnumerable<(Guid OrgUnitId, bool IncludeDescendants)> selections)
+    {
+        var result = new HashSet<(Guid, bool)>();
+        var seen = new HashSet<Guid>();
+        foreach (var (orgUnitId, includeDescendants) in selections ?? [])
+        {
+            if (orgUnitId == Guid.Empty) continue;
+            if (!seen.Add(orgUnitId)) continue; // first selection for a unit wins, mirroring SetSelection
+            result.Add((orgUnitId, includeDescendants));
+        }
+
+        return result;
+    }
+
+    private static HashSet<(Guid, string)> NormalizeExclusions(
+        IEnumerable<(Guid EmployeeId, string Reason)> exclusions)
+    {
+        var result = new HashSet<(Guid, string)>();
+        var seen = new HashSet<Guid>();
+        foreach (var (employeeId, reason) in exclusions ?? [])
+        {
+            if (employeeId == Guid.Empty) continue;
+            if (!seen.Add(employeeId)) continue;
+            result.Add((employeeId, (reason ?? string.Empty).Trim()));
+        }
+
+        return result;
     }
 
     public bool IsExcluded(Guid employeeId) => _exclusions.Any(exclusion => exclusion.EmployeeId == employeeId);

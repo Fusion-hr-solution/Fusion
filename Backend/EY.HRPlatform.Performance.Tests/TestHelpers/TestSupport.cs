@@ -86,18 +86,22 @@ public sealed class FakeCoreWorkforceClient : ICoreWorkforceClient
         bool isActive = true,
         Guid? orgUnitId = null,
         string orgUnitName = "Engineering",
-        Guid? managerId = null)
+        Guid? managerId = null,
+        bool managerActive = true,
+        bool managerIsSelf = false)
     {
+        var employeeId = Guid.NewGuid();
+        var reviewerId = managerIsSelf ? employeeId : managerId;
         var snapshot = new WorkforceSnapshot(
-            Guid.NewGuid(),
+            employeeId,
             $"KEY-{name}",
             name,
             name,
             $"{name}@demo.local",
             "Engineer",
             isActive,
-            isActive && orgUnitId is not null ? new WorkforceOrgSnapshot(orgUnitId.Value, orgUnitName) : (orgUnitId is not null ? new WorkforceOrgSnapshot(orgUnitId.Value, orgUnitName) : null),
-            managerId is not null ? new WorkforceManagerSnapshot(managerId.Value, "Manager", true) : null);
+            orgUnitId is not null ? new WorkforceOrgSnapshot(orgUnitId.Value, orgUnitName) : null,
+            reviewerId is not null ? new WorkforceManagerSnapshot(reviewerId.Value, "Manager", managerActive) : null);
         AllActive.Add(snapshot);
         ById[snapshot.EmployeeId] = snapshot;
         return snapshot;

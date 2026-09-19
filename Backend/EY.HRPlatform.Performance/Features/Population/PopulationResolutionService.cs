@@ -93,7 +93,28 @@ public sealed class PopulationResolutionService(ICoreWorkforceClient workforceCl
         var issues = new List<ReadinessIssueCode>();
         if (!snapshot.IsActive) issues.Add(ReadinessIssueCode.InactiveEmployment);
         if (snapshot.OrgUnit is null) issues.Add(ReadinessIssueCode.NoPrimaryAssignment);
-        if (snapshot.Manager is null) issues.Add(ReadinessIssueCode.MissingManager);
+
+        // Reviewer readiness is more than "a manager row exists": the manager must be a real,
+        // active person other than the employee themselves. A missing or self-referential
+        // manager is treated as no eligible reviewer; an inactive manager is a distinct issue so
+        // the surface can name it. Only a valid reviewer's identity is carried on the candidate.
+        var manager = snapshot.Manager;
+        var isSelfManager = manager is not null && manager.EmployeeId == snapshot.EmployeeId;
+        Guid? reviewerId = null;
+        string? reviewerName = null;
+        var reviewerActive = false;
+
+        if (manager is null || isSelfManager)
+        {
+            issues.Add(ReadinessIssueCode.MissingManager);
+        }
+        else
+        {
+            reviewerId = manager.EmployeeId;
+            reviewerName = manager.DisplayName;
+            reviewerActive = manager.IsActive;
+            if (!manager.IsActive) issues.Add(ReadinessIssueCode.InactiveManager);
+        }
 
         var excluded = definition.IsExcluded(snapshot.EmployeeId);
 
@@ -103,8 +124,9 @@ public sealed class PopulationResolutionService(ICoreWorkforceClient workforceCl
             snapshot.JobTitle,
             snapshot.OrgUnit?.OrgUnitId,
             snapshot.OrgUnit?.Name,
-            snapshot.Manager?.EmployeeId,
-            snapshot.Manager?.DisplayName,
+            reviewerId,
+            reviewerName,
+            reviewerActive,
             snapshot.IsActive,
             definition.IsExplicitlyIncluded(snapshot.EmployeeId),
             excluded,

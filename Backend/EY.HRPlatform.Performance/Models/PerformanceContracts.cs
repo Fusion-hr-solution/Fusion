@@ -37,6 +37,7 @@ public sealed record UpdateCycleSettingsRequest(
 public sealed record CycleSummaryDto(
     Guid Id,
     string Name,
+    string? Description,
     DateOnly StartDate,
     DateOnly EndDate,
     DateOnly PlanningDeadline,
@@ -47,13 +48,15 @@ public sealed record CreateCycleRequest(
     string Name,
     DateOnly StartDate,
     DateOnly EndDate,
-    DateOnly? PlanningDeadline);
+    DateOnly? PlanningDeadline,
+    string? Description = null);
 
 public sealed record UpdateCycleRequest(
     string Name,
     DateOnly StartDate,
     DateOnly EndDate,
-    DateOnly PlanningDeadline);
+    DateOnly PlanningDeadline,
+    string? Description = null);
 
 public sealed record MilestoneStateDto(OperationalMilestone Milestone, bool Reached);
 
@@ -71,7 +74,8 @@ public sealed record CycleDetailDto(
     int PublishedStrategyCount,
     int DraftStrategyCount,
     bool PopulationConfirmed,
-    int ConfirmedParticipantCount);
+    int ConfirmedParticipantCount,
+    bool OtherActiveCycleExists);
 
 // ----- Strategic direction -----
 
@@ -145,12 +149,14 @@ public sealed record PopulationCandidateDto(
     string? OrgUnitName,
     Guid? ManagerEmployeeId,
     string? ManagerDisplayName,
+    bool ManagerIsActive,
     bool IsActive,
     bool ByExplicitInclusion,
     bool IsExcluded,
     string? ExclusionReason,
     bool IsEligible,
     bool CountsToRoster,
+    bool HasValidReviewer,
     IReadOnlyList<ReadinessIssueDto> Issues);
 
 public sealed record PopulationSelectionDto(
@@ -166,6 +172,8 @@ public sealed record PopulationDto(
     int ReadyCount,
     int NeedsAttentionCount,
     int ExcludedCount,
+    int ReviewerReadyCount,
+    int ReviewerRequiredCount,
     IReadOnlyList<PopulationCandidateDto> Candidates);
 
 // ----- Organizational goals (Chunk B) -----

@@ -56,6 +56,8 @@ public sealed class GetPopulationHandler(PerformanceDbContext db, ITenantContext
             resolution.ReadyCount,
             resolution.NeedsAttentionCount,
             resolution.ExcludedCount,
+            resolution.ReviewerReadyCount,
+            resolution.ReviewerRequiredCount,
             resolution.Candidates.Select(PerformanceMappers.ToDto).ToList());
 }
 
@@ -73,13 +75,29 @@ public sealed class SetPopulationHandler(PerformanceDbContext db, ITenantContext
         var definition = await GetPopulationHandler.LoadOrCreateDefinitionAsync(db, tenant, cycle, cancellationToken);
         var request = command.Request;
 
+        var orgSelections = (request.OrgUnitSelections ?? [])
+            .Select(selection => (selection.OrgUnitId, selection.IncludeDescendants))
+            .ToList();
+        var inclusions = request.Inclusions ?? [];
+        var exclusions = (request.Exclusions ?? [])
+            .Select(exclusion => (exclusion.EmployeeId, exclusion.Reason))
+            .ToList();
+
+        // Idempotent write: if the normalized rule is unchanged, keep any confirmation and roster
+        // intact and just re-resolve for the response. Only an effective change reopens the
+        // population and drops the confirmed Participant snapshot.
+        if (definition.MatchesSelection(request.Mode, orgSelections, inclusions, exclusions))
+        {
+            if (db.Entry(definition).State == EntityState.Added)
+                await db.SaveChangesAsync(cancellationToken);
+
+            var unchanged = await resolver.ResolveAsync(cycle, definition, cancellationToken);
+            return GetPopulationHandler.ToDto(definition, unchanged);
+        }
+
         try
         {
-            definition.SetSelection(
-                request.Mode,
-                (request.OrgUnitSelections ?? []).Select(selection => (selection.OrgUnitId, selection.IncludeDescendants)),
-                request.Inclusions ?? [],
-                (request.Exclusions ?? []).Select(exclusion => (exclusion.EmployeeId, exclusion.Reason)));
+            definition.SetSelection(request.Mode, orgSelections, inclusions, exclusions);
         }
         catch (InvalidOperationException ex)
         {

@@ -11,7 +11,7 @@ namespace EY.HRPlatform.Performance.Features;
 public static class PerformanceMappers
 {
     public static CycleSummaryDto ToSummary(PerformanceCycle cycle)
-        => new(cycle.Id, cycle.Name, cycle.StartDate, cycle.EndDate, cycle.PlanningDeadline, cycle.State, cycle.ActivatedAt);
+        => new(cycle.Id, cycle.Name, cycle.Description, cycle.StartDate, cycle.EndDate, cycle.PlanningDeadline, cycle.State, cycle.ActivatedAt);
 
     public static CycleSettingsDto ToDto(CycleSettings settings)
         => new(
@@ -84,12 +84,14 @@ public static class PerformanceMappers
             candidate.OrgUnitName,
             candidate.ManagerEmployeeId,
             candidate.ManagerDisplayName,
+            candidate.ManagerIsActive,
             candidate.IsActive,
             candidate.ByExplicitInclusion,
             candidate.IsExcluded,
             candidate.ExclusionReason,
             candidate.IsEligible,
             candidate.CountsToRoster,
+            candidate.HasValidReviewer,
             candidate.Issues.Select(ToDto).ToList());
 
     public static ReadinessIssueDto ToDto(ReadinessIssueCode code)
@@ -98,9 +100,10 @@ public static class PerformanceMappers
     public static string ReadinessIssueLabel(ReadinessIssueCode code)
         => code switch
         {
-            ReadinessIssueCode.InactiveEmployment => "Employment not active on the eligibility date",
-            ReadinessIssueCode.NoPrimaryAssignment => "No active primary assignment on the eligibility date",
-            ReadinessIssueCode.MissingManager => "No accountable manager on record",
+            ReadinessIssueCode.InactiveEmployment => "Employment is inactive",
+            ReadinessIssueCode.NoPrimaryAssignment => "No primary assignment",
+            ReadinessIssueCode.MissingManager => "No eligible manager found",
+            ReadinessIssueCode.InactiveManager => "Manager is inactive",
             _ => code.ToString(),
         };
 

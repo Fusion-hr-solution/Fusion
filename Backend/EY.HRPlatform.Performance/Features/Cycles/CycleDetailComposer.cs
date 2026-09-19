@@ -27,14 +27,12 @@ public static class CycleDetailComposer
         var otherActiveExists = await db.Cycles.AsNoTracking()
             .AnyAsync(c => c.Id != cycle.Id && c.State == CycleLifecycleState.Active, cancellationToken);
 
-        var blockers = BuildBlockers(cycle, publishedStrategyCount, populationConfirmed, participantCount, otherActiveExists);
+        var blockers = BuildBlockers(cycle, populationConfirmed, participantCount, otherActiveExists);
 
         var areas = new List<LaunchReadinessAreaDto>
         {
             new("details", "Cycle details", cycle.HasValidDates,
                 cycle.HasValidDates ? null : "Set a valid date range and planning deadline."),
-            new("direction", "Strategic direction", publishedStrategyCount > 0,
-                publishedStrategyCount > 0 ? null : "Publish at least one strategic objective."),
             new("population", "Population", populationConfirmed,
                 populationConfirmed ? null : "Resolve and confirm the participant population."),
         };
@@ -51,25 +49,23 @@ public static class CycleDetailComposer
             publishedStrategyCount,
             draftStrategyCount,
             populationConfirmed,
-            participantCount);
+            participantCount,
+            otherActiveExists);
     }
 
     public static async Task<IReadOnlyList<string>> ResolveBlockersAsync(PerformanceDbContext db, PerformanceCycle cycle, CancellationToken cancellationToken)
     {
-        var publishedStrategyCount = await db.Objectives.AsNoTracking()
-            .CountAsync(o => o.CycleId == cycle.Id && o.State == ObjectiveLifecycleState.Published, cancellationToken);
         var definition = await db.PopulationDefinitions.AsNoTracking().FirstOrDefaultAsync(d => d.CycleId == cycle.Id, cancellationToken);
         var participantCount = await db.Participants.AsNoTracking().CountAsync(p => p.CycleId == cycle.Id, cancellationToken);
         var populationConfirmed = definition is { IsConfirmed: true } && participantCount > 0;
         var otherActiveExists = await db.Cycles.AsNoTracking()
             .AnyAsync(c => c.Id != cycle.Id && c.State == CycleLifecycleState.Active, cancellationToken);
 
-        return BuildBlockers(cycle, publishedStrategyCount, populationConfirmed, participantCount, otherActiveExists);
+        return BuildBlockers(cycle, populationConfirmed, participantCount, otherActiveExists);
     }
 
     private static List<string> BuildBlockers(
         PerformanceCycle cycle,
-        int publishedStrategyCount,
         bool populationConfirmed,
         int participantCount,
         bool otherActiveExists)
@@ -79,8 +75,6 @@ public static class CycleDetailComposer
             blockers.Add("Another Cycle is already Active. Only one Cycle can be Active at a time.");
         if (!cycle.HasValidDates)
             blockers.Add("The Cycle dates are not valid.");
-        if (publishedStrategyCount == 0)
-            blockers.Add("No strategic objective has been published.");
         if (participantCount == 0)
             blockers.Add("The population is empty.");
         else if (!populationConfirmed)
