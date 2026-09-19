@@ -25,6 +25,11 @@ import { isInvalidMoveTarget, organizationAccessibleName } from "../model/hierar
 const NODE_WIDTH = 244;
 const NODE_HEIGHT = 78;
 
+const MAX_ZOOM = 1.5;
+// Default framing zoom = "level 9": max zoom followed by 8 zoom-out clicks.
+// React Flow's zoom control steps by a factor of 1.2 per click, so 1.5 / 1.2^8.
+const DEFAULT_ZOOM = MAX_ZOOM / 1.2 ** 8;
+
 type OrganizationNodeData = Record<string, unknown> & {
   id: string;
   name: string;
@@ -346,9 +351,8 @@ export default function OrganizationChart({
           // Top-to-bottom flow: parents connect from their bottom edge to a child's top.
           sourcePosition: Position.Bottom,
           targetPosition: Position.Top,
-          // Explicit dimensions so the MiniMap can draw every node — with
-          // `onlyRenderVisibleElements`, off-screen nodes are never measured, so without
-          // these the overview would render as an empty box with no node marks.
+          // Explicit dimensions so the MiniMap can draw every node without waiting for
+          // each to be measured from the DOM.
           width: NODE_WIDTH,
           height: NODE_HEIGHT,
           draggable: canManage && !readOnly && unit.parentId !== null,
@@ -421,7 +425,7 @@ export default function OrganizationChart({
       if (!root) return;
       framedRef.current = dataKey;
       void instance.setCenter(root.position.x + NODE_WIDTH * 2.5, root.position.y + NODE_HEIGHT / 2, {
-        zoom: 0.8,
+        zoom: DEFAULT_ZOOM,
         duration: reduceMotion() ? 0 : 240,
       });
     },
@@ -498,13 +502,12 @@ export default function OrganizationChart({
         nodes={displayNodes}
         edges={edges}
         nodeTypes={nodeTypes}
-        defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+        defaultViewport={{ x: 0, y: 0, zoom: DEFAULT_ZOOM }}
         minZoom={0.08}
-        maxZoom={1.5}
+        maxZoom={MAX_ZOOM}
         nodesConnectable={false}
         elementsSelectable={false}
         nodeDragThreshold={8}
-        onlyRenderVisibleElements
         onInit={(instance) => {
           flowRef.current = instance;
           frameEntry(instance);

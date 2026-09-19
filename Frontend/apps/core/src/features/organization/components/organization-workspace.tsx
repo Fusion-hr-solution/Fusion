@@ -18,6 +18,7 @@ import {
   AlertTitle,
   Badge,
   Button,
+  Calendar,
   Dialog,
   DialogContent,
   DialogDescription,
@@ -29,6 +30,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Separator,
   Skeleton,
   Tabs,
@@ -160,6 +164,67 @@ function StructureSkeleton() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Parse/format an ISO calendar date (YYYY-MM-DD) as a local date, avoiding the UTC
+// drift `new Date("YYYY-MM-DD")` introduces.
+function parseCalendarDate(value: string): Date | undefined {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return undefined;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+function toCalendarDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+const AS_OF_FORMAT = new Intl.DateTimeFormat(undefined, {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+});
+
+function AsOfDatePicker({
+  value,
+  today,
+  onChange,
+}: {
+  value: string;
+  today: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = parseCalendarDate(value);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" className="h-9 gap-2 font-normal">
+          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">As of</span>
+          <span className="font-medium">
+            {selected ? AS_OF_FORMAT.format(selected) : value}
+          </span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-auto p-0">
+        <Calendar
+          mode="single"
+          autoFocus
+          defaultMonth={selected}
+          selected={selected}
+          onSelect={(date) => {
+            if (!date) return;
+            onChange(toCalendarDate(date));
+            setOpen(false);
+          }}
+          today={parseCalendarDate(today)}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -522,27 +587,23 @@ export default function OrganizationWorkspace() {
   const readOnly = urlState.asOf !== today;
   const [local, dispatchLocal] = useReducer(organizationLocalReducer, {
     collapsed: new Set<string>(),
-    unitForm: null,
-    manageTypes: false,
+    editor: null,
     createType: false,
     createdTypeId: null,
     upcomingOpen: false,
     moveProposal: null,
     inactivateUnit: null,
-    correction: null,
     cancelChange: null,
     inspectorOpen: Boolean(urlState.selectedId),
   });
   const {
     collapsed,
-    unitForm,
-    manageTypes,
+    editor,
     createType,
     createdTypeId,
     upcomingOpen,
     moveProposal,
     inactivateUnit,
-    correction,
     cancelChange,
     inspectorOpen,
   } = local;
@@ -565,8 +626,7 @@ export default function OrganizationWorkspace() {
   const tenantSummary = useTenantAccessSummary(
     canView && canReadTenantName && readiness.data?.hasPermanentRoot === false
   );
-  const needTypes =
-    unitForm !== null || manageTypes || createType || correction !== null;
+  const needTypes = editor !== null || createType;
   const types = useOrganizationTypes(canView && needTypes);
   const mutations = useOrganizationMutations();
   const importApi = useOrganizationImportApi();
@@ -605,6 +665,15 @@ export default function OrganizationWorkspace() {
       patchLocal({ inspectorOpen: false });
     }
     // Selection is reconciled only after this exact as-of hierarchy resolves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model, hierarchy.isFetching, urlState.selectedId]);
+
+  // With nothing selected, default to the organization root so the surface opens
+  // on the top of the hierarchy rather than an empty inspector.
+  useEffect(() => {
+    if (!model || hierarchy.isFetching || urlState.selectedId) return;
+    const rootId = model.roots[0];
+    if (rootId) select(rootId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model, hierarchy.isFetching, urlState.selectedId]);
 
@@ -676,7 +745,7 @@ export default function OrganizationWorkspace() {
 
   function addChild(id: string) {
     if (!readOnly && canManage)
-      patchLocal({ unitForm: { kind: "add", parentId: id } });
+      patchLocal({ editor: { kind: "unit-form", mode: { kind: "add", parentId: id } } });
   }
   function stageMove(
     id: string,
@@ -757,17 +826,11 @@ export default function OrganizationWorkspace() {
                     Upcoming changes · {futureChanges.length}
                   </Button>
                 ) : null}
-                <div className="flex items-center gap-2 rounded-xl border bg-background px-2 py-1">
-                  <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">As of</span>
-                  <Input
-                    aria-label="Organization as-of date"
-                    type="date"
-                    value={urlState.asOf}
-                    onChange={(event) => navigate({ asOf: event.target.value })}
-                    className="h-7 w-[132px] border-0 p-1 shadow-none focus-visible:ring-0"
-                  />
-                </div>
+                <AsOfDatePicker
+                  value={urlState.asOf}
+                  today={today}
+                  onChange={(asOf) => navigate({ asOf })}
+                />
               </>
             ) : undefined
           }
@@ -961,7 +1024,9 @@ export default function OrganizationWorkspace() {
             {canManage && !readOnly ? (
               <Button
                 onClick={() =>
-                  patchLocal({ unitForm: { kind: "add", parentId: null } })
+                  patchLocal({
+                    editor: { kind: "unit-form", mode: { kind: "add", parentId: null } },
+                  })
                 }
               >
                 <Plus className="h-4 w-4" />
@@ -994,7 +1059,7 @@ export default function OrganizationWorkspace() {
                     Export structure
                   </DropdownMenuItem>
                   {canManage && !readOnly ? (
-                    <DropdownMenuItem onClick={() => patchLocal({ manageTypes: true })}>
+                    <DropdownMenuItem onClick={() => patchLocal({ editor: { kind: "manage-types" } })}>
                       <Settings2 className="h-4 w-4" />
                       Manage Unit Types
                     </DropdownMenuItem>
@@ -1080,45 +1145,42 @@ export default function OrganizationWorkspace() {
               )}
             </main>
             {model &&
-            (unitForm !== null ||
-              manageTypes ||
-              correction !== null ||
-              (urlState.selectedId && inspectorOpen)) ? (
+            (editor !== null || (urlState.selectedId && inspectorOpen)) ? (
               <aside
                 className="min-h-0 w-[360px] shrink-0 border-l bg-background max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-overlay"
                 aria-label="Organization panel"
               >
-                {unitForm !== null ? (
+                {editor?.kind === "unit-form" ? (
                   <UnitFormPanel
-                    mode={unitForm}
+                    mode={editor.mode}
                     today={today}
                     model={model}
                     types={types.data ?? []}
                     createdTypeId={createdTypeId}
                     mutations={mutations}
                     onClose={() =>
-                      patchLocal({ unitForm: null, createdTypeId: null })
+                      patchLocal({ editor: null, createdTypeId: null })
                     }
                     onCreateType={() => patchLocal({ createType: true })}
                     onSaved={(id, effectiveDate) => {
                       if (effectiveDate === today) revealUnits([id], id);
                     }}
                   />
-                ) : correction !== null ? (
+                ) : editor?.kind === "correction" ? (
                   <CorrectionPanel
-                    unit={correction.unit}
-                    effectiveDate={correction.date}
+                    unit={editor.unit}
+                    effectiveDate={editor.date}
                     model={model}
                     types={types.data ?? []}
                     mutations={mutations}
-                    onClose={() => patchLocal({ correction: null })}
+                    onClose={() => patchLocal({ editor: null })}
                     onDone={() => void hierarchy.refetch()}
                   />
-                ) : manageTypes ? (
+                ) : editor?.kind === "manage-types" ? (
                   <ManageTypesPanel
                     types={types.data ?? []}
                     mutations={mutations}
-                    onClose={() => patchLocal({ manageTypes: false })}
+                    onClose={() => patchLocal({ editor: null })}
                     onCreateType={() => patchLocal({ createType: true })}
                   />
                 ) : urlState.selectedId && inspectorOpen ? (
@@ -1134,7 +1196,7 @@ export default function OrganizationWorkspace() {
                       navigate({ selectedId: null });
                     }}
                     onEdit={(unit) =>
-                      patchLocal({ unitForm: { kind: "edit", unit } })
+                      patchLocal({ editor: { kind: "unit-form", mode: { kind: "edit", unit } } })
                     }
                     onAddChild={addChild}
                     onMove={(id) => stageMove(id, null)}
@@ -1142,7 +1204,7 @@ export default function OrganizationWorkspace() {
                       patchLocal({ inactivateUnit: unit })
                     }
                     onCorrect={(unit, date) =>
-                      patchLocal({ correction: { unit, date } })
+                      patchLocal({ editor: { kind: "correction", unit, date } })
                     }
                   />
                 ) : null}

@@ -147,7 +147,7 @@ describe("PeopleWorkspace", () => {
     expect(link).toHaveAttribute("href", "/people/E-KEY-1");
   });
 
-  it("shows a true-empty workforce that owns the page, without roster query chrome", () => {
+  it("shows a true-empty workforce as a placeholder inside the roster's own page", () => {
     mockUsePeople.mockReturnValue(queryResult({ data: page([], 0) }));
     render(<PeopleWorkspace />);
     expect(
@@ -162,13 +162,12 @@ describe("PeopleWorkspace", () => {
     expect(
       screen.getByRole("link", { name: /Hire employee/i })
     ).toBeInTheDocument();
-    // no dead search/sort chrome when there is nothing to query
-    expect(screen.queryByLabelText("Search People")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Sort People")).not.toBeInTheDocument();
-    // header must not also duplicate the establishment actions
+    // the same page as the populated state: roster chrome and header actions stay put
+    expect(screen.getByLabelText("Search People")).toBeInTheDocument();
+    expect(screen.getByLabelText("Sort People")).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Add employee/i })
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /Add employee/i })
+    ).toBeInTheDocument();
   });
 
   it("shows filtered no-results distinctly, with only a clear-filters recovery", () => {

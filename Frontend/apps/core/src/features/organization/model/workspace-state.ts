@@ -20,16 +20,23 @@ export interface MoveProposal {
 
 export type UnitFormMode = { kind: "add"; parentId: string | null } | { kind: "edit"; unit: OrganizationUnitStateDto } | null;
 
+// The contextual side panel holds exactly one editor at a time. Modelling it as a
+// single value (rather than independent flags resolved by render priority) makes it
+// impossible to open one editor while another is silently still set — the class of
+// bug where clicking an action changed state but a higher-priority panel masked it.
+export type OrganizationEditor =
+  | { kind: "unit-form"; mode: Exclude<UnitFormMode, null> }
+  | { kind: "correction"; unit: OrganizationUnitStateDto; date: string }
+  | { kind: "manage-types" };
+
 export interface OrganizationLocalState {
   collapsed: Set<string>;
-  unitForm: UnitFormMode;
-  manageTypes: boolean;
+  editor: OrganizationEditor | null;
   createType: boolean;
   createdTypeId: string | null;
   upcomingOpen: boolean;
   moveProposal: MoveProposal | null;
   inactivateUnit: OrganizationUnitStateDto | null;
-  correction: { unit: OrganizationUnitStateDto; date: string } | null;
   cancelChange: OrganizationChangeDto | null;
   inspectorOpen: boolean;
 }

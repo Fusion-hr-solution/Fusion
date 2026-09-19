@@ -45,19 +45,18 @@ describe("Organization workspace state", () => {
   it("keeps disclosure and contextual surfaces in one predictable local reducer", () => {
     const model = buildOrganizationHierarchy(asteriaHierarchy);
     const initial = {
-      collapsed: new Set(["asteria", "consulting"]), unitForm: null,
-      manageTypes: false, createType: false, createdTypeId: null,
+      collapsed: new Set(["asteria", "consulting"]), editor: null,
+      createType: false, createdTypeId: null,
       upcomingOpen: false, moveProposal: null, inactivateUnit: null,
-      correction: null, codeCorrection: null, cancelChange: null,
-      inspectorOpen: false,
+      cancelChange: null, inspectorOpen: false,
     };
 
     const revealed = organizationLocalReducer(initial, { type: "reveal", model, id: "technology" });
     expect(revealed.collapsed).not.toContain("asteria");
     expect(revealed.collapsed).not.toContain("consulting");
 
-    const opened = organizationLocalReducer(revealed, { type: "patch", value: { inspectorOpen: true, manageTypes: true } });
-    expect(opened).toMatchObject({ inspectorOpen: true, manageTypes: true });
+    const opened = organizationLocalReducer(revealed, { type: "patch", value: { inspectorOpen: true, editor: { kind: "manage-types" } } });
+    expect(opened).toMatchObject({ inspectorOpen: true, editor: { kind: "manage-types" } });
     expect(organizationLocalReducer(opened, { type: "toggle-collapse", id: "technology" }).collapsed).toContain("technology");
   });
 
@@ -68,10 +67,10 @@ describe("Organization workspace state", () => {
       entry: "drag" as const, error: null,
     };
     const initial = {
-      collapsed: new Set<string>(), unitForm: null, manageTypes: false,
+      collapsed: new Set<string>(), editor: null,
       createType: false, createdTypeId: null, upcomingOpen: false,
-      moveProposal: proposal, inactivateUnit: null, correction: null,
-      codeCorrection: null, cancelChange: null, inspectorOpen: true,
+      moveProposal: proposal, inactivateUnit: null,
+      cancelChange: null, inspectorOpen: true,
     };
 
     const conflicted = organizationLocalReducer(initial, {

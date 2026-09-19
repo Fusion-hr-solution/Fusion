@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Button,
   DropdownMenu,
@@ -234,10 +234,35 @@ function PersonMobileRow({ person }: { person: PeopleRowDto }) {
   );
 }
 
-function PeopleTable({ people }: { people: PeopleRowDto[] }) {
+function PeopleTable({ people, emptyState }: { people: PeopleRowDto[]; emptyState?: ReactNode }) {
   // Location is optional workforce data; a whole column of dashes is dead weight, so
   // the column only exists when at least one person on the page actually has a location.
   const showLocation = people.some((person) => Boolean(person.work?.location));
+  // An empty roster keeps the table frame — column headers on top, the placeholder
+  // inside the body — rather than swapping the whole page for a centered state. Rendered
+  // once (header hidden on mobile) so the placeholder text isn't duplicated across the
+  // responsive desktop/mobile split.
+  if (people.length === 0) {
+    return (
+      <div className="overflow-hidden rounded-2xl border">
+        <Table>
+          <TableHeader className="max-sm:hidden">
+            <TableRow className="bg-muted/30 hover:bg-muted/30">
+              <TableHead className="h-10 w-[28%] type-eyebrow text-muted-foreground">Employee</TableHead>
+              <TableHead className="w-[34%] type-eyebrow text-muted-foreground">Work</TableHead>
+              <TableHead className="w-[20%] type-eyebrow text-muted-foreground max-lg:hidden">Manager</TableHead>
+              <TableHead className="w-[16%] type-eyebrow text-muted-foreground">Employment</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={4} className="p-0">{emptyState}</TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
+    );
+  }
   return (
     <>
       <div className="hidden overflow-hidden rounded-2xl border sm:block">
@@ -416,7 +441,7 @@ export default function PeopleWorkspace() {
     router.push(pathname, { scroll: false });
   }, [pathname, router]);
 
-  const headerActions = canManage && !isTrueEmpty ? (
+  const headerActions = canManage ? (
     <div className="flex items-center gap-2">
       {canImport ? (
         <Button variant="outline" asChild>
@@ -466,11 +491,7 @@ export default function PeopleWorkspace() {
         </div>
       ) : null}
 
-      {isTrueEmpty ? (
-        <EstablishWorkforce canManage={canManage} canImport={canImport} />
-      ) : (
-        <>
-          <section aria-label="Filter people" className="mb-5 flex flex-wrap items-center gap-2">
+      <section aria-label="Filter people" className="mb-5 flex flex-wrap items-center gap-2">
             <div className="relative min-w-[15rem] flex-1 md:max-w-xs">
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search people" aria-label="Search People" className="pl-9 pr-9" />
@@ -510,32 +531,37 @@ export default function PeopleWorkspace() {
             </div>
           </section>
 
-          {people.isLoading && !people.data ? <PeopleSkeleton /> : people.error ? (
-            <Empty className="min-h-72 rounded-2xl border">
-              <EmptyMedia variant="icon"><RotateCcw /></EmptyMedia>
-              <EmptyHeader><EmptyTitle>People could not be loaded</EmptyTitle></EmptyHeader>
-              <EmptyContent><Button variant="outline" onClick={() => void people.refetch()}>Retry</Button></EmptyContent>
-            </Empty>
-          ) : items.length === 0 ? (
-            <Empty className="min-h-72 rounded-2xl border">
-              <EmptyMedia variant="icon"><Search /></EmptyMedia>
-              <EmptyHeader><EmptyTitle>No matching people</EmptyTitle></EmptyHeader>
-              <EmptyContent><Button variant="outline" onClick={clearFilters}>Clear filters</Button></EmptyContent>
-            </Empty>
-          ) : (
-            <PeopleTable people={items} />
-          )}
-
-          {people.data && people.data.totalCount > 0 ? (
-            <PeoplePagination
-              page={page}
-              pageSize={PAGE_SIZE}
-              totalCount={people.data.totalCount}
-              onPageChange={(next) => updateUrl({ page: next <= 1 ? null : String(next) })}
-            />
-          ) : null}
-        </>
+      {people.isLoading && !people.data ? <PeopleSkeleton /> : people.error ? (
+        <Empty className="min-h-72 rounded-2xl border">
+          <EmptyMedia variant="icon"><RotateCcw /></EmptyMedia>
+          <EmptyHeader><EmptyTitle>People could not be loaded</EmptyTitle></EmptyHeader>
+          <EmptyContent><Button variant="outline" onClick={() => void people.refetch()}>Retry</Button></EmptyContent>
+        </Empty>
+      ) : (
+        <PeopleTable
+          people={items}
+          emptyState={
+            isTrueEmpty ? (
+              <EstablishWorkforce canManage={canManage} canImport={canImport} />
+            ) : (
+              <Empty className="min-h-72">
+                <EmptyMedia variant="icon"><Search /></EmptyMedia>
+                <EmptyHeader><EmptyTitle>No matching people</EmptyTitle></EmptyHeader>
+                <EmptyContent><Button variant="outline" onClick={clearFilters}>Clear filters</Button></EmptyContent>
+              </Empty>
+            )
+          }
+        />
       )}
+
+      {people.data && people.data.totalCount > 0 ? (
+        <PeoplePagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={people.data.totalCount}
+          onPageChange={(next) => updateUrl({ page: next <= 1 ? null : String(next) })}
+        />
+      ) : null}
     </PageContainer>
   );
 }
