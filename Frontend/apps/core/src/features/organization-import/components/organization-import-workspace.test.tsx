@@ -1,34 +1,38 @@
 // @vitest-environment happy-dom
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   OrganizationImportActiveSummaryDto,
   OrganizationImportIntakeResult,
-  OrganizationImportSemanticAssistance,
+  OrganizationImportIssue,
+  OrganizationImportMatch,
+  OrganizationImportReview,
+  OrganizationImportReviewNode,
   OrganizationImportSessionDto,
 } from "@repo/api";
 import { todayCalendarDate } from "@/features/organization/model/workspace-state";
-import OrganizationImportWorkspace, {
-  importIntakeTiming,
-} from "./organization-import-workspace";
+import { OrganizationImportFrame } from "./import-frame";
+import { MatchStage } from "./match-stage";
+import { ReviewStage } from "./review-stage";
 
 const mocks = vi.hoisted(() => ({
   canView: true,
   canManage: true,
   authLoading: false,
   replace: vi.fn(),
+  push: vi.fn(),
+  segment: null as string | null,
   activeData: [] as OrganizationImportActiveSummaryDto[],
   sessionQuery: null as Record<string, unknown> | null,
   readiness: { hasPermanentRoot: true } as { hasPermanentRoot: boolean },
   intake: { mutateAsync: vi.fn(), isLoading: false },
   changeDate: { mutateAsync: vi.fn(), isLoading: false },
   discard: { mutateAsync: vi.fn(), isLoading: false },
-  replaceDecisions: { mutateAsync: vi.fn(), isLoading: false },
+  resolveReview: { mutateAsync: vi.fn(), isLoading: false },
+  updateMatch: { mutateAsync: vi.fn(), isLoading: false },
   refresh: { mutateAsync: vi.fn(), isLoading: false },
-  generateSuggestions: { mutateAsync: vi.fn(), isLoading: false },
-  applySuggestions: { mutateAsync: vi.fn(), isLoading: false },
+  runSemanticAssistance: { mutateAsync: vi.fn(), isLoading: false },
   commit: { mutateAsync: vi.fn(), isLoading: false },
   downloadTemplate: vi.fn(),
   exportStructure: vi.fn(),
@@ -40,7 +44,10 @@ vi.mock("next/link", () => ({
     <a href={String(href)} {...props}>{children}</a>
   ),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: mocks.replace }) }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: mocks.replace, push: mocks.push }),
+  useSelectedLayoutSegment: () => mocks.segment,
+}));
 vi.mock("@repo/auth", () => ({
   useAuth: () => ({ user: {}, isLoading: mocks.authLoading, isAuthenticated: true }),
   canViewCoreOrganization: () => mocks.canView,
@@ -68,20 +75,29 @@ vi.mock("../api/use-organization-import", () => ({
     intake: mocks.intake,
     changeDate: mocks.changeDate,
     discard: mocks.discard,
-    replaceDecisions: mocks.replaceDecisions,
+    resolveReview: mocks.resolveReview,
+    updateMatch: mocks.updateMatch,
     refresh: mocks.refresh,
-    generateSuggestions: mocks.generateSuggestions,
-    applySuggestions: mocks.applySuggestions,
+    runSemanticAssistance: mocks.runSemanticAssistance,
     commit: mocks.commit,
   }),
   useActiveOrganizationImports: () => ({ data: mocks.activeData }),
   useOrganizationImportSession: () => mocks.sessionQuery,
 }));
 
+const TYPE_OPTIONS = [
+  { id: "organization", name: "Organization" },
+  { id: "division", name: "Division" },
+  { id: "department", name: "Department" },
+  { id: "team", name: "Team" },
+];
+
+const ANCHOR = { id: "1", name: "Demo Eight", businessCode: "DE", typeName: "Organization", parentId: null, isRoot: true };
+
 function sourceReady(
   overrides: Partial<OrganizationImportSessionDto> = {}
 ): Extract<OrganizationImportIntakeResult, { kind: "SourceReady" }> {
-  return {
+  const result: Extract<OrganizationImportIntakeResult, { kind: "SourceReady" }> = {
     kind: "SourceReady",
     replayed: false,
     session: {
@@ -111,25 +127,7 @@ function sourceReady(
       },
       baseline: { hasPermanentRootIdentity: true, hasRootAsOfEffectiveDate: false },
       decisions: {},
-      review: {
-        shape: "ParentReference",
-        shapeStatus: "Resolved",
-        shapeOrigin: "Deterministic",
-        fieldMappings: [],
-        typeOptions: [],
-        proposalNodes: [],
-        resultingOrganization: [],
-        issues: [],
-        existingCount: 0,
-        createCount: 0,
-        canCommit: true,
-        semanticDigest: "a".repeat(64),
-        canonicalObservationDigest: "b".repeat(64),
-        decisionRevision: 0,
-        decisionsUpdatedAt: null,
-        decisionsUpdatedByDisplayName: null,
-        ignoredColumns: [],
-      },
+      review: review(),
       commitResult: null,
       committedAt: null,
       committedByUserId: null,
@@ -139,111 +137,146 @@ function sourceReady(
     },
     sheetSelection: null,
   };
+  if (overrides.match === undefined) result.session.match = matchFromFixture(result.session);
+  return result;
 }
 
-function deferred<T>() {
-  let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolver) => { resolve = resolver; });
-  return { promise, resolve };
-}
-
-function semanticAssistance(
-  state: OrganizationImportSemanticAssistance["state"],
-  overrides: Partial<OrganizationImportSemanticAssistance> = {}
-): OrganizationImportSemanticAssistance {
+function review(overrides: Partial<OrganizationImportReview> = {}): OrganizationImportReview {
+  const nodes = overrides.nodes ?? [];
+  const issues = overrides.issues ?? [];
+  const blockers = issues.filter((issue) => issue.severity === "Blocker").length;
+  const createCount = nodes.filter((node) => node.classification === "Create").length;
+  const existingCount = nodes.filter((node) => node.classification === "Existing").length;
   return {
-    state,
-    inputFingerprint: "f".repeat(64),
-    attemptId: state === "Available" ? "attempt-1" : null,
-    attemptVersion: state === "Available" ? 2 : null,
-    provider: state === "Available" ? "Groq" : null,
-    model: state === "Available" ? "openai/gpt-oss-120b" : null,
-    requestedAt: null,
-    completedAt: null,
-    failureCategory: null,
-    retryAfter: null,
-    suggestions: [],
+    effectiveDate: todayCalendarDate(),
+    proposalFingerprint: "a".repeat(64),
+    decisionRevision: 0,
+    readiness: {
+      state: blockers > 0 ? "Blocked" : issues.length > 0 ? "ReadyWithWarnings" : "Ready",
+      canPublish: blockers === 0,
+      blockingIssueCount: blockers,
+      warningCount: issues.length - blockers,
+      createCount,
+      existingCount,
+    },
+    summary: {
+      totalUnits: createCount + existingCount,
+      newUnits: createCount,
+      existingUnits: existingCount,
+      conflictUnits: nodes.length - createCount - existingCount,
+      rootCount: 1,
+      countsByType: [],
+    },
+    nodes,
+    anchors: [],
+    issues,
+    resolutions: { introducedRoot: null, acceptedExistingMatches: {}, keepExistingNodeIds: [] },
     ...overrides,
   };
 }
 
-const TYPE_OPTIONS = [
-  { id: "organization", name: "Organization" },
-  { id: "division", name: "Division" },
-  { id: "department", name: "Department" },
-  { id: "team", name: "Team" },
-];
-
-// A review whose only unresolved work is unfamiliar type vocabulary: one UnknownType
-// blocker per source term, backed by the proposal nodes that use it. This is exactly
-// the state the consolidated "confirm your vocabulary" surface resolves.
-function vocabularyReview(
-  terms: { rawType: string; count: number }[]
-): NonNullable<OrganizationImportSessionDto["review"]> {
-  const base = sourceReady().session.review!;
-  const proposalNodes = terms.flatMap((term, termIndex) =>
-    Array.from({ length: term.count }, (_, index) => ({
-      id: `n-${termIndex}-${index}`,
-      name: `${term.rawType} ${index}`,
-      businessCode: null,
-      businessCodeGenerated: false,
-      rawType: term.rawType,
-      typeId: null,
-      typeName: null,
-      parentNodeId: null,
-      parentCanonicalId: null,
-      rawParent: null,
-      canonicalId: null,
-      classification: "Create" as const,
-      isProposalRoot: false,
-      descriptiveCandidates: [],
-      sourceCells: [],
-      identityEvidence: [],
-    }))
-  );
+function node(overrides: Partial<OrganizationImportReviewNode> & { proposalNodeId: string; name: string }): OrganizationImportReviewNode {
   return {
-    ...base,
-    canCommit: false,
+    businessCode: overrides.name.toUpperCase(),
+    businessCodeGenerated: false,
+    typeId: "department",
+    typeName: "Department",
+    parentProposalNodeId: null,
+    parentExistingUnitId: null,
+    existingOrgUnitId: null,
+    classification: "Create",
+    isRoot: false,
+    depth: 0,
+    blockingIssueCount: 0,
+    warningCount: 0,
+    sourceCells: [],
+    candidates: [],
+    identityEvidence: [],
+    ...overrides,
+  };
+}
+
+function issue(overrides: Partial<OrganizationImportIssue> & { code: string }): OrganizationImportIssue {
+  return {
+    severity: "Blocker",
+    title: overrides.code,
+    message: overrides.code,
+    proposalNodeId: null,
+    relatedNodeIds: [],
+    field: null,
+    sourceCells: [],
+    preferredResolution: null,
+    allowedResolutions: [],
+    ...overrides,
+  };
+}
+
+function matchFromFixture(
+  session: OrganizationImportSessionDto,
+  requiredTypes: { rawType: string; count: number }[] = []
+): OrganizationImportMatch {
+  const requiredDecisions = requiredTypes.map(({ rawType }) => ({
+    key: `type:${rawType}`, kind: "TypeMapping" as const, sourceValue: rawType, targetField: null,
+  }));
+  const canContinue = requiredDecisions.length === 0;
+  return {
+    mappingPlan: {
+      sourceShape: "ParentReference",
+      shapeStatus: "Resolved",
+      shapeOrigin: "Deterministic",
+      columnMappings: [],
+      typeMappings: session.decisions.typeMappings ?? {},
+      orderedLevelColumns: [],
+      ignoredColumns: [],
+      generatedIdentityStrategy: "DeterministicFromNameAndPath",
+      sourceFingerprint: "source",
+      typeMappingDetails: requiredTypes.map(({ rawType, count }) => ({
+        sourceValue: rawType,
+        typeId: null,
+        typeName: null,
+        occurrenceCount: count,
+        status: "NeedsReview" as const,
+        origin: "Deterministic" as const,
+      })),
+      identity: {
+        strategy: "DeterministicFromNameAndPath",
+        sourceColumnIndex: null,
+        status: "Matched",
+        origin: "Deterministic",
+        evidence: "Generated",
+      },
+      revision: 0,
+      digest: "mapping",
+    },
+    readiness: {
+      state: canContinue ? "Complete" : "Incomplete",
+      canContinue,
+      requiredDecisions,
+      recommendedStage: canContinue ? "Review" : "Match",
+    },
+    completionKind: canContinue ? "Automatic" : "Incomplete",
     typeOptions: TYPE_OPTIONS,
-    proposalNodes,
-    resultingOrganization: [],
-    issues: terms.map((term) => ({
-      code: "UnknownType",
-      severity: "Blocker" as const,
-      title: `Map “${term.rawType}” to an organization type`,
-      message: `Map “${term.rawType}” to an organization type`,
-      affectedCount: term.count,
-      nodeIds: proposalNodes.filter((node) => node.rawType === term.rawType).map((node) => node.id),
-      sourceCells: [],
-      recoveryActions: ["Map type"],
-    })),
+    semanticAssistance: session.semanticAssistance ?? null,
   };
 }
 
-function typeSuggestion(rawType: string, targetId: string) {
-  return {
-    issueKey: `type-value:${rawType}`,
-    kind: "organization_type_mapping" as const,
-    sourceColumnIndex: 2,
-    sourceLabel: rawType,
-    targetKey: `type:${targetId}`,
-    targetLabel: TYPE_OPTIONS.find((type) => type.id === targetId)!.name,
-    rationale: null,
-    allowedTargets: TYPE_OPTIONS.map((type) => ({ key: `type:${type.id}`, label: type.name })),
-  };
+/** Render one attempt route: the frame plus the stage page the URL segment selects. */
+function renderAttempt(segment: "match" | "review" | null = null) {
+  mocks.segment = segment;
+  const ui = () => (
+    <OrganizationImportFrame sessionId="session-1">
+      {segment === "match" ? <MatchStage /> : segment === "review" ? <ReviewStage /> : null}
+    </OrganizationImportFrame>
+  );
+  const view = render(ui());
+  return { ...view, rerender: () => view.rerender(ui()) };
 }
 
-function fieldSuggestion(column: number, sourceLabel: string, field: string) {
-  return {
-    issueKey: `field:${column}`,
-    kind: "field_mapping" as const,
-    sourceColumnIndex: column,
-    sourceLabel,
-    targetKey: `field:${field}`,
-    targetLabel: field,
-    rationale: null,
-    allowedTargets: [{ key: `field:${field}`, label: field }],
-  };
+
+/** An attempt whose only unresolved work is unfamiliar type vocabulary: Match, with no Review yet. */
+function vocabularyAttempt(terms: { rawType: string; count: number }[]): OrganizationImportSessionDto {
+  const session = sourceReady({ review: null }).session;
+  return { ...session, match: matchFromFixture(session, terms) };
 }
 
 beforeEach(() => {
@@ -253,17 +286,16 @@ beforeEach(() => {
   mocks.activeData = [];
   mocks.sessionQuery = null;
   mocks.readiness = { hasPermanentRoot: true };
-  // Neutralise the deliberate intake hold so the hand-off is asserted without waiting on real time.
-  importIntakeTiming.minInterpretMs = 0;
-  importIntakeTiming.readyHoldMs = 0;
   mocks.replace.mockReset();
+  mocks.push.mockReset();
+  mocks.segment = null;
   mocks.intake.mutateAsync.mockReset();
   mocks.changeDate.mutateAsync.mockReset();
   mocks.discard.mutateAsync.mockReset();
-  mocks.replaceDecisions.mutateAsync.mockReset();
+  mocks.resolveReview.mutateAsync.mockReset();
+  mocks.updateMatch.mutateAsync.mockReset();
   mocks.refresh.mutateAsync.mockReset();
-  mocks.generateSuggestions.mutateAsync.mockReset();
-  mocks.applySuggestions.mutateAsync.mockReset();
+  mocks.runSemanticAssistance.mutateAsync.mockReset();
   mocks.commit.mutateAsync.mockReset();
   mocks.toast.mockReset();
   mocks.toast.error.mockReset();
@@ -293,597 +325,96 @@ beforeEach(() => {
     Object.defineProperty(window.HTMLElement.prototype, name, { configurable: true, value });
 });
 
-describe("OrganizationImportWorkspace access and composition", () => {
-  it("denies callers without Organization view access before import queries render", () => {
-    mocks.canView = false;
-    render(<OrganizationImportWorkspace />);
-    expect(screen.getByText("Organization access required")).toBeInTheDocument();
-    expect(screen.queryByText("Source file")).not.toBeInTheDocument();
-  });
-
-  it("gives View-only callers a read-only management notice", () => {
-    mocks.canManage = false;
-    render(<OrganizationImportWorkspace />);
-    expect(screen.getByText("Organization management access required")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Back to Organization" })).toHaveAttribute("href", "/organization");
-  });
-
-  it("keeps the first viewport in task, date, in-progress, then new-source order", () => {
-    mocks.activeData = [{
-      id: "active-1",
-      effectiveDate: "2026-08-12",
-      version: 1,
-      originalFileName: "north.xlsx",
-      sourceFormat: "xlsx",
-      rowCount: 8,
-      startedByDisplayName: "Ada Admin",
-      lastUpdatedByDisplayName: "Lin Admin",
-      createdAt: "2026-08-12T10:00:00Z",
-      updatedAt: "2026-08-12T11:00:00Z",
-    }];
-    render(<OrganizationImportWorkspace />);
-    const task = screen.getByRole("heading", { name: "Import structure" });
-    const date = document.getElementById("organization-import-date")!;
-    const active = screen.getByRole("heading", { name: "Import in progress" });
-    // With work in progress, the new-source heading distinguishes the fresh path.
-    const source = screen.getByRole("heading", { name: "Start a new import" });
-    expect(task.compareDocumentPosition(date) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(date.compareDocumentPosition(active) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(active.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // Utilities are anchored quietly in the page header.
-    expect(screen.getByRole("button", { name: "Download Fusion template" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Resume" })).toHaveAttribute("href", "/organization/import/active-1");
-    // Active work carries real recency, not just actor identity.
-    expect(screen.getByText(/updated .* by Lin Admin/i)).toBeInTheDocument();
-  });
-});
-
-describe("OrganizationImportWorkspace source intake", () => {
-  it("uses the picker and routes only after the source is durable", async () => {
-    mocks.intake.mutateAsync.mockResolvedValue(sourceReady());
-    render(<OrganizationImportWorkspace />);
-    const file = new File(["Name\nRoot"], "organization.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText("Choose an organization source file"), { target: { files: [file] } });
-    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/organization/import/session-1"));
-  });
-
-  it("uses drag/drop through the same durable intake path", async () => {
-    mocks.intake.mutateAsync.mockResolvedValue(sourceReady());
-    render(<OrganizationImportWorkspace />);
-    const file = new File(["Name\nRoot"], "organization.csv", { type: "text/csv" });
-    fireEvent.drop(screen.getByRole("region", { name: "Organization source drop area" }), {
-      dataTransfer: { files: [file] },
-    });
-    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/organization/import/session-1"));
-  });
-
-  it("retains the file and creation token while selecting a worksheet", async () => {
-    mocks.intake.mutateAsync
-      .mockResolvedValueOnce({ kind: "SheetSelectionRequired", sheetSelection: { candidateSheetNames: ["North", "South"] } })
-      .mockResolvedValueOnce(sourceReady());
-    render(<OrganizationImportWorkspace />);
-    const file = new File(["xlsx"], "organization.xlsx");
-    fireEvent.change(screen.getByLabelText("Choose an organization source file"), { target: { files: [file] } });
-    await screen.findByText("Which sheet contains the organization structure?");
-    fireEvent.click(screen.getByRole("radio", { name: "South" }));
-    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-    await waitFor(() => expect(mocks.intake.mutateAsync).toHaveBeenCalledTimes(2));
-    expect(mocks.intake.mutateAsync.mock.calls[1]![0]).toMatchObject({
-      file,
-      creationToken: "11111111-1111-4111-8111-111111111111",
-      selectedSheetName: "South",
-    });
-  });
-
-  it("reconciles the latest intended date after an in-flight replay response", async () => {
-    const pending = deferred<ReturnType<typeof sourceReady>>();
-    mocks.intake.mutateAsync.mockReturnValue(pending.promise);
-    mocks.changeDate.mutateAsync.mockResolvedValue(sourceReady({ effectiveDate: "2026-10-01", version: 2 }).session);
-    render(<OrganizationImportWorkspace />);
-    const file = new File(["Name\nRoot"], "organization.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText("Choose an organization source file"), { target: { files: [file] } });
-    fireEvent.change(document.getElementById("organization-import-date")!, { target: { value: "2026-10-01" } });
-    await act(async () => pending.resolve(sourceReady({ effectiveDate: "2026-08-12" })));
-    await waitFor(() => expect(mocks.changeDate.mutateAsync).toHaveBeenCalledWith({
-      id: "session-1",
-      version: 1,
-      effectiveDate: "2026-10-01",
-    }));
-    await waitFor(() =>
-      expect(mocks.replace).toHaveBeenCalledWith("/organization/import/session-1")
-    );
-  });
-
-  it("keeps the selected source while the pre-durable Effective date changes", async () => {
-    const pending = deferred<ReturnType<typeof sourceReady>>();
-    mocks.intake.mutateAsync.mockReturnValue(pending.promise);
-    render(<OrganizationImportWorkspace />);
-    const file = new File(["Name\nRoot"], "organization.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText("Choose an organization source file"), { target: { files: [file] } });
-    fireEvent.change(document.getElementById("organization-import-date")!, { target: { value: "2026-11-01" } });
-
-    expect(screen.getByText("organization.csv")).toBeInTheDocument();
-    expect(document.getElementById("organization-import-date")).toHaveValue("2026-11-01");
-    pending.resolve(sourceReady({ effectiveDate: "2026-11-01" }));
-    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/organization/import/session-1"));
-  });
-
-  it("downloads a date-independent template and a date-aware current export", async () => {
-    render(<OrganizationImportWorkspace />);
-    fireEvent.change(document.getElementById("organization-import-date")!, { target: { value: "2026-12-15" } });
-    fireEvent.click(screen.getByRole("button", { name: "Download Fusion template" }));
-    fireEvent.click(screen.getByRole("button", { name: "Export current structure" }));
-
-    await waitFor(() => expect(mocks.downloadTemplate).toHaveBeenCalledWith());
-    await waitFor(() => expect(mocks.exportStructure).toHaveBeenCalledWith("2026-12-15"));
-  });
-
-  it("rejects an oversized picker selection locally with source-fix recovery, not Retry", async () => {
-    render(<OrganizationImportWorkspace />);
-    const file = new File([new Uint8Array(10 * 1024 * 1024 + 1)], "large.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText("Choose an organization source file"), { target: { files: [file] } });
-    expect(
-      await screen.findByText("This file is larger than the 10 MB upload limit.")
-    ).toBeInTheDocument();
-    // Deterministic source defect: fix/replace the file, never Retry the same bytes.
-    expect(screen.getByRole("button", { name: "Choose another file" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
-    expect(mocks.intake.mutateAsync).not.toHaveBeenCalled();
-  });
-
-  it("accepts a structurally valid but unrelated employee CSV and hands off to a durable session", async () => {
-    mocks.intake.mutateAsync.mockResolvedValue(sourceReady());
-    render(<OrganizationImportWorkspace />);
-    const employeeCsv = new File(
-      [
-        "employeeNumber,firstName,lastName,email,orgUnitCode,managerEmail\n1,Ada,Byron,ada@x.io,ENG,mgr@x.io",
-      ],
-      "employees.csv",
-      { type: "text/csv" }
-    );
-    fireEvent.change(screen.getByLabelText("Choose an organization source file"), {
-      target: { files: [employeeCsv] },
-    });
-    // Phase 1 introduces no semantic Organization gate: a usable table is accepted.
-    await waitFor(() => expect(mocks.replace).toHaveBeenCalledWith("/organization/import/session-1"));
-  });
-
-  it("classifies deterministic source rejection into fix-the-file recovery", async () => {
-    mocks.intake.mutateAsync.mockRejectedValue(new Error("rejected"));
-    render(<OrganizationImportWorkspace />);
-    const file = new File(["oops"], "organization.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText("Choose an organization source file"), { target: { files: [file] } });
-    // Recovery is fix-the-file, in place: the source object keeps the file name
-    // and offers Choose another file, never Retry.
-    expect(await screen.findByRole("button", { name: "Choose another file" })).toBeInTheDocument();
-    expect(screen.getByText("organization.csv")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Try again" })).not.toBeInTheDocument();
-  });
-
-  it("classifies a temporary failure into a source-preserving Retry", async () => {
-    mocks.intake.mutateAsync.mockRejectedValue(new Error("service down"));
-    render(<OrganizationImportWorkspace />);
-    const file = new File(["Name\nRoot"], "organization.csv", { type: "text/csv" });
-    fireEvent.change(screen.getByLabelText("Choose an organization source file"), { target: { files: [file] } });
-    // Technical failure keeps the source in place and offers Retry, not a fix.
-    expect(await screen.findByRole("button", { name: "Try again" })).toBeInTheDocument();
-    expect(screen.getByText(/service down/)).toBeInTheDocument();
-    expect(screen.getByText("organization.csv")).toBeInTheDocument();
-  });
-
-  it("hides Export current structure when no canonical Organization exists yet", () => {
-    mocks.readiness = { hasPermanentRoot: false };
-    render(<OrganizationImportWorkspace />);
-    expect(screen.getByRole("button", { name: "Download Fusion template" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Export current structure" })
-    ).not.toBeInTheDocument();
-  });
-});
-
-describe("OrganizationImportWorkspace durable route", () => {
-  it("requests eligible semantic help once and shows the restrained persisted pending state", async () => {
-    const eligible = sourceReady({ semanticAssistance: semanticAssistance("Eligible") }).session;
-    const refetch = vi.fn();
-    mocks.sessionQuery = { data: eligible, isLoading: false, error: null, refetch };
-    mocks.generateSuggestions.mutateAsync.mockResolvedValue(semanticAssistance("Pending"));
-    const view = render(<OrganizationImportWorkspace sessionId="session-1" />);
-
-    await waitFor(() => expect(mocks.generateSuggestions.mutateAsync).toHaveBeenCalledWith({
-      id: "session-1",
-      inputFingerprint: "f".repeat(64),
-    }));
-    expect(refetch).toHaveBeenCalledTimes(1);
-
-    mocks.sessionQuery = {
-      data: sourceReady({ semanticAssistance: semanticAssistance("Pending") }).session,
-      isLoading: false,
-      error: null,
-      refetch,
-    };
-    view.rerender(<OrganizationImportWorkspace sessionId="session-1" />);
-    // One stable processing surface — not an interpretation pipeline the admin operates.
-    expect(screen.getByRole("status")).toHaveTextContent("Understanding your organization");
-    expect(screen.queryByRole("button", { name: /Apply/ })).not.toBeInTheDocument();
-    expect(mocks.generateSuggestions.mutateAsync).toHaveBeenCalledTimes(1);
-  });
-
-  it("holds one processing surface while interpreting, then surfaces only real vocabulary", () => {
-    const refetch = vi.fn();
-    mocks.sessionQuery = {
-      data: sourceReady({ semanticAssistance: semanticAssistance("Pending") }).session,
-      isLoading: false,
-      error: null,
-      refetch,
-    };
-    const view = render(<OrganizationImportWorkspace sessionId="session-1" />);
-
-    // While interpreting there is one calm surface — no drawer, no controls to operate.
-    expect(screen.getByRole("status")).toHaveTextContent("Understanding your organization");
-    expect(screen.queryByRole("complementary", { name: "Import review panel" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Apply/ })).not.toBeInTheDocument();
-
-    // When Fusion has read the vocabulary, the one term it needs confirmed appears as a
-    // business decision — its suggested meaning pre-selected — never an "apply" step.
-    const available = semanticAssistance("Available", {
-      suggestions: [typeSuggestion("Pôle", "division")],
-    });
-    mocks.sessionQuery = {
-      data: sourceReady({
-        semanticAssistance: available,
-        review: vocabularyReview([{ rawType: "Pôle", count: 6 }]),
-      }).session,
-      isLoading: false,
-      error: null,
-      refetch,
-    };
-    view.rerender(<OrganizationImportWorkspace sessionId="session-1" />);
-    expect(screen.getByText("Pôle")).toBeInTheDocument();
-    expect(screen.getByText(/Used by 6 units/)).toBeInTheDocument();
-    const select = screen.getByLabelText<HTMLSelectElement>("Type for Pôle");
-    expect(select.value).toBe("division");
-    expect(screen.queryByRole("button", { name: /Apply/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Confirm meaning/ })).toBeInTheDocument();
-  });
-
-  it("silently applies structural interpretations without asking the administrator", async () => {
-    const refetch = vi.fn();
-    const available = semanticAssistance("Available", {
-      suggestions: [
-        fieldSuggestion(0, "Réf. structure", "businessCode"),
-        fieldSuggestion(1, "Libellé de l'entité", "name"),
-        fieldSuggestion(2, "Classe locale", "type"),
-        fieldSuggestion(3, "Rattaché au centre", "parentBusinessCode"),
-      ],
-    });
-    mocks.sessionQuery = {
-      data: sourceReady({
-        semanticAssistance: available,
-        review: { ...sourceReady().session.review!, shape: "ParentReference", canCommit: false },
-      }).session,
-      isLoading: false,
-      error: null,
-      refetch,
-    };
-    mocks.replaceDecisions.mutateAsync.mockResolvedValue(sourceReady().session);
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
-
-    // Column meanings are plumbing: Fusion writes them itself and stays in the one
-    // processing surface — the administrator is never shown an apply step for them.
-    await waitFor(() =>
-      expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledWith({
-        id: "session-1",
-        version: 1,
-        decisions: expect.objectContaining({
-          fieldMappings: { businessCode: 0, name: 1, type: 2, parentBusinessCode: 3 },
-        }),
-      })
-    );
-    expect(screen.getByRole("status")).toHaveTextContent("Understanding your organization");
-    expect(screen.queryByRole("button", { name: /Apply/ })).not.toBeInTheDocument();
-  });
-
-  it("keeps interpreting terms out of the attention queue instead of reading as failure", () => {
-    const base = sourceReady().session;
-    const interpreting = sourceReady({
-      semanticAssistance: semanticAssistance("Pending"),
-      review: {
-        ...base.review!,
-        canCommit: false,
-        issues: [
-          {
-            code: "UnknownType",
-            severity: "Blocker",
-            title: "Map “Strategic Pillar” to an organization type",
-            message: "Map “Strategic Pillar” to an organization type",
-            affectedCount: 1,
-            nodeIds: [],
-            sourceCells: [],
-            recoveryActions: ["Map organization type"],
-          },
-        ],
-      },
-    }).session;
-    mocks.sessionQuery = { data: interpreting, isLoading: false, error: null, refetch: vi.fn() };
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
-
-    // The term Fusion is interpreting is not simultaneously advertised as a failure.
-    expect(screen.getByRole("status")).toHaveTextContent("Understanding your organization");
-    expect(screen.queryByText(/Needs attention/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/needs your attention before you can finish/)).not.toBeInTheDocument();
-  });
-
-  it("holds back consequence root/placement issues while confirming vocabulary, then restores them", () => {
-    const base = sourceReady().session;
-    const rootIssue = {
-      code: "FreshRootRequired",
-      severity: "Blocker" as const,
-      title: "This structure needs one organization at the top.",
-      message: "This structure needs one organization at the top.",
-      affectedCount: 0,
-      nodeIds: [] as string[],
-      sourceCells: [],
-      recoveryActions: ["Introduce Organization root"],
-    };
-    // "No units in this file" — the interpreter parses no units until levels are typed.
-    const noUnitsIssue = {
-      code: "NoProposalNodes",
-      severity: "Blocker" as const,
-      title: "No units in this file",
-      message: "Fusion didn’t find any unit names in this file.",
-      affectedCount: 0,
-      nodeIds: [] as string[],
-      sourceCells: [],
-      recoveryActions: ["Correct field mapping"],
-    };
-    const vocab = vocabularyReview([{ rawType: "Entity", count: 1 }]);
-    const available = semanticAssistance("Available", {
-      suggestions: [typeSuggestion("Entity", "organization")],
-    });
-    const refetch = vi.fn();
-    // Fresh, root-less tenant with an unfamiliar file: the only decision is the
-    // vocabulary; the root/placement consequences are held back until it is confirmed.
-    mocks.sessionQuery = {
-      data: sourceReady({
-        semanticAssistance: available,
-        review: { ...vocab, issues: [...vocab.issues, rootIssue, noUnitsIssue] },
-      }).session,
-      isLoading: false,
-      error: null,
-      refetch,
-    };
-    const view = render(<OrganizationImportWorkspace sessionId="session-1" />);
-
-    // The consolidated vocabulary surface leads, with no misleading attention.
-    expect(screen.getByText("Entity")).toBeInTheDocument();
-    expect(screen.queryByText(/Needs attention/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/needs your attention before you can finish/)).not.toBeInTheDocument();
-
-    // After vocabulary is resolved the interpretation phase ends; a genuine remaining
-    // root blocker resumes as ordinary attention in review.
-    mocks.sessionQuery = {
-      data: sourceReady({
-        semanticAssistance: semanticAssistance("Applied"),
-        review: { ...base.review!, canCommit: false, issues: [rootIssue] },
-      }).session,
-      isLoading: false,
-      error: null,
-      refetch,
-    };
-    view.rerender(<OrganizationImportWorkspace sessionId="session-1" />);
-    expect(screen.getByRole("button", { name: "Needs attention · 1" })).toBeInTheDocument();
-    expect(
-      screen.getByText(/1 thing needs your attention before you can finish/)
-    ).toBeInTheDocument();
-  });
-
-  it("scopes semantic generation to the session and regenerates for a new one", async () => {
-    const first = sourceReady({ semanticAssistance: semanticAssistance("Eligible") }).session;
-    const refetch = vi.fn();
-    mocks.sessionQuery = { data: first, isLoading: false, error: null, refetch };
-    mocks.generateSuggestions.mutateAsync.mockResolvedValue(semanticAssistance("Pending"));
-    const view = render(<OrganizationImportWorkspace sessionId="session-1" />);
-
-    await waitFor(() => expect(mocks.generateSuggestions.mutateAsync).toHaveBeenLastCalledWith({
-      id: "session-1",
-      inputFingerprint: "f".repeat(64),
-    }));
-
-    mocks.sessionQuery = {
-      data: sourceReady({ id: "session-2", semanticAssistance: semanticAssistance("Eligible") }).session,
-      isLoading: false,
-      error: null,
-      refetch,
-    };
-    view.rerender(<OrganizationImportWorkspace sessionId="session-2" />);
-    await waitFor(() => expect(mocks.generateSuggestions.mutateAsync).toHaveBeenLastCalledWith({
-      id: "session-2",
-      inputFingerprint: "f".repeat(64),
-    }));
-  });
-
-  it("confirms the whole vocabulary in one action, applying an overridden meaning too", async () => {
-    const available = semanticAssistance("Available", {
-      suggestions: [typeSuggestion("Pôle", "division"), typeSuggestion("Direction", "department")],
-    });
-    const refetch = vi.fn();
-    mocks.sessionQuery = {
-      data: sourceReady({
-        semanticAssistance: available,
-        review: vocabularyReview([
-          { rawType: "Pôle", count: 6 },
-          { rawType: "Direction", count: 16 },
-        ]),
-      }).session,
-      isLoading: false,
-      error: null,
-      refetch,
-    };
-    mocks.replaceDecisions.mutateAsync.mockResolvedValue(sourceReady().session);
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
-
-    // No apply ceremony, no drawer, no provider/model plumbing — just the decisions.
-    expect(mocks.generateSuggestions.mutateAsync).not.toHaveBeenCalled();
-    expect(mocks.applySuggestions.mutateAsync).not.toHaveBeenCalled();
-    expect(screen.queryByText(/Groq/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Apply/ })).not.toBeInTheDocument();
-
-    // Both suggested meanings are pre-selected; the administrator overrides one.
-    const pole = screen.getByLabelText<HTMLSelectElement>("Type for Pôle");
-    const direction = screen.getByLabelText<HTMLSelectElement>("Type for Direction");
-    expect(pole.value).toBe("division");
-    expect(direction.value).toBe("department");
-    await userEvent.selectOptions(pole, "team");
-
-    await userEvent.click(screen.getByRole("button", { name: /Use these meanings/ }));
-    await waitFor(() =>
-      expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledWith({
-        id: "session-1",
-        version: 1,
-        decisions: expect.objectContaining({
-          typeMappings: { "Pôle": "team", Direction: "department" },
-        }),
-      })
-    );
-    // The confirm writes normal type decisions — the AI apply endpoint is never used.
-    expect(mocks.applySuggestions.mutateAsync).not.toHaveBeenCalled();
-  });
-
-  it("resolves vocabulary manually when semantic assistance is unavailable", async () => {
-    mocks.sessionQuery = {
-      data: sourceReady({
-        semanticAssistance: semanticAssistance("Failed", { failureCategory: "NotConfigured" }),
-        review: vocabularyReview([{ rawType: "Entity", count: 3 }]),
-      }).session,
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    };
-    mocks.replaceDecisions.mutateAsync.mockResolvedValue(sourceReady().session);
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
-
-    // Even without AI, the same consolidated surface asks the one real question — with
-    // no suggestion pre-filled and confirm gated until the administrator chooses. No
-    // provider plumbing, no "interpretation unavailable" machinery.
-    expect(screen.queryByText(/Interpretation unavailable/)).not.toBeInTheDocument();
-    expect(screen.getByText("Entity")).toBeInTheDocument();
-    const select = screen.getByLabelText<HTMLSelectElement>("Type for Entity");
-    expect(select.value).toBe("");
-    const confirm = screen.getByRole("button", { name: /Confirm meaning/ });
-    expect(confirm).toBeDisabled();
-
-    await userEvent.selectOptions(select, "organization");
-    await userEvent.click(confirm);
-    await waitFor(() =>
-      expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledWith({
-        id: "session-1",
-        version: 1,
-        decisions: expect.objectContaining({ typeMappings: { Entity: "organization" } }),
-      })
-    );
-  });
-
+describe("Organization import attempt: frame, Match and Review", () => {
   it("makes the resulting hierarchy the surface and reads a valid no-op as a calm finish", () => {
-    const base = sourceReady().session;
     const noop = sourceReady({
-      review: {
-        ...base.review!,
-        existingCount: 2,
-        createCount: 0,
-        canCommit: true,
-        resultingOrganization: [
-          { id: "canonical:1", canonicalId: "1", name: "Demo Eight", businessCode: "DE", typeName: "Organization", parentId: null, isNew: false, isRoot: true },
-          { id: "canonical:2", canonicalId: "2", name: "Engineering", businessCode: "ENG", typeName: "Department", parentId: "canonical:1", isNew: false, isRoot: false },
+      review: review({
+        nodes: [
+          node({ proposalNodeId: "row:1", name: "Demo Eight", typeName: "Organization", classification: "Existing", existingOrgUnitId: "1", isRoot: true }),
+          node({ proposalNodeId: "row:2", name: "Engineering", classification: "Existing", existingOrgUnitId: "2", parentExistingUnitId: "1" }),
         ],
-      },
+      }),
     }).session;
     mocks.sessionQuery = { data: noop, isLoading: false, error: null, refetch: vi.fn() };
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
-    expect(screen.getByText(/organization\.csv · saved/)).toBeInTheDocument();
-    expect(screen.getByRole("treegrid", { name: "Resulting organization" })).toBeInTheDocument();
-    expect(
-      screen.getByText(/Everything in this file already exists in Organization/)
-    ).toBeInTheDocument();
+    renderAttempt("review");
+    const tree = screen.getByRole("tree", { name: "Resulting organization" });
+    expect(within(tree).getByText("Engineering")).toBeInTheDocument();
+    expect(screen.getByText("Everything in this file already exists in Organization.")).toBeInTheDocument();
+    expect(screen.getByText("No blocking issues")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Finish import" })).toBeEnabled();
-    // No empty attention rail and no disabled completion ceremony.
-    expect(screen.queryByText("No issues found.")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Complete import" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Publish organization/ })).not.toBeInTheDocument();
   });
 
-  it("represents one missing root as one issue and resolves it in the contextual inspector", async () => {
-    const base = sourceReady().session;
+  it("represents several top-level units as one check and resolves it by adding a root", async () => {
     const blocked = sourceReady({
-      review: {
-        ...base.review!,
-        canCommit: false,
-        issues: [{
-          code: "FreshRootRequired",
-          severity: "Blocker",
-          title: "This fresh tenant needs one explicit Organization root above the source top-level units.",
-          message: "This fresh tenant needs one explicit Organization root above the source top-level units.",
-          affectedCount: 0,
-          nodeIds: [],
-          sourceCells: [],
-          recoveryActions: ["Introduce Organization root"],
-        }],
-      },
+      review: review({
+        nodes: [
+          node({ proposalNodeId: "row:1", name: "Alpha" }),
+          node({ proposalNodeId: "row:2", name: "Beta" }),
+        ],
+        issues: [issue({
+          code: "MultipleRoots",
+          title: "More than one top-level unit",
+          message: "2 units have no parent. An organization has a single top-level unit.",
+          relatedNodeIds: ["row:1", "row:2"],
+          preferredResolution: "AddOrganizationRoot",
+          allowedResolutions: ["AddOrganizationRoot", "CorrectSource"],
+        })],
+      }),
     }).session;
     mocks.sessionQuery = { data: blocked, isLoading: false, error: null, refetch: vi.fn() };
-    mocks.replaceDecisions.mutateAsync.mockResolvedValue(blocked);
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
+    mocks.resolveReview.mutateAsync.mockResolvedValue(blocked);
+    renderAttempt("review");
 
-    // Blocked review never advertises a completion action.
-    expect(screen.queryByRole("button", { name: "Complete import" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Finish import" })).not.toBeInTheDocument();
-    expect(screen.getByText(/1 thing needs your attention before you can finish/)).toBeInTheDocument();
+    // Blocked review can't publish, and says why.
+    expect(screen.getByRole("button", { name: /Publish organization/ })).toBeDisabled();
+    expect(screen.getByText("Not ready to publish")).toBeInTheDocument();
+    expect(screen.getByText(/1 thing needs your attention before you can publish/)).toBeInTheDocument();
+    expect(screen.getByText("Organization root")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Review" }));
-    const panel = screen.getByRole("complementary", { name: "Import review panel" });
-    fireEvent.change(within(panel).getByLabelText("Name"), { target: { value: "Asteria" } });
-    fireEvent.change(within(panel).getByLabelText("Business code"), { target: { value: "ASTERIA" } });
-    fireEvent.click(within(panel).getByRole("button", { name: "Add root" }));
+    const checks = screen.getByRole("region", { name: "Review checks" });
+    expect(within(checks).getByRole("link", { name: "Upload a corrected file" })).toHaveAttribute("href", "/organization/import");
+    fireEvent.change(within(checks).getByLabelText("Organization name"), { target: { value: "Asteria" } });
+    fireEvent.change(within(checks).getByLabelText("Business code"), { target: { value: "ASTERIA" } });
+    fireEvent.click(within(checks).getByRole("button", { name: "Add root" }));
 
-    await waitFor(() => expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledWith({
+    await waitFor(() => expect(mocks.resolveReview.mutateAsync).toHaveBeenCalledWith({
       id: "session-1",
       version: 1,
-      decisions: expect.objectContaining({ introducedRoot: { name: "Asteria", businessCode: "ASTERIA" } }),
+      resolutions: expect.objectContaining({ introducedRoot: { name: "Asteria", businessCode: "ASTERIA" } }),
     }));
   });
 
-  it("finishes a valid no-op immediately without a mutation confirmation modal", async () => {
+  it("confirms a valid no-op before finishing it", async () => {
     const active = sourceReady().session;
     mocks.sessionQuery = { data: active, isLoading: false, error: null, refetch: vi.fn() };
     mocks.commit.mutateAsync.mockResolvedValue({ sessionId: active.id, effectiveDate: active.effectiveDate, createdUnits: [], noChanges: true });
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
+    renderAttempt("review");
 
     fireEvent.click(screen.getByRole("button", { name: "Finish import" }));
-    // The no-op path commits directly; no create-confirmation dialog is shown.
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Finish this organization import?")).toBeInTheDocument();
+    expect(within(dialog).getByText(/No new organization units will be created/)).toBeInTheDocument();
+    expect(mocks.commit.mutateAsync).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Finish import" }));
     await waitFor(() => expect(mocks.commit.mutateAsync).toHaveBeenCalledWith({
       id: "session-1",
       version: 1,
-      semanticDigest: "a".repeat(64),
+      proposalFingerprint: "a".repeat(64),
     }));
     expect(mocks.replace).toHaveBeenCalledWith(expect.stringContaining("/organization?asOf="));
   });
 
-  it("confirms an additive commit with create count and effective date, then hands off", async () => {
-    const base = sourceReady().session;
+  it("publishes an additive proposal through a confirmation, then hands off with the reveal", async () => {
     const additive = sourceReady({
-      review: {
-        ...base.review!,
-        existingCount: 3,
-        createCount: 1,
-        canCommit: true,
-        resultingOrganization: [
-          { id: "canonical:1", canonicalId: "1", name: "Demo Eight", businessCode: "DE", typeName: "Organization", parentId: null, isNew: false, isRoot: true },
-          { id: "row:2", canonicalId: null, name: "Finance", businessCode: "FINANCE", typeName: "Department", parentId: "canonical:1", isNew: true, isRoot: false },
+      review: review({
+        nodes: [
+          node({ proposalNodeId: "row:1", name: "Demo Eight", classification: "Existing", existingOrgUnitId: "1", isRoot: true }),
+          node({ proposalNodeId: "row:3", name: "Legal", classification: "Existing", existingOrgUnitId: "3", parentExistingUnitId: "1" }),
+          node({ proposalNodeId: "row:4", name: "Sales", classification: "Existing", existingOrgUnitId: "4", parentExistingUnitId: "1" }),
+          node({ proposalNodeId: "row:2", name: "Finance", businessCode: "FINANCE", parentExistingUnitId: "1" }),
         ],
-      },
+      }),
     }).session;
     mocks.sessionQuery = { data: additive, isLoading: false, error: null, refetch: vi.fn() };
     mocks.commit.mutateAsync.mockResolvedValue({
@@ -892,79 +423,99 @@ describe("OrganizationImportWorkspace durable route", () => {
       createdUnits: [{ proposalNodeId: "row:2", orgUnitId: "unit-9", businessCode: "FINANCE", name: "Finance" }],
       noChanges: false,
     });
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
+    renderAttempt("review");
 
-    // Source summary describes the file, not all visible hierarchy context.
-    expect(screen.getByText(/3 matched/)).toBeInTheDocument();
-    expect(screen.getByText(/1 new organizational unit/)).toBeInTheDocument();
-    // One click commits — the Review is the confirmation; no interstitial dialog.
-    fireEvent.click(screen.getByRole("button", { name: "Complete import" }));
+    // The structure says what is new and what already exists.
+    expect(screen.getByText("1 new · 3 already in Organization")).toBeInTheDocument();
+    expect(screen.getAllByText("Existing").length).toBe(3);
+    // Publishing is a confirmed action: the dialog states what will change before anything is written.
+    fireEvent.click(screen.getByRole("button", { name: /Publish organization/ }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Publish 1 new unit?")).toBeInTheDocument();
+    expect(within(dialog).getByText(/3 units already in Organization stay as they are/)).toBeInTheDocument();
+    expect(mocks.commit.mutateAsync).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Publish organization" }));
 
     await waitFor(() => expect(mocks.commit.mutateAsync).toHaveBeenCalledWith({
       id: "session-1",
       version: 1,
-      semanticDigest: "a".repeat(64),
+      proposalFingerprint: "a".repeat(64),
     }));
     expect(mocks.replace).toHaveBeenCalledWith(expect.stringContaining("reveal=unit-9"));
   });
 
   it("shows both conflicting canonical units for an identity contradiction", () => {
-    const base = sourceReady().session;
     const conflict = sourceReady({
-      review: {
-        ...base.review!,
-        canCommit: false,
-        existingCount: 2,
-        createCount: 0,
-        proposalNodes: [{
-          id: "row:3",
+      review: review({
+        nodes: [node({
+          proposalNodeId: "row:3",
           name: "Engineering",
           businessCode: "PEOPLE",
-          businessCodeGenerated: false,
-          rawType: "Department",
-          typeId: null,
-          typeName: "Department",
-          parentNodeId: null,
-          parentCanonicalId: null,
-          rawParent: "DE",
-          canonicalId: null,
           classification: "Conflict",
-          isProposalRoot: false,
-          descriptiveCandidates: [],
-          sourceCells: [],
           identityEvidence: [
             { identifier: "fusionOrgUnitId", suppliedValue: "id-eng", unitId: "1", unitName: "Engineering", unitCode: "ENGINEER" },
             { identifier: "businessCode", suppliedValue: "PEOPLE", unitId: "2", unitName: "People", unitCode: "PEOPLE" },
           ],
-        }],
-        issues: [{
-          code: "StrongIdentityContradiction",
-          severity: "Blocker",
-          title: "This row identifies two units",
-          message: "The supplied Fusion ID and Business Code identify two different existing units.",
-          affectedCount: 1,
-          nodeIds: ["row:3"],
-          sourceCells: [],
-          recoveryActions: ["Correct field mapping", "Replace source"],
-        }],
-      },
+        })],
+        issues: [issue({
+          code: "IdentityContradiction",
+          title: "Row points to two units",
+          message: "The ID and the business code in this row belong to two different existing units.",
+          proposalNodeId: "row:3",
+          preferredResolution: "CorrectSource",
+          allowedResolutions: ["CorrectSource"],
+        })],
+      }),
     }).session;
     mocks.sessionQuery = { data: conflict, isLoading: false, error: null, refetch: vi.fn() };
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
+    renderAttempt("review");
 
-    fireEvent.click(screen.getByRole("button", { name: "Review" }));
-    const panel = screen.getByRole("complementary", { name: "Import review panel" });
+    const checks = screen.getByRole("region", { name: "Review checks" });
+    // The recovery is the one the server allowed: a corrected file, never an invalid "pick one".
+    expect(within(checks).getByRole("link", { name: "Upload a corrected file" })).toBeInTheDocument();
+    expect(within(checks).queryByRole("link", { name: "Change matching" })).not.toBeInTheDocument();
+    expect(within(checks).queryByRole("button", { name: /Choose Engineering|Choose People|Use existing/ })).not.toBeInTheDocument();
     // The user can tell exactly which two existing units conflict.
-    expect(within(panel).getAllByText("Engineering").length).toBeGreaterThan(0);
-    expect(within(panel).getByText("ENGINEER")).toBeInTheDocument();
-    expect(within(panel).getByText("People")).toBeInTheDocument();
-    expect(within(panel).getAllByText("PEOPLE").length).toBeGreaterThan(0);
-    // The recovery is a corrected re-import, never an invalid "pick one".
-    expect(within(panel).getByRole("link", { name: "Start a corrected import" })).toBeInTheDocument();
-    expect(within(panel).queryByRole("button", { name: /Choose Engineering|Choose People/ })).not.toBeInTheDocument();
+    expect(within(checks).getByText("ENGINEER")).toBeInTheDocument();
+    expect(within(checks).getByText("People")).toBeInTheDocument();
   });
 
-  it("renders a committed deep link without reopening proposal controls", () => {
+  it("resolves the bare attempt URL to its current stage", () => {
+    mocks.sessionQuery = { data: sourceReady().session, isLoading: false, error: null, refetch: vi.fn() };
+    const complete = renderAttempt(null);
+    expect(mocks.replace).toHaveBeenCalledWith("/organization/import/session-1/review");
+    complete.unmount();
+
+    mocks.replace.mockReset();
+    mocks.sessionQuery = {
+      data: vocabularyAttempt([{ rawType: "Pôle", count: 2 }]),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    };
+    renderAttempt(null);
+    expect(mocks.replace).toHaveBeenCalledWith("/organization/import/session-1/match");
+  });
+
+  it("marks Match as automatic when Fusion needed no help, and lets Review go back to it", () => {
+    mocks.sessionQuery = { data: sourceReady().session, isLoading: false, error: null, refetch: vi.fn() };
+    renderAttempt("review");
+    const journey = screen.getByRole("list", { name: "Import steps" });
+    expect(within(journey).getByRole("link", { name: /Match · Automatically matched/ })).toHaveAttribute(
+      "href",
+      "/organization/import/session-1/match"
+    );
+    expect(mocks.replace).not.toHaveBeenCalled();
+  });
+
+  it("lets a settled Match be revisited without forcing it back to Review", () => {
+    mocks.sessionQuery = { data: sourceReady().session, isLoading: false, error: null, refetch: vi.fn() };
+    renderAttempt("match");
+    expect(mocks.replace).not.toHaveBeenCalled();
+    expect(screen.getByRole("region", { name: "Match" })).toBeInTheDocument();
+  });
+
+  it("sends a committed deep link to the live Organization without reopening proposal controls", () => {
     const committed = sourceReady({
       status: "Committed",
       review: null,
@@ -974,210 +525,104 @@ describe("OrganizationImportWorkspace durable route", () => {
       commitResult: { sessionId: "session-1", effectiveDate: todayCalendarDate(), createdUnits: [], noChanges: true },
     }).session;
     mocks.sessionQuery = { data: committed, isLoading: false, error: null, refetch: vi.fn() };
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
+    renderAttempt("review");
 
-    expect(screen.getByText("Nothing new to add")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "View Organization" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Complete|Finish/ })).not.toBeInTheDocument();
+    // A published attempt has no job left in import: it leaves for the live Organization.
+    expect(mocks.replace).toHaveBeenCalledWith(`/organization?asOf=${todayCalendarDate()}`);
+    expect(screen.queryByRole("button", { name: /Publish|Finish/ })).not.toBeInTheDocument();
   });
 
-  it("persists date edits with the current ETag version", async () => {
-    const refetch = vi.fn();
-    mocks.sessionQuery = { data: sourceReady().session, isLoading: false, error: null, refetch };
-    mocks.changeDate.mutateAsync.mockResolvedValue(sourceReady({ effectiveDate: "2026-09-01", version: 2 }).session);
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
-    fireEvent.change(screen.getByLabelText("Effective date"), { target: { value: "2026-09-01" } });
-    await waitFor(() => expect(mocks.changeDate.mutateAsync).toHaveBeenCalledWith({
-      id: "session-1",
-      version: 1,
-      effectiveDate: "2026-09-01",
-    }));
-    expect(refetch).toHaveBeenCalled();
-  });
-
-  it("keeps discard as a confirmed action in the overflow menu, then returns to the generic workspace", async () => {
-    const user = userEvent.setup();
-    mocks.sessionQuery = { data: sourceReady().session, isLoading: false, error: null, refetch: vi.fn() };
-    mocks.discard.mutateAsync.mockResolvedValue(sourceReady({ status: "Discarded" }).session);
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
-    await user.click(screen.getByRole("button", { name: "More actions" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Discard import" }));
-    expect(mocks.discard.mutateAsync).not.toHaveBeenCalled();
-    const dialog = await screen.findByRole("alertdialog");
-    await user.click(within(dialog).getByRole("button", { name: "Discard import" }));
-    await waitFor(() => expect(mocks.discard.mutateAsync).toHaveBeenCalledWith({ id: "session-1", version: 1 }));
-    expect(mocks.replace).toHaveBeenCalledWith("/organization/import");
-  });
-
-  it("shows a non-resumable discarded deep link without source cells", () => {
+  it("sends a discarded deep link back to Upload without source cells", () => {
     const discarded = sourceReady({ status: "Discarded" }).session;
     discarded.source = { ...discarded.source, table: null, payloadPurgedAt: "2026-08-12T12:00:00Z" };
     mocks.sessionQuery = { data: discarded, isLoading: false, error: null, refetch: vi.fn() };
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
-    expect(screen.getByText("Import discarded")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Start another import" })).toHaveAttribute("href", "/organization/import");
+    renderAttempt("match");
+    expect(mocks.replace).toHaveBeenCalledWith("/organization/import");
     expect(screen.queryByText("Root")).not.toBeInTheDocument();
   });
 
   it("renders durable loading and recoverable not-available states", () => {
     mocks.sessionQuery = { data: null, isLoading: true, error: null, refetch: vi.fn() };
-    const view = render(<OrganizationImportWorkspace sessionId="session-1" />);
+    const view = renderAttempt();
     expect(screen.getByLabelText("Loading your import")).toBeInTheDocument();
 
     const refetch = vi.fn();
     mocks.sessionQuery = { data: null, isLoading: false, error: new Error("not found"), refetch };
-    view.rerender(<OrganizationImportWorkspace sessionId="session-1" />);
+    view.rerender();
     expect(screen.getByText("Import not available")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     expect(refetch).toHaveBeenCalled();
   });
 
   it("summarizes what the file contributed when nothing matched", () => {
-    const base = sourceReady().session;
     const newOnly = sourceReady({
-      review: {
-        ...base.review!,
-        createCount: 3,
-        existingCount: 0,
-        canCommit: true,
-        resultingOrganization: [
-          { id: "canonical:1", canonicalId: "1", name: "Demo Eight", businessCode: "DE", typeName: "Organization", parentId: null, isNew: false, isRoot: true },
-          { id: "row:2", canonicalId: null, name: "Finance", businessCode: "FIN", typeName: "Department", parentId: "canonical:1", isNew: true, isRoot: false },
+      review: review({
+        anchors: [ANCHOR],
+        nodes: [
+          node({ proposalNodeId: "row:2", name: "Finance", businessCode: "FIN", parentExistingUnitId: "1" }),
+          node({ proposalNodeId: "row:3", name: "Legal", businessCode: "LEG", parentExistingUnitId: "1" }),
+          node({ proposalNodeId: "row:4", name: "Sales", businessCode: "SAL", parentExistingUnitId: "1" }),
         ],
-      },
+      }),
     }).session;
     mocks.sessionQuery = { data: newOnly, isLoading: false, error: null, refetch: vi.fn() };
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
-    expect(screen.getByText(/from this file/)).toBeInTheDocument();
-    expect(screen.queryByText(/matched/)).not.toBeInTheDocument();
+    renderAttempt("review");
+    expect(screen.getByText("Ready to publish", { selector: "h2" })).toBeInTheDocument();
+    expect(screen.queryByText("Existing")).not.toBeInTheDocument();
+    expect(screen.getByText("Demo Eight")).toBeInTheDocument();
   });
 
-  it("shows an unresolved parent honestly and resolves it in a direct resolver", async () => {
-    const base = sourceReady().session;
+  it("shows an unresolved parent honestly, points at it, and offers only the server's pathways", () => {
     const unresolved = sourceReady({
-      review: {
-        ...base.review!,
-        canCommit: false,
-        createCount: 1,
-        existingCount: 0,
-        proposalNodes: [{
-          id: "row:2", name: "Analytics", businessCode: "ANALYT", businessCodeGenerated: false,
-          rawType: "Department", typeId: "t1", typeName: "Department", parentNodeId: null, parentCanonicalId: null,
-          rawParent: "DIGITL", canonicalId: null, classification: "Create", isProposalRoot: false,
-          descriptiveCandidates: [], sourceCells: [], identityEvidence: [],
-        }],
-        resultingOrganization: [
-          { id: "canonical:1", canonicalId: "1", name: "Demo Eight", businessCode: "DE", typeName: "Organization", parentId: null, isNew: false, isRoot: true },
-          { id: "row:2", canonicalId: null, name: "Analytics", businessCode: "ANALYT", typeName: "Department", parentId: null, isNew: true, isRoot: false },
-        ],
-        issues: [{
-          code: "ParentUnresolved", severity: "Blocker", title: "Choose a parent",
-          message: "The parent reference 'DIGITL' is not unique or available.",
-          affectedCount: 1, nodeIds: ["row:2"], sourceCells: [], recoveryActions: ["Choose parent"],
-        }],
-      },
+      review: review({
+        anchors: [ANCHOR],
+        nodes: [node({ proposalNodeId: "row:2", name: "Analytics", businessCode: "ANALYT" })],
+        issues: [issue({
+          code: "MissingParent",
+          title: "Parent not found",
+          message: "'Analytics' reports to 'DIGITL', which isn't a unit in this file or in your organization.",
+          proposalNodeId: "row:2",
+          field: "parentBusinessCode",
+          preferredResolution: "CorrectSource",
+          allowedResolutions: ["CorrectSource", "ReturnToMatch"],
+        })],
+      }),
     }).session;
     mocks.sessionQuery = { data: unresolved, isLoading: false, error: null, refetch: vi.fn() };
-    mocks.replaceDecisions.mutateAsync.mockResolvedValue(unresolved);
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
+    renderAttempt("review");
 
     // Honest placement: not silently parented under the root.
     expect(screen.getByText("Unresolved placement")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Review" }));
-    const panel = screen.getByRole("complementary", { name: "Import review panel" });
-    expect(within(panel).getByText("DIGITL")).toBeInTheDocument();
-    fireEvent.change(within(panel).getByLabelText("Parent"), { target: { value: "canonical:1" } });
-    fireEvent.click(within(panel).getByRole("button", { name: "Apply resolution" }));
-
-    await waitFor(() => expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledWith({
-      id: "session-1",
-      version: 1,
-      decisions: expect.objectContaining({
-        nodeCorrections: { "row:2": expect.objectContaining({ parentCanonicalId: "1", parentNodeId: null }) },
-      }),
-    }));
+    const checks = screen.getByRole("region", { name: "Review checks" });
+    expect(within(checks).getByText(/DIGITL/)).toBeInTheDocument();
+    expect(within(checks).getByRole("link", { name: "Upload a corrected file" })).toHaveAttribute("href", "/organization/import");
+    expect(within(checks).getByRole("link", { name: "Change matching" })).toHaveAttribute("href", "/organization/import/session-1/match");
+    fireEvent.click(within(checks).getByRole("button", { name: /View unit/ }));
+    expect(screen.getByRole("treeitem", { name: /Analytics/ })).toHaveClass("bg-warning-subtle");
   });
 
-  it("excludes a leaf immediately with undo and no consequence dialog", async () => {
-    const base = sourceReady().session;
+  it("keeps the hierarchy read-only and searchable", () => {
     const additive = sourceReady({
-      review: {
-        ...base.review!,
-        canCommit: true,
-        createCount: 1,
-        existingCount: 1,
-        proposalNodes: [{
-          id: "row:2", name: "Finance", businessCode: "FIN", businessCodeGenerated: false,
-          rawType: "Department", typeId: "t1", typeName: "Department", parentNodeId: null, parentCanonicalId: "1",
-          rawParent: null, canonicalId: null, classification: "Create", isProposalRoot: false,
-          descriptiveCandidates: [], sourceCells: [], identityEvidence: [],
-        }],
-        resultingOrganization: [
-          { id: "canonical:1", canonicalId: "1", name: "Demo Eight", businessCode: "DE", typeName: "Organization", parentId: null, isNew: false, isRoot: true },
-          { id: "row:2", canonicalId: null, name: "Finance", businessCode: "FIN", typeName: "Department", parentId: "canonical:1", isNew: true, isRoot: false },
+      review: review({
+        anchors: [ANCHOR],
+        nodes: [
+          node({ proposalNodeId: "row:2", name: "Finance", businessCode: "FIN", parentExistingUnitId: "1" }),
+          node({ proposalNodeId: "row:3", name: "Legal", businessCode: "LEG", parentExistingUnitId: "1" }),
         ],
-      },
+      }),
     }).session;
     mocks.sessionQuery = { data: additive, isLoading: false, error: null, refetch: vi.fn() };
-    mocks.replaceDecisions.mutateAsync.mockResolvedValue(additive);
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
+    renderAttempt("review");
 
     fireEvent.click(screen.getByText("Finance"));
-    const panel = screen.getByRole("complementary", { name: "Import review panel" });
-    fireEvent.click(within(panel).getByRole("button", { name: "Exclude from import" }));
-    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("treeitem", { name: /Finance/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("button", { name: /Edit|Exclude/ })).not.toBeInTheDocument();
 
-    await waitFor(() => expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledWith({
-      id: "session-1",
-      version: 1,
-      decisions: expect.objectContaining({ excludedNodeIds: ["row:2"] }),
-    }));
-    await waitFor(() => expect(mocks.toast).toHaveBeenCalled());
-    const call = mocks.toast.mock.calls.at(-1)!;
-    expect(String(call[0])).toMatch(/Excluded Finance/);
-    expect(call[1].action.label).toBe("Undo");
-    call[1].action.onClick();
-    await waitFor(() => expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledTimes(2));
+    fireEvent.change(screen.getByLabelText("Search units"), { target: { value: "leg" } });
+    const tree = screen.getByRole("tree", { name: "Resulting organization" });
+    expect(within(tree).getByText("Legal")).toBeInTheDocument();
+    expect(within(tree).queryByText("Finance")).not.toBeInTheDocument();
+    expect(within(tree).getByText("Demo Eight")).toBeInTheDocument();
   });
 
-  it("shows the subtree consequence before excluding a parent unit", async () => {
-    const base = sourceReady().session;
-    const withChild = sourceReady({
-      review: {
-        ...base.review!,
-        canCommit: true,
-        createCount: 2,
-        existingCount: 0,
-        proposalNodes: [{
-          id: "row:2", name: "Consulting", businessCode: "CONS", businessCodeGenerated: false,
-          rawType: "Division", typeId: "t1", typeName: "Division", parentNodeId: null, parentCanonicalId: "1",
-          rawParent: null, canonicalId: null, classification: "Create", isProposalRoot: false,
-          descriptiveCandidates: [], sourceCells: [], identityEvidence: [],
-        }],
-        resultingOrganization: [
-          { id: "canonical:1", canonicalId: "1", name: "Demo Eight", businessCode: "DE", typeName: "Organization", parentId: null, isNew: false, isRoot: true },
-          { id: "row:2", canonicalId: null, name: "Consulting", businessCode: "CONS", typeName: "Division", parentId: "canonical:1", isNew: true, isRoot: false },
-          { id: "row:3", canonicalId: null, name: "Transformation", businessCode: "TRAN", typeName: "Team", parentId: "row:2", isNew: true, isRoot: false },
-        ],
-      },
-    }).session;
-    mocks.sessionQuery = { data: withChild, isLoading: false, error: null, refetch: vi.fn() };
-    mocks.replaceDecisions.mutateAsync.mockResolvedValue(withChild);
-    render(<OrganizationImportWorkspace sessionId="session-1" />);
-
-    fireEvent.click(screen.getByText("Consulting"));
-    const panel = screen.getByRole("complementary", { name: "Import review panel" });
-    fireEvent.click(within(panel).getByRole("button", { name: "Exclude from import" }));
-    const dialog = await screen.findByRole("alertdialog");
-    expect(within(dialog).getByText(/1 proposed unit/)).toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole("button", { name: "Exclude 2 units" }));
-
-    await waitFor(() => expect(mocks.replaceDecisions.mutateAsync).toHaveBeenCalledWith({
-      id: "session-1",
-      version: 1,
-      decisions: expect.objectContaining({
-        excludedNodeIds: expect.arrayContaining(["row:2", "row:3"]),
-      }),
-    }));
-  });
 });

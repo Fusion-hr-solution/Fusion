@@ -8,6 +8,10 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WorkerProfileSkeleton } from "@/features/people/components/worker-profile/worker-profile-skeleton";
+import {
+  ImportAttemptSkeleton,
+  ImportUploadSkeleton,
+} from "@/features/organization-import/components/import-skeletons";
 
 // ── Route skeleton registry ─────────────────────────────────────────────────
 // One dedicated loading skeleton per route, shared by every loading surface:
@@ -343,6 +347,11 @@ export function getRoutePageSkeleton(corePath: string): ReactNode {
   if (corePath.startsWith("/people/")) return <EmployeeProfilePageSkeleton />;
   if (corePath === "/profile") return <MyProfilePageSkeleton />;
   if (corePath === "/team") return <TeamPageSkeleton />;
+  if (corePath === "/organization/import") return <ImportUploadSkeleton />;
+  if (corePath.startsWith("/organization/import/")) {
+    const step = corePath.split("/")[4];
+    return <ImportAttemptSkeleton stage={step === "match" || step === "review" ? step : null} />;
+  }
   if (corePath === "/organization" || corePath === "/org-chart") return <OrgChartPageSkeleton />;
   if (corePath === "/settings") return <SettingsPageSkeleton />;
   if (corePath === "/access/profiles")

@@ -6,7 +6,11 @@ import {
   createCoreOrganizationImportApi,
   createPlatformApiClient,
 } from "@repo/api";
-import type { OrganizationImportDecisions, OrganizationImportSemanticReviewedItem } from "@repo/api";
+import type {
+  OrganizationImportReviewResolutionsInput,
+  OrganizationImportGeneratedIdentityStrategy,
+  OrganizationImportShape,
+} from "@repo/api";
 import { useApiMutation, useApiQuery, useApiQueryClient } from "@repo/api/query";
 import { canManageCoreOrganization, useAuth } from "@repo/auth";
 
@@ -58,41 +62,55 @@ export function useOrganizationImportMutations() {
       ({ id, version }: { id: string; version: number }) => api.discard(id, version),
       { onSuccess: refreshAll }
     ),
-    replaceDecisions: useApiMutation(
-      ({ id, version, decisions }: { id: string; version: number; decisions: OrganizationImportDecisions }) =>
-        api.replaceDecisions(id, version, decisions),
-      { onSuccess: refreshAll }
+    resolveReview: useApiMutation(
+      ({ id, version, resolutions }: { id: string; version: number; resolutions: OrganizationImportReviewResolutionsInput }) =>
+        api.updateReviewResolutions(id, version, resolutions),
+      {
+        onSuccess: (session) => {
+          queryClient.setQueryData(coreOrganizationImportQueryKeys.session(session.id), session);
+          void refreshAll();
+        },
+        onError: () => void refreshAll(),
+      }
+    ),
+    updateMatch: useApiMutation(
+      ({ id, version, shape, fieldMappings, typeMappings, identityStrategy }: {
+        id: string;
+        version: number;
+        shape?: OrganizationImportShape | null;
+        fieldMappings?: Record<string, number | null>;
+        typeMappings?: Record<string, string>;
+        identityStrategy?: OrganizationImportGeneratedIdentityStrategy | null;
+      }) => api.updateMatch(id, version, { shape, fieldMappings, typeMappings, identityStrategy }),
+      {
+        // The response is the authoritative session: land it in place, then let the rest catch up.
+        onSuccess: (session) => {
+          queryClient.setQueryData(coreOrganizationImportQueryKeys.session(session.id), session);
+          void refreshAll();
+        },
+        // A stale or failed edit falls back to server truth rather than a local guess.
+        onError: () => void refreshAll(),
+      }
     ),
     refresh: useApiMutation(
       ({ id }: { id: string }) => api.refresh(id),
       { onSuccess: refreshAll }
     ),
-    generateSuggestions: useApiMutation(
-      ({ id, inputFingerprint, retry = false }: { id: string; inputFingerprint: string; retry?: boolean }) =>
-        api.generateSemanticSuggestions(id, inputFingerprint, retry),
-      { onSuccess: refreshAll }
-    ),
-    applySuggestions: useApiMutation(
-      ({ id, version, attemptId, inputFingerprint, attemptVersion, reviewedItems }: {
-        id: string;
-        version: number;
-        attemptId: string;
-        inputFingerprint: string;
-        attemptVersion: number;
-        reviewedItems: OrganizationImportSemanticReviewedItem[];
-      }) => api.applySemanticSuggestions(
-        id,
-        version,
-        attemptId,
-        inputFingerprint,
-        attemptVersion,
-        reviewedItems
-      ),
-      { onSuccess: refreshAll }
+    runSemanticAssistance: useApiMutation(
+      ({ id, inputFingerprint, grantTenantConsent = false }: {
+        id: string; inputFingerprint: string; grantTenantConsent?: boolean;
+      }) => api.runSemanticAssistance(id, inputFingerprint, grantTenantConsent),
+      {
+        onSuccess: (session) => {
+          queryClient.setQueryData(coreOrganizationImportQueryKeys.session(session.id), session);
+          void refreshAll();
+        },
+        onError: () => void refreshAll(),
+      }
     ),
     commit: useApiMutation(
-      ({ id, version, semanticDigest }: { id: string; version: number; semanticDigest: string }) =>
-        api.commit(id, version, semanticDigest),
+      ({ id, version, proposalFingerprint }: { id: string; version: number; proposalFingerprint: string }) =>
+        api.commit(id, version, proposalFingerprint),
       { onSuccess: refreshAll }
     ),
   };

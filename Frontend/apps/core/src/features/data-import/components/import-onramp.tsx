@@ -27,14 +27,12 @@ import {
   ArrowLeft,
   ArrowRight,
   FileDown,
-  FileOutput,
   FileSpreadsheet,
   RotateCcw,
   Trash2,
   UploadCloud,
 } from "lucide-react";
 import { ImportDateControl } from "./import-date-control";
-import { ImportProcessing, type ImportProcessingPhase } from "./import-processing";
 import type { ImportOnrampConfig } from "../model/import-descriptor";
 
 /** The dropzone's single-footprint state — idle, reading, or a source that needs a fix. */
@@ -48,11 +46,7 @@ export type OnrampResumeItem = {
   id: string;
   fileName: string;
   asOfLabel: string;
-  /** Quiet recency/actor line (Organization list). */
-  metaLine?: ReactNode;
-  /** Establishment counts (Workforce single resume). */
   counts?: { newCount: number; existingCount: number; needsAttention: number };
-  href?: string;
   onResume?: () => void;
   onDiscard?: () => void;
 };
@@ -89,14 +83,10 @@ export type ImportOnrampProps = {
     candidates: OnrampHeaderCandidate[];
     onSelect: (rowIndex: number) => void;
   } | null;
-  /** When present, the staged upload → interpret → review hand-off replaces the dropzone. */
-  processing?: { phase: ImportProcessingPhase; fileName: string } | null;
   onFile: (file: File) => void;
   onRetry: () => void;
   onRemove: () => void;
   onDownloadTemplate: () => void;
-  onExport?: (() => void) | null;
-  exportLabel?: string;
 };
 
 const MAX_SOURCE_BYTES = 10 * 1024 * 1024;
@@ -109,13 +99,10 @@ export function ImportOnramp({
   drop,
   sheet,
   header,
-  processing,
   onFile,
   onRetry,
   onRemove,
   onDownloadTemplate,
-  onExport,
-  exportLabel = "Export current structure",
 }: ImportOnrampProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -155,18 +142,10 @@ export function ImportOnramp({
           className="mb-0"
           title={config.title}
           actions={
-            <>
-              <Button variant="outline" size="sm" onClick={onDownloadTemplate}>
-                <FileDown className="size-4" aria-hidden />
-                {config.copy.templateLabel}
-              </Button>
-              {onExport ? (
-                <Button variant="outline" size="sm" onClick={onExport}>
-                  <FileOutput className="size-4" aria-hidden />
-                  {exportLabel}
-                </Button>
-              ) : null}
-            </>
+            <Button variant="outline" size="sm" onClick={onDownloadTemplate}>
+              <FileDown className="size-4" aria-hidden />
+              {config.copy.templateLabel}
+            </Button>
           }
         />
         <ImportDateControl
@@ -177,34 +156,20 @@ export function ImportOnramp({
         />
       </div>
 
-      {processing || !resume?.length ? null : <ResumeBand items={resume} />}
+      {resume?.length ? <ResumeBand items={resume} /> : null}
 
       <section aria-labelledby="import-onramp-source" className="space-y-4">
-        {processing ? (
-          <h2 id="import-onramp-source" className="sr-only">
-            Bringing in your source
+        <div className="flex items-center justify-between gap-4">
+          <h2
+            id="import-onramp-source"
+            className="type-title font-semibold text-foreground"
+          >
+            {resume?.length ? "Start a new import" : "Add your source"}
           </h2>
-        ) : (
-          <div className="flex items-center justify-between gap-4">
-            <h2
-              id="import-onramp-source"
-              className="type-title font-semibold text-foreground"
-            >
-              {resume?.length ? "Start a new import" : "Add your source"}
-            </h2>
-            <JourneyRail steps={config.journey} busy={busy} />
-          </div>
-        )}
+          <JourneyRail steps={config.journey} busy={busy} />
+        </div>
 
-        {processing ? (
-          <div className="flex justify-center py-4">
-            <ImportProcessing
-              phase={processing.phase}
-              fileName={processing.fileName}
-              copy={config.processing}
-            />
-          </div>
-        ) : sheet ? (
+        {sheet ? (
           <SheetSelector
             prompt={config.copy.sheetPrompt}
             fileName={sheet.fileName ?? null}
@@ -603,8 +568,8 @@ function DiscardImportButton({
 
 /**
  * Unfinished work is the consequential state on this surface, so it leads and is the one
- * element genuinely lifted above the page. One entry per in-progress import: the source
- * identity, its as-of date, and either establishment counts or a quiet recency line.
+ * element genuinely lifted above the page: the source identity, its as-of date and its
+ * establishment counts.
  */
 function ResumeBand({ items }: { items: OnrampResumeItem[] }) {
   return (
@@ -659,30 +624,14 @@ function ResumeBand({ items }: { items: OnrampResumeItem[] }) {
                       </StatusBadge>
                     ) : null}
                   </>
-                ) : item.metaLine ? (
-                  <>
-                    <span aria-hidden className="text-border">
-                      ·
-                    </span>
-                    <span>{item.metaLine}</span>
-                  </>
                 ) : null}
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {item.href ? (
-                <Button asChild size="sm">
-                  <Link href={item.href}>
-                    Resume
-                    <ArrowRight className="size-4" aria-hidden />
-                  </Link>
-                </Button>
-              ) : (
-                <Button size="sm" onClick={item.onResume}>
-                  Continue import
-                  <ArrowRight className="size-4" aria-hidden />
-                </Button>
-              )}
+              <Button size="sm" onClick={item.onResume}>
+                Continue import
+                <ArrowRight className="size-4" aria-hidden />
+              </Button>
               {item.onDiscard ? (
                 <DiscardImportButton
                   fileName={item.fileName}

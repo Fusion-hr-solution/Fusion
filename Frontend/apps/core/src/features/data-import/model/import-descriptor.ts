@@ -1,9 +1,7 @@
 /**
- * Shared vocabulary for the Import on-ramp — the single surface both the Organization
- * (structure) and Workforce (people) imports land on. Each domain supplies one static
- * descriptor; the surface itself is domain-agnostic and presentational. This is what lets
- * two flows that always did the same job — pick an as-of date, bring in an XLSX/CSV,
- * resolve sheet/header clarifications, resume unfinished work — finally share one UI.
+ * Descriptor vocabulary for the Import on-ramp: the intake surface Workforce import lands
+ * on. The domain supplies one static descriptor; the surface itself stays presentational.
+ * Organization import has its own Upload stage (features/organization-import).
  */
 
 export type ImportDateMeaning = "today" | "scheduled" | "past";
@@ -36,10 +34,8 @@ export type ImportOnrampConfig = {
   date: ImportDateConfig;
   /** Three-beat journey shown as the dropzone's wayfinding caption. */
   journey: [string, string, string];
-  /** Workforce needs a header-row clarification step; Organization does not. */
-  hasHeaderStep: boolean;
-  /** When present, the intake plays the staged processing hand-off instead of a bare spinner. */
-  processing?: ImportProcessingCopy;
+  /** Copy for the staged processing hand-off. */
+  processing: ImportProcessingCopy;
   copy: {
     /** aria-label for the hidden file input. */
     fileInputLabel: string;
@@ -65,7 +61,6 @@ export const workforceOnrampConfig: ImportOnrampConfig = {
       "Workforce Import is for people already employed as of the selected date. Use Hire for future employees.",
   },
   journey: ["Add your file", "Understand columns", "Review & establish"],
-  hasHeaderStep: true,
   processing: {
     headlines: {
       uploading: "Reading your file",
@@ -84,43 +79,6 @@ export const workforceOnrampConfig: ImportOnrampConfig = {
     fileInputLabel: "Choose a workforce source file",
     dropAreaLabel: "Workforce source drop area",
     sheetPrompt: "Which sheet contains your workforce?",
-    templateLabel: "Download Fusion template",
-  },
-};
-
-export const organizationOnrampConfig: ImportOnrampConfig = {
-  title: "Import structure",
-  back: { href: "/organization", label: "Back to Structure" },
-  date: {
-    label: "Effective date",
-    inputId: "organization-import-date",
-    allowFuture: true,
-    consequence: (date, meaning) =>
-      meaning === "scheduled"
-        ? `Fusion applies this structure on ${date}.`
-        : `Fusion records this structure as effective from ${date}.`,
-  },
-  journey: ["Add your file", "Review structure", "Commit"],
-  hasHeaderStep: false,
-  processing: {
-    headlines: {
-      uploading: "Reading your file",
-      interpreting: "Interpreting your organization",
-      ready: "Opening your review",
-    },
-    steps: [
-      "Reading the file",
-      "Detecting the layout",
-      "Mapping your columns",
-      "Resolving organization types",
-      "Assembling the hierarchy",
-      "Preparing your review",
-    ],
-  },
-  copy: {
-    fileInputLabel: "Choose an organization source file",
-    dropAreaLabel: "Organization source drop area",
-    sheetPrompt: "Which sheet contains the organization structure?",
     templateLabel: "Download Fusion template",
   },
 };

@@ -1,12 +1,5 @@
-import OrganizationImportWorkspace from "@/features/organization-import/components/organization-import-workspace";
-
-export const dynamic = "force-dynamic";
-
-export default async function OrganizationImportSessionPage({
-  params,
-}: {
-  params: Promise<{ sessionId: string }>;
-}) {
-  const { sessionId } = await params;
-  return <OrganizationImportWorkspace sessionId={sessionId} />;
+// The attempt's resume URL. It renders nothing itself: the import frame derives the
+// attempt's current stage and replaces this URL with it.
+export default function OrganizationImportAttemptPage() {
+  return null;
 }

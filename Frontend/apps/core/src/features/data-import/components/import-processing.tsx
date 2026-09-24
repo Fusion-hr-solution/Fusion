@@ -7,22 +7,6 @@ import type { ImportProcessingCopy } from "../model/import-descriptor";
 
 export type ImportProcessingPhase = "uploading" | "interpreting" | "ready";
 
-const DEFAULT_COPY: ImportProcessingCopy = {
-  headlines: {
-    uploading: "Reading your file",
-    interpreting: "Interpreting your organization",
-    ready: "Opening your review",
-  },
-  steps: [
-    "Reading the file",
-    "Detecting the layout",
-    "Mapping your columns",
-    "Resolving organization types",
-    "Assembling the hierarchy",
-    "Preparing your review",
-  ],
-};
-
 // How long each interpret step dwells as the active line. The caller holds the interpret phase long
 // enough to work through them; if it holds longer, the last interpret step simply stays active.
 const STEP_INTERVAL_MS = 850;
@@ -38,13 +22,13 @@ const STEP_INTERVAL_MS = 850;
 export function ImportProcessing({
   phase,
   fileName,
-  copy = DEFAULT_COPY,
+  copy,
 }: {
   phase: ImportProcessingPhase;
   fileName: string;
-  copy?: ImportProcessingCopy;
+  copy: ImportProcessingCopy;
 }) {
-  const steps = copy.steps.length >= 3 ? copy.steps : DEFAULT_COPY.steps;
+  const steps = copy.steps;
   const lastInterpretStep = steps.length - 2;
   // activeStep spans the checklist: 0 = upload line, 1..(len-2) = interpret lines, len = all done.
   const [activeStep, setActiveStep] = useState(0);
