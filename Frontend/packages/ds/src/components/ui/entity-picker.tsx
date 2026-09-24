@@ -92,6 +92,18 @@ export function EntityPicker({
 }) {
   const ids = React.useMemo(() => options.map((option) => option.id), [options])
 
+  // Radix modal dialogs trap focus: a popup portaled to <body> loses focus the instant its search
+  // input is clicked, closing it. Portal the popup into the enclosing dialog (when there is one) so
+  // the input stays inside the focus scope. Resolved on open, once the trigger is mounted.
+  const triggerRef = React.useRef<HTMLButtonElement>(null)
+  const [container, setContainer] = React.useState<HTMLElement | null>(null)
+  React.useEffect(() => {
+    if (open)
+      setContainer(
+        triggerRef.current?.closest<HTMLElement>("[data-slot='dialog-content']") ?? null
+      )
+  }, [open])
+
   return (
     <Combobox
       items={ids}
@@ -109,6 +121,7 @@ export function EntityPicker({
         disabled={disabled}
         render={
           <Button
+            ref={triggerRef}
             variant="outline"
             className={cn(
               "h-auto min-h-8 w-full justify-between gap-2 py-1 font-normal",
@@ -133,6 +146,7 @@ export function EntityPicker({
       </ComboboxTrigger>
 
       <ComboboxContent
+        container={container}
         className={cn(
           "max-w-(--anchor-width) min-w-(--anchor-width)",
           contentClassName
