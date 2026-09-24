@@ -110,7 +110,7 @@ describe("Tenant Setup launchpad presentation", () => {
     renderView();
 
     expect(
-      screen.getByRole("heading", { name: "Welcome to Demo Path 2" })
+      screen.getByRole("heading", { name: "Welcome, Demo Path 2" })
     ).toBeInTheDocument();
     expect(
       screen.getByText(

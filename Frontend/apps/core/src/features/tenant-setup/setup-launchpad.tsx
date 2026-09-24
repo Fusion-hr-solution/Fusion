@@ -257,8 +257,7 @@ export function LaunchpadView({
   activeAdministrators: number | null;
   onRetry: (key: string) => void;
 }) {
-  const heading =
-    variant === "fresh" ? `Welcome to ${tenantName}` : "Getting started";
+  const isFresh = variant === "fresh";
   const description =
     variant === "fresh"
       ? "Your tenant is ready. Start building the foundation your organization will use."
@@ -319,7 +318,16 @@ export function LaunchpadView({
       <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-2xl space-y-2.5">
           <span className="type-eyebrow text-primary">Tenant setup</span>
-          <h1 className="type-display text-balance">{heading}</h1>
+          {isFresh ? (
+            <h1 className="type-display text-balance text-4xl leading-[1.05] sm:text-5xl">
+              <span className="text-[0.55em] font-medium text-foreground/70">
+                Welcome,{" "}
+              </span>
+              {tenantName}
+            </h1>
+          ) : (
+            <h1 className="type-display text-balance">Getting started</h1>
+          )}
           <p className="type-body max-w-xl text-pretty text-muted-foreground">
             {description}
           </p>
