@@ -60,50 +60,69 @@ describe("Organization Import contracts", () => {
     );
   });
 
-  it("sends only bounded decisions and the reviewed digest with optimistic concurrency", async () => {
+  it("sends only bounded Review resolutions and the reviewed fingerprint with optimistic concurrency", async () => {
     const put = vi.fn().mockResolvedValue({});
     const post = vi.fn().mockResolvedValue({});
     const api = createCoreOrganizationImportApi({
       get: vi.fn(), post, put, patch: vi.fn(), delete: vi.fn(),
     } as unknown as ApiClient);
 
-    await api.replaceDecisions("session-1", 9, { introducedRoot: { name: "Asteria", businessCode: "ASTERIA" } });
-    await api.commit("session-1", 10, "digest");
+    await api.updateReviewResolutions("session-1", 9, { introducedRoot: { name: "Asteria", businessCode: "ASTERIA" } });
+    await api.commit("session-1", 10, "fingerprint");
 
     expect(put).toHaveBeenCalledWith(
-      "/corehr/organization/imports/session-1/decisions",
-      { decisions: { introducedRoot: { name: "Asteria", businessCode: "ASTERIA" } } },
+      "/corehr/organization/imports/session-1/review/resolutions",
+      { introducedRoot: { name: "Asteria", businessCode: "ASTERIA" } },
       { headers: { "If-Match": '"9"' } }
     );
     expect(post).toHaveBeenCalledWith(
       "/corehr/organization/imports/session-1/commit",
-      { semanticDigest: "digest" },
+      { proposalFingerprint: "fingerprint" },
       { headers: { "If-Match": '"10"' } }
     );
   });
 
-  it("generates by fingerprint and applies reviewed suggestions with both concurrency channels", async () => {
-    const post = vi.fn().mockResolvedValue({});
+  it("updates Match through its own optimistic-concurrency contract", async () => {
     const put = vi.fn().mockResolvedValue({});
     const api = createCoreOrganizationImportApi({
-      get: vi.fn(), post, put, patch: vi.fn(), delete: vi.fn(),
+      get: vi.fn(), post: vi.fn(), put, patch: vi.fn(), delete: vi.fn(),
     } as unknown as ApiClient);
-    const reviewedItems = [
-      { issueKey: "level-type:0", targetKey: "type:organization", outcome: "Accepted" as const },
-      { issueKey: "level-type:1", targetKey: null, outcome: "Rejected" as const },
-    ];
 
-    await api.generateSemanticSuggestions("session-1", "fingerprint", true);
-    await api.applySemanticSuggestions("session-1", 11, "attempt-1", "fingerprint", 3, reviewedItems);
+    await api.updateMatch("session-1", 12, {
+      shape: "ParentReference",
+      typeMappings: { "Shared Service": "department-id" },
+      identityStrategy: "DeterministicFromNameAndPath",
+    });
 
-    expect(post).toHaveBeenCalledWith(
-      "/corehr/organization/imports/session-1/semantic-suggestions",
-      { inputFingerprint: "fingerprint", retry: true }
-    );
     expect(put).toHaveBeenCalledWith(
-      "/corehr/organization/imports/session-1/semantic-suggestions/attempt-1/apply",
-      { inputFingerprint: "fingerprint", attemptVersion: 3, reviewedItems },
-      { headers: { "If-Match": '"11"' } }
+      "/corehr/organization/imports/session-1/match",
+      {
+        shape: "ParentReference",
+        typeMappings: { "Shared Service": "department-id" },
+        identityStrategy: "DeterministicFromNameAndPath",
+      },
+      { headers: { "If-Match": '"12"' } }
+    );
+  });
+
+  it("runs automatic matching by fingerprint and carries the tenant consent choice", async () => {
+    const post = vi.fn().mockResolvedValue({});
+    const api = createCoreOrganizationImportApi({
+      get: vi.fn(), post, put: vi.fn(), patch: vi.fn(), delete: vi.fn(),
+    } as unknown as ApiClient);
+
+    await api.runSemanticAssistance("session-1", "fingerprint", true);
+    await api.runSemanticAssistance("session-1", "fingerprint");
+
+    expect(post).toHaveBeenNthCalledWith(
+      1,
+      "/corehr/organization/imports/session-1/semantic-assistance/run",
+      { inputFingerprint: "fingerprint", grantTenantConsent: true }
+    );
+    expect(post).toHaveBeenNthCalledWith(
+      2,
+      "/corehr/organization/imports/session-1/semantic-assistance/run",
+      { inputFingerprint: "fingerprint", grantTenantConsent: false }
     );
   });
 
