@@ -29,6 +29,7 @@ export function CycleContextBar({
   cycle,
   action,
   showPlanningDeadline = true,
+  compact = false,
   className,
 }: {
   cycle: CycleSummaryDto;
@@ -40,8 +41,28 @@ export function CycleContextBar({
    * showing a passed date as if it still mattered.
    */
   showPlanningDeadline?: boolean;
+  /** A quiet identity-and-state pair for pages where the Cycle is ambient context. */
+  compact?: boolean;
   className?: string;
 }) {
+  if (compact) {
+    return (
+      <div className={cn("mb-5 flex flex-wrap items-center gap-3", className)}>
+        <span className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-raised">
+          <CalendarRange className="size-4.5 text-primary" aria-hidden />
+          {cycle.name}
+        </span>
+        <StatusBadge
+          tone={STATE_TONE[cycle.state]}
+          dot
+          className="gap-2 px-3.5 py-2 text-sm font-semibold"
+        >
+          {STATE_LABEL[cycle.state]}
+        </StatusBadge>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(

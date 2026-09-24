@@ -18,6 +18,9 @@ function node(partial: Partial<GoalNodeDto> & Pick<GoalNodeDto, "id" | "ownershi
     endDate: partial.endDate ?? "2027-07-31",
     progressSource: partial.progressSource ?? "Direct",
     measurementSummary: partial.measurementSummary ?? "",
+    hasProgress: partial.hasProgress ?? false,
+    derivedProgress: partial.derivedProgress ?? 0,
+    progressCoverage: partial.progressCoverage ?? null,
     isAlignmentBaseline: partial.isAlignmentBaseline ?? partial.state !== "Draft",
     isContributionBaselineLocked: partial.isContributionBaselineLocked ?? false,
     contributionWeightTotal: partial.contributionWeightTotal ?? 0,
@@ -86,6 +89,28 @@ describe("resolveWorkspace — organization-wide context", () => {
 });
 
 describe("resolveWorkspace — own-unit context", () => {
+  it("re-centers on a selected non-own unit without treating it as personal scope", () => {
+    const selectedPeopleOps: UnitContext = {
+      orgUnitId: PEOPLE_OPS,
+      name: "People Operations",
+      type: "Department",
+      path: "Asteria Group / People Operations",
+      memberCount: 22,
+      isOwnUnit: false,
+    };
+
+    const result = resolveWorkspace([strategic, peopleOpsObjective], {
+      broad: false,
+      ownUnit: selectedPeopleOps,
+    });
+
+    expect(result.kind).toBe("unit");
+    if (result.kind !== "unit") return;
+    expect(result.unit.isOwnUnit).toBe(false);
+    expect(result.blocks[0]!.node.id).toBe("obj-peopleops");
+    expect(result.blocks[0]!.ancestors.map((node) => node.id)).toEqual(["strat-1"]);
+  });
+
   it("shows the empty state with the company direction when the unit owns nothing (first level)", () => {
     const firstLevelUnit = talentUnit({ path: "Asteria Group / Talent Pod" });
     const result = resolveWorkspace([strategic], { broad: false, ownUnit: firstLevelUnit });

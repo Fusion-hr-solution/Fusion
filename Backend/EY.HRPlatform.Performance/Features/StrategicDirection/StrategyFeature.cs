@@ -81,6 +81,9 @@ public sealed class CreateStrategicObjectiveHandler(PerformanceDbContext db, ITe
                 cycle.StartDate,
                 cycle.EndDate);
 
+            if (request.Publish)
+                objective.Publish();
+
             db.Objectives.Add(objective);
             await db.SaveChangesAsync(cancellationToken);
             return PerformanceMappers.ToDto(objective, null);
@@ -119,6 +122,9 @@ public sealed class UpdateStrategicObjectiveHandler(PerformanceDbContext db, ITe
                 measurement,
                 cycle.StartDate,
                 cycle.EndDate);
+
+            if (request.Publish)
+                objective.Publish();
 
             await db.SaveChangesAsync(cancellationToken);
             return PerformanceMappers.ToDto(objective, null);

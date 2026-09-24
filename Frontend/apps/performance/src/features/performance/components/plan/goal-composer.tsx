@@ -45,6 +45,7 @@ import {
   MeasurementEditor,
   type MeasurementMethod,
 } from "../measurement/measurement-editor";
+import { ObjectiveComposerSection } from "../objective-composer-section";
 
 const TITLE_MAX = 300;
 const DESCRIPTION_MAX = 2000;
@@ -327,7 +328,7 @@ export function PlanGoalComposer({
         <div className="flex-1 overflow-y-auto px-6 py-6">
           <div className="space-y-8">
             {/* 1. Alignment */}
-            <Section
+            <ObjectiveComposerSection
               n={1}
               title="Alignment"
               hint="Choose how this objective connects to organizational direction."
@@ -398,10 +399,10 @@ export function PlanGoalComposer({
                   </Select>
                 )
               ) : null}
-            </Section>
+            </ObjectiveComposerSection>
 
             {/* 2. Objective definition */}
-            <Section n={2} title="Objective definition">
+            <ObjectiveComposerSection n={2} title="Objective definition">
               <div className="space-y-1.5">
                 <div className="flex items-baseline justify-between">
                   <Label htmlFor="pg-title">
@@ -442,11 +443,11 @@ export function PlanGoalComposer({
                   placeholder="Describe what success looks like, key outcomes, and why this objective is important."
                 />
               </div>
-            </Section>
+            </ObjectiveComposerSection>
 
             {/* 3. Measurement — the method choice. Manual percentage is built; the numeric and
                 milestone editors slot in here in their own pass and stay unavailable until then. */}
-            <Section
+            <ObjectiveComposerSection
               n={3}
               title="Measurement"
               hint="How will you measure progress on this objective?"
@@ -468,10 +469,10 @@ export function PlanGoalComposer({
                 milestoneWeightSum={milestoneSum}
                 onMilestonesChange={setMilestones}
               />
-            </Section>
+            </ObjectiveComposerSection>
 
             {/* 4. Plan weight */}
-            <Section
+            <ObjectiveComposerSection
               n={4}
               title="Plan weight"
               hint="Assign the weight of this objective in your overall plan."
@@ -557,7 +558,7 @@ export function PlanGoalComposer({
               {/* <p className="text-xs text-muted-foreground">
                 The total weight of all objectives in your plan must equal 100%.
               </p> */}
-            </Section>
+            </ObjectiveComposerSection>
           </div>
         </div>
 
@@ -587,32 +588,6 @@ export function PlanGoalComposer({
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-// ── Numbered section ──────────────────────────────────────────────────────────────
-
-function Section({
-  n,
-  title,
-  hint,
-  children,
-}: {
-  n: number;
-  title: string;
-  hint?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3">
-      <div className="space-y-1">
-        <h3 className="text-base font-semibold tracking-tight text-foreground">
-          {n}. {title}
-        </h3>
-        {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
-      </div>
-      {children}
-    </section>
   );
 }
 

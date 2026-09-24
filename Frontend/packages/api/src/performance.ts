@@ -202,6 +202,11 @@ export interface GoalNodeDto {
   childCount: number;
   contributorCount: number;
   contributionToParent: number | null;
+  /** Canonical execution result. Calculated objectives include configured contributors only, never all aligned children. */
+  hasProgress: boolean;
+  derivedProgress: number;
+  /** Reported contributor weight for calculated objectives; null for direct measurement. */
+  progressCoverage: number | null;
   /** When this objective was published as direction; null while it is still a Draft. */
   publishedAt: string | null;
   /** When the objective was created. */
@@ -539,44 +544,6 @@ export interface SubmitProgressRequest {
   evidence?: EvidenceInput[] | null;
 }
 
-export interface ContributionNodeDto {
-  id: string;
-  ownershipScope: ObjectiveOwnershipScope;
-  title: string;
-  orgUnitName: string | null;
-  accountablePersonId: string;
-  accountablePersonName: string | null;
-  progressSource: ObjectiveProgressSource;
-  hasProgress: boolean;
-  reportedProgress: number;
-  coverage: number | null;
-  childCount: number;
-  contributorCount: number;
-  contributionToParent: number | null;
-}
-
-export interface ContributionContributorDto {
-  childObjectiveId: string;
-  title: string;
-  weight: number;
-  hasProgress: boolean;
-  reportedProgress: number;
-}
-
-export interface ContributionOverviewDto {
-  cycleId: string;
-  cycleName: string;
-  roots: ContributionNodeDto[];
-}
-
-export interface ContributionDetailDto {
-  node: ContributionNodeDto;
-  description: string | null;
-  trail: ContributionNodeDto[];
-  children: ContributionNodeDto[];
-  contributors: ContributionContributorDto[];
-}
-
 // ── Request bodies ────────────────────────────────────────────────────────────
 
 export interface CreateCycleRequest {
@@ -611,6 +578,7 @@ export interface CreateStrategicObjectiveRequest {
   startDate?: string | null;
   endDate?: string | null;
   measurement: MeasurementInput;
+  publish?: boolean;
 }
 
 export interface UpdateStrategicObjectiveRequest {
@@ -620,6 +588,7 @@ export interface UpdateStrategicObjectiveRequest {
   startDate: string;
   endDate: string;
   measurement: MeasurementInput;
+  publish?: boolean;
 }
 
 export interface SetPopulationRequest {
@@ -672,9 +641,6 @@ export const performancePaths = {
     `/performance/cycles/${cycleId}/objectives/${objectiveId}/progress/history`,
   evidenceUpload: (cycleId: string) => `/performance/cycles/${cycleId}/evidence/upload`,
   evidenceDownload: (cycleId: string, evidenceId: string) => `/performance/cycles/${cycleId}/evidence/${evidenceId}`,
-  contribution: (cycleId: string) => `/performance/cycles/${cycleId}/contribution`,
-  contributionDetail: (cycleId: string, objectiveId: string) =>
-    `/performance/cycles/${cycleId}/contribution/${objectiveId}`,
 } as const;
 
 export const performanceQueryKeys = {
@@ -697,9 +663,6 @@ export const performanceQueryKeys = {
     [...performanceQueryKeys.all(), "plan", cycleId, planId] as const,
   objectiveProgress: (cycleId: string, objectiveId: string) =>
     [...performanceQueryKeys.all(), "progress", cycleId, objectiveId] as const,
-  contribution: (cycleId: string) => [...performanceQueryKeys.all(), "contribution", cycleId] as const,
-  contributionDetail: (cycleId: string, objectiveId: string) =>
-    [...performanceQueryKeys.all(), "contribution", cycleId, objectiveId] as const,
 } as const;
 
 /** Performance Cycle & Goals transport. UI state and cache behavior remain feature-owned. */
@@ -817,10 +780,6 @@ export function createPerformanceApi(client: ApiClient) {
     /** Fetches a file-evidence item as a Blob with auth attached — a plain link cannot carry the bearer token. */
     downloadEvidence: (cycleId: string, evidenceId: string, signal?: AbortSignal) =>
       client.get<Blob>(performancePaths.evidenceDownload(cycleId, evidenceId), { responseType: "blob", signal }),
-    getContribution: (cycleId: string, signal?: AbortSignal) =>
-      client.get<ContributionOverviewDto>(performancePaths.contribution(cycleId), { signal }),
-    getContributionDetail: (cycleId: string, objectiveId: string, signal?: AbortSignal) =>
-      client.get<ContributionDetailDto>(performancePaths.contributionDetail(cycleId, objectiveId), { signal }),
   };
 }
 

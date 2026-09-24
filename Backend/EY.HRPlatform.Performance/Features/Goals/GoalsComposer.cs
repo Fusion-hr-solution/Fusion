@@ -1,5 +1,6 @@
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
+using EY.HRPlatform.Performance.Features.Progress;
 using EY.HRPlatform.Performance.Infrastructure.Core;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Models;
@@ -125,6 +126,7 @@ public static class GoalsComposer
     public static GoalNodeDto ToNode(Objective objective, Graph graph)
     {
         var childCount = graph.ChildrenByParent[objective.Id].Count();
+        var reported = ProgressCalc.For(objective, graph);
 
         decimal? contributionToParent = null;
         if (objective.ParentObjectiveId is not null
@@ -154,6 +156,9 @@ public static class GoalsComposer
             childCount,
             objective.ContributionLinks.Count,
             contributionToParent,
+            reported.HasProgress,
+            reported.Progress,
+            reported.Coverage,
             objective.PublishedAt,
             objective.CreatedAt,
             objective.UpdatedAt);

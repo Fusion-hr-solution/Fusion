@@ -296,32 +296,16 @@ export function useObjectiveProgress(cycleId: string | null, objectiveId: string
   );
 }
 
-export function useContribution(cycleId: string | null, enabled = true) {
-  const { performance } = useApis();
-  return useApiQuery(
-    performanceQueryKeys.contribution(cycleId ?? "none"),
-    (signal) => performance.getContribution(cycleId as string, signal),
-    { enabled: Boolean(cycleId) && enabled }
-  );
-}
-
-export function useContributionDetail(cycleId: string | null, objectiveId: string | null) {
-  const { performance } = useApis();
-  return useApiQuery(
-    performanceQueryKeys.contributionDetail(cycleId ?? "none", objectiveId ?? "none"),
-    (signal) => performance.getContributionDetail(cycleId as string, objectiveId as string, signal),
-    { enabled: Boolean(cycleId) && Boolean(objectiveId) }
-  );
-}
-
-/** Owner progress recording on one objective, plus evidence staging. Refreshes progress, plan, and contribution. */
+/** Owner progress recording on one objective, plus evidence staging. Refreshes every surface that reads its execution truth. */
 export function useProgressMutations(cycleId: string, objectiveId: string) {
   const { performance } = useApis();
   const invalidate = [
     { queryKey: performanceQueryKeys.objectiveProgress(cycleId, objectiveId) },
     { queryKey: performanceQueryKeys.myPlan(cycleId) },
-    { queryKey: performanceQueryKeys.contribution(cycleId) },
-    { queryKey: [...performanceQueryKeys.all(), "contribution", cycleId] },
+    // Organization Goals carries progress on every hierarchy node. A child update can also change
+    // one or more calculated ancestors, so refresh the bounded cycle overview and open goal details.
+    { queryKey: performanceQueryKeys.goals(cycleId) },
+    { queryKey: [...performanceQueryKeys.all(), "goal", cycleId] },
   ];
   const submit = useApiMutation(
     (request: SubmitProgressRequest) => performance.submitProgress(cycleId, objectiveId, request),
@@ -451,8 +435,12 @@ export function useUpdateSettings() {
 
 export function useSaveStrategy(cycleId: string) {
   const { performance } = useApis();
+  // A company/strategic objective is a root node in the Organization Goals cascade, so any
+  // strategic mutation must refresh the goals overview too (§60 — one objective truth, no manual
+  // refresh) alongside the Cycle detail counts.
   const invalidate = [
     { queryKey: performanceQueryKeys.strategy(cycleId) },
+    { queryKey: performanceQueryKeys.goals(cycleId) },
     { queryKey: performanceQueryKeys.cycle(cycleId) },
     { queryKey: performanceQueryKeys.currentCycle() },
   ];

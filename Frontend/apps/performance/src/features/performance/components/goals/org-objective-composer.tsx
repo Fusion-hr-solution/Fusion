@@ -42,6 +42,7 @@ import {
   type MilestoneRow,
 } from "../measurement/milestone-editor";
 import { initials, scopeLabel } from "./goals-lib";
+import { ObjectiveComposerSection } from "../objective-composer-section";
 
 /**
  * The Create / Edit Organizational Objective composer — a surface-agnostic modal (modelled on the
@@ -304,7 +305,7 @@ export function OrgObjectiveComposer({
             <ParentDirectionBand parent={parent} />
 
             {/* 1. Objective definition */}
-            <Section n={1} title="Objective definition">
+            <ObjectiveComposerSection n={1} title="Objective definition" bodyClassName="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="og-title">
                   Title <span className="text-destructive">*</span>
@@ -332,10 +333,10 @@ export function OrgObjectiveComposer({
                   placeholder="The contribution this objective makes to the direction above."
                 />
               </div>
-            </Section>
+            </ObjectiveComposerSection>
 
             {/* 2. Scope & accountability — two distinct concepts, shown side by side, plus the window. */}
-            <Section n={2} title="Scope & accountability">
+            <ObjectiveComposerSection n={2} title="Scope & accountability" bodyClassName="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label className="flex items-center gap-1.5">
@@ -390,13 +391,14 @@ export function OrgObjectiveComposer({
                   />
                 </div>
               </div>
-            </Section>
+            </ObjectiveComposerSection>
 
             {/* 3. Measurement — the progress source, then the shared measurement editor when Direct. */}
-            <Section
+            <ObjectiveComposerSection
               n={3}
               title="Measurement"
               hint="How will progress on this objective be measured?"
+              bodyClassName="space-y-4"
             >
               <div className="grid gap-3 sm:grid-cols-2">
                 <SourceCard
@@ -440,7 +442,7 @@ export function OrgObjectiveComposer({
                   Progress rolls up from the objectives aligned beneath this one.
                 </div>
               )}
-            </Section>
+            </ObjectiveComposerSection>
           </div>
         </div>
 
@@ -518,32 +520,6 @@ function ParentDirectionBand({ parent }: { parent: GoalNodeDto }) {
         ) : null}
       </div>
     </div>
-  );
-}
-
-// ── Numbered section (shared visual grammar with the plan composer) ──────────────
-
-function Section({
-  n,
-  title,
-  hint,
-  children,
-}: {
-  n: number;
-  title: string;
-  hint?: string;
-  children?: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3">
-      <div className="space-y-1">
-        <h3 className="text-base font-semibold tracking-tight text-foreground">
-          {n}. {title}
-        </h3>
-        {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
-      </div>
-      <div className="space-y-4">{children}</div>
-    </section>
   );
 }
 

@@ -117,7 +117,8 @@ public sealed record CreateStrategicObjectiveRequest(
     Guid AccountablePersonId,
     DateOnly? StartDate,
     DateOnly? EndDate,
-    MeasurementInput Measurement);
+    MeasurementInput Measurement,
+    bool Publish = false);
 
 public sealed record UpdateStrategicObjectiveRequest(
     string Title,
@@ -125,7 +126,8 @@ public sealed record UpdateStrategicObjectiveRequest(
     Guid AccountablePersonId,
     DateOnly StartDate,
     DateOnly EndDate,
-    MeasurementInput Measurement);
+    MeasurementInput Measurement,
+    bool Publish = false);
 
 // ----- Population -----
 
@@ -206,6 +208,11 @@ public sealed record GoalNodeDto(
     int ContributorCount,
     // This node's contribution weight to its parent, if the parent counts it as a contributor.
     decimal? ContributionToParent,
+    // Canonical execution truth. Missing progress remains distinct from a reported 0; calculated
+    // objectives contain only their explicitly configured contributors, never every aligned child.
+    bool HasProgress,
+    decimal DerivedProgress,
+    decimal? ProgressCoverage,
     // When this objective was published as direction; null while it is still a Draft.
     DateTime? PublishedAt,
     // Creation and last-edit timestamps — used to show a Draft's "saved" date.
@@ -567,43 +574,3 @@ public sealed record SubmitProgressRequest(
     string? ContextNote,
     bool IsCorrection,
     IReadOnlyList<EvidenceInput>? Evidence);
-
-// Contribution Explorer
-
-/// <summary>One node in the Contribution Explorer — reported progress is primary, coverage is quieter context.</summary>
-public sealed record ContributionNodeDto(
-    Guid Id,
-    ObjectiveOwnershipScope OwnershipScope,
-    string Title,
-    string? OrgUnitName,
-    Guid AccountablePersonId,
-    string? AccountablePersonName,
-    ObjectiveProgressSource ProgressSource,
-    bool HasProgress,
-    decimal ReportedProgress,
-    // Coverage only applies to a calculated parent; null for direct objectives.
-    decimal? Coverage,
-    int ChildCount,
-    int ContributorCount,
-    // This node's contribution weight to a calculated parent, when configured.
-    decimal? ContributionToParent);
-
-public sealed record ContributionContributorDto(
-    Guid ChildObjectiveId,
-    string Title,
-    decimal Weight,
-    bool HasProgress,
-    decimal ReportedProgress);
-
-public sealed record ContributionOverviewDto(
-    Guid CycleId,
-    string CycleName,
-    IReadOnlyList<ContributionNodeDto> Roots);
-
-public sealed record ContributionDetailDto(
-    ContributionNodeDto Node,
-    string? Description,
-    IReadOnlyList<ContributionNodeDto> Trail,
-    IReadOnlyList<ContributionNodeDto> Children,
-    // For a calculated node, the configured contributors with their reported progress and weight.
-    IReadOnlyList<ContributionContributorDto> Contributors);
