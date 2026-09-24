@@ -1,15 +1,18 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace EY.HRPlatform.CoreHR.Features.OrganizationImport;
 
 public interface IOrganizationImportSemanticContextBuilder
 {
-    OrganizationImportSemanticRequest? Build(
+    /// <summary>
+    /// The semantic questions deterministic interpretation left open, with only the bounded
+    /// evidence they need. No request means nothing to ask, or the evidence would not fit.
+    /// </summary>
+    OrganizationImportSemanticContext Build(
         OrganizationImportSession session,
-        OrganizationImportReview review);
+        OrganizationImportInterpretation review);
 }
 
 public sealed partial class OrganizationImportSemanticContextBuilder(
@@ -27,24 +30,22 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
     [
         "employee", "worker", "person", "email", "phone", "mobile", "salary", "compensation",
         "nationalid", "governmentid", "passport", "socialsecurity", "birth", "dob", "note", "comment",
-        "fusionorgunitid", "orgunitid",
+        "fusionorgunitid", "orgunitid", "countryfootprint",
     ];
 
-    public OrganizationImportSemanticRequest? Build(
+    public OrganizationImportSemanticContext Build(
         OrganizationImportSession session,
-        OrganizationImportReview review)
+        OrganizationImportInterpretation review)
     {
-        if (session.Status != OrganizationImportStatus.Active) return null;
+        if (session.Status != OrganizationImportStatus.Active) return OrganizationImportSemanticContext.NoQuestions;
         var table = OrganizationImportJson.Deserialize(session.Source.SourceTableJson);
-        if (table is null || table.Columns.Count == 0 || table.Rows.Count == 0) return null;
+        if (table is null || table.Columns.Count == 0 || table.Rows.Count == 0) return OrganizationImportSemanticContext.NoQuestions;
 
         var fieldLimit = Math.Clamp(options.MaxFields, 1, 32);
-        var valuesPerField = Math.Clamp(options.MaxValuesPerField, 1, 8);
-        var totalValueLimit = Math.Clamp(options.MaxTotalValues, 1, 64);
         var valueCharacterLimit = Math.Clamp(options.MaxValueCharacters, 16, 120);
         var payloadLimit = Math.Clamp(options.MaxPayloadBytes, 4 * 1024, 20 * 1024);
+        var valuesPerField = Math.Clamp(options.MaxValuesPerField, 1, 5);
         var fields = new List<OrganizationImportSemanticFieldContext>();
-        var remainingValues = totalValueLimit;
 
         foreach (var column in table.Columns.OrderBy(column => column.Index).Take(fieldLimit))
         {
@@ -58,25 +59,19 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
                 .ToList();
             if (values.Count == 0) continue;
 
-            var distinct = values
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            var samples = distinct
-                .Where(IsSafeRepresentativeValue)
-                .Take(Math.Min(valuesPerField, remainingValues))
-                .Select(value => value[..Math.Min(value.Length, valueCharacterLimit)])
-                .ToList();
-            remainingValues -= samples.Count;
             fields.Add(new OrganizationImportSemanticFieldContext(
                 column.Index,
                 label[..Math.Min(label.Length, valueCharacterLimit)],
-                samples,
                 values.Count,
-                distinct.Count));
+                values.Distinct(StringComparer.OrdinalIgnoreCase).Count(),
+                table.Rows.Count == 0 ? 0 : decimal.Round((decimal)values.Count / table.Rows.Count, 3),
+                BasicValueShape(values),
+                RepresentativeValues(values, valuesPerField)
+                    .Select(value => value[..Math.Min(value.Length, valueCharacterLimit)])
+                    .ToList()));
         }
 
-        if (fields.Count == 0) return null;
+        if (fields.Count == 0) return OrganizationImportSemanticContext.NoQuestions;
         var hasParentReferenceEvidence = OrganizationImportShapeEvidence.HasParentReferenceStructure(table);
         // A parent-reference table is often rectangular, so the ordered-level pattern
         // alone would misread it as level columns. The self-referential foreign key is
@@ -88,7 +83,29 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
             ? new[] { OrganizationImportShape.LevelColumns.ToString(), OrganizationImportShape.ParentReference.ToString() }
             : new[] { OrganizationImportShape.ParentReference.ToString(), OrganizationImportShape.LevelColumns.ToString() };
         var issues = BuildIssues(session, review, table, fields, hasOrderedLevelPattern);
-        if (issues.Count == 0) return null;
+        if (issues.Count == 0) return OrganizationImportSemanticContext.NoQuestions;
+
+        // A set of one-off labels has no taxonomy to infer. Keep that decision in manual
+        // review instead of asking a provider to invent meaning from organization content.
+        if (issues.All(issue => issue.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping)
+            && !HasCredibleTypeTaxonomy(review))
+            return OrganizationImportSemanticContext.NoQuestions;
+
+        // Provider context is intentionally limited to columns which are actually
+        // unresolved.  A source's extra descriptive data is never useful for a
+        // role-classification request and must not leave Fusion.
+        var issueColumns = issues.Where(issue => issue.SourceColumnIndex is not null)
+            .Select(issue => issue.SourceColumnIndex!.Value).ToHashSet();
+        if (issues.Any(issue => issue.Kind == OrganizationImportSemanticKinds.SourceShape))
+            issueColumns.UnionWith(fields.Select(field => field.ColumnIndex));
+        fields = fields.Where(field => issueColumns.Contains(field.ColumnIndex)).ToList();
+        var remainingValues = Math.Clamp(options.MaxTotalValues, 1, 64);
+        fields = fields.Select(field =>
+        {
+            var kept = field.RepresentativeValues.Take(remainingValues).ToList();
+            remainingValues -= kept.Count;
+            return field with { RepresentativeValues = kept };
+        }).ToList();
 
         var structure = new OrganizationImportSemanticStructuralContext(
             table.Rows.Count,
@@ -102,57 +119,52 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
             .Select(type => new OrganizationImportSemanticCanonicalType(type.Name, CanonicalTypeDescription(type.Name)))
             .ToList();
         var sourceFingerprint = $"{session.Source.Sha256}:{session.Source.SelectedSheetName}:{session.Source.SelectedRange}";
-        var decisions = (OrganizationImportJson.Deserialize<OrganizationImportDecisions>(session.DecisionsJson)
-            ?? new OrganizationImportDecisions()).Normalize();
 
-        while (true)
+        // The input fingerprint covers exactly what is sent (questions, allowed targets, evidence)
+        // under the data contract that governs it, so an identical input can reuse an earlier result
+        // and any change in what would be asked is recognisable.
+        var fingerprintPayload = new
         {
-            var fingerprintPayload = new
-            {
-                contractVersion = options.ContractVersion,
-                sourceFingerprint,
-                issues,
-                fields,
-                organizationTypes = review.TypeOptions.OrderBy(type => type.Id),
-                structure,
-                sourceTypeSystem,
-                canonicalTypeGuidance,
-                decisions = new
-                {
-                    decisions.Shape,
-                    fieldMappings = decisions.FieldMappings!.OrderBy(item => item.Key),
-                    typeMappings = decisions.TypeMappings!.OrderBy(item => item.Key),
-                },
-            };
-            var serialized = JsonSerializer.Serialize(fingerprintPayload);
-            if (Encoding.UTF8.GetByteCount(serialized) <= payloadLimit)
-            {
-                var fingerprint = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(serialized)));
-                return new OrganizationImportSemanticRequest(
-                    options.ContractVersion,
-                    sourceFingerprint,
-                    issues,
-                    fields,
-                    review.TypeOptions.OrderBy(type => type.Name, StringComparer.OrdinalIgnoreCase).ToList(),
-                    structure,
-                    sourceTypeSystem,
-                    canonicalTypeGuidance,
-                    fingerprint);
-            }
+            dataContract = OrganizationImportSemanticVersions.DataContract,
+            sourceFingerprint,
+            issues,
+            fields,
+            organizationTypes = review.TypeOptions.OrderBy(type => type.Id),
+            structure,
+            sourceTypeSystem,
+            canonicalTypeGuidance,
+        };
+        var serialized = JsonSerializer.Serialize(fingerprintPayload);
+        if (Encoding.UTF8.GetByteCount(serialized) > payloadLimit) return OrganizationImportSemanticContext.OverBudget;
+        var fingerprint = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(serialized)));
+        return new(new OrganizationImportSemanticRequest(
+            OrganizationImportSemanticVersions.ResultContract,
+            sourceFingerprint,
+            issues,
+            fields,
+            review.TypeOptions.OrderBy(type => type.Name, StringComparer.OrdinalIgnoreCase).ToList(),
+            structure,
+            sourceTypeSystem,
+            canonicalTypeGuidance,
+            fingerprint), false);
+    }
 
-            var fieldWithSample = fields.LastOrDefault(field => field.RepresentativeValues.Count > 0);
-            if (fieldWithSample is null) return null;
-            var index = fields.IndexOf(fieldWithSample);
-            fields[index] = fieldWithSample with
-            {
-                RepresentativeValues = fieldWithSample.RepresentativeValues.Take(fieldWithSample.RepresentativeValues.Count - 1).ToList(),
-            };
-        }
+    /// <summary>
+    /// A few distinct values spread across the column, rather than the first rows, so the
+    /// evidence reflects the column and not whatever the file happens to list first.
+    /// </summary>
+    private static IEnumerable<string> RepresentativeValues(IReadOnlyList<string> values, int count)
+    {
+        var distinct = values.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (distinct.Count <= count) return distinct;
+        return Enumerable.Range(0, count)
+            .Select(index => distinct[(int)((long)index * (distinct.Count - 1) / Math.Max(1, count - 1))])
+            .Distinct(StringComparer.OrdinalIgnoreCase);
     }
 
     private static List<OrganizationImportSemanticIssue> BuildIssues(
         OrganizationImportSession session,
-        OrganizationImportReview review,
+        OrganizationImportInterpretation review,
         OrganizationSourceTable table,
         IReadOnlyList<OrganizationImportSemanticFieldContext> fields,
         bool hasOrderedLevelPattern)
@@ -205,8 +217,13 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
                 .Where(mapping => mapping.ColumnIndex is not null)
                 .Select(mapping => mapping.Field)
                 .ToHashSet(StringComparer.Ordinal);
+            var resolvedColumns = review.FieldMappings
+                .Where(mapping => mapping.ColumnIndex is not null)
+                .Select(mapping => mapping.ColumnIndex!.Value)
+                .ToHashSet();
             foreach (var field in fields)
             {
+                if (resolvedColumns.Contains(field.ColumnIndex)) continue;
                 var allowed = new List<OrganizationImportSemanticTarget>();
                 AddFieldTarget(OrganizationImportFields.Name, "Name");
                 AddFieldTarget(OrganizationImportFields.BusinessCode, "Business Code");
@@ -250,21 +267,32 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
             .ToList();
     }
 
+    private static bool HasCredibleTypeTaxonomy(OrganizationImportInterpretation review)
+    {
+        var labels = review.ProposalNodes
+            .Where(node => !string.IsNullOrWhiteSpace(node.RawType))
+            .Select(node => node.RawType!)
+            .GroupBy(label => label, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.Count())
+            .ToList();
+        return labels.Count >= 2 && labels.Any(count => count >= 2);
+    }
+
     /// <summary>
     /// Distil the proposal into per-source-type topology evidence: for each distinct raw type, how
     /// many units use it, the depths it appears at, its observed parent/child types, whether it sits
     /// on the structural root, and whether it is leaf-only. Derived from the deterministic proposal
     /// graph (parent links + root), so the model receives facts, not guesses.
     /// </summary>
-    private static IReadOnlyList<OrganizationImportSemanticSourceType> BuildSourceTypeSystem(OrganizationImportReview review)
+    private static IReadOnlyList<OrganizationImportSemanticSourceType> BuildSourceTypeSystem(OrganizationImportInterpretation review)
     {
         var nodes = review.ProposalNodes;
         if (nodes.Count == 0) return [];
         var byId = nodes.Where(n => n.Id is not null).ToDictionary(n => n.Id, StringComparer.Ordinal);
-        string? TypeOf(OrganizationImportReviewNode n) => string.IsNullOrWhiteSpace(n.RawType) ? n.TypeName : n.RawType;
+        string? TypeOf(OrganizationImportProposalNode n) => string.IsNullOrWhiteSpace(n.RawType) ? n.TypeName : n.RawType;
 
         // Depth from the structural root via parent links (bounded against cycles).
-        int Depth(OrganizationImportReviewNode n)
+        int Depth(OrganizationImportProposalNode n)
         {
             var depth = 0;
             var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -302,13 +330,8 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
                 .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(t => t, StringComparer.OrdinalIgnoreCase).ToList();
             var occursOnRoot = members.Any(n => n.IsProposalRoot);
             var leafOnly = childTypes.Count == 0;
-            var sampleNames = members
-                .Select(n => n.Name).Where(name => !string.IsNullOrWhiteSpace(name) && IsSafeRepresentativeValue(name))
-                .Distinct(StringComparer.OrdinalIgnoreCase).Take(3)
-                .Select(name => name[..Math.Min(name.Length, 40)]).ToList();
-
             result.Add(new OrganizationImportSemanticSourceType(
-                group.Key, members.Count, depths.Min(), depths.Max(), parentTypes, childTypes, occursOnRoot, leafOnly, sampleNames));
+                group.Key, members.Count, depths.Min(), depths.Max(), parentTypes, childTypes, occursOnRoot, leafOnly));
         }
         return result;
     }
@@ -359,12 +382,13 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
         return SensitiveLabelParts.Any(normalized.Contains);
     }
 
-    private static bool IsSafeRepresentativeValue(string value)
+    private static string BasicValueShape(IReadOnlyList<string> values)
     {
-        if (value.Length == 0 || value.Contains('@') || Guid.TryParse(value, out _)) return false;
-        var digits = value.Count(char.IsDigit);
-        if (digits >= 7 && digits * 2 >= value.Length) return false;
-        return !PhoneLike().IsMatch(value);
+        if (values.All(value => Guid.TryParse(value, out _))) return "guid";
+        if (values.All(value => decimal.TryParse(value, out _))) return "number";
+        if (values.All(value => value.All(character => char.IsLetterOrDigit(character) || character is '-' or '_')))
+            return "identifier-or-label";
+        return "text";
     }
 
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -372,6 +396,4 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
     private static string HashKey(string value)
         => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value.Trim().ToLowerInvariant())))[..16];
 
-    [GeneratedRegex(@"^\+?[\d\s().-]{7,}$", RegexOptions.CultureInvariant)]
-    private static partial Regex PhoneLike();
 }

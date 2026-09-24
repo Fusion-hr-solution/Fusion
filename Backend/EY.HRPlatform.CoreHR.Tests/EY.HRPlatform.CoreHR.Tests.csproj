@@ -25,6 +25,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Features\OrganizationImport\SemanticEval\corpus.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="Features\OrgUnits\**\*.cs" />
     <Compile Remove="Features\TenantSettings\UpdateTenantSettingsCommandHandlerTests.cs" />
   </ItemGroup>

@@ -127,11 +127,15 @@ public sealed class OrganizationImportController(
         return Ok(ApiResponse<OrganizationImportSessionDto>.Success(session));
     }
 
-    [HttpPut("{sessionId:guid}/decisions")]
-    public async Task<ActionResult<ApiResponse<OrganizationImportSessionDto>>> ReplaceDecisions(
+    /// <summary>
+    /// Replaces the bounded Review resolutions (organization root, existing-unit choices). Review
+    /// never edits a proposed unit; interpretation changes belong to Match.
+    /// </summary>
+    [HttpPut("{sessionId:guid}/review/resolutions")]
+    public async Task<ActionResult<ApiResponse<OrganizationImportSessionDto>>> UpdateReviewResolutions(
         Guid sessionId,
         [FromHeader(Name = "If-Match")] string? ifMatch,
-        [FromBody] ReplaceOrganizationImportDecisionsRequest request,
+        [FromBody] UpdateOrganizationImportReviewResolutionsRequest request,
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageOrganization(User)) return Forbid();
@@ -139,7 +143,26 @@ public sealed class OrganizationImportController(
             return BadRequest(ApiResponse.Failure("A current import version is required."));
         try
         {
-            var session = await importService.ReplaceDecisionsAsync(sessionId, version, request.Decisions, Actor(), cancellationToken);
+            var session = await importService.UpdateReviewResolutionsAsync(sessionId, version, request, Actor(), cancellationToken);
+            SetEtag(session.Version);
+            return Ok(ApiResponse<OrganizationImportSessionDto>.Success(session));
+        }
+        catch (OrganizationImportReviewException exception) { return ReviewProblem(exception); }
+    }
+
+    [HttpPut("{sessionId:guid}/match")]
+    public async Task<ActionResult<ApiResponse<OrganizationImportSessionDto>>> UpdateMatch(
+        Guid sessionId,
+        [FromHeader(Name = "If-Match")] string? ifMatch,
+        [FromBody] UpdateOrganizationImportMatchRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!accessPolicy.CanManageOrganization(User)) return Forbid();
+        if (!TryParseVersion(ifMatch, out var version))
+            return BadRequest(ApiResponse.Failure("A current import version is required."));
+        try
+        {
+            var session = await importService.UpdateMatchAsync(sessionId, version, request, Actor(), cancellationToken);
             SetEtag(session.Version);
             return Ok(ApiResponse<OrganizationImportSessionDto>.Success(session));
         }
@@ -159,39 +182,22 @@ public sealed class OrganizationImportController(
         catch (OrganizationImportReviewException exception) { return ReviewProblem(exception); }
     }
 
-    [HttpPost("{sessionId:guid}/semantic-suggestions")]
+    /// <summary>
+    /// Runs semantic assistance from Match: the first time, when an administrator turns it on for
+    /// the tenant, or again after a retryable failure. Returns the refreshed import.
+    /// </summary>
+    [HttpPost("{sessionId:guid}/semantic-assistance/run")]
     [RequestSizeLimit(SemanticRequestLimit)]
-    public async Task<ActionResult<ApiResponse<OrganizationImportSemanticAssistanceDto>>> GenerateSemanticSuggestions(
+    public async Task<ActionResult<ApiResponse<OrganizationImportSessionDto>>> RunSemanticAssistance(
         Guid sessionId,
-        [FromBody] GenerateOrganizationImportSemanticSuggestionsRequest request,
+        [FromBody] RunOrganizationImportSemanticAssistanceRequest request,
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageOrganization(User)) return Forbid();
-        if (semanticAssistance is null) return StatusCode(StatusCodes.Status503ServiceUnavailable, ApiResponse.Failure("Suggestions are unavailable."));
+        if (semanticAssistance is null) return StatusCode(StatusCodes.Status503ServiceUnavailable, ApiResponse.Failure("Automatic matching is unavailable."));
         try
         {
-            var result = await semanticAssistance.GenerateAsync(sessionId, request, cancellationToken);
-            return Ok(ApiResponse<OrganizationImportSemanticAssistanceDto>.Success(result));
-        }
-        catch (OrganizationImportReviewException exception) { return ReviewProblem(exception); }
-    }
-
-    [HttpPut("{sessionId:guid}/semantic-suggestions/{attemptId:guid}/apply")]
-    [RequestSizeLimit(SemanticRequestLimit)]
-    public async Task<ActionResult<ApiResponse<OrganizationImportSessionDto>>> ApplySemanticSuggestions(
-        Guid sessionId,
-        Guid attemptId,
-        [FromHeader(Name = "If-Match")] string? ifMatch,
-        [FromBody] ApplyOrganizationImportSemanticSuggestionsRequest request,
-        CancellationToken cancellationToken)
-    {
-        if (!accessPolicy.CanManageOrganization(User)) return Forbid();
-        if (!TryParseVersion(ifMatch, out var version))
-            return BadRequest(ApiResponse.Failure("A current import version is required."));
-        if (semanticAssistance is null) return StatusCode(StatusCodes.Status503ServiceUnavailable, ApiResponse.Failure("Suggestions are unavailable."));
-        try
-        {
-            await semanticAssistance.ApplyAsync(sessionId, attemptId, version, request, Actor(), cancellationToken);
+            await semanticAssistance.RunAsync(sessionId, request, Actor(), cancellationToken);
             var session = await importService.GetAsync(sessionId, cancellationToken);
             SetEtag(session.Version);
             return Ok(ApiResponse<OrganizationImportSessionDto>.Success(session));
@@ -211,7 +217,7 @@ public sealed class OrganizationImportController(
             return BadRequest(ApiResponse.Failure("A current import version is required."));
         try
         {
-            var result = await importService.CommitAsync(sessionId, version, request.SemanticDigest, Actor(), cancellationToken);
+            var result = await importService.CommitAsync(sessionId, version, request.ProposalFingerprint, Actor(), cancellationToken);
             return Ok(ApiResponse<OrganizationImportCommitResult>.Success(result));
         }
         catch (OrganizationImportReviewException exception) { return ReviewProblem(exception); }

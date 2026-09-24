@@ -3,6 +3,7 @@ using System;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(CoreHRDbContext))]
-    partial class CoreHRDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260924092010_ReliableSemanticAssistance")]
+    partial class ReliableSemanticAssistance
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1584,9 +1587,6 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("RevokedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("SessionId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
 
@@ -1602,12 +1602,7 @@ namespace EY.HRPlatform.CoreHR.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "Provider", "DataContractVersion")
                         .IsUnique()
                         .HasDatabaseName("UX_OrganizationImportSemanticConsents_Tenant_Provider_Contract_Active")
-                        .HasFilter("\"RevokedAt\" IS NULL AND \"SessionId\" IS NULL");
-
-                    b.HasIndex("TenantId", "SessionId", "Provider", "DataContractVersion")
-                        .IsUnique()
-                        .HasDatabaseName("UX_OrganizationImportSemanticConsents_Session_Provider_Contract_Active")
-                        .HasFilter("\"RevokedAt\" IS NULL AND \"SessionId\" IS NOT NULL");
+                        .HasFilter("\"RevokedAt\" IS NULL");
 
                     b.ToTable("OrganizationImportSemanticConsents", "corehr");
                 });

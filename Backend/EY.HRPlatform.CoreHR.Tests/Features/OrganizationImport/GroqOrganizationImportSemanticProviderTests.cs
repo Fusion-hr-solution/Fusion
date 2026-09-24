@@ -21,21 +21,22 @@ public sealed class GroqOrganizationImportSemanticProviderTests
             requestBody = await message.Content!.ReadAsStringAsync(cancellationToken);
             var structured = JsonSerializer.Serialize(new
             {
-                contractVersion = OrganizationImportSemanticAssistanceOptions.DefaultContractVersion,
-                suggestions = new[]
+                contractVersion = OrganizationImportSemanticVersions.ResultContract,
+                answers = new object[]
                 {
                     new
                     {
-                        issueKey = "level-type:0",
-                        kind = OrganizationImportSemanticKinds.OrganizationTypeMapping,
+                        questionKey = "level-type:0",
+                        disposition = "suggest",
                         targetKey = $"type:{Guid.Parse("11111111-1111-1111-1111-111111111111")}",
-                        rationale = "Entity represents the organization level.",
                     },
+                    new { questionKey = "type-value:abc", disposition = "abstain", targetKey = (string?)null },
                 },
             });
             return Json(HttpStatusCode.OK, new
             {
                 id = "chatcmpl-demo",
+                system_fingerprint = "fp_demo",
                 @object = "chat.completion",
                 created = 1,
                 model = OrganizationImportSemanticAssistanceOptions.DefaultModel,
@@ -52,7 +53,11 @@ public sealed class GroqOrganizationImportSemanticProviderTests
         Assert.Equal("test-secret", authorization?.Parameter);
         Assert.Equal(31, result.InputTokens);
         Assert.Equal(12, result.OutputTokens);
-        Assert.Single(result.Suggestions);
+        Assert.Equal(("chatcmpl-demo", "fp_demo"), (result.ResponseId, result.SystemFingerprint));
+        Assert.Equal(2, result.Answers.Count);
+        Assert.Equal(OrganizationImportSemanticDisposition.Suggest, result.Answers[0].Disposition);
+        Assert.Equal(OrganizationImportSemanticDisposition.Abstain, result.Answers[1].Disposition);
+        Assert.Null(result.Answers[1].TargetKey);
         using var body = JsonDocument.Parse(requestBody!);
         var root = body.RootElement;
         Assert.Equal(OrganizationImportSemanticAssistanceOptions.DefaultModel, root.GetProperty("model").GetString());
@@ -62,18 +67,30 @@ public sealed class GroqOrganizationImportSemanticProviderTests
         var jsonSchema = root.GetProperty("response_format").GetProperty("json_schema");
         Assert.True(jsonSchema.GetProperty("strict").GetBoolean());
         Assert.False(jsonSchema.GetProperty("schema").GetProperty("additionalProperties").GetBoolean());
-        var itemSchema = jsonSchema.GetProperty("schema").GetProperty("properties").GetProperty("suggestions")
+        var itemSchema = jsonSchema.GetProperty("schema").GetProperty("properties").GetProperty("answers")
             .GetProperty("items");
         Assert.False(itemSchema.GetProperty("additionalProperties").GetBoolean());
-        Assert.Contains(itemSchema.GetProperty("required").EnumerateArray(), item => item.GetString() == "rationale");
+        Assert.Equal(["suggest", "abstain"], itemSchema.GetProperty("properties").GetProperty("disposition").GetProperty("enum")
+            .EnumerateArray().Select(item => item.GetString()));
         Assert.DoesNotContain("confidence", requestBody!, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("chain-of-thought", root.GetProperty("messages")[1].GetProperty("content").GetString()!, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("rationale", requestBody!, StringComparison.OrdinalIgnoreCase);
+        var instructions = root.GetProperty("messages")[0].GetProperty("content").GetString()!;
+        Assert.Contains("abstain", instructions, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("untrusted data", instructions, StringComparison.OrdinalIgnoreCase);
+        // Evidence per question: header, samples and statistics, never whole rows.
+        var input = JsonDocument.Parse(root.GetProperty("messages")[1].GetProperty("content").GetString()!).RootElement;
+        var column = input.GetProperty("questions")[0].GetProperty("column");
+        Assert.Equal("Asteria", column.GetProperty("sampleValues")[0].GetString());
+        Assert.True(column.TryGetProperty("valueShape", out _));
     }
 
     [Theory]
     [InlineData("not-json")]
-    [InlineData("{\"contractVersion\":\"organization-import-semantics/v1\",\"suggestions\":[{\"issueKey\":\"level-type:0\",\"kind\":\"organization_type_mapping\",\"targetKey\":\"type:11111111-1111-1111-1111-111111111111\"}]}")]
-    [InlineData("{\"contractVersion\":\"organization-import-semantics/v1\",\"suggestions\":[],\"unexpected\":true}")]
+    [InlineData("{\"contractVersion\":\"organization-import-semantics/v1\",\"answers\":[]}")]
+    [InlineData("{\"contractVersion\":\"organization-import-semantics/v2\",\"answers\":[{\"questionKey\":\"level-type:0\",\"disposition\":\"suggest\"}]}")]
+    [InlineData("{\"contractVersion\":\"organization-import-semantics/v2\",\"answers\":[{\"questionKey\":\"level-type:0\",\"disposition\":\"guess\",\"targetKey\":null}]}")]
+    [InlineData("{\"contractVersion\":\"organization-import-semantics/v2\",\"answers\":[{\"questionKey\":\"level-type:0\",\"disposition\":\"suggest\",\"targetKey\":\"type:invented\"}]}")]
+    [InlineData("{\"contractVersion\":\"organization-import-semantics/v2\",\"answers\":[],\"unexpected\":true}")]
     public async Task MalformedOrSchemaInvalidStructuredDocumentMapsToInvalidOutput(string structured)
     {
         var provider = Provider(new DelegateHandler((_, _) => Task.FromResult(Json(HttpStatusCode.OK, new
@@ -108,6 +125,23 @@ public sealed class GroqOrganizationImportSemanticProviderTests
         Assert.DoesNotContain("Groq", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData(401, OrganizationImportSemanticFailureCategory.Unauthorized, false)]
+    [InlineData(403, OrganizationImportSemanticFailureCategory.Unauthorized, false)]
+    [InlineData(404, OrganizationImportSemanticFailureCategory.ProviderRejected, false)]
+    [InlineData(498, OrganizationImportSemanticFailureCategory.ProviderUnavailable, true)]
+    [InlineData(503, OrganizationImportSemanticFailureCategory.ProviderUnavailable, true)]
+    public async Task HttpFailuresAreClassifiedForTheRetryPolicy(int status, OrganizationImportSemanticFailureCategory category, bool retryable)
+    {
+        var provider = Provider(new DelegateHandler((_, _) => Task.FromResult(new HttpResponseMessage((HttpStatusCode)status))));
+
+        var exception = await Assert.ThrowsAsync<OrganizationImportSemanticProviderException>(
+            () => provider.SuggestAsync(Request(), CancellationToken.None));
+
+        Assert.Equal(category, exception.Category);
+        Assert.Equal(retryable, exception.Retryable);
+    }
+
     [Fact]
     public async Task ProviderErrorMapsToSafeUnavailableCategory()
     {
@@ -131,13 +165,16 @@ public sealed class GroqOrganizationImportSemanticProviderTests
     {
         var typeId = Guid.Parse("11111111-1111-1111-1111-111111111111");
         return new(
-            OrganizationImportSemanticAssistanceOptions.DefaultContractVersion,
+            OrganizationImportSemanticVersions.ResultContract,
             "source-fingerprint",
-            [new("level-type:0", OrganizationImportSemanticKinds.OrganizationTypeMapping, 0, "Entity", [new($"type:{typeId}", "Organization")])],
-            [new(0, "Entity", ["Asteria"], 1, 1)],
+            [
+                new("level-type:0", OrganizationImportSemanticKinds.OrganizationTypeMapping, 0, "Entity", [new($"type:{typeId}", "Organization")]),
+                new("type-value:abc", OrganizationImportSemanticKinds.OrganizationTypeMapping, null, "Squad", [new($"type:{typeId}", "Organization")]),
+            ],
+            [new(0, "Entity", 1, 1, 1m, "identifier-or-label", ["Asteria"])],
             [new(typeId, "Organization")],
             new(1, 1, true, ["LevelColumns"]),
-            [new("Entity", 1, 0, 0, [], [], true, false, ["Asteria"])],
+            [new("Entity", 1, 0, 0, [], [], true, false)],
             [new("Organization", "Enterprise/root organizational body.")],
             new string('f', 64));
     }

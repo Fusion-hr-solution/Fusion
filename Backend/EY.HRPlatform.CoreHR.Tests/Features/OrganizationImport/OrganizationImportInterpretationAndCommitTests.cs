@@ -13,6 +13,34 @@ public sealed class OrganizationImportInterpretationAndCommitTests
     private static readonly DateOnly EffectiveDate = new(2026, 8, 14);
 
     [Fact]
+    public async Task LumeraHeaders_MapDeterministically_AndLeaveCountryFootprintOutOfTheStructure()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        await SeedTypesAsync(context);
+        var table = new OrganizationSourceTable(
+            [new(0, "Org Key"), new(1, "Structure Label"), new(2, "Upstream Ref"), new(3, "Layer Label"), new(4, "Country Footprint")],
+            [
+                new string?[] { "ROOT", "Lumera", null, "Organization", "FR" },
+                new string?[] { "ENG", "Engineering", "ROOT", "Division", "FR, DE" },
+            ]);
+        var session = Session(tenant.TenantId, table);
+
+        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
+
+        Assert.Equal(OrganizationImportShape.ParentReference, review.Shape);
+        Assert.Equal(0, review.FieldMappings.Single(mapping => mapping.Field == OrganizationImportFields.BusinessCode).ColumnIndex);
+        Assert.Equal(1, review.FieldMappings.Single(mapping => mapping.Field == OrganizationImportFields.Name).ColumnIndex);
+        Assert.Equal(2, review.FieldMappings.Single(mapping => mapping.Field == OrganizationImportFields.ParentBusinessCode).ColumnIndex);
+        Assert.Equal(3, review.FieldMappings.Single(mapping => mapping.Field == OrganizationImportFields.Type).ColumnIndex);
+        Assert.DoesNotContain(review.FieldMappings, mapping => mapping.ColumnIndex == 4);
+        Assert.NotNull(review.MappingPlan);
+        Assert.Contains(review.MappingPlan.IgnoredColumns, column => column.ColumnIndex == 4);
+        Assert.NotNull(review.CanonicalDraft);
+        Assert.Equal(review.CanonicalDraft.Fingerprint, review.Validation!.DraftFingerprint);
+    }
+
+    [Fact]
     public async Task LevelColumns_ReusesExactPrefixes_SeparatesSameNamesAcrossBranches_AndRequiresExplicitRoot()
     {
         var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
@@ -26,9 +54,9 @@ public sealed class OrganizationImportInterpretationAndCommitTests
                 new string?[] { "West", "Sales", "Gamma" },
             ]);
         var session = Session(tenant.TenantId, table);
-        session.ReplaceDecisions(new OrganizationImportDecisions(
-            Shape: OrganizationImportShape.LevelColumns,
-            IntroducedRoot: new OrganizationImportRootDecision("Asteria", "ASTERIA")), Actor());
+        var levels = new OrganizationImportDecisions(Shape: OrganizationImportShape.LevelColumns);
+        session.ReplaceDecisions(levels, Actor());
+        session.ReplaceDecisions(levels with { IntroducedRoot = new OrganizationImportRootDecision("Asteria", "ASTERIA") }, Actor());
 
         var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
 
@@ -36,7 +64,9 @@ public sealed class OrganizationImportInterpretationAndCommitTests
         Assert.Equal(2, review.ProposalNodes.Count(node => node.Name == "Sales"));
         Assert.All(review.ProposalNodes, node => Assert.Equal(OrganizationImportNodeClassification.Create, node.Classification));
         Assert.Contains(review.ProposalNodes, node => node.IsProposalRoot && node.Name == "Asteria");
-        Assert.Contains(review.Issues, issue => issue.Code == "DuplicateProposalCode");
+        Assert.DoesNotContain(Issues(review), issue => issue.Code == OrganizationImportIssueCodes.DuplicateBusinessCode);
+        Assert.True(review.CanPublish);
+        Assert.Equal(review.ProposalNodes.Count, review.ProposalNodes.Select(node => node.BusinessCode).Distinct(StringComparer.Ordinal).Count());
     }
 
     [Fact]
@@ -64,8 +94,8 @@ public sealed class OrganizationImportInterpretationAndCommitTests
         var root = Assert.Single(review.ProposalNodes, node => node.IsProposalRoot);
         Assert.Equal("Asteria Technologies", root.Name);
         Assert.Null(root.ParentNodeId);
-        Assert.DoesNotContain(review.Issues, issue => issue.Code is "FreshRootRequired" or "RootCount" or "RootType");
-        Assert.True(review.CanCommit);
+        Assert.DoesNotContain(Issues(review), issue => issue.Code == OrganizationImportIssueCodes.MultipleRoots);
+        Assert.True(review.CanPublish);
     }
 
     [Fact]
@@ -84,8 +114,8 @@ public sealed class OrganizationImportInterpretationAndCommitTests
 
         var node = Assert.Single(review.ProposalNodes);
         Assert.Equal(root.Id, node.CanonicalId);
-        Assert.Equal(OrganizationImportNodeClassification.Unchanged, node.Classification);
-        Assert.Contains(review.Issues, issue => issue.Code == "AuthoritativeIdentityRetained");
+        Assert.Equal(OrganizationImportNodeClassification.Existing, node.Classification);
+        Assert.DoesNotContain(Issues(review), issue => issue.Severity == OrganizationImportIssueSeverity.Blocker);
     }
 
     [Fact]
@@ -102,10 +132,10 @@ public sealed class OrganizationImportInterpretationAndCommitTests
 
         var node = Assert.Single(review.ProposalNodes);
         Assert.True(node.BusinessCodeGenerated);
-        Assert.Equal("SALES", node.BusinessCode);
+        Assert.Equal("SALES-2", node.BusinessCode);
         Assert.Equal(OrganizationImportNodeClassification.Create, node.Classification);
         Assert.Null(node.CanonicalId);
-        Assert.Contains(review.Issues, issue => issue.Code == "BusinessCodeUnavailable");
+        Assert.DoesNotContain(Issues(review), issue => issue.Code == OrganizationImportIssueCodes.BusinessCodeTaken);
     }
 
     [Fact]
@@ -120,8 +150,10 @@ public sealed class OrganizationImportInterpretationAndCommitTests
         var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
 
         Assert.Equal(OrganizationImportNodeClassification.Conflict, Assert.Single(review.ProposalNodes).Classification);
-        Assert.Contains(review.Issues, issue => issue.Code == "UnsupportedExistingDifference" && issue.Severity == OrganizationImportIssueSeverity.Blocker);
-        Assert.Equal(0, review.CreateCount);
+        var difference = Assert.Single(Issues(review), issue => issue.Code == OrganizationImportIssueCodes.ExistingDifference);
+        Assert.Equal(OrganizationImportIssueSeverity.Blocker, difference.Severity);
+        Assert.Equal(OrganizationImportResolutionKind.KeepExisting, difference.PreferredResolution);
+        Assert.DoesNotContain(review.ProposalNodes, node => node.Classification == OrganizationImportNodeClassification.Create);
     }
 
     [Fact]
@@ -138,10 +170,10 @@ public sealed class OrganizationImportInterpretationAndCommitTests
         var intake = await imports.IntakeAsync(new MemoryStream(Encoding.UTF8.GetBytes(csv)), "organization.csv", "text/csv",
             EffectiveDate, Guid.NewGuid(), null, actor, CancellationToken.None);
         var active = intake.Session!;
-        Assert.True(active.Review!.CanCommit);
+        Assert.True(active.Review!.Readiness.CanPublish);
 
-        var first = await imports.CommitAsync(active.Id, active.Version, active.Review.SemanticDigest, actor, CancellationToken.None);
-        var replay = await imports.CommitAsync(active.Id, active.Version, active.Review.SemanticDigest, actor, CancellationToken.None);
+        var first = await imports.CommitAsync(active.Id, active.Version, active.Review.ProposalFingerprint, actor, CancellationToken.None);
+        var replay = await imports.CommitAsync(active.Id, active.Version, active.Review.ProposalFingerprint, actor, CancellationToken.None);
 
         Assert.False(first.NoChanges);
         Assert.Equal(first.SessionId, replay.SessionId);
@@ -172,7 +204,7 @@ public sealed class OrganizationImportInterpretationAndCommitTests
             EffectiveDate, Guid.NewGuid(), null, Actor(), CancellationToken.None);
         var before = await context.OrganizationChanges.CountAsync();
 
-        var result = await imports.CommitAsync(intake.Session!.Id, intake.Session.Version, intake.Session.Review!.SemanticDigest, Actor(), CancellationToken.None);
+        var result = await imports.CommitAsync(intake.Session!.Id, intake.Session.Version, intake.Session.Review!.ProposalFingerprint, Actor(), CancellationToken.None);
 
         Assert.True(result.NoChanges);
         Assert.Empty(result.CreatedUnits);
@@ -193,11 +225,11 @@ public sealed class OrganizationImportInterpretationAndCommitTests
 
         var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
 
-        Assert.True(review.CanCommit);
+        Assert.True(review.CanPublish);
         var created = Assert.Single(review.ProposalNodes, node => node.Classification == OrganizationImportNodeClassification.Create);
         Assert.Null(created.ParentNodeId);
         Assert.Equal(root.Id, created.ParentCanonicalId);
-        Assert.DoesNotContain(review.Issues, issue => issue.Code == "ParentUnavailable");
+        Assert.DoesNotContain(Issues(review), issue => issue.Code == OrganizationImportIssueCodes.ExistingUnavailableAsOfDate);
     }
 
     [Fact]
@@ -232,8 +264,11 @@ public sealed class OrganizationImportInterpretationAndCommitTests
         Assert.DoesNotContain(review.ProposalNodes, node => node.Name is "0" or "1" or "2" or "3" or "4" or "5");
         var root = Assert.Single(review.ProposalNodes, node => node.IsProposalRoot);
         Assert.Equal("Asteria Group", root.Name);
-        Assert.DoesNotContain(review.Issues, issue => issue.Code is "FreshRootRequired" or "RootCount");
+        Assert.DoesNotContain(Issues(review), issue => issue.Code == OrganizationImportIssueCodes.MultipleRoots);
     }
+
+    private static IReadOnlyList<OrganizationImportIssue> Issues(OrganizationImportInterpretation review)
+        => review.Validation?.Issues ?? throw new Xunit.Sdk.XunitException("Expected a complete Match with a validated draft.");
 
     private static OrganizationImportSession Session(Guid tenantId, OrganizationSourceTable table)
     {

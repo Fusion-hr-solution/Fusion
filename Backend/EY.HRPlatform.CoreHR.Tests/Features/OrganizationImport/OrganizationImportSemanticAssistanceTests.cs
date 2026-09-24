@@ -1,15 +1,22 @@
 using System.Diagnostics;
+using System.Text;
 using EY.HRPlatform.CoreHR.Domain.Entities;
+using EY.HRPlatform.CoreHR.Features.Organization;
 using EY.HRPlatform.CoreHR.Features.OrganizationImport;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
+using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 
 namespace EY.HRPlatform.CoreHR.Tests.Features.OrganizationImport;
 
 public sealed class OrganizationImportSemanticAssistanceTests
 {
     private static readonly DateOnly EffectiveDate = new(2026, 8, 14);
+
+    // ── Context ────────────────────────────────────────────────────────────────────────────────
 
     [Fact]
     public async Task Context_IsBoundedRedactedStableAndNeverOffersFusionIdentity()
@@ -26,10 +33,11 @@ public sealed class OrganizationImportSemanticAssistanceTests
                 new(4, "Fusion OrgUnit ID"),
                 new(5, "Employee Email"),
                 new(6, "Comments"),
+                new(7, "Country Footprint"),
             ],
             [
-                new string?[] { "Asteria", null, "Organization", null, Guid.NewGuid().ToString(), "ada@example.com", "private note" },
-                new string?[] { "Sales", "SALES", "Team", "Asteria", Guid.NewGuid().ToString(), "sam@example.com", "private note" },
+                new string?[] { "Asteria", null, "Organization", null, Guid.NewGuid().ToString(), "ada@example.com", "private note", "FR" },
+                new string?[] { "Sales", "SALES", "Team", "Asteria", Guid.NewGuid().ToString(), "sam@example.com", "private note", "FR, DE" },
             ]));
         context.OrganizationImportSessions.Add(session);
         await context.SaveChangesAsync();
@@ -37,509 +45,530 @@ public sealed class OrganizationImportSemanticAssistanceTests
         var options = Options().WithBounds(maxFields: 7, maxValues: 1, maxTotalValues: 3, maxValueCharacters: 16);
         var builder = new OrganizationImportSemanticContextBuilder(options);
 
-        var first = Assert.IsType<OrganizationImportSemanticRequest>(builder.Build(session, review));
+        var first = Assert.IsType<OrganizationImportSemanticRequest>(builder.Build(session, review).Request);
         session.ChangeEffectiveDate(EffectiveDate.AddDays(30), Actor());
-        var afterDateChange = Assert.IsType<OrganizationImportSemanticRequest>(builder.Build(session, review));
+        var afterDateChange = Assert.IsType<OrganizationImportSemanticRequest>(builder.Build(session, review).Request);
 
         Assert.Equal(first.InputFingerprint, afterDateChange.InputFingerprint);
+        Assert.Equal(OrganizationImportSemanticVersions.ResultContract, first.ResultContractVersion);
         Assert.True(first.Fields.Count <= 7);
-        Assert.True(first.Fields.Sum(field => field.RepresentativeValues.Count) <= 3);
-        Assert.All(first.Fields, field =>
-        {
-            Assert.True(field.SourceLabel.Length <= 16);
-            Assert.All(field.RepresentativeValues, value => Assert.True(value.Length <= 16));
-        });
+        Assert.All(first.Fields, field => Assert.True(field.SourceLabel.Length <= 16));
         Assert.DoesNotContain(first.Fields, field => field.SourceLabel.Contains("Fusion", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(first.Fields, field => field.SourceLabel.Contains("Email", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(first.Fields, field => field.SourceLabel.Contains("Comment", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(first.Fields.SelectMany(field => field.RepresentativeValues), value => value.Contains('@'));
         Assert.All(first.Issues.Where(issue => issue.Kind == OrganizationImportSemanticKinds.FieldMapping), issue =>
             Assert.DoesNotContain(issue.AllowedTargets, target => target.Key.Contains(OrganizationImportFields.FusionOrgUnitId, StringComparison.Ordinal)));
-        var offeredFields = first.Issues
-            .Where(issue => issue.Kind == OrganizationImportSemanticKinds.FieldMapping)
-            .SelectMany(issue => issue.AllowedTargets)
-            .Select(target => target.Key)
-            .ToHashSet(StringComparer.Ordinal);
-        Assert.True(
-            new HashSet<string>(StringComparer.Ordinal)
-            {
-                $"field:{OrganizationImportFields.Name}",
-                $"field:{OrganizationImportFields.BusinessCode}",
-                $"field:{OrganizationImportFields.Type}",
-                $"field:{OrganizationImportFields.ParentBusinessCode}",
-            }.SetEquals(offeredFields));
+        Assert.All(first.Fields.SelectMany(field => field.RepresentativeValues), value => Assert.True(value.Length <= 16));
+        Assert.True(first.Fields.Sum(field => field.RepresentativeValues.Count) <= 3);
+        Assert.DoesNotContain(first.Fields.SelectMany(field => field.RepresentativeValues), value =>
+            value.Contains("@example.com", StringComparison.OrdinalIgnoreCase) || value.Contains("private note", StringComparison.OrdinalIgnoreCase));
 
         session.ReplaceDecisions(new OrganizationImportDecisions(
             FieldMappings: new Dictionary<string, int?> { [OrganizationImportFields.Name] = 0 }), Actor());
-        var afterSemanticDecision = Assert.IsType<OrganizationImportSemanticRequest>(builder.Build(session, review));
-        Assert.NotEqual(first.InputFingerprint, afterSemanticDecision.InputFingerprint);
+        var afterDecision = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
+        var changed = Assert.IsType<OrganizationImportSemanticRequest>(builder.Build(session, afterDecision).Request);
+        Assert.NotEqual(first.InputFingerprint, changed.InputFingerprint);
     }
 
     [Fact]
-    public async Task Generate_PersistsValidSiblingsAndReusesTheAttempt()
+    public async Task Context_SpreadsSampleValuesAcrossTheColumn()
     {
         var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
         await using var context = TestDbContextFactory.Create(tenant);
-        var session = await ArrangeDemoAsync(context, tenant.TenantId);
-        var provider = new StubProvider(request =>
-        {
-            var valid = SuggestionsFor(request).ToList();
-            // The level table resolves its shape deterministically, so the vocabulary is asked once
-            // per distinct level type. Invalidate the "Capability" answer; the rest must persist.
-            var capabilityKey = request.Issues.Single(issue => issue.SourceLabel == "Capability").Key;
-            var invalidIndex = valid.FindIndex(item => item.IssueKey == capabilityKey);
-            valid[invalidIndex] = valid[invalidIndex] with { TargetKey = "type:00000000-0000-0000-0000-000000000000" };
-            return new(valid, 42, 17);
-        });
-        var service = Service(context, tenant, provider);
-        var interpreter = new OrganizationImportInterpreter(context, tenant);
-        var review = await interpreter.InterpretAsync(session, CancellationToken.None);
-        var eligible = await service.DescribeAsync(session, review, CancellationToken.None);
-        var decisionsBefore = session.DecisionsJson;
-
-        var generated = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
-        var reused = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
-
-        Assert.Equal(OrganizationImportSemanticAssistanceState.Available, generated.State);
-        Assert.Equal(generated.AttemptId, reused.AttemptId);
-        Assert.Equal(1, provider.CallCount);
-        Assert.Equal(3, generated.Suggestions.Count);
-        Assert.DoesNotContain(generated.Suggestions, suggestion => suggestion.SourceLabel == "Capability");
-        Assert.Equal(decisionsBefore, (await context.OrganizationImportSessions.SingleAsync(item => item.Id == session.Id)).DecisionsJson);
-        Assert.Empty(context.OrgUnits);
-        var attempt = await context.OrganizationImportSemanticAttempts.SingleAsync();
-        Assert.Equal("Groq", attempt.Provider);
-        Assert.Equal(OrganizationImportSemanticAssistanceOptions.DefaultModel, attempt.Model);
-        Assert.Equal(42, attempt.InputTokens);
-        Assert.Equal(17, attempt.OutputTokens);
-    }
-
-    [Fact]
-    public async Task Apply_RecordsAdministratorDispositionsAndLeavesRejectedLevelManual()
-    {
-        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
-        await using var context = TestDbContextFactory.Create(tenant);
-        var session = await ArrangeDemoAsync(context, tenant.TenantId);
-        // A coherent top-to-bottom taxonomy (Entity→Organization, Pillar→Division, Capability→
-        // Department, Pod→Team). The whole-taxonomy coherence check now runs against real proposal
-        // nodes, so a parent type may not share a canonical role with its own child.
-        var provider = new StubProvider(request => new(SuggestionsFor(request), 12, 8));
-        var service = Service(context, tenant, provider);
-        var interpreter = new OrganizationImportInterpreter(context, tenant);
-        var review = await interpreter.InterpretAsync(session, CancellationToken.None);
-        var eligible = await service.DescribeAsync(session, review, CancellationToken.None);
-        var generated = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
-        var entity = generated.Suggestions.Single(item => item.SourceLabel == "Entity");
-        var capability = generated.Suggestions.Single(item => item.SourceLabel == "Capability");
-        var organizationTarget = entity.AllowedTargets.Single(item => item.Label == "Organization").Key;
-        var reviewed = generated.Suggestions.Select(item => item.IssueKey == entity.IssueKey
-                ? new OrganizationImportSemanticReviewedItem(item.IssueKey, organizationTarget, OrganizationImportSemanticReviewOutcome.Changed)
-                : item.IssueKey == capability.IssueKey
-                    ? new OrganizationImportSemanticReviewedItem(item.IssueKey, null, OrganizationImportSemanticReviewOutcome.Rejected)
-                    : new OrganizationImportSemanticReviewedItem(item.IssueKey, item.TargetKey, OrganizationImportSemanticReviewOutcome.Accepted))
+        await SeedTypesAsync(context);
+        var rows = Enumerable.Range(1, 40)
+            .Select(index => new string?[] { $"U{index:00}", $"Unit {index:00}", index == 1 ? null : "U01", "Squad" })
             .ToList();
+        rows[0][3] = "Tribe";
+        var session = Session(tenant.TenantId, new OrganizationSourceTable(
+            [new(0, "Key"), new(1, "Label"), new(2, "Rolls Up"), new(3, "Grade")], rows));
+        context.OrganizationImportSessions.Add(session);
+        await context.SaveChangesAsync();
+        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
 
-        await service.ApplyAsync(
-            session.Id,
-            generated.AttemptId!.Value,
-            session.Version,
-            new(generated.InputFingerprint!, generated.AttemptVersion!.Value, reviewed),
-            Actor(),
-            CancellationToken.None);
+        var request = new OrganizationImportSemanticContextBuilder(Options()).Build(session, review).Request!;
+        var label = request.Fields.Single(field => field.SourceLabel == "Label");
 
-        context.ChangeTracker.Clear();
-        var persistedSession = await context.OrganizationImportSessions.Include(item => item.Source).SingleAsync(item => item.Id == session.Id);
-        var decisions = OrganizationImportJson.Deserialize<OrganizationImportDecisions>(persistedSession.DecisionsJson)!.Normalize();
-        // Shape resolves deterministically for a clean level table, so applying vocabulary never
-        // needs to pin it — only the confirmed type meanings are written.
-        Assert.Null(decisions.Shape);
-        Assert.Equal(OrganizationalUnitTypeCatalog.OrganizationId, decisions.TypeMappings!["Entity"]);
-        Assert.DoesNotContain("Capability", decisions.TypeMappings.Keys, StringComparer.OrdinalIgnoreCase);
-        var attempt = await context.OrganizationImportSemanticAttempts.SingleAsync();
-        Assert.Equal(OrganizationImportSemanticAttemptStatus.Applied, attempt.Status);
-        var outcomes = OrganizationImportJson.Deserialize<IReadOnlyList<OrganizationImportSemanticReviewRecord>>(attempt.ReviewOutcomesJson!)!;
-        Assert.Contains(outcomes, item => item.Outcome == OrganizationImportSemanticReviewOutcome.Accepted);
-        Assert.Contains(outcomes, item => item.Outcome == OrganizationImportSemanticReviewOutcome.Changed);
-        Assert.Contains(outcomes, item => item.Outcome == OrganizationImportSemanticReviewOutcome.Rejected);
-        var recomputed = await interpreter.InterpretAsync(persistedSession, CancellationToken.None);
-        Assert.Equal(OrganizationImportShape.ParentReference, recomputed.Shape);
-        Assert.Contains(recomputed.ProposalNodes, node => node.RawType == "Capability" && node.TypeId is null);
-        Assert.Contains(recomputed.Issues, issue => issue.Code == "UnknownType");
-        Assert.Empty(context.OrgUnits);
+        Assert.Equal(5, label.RepresentativeValues.Count);
+        Assert.Contains("Unit 01", label.RepresentativeValues);
+        Assert.Contains("Unit 40", label.RepresentativeValues);
     }
 
+    // ── State ──────────────────────────────────────────────────────────────────────────────────
+
     [Fact]
-    public async Task NoValidSuggestions_FailsAsInvalidOutput_AndExplicitRetryCanRecover()
+    public async Task NothingLeftToAsk_IsNotNeeded_AndNeverCallsTheProvider()
     {
         var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
         await using var context = TestDbContextFactory.Create(tenant);
-        var session = await ArrangeDemoAsync(context, tenant.TenantId);
-        var firstCall = true;
-        var provider = new StubProvider(request =>
-        {
-            if (firstCall)
-            {
-                firstCall = false;
-                return new([new("unknown", OrganizationImportSemanticKinds.FieldMapping, "field:Name", null)], null, null);
-            }
-            return new(SuggestionsFor(request), null, null);
-        });
+        var session = await ArrangeAsync(context, tenant.TenantId, NativeTable());
+        await GrantConsentAsync(context, tenant.TenantId);
+        var provider = StubProvider.Failing(new InvalidOperationException("must not be called"));
         var service = Service(context, tenant, provider);
-        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
-        var eligible = await service.DescribeAsync(session, review, CancellationToken.None);
 
-        var failed = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
-        var unchanged = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
-        var recovered = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!, Retry: true), CancellationToken.None);
+        await service.RunAfterUploadAsync(session.Id, Actor(), CancellationToken.None);
 
-        Assert.Equal(OrganizationImportSemanticFailureCategory.InvalidOutput, failed.FailureCategory);
-        Assert.Equal(failed.AttemptId, unchanged.AttemptId);
-        Assert.Equal(OrganizationImportSemanticAssistanceState.Available, recovered.State);
-        Assert.NotEqual(failed.AttemptId, recovered.AttemptId);
-        Assert.Equal(2, provider.CallCount);
-
-    }
-
-    [Fact]
-    public async Task MissingConfigurationAndProviderFailuresRemainSafeManualFallbacks()
-    {
-        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
-        await using var context = TestDbContextFactory.Create(tenant);
-        var session = await ArrangeDemoAsync(context, tenant.TenantId);
-        var provider = new StubProvider(
-            (Func<OrganizationImportSemanticRequest, OrganizationImportSemanticProviderResult>)(_ => throw new InvalidOperationException()),
-            isConfigured: false);
-        var service = Service(context, tenant, provider);
-        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
-        var eligible = await service.DescribeAsync(session, review, CancellationToken.None);
-
-        var failed = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
-
-        Assert.Equal(OrganizationImportSemanticAssistanceState.Failed, failed.State);
-        Assert.Equal(OrganizationImportSemanticFailureCategory.NotConfigured, failed.FailureCategory);
+        Assert.Equal(OrganizationImportSemanticAssistanceState.NotNeeded, (await DescribeAsync(context, tenant, service, session.Id)).State);
         Assert.Equal(0, provider.CallCount);
-        Assert.Empty(context.OrgUnits);
-        Assert.Contains(review.Issues, issue => issue.Severity == OrganizationImportIssueSeverity.Blocker);
+        Assert.Empty(context.OrganizationImportSemanticAttempts);
     }
 
     [Fact]
-    public async Task SlowResult_IsSupersededWhenSemanticDecisionsChangeDuringTheCall()
+    public async Task WithoutTenantConsent_AssistanceAwaitsConsent_AndUploadNeverCallsTheProvider()
     {
         var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
         await using var context = TestDbContextFactory.Create(tenant);
-        var session = await ArrangeDemoAsync(context, tenant.TenantId);
-        var provider = new StubProvider(async request =>
-        {
-            session.ReplaceDecisions(new OrganizationImportDecisions(Shape: OrganizationImportShape.ParentReference), Actor());
-            await context.SaveChangesAsync();
-            return new(SuggestionsFor(request), null, null);
-        });
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
+        var provider = new StubProvider(request => Answers(request));
         var service = Service(context, tenant, provider);
-        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
-        var eligible = await service.DescribeAsync(session, review, CancellationToken.None);
 
-        var result = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
+        await service.RunAfterUploadAsync(session.Id, Actor(), CancellationToken.None);
 
-        Assert.Equal(OrganizationImportSemanticAssistanceState.Eligible, result.State);
-        Assert.NotEqual(eligible.InputFingerprint, result.InputFingerprint);
-        Assert.Equal(OrganizationImportSemanticAttemptStatus.Superseded, (await context.OrganizationImportSemanticAttempts.SingleAsync()).Status);
+        var state = await DescribeAsync(context, tenant, service, session.Id);
+        Assert.Equal(OrganizationImportSemanticAssistanceState.AwaitingConsent, state.State);
+        Assert.Equal(4, state.RemainingCount);
+        Assert.Equal(0, provider.CallCount);
     }
 
     [Fact]
-    public async Task ConcurrentGenerationReusesThePersistedPendingClaim()
-    {
-        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
-        var databaseName = Guid.NewGuid().ToString();
-        await using var firstContext = TestDbContextFactory.Create(tenant, databaseName);
-        var firstSession = await ArrangeDemoAsync(firstContext, tenant.TenantId);
-        await using var secondContext = TestDbContextFactory.Create(tenant, databaseName);
-        var secondSession = await secondContext.OrganizationImportSessions.Include(item => item.Source)
-            .SingleAsync(item => item.Id == firstSession.Id);
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var provider = new StubProvider(async (request, cancellationToken) =>
-        {
-            started.SetResult();
-            await release.Task.WaitAsync(cancellationToken);
-            return new(SuggestionsFor(request), null, null);
-        });
-        var firstService = Service(firstContext, tenant, provider);
-        var secondService = Service(secondContext, tenant, provider);
-        var firstReview = await new OrganizationImportInterpreter(firstContext, tenant)
-            .InterpretAsync(firstSession, CancellationToken.None);
-        var eligible = await firstService.DescribeAsync(firstSession, firstReview, CancellationToken.None);
-
-        var firstGeneration = firstService.GenerateAsync(firstSession.Id, new(eligible.InputFingerprint!), CancellationToken.None);
-        await started.Task;
-        var concurrentResult = await secondService.GenerateAsync(secondSession.Id, new(eligible.InputFingerprint!), CancellationToken.None);
-        release.SetResult();
-        var completedResult = await firstGeneration;
-
-        Assert.Equal(OrganizationImportSemanticAssistanceState.Pending, concurrentResult.State);
-        Assert.Equal(completedResult.AttemptId, concurrentResult.AttemptId);
-        Assert.Equal(OrganizationImportSemanticAssistanceState.Available, completedResult.State);
-        Assert.Equal(1, provider.CallCount);
-    }
-
-    [Fact]
-    public async Task TimeoutFailsTheAttemptWithoutBlockingManualReview()
+    public async Task UnconfiguredProvider_IsSkipped()
     {
         var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
         await using var context = TestDbContextFactory.Create(tenant);
-        var session = await ArrangeDemoAsync(context, tenant.TenantId);
-        var provider = new StubProvider(async (_, cancellationToken) =>
-        {
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-            throw new UnreachableException();
-        });
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
+        await GrantConsentAsync(context, tenant.TenantId);
+        var service = Service(context, tenant, new StubProvider(request => Answers(request), isConfigured: false));
+
+        await service.RunAfterUploadAsync(session.Id, Actor(), CancellationToken.None);
+
+        Assert.Equal(OrganizationImportSemanticAssistanceState.Skipped, (await DescribeAsync(context, tenant, service, session.Id)).State);
+        Assert.Empty(context.OrganizationImportSemanticAttempts);
+    }
+
+    [Fact]
+    public async Task Consent_IsBoundToProviderAndDataContract_NotToTheModel()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
+        context.OrganizationImportSemanticConsents.Add(OrganizationImportSemanticConsent.Grant(
+            tenant.TenantId, "Groq", "organization-import-semantic-data/0", Actor()));
+        await context.SaveChangesAsync();
+
+        var otherModel = Service(context, tenant, new StubProvider(request => Answers(request)) { Model = "openai/gpt-oss-20b" });
+        Assert.Equal(OrganizationImportSemanticAssistanceState.AwaitingConsent, (await DescribeAsync(context, tenant, otherModel, session.Id)).State);
+
+        await GrantConsentAsync(context, tenant.TenantId);
+        Assert.Equal(OrganizationImportSemanticAssistanceState.Ready, (await DescribeAsync(context, tenant, otherModel, session.Id)).State);
+    }
+
+    [Fact]
+    public async Task ImplicitMode_RunsAtUploadWithoutAskingOrRecordingConsent()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
         var options = Options();
-        options.TimeoutSeconds = 1;
+        // Automatic matching without a consent step is the product default.
+        Assert.Equal(OrganizationImportSemanticConsentMode.Implicit, new OrganizationImportSemanticAssistanceOptions().ConsentMode);
+        options.ConsentMode = OrganizationImportSemanticConsentMode.Implicit;
+        var provider = new StubProvider(request => Answers(request));
         var service = Service(context, tenant, provider, options);
-        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
-        var eligible = await service.DescribeAsync(session, review, CancellationToken.None);
 
-        var result = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
+        await service.RunAfterUploadAsync(session.Id, Actor(), CancellationToken.None);
 
-        Assert.Equal(OrganizationImportSemanticAssistanceState.Failed, result.State);
-        Assert.Equal(OrganizationImportSemanticFailureCategory.Timeout, result.FailureCategory);
-        Assert.Contains(review.Issues, issue => issue.Severity == OrganizationImportIssueSeverity.Blocker);
+        Assert.Equal(1, provider.CallCount);
+        Assert.Empty(context.OrganizationImportSemanticConsents);
+        Assert.Equal(OrganizationImportSemanticAssistanceState.Succeeded, (await DescribeAsync(context, tenant, service, session.Id)).State);
     }
 
     [Fact]
-    public async Task RequestCancellationMarksTheClaimedAttemptInterrupted()
+    public async Task PerImportMode_NeverRunsAtUpload_AndConsentCoversOnlyThatImport()
     {
         var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
         await using var context = TestDbContextFactory.Create(tenant);
-        var session = await ArrangeDemoAsync(context, tenant.TenantId);
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var provider = new StubProvider(async (_, cancellationToken) =>
+        await SeedTypesAsync(context);
+        var first = Session(tenant.TenantId, CustomVocabularyTable());
+        var second = Session(tenant.TenantId, CustomVocabularyTable());
+        context.OrganizationImportSessions.AddRange(first, second);
+        await context.SaveChangesAsync();
+        // Even an existing tenant consent does not bypass per-import asking.
+        await GrantConsentAsync(context, tenant.TenantId);
+        var options = Options();
+        options.ConsentMode = OrganizationImportSemanticConsentMode.PerImport;
+        var provider = new StubProvider(request => Answers(request));
+        var service = Service(context, tenant, provider, options);
+
+        await service.RunAfterUploadAsync(first.Id, Actor(), CancellationToken.None);
+        var awaiting = await DescribeAsync(context, tenant, service, first.Id);
+        Assert.Equal(0, provider.CallCount);
+        Assert.Equal(OrganizationImportSemanticAssistanceState.AwaitingConsent, awaiting.State);
+        Assert.Equal(OrganizationImportSemanticConsentScope.Import, awaiting.ConsentScope);
+
+        await service.RunAsync(first.Id, new(awaiting.InputFingerprint!, GrantTenantConsent: true), Actor(), CancellationToken.None);
+
+        Assert.Equal(1, provider.CallCount);
+        Assert.Contains(context.OrganizationImportSemanticConsents, consent => consent.SessionId == first.Id);
+        Assert.Equal(OrganizationImportSemanticAssistanceState.AwaitingConsent, (await DescribeAsync(context, tenant, service, second.Id)).State);
+    }
+
+    // ── Run ────────────────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task UploadRun_AppliesValidSuggestionsWithProvenance_AndAbstentionIsSuccess()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
+        await GrantConsentAsync(context, tenant.TenantId);
+        var provider = new StubProvider(request => Answers(request, abstain: ["Delivery Pod"]) with
         {
-            started.SetResult();
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
-            throw new UnreachableException();
+            InputTokens = 42, OutputTokens = 17, ResponseId = "chatcmpl-1", SystemFingerprint = "fp_1",
         });
         var service = Service(context, tenant, provider);
-        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
-        var eligible = await service.DescribeAsync(session, review, CancellationToken.None);
-        using var cancellation = new CancellationTokenSource();
-        var generation = service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), cancellation.Token);
-        await started.Task;
 
-        cancellation.Cancel();
+        await service.RunAfterUploadAsync(session.Id, Actor(), CancellationToken.None);
 
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => generation);
-        context.ChangeTracker.Clear();
+        var attempt = await context.OrganizationImportSemanticAttempts.SingleAsync();
+        Assert.Equal(OrganizationImportSemanticAttemptStatus.Succeeded, attempt.Status);
+        Assert.Equal(OrganizationImportSemanticTrigger.Upload, attempt.Trigger);
+        Assert.Equal((4, 3, 3, 0, 3, 1), (attempt.QuestionsSubmitted, attempt.SuggestionsReturned, attempt.SuggestionsAccepted,
+            attempt.SuggestionsRejected, attempt.SuggestionsApplied, attempt.Abstentions));
+        Assert.Equal(OrganizationImportSemanticVersions.Prompt, attempt.PromptVersion);
+        Assert.Equal(OrganizationImportSemanticVersions.DataContract, attempt.DataContractVersion);
+        Assert.Equal(("chatcmpl-1", "fp_1", 42, 17), (attempt.ProviderResponseId, attempt.ProviderSystemFingerprint, attempt.InputTokens, attempt.OutputTokens));
+
+        var decisions = await DecisionsAsync(context, session.Id);
+        Assert.Equal(3, decisions.TypeMappings!.Count);
+        Assert.All(decisions.TypeMappingOrigins!.Values, origin => Assert.Equal(OrganizationImportResolutionOrigin.SemanticSuggestion, origin));
+        Assert.DoesNotContain("Delivery Pod", decisions.TypeMappings.Keys);
+
+        var state = await DescribeAsync(context, tenant, service, session.Id);
+        Assert.Equal(OrganizationImportSemanticAssistanceState.Succeeded, state.State);
+        Assert.Equal((4, 3, 1, 1), (state.ExaminedCount, state.AppliedCount, state.AbstainedCount, state.RemainingCount));
+        Assert.Empty(context.OrgUnits);
+    }
+
+    [Fact]
+    public async Task AllAbstentions_AreASuccessfulRunThatAppliesNothing()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
+        await GrantConsentAsync(context, tenant.TenantId);
+        var service = Service(context, tenant, new StubProvider(request => Answers(request, abstain: ["Entity", "Strategic Pillar", "Capability", "Delivery Pod"])));
+
+        await service.RunAfterUploadAsync(session.Id, Actor(), CancellationToken.None);
+
+        var attempt = await context.OrganizationImportSemanticAttempts.SingleAsync();
+        Assert.Equal(OrganizationImportSemanticAttemptStatus.Succeeded, attempt.Status);
+        Assert.Equal((0, 4), (attempt.SuggestionsApplied, attempt.Abstentions));
+        Assert.Empty((await DecisionsAsync(context, session.Id)).TypeMappings!);
+    }
+
+    [Fact]
+    public async Task InvalidAndIncoherentSuggestions_AreRejectedNotApplied()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
+        await GrantConsentAsync(context, tenant.TenantId);
+        var service = Service(context, tenant, new StubProvider(request =>
+        {
+            var answers = Answers(request).Answers.ToList();
+            // A non-root source type can never be the canonical Organization, and a target outside
+            // the allowed list is never accepted.
+            answers[Index(request, "Strategic Pillar", answers)] = answers[Index(request, "Strategic Pillar", answers)] with { TargetKey = Target(request, "Organization") };
+            answers[Index(request, "Capability", answers)] = answers[Index(request, "Capability", answers)] with { TargetKey = "type:00000000-0000-0000-0000-000000000000" };
+            return new(answers, null, null);
+        }));
+
+        await service.RunAfterUploadAsync(session.Id, Actor(), CancellationToken.None);
+
+        var attempt = await context.OrganizationImportSemanticAttempts.SingleAsync();
+        Assert.Equal(OrganizationImportSemanticAttemptStatus.Succeeded, attempt.Status);
+        // Collapsing the root and a non-root type onto Organization withholds both; the invented
+        // target is rejected on its own. Only Delivery Pod survives.
+        Assert.Equal((4, 3, 1), (attempt.SuggestionsReturned, attempt.SuggestionsRejected, attempt.SuggestionsApplied));
+        var decisions = await DecisionsAsync(context, session.Id);
+        Assert.Equal(["Delivery Pod"], decisions.TypeMappings!.Keys);
+        Assert.DoesNotContain("Capability", decisions.TypeMappings.Keys);
+    }
+
+    [Fact]
+    public async Task AnAdministratorChangeDuringTheCall_WinsAndTheResultIsStale()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        var database = Guid.NewGuid().ToString();
+        await using var context = TestDbContextFactory.Create(tenant, database);
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
+        await GrantConsentAsync(context, tenant.TenantId);
+        var service = Service(context, tenant, new StubProvider(async request =>
+        {
+            // While the provider is answering, the administrator settles one label themselves.
+            await using var other = TestDbContextFactory.Create(tenant, database);
+            var live = await other.OrganizationImportSessions.Include(item => item.Source).SingleAsync(item => item.Id == session.Id);
+            live.ReplaceDecisions(new OrganizationImportDecisions(
+                TypeMappings: new Dictionary<string, Guid> { ["Capability"] = TypeId("Team") },
+                TypeMappingOrigins: new Dictionary<string, OrganizationImportResolutionOrigin> { ["Capability"] = OrganizationImportResolutionOrigin.Administrator }), Actor());
+            await other.SaveChangesAsync();
+            return Answers(request);
+        }));
+
+        await service.RunAfterUploadAsync(session.Id, Actor(), CancellationToken.None);
+
+        Assert.Equal(OrganizationImportSemanticAttemptStatus.Stale, (await context.OrganizationImportSemanticAttempts.SingleAsync()).Status);
+        var decisions = await DecisionsAsync(context, session.Id);
+        Assert.Single(decisions.TypeMappings!);
+        Assert.Equal(TypeId("Team"), decisions.TypeMappings!["Capability"]);
+        Assert.Equal(OrganizationImportResolutionOrigin.Administrator, decisions.TypeMappingOrigins!["Capability"]);
+    }
+
+    [Fact]
+    public async Task IdenticalInput_ReusesTheEarlierResultWithoutCallingTheProviderAgain()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        await SeedTypesAsync(context);
+        await GrantConsentAsync(context, tenant.TenantId);
+        var first = Session(tenant.TenantId, CustomVocabularyTable());
+        var second = Session(tenant.TenantId, CustomVocabularyTable());
+        context.OrganizationImportSessions.AddRange(first, second);
+        await context.SaveChangesAsync();
+        var provider = new StubProvider(request => Answers(request));
+        var service = Service(context, tenant, provider);
+
+        await service.RunAfterUploadAsync(first.Id, Actor(), CancellationToken.None);
+        await service.RunAfterUploadAsync(second.Id, Actor(), CancellationToken.None);
+
+        Assert.Equal(1, provider.CallCount);
+        var reused = await context.OrganizationImportSemanticAttempts.SingleAsync(item => item.SessionId == second.Id);
+        var original = await context.OrganizationImportSemanticAttempts.SingleAsync(item => item.SessionId == first.Id);
+        Assert.Equal(original.Id, reused.ReusedFromAttemptId);
+        Assert.Equal(4, reused.SuggestionsApplied);
+        Assert.Equal(4, (await DecisionsAsync(context, second.Id)).TypeMappings!.Count);
+    }
+
+    // ── Failure & retry ────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task TransientFailure_IsRetriedOnce()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
+        await GrantConsentAsync(context, tenant.TenantId);
+        var calls = 0;
+        var provider = new StubProvider(request => ++calls == 1
+            ? throw new OrganizationImportSemanticProviderException(OrganizationImportSemanticFailureCategory.ProviderUnavailable, "503")
+            : Answers(request));
+        var service = Service(context, tenant, provider);
+
+        await service.RunAfterUploadAsync(session.Id, Actor(), CancellationToken.None);
+
+        var attempt = await context.OrganizationImportSemanticAttempts.SingleAsync();
+        Assert.Equal(OrganizationImportSemanticAttemptStatus.Succeeded, attempt.Status);
+        Assert.Equal(1, attempt.RetryCount);
+        Assert.Equal(2, provider.CallCount);
+    }
+
+    [Fact]
+    public async Task InvalidOutput_IsRetriedOnceThenFailsRetryably()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
+        await GrantConsentAsync(context, tenant.TenantId);
+        var provider = StubProvider.Failing(new OrganizationImportSemanticProviderException(OrganizationImportSemanticFailureCategory.InvalidOutput, "schema"));
+        var service = Service(context, tenant, provider);
+
+        await service.RunAfterUploadAsync(session.Id, Actor(), CancellationToken.None);
+
+        Assert.Equal(2, provider.CallCount);
+        var state = await DescribeAsync(context, tenant, service, session.Id);
+        Assert.Equal(OrganizationImportSemanticAssistanceState.Failed, state.State);
+        Assert.Equal(OrganizationImportSemanticFailureCategory.InvalidOutput, state.FailureCategory);
+        Assert.True(state.CanRetry);
+        Assert.Empty((await DecisionsAsync(context, session.Id)).TypeMappings!);
+    }
+
+    [Fact]
+    public async Task CredentialFailure_IsNeverRetried()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
+        await GrantConsentAsync(context, tenant.TenantId);
+        var provider = StubProvider.Failing(new OrganizationImportSemanticProviderException(OrganizationImportSemanticFailureCategory.Unauthorized, "401"));
+        var service = Service(context, tenant, provider);
+
+        await service.RunAfterUploadAsync(session.Id, Actor(), CancellationToken.None);
+
+        Assert.Equal(1, provider.CallCount);
+        var state = await DescribeAsync(context, tenant, service, session.Id);
+        Assert.Equal(OrganizationImportSemanticAssistanceState.Failed, state.State);
+        Assert.False(state.CanRetry);
+    }
+
+    [Fact]
+    public async Task UploadBudget_BoundsASlowProvider_AndTheUploadStillCompletes()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
+        await GrantConsentAsync(context, tenant.TenantId);
+        var options = Options();
+        options.UploadBudgetSeconds = 1;
+        options.TimeoutSeconds = 1;
+        var service = Service(context, tenant, new StubProvider(async (request, token) =>
+        {
+            await Task.Delay(TimeSpan.FromSeconds(10), token);
+            return Answers(request);
+        }), options);
+        var stopwatch = Stopwatch.StartNew();
+
+        await service.RunAfterUploadAsync(session.Id, Actor(), CancellationToken.None);
+
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(4), $"took {stopwatch.Elapsed}");
         var attempt = await context.OrganizationImportSemanticAttempts.SingleAsync();
         Assert.Equal(OrganizationImportSemanticAttemptStatus.Failed, attempt.Status);
-        Assert.Equal(OrganizationImportSemanticFailureCategory.Interrupted, attempt.FailureCategory);
+        Assert.Equal(OrganizationImportSemanticFailureCategory.Timeout, attempt.FailureCategory);
     }
 
+    // ── Administrator-started runs ─────────────────────────────────────────────────────────────
+
     [Fact]
-    public async Task ParentReferenceSource_DetectedDeterministically_AndOffersOnlyFieldMeanings()
+    public async Task RunFromMatch_RequiresConsent_ThenGrantsItForTheTenantAndRuns()
     {
         var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
         await using var context = TestDbContextFactory.Create(tenant);
-        await SeedTypesAsync(context);
-        var session = Session(tenant.TenantId, ExpansionTable());
-        context.OrganizationImportSessions.Add(session);
-        await context.SaveChangesAsync();
-        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
-        var request = Assert.IsType<OrganizationImportSemanticRequest>(
-            new OrganizationImportSemanticContextBuilder(Options()).Build(session, review));
-
-        // The self-referential foreign key is deterministic evidence: the shape is
-        // settled without AI, so no source-shape question is asked.
-        Assert.Equal(OrganizationImportShape.ParentReference, review.Shape);
-        Assert.DoesNotContain(request.Issues, issue => issue.Kind == OrganizationImportSemanticKinds.SourceShape);
-
-        // Every ambiguity is a field-meaning question; a customer field is never
-        // offered an Organization type such as "Business Unit".
-        Assert.NotEmpty(request.Issues);
-        Assert.All(request.Issues, issue =>
-        {
-            Assert.Equal(OrganizationImportSemanticKinds.FieldMapping, issue.Kind);
-            Assert.All(issue.AllowedTargets, target => Assert.StartsWith("field:", target.Key));
-            Assert.DoesNotContain(issue.AllowedTargets, target => target.Key.StartsWith("type:", StringComparison.Ordinal));
-        });
-    }
-
-    [Fact]
-    public async Task CrossKindProviderTargets_AreRejectedAsInvalidOutput()
-    {
-        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
-        await using var context = TestDbContextFactory.Create(tenant);
-        await SeedTypesAsync(context);
-        var session = Session(tenant.TenantId, ExpansionTable());
-        context.OrganizationImportSessions.Add(session);
-        await context.SaveChangesAsync();
-        // A misbehaving model answers every field-meaning question with a hierarchy
-        // type target — a semantically impossible cross-kind answer.
-        var typeId = OrganizationalUnitTypeCatalog.BuiltIns.First().Id;
-        var provider = new StubProvider(request => new(
-            request.Issues.Select(issue =>
-                new OrganizationImportSemanticProviderSuggestion(issue.Key, issue.Kind, $"type:{typeId}", null)).ToList(),
-            null, null));
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
+        var provider = new StubProvider(request => Answers(request, abstain: ["Delivery Pod"]));
         var service = Service(context, tenant, provider);
-        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
-        var eligible = await service.DescribeAsync(session, review, CancellationToken.None);
+        var fingerprint = (await DescribeAsync(context, tenant, service, session.Id)).InputFingerprint!;
 
-        var result = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
+        var refused = await Assert.ThrowsAsync<OrganizationImportReviewException>(() =>
+            service.RunAsync(session.Id, new(fingerprint), Actor(), CancellationToken.None));
+        Assert.Equal("SemanticConsentRequired", refused.Code);
+        Assert.Equal(0, provider.CallCount);
 
-        // None survive validation, so the attempt fails cleanly and manual review remains.
-        Assert.Equal(OrganizationImportSemanticAssistanceState.Failed, result.State);
-        Assert.Equal(OrganizationImportSemanticFailureCategory.InvalidOutput, result.FailureCategory);
-        Assert.Empty(result.Suggestions);
+        await service.RunAsync(session.Id, new(fingerprint, GrantTenantConsent: true), Actor(), CancellationToken.None);
+
+        var consent = await context.OrganizationImportSemanticConsents.SingleAsync();
+        Assert.Equal(("Groq", OrganizationImportSemanticVersions.DataContract), (consent.Provider, consent.DataContractVersion));
+        var attempt = await context.OrganizationImportSemanticAttempts.SingleAsync();
+        Assert.Equal(OrganizationImportSemanticTrigger.Administrator, attempt.Trigger);
+        Assert.Equal(3, attempt.SuggestionsApplied);
     }
 
-    // A synthetic, non-native customer taxonomy (never Fusion vocabulary) with a clean root→leaf shape.
-    private static OrganizationSourceTable SyntheticTaxonomyTable()
-        => new(
-            [new(0, "Unit Ref"), new(1, "Unit Name"), new(2, "Unit Class"), new(3, "Rolls Up To")],
-            [
-                new string?[] { "ENT", "Northwind", "Enterprise Class", null },
-                new string?[] { "OC1", "Retail Cluster", "Operating Cluster", "ENT" },
-                new string?[] { "OC2", "Wholesale Cluster", "Operating Cluster", "ENT" },
-                new string?[] { "CA1", "Merchandising", "Capability Area", "OC1" },
-                new string?[] { "CA2", "Logistics", "Capability Area", "OC2" },
-                new string?[] { "SQ1", "Pricing Squad", "Squad", "CA1" },
-                new string?[] { "SQ2", "Inbound Squad", "Squad", "CA2" },
-            ]);
+    // ── End to end through the import service ──────────────────────────────────────────────────
 
-    // The field roles are already resolved (as they are by the point type-vocabulary questions
-    // surface): Business Code=0, Name=1, Type=2, Parent reference=3. Only the type meanings remain.
-    private static OrganizationImportDecisions TaxonomyFieldMappings()
-        => new(
-            Shape: OrganizationImportShape.ParentReference,
-            FieldMappings: new Dictionary<string, int?>(StringComparer.Ordinal)
+    [Fact]
+    public async Task Upload_RunsAssistanceWhenAllowed_AndOverridesAreCountedAgainstTheRun()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        await SeedTypesAsync(context);
+        await GrantConsentAsync(context, tenant.TenantId);
+        var semantic = Service(context, tenant, new StubProvider(request => Answers(request, abstain: ["Delivery Pod"])));
+        var imports = ImportService(context, tenant, semantic);
+        var csv = "Business Code,Name,Type,Parent Business Code\n"
+            + string.Join('\n', CustomVocabularyTable().Rows.Select(row => string.Join(',', row.Select(value => value ?? string.Empty))));
+
+        var intake = await imports.IntakeAsync(new MemoryStream(Encoding.UTF8.GetBytes(csv)), "organization.csv", "text/csv",
+            EffectiveDate, Guid.NewGuid(), null, Actor(), CancellationToken.None);
+
+        var match = intake.Session!.Match!;
+        Assert.Equal(OrganizationImportSemanticAssistanceState.Succeeded, match.SemanticAssistance!.State);
+        Assert.Equal(3, match.SemanticAssistance.AppliedCount);
+        Assert.False(match.Readiness.CanContinue);
+        Assert.Single(match.Readiness.RequiredDecisions, decision => decision.Kind == OrganizationImportRequiredDecisionKind.TypeMapping);
+
+        var updated = await imports.UpdateMatchAsync(intake.Session.Id, intake.Session.Version,
+            new UpdateOrganizationImportMatchRequest(TypeMappings: new Dictionary<string, Guid>
             {
-                [OrganizationImportFields.BusinessCode] = 0,
-                [OrganizationImportFields.Name] = 1,
-                [OrganizationImportFields.Type] = 2,
-                [OrganizationImportFields.ParentBusinessCode] = 3,
-            });
+                ["Delivery Pod"] = TypeId("Team"),
+                ["Capability"] = TypeId("Unit"),
+            }), Actor(), CancellationToken.None);
+
+        Assert.True(updated.Match!.Readiness.CanContinue);
+        var attempt = await context.OrganizationImportSemanticAttempts.SingleAsync();
+        Assert.Equal(1, attempt.SuggestionsOverridden);
+        Assert.Equal(OrganizationImportResolutionOrigin.Administrator, updated.Decisions.TypeMappingOrigins!["Capability"]);
+        Assert.Equal(OrganizationImportResolutionOrigin.SemanticSuggestion, updated.Decisions.TypeMappingOrigins["Entity"]);
+    }
+
+    [Fact]
+    public async Task Upload_SucceedsWhenAssistanceFails()
+    {
+        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
+        await using var context = TestDbContextFactory.Create(tenant);
+        await SeedTypesAsync(context);
+        await GrantConsentAsync(context, tenant.TenantId);
+        var semantic = Service(context, tenant, StubProvider.Failing(new InvalidOperationException("provider exploded")));
+        var imports = ImportService(context, tenant, semantic);
+        var csv = "Business Code,Name,Type,Parent Business Code\n"
+            + string.Join('\n', CustomVocabularyTable().Rows.Select(row => string.Join(',', row.Select(value => value ?? string.Empty))));
+
+        var intake = await imports.IntakeAsync(new MemoryStream(Encoding.UTF8.GetBytes(csv)), "organization.csv", "text/csv",
+            EffectiveDate, Guid.NewGuid(), null, Actor(), CancellationToken.None);
+
+        Assert.Equal(OrganizationImportIntakeKind.SourceReady, intake.Kind);
+        Assert.Equal(OrganizationImportSemanticAssistanceState.Failed, intake.Session!.Match!.SemanticAssistance!.State);
+        Assert.Equal(4, intake.Session.Match.SemanticAssistance.RemainingCount);
+    }
+
+    // ── Deterministic-first ────────────────────────────────────────────────────────────────────
 
     [Fact]
     public async Task TypeSystem_evidence_supplies_topology_per_source_type_to_the_model()
     {
         var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
         await using var context = TestDbContextFactory.Create(tenant);
-        await SeedTypesAsync(context);
-        var session = Session(tenant.TenantId, SyntheticTaxonomyTable());
-        session.ReplaceDecisions(TaxonomyFieldMappings(), Actor());
-        context.OrganizationImportSessions.Add(session);
-        await context.SaveChangesAsync();
+        var session = await ArrangeAsync(context, tenant.TenantId, CustomVocabularyTable());
         var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
-        var request = Assert.IsType<OrganizationImportSemanticRequest>(new OrganizationImportSemanticContextBuilder(Options()).Build(session, review));
+        var request = new OrganizationImportSemanticContextBuilder(Options()).Build(session, review).Request!;
 
         var system = request.SourceTypeSystem.ToDictionary(t => t.SourceLabel, StringComparer.OrdinalIgnoreCase);
-        // The whole taxonomy is described with topology, not just labels.
-        Assert.True(system.ContainsKey("Enterprise Class"));
-        Assert.True(system["Enterprise Class"].OccursOnRoot);
-        Assert.Equal(0, system["Enterprise Class"].MinDepth);
-        Assert.Contains("Operating Cluster", system["Enterprise Class"].ChildTypes);
-        Assert.Equal(2, system["Operating Cluster"].Occurrences);
-        Assert.Contains("Enterprise Class", system["Operating Cluster"].ParentTypes);
-        Assert.Contains("Capability Area", system["Operating Cluster"].ChildTypes);
-        Assert.True(system["Squad"].LeafOnly);
-        Assert.False(system["Squad"].OccursOnRoot);
-        // Canonical role guidance travels with the request so the model aligns to roles, not names.
+        Assert.True(system["Entity"].OccursOnRoot);
+        Assert.Equal(0, system["Entity"].MinDepth);
+        Assert.Contains("Strategic Pillar", system["Entity"].ChildTypes);
+        Assert.Equal(2, system["Capability"].Occurrences);
+        Assert.True(system["Delivery Pod"].LeafOnly);
         Assert.Contains(request.CanonicalTypeGuidance, c => c.Name == "Organization" && c.Description.Length > 0);
     }
 
     [Fact]
-    public async Task Coherent_whole_taxonomy_type_mapping_is_kept_for_auto_accept()
+    public async Task Native_type_vocabulary_needs_no_semantic_questions()
     {
         var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
         await using var context = TestDbContextFactory.Create(tenant);
-        await SeedTypesAsync(context);
-        var session = Session(tenant.TenantId, SyntheticTaxonomyTable());
-        session.ReplaceDecisions(TaxonomyFieldMappings(), Actor());
-        context.OrganizationImportSessions.Add(session);
-        await context.SaveChangesAsync();
-
-        // Model aligns each distinct source class to a distinct canonical role following source order.
-        var provider = new StubProvider(request => new(request.Issues.Select(issue =>
-        {
-            var target = issue.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping
-                ? issue.AllowedTargets.Single(t => t.Label == (issue.SourceLabel switch
-                {
-                    "Enterprise Class" => "Organization",
-                    "Operating Cluster" => "Division",
-                    "Capability Area" => "Department",
-                    "Squad" => "Team",
-                    _ => "Team",
-                }))
-                : issue.AllowedTargets.First();
-            return new OrganizationImportSemanticProviderSuggestion(issue.Key, issue.Kind, target.Key, null);
-        }).ToList(), null, null));
-        var service = Service(context, tenant, provider);
+        var session = await ArrangeAsync(context, tenant.TenantId, NativeTable());
         var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
-        var eligible = await service.DescribeAsync(session, review, CancellationToken.None);
 
-        var result = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
-
-        Assert.Equal(OrganizationImportSemanticAssistanceState.Available, result.State);
-        // All four distinct roles survive corroboration (coherent = distinct canonical types).
-        var typeSuggestions = result.Suggestions.Where(s => s.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping).ToList();
-        Assert.Equal(4, typeSuggestions.Count);
-        Assert.Equal(4, typeSuggestions.Select(s => s.TargetKey).Distinct().Count());
+        Assert.Null(new OrganizationImportSemanticContextBuilder(Options()).Build(session, review).Request);
     }
 
-    [Fact]
-    public async Task Incoherent_collapse_of_differentiated_types_is_withheld_for_grouped_confirmation()
-    {
-        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
-        await using var context = TestDbContextFactory.Create(tenant);
-        await SeedTypesAsync(context);
-        var session = Session(tenant.TenantId, SyntheticTaxonomyTable());
-        session.ReplaceDecisions(TaxonomyFieldMappings(), Actor());
-        context.OrganizationImportSessions.Add(session);
-        await context.SaveChangesAsync();
+    // ── Fixtures ───────────────────────────────────────────────────────────────────────────────
 
-        // A weak model answer that collapses the whole differentiated hierarchy onto "Organization"
-        // (root + non-root, different depths) — exactly the manual-replay defect.
-        var orgTargetByIssue = new Dictionary<string, string>();
-        var provider = new StubProvider(request => new(request.Issues.Select(issue =>
-        {
-            var target = issue.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping
-                ? issue.AllowedTargets.Single(t => t.Label == "Organization")
-                : issue.AllowedTargets.First();
-            if (issue.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping) orgTargetByIssue[issue.Key] = target.Key;
-            return new OrganizationImportSemanticProviderSuggestion(issue.Key, issue.Kind, target.Key, null);
-        }).ToList(), null, null));
-        var service = Service(context, tenant, provider);
-        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
-        var eligible = await service.DescribeAsync(session, review, CancellationToken.None);
-
-        var result = await service.GenerateAsync(session.Id, new(eligible.InputFingerprint!), CancellationToken.None);
-
-        // The incoherent type suggestions are withheld — none of the collapsed type mappings is
-        // auto-accepted, so the administrator resolves them through grouped confirmation instead.
-        Assert.DoesNotContain(result.Suggestions, s => s.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping);
-    }
-
-    [Fact]
-    public async Task Native_type_vocabulary_needs_no_semantic_type_questions()
-    {
-        var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
-        await using var context = TestDbContextFactory.Create(tenant);
-        await SeedTypesAsync(context);
-        // ExpansionTable already uses native canonical type names (Organization/Division/Department/Team).
-        var session = Session(tenant.TenantId, ExpansionTable());
-        context.OrganizationImportSessions.Add(session);
-        await context.SaveChangesAsync();
-        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
-        var request = new OrganizationImportSemanticContextBuilder(Options()).Build(session, review);
-
-        // Deterministic interpretation already resolved the native types, so either there is nothing to
-        // ask (null request) or no organization-type question remains for the model.
-        if (request is not null)
-            Assert.DoesNotContain(request.Issues, i => i.Kind == OrganizationImportSemanticKinds.OrganizationTypeMapping);
-    }
-
-    private static OrganizationSourceTable ExpansionTable()
+    // A parent-referenced file whose type vocabulary is the customer's own. The shape and fields
+    // resolve deterministically; only the four type meanings need semantic help.
+    private static OrganizationSourceTable CustomVocabularyTable()
         => new(
-            [new(0, "OU Ref"), new(1, "Org Label"), new(2, "Classification"), new(3, "Rolls Up To")],
+            [new(0, "Business Code"), new(1, "Name"), new(2, "Type"), new(3, "Parent Business Code")],
+            [
+                new string?[] { "AST", "Asteria", "Entity", null },
+                new string?[] { "CG", "Customer Growth", "Strategic Pillar", "AST" },
+                new string?[] { "SE", "Sales Enablement", "Capability", "CG" },
+                new string?[] { "NP", "North Pod", "Delivery Pod", "SE" },
+                new string?[] { "SP", "South Pod", "Delivery Pod", "SE" },
+                new string?[] { "PO", "People Operations", "Capability", "CG" },
+                new string?[] { "TP", "Talent Pod", "Delivery Pod", "PO" },
+            ]);
+
+    private static OrganizationSourceTable NativeTable()
+        => new(
+            [new(0, "Business Code"), new(1, "Name"), new(2, "Type"), new(3, "Parent Business Code")],
             [
                 new string?[] { "AG", "Asteria Group", "Organization", null },
                 new string?[] { "CG", "Customer Growth", "Division", "AG" },
@@ -547,8 +576,69 @@ public sealed class OrganizationImportSemanticAssistanceTests
                 new string?[] { "CX", "Experience Pod", "Team", "CE" },
             ]);
 
+    private static readonly Dictionary<string, string> Meaning = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Entity"] = "Organization",
+        ["Strategic Pillar"] = "Division",
+        ["Capability"] = "Department",
+        ["Delivery Pod"] = "Team",
+    };
+
+    private static OrganizationImportSemanticProviderResult Answers(
+        OrganizationImportSemanticRequest request,
+        IReadOnlyCollection<string>? abstain = null)
+        => new(request.Issues.Select(issue =>
+            abstain?.Contains(issue.SourceLabel ?? string.Empty) == true || issue.SourceLabel is null || !Meaning.ContainsKey(issue.SourceLabel)
+                ? new OrganizationImportSemanticAnswer(issue.Key, OrganizationImportSemanticDisposition.Abstain, null)
+                : new OrganizationImportSemanticAnswer(issue.Key, OrganizationImportSemanticDisposition.Suggest,
+                    issue.AllowedTargets.Single(target => target.Label == Meaning[issue.SourceLabel]).Key))
+            .ToList(), null, null);
+
+    private static int Index(OrganizationImportSemanticRequest request, string label, IReadOnlyList<OrganizationImportSemanticAnswer> answers)
+        => answers.ToList().FindIndex(answer => answer.QuestionKey == request.Issues.Single(issue => issue.SourceLabel == label).Key);
+
+    private static string Target(OrganizationImportSemanticRequest request, string typeName)
+        => $"type:{request.OrganizationTypes.Single(type => type.Name == typeName).Id}";
+
+    private static Guid TypeId(string name) => OrganizationalUnitTypeCatalog.BuiltIns.Single(type => type.Name == name).Id;
+
+    private static async Task<OrganizationImportSession> ArrangeAsync(CoreHRDbContext context, Guid tenantId, OrganizationSourceTable table)
+    {
+        await SeedTypesAsync(context);
+        var session = Session(tenantId, table);
+        context.OrganizationImportSessions.Add(session);
+        await context.SaveChangesAsync();
+        return session;
+    }
+
+    private static async Task GrantConsentAsync(CoreHRDbContext context, Guid tenantId)
+    {
+        context.OrganizationImportSemanticConsents.Add(OrganizationImportSemanticConsent.Grant(
+            tenantId, "Groq", OrganizationImportSemanticVersions.DataContract, Actor()));
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task<OrganizationImportSemanticAssistanceDto> DescribeAsync(
+        CoreHRDbContext context,
+        TestTenantContext tenant,
+        OrganizationImportSemanticAssistanceService service,
+        Guid sessionId)
+    {
+        context.ChangeTracker.Clear();
+        var session = await context.OrganizationImportSessions.Include(item => item.Source).SingleAsync(item => item.Id == sessionId);
+        var review = await new OrganizationImportInterpreter(context, tenant).InterpretAsync(session, CancellationToken.None);
+        return await service.DescribeAsync(session, review, CancellationToken.None);
+    }
+
+    private static async Task<OrganizationImportDecisions> DecisionsAsync(CoreHRDbContext context, Guid sessionId)
+    {
+        context.ChangeTracker.Clear();
+        var session = await context.OrganizationImportSessions.SingleAsync(item => item.Id == sessionId);
+        return OrganizationImportJson.Deserialize<OrganizationImportDecisions>(session.DecisionsJson)!.Normalize();
+    }
+
     private static OrganizationImportSemanticAssistanceService Service(
-        EY.HRPlatform.CoreHR.Infrastructure.Persistence.CoreHRDbContext context,
+        CoreHRDbContext context,
         TestTenantContext tenant,
         IOrganizationImportSemanticProvider provider,
         OrganizationImportSemanticAssistanceOptions? options = null)
@@ -564,101 +654,69 @@ public sealed class OrganizationImportSemanticAssistanceTests
             NullLogger<OrganizationImportSemanticAssistanceService>.Instance);
     }
 
-    // A parent-reference source whose Type column is unfamiliar vocabulary (Entity / Strategic Pillar /
-    // Capability / Delivery Pod). This is the genuine semantic-assistance case: the shape resolves
-    // deterministically from the self-referential parent key, and only the free-text type meanings need
-    // the model. (Level-columns sources are typed deterministically by depth and never reach the model.)
-    private static async Task<OrganizationImportSession> ArrangeDemoAsync(
-        EY.HRPlatform.CoreHR.Infrastructure.Persistence.CoreHRDbContext context,
-        Guid tenantId)
+    private static OrganizationImportService ImportService(
+        CoreHRDbContext context,
+        TestTenantContext tenant,
+        IOrganizationImportSemanticAssistanceService semantic)
     {
-        await SeedTypesAsync(context);
-        var session = Session(tenantId, new OrganizationSourceTable(
-            [new(0, "Business Code"), new(1, "Name"), new(2, "Type"), new(3, "Parent Business Code")],
-            [
-                new string?[] { "AST", "Asteria", "Entity", null },
-                new string?[] { "CG", "Customer Growth", "Strategic Pillar", "AST" },
-                new string?[] { "SE", "Sales Enablement", "Capability", "CG" },
-                new string?[] { "NP", "North Pod", "Delivery Pod", "SE" },
-                new string?[] { "SP", "South Pod", "Delivery Pod", "SE" },
-                new string?[] { "PO", "People Operations", "Capability", "CG" },
-                new string?[] { "TP", "Talent Pod", "Delivery Pod", "PO" },
-            ]));
-        context.OrganizationImportSessions.Add(session);
-        await context.SaveChangesAsync();
-        return session;
+        var organization = new Mock<IOrganizationService>();
+        organization.Setup(service => service.GetReadinessAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OrganizationReadinessDto(false, null, false, null, null, false));
+        organization.Setup(service => service.GetHierarchyAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .Returns<DateOnly, CancellationToken>((date, _) => Task.FromResult(new OrganizationHierarchyDto(date, [])));
+        return new OrganizationImportService(
+            context,
+            tenant,
+            new OrganizationImportSourceInspectionService(new SafeTabularSourceReader()),
+            organization.Object,
+            new OrganizationImportInterpreter(context, tenant),
+            semantic);
     }
-
-    private static IReadOnlyList<OrganizationImportSemanticProviderSuggestion> SuggestionsFor(
-        OrganizationImportSemanticRequest request,
-        string entityTarget = "Organization")
-        => request.Issues.Select(issue =>
-        {
-            var label = issue.SourceLabel switch
-            {
-                "Entity" => entityTarget,
-                "Strategic Pillar" => "Division",
-                "Capability" => "Department",
-                "Delivery Pod" => "Team",
-                _ => null,
-            };
-            var target = issue.Kind == OrganizationImportSemanticKinds.SourceShape
-                ? issue.AllowedTargets.Single(item => item.Key == "shape:LevelColumns")
-                : issue.AllowedTargets.Single(item => item.Label == label);
-            return new OrganizationImportSemanticProviderSuggestion(issue.Key, issue.Kind, target.Key, "Matches the source hierarchy vocabulary.");
-        }).ToList();
 
     private static OrganizationImportSession Session(Guid tenantId, OrganizationSourceTable table)
     {
         var session = OrganizationImportSession.Create(tenantId, EffectiveDate, Guid.NewGuid(), new string('a', 64), Actor());
         session.AttachSource(OrganizationImportSource.Create(tenantId, session.Id,
             new InspectedOrganizationSource("customer-organization.xlsx", "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                new string('b', 64), "Organization", "A1:D4", table, [1, 2, 3])));
+                new string('b', 64), "Organization", "A1:D8", table, [1, 2, 3])));
         return session;
     }
 
     private static OrganizationImportActor Actor() => new(Guid.NewGuid(), "Ada Admin");
 
-    private static async Task SeedTypesAsync(EY.HRPlatform.CoreHR.Infrastructure.Persistence.CoreHRDbContext context)
+    private static async Task SeedTypesAsync(CoreHRDbContext context)
     {
+        if (await context.OrganizationalUnitTypes.AnyAsync()) return;
         context.OrganizationalUnitTypes.AddRange(OrganizationalUnitTypeCatalog.BuiltIns.Select(type => OrganizationalUnitType.CreateBuiltIn(type.Id, type.Name)));
         await context.SaveChangesAsync();
     }
 
     private static OrganizationImportSemanticAssistanceOptions Options()
-        => new() { TimeoutSeconds = 2, ApiKey = "test-only" };
+        => new() { TimeoutSeconds = 5, UploadBudgetSeconds = 10, InteractiveBudgetSeconds = 10, ApiKey = "test-only", ConsentMode = OrganizationImportSemanticConsentMode.Tenant };
 
-    private sealed class StubProvider : IOrganizationImportSemanticProvider
+    internal sealed class StubProvider(
+        Func<OrganizationImportSemanticRequest, CancellationToken, Task<OrganizationImportSemanticProviderResult>> respond,
+        bool isConfigured = true) : IOrganizationImportSemanticProvider
     {
-        private readonly Func<OrganizationImportSemanticRequest, CancellationToken, Task<OrganizationImportSemanticProviderResult>> _respond;
-
-        public StubProvider(
-            Func<OrganizationImportSemanticRequest, OrganizationImportSemanticProviderResult> respond,
-            bool isConfigured = true)
+        public StubProvider(Func<OrganizationImportSemanticRequest, OrganizationImportSemanticProviderResult> respond, bool isConfigured = true)
             : this((request, _) => Task.FromResult(respond(request)), isConfigured) { }
 
-        public StubProvider(
-            Func<OrganizationImportSemanticRequest, Task<OrganizationImportSemanticProviderResult>> respond,
-            bool isConfigured = true)
+        public StubProvider(Func<OrganizationImportSemanticRequest, Task<OrganizationImportSemanticProviderResult>> respond, bool isConfigured = true)
             : this((request, _) => respond(request), isConfigured) { }
 
-        public StubProvider(
-            Func<OrganizationImportSemanticRequest, CancellationToken, Task<OrganizationImportSemanticProviderResult>> respond,
-            bool isConfigured = true)
-        {
-            _respond = respond;
-            IsConfigured = isConfigured;
-        }
+        public static StubProvider Failing(Exception exception, bool isConfigured = true)
+            => new((_, _) => Task.FromException<OrganizationImportSemanticProviderResult>(exception), isConfigured);
 
+        public string Model { get; init; } = OrganizationImportSemanticAssistanceOptions.DefaultModel;
         public string ProviderName => "Groq";
-        public string ModelName => OrganizationImportSemanticAssistanceOptions.DefaultModel;
-        public bool IsConfigured { get; }
+        public string ModelName => Model;
+        public bool IsConfigured { get; } = isConfigured;
         public int CallCount { get; private set; }
 
         public Task<OrganizationImportSemanticProviderResult> SuggestAsync(OrganizationImportSemanticRequest request, CancellationToken cancellationToken)
         {
             CallCount++;
-            return _respond(request, cancellationToken);
+            return respond(request, cancellationToken);
         }
     }
 }

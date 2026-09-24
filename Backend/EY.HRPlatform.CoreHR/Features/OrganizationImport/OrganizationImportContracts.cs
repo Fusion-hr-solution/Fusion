@@ -61,13 +61,25 @@ public sealed record OrganizationImportSessionDto(
     OrganizationImportSourceDto Source,
     CanonicalOrganizationBaselineSummary Baseline,
     OrganizationImportDecisions Decisions,
-    OrganizationImportReview? Review,
+    OrganizationImportReviewDto? Review,
     OrganizationImportCommitResult? CommitResult,
     DateTime? CommittedAt,
     Guid? CommittedByUserId,
     string? CommittedByDisplayName,
     IReadOnlyList<OrganizationImportProvenance>? FinalProvenance,
-    OrganizationImportSemanticAssistanceDto? SemanticAssistance = null);
+    OrganizationImportSemanticAssistanceDto? SemanticAssistance = null,
+    OrganizationImportMatchDto? Match = null);
+
+/// <summary>
+/// The complete public contract for Match. Clients consume this read model directly and never
+/// infer interpretation readiness from Review issues, persisted decisions, or provider state.
+/// </summary>
+public sealed record OrganizationImportMatchDto(
+    OrganizationImportMappingPlan MappingPlan,
+    OrganizationImportMatchReadiness Readiness,
+    OrganizationImportMatchCompletionKind CompletionKind,
+    IReadOnlyList<OrganizationImportTypeOption> TypeOptions,
+    OrganizationImportSemanticAssistanceDto? SemanticAssistance);
 
 public sealed record OrganizationImportActiveSummaryDto(
     Guid Id,

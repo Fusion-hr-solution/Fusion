@@ -33,10 +33,16 @@ public interface IOrganizationImportService
         uint expectedVersion,
         OrganizationImportActor actor,
         CancellationToken cancellationToken);
-    Task<OrganizationImportSessionDto> ReplaceDecisionsAsync(
+    Task<OrganizationImportSessionDto> UpdateReviewResolutionsAsync(
         Guid sessionId,
         uint expectedVersion,
-        OrganizationImportDecisions decisions,
+        UpdateOrganizationImportReviewResolutionsRequest request,
+        OrganizationImportActor actor,
+        CancellationToken cancellationToken);
+    Task<OrganizationImportSessionDto> UpdateMatchAsync(
+        Guid sessionId,
+        uint expectedVersion,
+        UpdateOrganizationImportMatchRequest request,
         OrganizationImportActor actor,
         CancellationToken cancellationToken);
     Task<OrganizationImportSessionDto> RefreshAsync(Guid sessionId, CancellationToken cancellationToken);
@@ -54,9 +60,12 @@ public sealed class OrganizationImportService(
     IOrganizationImportSourceInspectionService inspectionService,
     IOrganizationService organizationService,
     IOrganizationImportInterpreter interpreter,
-    IOrganizationImportSemanticAssistanceService? semanticAssistance = null) : IOrganizationImportService
+    IOrganizationImportSemanticAssistanceService? semanticAssistance = null,
+    IOrganizationImportPublisher? publisher = null,
+    IOrganizationImportMatchReadinessService? matchReadiness = null) : IOrganizationImportService
 {
     private Guid TenantId => tenantContext.TenantId;
+    private readonly IOrganizationImportMatchReadinessService readinessService = matchReadiness ?? new OrganizationImportMatchReadinessService();
 
     public async Task<OrganizationImportIntakeResult> IntakeAsync(
         Stream stream,
@@ -98,6 +107,21 @@ public sealed class OrganizationImportService(
             existing = await LoadByCreationTokenAsync(creationToken, cancellationToken);
             if (existing is null) throw;
             return await ReplayOrConflictAsync(existing, fingerprint, cancellationToken);
+        }
+
+        var initialInterpretation = await interpreter.InterpretAsync(session, cancellationToken);
+        session.ApplyMappingPlan(initialInterpretation.MappingPlan
+            ?? throw new InvalidOperationException("The mapping plan is unavailable."));
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        // Deterministic interpretation is saved. When it left semantic questions and the tenant
+        // allows assistance, answer them now, inside a bounded budget, so Match opens populated.
+        // This never decides whether the upload succeeds.
+        if (semanticAssistance is not null)
+        {
+            await semanticAssistance.RunAfterUploadAsync(session.Id, normalizedActor, cancellationToken);
+            dbContext.ChangeTracker.Clear();
+            session = await LoadAsync(session.Id, cancellationToken);
         }
 
         return new OrganizationImportIntakeResult(
@@ -161,17 +185,102 @@ public sealed class OrganizationImportService(
         return await MapAsync(session, cancellationToken);
     }
 
-    public async Task<OrganizationImportSessionDto> ReplaceDecisionsAsync(
+    public async Task<OrganizationImportSessionDto> UpdateReviewResolutionsAsync(
         Guid sessionId,
         uint expectedVersion,
-        OrganizationImportDecisions decisions,
+        UpdateOrganizationImportReviewResolutionsRequest request,
         OrganizationImportActor actor,
         CancellationToken cancellationToken)
     {
         var session = await LoadAsync(sessionId, cancellationToken);
-        ValidateDecisionBounds(session, decisions);
+        var current = OrganizationImportJson.Deserialize<OrganizationImportDecisions>(session.DecisionsJson)?.Normalize()
+            ?? new OrganizationImportDecisions().Normalize();
+        var requested = (current with
+        {
+            IntroducedRoot = request.IntroducedRoot is { } root ? new(root.Name.Trim(), root.BusinessCode.Trim()) : null,
+            AcceptedExistingMatches = request.AcceptedExistingMatches ?? new Dictionary<string, Guid>(),
+            KeepExistingNodeIds = request.KeepExistingNodeIds ?? [],
+        }).Normalize();
+        ValidateDecisionBounds(session, requested);
+
+        // Every resolution must answer an issue the proposal actually has without resolutions, so a
+        // client cannot use this route to rewrite what the source and Mapping Plan say.
+        var baseline = await interpreter.InterpretAsync(session, cancellationToken, current.WithoutReviewResolutions());
+        if (!baseline.MatchReadiness.CanContinue || baseline.Validation is null)
+            throw new OrganizationImportReviewException("MatchIncomplete", "Finish matching the file before reviewing the organization.", StatusCodes.Status409Conflict);
+        var baselineIssues = baseline.Validation.Issues;
+        if (requested.IntroducedRoot is not null
+            && !baselineIssues.Any(issue => issue.Code == OrganizationImportIssueCodes.MultipleRoots))
+            throw new OrganizationImportReviewException("InvalidResolution", "An organization root can only be added when the file has more than one top-level unit.");
+        var baselineNodes = baseline.ProposalNodes.ToDictionary(node => node.Id, StringComparer.Ordinal);
+        foreach (var (nodeId, unitId) in requested.AcceptedExistingMatches!)
+            if (!baselineNodes.TryGetValue(nodeId, out var node) || node.DescriptiveCandidates.All(candidate => candidate.Id != unitId))
+                throw new OrganizationImportReviewException("InvalidResolution", "That existing unit isn't a possible match for this unit.");
+        var differing = baselineIssues.Where(issue => issue.Code == OrganizationImportIssueCodes.ExistingDifference)
+            .Select(issue => issue.ProposalNodeId).OfType<string>().ToHashSet(StringComparer.Ordinal);
+        foreach (var nodeId in requested.KeepExistingNodeIds!)
+            if (!differing.Contains(nodeId) && !requested.AcceptedExistingMatches.ContainsKey(nodeId))
+                throw new OrganizationImportReviewException("InvalidResolution", "Only a unit that differs from an existing unit can keep the existing version.");
+
         dbContext.Entry(session).Property(item => item.Version).OriginalValue = expectedVersion;
-        session.ReplaceDecisions(decisions, actor.Normalize());
+        session.ReplaceDecisions(requested, actor.Normalize());
+        try { await dbContext.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateConcurrencyException) { throw new ConcurrencyException("Organization import", sessionId); }
+        return await MapAsync(session, cancellationToken);
+    }
+
+    public async Task<OrganizationImportSessionDto> UpdateMatchAsync(
+        Guid sessionId,
+        uint expectedVersion,
+        UpdateOrganizationImportMatchRequest request,
+        OrganizationImportActor actor,
+        CancellationToken cancellationToken)
+    {
+        var session = await LoadAsync(sessionId, cancellationToken);
+        var current = OrganizationImportJson.Deserialize<OrganizationImportDecisions>(session.DecisionsJson)?.Normalize()
+            ?? new OrganizationImportDecisions().Normalize();
+        var fields = new Dictionary<string, int?>(current.FieldMappings!, StringComparer.Ordinal);
+        var fieldOrigins = new Dictionary<string, OrganizationImportResolutionOrigin>(current.FieldMappingOrigins!, StringComparer.Ordinal);
+        var types = new Dictionary<string, Guid>(current.TypeMappings!, StringComparer.OrdinalIgnoreCase);
+        var typeOrigins = new Dictionary<string, OrganizationImportResolutionOrigin>(current.TypeMappingOrigins!, StringComparer.OrdinalIgnoreCase);
+        // Every choice made here is the administrator's. Changing a mapping that semantic assistance
+        // supplied is an override, counted against the run that supplied it.
+        var overrides = 0;
+        foreach (var item in request.FieldMappings ?? new Dictionary<string, int?>())
+        {
+            if (fields.TryGetValue(item.Key, out var previous) && previous == item.Value) continue;
+            if (fieldOrigins.GetValueOrDefault(item.Key) == OrganizationImportResolutionOrigin.SemanticSuggestion) overrides++;
+            fields[item.Key] = item.Value;
+            fieldOrigins[item.Key] = OrganizationImportResolutionOrigin.Administrator;
+        }
+        foreach (var item in request.TypeMappings ?? new Dictionary<string, Guid>())
+        {
+            if (types.TryGetValue(item.Key, out var previous) && previous == item.Value) continue;
+            if (typeOrigins.GetValueOrDefault(item.Key) == OrganizationImportResolutionOrigin.SemanticSuggestion) overrides++;
+            types[item.Key] = item.Value;
+            typeOrigins[item.Key] = OrganizationImportResolutionOrigin.Administrator;
+        }
+        var shapeChanged = request.Shape is not null && request.Shape != current.Shape;
+        if (shapeChanged && current.ShapeDecisionOrigin == OrganizationImportResolutionOrigin.SemanticSuggestion) overrides++;
+        var shapeOrigin = shapeChanged ? OrganizationImportResolutionOrigin.Administrator : current.ShapeDecisionOrigin;
+        var next = current with
+        {
+            Shape = request.Shape ?? current.Shape,
+            ShapeDecisionOrigin = shapeOrigin,
+            FieldMappings = fields,
+            FieldMappingOrigins = fieldOrigins,
+            TypeMappings = types,
+            TypeMappingOrigins = typeOrigins,
+            IdentityStrategy = request.IdentityStrategy ?? current.IdentityStrategy,
+        };
+        ValidateDecisionBounds(session, next);
+        dbContext.Entry(session).Property(item => item.Version).OriginalValue = expectedVersion;
+        session.ReplaceDecisions(next, actor.Normalize());
+        if (semanticAssistance is not null)
+            await semanticAssistance.RecordOverridesAsync(sessionId, overrides, cancellationToken);
+        var interpretation = await interpreter.InterpretAsync(session, cancellationToken);
+        session.ApplyMappingPlan(interpretation.MappingPlan
+            ?? throw new InvalidOperationException("The mapping plan is unavailable."));
         try { await dbContext.SaveChangesAsync(cancellationToken); }
         catch (DbUpdateConcurrencyException) { throw new ConcurrencyException("Organization import", sessionId); }
         return await MapAsync(session, cancellationToken);
@@ -183,54 +292,11 @@ public sealed class OrganizationImportService(
     public async Task<OrganizationImportCommitResult> CommitAsync(
         Guid sessionId,
         uint expectedVersion,
-        string semanticDigest,
+        string proposalFingerprint,
         OrganizationImportActor actor,
         CancellationToken cancellationToken)
-    {
-        var initiallyLoaded = await LoadAsync(sessionId, cancellationToken);
-        if (initiallyLoaded.Status == OrganizationImportStatus.Committed)
-            return OrganizationImportJson.Deserialize<OrganizationImportCommitResult>(initiallyLoaded.CommitResultJson)
-                ?? throw new InvalidOperationException("The committed import result is unavailable.");
-        if (initiallyLoaded.Status != OrganizationImportStatus.Active)
-            throw new OrganizationImportReviewException("ImportTerminal", "A discarded import cannot be completed.", StatusCodes.Status409Conflict);
-        dbContext.ChangeTracker.Clear();
-
-        await using var transaction = await OrganizationWriteTransaction.BeginAsync(dbContext, TenantId, cancellationToken);
-        var session = await LoadAsync(sessionId, cancellationToken);
-        if (session.Status == OrganizationImportStatus.Committed)
-            return OrganizationImportJson.Deserialize<OrganizationImportCommitResult>(session.CommitResultJson)
-                ?? throw new InvalidOperationException("The committed import result is unavailable.");
-        if (session.Status != OrganizationImportStatus.Active)
-            throw new OrganizationImportReviewException("ImportTerminal", "A discarded import cannot be completed.", StatusCodes.Status409Conflict);
-        dbContext.Entry(session).Property(item => item.Version).OriginalValue = expectedVersion;
-        var review = await interpreter.InterpretAsync(session, cancellationToken);
-        if (!review.CanCommit)
-            throw new OrganizationImportReviewException("ProposalBlocked", "Resolve every blocking issue before completing the import.", StatusCodes.Status409Conflict);
-        if (string.IsNullOrWhiteSpace(semanticDigest)
-            || !CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(review.SemanticDigest), Encoding.ASCII.GetBytes(semanticDigest.Trim())))
-            throw new OrganizationImportReviewException("ProposalChanged", "The Organization proposal changed. Review the refreshed result before completing it.", StatusCodes.Status409Conflict);
-
-        var createNodes = review.ProposalNodes
-            .Where(node => node.Classification == OrganizationImportNodeClassification.Create)
-            .Select(node => new OrganizationBatchCreateNode(node.Id, node.BusinessCode!, node.Name, node.TypeId!.Value,
-                node.ParentNodeId, node.ParentCanonicalId, node.IsProposalRoot))
-            .ToList();
-        var created = await organizationService.CreateBatchInCurrentTransactionAsync(session.EffectiveDate, createNodes, cancellationToken);
-        var result = new OrganizationImportCommitResult(session.Id, session.EffectiveDate,
-            created.Select(node => new OrganizationImportCreatedUnit(node.ProposalNodeId, node.OrgUnitId, node.Code, node.Name)).ToList(),
-            created.Count == 0);
-        var createdByProposal = created.ToDictionary(node => node.ProposalNodeId, StringComparer.Ordinal);
-        var provenance = review.ProposalNodes.Select(node => new OrganizationImportProvenance(
-            node.Id,
-            node.CanonicalId ?? (createdByProposal.TryGetValue(node.Id, out var item) ? item.OrgUnitId : null),
-            node.SourceCells,
-            node.Classification.ToString())).ToList();
-        session.Commit(review.SemanticDigest, result, provenance, actor.Normalize());
-        try { await dbContext.SaveChangesAsync(cancellationToken); }
-        catch (DbUpdateConcurrencyException) { throw new ConcurrencyException("Organization import", sessionId); }
-        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
-        return result;
-    }
+        => await (publisher ?? new OrganizationImportPublisher(dbContext, tenantContext, organizationService, interpreter))
+            .PublishAsync(sessionId, expectedVersion, proposalFingerprint, actor, cancellationToken);
 
     private async Task<OrganizationImportIntakeResult> ReplayOrConflictAsync(
         OrganizationImportSession existing,
@@ -274,15 +340,27 @@ public sealed class OrganizationImportService(
         var table = session.Status == OrganizationImportStatus.Active
             ? OrganizationImportJson.Deserialize(session.Source.SourceTableJson)
             : null;
-        var review = session.Status == OrganizationImportStatus.Active
+        var interpretation = session.Status == OrganizationImportStatus.Active
             ? await interpreter.InterpretAsync(session, cancellationToken)
             : null;
         var commitResult = session.Status == OrganizationImportStatus.Committed
             ? OrganizationImportJson.Deserialize<OrganizationImportCommitResult>(session.CommitResultJson)
             : null;
-        var assistance = session.Status == OrganizationImportStatus.Active && review is not null && semanticAssistance is not null
-            ? await semanticAssistance.DescribeAsync(session, review, cancellationToken)
+        var assistance = session.Status == OrganizationImportStatus.Active && interpretation is not null && semanticAssistance is not null
+            ? await semanticAssistance.DescribeAsync(session, interpretation, cancellationToken)
             : null;
+        var plan = interpretation?.MappingPlan;
+        var matchReadiness = plan is null ? null : readinessService.Evaluate(plan);
+        var match = plan is null || matchReadiness is null ? null : new OrganizationImportMatchDto(
+            plan,
+            matchReadiness,
+            readinessService.CompletionKind(plan, matchReadiness),
+            interpretation!.TypeOptions,
+            assistance);
+        var review = interpretation is null ? null : OrganizationImportReviewProjection.Create(
+            interpretation,
+            OrganizationImportJson.Deserialize<OrganizationImportDecisions>(session.DecisionsJson)?.Normalize() ?? new OrganizationImportDecisions().Normalize(),
+            session.DecisionRevision);
         return new OrganizationImportSessionDto(
             session.Id,
             session.Status.ToString(),
@@ -317,7 +395,8 @@ public sealed class OrganizationImportService(
             session.Status == OrganizationImportStatus.Committed
                 ? OrganizationImportJson.Deserialize<IReadOnlyList<OrganizationImportProvenance>>(session.FinalProvenanceJson)
                 : null,
-            assistance);
+            assistance,
+            match);
     }
 
     private static string CreateFingerprint(InspectedOrganizationSource source)
@@ -338,19 +417,18 @@ public sealed class OrganizationImportService(
         if (decisions.FieldMappings!.Any(item => !allowedFields.Contains(item.Key)
                 || item.Value is int column && (column < 0 || column >= session.Source.ColumnCount)))
             throw new OrganizationImportReviewException("InvalidDecision", "A field mapping does not belong to this source.");
+        if (decisions.FieldMappingOrigins!.Keys.Any(key => !allowedFields.Contains(key))
+            || decisions.TypeMappingOrigins!.Keys.Any(key => !decisions.TypeMappings!.ContainsKey(key)))
+            throw new OrganizationImportReviewException("InvalidDecision", "Mapping provenance does not belong to this source interpretation.");
+        if (decisions.FieldMappings!.Values.Where(column => column is not null).Select(column => column!.Value)
+            .GroupBy(column => column).Any(group => group.Count() > 1))
+            throw new OrganizationImportReviewException("InvalidDecision", "A source column can only satisfy one organization role.");
         if (decisions.TypeMappings!.Count > 256 || decisions.AcceptedExistingMatches!.Count > session.Source.RowCount
-            || decisions.NodeCorrections!.Count > session.Source.RowCount * Math.Max(1, session.Source.ColumnCount)
-            || decisions.ExcludedNodeIds!.Count > session.Source.RowCount * Math.Max(1, session.Source.ColumnCount)
-            || decisions.KeepCanonicalNodeIds!.Count > session.Source.RowCount * Math.Max(1, session.Source.ColumnCount))
+            || decisions.KeepExistingNodeIds!.Count > session.Source.RowCount * Math.Max(1, session.Source.ColumnCount))
             throw new OrganizationImportReviewException("DecisionLimitExceeded", "The proposal contains too many decisions.");
         if (decisions.TypeMappings.Keys.Any(key => key.Length > 200)
-            || decisions.AcceptedExistingMatches.Keys.Concat(decisions.NodeCorrections.Keys)
-                .Concat(decisions.ExcludedNodeIds).Concat(decisions.KeepCanonicalNodeIds).Any(key => key.Length > 128))
+            || decisions.AcceptedExistingMatches.Keys.Concat(decisions.KeepExistingNodeIds).Any(key => key.Length > 128))
             throw new OrganizationImportReviewException("InvalidDecision", "A proposal decision is invalid.");
-        if (decisions.NodeCorrections.Values.Any(correction =>
-                correction.Name?.Trim().Length > 200 || correction.BusinessCode?.Trim().Length > 50
-                || correction.ParentNodeId?.Length > 128))
-            throw new OrganizationImportReviewException("InvalidDecision", "A proposed unit correction exceeds Organization limits.");
         if (decisions.IntroducedRoot is { } root
             && (string.IsNullOrWhiteSpace(root.Name) || root.Name.Trim().Length > 200
                 || string.IsNullOrWhiteSpace(root.BusinessCode) || root.BusinessCode.Trim().Length > 50))

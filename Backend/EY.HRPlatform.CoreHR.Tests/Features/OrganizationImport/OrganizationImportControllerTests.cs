@@ -27,15 +27,15 @@ public sealed class OrganizationImportControllerTests
             Guid.NewGuid(), "\"1\"", new UpdateOrganizationImportEffectiveDateRequest(new DateOnly(2026, 8, 12)),
             CancellationToken.None)).Result);
         Assert.IsType<ForbidResult>((await controller.Discard(Guid.NewGuid(), "\"1\"", CancellationToken.None)).Result);
-        Assert.IsType<ForbidResult>((await controller.ReplaceDecisions(
-            Guid.NewGuid(), "\"1\"", new ReplaceOrganizationImportDecisionsRequest(new OrganizationImportDecisions()), CancellationToken.None)).Result);
+        Assert.IsType<ForbidResult>((await controller.UpdateReviewResolutions(
+            Guid.NewGuid(), "\"1\"", new UpdateOrganizationImportReviewResolutionsRequest(), CancellationToken.None)).Result);
+        Assert.IsType<ForbidResult>((await controller.UpdateMatch(
+            Guid.NewGuid(), "\"1\"", new UpdateOrganizationImportMatchRequest(), CancellationToken.None)).Result);
         Assert.IsType<ForbidResult>((await controller.Refresh(Guid.NewGuid(), CancellationToken.None)).Result);
-        Assert.IsType<ForbidResult>((await controller.GenerateSemanticSuggestions(
-            Guid.NewGuid(), new(new string('f', 64)), CancellationToken.None)).Result);
-        Assert.IsType<ForbidResult>((await controller.ApplySemanticSuggestions(
-            Guid.NewGuid(), Guid.NewGuid(), "\"1\"", new(new string('f', 64), 1, []), CancellationToken.None)).Result);
+        Assert.IsType<ForbidResult>((await controller.RunSemanticAssistance(
+            Guid.NewGuid(), new(new string('f', 64), GrantTenantConsent: true), CancellationToken.None)).Result);
         Assert.IsType<ForbidResult>((await controller.Commit(
-            Guid.NewGuid(), "\"1\"", new CommitOrganizationImportRequest("digest"), CancellationToken.None)).Result);
+            Guid.NewGuid(), "\"1\"", new CommitOrganizationImportRequest("fingerprint"), CancellationToken.None)).Result);
 
         access.Verify(policy => policy.CanManageOrganization(It.IsAny<ClaimsPrincipal>()), Times.Exactly(12));
         imports.VerifyNoOtherCalls();
@@ -121,67 +121,51 @@ public sealed class OrganizationImportControllerTests
     }
 
     [Fact]
-    public async Task DecisionsRefreshAndCommit_UseEtagActorAndReviewedDigest()
+    public async Task ResolutionsRefreshAndCommit_UseEtagActorAndReviewedFingerprint()
     {
         var (controller, imports, _, _) = CreateController();
         var id = Guid.NewGuid();
-        var decisions = new OrganizationImportDecisions(IntroducedRoot: new("Asteria", "ASTERIA"));
-        imports.Setup(service => service.ReplaceDecisionsAsync(id, 6, decisions,
+        var resolutions = new UpdateOrganizationImportReviewResolutionsRequest(IntroducedRoot: new("Asteria", "ASTERIA"));
+        imports.Setup(service => service.UpdateReviewResolutionsAsync(id, 6, resolutions,
                 It.Is<OrganizationImportActor>(actor => actor.DisplayName == "Ada Admin"), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Session(id, version: 7));
         imports.Setup(service => service.RefreshAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(Session(id, version: 7));
+        var match = new UpdateOrganizationImportMatchRequest(TypeMappings: new Dictionary<string, Guid> { ["Shared Service"] = Guid.NewGuid() });
+        imports.Setup(service => service.UpdateMatchAsync(id, 7, match, It.IsAny<OrganizationImportActor>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Session(id, version: 8));
         var terminal = new OrganizationImportCommitResult(id, new DateOnly(2026, 8, 12), [], true);
-        imports.Setup(service => service.CommitAsync(id, 7, "digest", It.IsAny<OrganizationImportActor>(), It.IsAny<CancellationToken>()))
+        imports.Setup(service => service.CommitAsync(id, 7, "fingerprint", It.IsAny<OrganizationImportActor>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(terminal);
 
-        Assert.IsType<BadRequestObjectResult>((await controller.ReplaceDecisions(
-            id, null, new ReplaceOrganizationImportDecisionsRequest(decisions), CancellationToken.None)).Result);
-        Assert.IsType<OkObjectResult>((await controller.ReplaceDecisions(
-            id, "\"6\"", new ReplaceOrganizationImportDecisionsRequest(decisions), CancellationToken.None)).Result);
+        Assert.IsType<BadRequestObjectResult>((await controller.UpdateReviewResolutions(
+            id, null, resolutions, CancellationToken.None)).Result);
+        Assert.IsType<OkObjectResult>((await controller.UpdateReviewResolutions(
+            id, "\"6\"", resolutions, CancellationToken.None)).Result);
         Assert.Equal("\"7\"", controller.Response.Headers.ETag);
         Assert.IsType<OkObjectResult>((await controller.Refresh(id, CancellationToken.None)).Result);
+        Assert.IsType<OkObjectResult>((await controller.UpdateMatch(id, "\"7\"", match, CancellationToken.None)).Result);
+        Assert.Equal("\"8\"", controller.Response.Headers.ETag);
         Assert.IsType<OkObjectResult>((await controller.Commit(
-            id, "\"7\"", new CommitOrganizationImportRequest("digest"), CancellationToken.None)).Result);
+            id, "\"7\"", new CommitOrganizationImportRequest("fingerprint"), CancellationToken.None)).Result);
     }
 
     [Fact]
-    public async Task SemanticGenerationAndApply_UsePermissionAttemptVersionAndSessionEtag()
+    public async Task SemanticRun_PassesConsentAndActorAndReturnsTheRefreshedImportWithItsEtag()
     {
         var semantic = new Mock<IOrganizationImportSemanticAssistanceService>();
         var (controller, imports, _, _) = CreateController(semantic: semantic);
         var sessionId = Guid.NewGuid();
-        var attemptId = Guid.NewGuid();
         var fingerprint = new string('f', 64);
-        var generated = new OrganizationImportSemanticAssistanceDto(
-            OrganizationImportSemanticAssistanceState.Available,
-            fingerprint,
-            attemptId,
-            2,
-            "Groq",
-            OrganizationImportSemanticAssistanceOptions.DefaultModel,
-            DateTime.UtcNow,
-            DateTime.UtcNow,
-            null,
-            null,
-            []);
-        semantic.Setup(service => service.GenerateAsync(
-                sessionId, It.Is<GenerateOrganizationImportSemanticSuggestionsRequest>(request => request.InputFingerprint == fingerprint),
+        semantic.Setup(service => service.RunAsync(
+                sessionId,
+                It.Is<RunOrganizationImportSemanticAssistanceRequest>(request => request.InputFingerprint == fingerprint && request.GrantTenantConsent),
+                It.Is<OrganizationImportActor>(actor => actor.DisplayName == "Ada Admin"),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(generated);
-        var apply = new ApplyOrganizationImportSemanticSuggestionsRequest(
-            fingerprint, 2, [new("shape", "shape:LevelColumns", OrganizationImportSemanticReviewOutcome.Accepted)]);
-        semantic.Setup(service => service.ApplyAsync(
-                sessionId, attemptId, 7, apply,
-                It.Is<OrganizationImportActor>(actor => actor.DisplayName == "Ada Admin"), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         imports.Setup(service => service.GetAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(Session(sessionId, version: 8));
 
-        Assert.IsType<OkObjectResult>((await controller.GenerateSemanticSuggestions(
-            sessionId, new(fingerprint), CancellationToken.None)).Result);
-        Assert.IsType<BadRequestObjectResult>((await controller.ApplySemanticSuggestions(
-            sessionId, attemptId, null, apply, CancellationToken.None)).Result);
-        Assert.IsType<OkObjectResult>((await controller.ApplySemanticSuggestions(
-            sessionId, attemptId, "\"7\"", apply, CancellationToken.None)).Result);
+        Assert.IsType<OkObjectResult>((await controller.RunSemanticAssistance(
+            sessionId, new(fingerprint, GrantTenantConsent: true), CancellationToken.None)).Result);
         Assert.Equal("\"8\"", controller.Response.Headers.ETag);
         semantic.VerifyAll();
     }

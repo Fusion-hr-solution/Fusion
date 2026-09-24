@@ -56,6 +56,7 @@ public class CoreHRDbContext : DbContext
     public DbSet<OrganizationImportSession> OrganizationImportSessions => Set<OrganizationImportSession>();
     public DbSet<OrganizationImportSource> OrganizationImportSources => Set<OrganizationImportSource>();
     public DbSet<OrganizationImportSemanticAttempt> OrganizationImportSemanticAttempts => Set<OrganizationImportSemanticAttempt>();
+    public DbSet<OrganizationImportSemanticConsent> OrganizationImportSemanticConsents => Set<OrganizationImportSemanticConsent>();
     public DbSet<WorkforceImportSession> WorkforceImportSessions => Set<WorkforceImportSession>();
     public DbSet<WorkforceImportSource> WorkforceImportSources => Set<WorkforceImportSource>();
     public DbSet<WorkforceImportRow> WorkforceImportRows => Set<WorkforceImportRow>();
@@ -127,6 +128,9 @@ public class CoreHRDbContext : DbContext
 
         modelBuilder.Entity<OrganizationImportSemanticAttempt>()
             .HasQueryFilter(attempt => CurrentTenantId != Guid.Empty && attempt.TenantId == CurrentTenantId);
+
+        modelBuilder.Entity<OrganizationImportSemanticConsent>()
+            .HasQueryFilter(consent => CurrentTenantId != Guid.Empty && consent.TenantId == CurrentTenantId);
 
         modelBuilder.Entity<WorkforceImportSession>()
             .HasQueryFilter(session => CurrentTenantId != Guid.Empty && session.TenantId == CurrentTenantId);

@@ -87,7 +87,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IOrganizationImportSourceInspectionService, OrganizationImportSourceInspectionService>();
         services.AddScoped<IOrganizationImportWorkbookService, OrganizationImportWorkbookService>();
         services.AddScoped<IOrganizationImportService, OrganizationImportService>();
+        services.AddScoped<IOrganizationImportMappingService, OrganizationImportMappingService>();
+        services.AddScoped<IOrganizationImportMatchReadinessService, OrganizationImportMatchReadinessService>();
+        services.AddScoped<IOrganizationImportValidator, OrganizationImportValidator>();
         services.AddScoped<IOrganizationImportInterpreter, OrganizationImportInterpreter>();
+        services.AddScoped<IOrganizationImportPublisher, OrganizationImportPublisher>();
         var semanticAssistance = configuration
             .GetSection(OrganizationImportSemanticAssistanceOptions.SectionName)
             .Get<OrganizationImportSemanticAssistanceOptions>() ?? new OrganizationImportSemanticAssistanceOptions();
@@ -148,15 +152,15 @@ public static class ServiceCollectionExtensions
             || !string.IsNullOrEmpty(endpoint.Fragment))
             throw new InvalidOperationException("OrganizationImport:SemanticAssistance:Endpoint must use api.groq.com over HTTPS or a loopback development URL.");
         if (options.TimeoutSeconds is < 1 or > 60
+            || options.UploadBudgetSeconds is < 1 or > 60
+            || options.InteractiveBudgetSeconds is < 1 or > 90
+            || options.MaxRetries is < 0 or > 2
             || options.MaxFields is < 1 or > 32
-            || options.MaxValuesPerField is < 1 or > 8
+            || options.MaxValuesPerField is < 1 or > 5
             || options.MaxTotalValues is < 1 or > 64
             || options.MaxValueCharacters is < 16 or > 120
-            || options.MaxPayloadBytes is < 4096 or > 20480
-            || options.MaxRationaleCharacters is < 40 or > 180
-            || options.MaxProviderAttempts is < 1 or > 5
-            || string.IsNullOrWhiteSpace(options.ContractVersion))
-            throw new InvalidOperationException("OrganizationImport:SemanticAssistance contains an invalid non-secret limit or contract version.");
+            || options.MaxPayloadBytes is < 4096 or > 20480)
+            throw new InvalidOperationException("OrganizationImport:SemanticAssistance contains an invalid non-secret limit.");
     }
 
     public static IServiceCollection AddMultitenancy(this IServiceCollection services)
