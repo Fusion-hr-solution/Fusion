@@ -5,6 +5,8 @@ import { Building2, Lightbulb } from "lucide-react";
 import { Input } from "@repo/ds/components/ui/input";
 import { Textarea } from "@repo/ds/components/ui/textarea";
 import { Field, describedBy } from "../field";
+import { INDUSTRY_OPTIONS } from "../industry-options";
+import { SearchableSelect } from "../searchable-select";
 import { StepPanel } from "./step-panel";
 import type { ProvisioningStepProps } from "./types";
 
@@ -112,17 +114,15 @@ export function OrganizationStep({
               />
             </Field>
 
-            <Field
-              id="internal-reference-code"
-              label="Internal reference code (optional)"
-            >
-              <Input
-                id="internal-reference-code"
-                value={draft.internalReferenceCode}
-                placeholder="e.g. ACME-001"
-                onChange={(event) =>
-                  update("internalReferenceCode", event.target.value)
-                }
+            <Field id="tenant-industry" label="Industry (optional)">
+              <SearchableSelect
+                id="tenant-industry"
+                options={INDUSTRY_OPTIONS}
+                value={draft.industry}
+                placeholder="Select an industry"
+                searchPlaceholder="Search industries"
+                emptyMessage="No industry matches."
+                onChange={(value) => update("industry", value)}
               />
             </Field>
           </div>

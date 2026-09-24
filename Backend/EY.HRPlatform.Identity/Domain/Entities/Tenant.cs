@@ -34,6 +34,13 @@ public class Tenant
     /// <summary>Initial tenant IANA time zone, for example <c>Europe/Paris</c>.</summary>
     public string TimeZone { get; private set; } = DefaultTimeZone;
 
+    /// <summary>
+    /// Optional industry the customer operates in, chosen from a curated list at
+    /// provisioning. Descriptive metadata only — it does not gate behaviour — so
+    /// it is nullable and absence is a legitimate state rather than a default.
+    /// </summary>
+    public string? Industry { get; private set; }
+
     /// <summary>Applied when a caller does not choose a locale.</summary>
     public const string DefaultLocale = "en-US";
 
@@ -43,6 +50,8 @@ public class Tenant
     public const int LocaleMaxLength = 35;
 
     public const int TimeZoneMaxLength = 100;
+
+    public const int IndustryMaxLength = 100;
 
     /// <summary>
     /// Creates a new tenant with validation.
@@ -202,12 +211,14 @@ public class Tenant
     }
 
     /// <summary>
-    /// Applies the initial locale and time zone chosen during provisioning.
+    /// Applies the initial locale, time zone, and industry chosen during
+    /// provisioning.
     /// </summary>
-    public void ApplyInitialSettings(string? locale, string timeZone)
+    public void ApplyInitialSettings(string? locale, string timeZone, string? industry)
     {
         Locale = NormalizeLocale(locale);
         TimeZone = NormalizeTimeZone(timeZone);
+        Industry = NormalizeIndustry(industry);
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -232,6 +243,18 @@ public class Tenant
         var trimmed = locale.Trim();
         if (trimmed.Length > LocaleMaxLength)
             throw new ArgumentException($"Locale cannot exceed {LocaleMaxLength} characters.", nameof(locale));
+
+        return trimmed;
+    }
+
+    public static string? NormalizeIndustry(string? industry)
+    {
+        if (string.IsNullOrWhiteSpace(industry))
+            return null;
+
+        var trimmed = industry.Trim();
+        if (trimmed.Length > IndustryMaxLength)
+            throw new ArgumentException($"Industry cannot exceed {IndustryMaxLength} characters.", nameof(industry));
 
         return trimmed;
     }

@@ -60,7 +60,7 @@ public sealed class TenantProvisioningService(
         await using (var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken))
         {
             var tenant = Tenant.Create(Guid.NewGuid(), request.Name.Trim());
-            tenant.ApplyInitialSettings(request.Locale, request.TimeZone);
+            tenant.ApplyInitialSettings(request.Locale, request.TimeZone, request.Industry);
             dbContext.Tenants.Add(tenant);
 
             foreach (var module in request.NormalizedModules())
@@ -182,6 +182,13 @@ public sealed class TenantProvisioningService(
 
         if (!string.IsNullOrWhiteSpace(request.Locale) && !IsSupportedLocale(request.Locale.Trim()))
             return new Error("provisioning.locale_unsupported", "The selected locale is not supported.");
+
+        // Industry is descriptive and optional, so only its length is constrained —
+        // a value that could not be stored is refused up front rather than throwing
+        // mid-transaction on a tenant that would otherwise be half-created.
+        if (!string.IsNullOrWhiteSpace(request.Industry)
+            && request.Industry.Trim().Length > Tenant.IndustryMaxLength)
+            return new Error("provisioning.industry_invalid", $"Industry cannot exceed {Tenant.IndustryMaxLength} characters.");
 
         var email = request.AdministratorEmail?.Trim() ?? string.Empty;
         if (email.Length == 0 || !email.Contains('@') || !email.Contains('.'))

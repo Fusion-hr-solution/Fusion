@@ -75,6 +75,18 @@ public sealed class ProvisioningFingerprintTests
         Assert.NotEqual(baseline, (Request() with { Locale = "fr-FR" }).ComputeFingerprint());
         Assert.NotEqual(baseline, (Request() with { AdministratorEmail = "other@atlas.example" }).ComputeFingerprint());
         Assert.NotEqual(baseline, (Request() with { Modules = [TenantModule.CoreHR] }).ComputeFingerprint());
+        Assert.NotEqual(baseline, (Request() with { Industry = "Technology & Software" }).ComputeFingerprint());
+    }
+
+    [Fact]
+    public void Absent_and_blank_industry_share_a_fingerprint()
+    {
+        // An unspecified industry and an empty one describe the same tenant, so a
+        // retry that leaves it blank must not be told its key conflicts.
+        var absent = Request() with { Industry = null };
+        var blank = Request() with { Industry = "   " };
+
+        Assert.Equal(absent.ComputeFingerprint(), blank.ComputeFingerprint());
     }
 
     [Fact]

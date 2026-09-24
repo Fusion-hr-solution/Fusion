@@ -52,6 +52,7 @@ public sealed class TenantProvisioningIntegrationTests : IAsyncLifetime
         Name = name,
         Locale = "en-US",
         TimeZone = "Europe/Paris",
+        Industry = "Technology & Software",
         Modules = [TenantModule.Performance],
         AdministratorEmail = "admin@atlas.example",
         IdempotencyKey = key,
@@ -74,6 +75,7 @@ public sealed class TenantProvisioningIntegrationTests : IAsyncLifetime
         var tenant = await db.Tenants.IgnoreQueryFilters().SingleAsync(t => t.Id == tenantId);
         Assert.Equal("Atlas Group", tenant.Name);
         Assert.Equal("Europe/Paris", tenant.TimeZone);
+        Assert.Equal("Technology & Software", tenant.Industry);
         // The tenant is not Active until its administrator activates it.
         Assert.Equal(TenantAdministratorActivationStatus.AwaitingAdministratorActivation,
             tenant.AdministratorActivationStatus);

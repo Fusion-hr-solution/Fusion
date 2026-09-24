@@ -132,6 +132,8 @@ export interface TenantDetail {
   administratorActivationStatus: TenantActivationStatus;
   locale: string;
   timeZone: string;
+  /** Optional industry captured at provisioning; null when unspecified. */
+  industry: string | null;
   createdAt: string;
   modules: TenantModule[];
   bootstrapInvitation: BootstrapInvitationSummary | null;
@@ -142,6 +144,8 @@ export interface ProvisionTenantInput {
   name: string;
   locale: string;
   timeZone: string;
+  /** Optional industry classification. Descriptive metadata only. */
+  industry?: string;
   /** Optional entitlements only. Core HR is added by the platform regardless. */
   modules: TenantModule[];
   administratorEmail: string;

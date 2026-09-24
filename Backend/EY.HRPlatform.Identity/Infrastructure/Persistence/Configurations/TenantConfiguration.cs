@@ -50,6 +50,9 @@ public class TenantConfiguration : IEntityTypeConfiguration<Tenant>
             .IsRequired()
             .HasDefaultValue(Tenant.DefaultTimeZone);
 
+        builder.Property(t => t.Industry)
+            .HasMaxLength(Tenant.IndustryMaxLength);
+
         builder.HasIndex(t => t.AdministratorActivationStatus);
 
         builder.HasIndex(t => t.IsActive);

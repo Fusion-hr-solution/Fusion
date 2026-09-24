@@ -63,6 +63,7 @@ export function aTenant(overrides: Partial<TenantDetail> = {}): TenantDetail {
     administratorActivationStatus: "AwaitingAdministratorActivation",
     locale: "en-GB",
     timeZone: "Europe/London",
+    industry: null,
     createdAt: "2026-08-01T09:00:00Z",
     modules: ["CoreHR"],
     bootstrapInvitation: null,

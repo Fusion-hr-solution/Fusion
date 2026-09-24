@@ -3,14 +3,15 @@ import { failureCode } from "../api";
 export interface ProvisioningDraft {
   name: string;
   /**
-   * Organization details captured on the first step. Frontend-only for now —
-   * the contract accepts the tenant name, so the slug, legal entity, reference
-   * code, and description are held in the draft but not sent. The slug is still
-   * validated here because the step presents it as a required identifier.
+   * Organization details captured on the first step. The tenant name, slug, and
+   * industry travel to the service; the legal entity and description are held in
+   * the draft but not yet sent. The slug is still validated here because the step
+   * presents it as a required identifier.
    */
   tenantSlug: string;
   legalEntityName: string;
-  internalReferenceCode: string;
+  /** Optional industry classification, chosen from {@link INDUSTRY_OPTIONS}. */
+  industry: string;
   shortDescription: string;
   timeZone: string;
   locale: string;

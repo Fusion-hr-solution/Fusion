@@ -20,6 +20,9 @@ public sealed record TenantDetailDto
     public string AdministratorActivationStatus { get; init; } = string.Empty;
     public string Locale { get; init; } = string.Empty;
     public string TimeZone { get; init; } = string.Empty;
+
+    /// <summary>Optional industry captured at provisioning; null when unspecified.</summary>
+    public string? Industry { get; init; }
     public DateTime CreatedAt { get; init; }
     public IReadOnlyList<string> Modules { get; init; } = [];
     public BootstrapInvitationSummaryDto? BootstrapInvitation { get; init; }
@@ -190,6 +193,7 @@ public sealed class TenantDetailProjection(AppIdentityDbContext dbContext) : ITe
             AdministratorActivationStatus = tenant.AdministratorActivationStatus.ToString(),
             Locale = tenant.Locale,
             TimeZone = tenant.TimeZone,
+            Industry = tenant.Industry,
             CreatedAt = tenant.CreatedAt,
             Modules = modules,
             BootstrapInvitation = invitationSummary,

@@ -121,10 +121,7 @@ export function ReviewStep({
             <Fact label="Tenant name" value={draft.name} />
             <Fact label="Tenant slug" value={draft.tenantSlug} />
             <Fact label="Legal entity" value={draft.legalEntityName} />
-            <Fact
-              label="Internal reference"
-              value={draft.internalReferenceCode}
-            />
+            <Fact label="Industry" value={draft.industry} />
           </dl>
           {/* <dl className="mt-4">
             <Fact label="Short description" value={draft.shortDescription} />

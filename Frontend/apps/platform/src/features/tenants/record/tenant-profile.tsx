@@ -33,6 +33,7 @@ export function TenantProfile() {
 
   const rows: { label: string; value: string }[] = [
     { label: "Organization name", value: tenant.name },
+    { label: "Industry", value: tenant.industry ?? "Not specified" },
     { label: "Default timezone", value: tenant.timeZone },
     { label: "Default locale", value: localeLabel(tenant.locale) },
     { label: "Provisioned", value: formatDate(tenant.createdAt) },

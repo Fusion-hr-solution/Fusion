@@ -11,7 +11,7 @@ function draft(overrides: Partial<ProvisioningDraft> = {}): ProvisioningDraft {
     name: "Acme Tunisia",
     tenantSlug: "acme-tunisia",
     legalEntityName: "",
-    internalReferenceCode: "",
+    industry: "",
     shortDescription: "",
     timeZone: "Africa/Tunis",
     locale: "en-US",

@@ -83,7 +83,7 @@ export function ProvisionTenantWorkspace() {
     name: "",
     tenantSlug: "",
     legalEntityName: "",
-    internalReferenceCode: "",
+    industry: "",
     shortDescription: "",
     timeZone: DEFAULT_TIME_ZONE,
     locale: DEFAULT_LOCALE,
@@ -241,6 +241,7 @@ export function ProvisionTenantWorkspace() {
       name: draft.name.trim(),
       locale: draft.locale,
       timeZone: draft.timeZone,
+      industry: draft.industry.trim() || undefined,
       // Resolved through the catalogue, so an unavailable module has no
       // identifier to travel even if its key were somehow selected.
       modules: selectedModulesFor(options, draft.selectedModuleKeys),
@@ -413,7 +414,7 @@ function hasMeaningfulEdits(
     draft.name.trim().length > 0 ||
     draft.tenantSlug.trim().length > 0 ||
     draft.legalEntityName.trim().length > 0 ||
-    draft.internalReferenceCode.trim().length > 0 ||
+    draft.industry.trim().length > 0 ||
     draft.shortDescription.trim().length > 0 ||
     draft.administratorEmail.trim().length > 0 ||
     draft.selectedModuleKeys.length > 0 ||

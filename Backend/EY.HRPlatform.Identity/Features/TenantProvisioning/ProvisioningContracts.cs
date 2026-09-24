@@ -80,6 +80,13 @@ public sealed record ProvisionTenantRequest
     public string TimeZone { get; init; } = string.Empty;
 
     /// <summary>
+    /// Optional industry the customer operates in. Persisted as descriptive tenant
+    /// metadata; absence is a legitimate state, so it falls back to null rather
+    /// than a default.
+    /// </summary>
+    public string? Industry { get; init; }
+
+    /// <summary>
     /// Optional modules. Core HR is mandatory and is added regardless, so a caller
     /// cannot deselect it by omitting it.
     ///
@@ -125,6 +132,7 @@ public sealed record ProvisionTenantRequest
             Name.Trim().ToLowerInvariant(),
             NormalizeLocale(Locale).ToLowerInvariant(),
             TimeZone.Trim().ToLowerInvariant(),
+            NormalizeIndustry(Industry).ToLowerInvariant(),
             string.Join(',', modules),
             AdministratorEmail.Trim().ToLowerInvariant(),
         ]);
@@ -141,6 +149,13 @@ public sealed record ProvisionTenantRequest
         => string.IsNullOrWhiteSpace(locale)
             ? Domain.Entities.Tenant.DefaultLocale
             : locale.Trim();
+
+    /// <summary>
+    /// Canonical industry form for the fingerprint: an absent industry and a
+    /// blank one describe the same tenant, so both collapse to empty.
+    /// </summary>
+    public static string NormalizeIndustry(string? industry)
+        => string.IsNullOrWhiteSpace(industry) ? string.Empty : industry.Trim();
 
     public IReadOnlyList<TenantModule> NormalizedModules()
         => Modules.Append(TenantModule.CoreHR).Distinct().OrderBy(module => module).ToList();
