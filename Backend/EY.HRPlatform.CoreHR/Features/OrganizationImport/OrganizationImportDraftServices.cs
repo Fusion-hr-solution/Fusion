@@ -91,7 +91,7 @@ public sealed class OrganizationImportValidator : IOrganizationImportValidator
 
         if (draft.Nodes.Count == 0)
             issues.Add(OrganizationImportIssueCatalog.ForNodes(OrganizationImportIssueCodes.EmptyOrganization,
-                "This file doesn't produce any units to import.", []));
+                "The file has no units.", []));
 
         foreach (var node in creates)
         {
@@ -100,16 +100,16 @@ public sealed class OrganizationImportValidator : IOrganizationImportValidator
                     "Every unit needs a name.", node.Id, node.SourceReference, OrganizationImportFields.Name));
             if (node.TypeId is null)
                 issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.InvalidType,
-                    $"{Label(node)} doesn't have an organization type.", node.Id, node.SourceReference, OrganizationImportFields.Type));
+                    $"{Label(node)} has no type.", node.Id, node.SourceReference, OrganizationImportFields.Type));
             if (node.ParentNodeId == node.Id)
                 issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.SelfParent,
-                    $"{Label(node)} is listed as its own parent.", node.Id, node.SourceReference, OrganizationImportFields.ParentBusinessCode));
+                    $"{Label(node)} lists itself as parent.", node.Id, node.SourceReference, OrganizationImportFields.ParentBusinessCode));
             else if (node.ParentNodeId is not null && !byId.ContainsKey(node.ParentNodeId))
                 issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.MissingParent,
-                    $"The parent of {Label(node)} isn't part of this import.", node.Id, node.SourceReference, OrganizationImportFields.ParentBusinessCode));
+                    $"{Label(node)}’s parent isn't in the file.", node.Id, node.SourceReference, OrganizationImportFields.ParentBusinessCode));
             if (!node.BusinessCodeGenerated && !IsValidCode(node.BusinessCode))
                 issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.InvalidBusinessCode,
-                    "A business code can only use letters, numbers, hyphens or underscores, up to 50 characters.",
+                    "Use letters, numbers, - or _ (max 50).",
                     node.Id, node.SourceReference, OrganizationImportFields.BusinessCode,
                     node.Id == OrganizationImportDraftBuilder.IntroducedRootId ? [OrganizationImportResolutionKind.AddOrganizationRoot] : null));
         }
@@ -117,12 +117,12 @@ public sealed class OrganizationImportValidator : IOrganizationImportValidator
         foreach (var duplicate in creates.Where(node => node.BusinessCode.Length > 0)
                      .GroupBy(node => node.BusinessCode, StringComparer.OrdinalIgnoreCase).Where(group => group.Count() > 1))
             issues.Add(OrganizationImportIssueCatalog.ForNodes(OrganizationImportIssueCodes.DuplicateBusinessCode,
-                $"The business code '{duplicate.Key}' is used by {duplicate.Count()} units.",
+                $"'{duplicate.Key}' is used by {duplicate.Count()} units.",
                 duplicate.Select(node => node.Id).ToList(), duplicate.SelectMany(node => node.SourceReference), OrganizationImportFields.BusinessCode));
 
         foreach (var cycle in Cycles(creates, byId))
             issues.Add(OrganizationImportIssueCatalog.ForNodes(OrganizationImportIssueCodes.HierarchyCycle,
-                $"{cycle.Count} units are set as each other's parents, so they never reach the top of the organization.",
+                $"{cycle.Count} units are each other's parents.",
                 cycle, cycle.SelectMany(id => byId[id].SourceReference), OrganizationImportFields.ParentBusinessCode));
 
         // A fresh organization has exactly one top. Units whose parent reference didn't resolve are
@@ -132,7 +132,7 @@ public sealed class OrganizationImportValidator : IOrganizationImportValidator
             var tops = creates.Where(node => node.ParentNodeId is null && node.ParentExistingUnitId is null && !node.HasUnresolvedParent).ToList();
             if (tops.Count > 1)
                 issues.Add(OrganizationImportIssueCatalog.ForNodes(OrganizationImportIssueCodes.MultipleRoots,
-                    $"{tops.Count} units have no parent. An organization has a single top-level unit.",
+                    $"{tops.Count} units have no parent. Add one root above them.",
                     tops.Select(node => node.Id).ToList(), tops.SelectMany(node => node.SourceReference)));
         }
 
@@ -141,7 +141,7 @@ public sealed class OrganizationImportValidator : IOrganizationImportValidator
                      .Where(group => group.Count() > 1
                          && group.Select(node => node.ParentNodeId ?? node.ParentExistingUnitId?.ToString()).Distinct().Count() > 1))
             issues.Add(OrganizationImportIssueCatalog.ForNodes(OrganizationImportIssueCodes.DuplicateDisplayName,
-                $"'{sameName.First().Name.Trim()}' appears in {sameName.Count()} places. Each keeps its own business code.",
+                $"'{sameName.First().Name.Trim()}' appears {sameName.Count()} times.",
                 sameName.Select(node => node.Id).ToList()));
 
         var ordered = issues

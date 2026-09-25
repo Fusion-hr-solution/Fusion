@@ -337,7 +337,7 @@ public sealed class OrganizationImportInterpreter : IOrganizationImportInterpret
             node.HasUnresolvedParent = true;
             var misread = mostlyUnresolved || otherValues.Contains(NormalizeCode(node.RawParent!));
             issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.MissingParent,
-                $"'{node.Name}' reports to '{node.RawParent}', which isn't a unit in this file or in your organization.",
+                $"Parent '{node.RawParent}' not found.",
                 node.Id, node.SourceCells, OrganizationImportFields.ParentBusinessCode,
                 misread
                     ? [OrganizationImportResolutionKind.ReturnToMatch, OrganizationImportResolutionKind.CorrectSource]
@@ -355,7 +355,7 @@ public sealed class OrganizationImportInterpreter : IOrganizationImportInterpret
             {
                 if (!canonical.ById.TryGetValue(id, out var byId))
                     issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.UnknownFusionId,
-                        "The Fusion ID in this row doesn't match any unit in your organization. Correct it in the file, or clear it to add a new unit.",
+                        "This Fusion ID matches no unit.",
                         node.Id, node.SourceCells, OrganizationImportFields.FusionOrgUnitId));
                 else evidence.Add((OrganizationImportFields.FusionOrgUnitId, node.SourceFusionId!, byId));
             }
@@ -374,7 +374,7 @@ public sealed class OrganizationImportInterpreter : IOrganizationImportInterpret
                     .Select(item => new OrganizationImportIdentityEvidence(item.Identifier, item.Supplied, item.Unit.Id, item.Unit.Name ?? item.Unit.Code, item.Unit.Code))
                     .ToList();
                 issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.IdentityContradiction,
-                    "The ID and the business code in this row belong to two different existing units, so Fusion can't tell which one you mean.",
+                    "The ID and business code point to different units.",
                     node.Id, node.SourceCells));
                 continue;
             }
@@ -394,7 +394,7 @@ public sealed class OrganizationImportInterpreter : IOrganizationImportInterpret
             node.Classification = OrganizationImportNodeClassification.Create;
             if (node.DescriptiveCandidates.Count > 0)
                 issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.PossibleExistingUnit,
-                    $"Your organization already has a unit called '{node.Name}'. It will be added as a new unit unless you choose the existing one.",
+                    $"'{node.Name}' may already exist.",
                     node.Id, node.SourceCells));
         }
     }
@@ -408,7 +408,7 @@ public sealed class OrganizationImportInterpreter : IOrganizationImportInterpret
         {
             node.Classification = OrganizationImportNodeClassification.Conflict;
             issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.ExistingUnavailableAsOfDate,
-                $"'{unit.Name ?? unit.Code}' isn't active on the effective date.", node.Id, node.SourceCells));
+                $"'{unit.Name ?? unit.Code}' is inactive on this date.", node.Id, node.SourceCells));
             return;
         }
         var proposedParent = node.ParentCanonicalId;
@@ -430,8 +430,8 @@ public sealed class OrganizationImportInterpreter : IOrganizationImportInterpret
         node.Classification = OrganizationImportNodeClassification.Conflict;
         issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.ExistingDifference,
             authoritative
-                ? $"'{unit.Name}' already exists and the file describes it differently. Import doesn't change existing units: keep the current version or fix the file."
-                : $"The existing unit you chose, '{unit.Name}', differs from the file. Import doesn't change existing units: keep the current version or choose again.",
+                ? $"'{unit.Name}' exists with different details."
+                : $"'{unit.Name}' differs from the file.",
             node.Id, node.SourceCells, resolutions: authoritative
                 ? null
                 : [OrganizationImportResolutionKind.KeepExisting, OrganizationImportResolutionKind.ChooseExistingUnit]));
@@ -447,11 +447,11 @@ public sealed class OrganizationImportInterpreter : IOrganizationImportInterpret
                 node.ParentCanonicalId = permanentRoot.IsActive ? permanentRoot.Id : null;
             foreach (var node in nodes.Where(node => node.Classification == OrganizationImportNodeClassification.Create && node.TypeId == OrganizationalUnitTypeCatalog.OrganizationId))
                 issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.SecondOrganizationRoot,
-                    $"'{node.Name}' is typed as an Organization, but your organization already has its top-level Organization.",
+                    $"'{node.Name}' is a second Organization.",
                     node.Id, node.SourceCells, OrganizationImportFields.Type));
             if (!permanentRoot.IsActive)
                 issues.Add(OrganizationImportIssueCatalog.ForNodes(OrganizationImportIssueCodes.RootUnavailableAsOfDate,
-                    "The top of your organization isn't active on the effective date. Choose a later date.", []));
+                    "The root is inactive on this date.", []));
             return;
         }
 
@@ -486,7 +486,7 @@ public sealed class OrganizationImportInterpreter : IOrganizationImportInterpret
                 continue;
             node.Classification = OrganizationImportNodeClassification.Conflict;
             issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.ExistingDifference,
-                $"'{existing.Name}' already exists under a different parent. Import doesn't move existing units: keep it where it is, or fix the file.",
+                $"'{existing.Name}' exists under another parent.",
                 node.Id, node.SourceCells, OrganizationImportFields.ParentBusinessCode));
         }
     }
@@ -519,7 +519,7 @@ public sealed class OrganizationImportInterpreter : IOrganizationImportInterpret
             node.SourceBusinessCode = code;
             if (!node.BusinessCodeGenerated && (canonical.ByCurrentCode.ContainsKey(code) || canonical.ByReservedCode.ContainsKey(code)))
                 issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.BusinessCodeTaken,
-                    $"The business code '{code}' already belongs to another unit.", node.Id, node.SourceCells, OrganizationImportFields.BusinessCode,
+                    $"'{code}' is already used.", node.Id, node.SourceCells, OrganizationImportFields.BusinessCode,
                     node.Id == OrganizationImportDraftBuilder.IntroducedRootId ? [OrganizationImportResolutionKind.AddOrganizationRoot] : null));
         }
     }
@@ -545,7 +545,7 @@ public sealed class OrganizationImportInterpreter : IOrganizationImportInterpret
             if (canonical.ActiveUnits.Any(parent => parent.Id == node.ParentCanonicalId)) continue;
             var parent = canonical.ById.GetValueOrDefault(node.ParentCanonicalId!.Value);
             issues.Add(OrganizationImportIssueCatalog.ForNode(OrganizationImportIssueCodes.ExistingUnavailableAsOfDate,
-                $"The parent of '{node.Name}', '{parent?.Name ?? parent?.Code}', isn't active on the effective date.",
+                $"Parent '{parent?.Name ?? parent?.Code}' is inactive on this date.",
                 node.Id, node.SourceCells, OrganizationImportFields.ParentBusinessCode));
         }
     }
