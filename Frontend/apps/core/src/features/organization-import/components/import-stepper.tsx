@@ -40,8 +40,8 @@ export function ImportStepper({
               className={cn(
                 "relative grid place-items-center rounded-full border tabular-nums transition-colors duration-[var(--duration-normal)]",
                 compact ? "size-6 type-meta" : "size-8 type-label",
-                step.state === "current" && "border-primary bg-primary font-semibold text-primary-foreground",
-                step.state === "done" && "border-primary bg-background text-primary-foreground dark:text-primary",
+                step.state === "current" && "border-primary bg-background font-semibold text-primary-foreground dark:text-primary",
+                step.state === "done" && "border-primary bg-primary text-primary-foreground",
                 step.state === "upcoming" && "border-border bg-background text-muted-foreground"
               )}
               aria-hidden
