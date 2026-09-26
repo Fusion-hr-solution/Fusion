@@ -1,5 +1,5 @@
 import type { AuthUser } from "@repo/auth";
-import type { OrganizationReadinessDto } from "@repo/api";
+import type { CoreHRReadinessDto, OrganizationReadinessDto } from "@repo/api";
 import {
   SETUP_CAPABILITIES,
   type CapabilityGroup,
@@ -42,6 +42,8 @@ export interface ComposeInput {
   setupState: OrganizationReadinessDto | null | undefined;
   /** Canonical employee total. `undefined` while loading, `null` when unavailable. */
   workforceTotalCount: number | null | undefined;
+  /** Server-owned CoreHR readiness: the authority on whether the workforce is established and sound. */
+  coreHRReadiness?: CoreHRReadinessDto | null;
   /** Workforce Access distribution. `undefined` loading, `null` failed/unavailable. */
   workforceAccessSummary?:
     | { activeAccountCount: number; invitePendingCount: number; notInvitedCount: number }
@@ -90,6 +92,7 @@ export function composeSetupCapabilities({
   entitlements,
   setupState,
   workforceTotalCount,
+  coreHRReadiness,
   workforceAccessSummary,
   administratorCount,
   capabilities = SETUP_CAPABILITIES,
@@ -150,6 +153,23 @@ export function composeSetupCapabilities({
     }
 
     if (capability.key === "workforce") {
+      // CoreHR decides whether the workforce is established: people are active, placed in a
+      // valid unit, and their reporting lines are sound. Setup state is never stored elsewhere.
+      if (coreHRReadiness) {
+        const { workforce } = coreHRReadiness;
+        const problems = workforce.withoutCurrentAssignment + workforce.assignedToInactiveUnit + workforce.withInvalidManager + workforce.inManagerCycle;
+        const state =
+          workforce.activeEmployees === 0
+            ? workforce.importInProgress ? "in-progress" : "not-started"
+            : problems > 0 ? "in-progress" : "ready";
+        const detail =
+          workforce.activeEmployees === 0
+            ? workforce.importInProgress ? "Import in progress" : undefined
+            : problems > 0
+              ? `${problems} ${problems === 1 ? "person needs" : "people need"} attention`
+              : `${workforce.activeEmployees} active`;
+        return { ...base(capability, state), ...(detail ? { detail } : {}), isActionable: true };
+      }
       if (workforceTotalCount === undefined || workforceTotalCount === null) {
         return {
           ...base(capability, "unknown"),

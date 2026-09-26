@@ -12,7 +12,7 @@ import {
   canViewCoreOrganization,
   useAuth,
 } from "@repo/auth";
-import { ImportUploadSkeleton } from "./import-skeletons";
+import { ImportUploadSkeleton } from "@/features/data-import/components/import-skeletons";
 import { UploadStage } from "./upload-stage";
 
 export default function OrganizationImportWorkspace() {

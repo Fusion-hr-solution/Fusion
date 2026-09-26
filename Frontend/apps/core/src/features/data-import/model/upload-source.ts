@@ -1,7 +1,9 @@
-import type { OrganizationImportProblem } from "@repo/api";
+
+/** The shape every import domain's error translation produces. */
+export type IntakeProblemInput = { kind: string; code: string | null; message: string };
 
 /**
- * Upload's own logic: source-level checks only. Whether the file's columns, types or
+ * Upload's own logic, shared by every import domain: source-level checks only. Whether the file's columns, types or
  * hierarchy make sense is Match's and Review's business. A readable table with
  * unfamiliar headers always leaves Upload.
  */
@@ -54,7 +56,7 @@ const FALLBACK_MESSAGE: Record<UploadProblemCategory, string> = {
   SourceTooLarge: "This file is larger than the 10 MB limit.",
   InvalidEffectiveDate: "Choose a valid effective date.",
   SourceConflict: "This file changed while it was being uploaded. Choose it again.",
-  PermissionDenied: "You no longer have permission to import Organization structure.",
+  PermissionDenied: "You no longer have permission to run this import.",
   IntakeFailed: "Fusion couldn’t start the import right now.",
 };
 
@@ -77,7 +79,7 @@ export function checkLocalSource(file: File): UploadProblem | null {
 }
 
 /** Maps an intake failure onto Upload's categories by its stable code or HTTP class. */
-export function classifyIntakeProblem(error: OrganizationImportProblem): UploadProblem {
+export function classifyIntakeProblem(error: IntakeProblemInput): UploadProblem {
   const category = error.code ? CATEGORY_BY_CODE[error.code] : undefined;
   if (category)
     // Source defects carry specific server wording; a conflict gets Fusion's own.

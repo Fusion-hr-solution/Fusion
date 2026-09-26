@@ -2,8 +2,8 @@
 
 import { Skeleton } from "@repo/ds";
 import { PageContainer } from "@repo/ds/shell";
-import { ImportHeader } from "./import-header";
-import type { ImportStep } from "./import-stepper";
+import { ImportHeader } from "@/features/data-import/components/import-header";
+import type { ImportStep } from "@/features/data-import/components/import-stepper";
 
 // One skeleton per import stage, shaped like the stage it stands in for. The route loading
 // boundaries, the access gate and the attempt frame all render these, so loading a stage
@@ -11,8 +11,20 @@ import type { ImportStep } from "./import-stepper";
 
 export type ImportSkeletonStage = "upload" | "match" | "review";
 
-const CONTEXT =
-  "Bring in your structure from Excel or CSV and review it before publishing.";
+export type ImportDomain = "organization" | "workforce";
+
+const COPY: Record<ImportDomain, { title: string; context: string; name: string }> = {
+  organization: {
+    title: "Import organization structure",
+    context: "Bring in your structure from Excel or CSV and review it before publishing.",
+    name: "Organization import",
+  },
+  workforce: {
+    title: "Import workforce",
+    context: "Bring in your people from Excel or CSV and review them before publishing.",
+    name: "Workforce import",
+  },
+};
 
 function skeletonSteps(stage: ImportSkeletonStage | null): ImportStep[] {
   const at =
@@ -45,11 +57,12 @@ function LoadingRegion({
 }
 
 /** Upload: the header, the file-and-date card, and the template action. */
-export function ImportUploadSkeleton() {
+export function ImportUploadSkeleton({ domain = "organization" }: { domain?: ImportDomain }) {
+  const copy = COPY[domain];
   return (
-    <LoadingRegion label="Loading Organization import">
+    <LoadingRegion label={`Loading ${copy.name}`}>
       <PageContainer className="space-y-8 pb-16">
-        <ImportHeader context={CONTEXT} steps={skeletonSteps("upload")} />
+        <ImportHeader title={copy.title} context={copy.context} steps={skeletonSteps("upload")} />
         <section className="rounded-surface border border-border bg-card p-5 shadow-raised sm:p-8">
           <Skeleton className="h-7 w-64" />
           <Skeleton className="mt-2 h-4 w-96 max-w-full" />
@@ -79,18 +92,21 @@ export function ImportUploadSkeleton() {
 /** An attempt still resolving its stage: the frame's header, then a quiet body. */
 export function ImportAttemptSkeleton({
   stage,
+  domain = "organization",
 }: {
   stage: ImportSkeletonStage | null;
+  domain?: ImportDomain;
 }) {
+  const copy = COPY[domain];
   return (
     <LoadingRegion label="Loading your import">
       <PageContainer>
-        <ImportHeader context={CONTEXT} steps={skeletonSteps(stage)} />
+        <ImportHeader title={copy.title} context={<Skeleton className="h-4 w-72 max-w-full" />} steps={skeletonSteps(stage)} />
       </PageContainer>
       {stage === "match" ? (
         <MatchBody />
       ) : stage === "review" ? (
-        <ReviewBody />
+        domain === "workforce" ? <PeopleReviewBody /> : <ReviewBody />
       ) : (
         <PageContainer className="pt-2">
           <Skeleton className="h-24 rounded-surface" />
@@ -110,10 +126,10 @@ export function ImportMatchSkeleton() {
 }
 
 /** Review body, inside the attempt frame. */
-export function ImportReviewSkeleton() {
+export function ImportReviewSkeleton({ domain = "organization" }: { domain?: ImportDomain }) {
   return (
     <LoadingRegion label="Loading Review">
-      <ReviewBody />
+      {domain === "workforce" ? <PeopleReviewBody /> : <ReviewBody />}
     </LoadingRegion>
   );
 }
@@ -220,6 +236,54 @@ function ReviewBody() {
             </Panel>
           </aside>
         </div>
+      </PageContainer>
+      <FooterSkeleton />
+    </>
+  );
+}
+
+/** Workforce Review: the summary, the classification filters, and the paged people list. */
+function PeopleReviewBody() {
+  return (
+    <>
+      <PageContainer className="space-y-4 pt-2">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-surface border border-border bg-card p-4 sm:pr-5">
+          <div className="flex min-w-0 items-center gap-4">
+            <Skeleton className="size-12 shrink-0 rounded-full" />
+            <div className="min-w-0 space-y-2">
+              <Skeleton className="h-7 w-52" />
+              <Skeleton className="h-4 w-[26rem] max-w-full" />
+            </div>
+          </div>
+          <Skeleton className="h-10 w-56 rounded-object" />
+        </div>
+        <section className="min-w-0 overflow-hidden rounded-surface border border-border bg-card">
+          <div className="space-y-4 px-4 pb-4 pt-5 sm:px-5">
+            <Skeleton className="h-6 w-48" />
+            <div className="flex flex-wrap items-center gap-3">
+              <Skeleton className="h-10 w-full rounded-object sm:w-96" />
+              {Array.from({ length: 3 }).map((_, index) => (
+                <Skeleton key={index} className="h-10 w-24 rounded-full" />
+              ))}
+            </div>
+          </div>
+          <div className="border-y border-border bg-muted/40 px-5 py-3">
+            <Skeleton className="h-3.5 w-2/3" />
+          </div>
+          {Array.from({ length: 8 }).map((_, index) => (
+            <div key={index} className="flex items-center gap-4 border-b border-border/60 px-5 py-3 last:border-b-0">
+              <Skeleton className="size-9 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <Skeleton className="h-4" style={{ width: `${34 - (index % 3) * 5}%` }} />
+                <Skeleton className="h-3 w-1/4" />
+              </div>
+              <Skeleton className="hidden h-4 w-28 md:block" />
+              <Skeleton className="hidden h-4 w-32 lg:block" />
+              <Skeleton className="hidden h-4 w-24 lg:block" />
+              <Skeleton className="h-7 w-24 rounded-full" />
+            </div>
+          ))}
+        </section>
       </PageContainer>
       <FooterSkeleton />
     </>

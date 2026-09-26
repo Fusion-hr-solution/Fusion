@@ -12,12 +12,12 @@ import {
   translateOrganizationImportError,
   type OrganizationImportSessionDto,
 } from "@repo/api";
-import { ImportHeader } from "./import-header";
+import { ImportHeader } from "@/features/data-import/components/import-header";
 import {
   ImportAttemptSkeleton,
   type ImportSkeletonStage,
-} from "./import-skeletons";
-import type { ImportStep } from "./import-stepper";
+} from "@/features/data-import/components/import-skeletons";
+import type { ImportStep } from "@/features/data-import/components/import-stepper";
 import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
 import { useOrganizationImportSession } from "../api/use-organization-import";
 import {
@@ -215,7 +215,7 @@ function importSteps(
       key: "match",
       label: "Match",
       detail:
-        matchOutcome === "automatic" ? "Automatically matched" : undefined,
+        undefined,
       state: segment === "match" ? "current" : matchDone ? "done" : "upcoming",
       href: segment === "review" ? importStageHref(sessionId, "match") : null,
     },

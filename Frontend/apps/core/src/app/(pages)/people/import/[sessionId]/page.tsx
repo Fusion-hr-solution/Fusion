@@ -1,12 +1,5 @@
-import { WorkforceImportSession } from "@/features/workforce-import/components/workforce-import-session";
-
-export const dynamic = "force-dynamic";
-
-export default async function WorkforceImportSessionPage({
-  params,
-}: {
-  params: Promise<{ sessionId: string }>;
-}) {
-  const { sessionId } = await params;
-  return <WorkforceImportSession sessionId={sessionId} />;
+// The attempt's resume URL. It renders nothing itself: the import frame derives the
+// attempt's current stage and replaces this URL with it.
+export default function WorkforceImportAttemptPage() {
+  return null;
 }

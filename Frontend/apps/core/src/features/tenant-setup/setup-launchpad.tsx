@@ -32,7 +32,7 @@ import {
 import { useEmployeeRoster } from "@/app/(pages)/employees/use-employees";
 import { useTenantAccessSummary } from "@/features/tenant-access/api/use-tenant-access";
 import { useAccessRosterSummary } from "@/features/workforce-access/api/use-workforce-access";
-import { useOrganizationReadiness } from "@/features/organization/api/use-organization";
+import { useCoreHRReadiness, useOrganizationReadiness } from "@/features/organization/api/use-organization";
 import { canViewCoreOrganization } from "@repo/auth";
 import {
   composeSetupCapabilities,
@@ -142,6 +142,7 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
     canViewTenantAdministration(user)
   );
   const workforce = useEmployeeRoster(WORKFORCE_PRESENCE_QUERY);
+  const coreHRReadinessData = useCoreHRReadiness(canViewCoreOrganization(user)).data ?? null;
   const workforceAccess = useAccessRosterSummary(canViewWorkforceAccess(user));
   const workforceAccessSummary = workforceAccess.error
     ? null
@@ -172,6 +173,7 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
         entitlements: user.moduleEntitlements ?? [],
         setupState: effectiveSetupState,
         workforceTotalCount,
+        coreHRReadiness: coreHRReadinessData,
         workforceAccessSummary,
         administratorCount,
       }),
@@ -179,6 +181,7 @@ export function AuthorizedSetupLaunchpad({ user }: { user: AuthUser }) {
       effectiveSetupState,
       user,
       workforceTotalCount,
+      coreHRReadinessData,
       workforceAccessSummary,
       administratorCount,
     ]

@@ -6,7 +6,7 @@ import type { OrganizationImportSemanticAssistance } from "@repo/api";
 import { describeAssistance } from "../model/match-assistance";
 
 /** The one automatic-matching action the banner can offer, or the in-flight state. */
-export function MatchAssistance({
+export function ImportMatchAssistance({
   assistance,
   needsReview,
   running,

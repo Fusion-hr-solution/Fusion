@@ -1,17 +1,16 @@
 "use client";
 
 import { BookOpen, Check, CircleHelp, Download } from "lucide-react";
-import { toast } from "sonner";
 import { Button, cn } from "@repo/ds";
-import { translateOrganizationImportError, type OrganizationImportMatch } from "@repo/api";
-import { useOrganizationImportApi } from "../api/use-organization-import";
-import { downloadBlob } from "../model/format";
 
-/** The path from here to a published structure, with the template as the way out of a hard file. */
-export function MatchNextSteps({ match }: { match: OrganizationImportMatch }) {
-  const api = useOrganizationImportApi();
-  const remaining = match.readiness.requiredDecisions.length;
-
+/** The path from here to a published import, with the template as the way out of a hard file. */
+export function ImportMatchNextSteps({
+  remaining,
+  onDownloadTemplate,
+}: {
+  remaining: number;
+  onDownloadTemplate: () => void;
+}) {
   const steps = [
     remaining
       ? { title: `Resolve the remaining ${remaining === 1 ? "item" : `${remaining} items`}`, done: false }
@@ -19,16 +18,6 @@ export function MatchNextSteps({ match }: { match: OrganizationImportMatch }) {
     { title: "Continue to Review", done: false },
     { title: "Publish when ready", done: false },
   ];
-
-  async function downloadTemplate() {
-    try {
-      downloadBlob(await api.downloadTemplate(), "Fusion-organization-template.xlsx");
-    } catch (error) {
-      toast.error("Template could not be downloaded", {
-        description: translateOrganizationImportError(error).message,
-      });
-    }
-  }
 
   return (
     <section
@@ -70,7 +59,12 @@ export function MatchNextSteps({ match }: { match: OrganizationImportMatch }) {
           <h3 className="type-label font-semibold text-foreground">Need help?</h3>
         </div>
         <p className="type-meta text-muted-foreground">Start from our template to see the expected format.</p>
-        <Button variant="outline" size="sm" className="self-start border-primary/60 text-primary-foreground hover:bg-primary/10 dark:text-primary" onClick={() => void downloadTemplate()}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-start border-primary/60 text-primary-foreground hover:bg-primary/10 dark:text-primary"
+          onClick={onDownloadTemplate}
+        >
           <Download aria-hidden />
           Download template
         </Button>

@@ -1,11 +1,14 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   coreWorkforceImportQueryKeys,
   createCoreWorkforceImportApi,
   createPlatformApiClient,
   type WorkforceApplyStatusDto,
+  type WorkforceImportSessionDto,
+  type WorkforceReviewFilter,
 } from "@repo/api";
 import { keepPreviousData, useApiQuery } from "@repo/api/query";
 import { canImportCoreEmployees, useAuth } from "@repo/auth";
@@ -15,7 +18,7 @@ export function useWorkforceImportApi() {
   return useMemo(() => createCoreWorkforceImportApi(client), [client]);
 }
 
-/** The single active import for the tenant (resume strip), if any. */
+/** The most recent import still in progress (resume strip), if any. */
 export function useActiveWorkforceImport() {
   const api = useWorkforceImportApi();
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -37,9 +40,24 @@ export function useWorkforceImportSession(sessionId: string | null) {
   );
 }
 
+/**
+ * Write an attempt the server returned into the cache, so every stage reads the same authoritative
+ * version, and refetch the review pages derived from it.
+ */
+export function useWorkforceSessionCache() {
+  const queryClient = useQueryClient();
+  return useCallback(
+    async (session: WorkforceImportSessionDto) => {
+      queryClient.setQueryData(coreWorkforceImportQueryKeys.session(session.id), session);
+      await queryClient.invalidateQueries({ queryKey: [...coreWorkforceImportQueryKeys.all(), "review", session.id] });
+    },
+    [queryClient]
+  );
+}
+
 export function useWorkforceReview(
   sessionId: string | null,
-  params: { filter: string; query: string; page: number; pageSize: number }
+  params: { filter: WorkforceReviewFilter | ""; query: string; page: number; pageSize: number }
 ) {
   const api = useWorkforceImportApi();
   const { isAuthenticated, isLoading } = useAuth();

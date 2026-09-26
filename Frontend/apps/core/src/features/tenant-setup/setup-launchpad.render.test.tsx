@@ -33,6 +33,8 @@ vi.mock("@repo/auth", () => ({
 
 vi.mock("@/features/organization/api/use-organization", () => ({
   useOrganizationReadiness: mocks.setupHook,
+  // No server readiness in these scenarios: the launchpad falls back to the roster count.
+  useCoreHRReadiness: () => ({ data: undefined, isLoading: false, error: null }),
 }));
 
 vi.mock("@/features/tenant-access/api/use-tenant-access", () => ({

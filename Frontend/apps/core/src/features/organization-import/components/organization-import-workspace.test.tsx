@@ -497,11 +497,11 @@ describe("Organization import attempt: frame, Match and Review", () => {
     expect(mocks.replace).toHaveBeenCalledWith("/organization/import/session-1/match");
   });
 
-  it("marks Match as automatic when Fusion needed no help, and lets Review go back to it", () => {
+  it("lets Review go back to it", () => {
     mocks.sessionQuery = { data: sourceReady().session, isLoading: false, error: null, refetch: vi.fn() };
     renderAttempt("review");
     const journey = screen.getByRole("list", { name: "Import steps" });
-    expect(within(journey).getByRole("link", { name: /Match · Automatically matched/ })).toHaveAttribute(
+    expect(within(journey).getByRole("link", { name: /^Match/ })).toHaveAttribute(
       "href",
       "/organization/import/session-1/match"
     );

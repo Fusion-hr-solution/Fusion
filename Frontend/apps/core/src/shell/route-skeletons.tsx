@@ -11,7 +11,7 @@ import { WorkerProfileSkeleton } from "@/features/people/components/worker-profi
 import {
   ImportAttemptSkeleton,
   ImportUploadSkeleton,
-} from "@/features/organization-import/components/import-skeletons";
+} from "@/features/data-import/components/import-skeletons";
 
 // ── Route skeleton registry ─────────────────────────────────────────────────
 // One dedicated loading skeleton per route, shared by every loading surface:
@@ -83,16 +83,6 @@ export function EmployeesPageSkeleton({ label }: { label?: string }) {
 
 export function EmployeeProfilePageSkeleton() {
   return <WorkerProfileSkeleton showBackLink />;
-}
-
-export function EmployeeImportPageSkeleton() {
-  return (
-    <TitledPageLoading
-      title="Import employees"
-      description="Upload and validate from the CSV template."
-      label="Loading employee import..."
-    />
-  );
 }
 
 export function MyProfilePageSkeleton() {
@@ -341,7 +331,11 @@ export function SetupPageSkeleton() {
 export function getRoutePageSkeleton(corePath: string): ReactNode {
   if (corePath === "/") return <OverviewPageSkeleton />;
   if (corePath === "/people") return <EmployeesPageSkeleton />;
-  if (corePath === "/people/import") return <EmployeeImportPageSkeleton />;
+  if (corePath === "/people/import") return <ImportUploadSkeleton domain="workforce" />;
+  if (corePath.startsWith("/people/import/")) {
+    const step = corePath.split("/")[4];
+    return <ImportAttemptSkeleton domain="workforce" stage={step === "match" || step === "review" ? step : null} />;
+  }
   if (corePath === "/people/hire" || corePath === "/people/add-existing")
     return <TitledPageLoading title="People" rows={5} label="Opening employee details" />;
   if (corePath.startsWith("/people/")) return <EmployeeProfilePageSkeleton />;

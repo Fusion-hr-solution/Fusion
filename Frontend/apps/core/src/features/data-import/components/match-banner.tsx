@@ -2,49 +2,35 @@
 
 import { Sparkles } from "lucide-react";
 import { cn } from "@repo/ds";
-import type { OrganizationImportMatch, OrganizationImportShape } from "@repo/api";
+import type { OrganizationImportSemanticAssistance } from "@repo/api";
 import { describeAssistance } from "../model/match-assistance";
 
-const SHAPE_LABEL: Record<OrganizationImportShape, string> = {
-  Native: "Fusion template",
-  ParentReference: "Parent-referenced",
-  LevelColumns: "Level columns",
-  Unresolved: "Not recognised",
-};
+export type MatchFact = { value: string; label: string; emphasis?: boolean };
 
-export type MatchSummary = {
-  shapeLabel: string;
-  shapeResolved: boolean;
-  typesTotal: number;
-  typesResolved: number;
+/**
+ * The Match headline. Fusion asks for help when it understood too little to lean on; otherwise it
+ * says how much it matched, crediting AI only when AI actually matched something.
+ */
+export function matchHeadline({
+  needsReview,
+  mostlyUnresolved,
+  byAi,
+  noun = "data",
+}: {
   needsReview: number;
-};
-
-export function summarizeMatch(match: OrganizationImportMatch): MatchSummary {
-  const plan = match.mappingPlan;
-  const decisions = match.readiness.requiredDecisions;
-  const types = plan.typeMappingDetails ?? [];
-  const unresolvedTypes = new Set(
-    decisions.filter((d) => d.kind === "TypeMapping").map((d) => d.sourceValue ?? "")
-  );
-  return {
-    shapeLabel: SHAPE_LABEL[plan.sourceShape],
-    shapeResolved: plan.sourceShape !== "Unresolved",
-    typesTotal: types.length,
-    typesResolved: types.filter((t) => !unresolvedTypes.has(t.sourceValue)).length,
-    needsReview: decisions.length,
-  };
-}
-
-function headline(
-  { needsReview, typesResolved, typesTotal, shapeResolved }: MatchSummary,
-  byAi: boolean
-): React.ReactNode {
-  if (needsReview > 0 && (!shapeResolved || typesResolved * 2 < typesTotal)) return "We need your help matching this file";
-  // Credit AI only when it actually matched something; otherwise Fusion's own rules did.
-  const who = byAi ? <AiMark /> : "We’ve";
+  mostlyUnresolved: boolean;
+  byAi: boolean;
+  noun?: string;
+}): React.ReactNode {
+  if (needsReview > 0 && mostlyUnresolved) return "We need your help matching this file";
   const how = needsReview === 0 ? "all" : "most";
-  return byAi ? <>{who} matched {how} of your data</> : `${who} matched ${how} of your data`;
+  return byAi ? (
+    <>
+      <AiMark /> matched {how} of your {noun}
+    </>
+  ) : (
+    `We’ve matched ${how} of your ${noun}`
+  );
 }
 
 function AiMark() {
@@ -56,16 +42,20 @@ function AiMark() {
 }
 
 /** Opening summary of Match: what Fusion understood, and how much is left for the administrator. */
-export function MatchSummaryBanner({
-  match,
+export function ImportMatchBanner({
+  headline,
+  assistance,
+  needsReview,
+  facts,
   children,
 }: {
-  match: OrganizationImportMatch;
+  headline: React.ReactNode;
+  assistance: OrganizationImportSemanticAssistance | null | undefined;
+  needsReview: number;
+  facts: MatchFact[];
   /** What automatic matching can still do, rendered under the summary sentence. */
   children?: React.ReactNode;
 }) {
-  const summary = summarizeMatch(match);
-  const pending = summary.needsReview > 0;
   return (
     <section
       aria-label="Match summary"
@@ -82,26 +72,21 @@ export function MatchSummaryBanner({
           <p className="type-eyebrow tracking-[0.12em] text-primary-foreground dark:text-primary">
             Fusion understood your file
           </p>
-          <h2 className="mt-1 type-page-title text-foreground">{headline(summary, (match.semanticAssistance?.appliedCount ?? 0) > 0)}</h2>
-          <p className="mt-1 type-body text-muted-foreground">
-            {describeAssistance(match.semanticAssistance, summary.needsReview).summary}
-          </p>
+          <h2 className="mt-1 type-page-title text-foreground">{headline}</h2>
+          <p className="mt-1 type-body text-muted-foreground">{describeAssistance(assistance, needsReview).summary}</p>
           {children}
         </div>
       </div>
       <dl className="grid w-full shrink-0 grid-cols-1 gap-4 border-t border-border pt-4 sm:flex sm:w-auto sm:items-start sm:gap-0 sm:divide-x sm:divide-border sm:border-t-0 sm:pt-0">
-        <Fact value={summary.shapeLabel} label="Hierarchy" />
-        <Fact
-          value={summary.typesTotal ? `${summary.typesResolved}/${summary.typesTotal}` : "0"}
-          label="Organization types resolved"
-        />
-        <Fact value={String(summary.needsReview)} label="Needs review" emphasis={pending} />
+        {facts.map((fact) => (
+          <Fact key={fact.label} {...fact} />
+        ))}
       </dl>
     </section>
   );
 }
 
-function Fact({ value, label, emphasis }: { value: string; label: string; emphasis?: boolean }) {
+function Fact({ value, label, emphasis }: MatchFact) {
   const tone = emphasis ? "text-primary-foreground dark:text-primary" : "text-foreground";
   return (
     <div className="flex flex-col-reverse gap-1.5 sm:px-6 sm:py-1 sm:first:pl-0 sm:last:pr-2">

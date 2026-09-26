@@ -38,6 +38,17 @@ export function useOrganizationReadiness(enabled = true) {
   );
 }
 
+/** Whether CoreHR's foundation (published organization + sound active workforce) is established. */
+export function useCoreHRReadiness(enabled = true) {
+  const api = useOrganizationApi();
+  const canRead = useOrganizationReadEnabled(enabled);
+  return useApiQuery(
+    coreOrganizationQueryKeys.coreHRReadiness(),
+    useCallback((signal) => api.coreHRReadiness(signal), [api]),
+    { enabled: canRead }
+  );
+}
+
 export function useOrganizationHierarchy(asOf: string, enabled = true) {
   const api = useOrganizationApi();
   const canRead = useOrganizationReadEnabled(enabled);

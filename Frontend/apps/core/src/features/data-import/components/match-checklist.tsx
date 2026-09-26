@@ -2,39 +2,11 @@
 
 import { ChartNoAxesColumn, Check, TriangleAlert } from "lucide-react";
 import { cn } from "@repo/ds";
-import type { OrganizationImportMatch, OrganizationSourceTable } from "@repo/api";
-import { countMappedColumns } from "../model/match-progress";
-import { summarizeMatch } from "./match-summary-banner";
+
+export type MatchChecklistLine = { label: string; value: string; done: boolean };
 
 /** Where interpretation stands, one line per thing Match resolves. */
-export function MatchStatusSummary({
-  table,
-  match,
-}: {
-  table: OrganizationSourceTable;
-  match: OrganizationImportMatch;
-}) {
-  const summary = summarizeMatch(match);
-  const columns = countMappedColumns(table, match);
-  const lines: Array<{ label: string; value: string; done: boolean }> = [
-    { label: "Hierarchy shape interpreted", value: summary.shapeLabel, done: summary.shapeResolved },
-    {
-      label: "Source columns mapped",
-      value: `${columns.mapped} of ${columns.total} mapped`,
-      done: !match.readiness.requiredDecisions.some((d) => d.kind === "FieldMapping"),
-    },
-    {
-      label: "Organization types resolved",
-      value: `${summary.typesResolved} of ${summary.typesTotal} resolved`,
-      done: summary.typesResolved === summary.typesTotal,
-    },
-    {
-      label: "Items needing review",
-      value: summary.needsReview ? `${summary.needsReview} remaining` : "None",
-      done: summary.needsReview === 0,
-    },
-  ];
-
+export function ImportMatchChecklist({ lines }: { lines: MatchChecklistLine[] }) {
   return (
     <section aria-labelledby="match-status-title" className="rounded-surface border border-border bg-card p-4">
       <header className="flex items-center gap-3">

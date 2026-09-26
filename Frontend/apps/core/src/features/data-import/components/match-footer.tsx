@@ -5,31 +5,28 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Button } from "@repo/ds";
 import { PageContainer } from "@repo/ds/shell";
-import type { OrganizationImportMatch } from "@repo/api";
-import { importStageHref } from "../model/import-stage";
 
 /**
  * The flow bar pinned to the bottom of Match: back to Upload, and on to Review once every
  * required meaning is settled. Continuing never happens by itself.
  */
-export function MatchFooter({
-  sessionId,
-  match,
-  busy,
+export function ImportMatchFooter({
+  uploadHref,
+  reviewHref,
+  remaining,
+  canContinue,
 }: {
-  sessionId: string;
-  match: OrganizationImportMatch;
-  busy: boolean;
+  uploadHref: string;
+  reviewHref: string;
+  remaining: number;
+  canContinue: boolean;
 }) {
   const router = useRouter();
-  const remaining = match.readiness.requiredDecisions.length;
-  const canContinue = match.readiness.canContinue && !busy;
-
   return (
     <div className="sticky bottom-0 z-20 mt-8 border-t border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
       <PageContainer className="flex items-center justify-between gap-4 py-3">
         <Button variant="outline" asChild>
-          <Link href="/organization/import">
+          <Link href={uploadHref}>
             <ArrowLeft aria-hidden />
             Back to upload
           </Link>
@@ -40,7 +37,7 @@ export function MatchFooter({
               Resolve {remaining} remaining {remaining === 1 ? "item" : "items"} to continue.
             </p>
           ) : null}
-          <Button disabled={!canContinue} onClick={() => router.push(importStageHref(sessionId, "review"))}>
+          <Button disabled={!canContinue} onClick={() => router.push(reviewHref)}>
             Continue to review
             <ArrowRight aria-hidden />
           </Button>
