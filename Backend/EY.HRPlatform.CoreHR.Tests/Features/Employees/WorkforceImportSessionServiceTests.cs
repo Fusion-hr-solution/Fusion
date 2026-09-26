@@ -12,7 +12,7 @@ namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
 public sealed class WorkforceImportSessionServiceTests
 {
     private static readonly Guid Tenant = Guid.NewGuid();
-    private static readonly WorkforceImportActor Actor = new(Guid.NewGuid(), "Amina");
+    private static readonly ImportActor Actor = new(Guid.NewGuid(), "Amina");
     private const string CsvA = "Employee Number,First Name,Last Name\n001,Amina,Mansour\n002,Youssef,Ben Ali\n";
     private const string CsvB = "Employee Number,First Name,Last Name\n003,Leila,Haddad\n";
 
@@ -20,26 +20,28 @@ public sealed class WorkforceImportSessionServiceTests
     {
         var tenantContext = TestTenantContext.WithTenant(Tenant);
         var context = TestDbContextFactory.Create(tenantContext, dbName);
-        var service = new WorkforceImportSessionService(context, tenantContext, new SafeTabularSourceReader(), new WorkforceImportSourceAdapter());
-        return (service, context);
+        return (WorkforceImportTestKit.Sessions(context, Tenant), context);
     }
 
-    private static WorkforceImportIntakeRequest Intake(Guid token, string csv, TimeSpan? retention = null)
-        => new(token, new DateOnly(2026, 8, 17), new MemoryStream(Encoding.UTF8.GetBytes(csv)), "people.csv", "text/csv", null, Actor, retention);
+    private static WorkforceImportIntakeRequest Intake(Guid token, string csv)
+        => new(token, new DateOnly(2026, 8, 17), new MemoryStream(Encoding.UTF8.GetBytes(csv)), "people.csv", "text/csv", null, Actor);
 
     [Fact]
-    public async Task Intake_creates_session_source_and_rows()
+    public async Task Intake_creates_an_active_attempt_and_derives_its_proposal()
     {
-        var (service, context) = Build(nameof(Intake_creates_session_source_and_rows));
+        var (service, context) = Build(nameof(Intake_creates_an_active_attempt_and_derives_its_proposal));
         var outcome = await service.IntakeAsync(Intake(Guid.NewGuid(), CsvA), default);
 
         Assert.Equal(WorkforceImportIntakeKind.Ready, outcome.Kind);
         Assert.False(outcome.Replayed);
         var session = outcome.Session!;
-        Assert.Equal(WorkforceImportStatus.Intake, session.Status);
+        Assert.Equal(WorkforceImportStatus.Active, session.Status);
         Assert.Equal(2, await context.WorkforceImportRows.CountAsync(r => r.SessionId == session.Id));
         Assert.NotNull(session.Source.RawBytes);
         Assert.Contains("Employee Number", session.Source.ColumnsJson);
+        // Derived at intake: this file lacks required columns, so Match is not complete yet.
+        Assert.False(session.MatchComplete);
+        Assert.NotNull(session.ProposalFingerprint);
     }
 
     [Fact]
@@ -50,21 +52,9 @@ public sealed class WorkforceImportSessionServiceTests
         var first = await service.IntakeAsync(Intake(token, CsvA), default);
         var replay = await service.IntakeAsync(Intake(token, CsvA), default);
 
-        Assert.Equal(WorkforceImportIntakeKind.Ready, replay.Kind);
         Assert.True(replay.Replayed);
         Assert.Equal(first.Session!.Id, replay.Session!.Id);
         Assert.Equal(1, await context.WorkforceImportSessions.CountAsync());
-    }
-
-    [Fact]
-    public async Task Intake_second_token_while_active_returns_active_session()
-    {
-        var (service, _) = Build(nameof(Intake_second_token_while_active_returns_active_session));
-        await service.IntakeAsync(Intake(Guid.NewGuid(), CsvA), default);
-        var second = await service.IntakeAsync(Intake(Guid.NewGuid(), CsvB), default);
-
-        Assert.Equal(WorkforceImportIntakeKind.ActiveSessionExists, second.Kind);
-        Assert.NotNull(second.Session);
     }
 
     [Fact]
@@ -73,52 +63,48 @@ public sealed class WorkforceImportSessionServiceTests
         var (service, _) = Build(nameof(Intake_same_token_different_source_conflicts));
         var token = Guid.NewGuid();
         await service.IntakeAsync(Intake(token, CsvA), default);
-        var conflict = await service.IntakeAsync(Intake(token, CsvB), default);
-
-        Assert.Equal(WorkforceImportIntakeKind.Conflict, conflict.Kind);
+        Assert.Equal(WorkforceImportIntakeKind.Conflict, (await service.IntakeAsync(Intake(token, CsvB), default)).Kind);
     }
 
     [Fact]
-    public async Task ReplaceDecisions_autosaves_and_persists_revision()
+    public async Task A_second_file_is_a_new_attempt_and_resume_offers_the_latest()
     {
-        var (service, context) = Build(nameof(ReplaceDecisions_autosaves_and_persists_revision));
-        var session = (await service.IntakeAsync(Intake(Guid.NewGuid(), CsvA), default)).Session!;
-        await service.ReplaceDecisionsAsync(session.Id, "{\"dateFormat\":\"DD/MM/YYYY\"}", session.Version, Actor, default);
+        // Lifecycle parity with Organization Import: attempts are independent; a corrected file is a new attempt.
+        var (service, context) = Build(nameof(A_second_file_is_a_new_attempt_and_resume_offers_the_latest));
+        var first = await service.IntakeAsync(Intake(Guid.NewGuid(), CsvA), default);
+        var second = await service.IntakeAsync(Intake(Guid.NewGuid(), CsvB), default);
 
-        var reloaded = await context.WorkforceImportSessions.AsNoTracking().SingleAsync(s => s.Id == session.Id);
-        Assert.Equal(1, reloaded.DecisionRevision);
-        Assert.Contains("DD/MM/YYYY", reloaded.DecisionsJson);
-        Assert.NotNull(reloaded.DecisionsUpdatedAt);
+        Assert.Equal(WorkforceImportIntakeKind.Ready, second.Kind);
+        Assert.NotEqual(first.Session!.Id, second.Session!.Id);
+        Assert.Equal(2, await context.WorkforceImportSessions.CountAsync(s => s.Status == WorkforceImportStatus.Active));
+        Assert.Equal(second.Session.Id, (await service.GetActiveAsync(default))!.Id);
     }
 
     [Fact]
-    public async Task Header_clarification_intake_persists_session_with_candidates_and_no_rows()
+    public async Task Discard_is_explicit_terminal_and_purges()
+    {
+        var (service, context) = Build(nameof(Discard_is_explicit_terminal_and_purges));
+        var session = (await service.IntakeAsync(Intake(Guid.NewGuid(), CsvA), default)).Session!;
+        Assert.True(await service.DiscardAsync(session.Id, session.Version, Actor, default));
+
+        var reloaded = await context.WorkforceImportSessions.Include(s => s.Source).Include(s => s.Rows).AsNoTracking().SingleAsync(s => s.Id == session.Id);
+        Assert.Equal(WorkforceImportStatus.Discarded, reloaded.Status);
+        Assert.Null(reloaded.Source.RawBytes);
+        Assert.All(reloaded.Rows, row => Assert.Null(row.SourceCellsJson));
+        await Assert.ThrowsAsync<WorkforceImportReviewException>(() =>
+            service.SelectHeaderRowAsync(session.Id, 0, reloaded.Version, Actor, default));
+    }
+
+    [Fact]
+    public async Task Header_clarification_intake_persists_attempt_with_candidates_and_no_rows()
     {
         const string ambiguousCsv = "Employee Number,First Name,Department\nMatricule,Prénom,Département\n001,Amina,Ops\n";
-        var (service, context) = Build(nameof(Header_clarification_intake_persists_session_with_candidates_and_no_rows));
+        var (service, context) = Build(nameof(Header_clarification_intake_persists_attempt_with_candidates_and_no_rows));
         var intake = await service.IntakeAsync(Intake(Guid.NewGuid(), ambiguousCsv), default);
 
         Assert.Equal(WorkforceImportIntakeKind.HeaderClarificationRequired, intake.Kind);
-        Assert.NotNull(intake.HeaderCandidates);
         Assert.True(intake.HeaderCandidates!.Count > 1);
-        // Session + source (bytes) persisted so the choice needs no re-upload; rows await the choice.
         Assert.Equal(0, await context.WorkforceImportRows.CountAsync(r => r.SessionId == intake.Session!.Id));
         Assert.NotNull(intake.Session!.Source.RawBytes);
-    }
-
-    [Fact]
-    public async Task PurgeExpired_expires_and_purges_past_window_sessions()
-    {
-        var (service, context) = Build(nameof(PurgeExpired_expires_and_purges_past_window_sessions));
-        var session = (await service.IntakeAsync(Intake(Guid.NewGuid(), CsvA, TimeSpan.FromMinutes(1)), default)).Session!;
-
-        var purged = await service.PurgeExpiredAsync(DateTime.UtcNow.AddDays(1), default);
-
-        Assert.Equal(1, purged);
-        var reloaded = await context.WorkforceImportSessions.Include(s => s.Source).Include(s => s.Rows)
-            .AsNoTracking().SingleAsync(s => s.Id == session.Id);
-        Assert.Equal(WorkforceImportStatus.Expired, reloaded.Status);
-        Assert.Null(reloaded.Source.RawBytes);
-        Assert.All(reloaded.Rows, row => Assert.Null(row.SourceCellsJson));
     }
 }

@@ -1,3 +1,5 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports.Semantic;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using System.Security.Claims;
 using System.Text;
 using EY.HRPlatform.CoreHR.Controllers;
@@ -70,7 +72,7 @@ public sealed class OrganizationImportControllerTests
         var session = Session(version: 7);
         imports.Setup(service => service.IntakeAsync(
                 It.IsAny<Stream>(), "organization.csv", "text/csv", date, token, null,
-                It.Is<OrganizationImportActor>(actor => actor.DisplayName == "Ada Admin"), It.IsAny<CancellationToken>()))
+                It.Is<ImportActor>(actor => actor.DisplayName == "Ada Admin"), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new OrganizationImportIntakeResult(OrganizationImportIntakeKind.SourceReady, false, session, null));
         var file = new FormFile(new MemoryStream(Encoding.UTF8.GetBytes("Name\nRoot")), 0, 9, "file", "organization.csv")
         {
@@ -85,7 +87,7 @@ public sealed class OrganizationImportControllerTests
         imports.Reset();
         imports.Setup(service => service.IntakeAsync(
                 It.IsAny<Stream>(), "organization.csv", "text/csv", date, token, null,
-                It.IsAny<OrganizationImportActor>(), It.IsAny<CancellationToken>()))
+                It.IsAny<ImportActor>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new OrganizationImportIntakeResult(
                 OrganizationImportIntakeKind.SheetSelectionRequired,
                 false,
@@ -107,14 +109,14 @@ public sealed class OrganizationImportControllerTests
             id, null, new UpdateOrganizationImportEffectiveDateRequest(date), CancellationToken.None)).Result);
 
         imports.Setup(service => service.ChangeEffectiveDateAsync(
-                id, 3, date, It.IsAny<OrganizationImportActor>(), It.IsAny<CancellationToken>()))
+                id, 3, date, It.IsAny<ImportActor>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Session(id, date, 4));
         Assert.IsType<OkObjectResult>((await controller.ChangeEffectiveDate(
             id, "\"3\"", new UpdateOrganizationImportEffectiveDateRequest(date), CancellationToken.None)).Result);
         Assert.Equal("\"4\"", controller.Response.Headers.ETag);
 
         imports.Setup(service => service.DiscardAsync(
-                id, 4, It.IsAny<OrganizationImportActor>(), It.IsAny<CancellationToken>()))
+                id, 4, It.IsAny<ImportActor>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Session(id, date, 5, "Discarded"));
         Assert.IsType<OkObjectResult>((await controller.Discard(id, "\"4\"", CancellationToken.None)).Result);
         Assert.Equal("\"5\"", controller.Response.Headers.ETag);
@@ -127,14 +129,14 @@ public sealed class OrganizationImportControllerTests
         var id = Guid.NewGuid();
         var resolutions = new UpdateOrganizationImportReviewResolutionsRequest(IntroducedRoot: new("Asteria", "ASTERIA"));
         imports.Setup(service => service.UpdateReviewResolutionsAsync(id, 6, resolutions,
-                It.Is<OrganizationImportActor>(actor => actor.DisplayName == "Ada Admin"), It.IsAny<CancellationToken>()))
+                It.Is<ImportActor>(actor => actor.DisplayName == "Ada Admin"), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Session(id, version: 7));
         imports.Setup(service => service.RefreshAsync(id, It.IsAny<CancellationToken>())).ReturnsAsync(Session(id, version: 7));
         var match = new UpdateOrganizationImportMatchRequest(TypeMappings: new Dictionary<string, Guid> { ["Shared Service"] = Guid.NewGuid() });
-        imports.Setup(service => service.UpdateMatchAsync(id, 7, match, It.IsAny<OrganizationImportActor>(), It.IsAny<CancellationToken>()))
+        imports.Setup(service => service.UpdateMatchAsync(id, 7, match, It.IsAny<ImportActor>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Session(id, version: 8));
         var terminal = new OrganizationImportCommitResult(id, new DateOnly(2026, 8, 12), [], true);
-        imports.Setup(service => service.CommitAsync(id, 7, "fingerprint", It.IsAny<OrganizationImportActor>(), It.IsAny<CancellationToken>()))
+        imports.Setup(service => service.CommitAsync(id, 7, "fingerprint", It.IsAny<ImportActor>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(terminal);
 
         Assert.IsType<BadRequestObjectResult>((await controller.UpdateReviewResolutions(
@@ -158,8 +160,8 @@ public sealed class OrganizationImportControllerTests
         var fingerprint = new string('f', 64);
         semantic.Setup(service => service.RunAsync(
                 sessionId,
-                It.Is<RunOrganizationImportSemanticAssistanceRequest>(request => request.InputFingerprint == fingerprint && request.GrantTenantConsent),
-                It.Is<OrganizationImportActor>(actor => actor.DisplayName == "Ada Admin"),
+                It.Is<RunImportSemanticAssistanceRequest>(request => request.InputFingerprint == fingerprint && request.GrantTenantConsent),
+                It.Is<ImportActor>(actor => actor.DisplayName == "Ada Admin"),
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         imports.Setup(service => service.GetAsync(sessionId, It.IsAny<CancellationToken>())).ReturnsAsync(Session(sessionId, version: 8));

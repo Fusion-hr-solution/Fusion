@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -151,7 +152,7 @@ public sealed class OrganizationImportValidator : IOrganizationImportValidator
             .ToList();
         return new OrganizationImportValidationResult(
             ordered,
-            ordered.Any(issue => issue.Severity == OrganizationImportIssueSeverity.Blocker),
+            ordered.Any(issue => issue.Severity == ImportIssueSeverity.Blocker),
             draft.Fingerprint);
     }
 

@@ -1,125 +1,37 @@
-using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
-using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 
-// ---- Product-facing review contracts (never persistence entities) ----
-
-public sealed record WorkforceReviewEmployeeDto(string DisplayName, string? EmployeeNumber, bool NumberGenerated, string IdentityState);
-public sealed record WorkforceReviewEmploymentDto(DateOnly? StartDate);
-public sealed record WorkforceReviewWorkDto(string? DisplayTitle, string? Organization, string? Location, DateOnly? EffectiveFrom);
-public sealed record WorkforceReviewManagerDto(string State, string? Display, string? Subtext);
-public sealed record WorkforceReviewIssueDto(string Code, string Severity, string Message, string Field, string? DecisionKey, int AffectedCount);
-
-public sealed record WorkforceReviewRowDto(
-    int SourceRowNumber,
-    string Result,
-    WorkforceReviewEmployeeDto Employee,
-    WorkforceReviewEmploymentDto Employment,
-    WorkforceReviewWorkDto Work,
-    WorkforceReviewManagerDto Manager,
-    IReadOnlyList<WorkforceReviewIssueDto> Issues);
-
-public sealed record WorkforceReviewCountsDto(int NeedsAttention, int New, int Existing, int Excluded, int Total, int OpenIssueCount);
-
-/// <summary>
-/// One kind of outstanding decision, so the review can say what the remaining work *is* — "3 organizations
-/// to match · 40 people" — instead of a single alarming affected-people total. <c>Category</c> is a stable
-/// key the client maps to product language; <c>DecisionCount</c> is grouped (shared values counted once),
-/// <c>AffectedPeople</c> is how many rows the category touches.
-/// </summary>
-public sealed record WorkforceReviewIssueGroupDto(string Category, int DecisionCount, int AffectedPeople);
-
-/// <summary>The distinct product states the review can be in — the frontend never infers these from counters.</summary>
-public enum WorkforceReviewState { NoRows, NothingNew, NothingIncluded, Reviewable }
-
-public sealed record WorkforceReviewSummaryDto(
-    WorkforceReviewCountsDto Counts, bool CanCommit, WorkforceReviewState State, uint Version, string? ReviewDigest, int AffectedRows,
-    IReadOnlyList<WorkforceReviewIssueGroupDto> IssueGroups);
-
-public sealed record WorkforceReviewPageDto(
-    IReadOnlyList<WorkforceReviewRowDto> Rows, int Page, int PageSize, int TotalMatching, WorkforceReviewSummaryDto Summary);
-
-/// <summary>A person being added in this same import, offered as a candidate manager.</summary>
-public sealed record WorkforceManagerCandidateDto(int SourceRowNumber, string DisplayName, string? EmployeeNumber, bool NumberGenerated, string? Title);
-
-public sealed record WorkforceColumnMappingDto(int ColumnIndex, string? SourceLabel, string Field, string Origin);
-public sealed record WorkforceInterpretationSummaryDto(
-    IReadOnlyList<WorkforceColumnMappingDto> Mappings,
-    IReadOnlyList<int> UnresolvedColumnIndexes,
-    IReadOnlyList<string> UnresolvedRequiredFields,
-    bool NameFormatDecisionNeeded,
-    bool DateFormatDecisionNeeded);
-public sealed record WorkforcePrepareResultDto(WorkforceInterpretationSummaryDto Interpretation, WorkforceReviewSummaryDto Review);
-
-public sealed class WorkforceImportReviewException(string message) : Exception(message);
-
-/// <summary>Parsed session decisions (interpretation + resolution), persisted as one bounded jsonb document.</summary>
-public sealed class WorkforceImportDecisionDoc
+public sealed class WorkforceImportReviewException(string message, string code = "ReviewRejected") : Exception(message)
 {
-    public Dictionary<int, string> ColumnMappings { get; set; } = [];
-    public string? DateFormat { get; set; }
-    public string? NameFormat { get; set; }
-    public int? HeaderRow { get; set; }
-    public HashSet<int> ExcludedRows { get; set; } = [];
-    public HashSet<int> KeepFusionUnchangedRows { get; set; } = [];
-    public HashSet<int> NoManagerRows { get; set; } = [];
-    public HashSet<int> KeepAsDistinctRows { get; set; } = [];
-    public Dictionary<string, Guid> OrganizationBySourceValue { get; set; } = [];
-    public Dictionary<int, Guid> ManagerEmployeeByRow { get; set; } = [];
-    // Reference-scoped manager decisions (normalized manager reference → resolution), so one choice
-    // resolves every row reporting to that manager.
-    public Dictionary<string, Guid> ManagerEmployeeByReference { get; set; } = [];
-    public Dictionary<string, int> ManagerImportRowByReference { get; set; } = [];
-    public HashSet<string> NoManagerByReference { get; set; } = [];
-
-    /// <summary>
-    /// The administrator explicitly chose to establish current work details (and the initial manager
-    /// relationship) as of the import baseline for people whose source work dates predate their
-    /// Organization's history in Fusion. Auditable, never silent.
-    /// </summary>
-    public bool NormalizeWorkDatesToBaseline { get; set; }
-
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
-
-    public static WorkforceImportDecisionDoc Parse(string json)
-        => string.IsNullOrWhiteSpace(json) || json == "{}" ? new() : JsonSerializer.Deserialize<WorkforceImportDecisionDoc>(json, Json) ?? new();
-
-    public string Serialize() => JsonSerializer.Serialize(this, Json);
-
-    public WorkforceImportInterpretation ToInterpretation() => new(
-        ColumnMappings.ToDictionary(kv => kv.Key, kv => Enum.Parse<WorkforceImportField>(kv.Value)),
-        NameFormat is null ? null : Enum.Parse<WorkforceNameFormat>(NameFormat),
-        DateFormat is null ? null : Enum.Parse<WorkforceDateFormat>(DateFormat));
-
-    public WorkforceResolutionDecisions ToResolutionDecisions() => new(
-        ExcludedRows, KeepFusionUnchangedRows, NoManagerRows, KeepAsDistinctRows, OrganizationBySourceValue, ManagerEmployeeByRow,
-        ManagerEmployeeByReference, ManagerImportRowByReference, NoManagerByReference,
-        NormalizeWorkDatesToBaseline);
+    public string Code { get; } = code;
 }
 
+/// <summary>Bounded Review resolutions. Each field is optional; only the present ones change.</summary>
+public sealed record WorkforceResolutionsUpdateRequest(
+    string? OrganizationSourceValue = null,
+    Guid? OrganizationUnitId = null,
+    string? ManagerReference = null,
+    Guid? ManagerEmployeeId = null,
+    string? ManagerEmployeeKey = null,
+    int? ManagerImportRowNumber = null,
+    bool? NoManager = null,
+    int? KeepAsDistinctRow = null,
+    bool? UseBaselineForWorkDates = null);
+
 /// <summary>
-/// Composes persisted source/rows + decisions + a live canonical snapshot + interpreter + resolver
-/// into a stable, pageable, actionable review. The full proposal is recomputed once over all rows
-/// (bounded), and each row's classification + display projection + issues are persisted so paging,
-/// filtering, search, and counts never re-run the resolver or load all rows for one page.
+/// Match and Review over one derivation chain. Match changes the plan (what the source means);
+/// Review resolutions answer specific live issues (which canonical unit or person an unresolved
+/// reference means). Neither ever overrides a source fact. Every change re-derives the proposal and
+/// persists the row projections, so paging, filtering, search and counts never re-run the resolver.
 /// </summary>
 public sealed class WorkforceImportReviewService(
     CoreHRDbContext context,
-    ITenantContext tenant,
-    WorkforceImportInterpreter interpreter,
-    WorkforceImportResolver resolver,
-    WorkforceImportSnapshotLoader snapshotLoader)
+    WorkforceImportDerivation derivation,
+    WorkforceImportSemanticAssistanceService semantic)
 {
-    private Guid TenantId => tenant.TenantId;
     private const int MaxPageSize = 100;
 
     /// <summary>Resolve a public stable Employee Key to its canonical id (raw GUIDs are never public).</summary>
@@ -129,129 +41,237 @@ public sealed class WorkforceImportReviewService(
             .Select(e => (Guid?)e.Id)
             .SingleOrDefaultAsync(cancellationToken);
 
-    /// <summary>Apply a decision mutation, recompute, and persist under If-Match; returns the new summary.</summary>
-    public async Task<WorkforceReviewSummaryDto> ApplyDecisionAsync(
-        Guid sessionId, uint ifMatchVersion, Action<WorkforceImportDecisionDoc> mutate, WorkforceImportActor actor, CancellationToken cancellationToken)
+    public async Task<WorkforceMatchDto> DescribeMatchAsync(WorkforceImportSession session, CancellationToken cancellationToken)
     {
-        var session = await LoadSessionAsync(sessionId, cancellationToken);
-        if (session.Version != ifMatchVersion) throw new WorkforceImportConcurrencyException(sessionId);
-
-        var doc = WorkforceImportDecisionDoc.Parse(session.DecisionsJson);
-        var before = (session.NewCount, session.ExistingAnchorCount, session.NeedsAttentionCount, session.ExcludedCount);
-        mutate(doc);
-        session.ReplaceDecisions(doc.Serialize(), actor);
-
-        var (affected, _) = await RecomputeAsync(session, cancellationToken);
-        try { await context.SaveChangesAsync(cancellationToken); }
-        catch (DbUpdateConcurrencyException) { throw new WorkforceImportConcurrencyException(sessionId); }
-        return Summarize(session, affected, await ComputeOpenIssuesAsync(sessionId, cancellationToken));
+        var rows = await context.WorkforceImportRows.AsNoTracking().Where(r => r.SessionId == session.Id).ToListAsync(cancellationToken);
+        var match = await derivation.InterpretAsync(session, rows, cancellationToken);
+        var semanticState = await semantic.DescribeAsync(session, match, cancellationToken);
+        return BuildMatch(match, semanticState);
     }
 
-    /// <summary>Recompute the whole proposal and persist row projections without a decision change (e.g. after intake/header/baseline).</summary>
-    public async Task<WorkforceReviewSummaryDto> RecomputeAndSaveAsync(Guid sessionId, uint ifMatchVersion, WorkforceImportActor actor, CancellationToken cancellationToken)
+    /// <summary>Re-derive against current CoreHR without a decision change (Refresh).</summary>
+    public async Task<WorkforceImportSession> RefreshAsync(Guid sessionId, uint ifMatchVersion, CancellationToken cancellationToken)
     {
-        var session = await LoadSessionAsync(sessionId, cancellationToken);
-        if (session.Version != ifMatchVersion) throw new WorkforceImportConcurrencyException(sessionId);
-        var (affected, _) = await RecomputeAsync(session, cancellationToken);
-        try { await context.SaveChangesAsync(cancellationToken); }
-        catch (DbUpdateConcurrencyException) { throw new WorkforceImportConcurrencyException(sessionId); }
-        return Summarize(session, affected, await ComputeOpenIssuesAsync(sessionId, cancellationToken));
+        var session = await LoadSessionAsync(sessionId, ifMatchVersion, cancellationToken);
+        await derivation.RecomputeAsync(session, cancellationToken);
+        await SaveAsync(sessionId, cancellationToken);
+        return session;
     }
 
-    /// <summary>Recompute and return both the (mostly quiet) interpretation summary and the review summary — the "Preparing workforce" step.</summary>
-    public async Task<WorkforcePrepareResultDto> PrepareAsync(Guid sessionId, uint ifMatchVersion, WorkforceImportActor actor, CancellationToken cancellationToken)
+    /// <summary>
+    /// Changes the workforce-as-of date. The date is an input to the proposal: it decides who is active
+    /// or former and which units and people exist. Resolutions that no longer answer a live issue on the
+    /// new date are dropped, then the proposal (and its fingerprint) is re-derived.
+    /// </summary>
+    public async Task<WorkforceImportSession> ChangeBaselineDateAsync(
+        Guid sessionId, uint ifMatchVersion, DateOnly baselineDate, ImportActor actor, CancellationToken cancellationToken)
     {
-        var session = await LoadSessionAsync(sessionId, cancellationToken);
-        if (session.Version != ifMatchVersion) throw new WorkforceImportConcurrencyException(sessionId);
-        var (affected, interpretation) = await RecomputeAsync(session, cancellationToken);
-        try { await context.SaveChangesAsync(cancellationToken); }
-        catch (DbUpdateConcurrencyException) { throw new WorkforceImportConcurrencyException(sessionId); }
-        var summary = new WorkforceInterpretationSummaryDto(
-            interpretation.Mappings.Select(m => new WorkforceColumnMappingDto(m.ColumnIndex, m.Label, m.Field.ToString(), m.Origin)).ToList(),
-            interpretation.Mappings.Where(m => m.Origin == "unresolved").Select(m => m.ColumnIndex).ToList(),
-            interpretation.UnresolvedRequiredFields.Select(f => f.ToString()).ToList(),
-            interpretation.NameFormatDecisionNeeded,
-            interpretation.DateFormatDecisionNeeded);
-        return new WorkforcePrepareResultDto(summary, Summarize(session, affected, await ComputeOpenIssuesAsync(sessionId, cancellationToken)));
-    }
-
-    private async Task<(int Affected, WorkforceInterpretationResult Interpretation)> RecomputeAsync(WorkforceImportSession session, CancellationToken cancellationToken)
-    {
-        var rows = await context.WorkforceImportRows.Where(r => r.SessionId == session.Id).OrderBy(r => r.SourceRowNumber).ToListAsync(cancellationToken);
-        var columns = Deserialize(session.Source.ColumnsJson) ?? [];
-        var doc = WorkforceImportDecisionDoc.Parse(session.DecisionsJson);
-
-        var cells = rows.Select(r => (IReadOnlyList<string?>)(Deserialize(r.SourceCellsJson) ?? [])).ToList();
-        var interpretation = interpreter.Interpret(columns, cells, doc.ToInterpretation(), session.BaselineDate);
-        var snapshot = await snapshotLoader.LoadAsync(session.BaselineDate, cancellationToken);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var proposal = resolver.Resolve(interpretation.Rows, snapshot, doc.ToResolutionDecisions(), session.BaselineDate, today);
-
-        var normalizedByRow = interpretation.Rows.ToDictionary(r => r.SourceRowNumber);
-        // How many rows each grouped decision key affects, so the inspector can say
-        // "Operations appears on 38 employees" and one decision resolves them all.
-        var affectedByKey = proposal.Rows
-            .SelectMany(r => r.Issues.Where(i => i.DecisionKey is not null).Select(i => i.DecisionKey!))
-            .GroupBy(k => k)
-            .ToDictionary(g => g.Key, g => g.Count());
-        // Names of every same-import row, so a manager referencing another imported row shows
-        // as a person ("Amina Mansour · also being added") rather than a raw source key.
-        var nameByRow = normalizedByRow.ToDictionary(kv => kv.Key, kv => JoinName(kv.Value.FirstName, kv.Value.LastName));
-        var affected = 0;
-        var rowByNumber = rows.ToDictionary(r => r.SourceRowNumber);
-        foreach (var resolvedRow in proposal.Rows)
+        var session = await LoadSessionAsync(sessionId, ifMatchVersion, cancellationToken);
+        try { session.ChangeBaselineDate(baselineDate, actor, DateTime.UtcNow); }
+        catch (InvalidOperationException ex) when (session.IsActive)
         {
-            if (!rowByNumber.TryGetValue(resolvedRow.SourceRowNumber, out var row)) continue;
-            var projection = BuildProjection(resolvedRow, normalizedByRow.GetValueOrDefault(resolvedRow.SourceRowNumber), nameByRow, snapshot);
-            var issues = resolvedRow.Issues
-                .Where(i => i.Severity != Severities.Information || i.Code != "EmployeeNumberGenerated") // generated number stays quiet display state
-                .Select(i => new WorkforceReviewIssueDto(i.Code, i.Severity, i.Message, i.Field, i.DecisionKey,
-                    i.DecisionKey is not null ? affectedByKey.GetValueOrDefault(i.DecisionKey, 1) : 1)).ToList();
-            row.ApplyResolution(resolvedRow.Classification, resolvedRow.MatchedEmployeeId, resolvedRow.ResolvedOrgUnitId,
-                resolvedRow.Manager.RawReference, resolvedRow.IsExcluded,
-                JsonSerializer.Serialize(projection), JsonSerializer.Serialize(issues));
-            affected++;
+            throw new WorkforceImportReviewException(ex.Message, "BaselineNotAllowed");
+        }
+        var rows = await context.WorkforceImportRows.AsNoTracking().Where(r => r.SessionId == sessionId).ToListAsync(cancellationToken);
+        var unresolved = await derivation.DeriveAsync(session, rows, cancellationToken, resolutions: new WorkforceImportResolutions());
+        KeepLiveResolutions(session, unresolved, actor);
+        await derivation.RecomputeAsync(session, cancellationToken);
+        await SaveAsync(sessionId, cancellationToken);
+        return session;
+    }
+
+    /// <summary>
+    /// Keeps only resolutions that still answer an issue the proposal has without them, and whose answer
+    /// is still valid (the unit exists, the manager is current or still being imported).
+    /// </summary>
+    private static void KeepLiveResolutions(WorkforceImportSession session, WorkforceImportDerived unresolved, ImportActor actor)
+    {
+        var resolutions = WorkforceImportResolutions.Parse(session.ResolutionsJson);
+        if (resolutions.IsEmpty) return;
+        var live = unresolved.Proposal.Rows.SelectMany(r => r.Issues).Where(i => i.DecisionKey is not null)
+            .Select(i => i.DecisionKey!).ToHashSet(StringComparer.Ordinal);
+        var imported = unresolved.Proposal.Rows.Where(r => r.Classification != WorkforceImportRowClassification.NotImported)
+            .Select(r => r.SourceRowNumber).ToHashSet();
+        var snapshot = unresolved.Snapshot;
+
+        var changed = false;
+        foreach (var (key, unitId) in resolutions.OrganizationBySourceValue.ToList())
+            if (!live.Contains($"org:{key}") || !snapshot.OrgById.ContainsKey(unitId))
+                changed |= resolutions.OrganizationBySourceValue.Remove(key);
+        foreach (var (key, employeeId) in resolutions.ManagerEmployeeByReference.ToList())
+            if (!live.Contains($"mgr:{key}") || !snapshot.ByFusionId.TryGetValue(employeeId, out var manager) || manager.IsFormer)
+                changed |= resolutions.ManagerEmployeeByReference.Remove(key);
+        foreach (var (key, row) in resolutions.ManagerImportRowByReference.ToList())
+            if (!live.Contains($"mgr:{key}") || !imported.Contains(row))
+                changed |= resolutions.ManagerImportRowByReference.Remove(key);
+        changed |= resolutions.NoManagerByReference.RemoveWhere(k => !live.Contains($"mgr:{k}")) > 0;
+        changed |= resolutions.KeepAsDistinctRows.RemoveWhere(r => !live.Contains($"dup:{r}")) > 0;
+        if (resolutions.UseBaselineForWorkDates
+            && !unresolved.Interpretation.Rows.Any(r => r.Issues.Any(i => i.Field == WorkforceImportField.WorkEffectiveFrom)))
+        {
+            resolutions.UseBaselineForWorkDates = false;
+            changed = true;
+        }
+        if (changed) session.ReplaceResolutions(resolutions.Serialize(), actor);
+    }
+
+    /// <summary>
+    /// Changes what the source means. The administrator's decision always wins and is recorded with
+    /// Administrator origin; replacing a semantic suggestion counts as an override.
+    /// </summary>
+    public async Task<WorkforceImportSession> UpdateMatchAsync(
+        Guid sessionId, uint ifMatchVersion, WorkforceMatchUpdateRequest request, ImportActor actor, CancellationToken cancellationToken)
+    {
+        var session = await LoadSessionAsync(sessionId, ifMatchVersion, cancellationToken);
+        var plan = WorkforceImportMappingPlan.Parse(session.MappingPlanJson);
+        var columnCount = session.Source.ColumnCount;
+        var overridden = 0;
+
+        if (request.ColumnMappings is { } mappings)
+        {
+            if (mappings.Count > 256) throw new WorkforceImportReviewException("Too many column changes at once.");
+            foreach (var (index, field) in mappings)
+            {
+                if (index < 0 || index >= columnCount) throw new WorkforceImportReviewException("That column isn't in this file.");
+                if (plan.ColumnOrigins.GetValueOrDefault(index) == ImportResolutionOrigin.SemanticSuggestion && plan.ColumnMappings.GetValueOrDefault(index) != field)
+                    overridden++;
+                plan.ColumnMappings[index] = field;
+                plan.ColumnOrigins[index] = ImportResolutionOrigin.Administrator;
+            }
+        }
+        if (request.DateFormat is { } dateFormat) { plan.DateFormat = dateFormat; plan.FormatOrigin = ImportResolutionOrigin.Administrator; }
+        if (request.NameFormat is { } nameFormat) { plan.NameFormat = nameFormat; plan.FormatOrigin = ImportResolutionOrigin.Administrator; }
+        if (request.IdentityStrategy is { } strategy) plan.IdentityStrategy = strategy;
+        if (request.LifecycleVocabulary is { } vocabulary)
+        {
+            if (vocabulary.Count > 64) throw new WorkforceImportReviewException("Too many status values at once.");
+            foreach (var (value, meaning) in vocabulary)
+            {
+                var key = WorkforceLifecycleVocabulary.Normalize(value);
+                if (plan.VocabularyOrigins.GetValueOrDefault(key) == ImportResolutionOrigin.SemanticSuggestion && plan.LifecycleVocabulary.GetValueOrDefault(key) != meaning)
+                    overridden++;
+                plan.LifecycleVocabulary[key] = meaning;
+                plan.VocabularyOrigins[key] = ImportResolutionOrigin.Administrator;
+            }
         }
 
-        var reviewDigest = ComputeDigest(session.BaselineDate, session.DecisionsJson, proposal);
-        var observationDigest = ComputeObservationDigest(snapshot, proposal);
-        session.MoveToReviewing(proposal.NewCount, proposal.ExistingAnchorCount, proposal.NeedsAttentionCount, proposal.ExcludedCount,
-            reviewDigest, observationDigest, ActorFrom(session));
-        return (affected, interpretation);
+        session.ReplaceMappingPlan(plan.Serialize(), actor);
+        var derived = await derivation.RecomputeAsync(session, cancellationToken);
+        PruneResolutions(session, derived, actor);
+        if (overridden > 0) await semantic.RecordOverridesAsync(sessionId, overridden, cancellationToken);
+        await SaveAsync(sessionId, cancellationToken);
+        return session;
+    }
+
+    /// <summary>
+    /// Records a bounded Review resolution. It is accepted only when it answers an issue the proposal
+    /// actually has without it; a resolution can never override a reference that already resolved.
+    /// </summary>
+    public async Task<WorkforceReviewSummaryDto> UpdateResolutionsAsync(
+        Guid sessionId, uint ifMatchVersion, WorkforceResolutionsUpdateRequest request, ImportActor actor, CancellationToken cancellationToken)
+    {
+        var session = await LoadSessionAsync(sessionId, ifMatchVersion, cancellationToken);
+        if (!session.MatchComplete) throw new WorkforceImportReviewException("Finish matching before reviewing.", "MatchIncomplete");
+        var resolutions = WorkforceImportResolutions.Parse(session.ResolutionsJson);
+        var rows = await context.WorkforceImportRows.AsNoTracking().Where(r => r.SessionId == sessionId).ToListAsync(cancellationToken);
+        var baseline = await derivation.DeriveAsync(session, rows, cancellationToken, resolutions: new WorkforceImportResolutions());
+        var liveKeys = baseline.Proposal.Rows.SelectMany(r => r.Issues).Where(i => i.DecisionKey is not null)
+            .Select(i => i.DecisionKey!).ToHashSet(StringComparer.Ordinal);
+
+        if (request.OrganizationSourceValue is { } orgValue)
+        {
+            var normalized = WorkforceCanonicalSnapshot.NormalizeOrg(orgValue);
+            if (!liveKeys.Contains($"org:{normalized}"))
+                throw new WorkforceImportReviewException("That organization value already matches a unit.", "ResolutionNotNeeded");
+            if (request.OrganizationUnitId is not { } unitId || !baseline.Snapshot.OrgById.ContainsKey(unitId))
+                throw new WorkforceImportReviewException("Choose a unit that exists on the workforce-as-of date.");
+            resolutions.OrganizationBySourceValue[normalized] = unitId;
+        }
+
+        if (request.ManagerReference is { } managerReference)
+        {
+            var key = WorkforceCanonicalSnapshot.NormalizeNumber(managerReference);
+            if (!liveKeys.Contains($"mgr:{key}"))
+                throw new WorkforceImportReviewException("That manager reference already matches someone.", "ResolutionNotNeeded");
+            resolutions.ManagerEmployeeByReference.Remove(key);
+            resolutions.ManagerImportRowByReference.Remove(key);
+            resolutions.NoManagerByReference.Remove(key);
+            var managerId = request.ManagerEmployeeId;
+            if (managerId is null && !string.IsNullOrWhiteSpace(request.ManagerEmployeeKey))
+                managerId = await ResolveEmployeeKeyAsync(request.ManagerEmployeeKey, cancellationToken)
+                    ?? throw new WorkforceImportReviewException("That employee couldn't be found.");
+            if (managerId is { } existingManager)
+            {
+                if (!baseline.Snapshot.ByFusionId.TryGetValue(existingManager, out var manager) || manager.IsFormer)
+                    throw new WorkforceImportReviewException("Choose a current employee as manager.");
+                resolutions.ManagerEmployeeByReference[key] = existingManager;
+            }
+            else if (request.ManagerImportRowNumber is { } managerRow)
+            {
+                var target = baseline.Proposal.Rows.FirstOrDefault(r => r.SourceRowNumber == managerRow);
+                if (target is null || target.Classification is WorkforceImportRowClassification.NotImported)
+                    throw new WorkforceImportReviewException("Choose someone who is being imported.");
+                resolutions.ManagerImportRowByReference[key] = managerRow;
+            }
+            else if (request.NoManager == true)
+                resolutions.NoManagerByReference.Add(key);
+            else
+                throw new WorkforceImportReviewException("Choose a manager or no manager.");
+        }
+
+        if (request.KeepAsDistinctRow is { } distinctRow)
+        {
+            if (!liveKeys.Contains($"dup:{distinctRow}"))
+                throw new WorkforceImportReviewException("That row isn't a possible duplicate.", "ResolutionNotNeeded");
+            resolutions.KeepAsDistinctRows.Add(distinctRow);
+        }
+
+        if (request.UseBaselineForWorkDates is { } useBaseline)
+        {
+            var hasWorkDateIssue = baseline.Interpretation.Rows.Any(r => r.Issues.Any(i => i.Field == WorkforceImportField.WorkEffectiveFrom));
+            if (useBaseline && !hasWorkDateIssue)
+                throw new WorkforceImportReviewException("Every work start date is already usable.", "ResolutionNotNeeded");
+            resolutions.UseBaselineForWorkDates = useBaseline;
+        }
+
+        session.ReplaceResolutions(resolutions.Serialize(), actor);
+        await derivation.RecomputeAsync(session, cancellationToken);
+        await SaveAsync(sessionId, cancellationToken);
+        return await SummarizeAsync(session, cancellationToken);
     }
 
     public async Task<WorkforceReviewPageDto> GetReviewPageAsync(
         Guid sessionId, string? filter, string? search, int page, int pageSize, CancellationToken cancellationToken)
     {
-        var session = await LoadSessionAsync(sessionId, cancellationToken);
+        var session = await context.WorkforceImportSessions.AsNoTracking().Include(s => s.Source)
+            .SingleOrDefaultAsync(s => s.Id == sessionId, cancellationToken)
+            ?? throw new WorkforceImportNotFoundException(sessionId);
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
 
-        // Bounded server-side query over persisted row projections — no full 10k materialization.
+        // Bounded server-side query over persisted row projections: no full-file materialization.
         var query = context.WorkforceImportRows.AsNoTracking().Where(r => r.SessionId == sessionId);
-        if (Enum.TryParse<WorkforceImportRowClassification>(filter, ignoreCase: true, out var classification))
+        if (string.Equals(filter, "Warnings", StringComparison.OrdinalIgnoreCase))
+            query = query.Where(r => r.HasWarning && r.Classification != WorkforceImportRowClassification.Blocked);
+        else if (Enum.TryParse<WorkforceImportRowClassification>(filter, ignoreCase: true, out var classification))
             query = query.Where(r => r.Classification == classification);
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var term = search.Trim();
-            query = query.Where(r => r.NormalizedProposalJson != null && EF.Functions.ILike(r.NormalizedProposalJson, $"%{term}%"));
+            var term = $"%{EscapeLike(search.Trim().ToLowerInvariant())}%";
+            query = query.Where(r => r.SearchText != null && EF.Functions.Like(r.SearchText, term, "\\"));
         }
 
         var total = await query.CountAsync(cancellationToken);
         var pageRows = await query.OrderBy(r => r.SourceRowNumber)
             .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
-
-        var rows = pageRows.Select(ToRowDto).ToList();
-        var openIssues = await ComputeOpenIssuesAsync(sessionId, cancellationToken);
-        return new WorkforceReviewPageDto(rows, page, pageSize, total, Summarize(session, 0, openIssues));
+        return new WorkforceReviewPageDto(
+            pageRows.Select(WorkforceImportProjection.ToRowDto).ToList(), page, pageSize, total,
+            await SummarizeAsync(session, cancellationToken));
     }
 
     /// <summary>
-    /// People in THIS import who could be the manager — because in an establishment import the manager
-    /// is usually also being added, not already in Fusion. With no query, we search on a name hint
-    /// derived from the unresolved reference (the surname-ish token, or an email's local part) so likely
-    /// matches surface first; a typed query searches by name/number. Existing employees are offered
-    /// separately by the People search on the client.
+    /// People in this import who could be the manager. A name only ranks candidates for an explicit
+    /// choice; it never resolves a manager on its own.
     /// </summary>
     public async Task<IReadOnlyList<WorkforceManagerCandidateDto>> GetImportManagerCandidatesAsync(
         Guid sessionId, string? reference, string? query, CancellationToken cancellationToken)
@@ -260,25 +280,165 @@ public sealed class WorkforceImportReviewService(
         if (term.Length == 0 && !string.IsNullOrWhiteSpace(reference)) term = DeriveNameHint(reference);
         var folded = term.ToLowerInvariant();
 
-        // The candidate pool is one import session (bounded), and the searchable name lives inside a jsonb
-        // projection — which Postgres won't ILIKE directly — so match on the deserialized display name in
-        // memory. Ordered by source row; capped at the few the picker shows.
-        var rows = await context.WorkforceImportRows.AsNoTracking()
-            .Where(r => r.SessionId == sessionId && r.Classification != WorkforceImportRowClassification.Excluded)
-            .OrderBy(r => r.SourceRowNumber)
+        var candidates = context.WorkforceImportRows.AsNoTracking()
+            .Where(r => r.SessionId == sessionId
+                && r.Classification != WorkforceImportRowClassification.NotImported
+                && r.Classification != WorkforceImportRowClassification.Existing);
+        if (folded.Length > 0)
+        {
+            var pattern = $"%{EscapeLike(folded)}%";
+            candidates = candidates.Where(r => r.SearchText != null && EF.Functions.Like(r.SearchText, pattern, "\\"));
+        }
+        var rows = await candidates.OrderBy(r => r.SourceRowNumber).Take(8)
             .Select(r => new { r.SourceRowNumber, r.NormalizedProposalJson })
             .ToListAsync(cancellationToken);
+        return rows
+            .Select(r => (r.SourceRowNumber, Projection: WorkforceImportProjection.ReadProjection(r.NormalizedProposalJson)))
+            .Where(r => r.Projection is not null)
+            .Select(r => new WorkforceManagerCandidateDto(r.SourceRowNumber, r.Projection!.DisplayName, r.Projection.EmployeeNumber, r.Projection.NumberGenerated, r.Projection.DisplayTitle))
+            .ToList();
+    }
 
-        var results = new List<WorkforceManagerCandidateDto>();
-        foreach (var r in rows)
+    public async Task<WorkforceReviewSummaryDto> SummarizeAsync(WorkforceImportSession session, CancellationToken cancellationToken)
+    {
+        var groups = await ComputeIssueGroupsAsync(session.Id, cancellationToken);
+        var openDecisions = groups.Where(g => g.Severity == ImportIssueSeverity.Blocker).Sum(g => g.DecisionCount);
+        var total = session.CreateCount + session.ExistingCount + session.BlockedCount + session.NotImportedCount;
+        var counts = new WorkforceReviewCountsDto(session.CreateCount, session.ExistingCount, session.NotImportedCount, session.BlockedCount,
+            total, session.WarningCount, openDecisions);
+        var state = total == 0 ? WorkforceReviewState.NoRows
+            : session.CreateCount == 0 && session.BlockedCount == 0 ? WorkforceReviewState.NothingToImport
+            : WorkforceReviewState.Reviewable;
+        return new WorkforceReviewSummaryDto(counts, session.CanPublish, state, session.Version, session.ProposalFingerprint, groups);
+    }
+
+    /// <summary>
+    /// What remains, by kind: grouped decisions count once however many people they touch; a
+    /// row-specific blocker counts once per row. Warnings are grouped the same way as notices.
+    /// </summary>
+    private async Task<IReadOnlyList<WorkforceReviewIssueGroupDto>> ComputeIssueGroupsAsync(Guid sessionId, CancellationToken cancellationToken)
+    {
+        var jsons = await context.WorkforceImportRows.AsNoTracking()
+            .Where(r => r.SessionId == sessionId && (r.Classification == WorkforceImportRowClassification.Blocked || r.HasWarning))
+            .Select(r => r.IssueStateJson)
+            .ToListAsync(cancellationToken);
+
+        var groupedKeys = new Dictionary<(string, ImportIssueSeverity), HashSet<string>>();
+        var rowSpecific = new Dictionary<(string, ImportIssueSeverity), int>();
+        var people = new Dictionary<(string, ImportIssueSeverity), int>();
+        foreach (var json in jsons)
         {
-            if (r.NormalizedProposalJson is null) continue;
-            var p = JsonSerializer.Deserialize<ReviewProjection>(r.NormalizedProposalJson) ?? new ReviewProjection();
-            if (folded.Length > 0 && !p.DisplayName.ToLowerInvariant().Contains(folded)) continue;
-            results.Add(new WorkforceManagerCandidateDto(r.SourceRowNumber, p.DisplayName, p.EmployeeNumber, p.NumberGenerated, p.DisplayTitle));
-            if (results.Count >= 8) break;
+            var issues = WorkforceImportProjection.ReadIssues(json);
+            var onRow = new HashSet<(string, ImportIssueSeverity)>();
+            foreach (var issue in issues)
+            {
+                var key = (issue.Category, issue.Severity);
+                onRow.Add(key);
+                if (issue.DecisionKey is not null)
+                {
+                    if (!groupedKeys.TryGetValue(key, out var set)) groupedKeys[key] = set = new(StringComparer.Ordinal);
+                    set.Add(issue.DecisionKey);
+                }
+            }
+            foreach (var key in onRow)
+            {
+                people[key] = people.GetValueOrDefault(key) + 1;
+                if (issues.Any(i => i.DecisionKey is null && (i.Category, i.Severity) == key))
+                    rowSpecific[key] = rowSpecific.GetValueOrDefault(key) + 1;
+            }
         }
-        return results;
+
+        var order = new[] { "organization", "manager", "identity", "dates", "data", "lifecycle", "existing" };
+        return people.Keys
+            .OrderBy(k => k.Item2)
+            .ThenBy(k => Array.IndexOf(order, k.Item1) is var i && i < 0 ? order.Length : i)
+            .Select(k => new WorkforceReviewIssueGroupDto(k.Item1, k.Item2,
+                (groupedKeys.GetValueOrDefault(k)?.Count ?? 0) + rowSpecific.GetValueOrDefault(k), people[k]))
+            .ToList();
+    }
+
+    /// <summary>A Match change can make earlier resolutions moot; keep only those that still answer a live issue.</summary>
+    private static void PruneResolutions(WorkforceImportSession session, WorkforceImportDerived derived, ImportActor actor)
+    {
+        var resolutions = derived.Resolutions;
+        if (resolutions.IsEmpty) return;
+        var sourceOrgValues = derived.Interpretation.Rows.Select(r => r.OrganizationRef).Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => WorkforceCanonicalSnapshot.NormalizeOrg(v!)).ToHashSet(StringComparer.Ordinal);
+        var sourceManagerRefs = derived.Interpretation.Rows.SelectMany(r => new[] { r.ManagerKey, r.ManagerReference })
+            .Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => WorkforceCanonicalSnapshot.NormalizeNumber(v!)).ToHashSet(StringComparer.Ordinal);
+        var rowNumbers = derived.Interpretation.Rows.Select(r => r.SourceRowNumber).ToHashSet();
+
+        var changed = false;
+        foreach (var key in resolutions.OrganizationBySourceValue.Keys.Where(k => !sourceOrgValues.Contains(k)).ToList())
+            changed |= resolutions.OrganizationBySourceValue.Remove(key);
+        foreach (var key in resolutions.ManagerEmployeeByReference.Keys.Where(k => !sourceManagerRefs.Contains(k)).ToList())
+            changed |= resolutions.ManagerEmployeeByReference.Remove(key);
+        foreach (var key in resolutions.ManagerImportRowByReference.Keys.Where(k => !sourceManagerRefs.Contains(k)).ToList())
+            changed |= resolutions.ManagerImportRowByReference.Remove(key);
+        changed |= resolutions.NoManagerByReference.RemoveWhere(k => !sourceManagerRefs.Contains(k)) > 0;
+        changed |= resolutions.KeepAsDistinctRows.RemoveWhere(r => !rowNumbers.Contains(r)) > 0;
+        if (changed) session.ReplaceResolutions(resolutions.Serialize(), actor);
+    }
+
+    private const int MatchPreviewRowLimit = 25;
+
+    private static WorkforceMatchDto BuildMatch(WorkforceImportMatchState derived, EY.HRPlatform.CoreHR.Infrastructure.Imports.Semantic.ImportSemanticAssistanceDto semanticState)
+    {
+        var columns = derived.Interpretation.Mappings.Select(m =>
+        {
+            var values = derived.Cells.Select(row => m.ColumnIndex < row.Count ? row[m.ColumnIndex] : null)
+                .Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v!.Trim()).ToList();
+            return new WorkforceMatchColumnDto(m.ColumnIndex, m.Label, m.Field, m.Origin, m.Resolved, values.Count,
+                values.Distinct(StringComparer.Ordinal).Take(3).ToList());
+        }).ToList();
+        return new WorkforceMatchDto(
+            columns,
+            derived.Plan.DateFormat,
+            derived.Plan.NameFormat,
+            derived.Interpretation.DateFormatDecisionNeeded,
+            derived.Interpretation.NameFormatDecisionNeeded,
+            derived.Plan.IdentityStrategy,
+            !derived.TenantHasEmployees,
+            derived.Interpretation.LifecycleValues
+                .Select(v => new WorkforceLifecycleValueDto(v.SourceValue, v.Meaning, v.Origin, v.OccurrenceCount)).ToList(),
+            InferManagerKind(derived),
+            derived.Readiness,
+            semanticState,
+            derived.Cells.Take(MatchPreviewRowLimit).Select(row => (IReadOnlyList<string?>)row.ToList()).ToList());
+    }
+
+    /// <summary>What the file's manager values are. A name is reported as unrecognized: it is never an automatic identity.</summary>
+    private static WorkforceReferenceKind InferManagerKind(WorkforceImportMatchState derived)
+    {
+        var rows = derived.Interpretation.Rows;
+        if (rows.Any(r => !string.IsNullOrWhiteSpace(r.FusionManagerReference))) return WorkforceReferenceKind.FusionId;
+        if (rows.Any(r => !string.IsNullOrWhiteSpace(r.ManagerKey))) return WorkforceReferenceKind.WorkerReference;
+        var values = rows.Select(r => r.ManagerReference).Where(v => !string.IsNullOrWhiteSpace(v)).Select(v => v!.Trim()).ToList();
+        if (values.Count == 0) return WorkforceReferenceKind.None;
+        var numbers = rows.Select(r => r.EmployeeNumber).Where(v => !string.IsNullOrWhiteSpace(v))
+            .Select(v => WorkforceCanonicalSnapshot.NormalizeNumber(v!)).ToHashSet(StringComparer.Ordinal);
+        var byNumber = values.Count(v => numbers.Contains(WorkforceCanonicalSnapshot.NormalizeNumber(v)));
+        var byEmail = values.Count(v => v.Contains('@'));
+        if (byNumber >= byEmail && byNumber > 0) return WorkforceReferenceKind.EmployeeNumber;
+        if (byEmail > 0) return WorkforceReferenceKind.Email;
+        return WorkforceReferenceKind.Unrecognized;
+    }
+
+    private async Task<WorkforceImportSession> LoadSessionAsync(Guid sessionId, uint ifMatchVersion, CancellationToken cancellationToken)
+    {
+        var session = await context.WorkforceImportSessions.Include(s => s.Source)
+            .SingleOrDefaultAsync(s => s.Id == sessionId, cancellationToken)
+            ?? throw new WorkforceImportNotFoundException(sessionId);
+        if (session.Version != ifMatchVersion) throw new WorkforceImportConcurrencyException(sessionId);
+        if (!session.IsActive) throw new WorkforceImportReviewException("This import is finished.", "ImportTerminal");
+        if (session.IsPublishing) throw new WorkforceImportReviewException("This import is being published.", "ImportPublishing");
+        return session;
+    }
+
+    private async Task SaveAsync(Guid sessionId, CancellationToken cancellationToken)
+    {
+        try { await context.SaveChangesAsync(cancellationToken); }
+        catch (DbUpdateConcurrencyException) { throw new WorkforceImportConcurrencyException(sessionId); }
     }
 
     /// <summary>A search hint from an unresolved reference: an email's local part or the last name-ish token.</summary>
@@ -291,209 +451,6 @@ public sealed class WorkforceImportReviewService(
         return tokens.Length > 0 ? tokens[^1] : value;
     }
 
-    private WorkforceReviewRowDto ToRowDto(WorkforceImportRow row)
-    {
-        var projection = row.NormalizedProposalJson is null
-            ? new ReviewProjection()
-            : JsonSerializer.Deserialize<ReviewProjection>(row.NormalizedProposalJson) ?? new ReviewProjection();
-        var issues = row.IssueStateJson is null ? [] : JsonSerializer.Deserialize<List<WorkforceReviewIssueDto>>(row.IssueStateJson) ?? [];
-        return new WorkforceReviewRowDto(
-            row.SourceRowNumber,
-            ResultLabel(row.Classification),
-            new WorkforceReviewEmployeeDto(projection.DisplayName, projection.EmployeeNumber, projection.NumberGenerated, projection.IdentityState),
-            new WorkforceReviewEmploymentDto(projection.StartDate),
-            new WorkforceReviewWorkDto(projection.DisplayTitle, projection.Organization, projection.Location, projection.EffectiveFrom),
-            new WorkforceReviewManagerDto(projection.ManagerState, projection.ManagerDisplay, projection.ManagerSubtext),
-            issues);
-    }
-
-    private static string JoinName(string? first, string? last)
-        => string.Join(' ', new[] { first, last }.Where(s => !string.IsNullOrWhiteSpace(s)));
-
-    private static ReviewProjection BuildProjection(
-        ResolvedWorkforceRow resolved, NormalizedWorkforceRow? normalized,
-        IReadOnlyDictionary<int, string> nameByRow, WorkforceCanonicalSnapshot snapshot)
-    {
-        var name = JoinName(normalized?.FirstName, normalized?.LastName);
-        var (managerState, managerDisplay, managerSubtext) = ResolveManagerDisplay(resolved.Manager, nameByRow, snapshot);
-        return new ReviewProjection
-        {
-            DisplayName = string.IsNullOrWhiteSpace(name) ? "(unnamed)" : name,
-            EmployeeNumber = string.IsNullOrWhiteSpace(normalized?.EmployeeNumber) ? null : normalized!.EmployeeNumber,
-            NumberGenerated = resolved.Classification == WorkforceImportRowClassification.NewEmployee && string.IsNullOrWhiteSpace(normalized?.EmployeeNumber),
-            IdentityState = resolved.MatchedEmployeeId is not null ? "Existing" : "New",
-            StartDate = normalized?.EmploymentStart,
-            DisplayTitle = normalized?.DisplayTitle,
-            Organization = normalized?.OrganizationRef,
-            Location = normalized?.Location,
-            EffectiveFrom = resolved.ResolvedWorkEffectiveDate,
-            ManagerState = managerState,
-            ManagerDisplay = managerDisplay,
-            ManagerSubtext = managerSubtext,
-        };
-    }
-
-    /// <summary>Turn a resolved manager into the person the reviewer should see, not the raw source key.</summary>
-    private static (string State, string? Display, string? Subtext) ResolveManagerDisplay(
-        ResolvedManager manager, IReadOnlyDictionary<int, string> nameByRow, WorkforceCanonicalSnapshot snapshot)
-    {
-        switch (manager.Kind)
-        {
-            case ManagerResolutionKind.None:
-                return ("NoManager", null, null);
-            case ManagerResolutionKind.Unresolved:
-                // Show what the file said so the reviewer can recognise the value to fix.
-                return ("Unresolved", manager.RawReference, null);
-            case ManagerResolutionKind.SameImportRow:
-                var importedName = manager.SameImportSourceRowNumber is int rn ? nameByRow.GetValueOrDefault(rn) : null;
-                return ("Resolved", string.IsNullOrWhiteSpace(importedName) ? manager.RawReference : importedName, "Also being added");
-            case ManagerResolutionKind.ExistingEmployee:
-                var existingName = manager.EmployeeId is Guid id && snapshot.ByFusionId.TryGetValue(id, out var e)
-                    ? JoinName(e.FirstName, e.LastName) : null;
-                return ("Resolved", string.IsNullOrWhiteSpace(existingName) ? manager.RawReference : existingName, null);
-            default:
-                return ("NoManager", null, null);
-        }
-    }
-
-    private WorkforceReviewSummaryDto Summarize(
-        WorkforceImportSession session, int affected,
-        (int OpenIssueCount, IReadOnlyList<WorkforceReviewIssueGroupDto> Groups) issues)
-    {
-        var counts = new WorkforceReviewCountsDto(session.NeedsAttentionCount, session.NewCount, session.ExistingAnchorCount, session.ExcludedCount,
-            session.NewCount + session.ExistingAnchorCount + session.NeedsAttentionCount + session.ExcludedCount, issues.OpenIssueCount);
-        var state = counts.Total == 0 ? WorkforceReviewState.NoRows
-            : session.NewCount == 0 && session.ExistingAnchorCount > 0 && session.NeedsAttentionCount == 0 ? WorkforceReviewState.NothingNew
-            : session.NewCount == 0 && session.NeedsAttentionCount == 0 ? WorkforceReviewState.NothingIncluded
-            : WorkforceReviewState.Reviewable;
-        var canCommit = session.NeedsAttentionCount == 0 && session.NewCount > 0;
-        return new WorkforceReviewSummaryDto(counts, canCommit, state, session.Version, session.ReviewDigest, affected, issues.Groups);
-    }
-
-    /// <summary>Stable category key for a blocker, so the review can name the *kind* of remaining work.</summary>
-    private static string IssueCategory(string code) => code switch
-    {
-        "OrganizationUnresolved" or "OrganizationInvalidToday" or "OrganizationMissing" or "FusionOrganizationReferenceUnresolved" => "organization",
-        "WorkDatePrecedesOrganizationHistory" => "workdate",
-        "ManagerUnresolved" or "SelfManager" or "ManagerCycle" => "manager",
-        "UnsupportedExistingDifference" => "difference",
-        "FormerWorkerNotEstablished" or "EmploymentEndedBeforeToday" or "EmploymentStartAfterBaseline" or "FormerEmployeeLifecycleConflict" => "lifecycle",
-        "NameMissing" or "DisplayTitleMissing" or "EmploymentStartMissing" or "DateUnparseable" => "data",
-        _ => "identity",
-    };
-
-    /// <summary>
-    /// The distinct decisions the reviewer still has to make — not the number of affected rows — plus a
-    /// per-category breakdown so the review can say what the work *is* ("3 organizations to match · 40
-    /// people") instead of one alarming total. Grouped decisions (an ambiguous Organization value, an
-    /// unresolved manager reference) each count once no matter how many employees they touch; a
-    /// row-specific blocker counts once per row. Bounded: only rows still needing attention carry blockers.
-    /// </summary>
-    private async Task<(int OpenIssueCount, IReadOnlyList<WorkforceReviewIssueGroupDto> Groups)> ComputeOpenIssuesAsync(
-        Guid sessionId, CancellationToken cancellationToken)
-    {
-        var jsons = await context.WorkforceImportRows.AsNoTracking()
-            .Where(r => r.SessionId == sessionId && r.Classification == WorkforceImportRowClassification.NeedsAttention)
-            .Select(r => r.IssueStateJson)
-            .ToListAsync(cancellationToken);
-
-        // Per category: distinct grouped decision keys, count of rows carrying a row-specific blocker,
-        // and how many people the category touches.
-        var catGroupedKeys = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
-        var catRowSpecific = new Dictionary<string, int>(StringComparer.Ordinal);
-        var catPeople = new Dictionary<string, int>(StringComparer.Ordinal);
-
-        foreach (var json in jsons)
-        {
-            if (json is null) continue;
-            var issues = JsonSerializer.Deserialize<List<WorkforceReviewIssueDto>>(json) ?? [];
-            var blockers = issues.Where(i => i.Severity == Severities.Blocker).ToList();
-            if (blockers.Count == 0) continue;
-
-            var categoriesOnRow = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var b in blockers)
-            {
-                var cat = IssueCategory(b.Code);
-                categoriesOnRow.Add(cat);
-                if (b.DecisionKey is not null)
-                {
-                    if (!catGroupedKeys.TryGetValue(cat, out var set)) catGroupedKeys[cat] = set = new(StringComparer.Ordinal);
-                    set.Add(b.DecisionKey);
-                }
-            }
-            foreach (var cat in categoriesOnRow)
-            {
-                catPeople[cat] = catPeople.GetValueOrDefault(cat) + 1;
-                if (blockers.Any(b => b.DecisionKey is null && IssueCategory(b.Code) == cat))
-                    catRowSpecific[cat] = catRowSpecific.GetValueOrDefault(cat) + 1;
-            }
-        }
-
-        int decisionCount(string cat) => (catGroupedKeys.GetValueOrDefault(cat)?.Count ?? 0) + catRowSpecific.GetValueOrDefault(cat);
-        var order = new[] { "organization", "workdate", "manager", "difference", "identity", "lifecycle", "data" };
-        var groups = order
-            .Where(catPeople.ContainsKey)
-            .Select(cat => new WorkforceReviewIssueGroupDto(cat, decisionCount(cat), catPeople[cat]))
-            .ToList();
-        // The headline total is the sum of the visible category counts, so hero, footer, and the
-        // breakdown chips can never disagree.
-        return (groups.Sum(g => g.DecisionCount), groups);
-    }
-
-    private async Task<WorkforceImportSession> LoadSessionAsync(Guid sessionId, CancellationToken cancellationToken)
-        => await context.WorkforceImportSessions.Include(s => s.Source)
-            .SingleOrDefaultAsync(s => s.Id == sessionId, cancellationToken)
-            ?? throw new WorkforceImportReviewException($"Workforce Import session {sessionId} was not found.");
-
-    private static WorkforceImportActor ActorFrom(WorkforceImportSession session) => new(session.LastUpdatedByUserId, session.LastUpdatedByDisplayName);
-
-    private static string ResultLabel(WorkforceImportRowClassification c) => c switch
-    {
-        WorkforceImportRowClassification.NewEmployee => "New",
-        WorkforceImportRowClassification.ExistingAnchor => "Existing",
-        WorkforceImportRowClassification.Excluded => "Excluded",
-        _ => "NeedsAttention",
-    };
-
-    private static List<string?>? Deserialize(string? json)
-        => json is null ? null : JsonSerializer.Deserialize<List<string?>>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web));
-
-    private static string ComputeDigest(DateOnly baseline, string decisionsJson, WorkforceImportProposal proposal)
-    {
-        var meaning = new StringBuilder().Append(baseline).Append('|').Append(decisionsJson);
-        foreach (var row in proposal.Rows.OrderBy(r => r.SourceRowNumber))
-            meaning.Append('|').Append(row.SourceRowNumber).Append(':').Append(row.Classification).Append(':')
-                .Append(row.MatchedEmployeeId).Append(':').Append(row.ResolvedOrgUnitId).Append(':').Append(row.Manager.Kind)
-                .Append(':').Append(row.HasBlocker);
-        return Hash(meaning.ToString());
-    }
-
-    private static string ComputeObservationDigest(WorkforceCanonicalSnapshot snapshot, WorkforceImportProposal proposal)
-    {
-        // Only referenced canonical facts — matched employees, referenced OrgUnits, work-email occupancy.
-        var referenced = new StringBuilder();
-        foreach (var employeeId in proposal.Rows.Where(r => r.MatchedEmployeeId is not null).Select(r => r.MatchedEmployeeId!.Value).Distinct().OrderBy(x => x))
-            referenced.Append("e:").Append(employeeId).Append(snapshot.ByFusionId.TryGetValue(employeeId, out var e) ? e.IsFormer : false).Append('|');
-        foreach (var orgId in proposal.Rows.Where(r => r.ResolvedOrgUnitId is not null).Select(r => r.ResolvedOrgUnitId!.Value).Distinct().OrderBy(x => x))
-            referenced.Append("o:").Append(orgId).Append(snapshot.OrgById.TryGetValue(orgId, out var o) && o.ValidToday).Append('|');
-        return Hash(referenced.ToString());
-    }
-
-    private static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)))[..64];
-
-    private sealed class ReviewProjection
-    {
-        public string DisplayName { get; set; } = "(unnamed)";
-        public string? EmployeeNumber { get; set; }
-        public bool NumberGenerated { get; set; }
-        public string IdentityState { get; set; } = "New";
-        public DateOnly? StartDate { get; set; }
-        public string? DisplayTitle { get; set; }
-        public string? Organization { get; set; }
-        public string? Location { get; set; }
-        public DateOnly? EffectiveFrom { get; set; }
-        public string ManagerState { get; set; } = "NoManager";
-        public string? ManagerDisplay { get; set; }
-        public string? ManagerSubtext { get; set; }
-    }
+    private static string EscapeLike(string value)
+        => value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
 }

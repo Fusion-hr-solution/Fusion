@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using System.Text.Json.Serialization;
 
 namespace EY.HRPlatform.CoreHR.Features.OrganizationImport;
@@ -7,11 +8,7 @@ public enum OrganizationImportShape { Native, ParentReference, LevelColumns, Unr
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum OrganizationImportResolutionStatus { Resolved, Suggested, Unresolved }
 [JsonConverter(typeof(JsonStringEnumConverter))]
-public enum OrganizationImportResolutionOrigin { Native, Deterministic, Administrator, SemanticSuggestion }
-[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum OrganizationImportNodeClassification { Create, Existing, Conflict }
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum OrganizationImportIssueSeverity { Blocker, Warning }
 /// <summary>Where the fix for a Review issue belongs. Review never edits a proposed unit directly.</summary>
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum OrganizationImportResolutionKind { ReturnToMatch, CorrectSource, AddOrganizationRoot, KeepExisting, ChooseExistingUnit, ChangeEffectiveDate }
@@ -23,8 +20,6 @@ public enum OrganizationImportGeneratedIdentityStrategy { SourceBusinessCode, De
 public enum OrganizationImportMappingStatus { Matched, Suggested, NeedsReview, Ignored }
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum OrganizationImportMatchReadinessState { Incomplete, Complete }
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum OrganizationImportMatchCompletionKind { Incomplete, Automatic, Confirmed }
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum OrganizationImportStage { Match, Review }
 [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -43,7 +38,7 @@ public sealed record OrganizationImportFieldMapping(
     string Field,
     int? ColumnIndex,
     OrganizationImportResolutionStatus Status,
-    OrganizationImportResolutionOrigin Origin,
+    ImportResolutionOrigin Origin,
     string? Evidence = null,
     OrganizationImportMappingStatus MatchStatus = OrganizationImportMappingStatus.Matched);
 
@@ -53,14 +48,14 @@ public sealed record OrganizationImportTypeMapping(
     string? TypeName,
     int OccurrenceCount,
     OrganizationImportMappingStatus Status,
-    OrganizationImportResolutionOrigin Origin,
+    ImportResolutionOrigin Origin,
     string? Evidence = null);
 
 public sealed record OrganizationImportIdentityMapping(
     OrganizationImportGeneratedIdentityStrategy Strategy,
     int? SourceColumnIndex,
     OrganizationImportMappingStatus Status,
-    OrganizationImportResolutionOrigin Origin,
+    ImportResolutionOrigin Origin,
     string Evidence);
 
 public sealed record OrganizationImportRequiredDecision(
@@ -83,14 +78,14 @@ public sealed record OrganizationImportMatchReadiness(
 public sealed record OrganizationImportMappingPlan(
     OrganizationImportShape SourceShape,
     OrganizationImportResolutionStatus ShapeStatus,
-    OrganizationImportResolutionOrigin ShapeOrigin,
+    ImportResolutionOrigin ShapeOrigin,
     IReadOnlyList<OrganizationImportFieldMapping> ColumnMappings,
     IReadOnlyDictionary<string, Guid> TypeMappings,
     IReadOnlyList<int> OrderedLevelColumns,
     IReadOnlyList<OrganizationImportIgnoredColumn> IgnoredColumns,
     OrganizationImportGeneratedIdentityStrategy GeneratedIdentityStrategy,
     string SourceFingerprint,
-    IReadOnlyDictionary<string, OrganizationImportResolutionOrigin>? TypeMappingOrigins = null,
+    IReadOnlyDictionary<string, ImportResolutionOrigin>? TypeMappingOrigins = null,
     IReadOnlyList<OrganizationImportTypeMapping>? TypeMappingDetails = null,
     OrganizationImportIdentityMapping? Identity = null,
     int Revision = 0,
@@ -147,9 +142,9 @@ public sealed record OrganizationImportDecisions(
     IReadOnlyDictionary<string, Guid>? AcceptedExistingMatches = null,
     IReadOnlyCollection<string>? KeepExistingNodeIds = null,
     OrganizationImportRootDecision? IntroducedRoot = null,
-    OrganizationImportResolutionOrigin? ShapeDecisionOrigin = null,
-    IReadOnlyDictionary<string, OrganizationImportResolutionOrigin>? FieldMappingOrigins = null,
-    IReadOnlyDictionary<string, OrganizationImportResolutionOrigin>? TypeMappingOrigins = null,
+    ImportResolutionOrigin? ShapeDecisionOrigin = null,
+    IReadOnlyDictionary<string, ImportResolutionOrigin>? FieldMappingOrigins = null,
+    IReadOnlyDictionary<string, ImportResolutionOrigin>? TypeMappingOrigins = null,
     OrganizationImportGeneratedIdentityStrategy? IdentityStrategy = null)
 {
     public OrganizationImportDecisions Normalize() => new(
@@ -160,8 +155,8 @@ public sealed record OrganizationImportDecisions(
         KeepExistingNodeIds is null ? [] : KeepExistingNodeIds.Distinct(StringComparer.Ordinal).ToArray(),
         IntroducedRoot,
         ShapeDecisionOrigin,
-        FieldMappingOrigins is null ? new Dictionary<string, OrganizationImportResolutionOrigin>() : new Dictionary<string, OrganizationImportResolutionOrigin>(FieldMappingOrigins, StringComparer.Ordinal),
-        TypeMappingOrigins is null ? new Dictionary<string, OrganizationImportResolutionOrigin>() : new Dictionary<string, OrganizationImportResolutionOrigin>(TypeMappingOrigins, StringComparer.OrdinalIgnoreCase),
+        FieldMappingOrigins is null ? new Dictionary<string, ImportResolutionOrigin>() : new Dictionary<string, ImportResolutionOrigin>(FieldMappingOrigins, StringComparer.Ordinal),
+        TypeMappingOrigins is null ? new Dictionary<string, ImportResolutionOrigin>() : new Dictionary<string, ImportResolutionOrigin>(TypeMappingOrigins, StringComparer.OrdinalIgnoreCase),
         IdentityStrategy);
 
     /// <summary>Review resolutions were made against one canonical proposal; a new interpretation starts without them.</summary>
@@ -222,7 +217,7 @@ public sealed record OrganizationImportProposalNode(
 /// </summary>
 public sealed record OrganizationImportIssue(
     string Code,
-    OrganizationImportIssueSeverity Severity,
+    ImportIssueSeverity Severity,
     string Title,
     string Message,
     string? ProposalNodeId,
@@ -240,7 +235,7 @@ public sealed record OrganizationImportIssue(
 public sealed record OrganizationImportInterpretation(
     OrganizationImportShape Shape,
     OrganizationImportResolutionStatus ShapeStatus,
-    OrganizationImportResolutionOrigin ShapeOrigin,
+    ImportResolutionOrigin ShapeOrigin,
     IReadOnlyList<OrganizationImportFieldMapping> FieldMappings,
     IReadOnlyList<OrganizationImportTypeOption> TypeOptions,
     IReadOnlyList<OrganizationImportProposalNode> ProposalNodes,

@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 namespace EY.HRPlatform.CoreHR.Features.OrganizationImport;
 
 /// <summary>
@@ -17,7 +18,7 @@ public static class OrganizationImportReviewProjection
             return null;
 
         var issues = validation.Issues;
-        var blockers = issues.Count(issue => issue.Severity == OrganizationImportIssueSeverity.Blocker);
+        var blockers = issues.Count(issue => issue.Severity == ImportIssueSeverity.Blocker);
         var warnings = issues.Count - blockers;
         var placed = draft.Nodes.Where(node => node.Classification != OrganizationImportNodeClassification.Conflict).ToList();
         var creates = placed.Count(node => node.Classification == OrganizationImportNodeClassification.Create);
@@ -76,7 +77,7 @@ public static class OrganizationImportReviewProjection
             foreach (var id in issue.RelatedNodeIds.Prepend(issue.ProposalNodeId).OfType<string>().Distinct(StringComparer.Ordinal))
             {
                 var current = counts.GetValueOrDefault(id);
-                counts[id] = issue.Severity == OrganizationImportIssueSeverity.Blocker
+                counts[id] = issue.Severity == ImportIssueSeverity.Blocker
                     ? (current.Blocking + 1, current.Warning)
                     : (current.Blocking, current.Warning + 1);
             }

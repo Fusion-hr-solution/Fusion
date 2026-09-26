@@ -45,12 +45,12 @@ public sealed class WorkforceImportControllerTests
     [InlineData(nameof(WorkforceImportController.DownloadTemplate), typeof(HttpGetAttribute), "template")]
     [InlineData(nameof(WorkforceImportController.SelectHeader), typeof(HttpPutAttribute), "{sessionId:guid}/header")]
     [InlineData(nameof(WorkforceImportController.ChangeBaseline), typeof(HttpPutAttribute), "{sessionId:guid}/baseline")]
-    [InlineData(nameof(WorkforceImportController.ReplaceSource), typeof(HttpPostAttribute), "{sessionId:guid}/replace-source")]
+    [InlineData(nameof(WorkforceImportController.UpdateMatch), typeof(HttpPutAttribute), "{sessionId:guid}/match")]
     [InlineData(nameof(WorkforceImportController.GetReview), typeof(HttpGetAttribute), "{sessionId:guid}/review")]
-    [InlineData(nameof(WorkforceImportController.ApplyDecision), typeof(HttpPutAttribute), "{sessionId:guid}/decisions")]
+    [InlineData(nameof(WorkforceImportController.UpdateResolutions), typeof(HttpPutAttribute), "{sessionId:guid}/review/resolutions")]
     [InlineData(nameof(WorkforceImportController.Commit), typeof(HttpPostAttribute), "{sessionId:guid}/commit")]
-    [InlineData(nameof(WorkforceImportController.SuggestMeanings), typeof(HttpPostAttribute), "{sessionId:guid}/semantic-suggestions")]
-    [InlineData(nameof(WorkforceImportController.Finish), typeof(HttpPostAttribute), "{sessionId:guid}/finish")]
+    [InlineData(nameof(WorkforceImportController.RunSemanticAssistance), typeof(HttpPostAttribute), "{sessionId:guid}/semantic-assistance/run")]
+    [InlineData(nameof(WorkforceImportController.Refresh), typeof(HttpPostAttribute), "{sessionId:guid}/refresh")]
     [InlineData(nameof(WorkforceImportController.Discard), typeof(HttpPostAttribute), "{sessionId:guid}/discard")]
     public void Endpoints_use_expected_routes(string methodName, Type attributeType, string template)
     {
@@ -77,18 +77,27 @@ public sealed class WorkforceImportControllerTests
         var controller = BuildController(canImport: false);
         var sid = Guid.NewGuid();
 
+        Assert.IsType<ForbidResult>(controller.DownloadTemplate());
         Assert.IsType<ForbidResult>(await controller.GetActive(default));
         Assert.IsType<ForbidResult>(await controller.Get(sid, default));
         Assert.IsType<ForbidResult>(await controller.SelectHeader(sid, "\"1\"", new SelectHeaderRequest(1), default));
         Assert.IsType<ForbidResult>(await controller.ChangeBaseline(sid, "\"1\"", new ChangeBaselineRequest(new DateOnly(2026, 8, 17)), default));
-        Assert.IsType<ForbidResult>(await controller.Prepare(sid, "\"1\"", default));
+        Assert.IsType<ForbidResult>(await controller.UpdateMatch(sid, "\"1\"", new WorkforceMatchUpdateRequest(), default));
+        Assert.IsType<ForbidResult>(await controller.RunSemanticAssistance(sid, new RunWorkforceSemanticAssistanceRequest("fp"), default));
+        Assert.IsType<ForbidResult>(await controller.Refresh(sid, "\"1\"", default));
         Assert.IsType<ForbidResult>(await controller.GetReview(sid, null, null, 1, 20, default));
-        Assert.IsType<ForbidResult>(await controller.ApplyDecision(sid, "\"1\"", new WorkforceDecisionRequest(null, null, null, null, null, null, null, null, null, null, null, null, null), default));
-        Assert.IsType<ForbidResult>(await controller.SuggestMeanings(sid, default));
-        Assert.IsType<ForbidResult>(await controller.Finish(sid, "\"1\"", default));
+        Assert.IsType<ForbidResult>(await controller.GetManagerCandidates(sid, null, null, default));
+        Assert.IsType<ForbidResult>(await controller.UpdateResolutions(sid, "\"1\"", new WorkforceResolutionsUpdateRequest(), default));
         Assert.IsType<ForbidResult>(await controller.Discard(sid, "\"1\"", default));
-        Assert.IsType<ForbidResult>(await controller.Commit(sid, "\"1\"", default));
+        Assert.IsType<ForbidResult>(await controller.Commit(sid, "\"1\"", new WorkforceCommitRequest("fp"), default));
         Assert.IsType<ForbidResult>(await controller.GetCommitStatus(sid, default));
+    }
+
+    [Fact]
+    public void Retired_endpoints_are_gone()
+    {
+        foreach (var name in new[] { "ReplaceSource", "ApplyDecision", "SuggestMeanings", "Finish", "Prepare" })
+            Assert.Null(typeof(WorkforceImportController).GetMethod(name));
     }
 
     private static WorkforceImportController BuildController(bool canImport)
@@ -102,26 +111,5 @@ public sealed class WorkforceImportControllerTests
                 HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity("test")) },
             },
         };
-    }
-
-    [Fact]
-    public void Decision_request_maps_broadest_safe_scopes_onto_the_decision_document()
-    {
-        var orgId = Guid.NewGuid();
-        var mgrId = Guid.NewGuid();
-        var doc = new WorkforceImportDecisionDoc();
-
-        new WorkforceDecisionRequest(
-            ColumnMappings: new Dictionary<int, string> { [4] = "Manager" }, DateFormat: "DayMonthYear", NameFormat: null,
-            OrganizationSourceValue: "Operations", OrganizationUnitId: orgId,
-            ManagerRowNumber: 7, ManagerEmployeeId: mgrId, ManagerEmployeeKey: null, NoManager: null,
-            ExcludeRow: 3, IncludeRow: null, KeepFusionUnchangedRow: 9, KeepAsDistinctRow: null).Apply(doc);
-
-        Assert.Equal("Manager", doc.ColumnMappings[4]);
-        Assert.Equal("DayMonthYear", doc.DateFormat);
-        Assert.Equal(orgId, doc.OrganizationBySourceValue["operations"]); // normalized grouped key
-        Assert.Equal(mgrId, doc.ManagerEmployeeByRow[7]);
-        Assert.Contains(3, doc.ExcludedRows);
-        Assert.Contains(9, doc.KeepFusionUnchangedRows);
     }
 }

@@ -1,3 +1,5 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports.Semantic;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using System.Text.Json.Serialization;
 
 namespace EY.HRPlatform.CoreHR.Features.OrganizationImport;
@@ -14,7 +16,7 @@ public sealed class OrganizationImportSemanticAssistanceOptions
     /// How external processing is allowed. Switch with
     /// <c>OrganizationImport__SemanticAssistance__ConsentMode</c> and restart CoreHR.
     /// </summary>
-    public OrganizationImportSemanticConsentMode ConsentMode { get; set; } = OrganizationImportSemanticConsentMode.Implicit;
+    public ImportSemanticConsentMode ConsentMode { get; set; } = ImportSemanticConsentMode.Implicit;
     public string Provider { get; set; } = DefaultProvider;
     /// <summary>The single pinned model. There is no fallback routing: an unavailable model means manual Match.</summary>
     public string Model { get; set; } = DefaultModel;
@@ -50,101 +52,12 @@ public static class OrganizationImportSemanticVersions
     public const string Prompt = "organization-import-semantic-prompt/2";
 }
 
-/// <summary>
-/// Semantic assistance as the product sees it. Deliberately independent of Match readiness:
-/// a successful run can leave questions open, and a failed one never blocks manual Match.
-/// </summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum OrganizationImportSemanticAssistanceState
-{
-    /// <summary>Deterministic interpretation left no semantic question.</summary>
-    NotNeeded,
-    /// <summary>Questions exist, but the tenant has not allowed external processing.</summary>
-    AwaitingConsent,
-    /// <summary>Questions exist and a run is allowed, but none has been made for them.</summary>
-    Ready,
-    Running,
-    /// <summary>The provider answered and Fusion applied what passed validation. Abstentions are part of success.</summary>
-    Succeeded,
-    Failed,
-    /// <summary>New questions appeared after the last successful run.</summary>
-    Stale,
-    /// <summary>Questions exist but assistance cannot run here (not configured, or the evidence exceeds the payload budget).</summary>
-    Skipped,
-}
-
-/// <summary>How consent to external semantic processing is obtained.</summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum OrganizationImportSemanticConsentMode
-{
-    /// <summary>An administrator allows it once for the tenant; later uploads run automatically.</summary>
-    Tenant,
-    /// <summary>Every import asks; consent covers that import only and uploads never run on their own.</summary>
-    PerImport,
-    /// <summary>Never asks; every upload runs automatic matching. The default.</summary>
-    Implicit,
-}
-
-/// <summary>What granting consent from Match would cover, so the prompt can say so truthfully.</summary>
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum OrganizationImportSemanticConsentScope
-{
-    Tenant,
-    Import,
-}
-
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum OrganizationImportSemanticAttemptStatus
-{
-    Running,
-    Succeeded,
-    Failed,
-    Stale,
-}
-
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum OrganizationImportSemanticFailureCategory
-{
-    NotConfigured,
-    Unauthorized,
-    ProviderRejected,
-    Timeout,
-    RateLimited,
-    ProviderUnavailable,
-    InvalidOutput,
-    Interrupted,
-}
-
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum OrganizationImportSemanticTrigger
-{
-    Upload,
-    Administrator,
-}
-
-[JsonConverter(typeof(JsonStringEnumConverter))]
-public enum OrganizationImportSemanticDisposition
-{
-    Suggest,
-    Abstain,
-}
-
 public static class OrganizationImportSemanticKinds
 {
     public const string SourceShape = "source_shape";
     public const string FieldMapping = "field_mapping";
     public const string OrganizationTypeMapping = "organization_type_mapping";
 }
-
-public sealed record OrganizationImportSemanticTarget(string Key, string Label);
-
-/// <summary>One unresolved semantic question and the exact targets Fusion allows as its answer.</summary>
-public sealed record OrganizationImportSemanticIssue(
-    string Key,
-    string Kind,
-    int? SourceColumnIndex,
-    string? SourceLabel,
-    IReadOnlyList<OrganizationImportSemanticTarget> AllowedTargets);
 
 public sealed record OrganizationImportSemanticFieldContext(
     int ColumnIndex,
@@ -182,7 +95,7 @@ public sealed record OrganizationImportSemanticCanonicalType(string Name, string
 public sealed record OrganizationImportSemanticRequest(
     string ResultContractVersion,
     string SourceFingerprint,
-    IReadOnlyList<OrganizationImportSemanticIssue> Issues,
+    IReadOnlyList<ImportSemanticIssue> Issues,
     IReadOnlyList<OrganizationImportSemanticFieldContext> Fields,
     IReadOnlyList<OrganizationImportTypeOption> OrganizationTypes,
     OrganizationImportSemanticStructuralContext Structure,
@@ -199,19 +112,6 @@ public sealed record OrganizationImportSemanticContext(
     public static OrganizationImportSemanticContext OverBudget { get; } = new(null, true);
 }
 
-/// <summary>One answer per question: a target from the allowed list, or an explicit abstention.</summary>
-public sealed record OrganizationImportSemanticAnswer(
-    string QuestionKey,
-    OrganizationImportSemanticDisposition Disposition,
-    string? TargetKey);
-
-public sealed record OrganizationImportSemanticProviderResult(
-    IReadOnlyList<OrganizationImportSemanticAnswer> Answers,
-    int? InputTokens,
-    int? OutputTokens,
-    string? ResponseId = null,
-    string? SystemFingerprint = null);
-
 public interface IOrganizationImportSemanticProvider
 {
     string ProviderName { get; }
@@ -219,72 +119,14 @@ public interface IOrganizationImportSemanticProvider
     bool IsConfigured { get; }
 
     /// <summary>Exactly one provider call. Retries belong to the caller, which owns the time budget.</summary>
-    Task<OrganizationImportSemanticProviderResult> SuggestAsync(
+    Task<ImportSemanticProviderResult> SuggestAsync(
         OrganizationImportSemanticRequest request,
         CancellationToken cancellationToken);
 }
 
-public sealed class OrganizationImportSemanticProviderException(
-    OrganizationImportSemanticFailureCategory category,
-    string safeMessage,
-    DateTime? retryAfter = null,
-    Exception? innerException = null) : Exception(safeMessage, innerException)
-{
-    public OrganizationImportSemanticFailureCategory Category { get; } = category;
-    public DateTime? RetryAfter { get; } = retryAfter;
-    public bool Retryable => OrganizationImportSemanticFailures.IsTransient(Category);
-}
-
-public static class OrganizationImportSemanticFailures
-{
-    /// <summary>Failures worth another attempt: the provider may answer next time. Configuration and credential failures will not.</summary>
-    public static bool IsTransient(OrganizationImportSemanticFailureCategory category)
-        => category is OrganizationImportSemanticFailureCategory.Timeout
-            or OrganizationImportSemanticFailureCategory.RateLimited
-            or OrganizationImportSemanticFailureCategory.ProviderUnavailable
-            or OrganizationImportSemanticFailureCategory.InvalidOutput
-            or OrganizationImportSemanticFailureCategory.Interrupted;
-}
-
-/// <summary>
-/// The product-level truth about semantic assistance for one import. The UI never has to infer
-/// whether AI ran, and never sees provider internals.
-/// </summary>
-public sealed record OrganizationImportSemanticAssistanceDto(
-    OrganizationImportSemanticAssistanceState State,
-    string? InputFingerprint,
-    int ExaminedCount,
-    int AppliedCount,
-    int AbstainedCount,
-    int RemainingCount,
-    DateTime? LastCompletedAt,
-    bool CanRetry,
-    DateTime? RetryAfter,
-    OrganizationImportSemanticFailureCategory? FailureCategory,
-    OrganizationImportSemanticConsentScope ConsentScope = OrganizationImportSemanticConsentScope.Tenant)
-{
-    public static OrganizationImportSemanticAssistanceDto Of(
-        OrganizationImportSemanticAssistanceState state,
-        string? inputFingerprint,
-        int remaining)
-        => new(state, inputFingerprint, 0, 0, 0, remaining, null, false, null, null);
-}
-
-/// <summary>Starts a run from Match: the first time (granting tenant consent) or after a retryable failure.</summary>
-public sealed record RunOrganizationImportSemanticAssistanceRequest(
-    string InputFingerprint,
-    bool GrantTenantConsent = false);
-
-/// <summary>A validated suggestion that was written into the Mapping Plan, kept for provenance and override tracking.</summary>
-public sealed record OrganizationImportAppliedSuggestion(
-    string QuestionKey,
-    string Kind,
-    string TargetKey,
-    string? SourceLabel);
-
 public interface IOrganizationImportSemanticAssistanceService
 {
-    Task<OrganizationImportSemanticAssistanceDto> DescribeAsync(
+    Task<ImportSemanticAssistanceDto> DescribeAsync(
         OrganizationImportSession session,
         OrganizationImportInterpretation review,
         CancellationToken cancellationToken);
@@ -293,13 +135,13 @@ public interface IOrganizationImportSemanticAssistanceService
     /// Runs assistance right after upload when it is needed and allowed, inside the upload budget.
     /// Never throws: upload success never depends on the provider.
     /// </summary>
-    Task RunAfterUploadAsync(Guid sessionId, OrganizationImportActor actor, CancellationToken cancellationToken);
+    Task RunAfterUploadAsync(Guid sessionId, ImportActor actor, CancellationToken cancellationToken);
 
     /// <summary>An administrator-started run from Match, optionally granting tenant consent first.</summary>
     Task RunAsync(
         Guid sessionId,
-        RunOrganizationImportSemanticAssistanceRequest request,
-        OrganizationImportActor actor,
+        RunImportSemanticAssistanceRequest request,
+        ImportActor actor,
         CancellationToken cancellationToken);
 
     /// <summary>

@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using EY.HRPlatform.CoreHR.Features.Employees.Import;
 using Xunit;
 
@@ -6,13 +7,13 @@ namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
 public sealed class WorkforceImportEntityTests
 {
     private static readonly Guid Tenant = Guid.NewGuid();
-    private static readonly WorkforceImportActor Actor = new(Guid.NewGuid(), "Amina");
+    private static readonly ImportActor Actor = new(Guid.NewGuid(), "Amina");
     private static readonly DateTime Now = new(2026, 8, 17, 0, 0, 0, DateTimeKind.Utc);
 
-    private static WorkforceImportSession NewSession(DateOnly? baseline = null, TimeSpan? retention = null)
+    private static WorkforceImportSession NewSession(DateOnly? baseline = null)
     {
         var session = WorkforceImportSession.Create(
-            Tenant, baseline ?? new DateOnly(2026, 8, 17), Guid.NewGuid(), "fingerprint", "Sheet1", Actor, Now, retention);
+            Tenant, baseline ?? new DateOnly(2026, 8, 17), Guid.NewGuid(), "fingerprint", "Sheet1", Actor, Now);
         var source = WorkforceImportSource.Create(
             Tenant, session.Id, "people.csv", "csv", "text/csv", "abc", "Sheet1", "A1:C3", 3, 2, "[]", [1, 2, 3]);
         session.AttachSource(source);
@@ -21,6 +22,13 @@ public sealed class WorkforceImportEntityTests
             WorkforceImportRow.Create(Tenant, session.Id, 1, "[\"a\"]"),
             WorkforceImportRow.Create(Tenant, session.Id, 2, "[\"b\"]"),
         ]);
+        return session;
+    }
+
+    private static WorkforceImportSession Publishable()
+    {
+        var session = NewSession();
+        session.RecordProposal(2, 0, 0, 0, 0, matchComplete: true, "fp");
         return session;
     }
 
@@ -33,55 +41,70 @@ public sealed class WorkforceImportEntityTests
     }
 
     [Fact]
-    public void New_session_starts_in_intake_and_is_active()
+    public void New_attempt_is_active_like_organization_import()
     {
         var session = NewSession();
-        Assert.Equal(WorkforceImportStatus.Intake, session.Status);
+        Assert.Equal(WorkforceImportStatus.Active, session.Status);
         Assert.True(session.IsActive);
-        Assert.Equal(Now.Add(WorkforceImportSession.DefaultRetention), session.ExpiresAt);
+        Assert.False(session.IsPublishing);
     }
 
     [Fact]
-    public void ReplaceDecisions_increments_revision_each_time()
+    public void Match_and_resolution_changes_increment_revision_separately_stored()
     {
         var session = NewSession();
-        session.ReplaceDecisions("{\"dateFormat\":\"DD/MM/YYYY\"}", Actor);
-        session.ReplaceDecisions("{\"dateFormat\":\"MM/DD/YYYY\"}", Actor);
+        session.ReplaceMappingPlan("{\"dateFormat\":\"DayMonthYear\"}", Actor);
+        session.ReplaceResolutions("{\"useBaselineForWorkDates\":true}", Actor);
         Assert.Equal(2, session.DecisionRevision);
-        Assert.Contains("MM/DD/YYYY", session.DecisionsJson);
+        Assert.Contains("DayMonthYear", session.MappingPlanJson);
+        Assert.Contains("useBaselineForWorkDates", session.ResolutionsJson);
     }
 
     [Fact]
-    public void ReplaceDecisions_rejects_non_object_json()
-        => Assert.Throws<ArgumentException>(() => NewSession().ReplaceDecisions("[1,2,3]", Actor));
+    public void Decision_documents_must_be_objects()
+        => Assert.Throws<ArgumentException>(() => NewSession().ReplaceMappingPlan("[1,2,3]", Actor));
 
     [Fact]
-    public void Applying_session_is_frozen_against_all_mutations()
+    public void Publishable_only_when_match_complete_nothing_blocked_and_someone_created()
     {
         var session = NewSession();
-        session.MoveToReviewing(2, 0, 0, 0, "rev", "obs", Actor);
-        session.BeginApply("rev", Actor);
-        Assert.Equal(WorkforceImportStatus.Applying, session.Status);
+        session.RecordProposal(3, 1, 0, 0, 0, matchComplete: false, "fp");
+        Assert.False(session.CanPublish);
+        session.RecordProposal(3, 1, 1, 0, 0, matchComplete: true, "fp");
+        Assert.False(session.CanPublish);
+        session.RecordProposal(0, 4, 0, 2, 0, matchComplete: true, "fp");
+        Assert.False(session.CanPublish);
+        session.RecordProposal(3, 1, 0, 2, 1, matchComplete: true, "fp");
+        Assert.True(session.CanPublish);
+    }
 
-        Assert.Throws<InvalidOperationException>(() => session.ReplaceDecisions("{}", Actor));
+    [Fact]
+    public void Publishing_attempt_is_frozen_against_all_mutations()
+    {
+        var session = Publishable();
+        session.BeginPublish(Actor);
+        Assert.True(session.IsPublishing);
+
+        Assert.Throws<InvalidOperationException>(() => session.ReplaceMappingPlan("{}", Actor));
+        Assert.Throws<InvalidOperationException>(() => session.ReplaceResolutions("{}", Actor));
         Assert.Throws<InvalidOperationException>(() => session.ChangeBaselineDate(new DateOnly(2026, 8, 1), Actor, Now));
         Assert.Throws<InvalidOperationException>(() => session.Discard(Actor));
-        Assert.False(session.Expire(Now.AddYears(1)));
+        Assert.Throws<InvalidOperationException>(() => session.BeginPublish(Actor));
     }
 
     [Fact]
-    public void ReturnToReview_unfreezes_after_pre_canonical_failure()
+    public void EndPublish_returns_the_attempt_to_review_unchanged()
     {
-        var session = NewSession();
-        session.MoveToReviewing(2, 0, 0, 0, "rev", "obs", Actor);
-        session.BeginApply("rev", Actor);
-        session.ReturnToReview(Actor);
-        Assert.Equal(WorkforceImportStatus.Reviewing, session.Status);
-        session.ReplaceDecisions("{}", Actor); // no longer frozen
+        var session = Publishable();
+        session.BeginPublish(Actor);
+        session.EndPublish(Actor);
+        Assert.Equal(WorkforceImportStatus.Active, session.Status);
+        Assert.False(session.IsPublishing);
+        session.ReplaceResolutions("{}", Actor); // no longer frozen
     }
 
     [Fact]
-    public void Discard_purges_source_and_row_payload()
+    public void Discard_is_explicit_and_purges_source_and_row_payload()
     {
         var session = NewSession();
         Assert.True(session.Discard(Actor));
@@ -90,29 +113,21 @@ public sealed class WorkforceImportEntityTests
         Assert.NotNull(session.Source.PayloadPurgedAt);
         Assert.All(session.Rows, row => Assert.Null(row.SourceCellsJson));
         Assert.NotNull(session.PayloadPurgedAt);
+        Assert.False(session.Discard(Actor)); // idempotent
     }
 
     [Fact]
-    public void Commit_only_from_applying_and_purges()
+    public void Commit_only_while_publishing_keeps_result_and_purges_payload()
     {
-        var session = NewSession();
-        session.MoveToReviewing(2, 0, 0, 0, "rev", "obs", Actor);
-        Assert.Throws<InvalidOperationException>(() => session.Commit("d", "{}", "[]", Actor));
-        session.BeginApply("rev", Actor);
-        session.Commit("digest", "{}", "[]", Actor);
+        var session = Publishable();
+        Assert.Throws<InvalidOperationException>(() => session.Commit("fp", "{}", "{}", Actor));
+        session.BeginPublish(Actor);
+        session.Commit("fp", "{\"addedEmployeeCount\":2}", "{}", Actor);
         Assert.Equal(WorkforceImportStatus.Committed, session.Status);
+        Assert.Equal("fp", session.FinalProposalFingerprint);
+        Assert.Contains("addedEmployeeCount", session.CommitResultJson);
         Assert.Null(session.Source.RawBytes);
         Assert.All(session.Rows, row => Assert.Null(row.SourceCellsJson));
-    }
-
-    [Fact]
-    public void Expire_only_when_past_window_and_not_applying()
-    {
-        var session = NewSession(retention: TimeSpan.FromDays(7));
-        Assert.False(session.Expire(Now)); // not yet past
-        Assert.True(session.Expire(Now.AddDays(8)));
-        Assert.Equal(WorkforceImportStatus.Expired, session.Status);
-        Assert.Null(session.Source.RawBytes);
-        Assert.All(session.Rows, row => Assert.Null(row.SourceCellsJson));
+        Assert.Throws<InvalidOperationException>(() => session.ReplaceMappingPlan("{}", Actor));
     }
 }

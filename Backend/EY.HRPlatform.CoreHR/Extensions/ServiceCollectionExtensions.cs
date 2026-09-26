@@ -78,7 +78,9 @@ public static class ServiceCollectionExtensions
         }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
         services.AddScoped<WorkforceImportSnapshotLoader>();
         services.AddScoped<WorkforceImportReviewService>();
-        services.AddScoped<WorkforceImportSemanticService>();
+        services.AddScoped<WorkforceImportDerivation>();
+        services.AddScoped<EY.HRPlatform.CoreHR.Features.Setup.ICoreHRReadinessService, EY.HRPlatform.CoreHR.Features.Setup.CoreHRReadinessService>();
+        services.AddScoped<WorkforceImportSemanticAssistanceService>();
         services.AddScoped<WorkforceImportApplyOrchestrator>();
         services.AddScoped<WorkforceImportApplyOperationService>();
         services.AddSingleton<IWorkforceImportApplyProcessor, WorkforceImportApplyProcessor>();

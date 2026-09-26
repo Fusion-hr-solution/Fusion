@@ -1,4 +1,5 @@
 using EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using Xunit;
 
 namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
@@ -25,7 +26,7 @@ public sealed class WorkforceImportInterpreterTests
             ["Matricule", "Prénom", "Nom", "Date embauche", "Département", "Poste occupé", "Responsable"],
             [["001", "Amina", "Mansour", "2021-02-01", "Operations", "Consultant", "Youssef"]]);
 
-        Assert.Contains(result.Mappings, m => m.Field == WorkforceImportField.EmployeeNumber && m.Origin == "deterministic");
+        Assert.Contains(result.Mappings, m => m.Field == WorkforceImportField.EmployeeNumber && m.Origin == ImportResolutionOrigin.Deterministic);
         Assert.Contains(result.Mappings, m => m.Field == WorkforceImportField.Organization);
         Assert.Contains(result.Mappings, m => m.Field == WorkforceImportField.Manager);
         Assert.Empty(result.UnresolvedRequiredFields);
@@ -51,7 +52,7 @@ public sealed class WorkforceImportInterpreterTests
         Assert.True(Run(headers, rows).NameFormatDecisionNeeded);
 
         var decided = Run(headers, rows, new WorkforceImportInterpretation(
-            new Dictionary<int, WorkforceImportField>(), WorkforceNameFormat.LastCommaFirst, WorkforceDateFormat.Iso));
+            new Dictionary<int, WorkforceColumnDecision>(), WorkforceNameFormat.LastCommaFirst, WorkforceDateFormat.Iso));
         Assert.False(decided.NameFormatDecisionNeeded);
         Assert.Equal("Youssef", decided.Rows[0].FirstName);
         Assert.Equal("Ben Ali", decided.Rows[0].LastName);
@@ -66,7 +67,7 @@ public sealed class WorkforceImportInterpreterTests
         Assert.True(Run(headers, rows).DateFormatDecisionNeeded);
 
         var decided = Run(headers, rows, new WorkforceImportInterpretation(
-            new Dictionary<int, WorkforceImportField>(), null, WorkforceDateFormat.DayMonthYear));
+            new Dictionary<int, WorkforceColumnDecision>(), null, WorkforceDateFormat.DayMonthYear));
         Assert.False(decided.DateFormatDecisionNeeded);
         Assert.Equal(new DateOnly(2021, 2, 1), decided.Rows[0].EmploymentStart);
     }
@@ -117,7 +118,7 @@ public sealed class WorkforceImportInterpreterTests
             ["First Name", "Last Name", "Employment Start", "Work Details Effective From", "Organization", "Title"],
             [["Amina", "Mansour", "2021-02-01", "2030-01-01", "Ops", "Lead"]]).Rows[0];
         Assert.Null(row.WorkEffectiveFrom); // NEVER baseline fallback
-        Assert.Contains(row.Issues, i => i.Code == "WorkEffectiveDateInvalid" && i.Severity == "blocker");
+        Assert.Contains(row.Issues, i => i.Code == "WorkEffectiveDateInvalid");
     }
 
     [Fact]
@@ -131,12 +132,14 @@ public sealed class WorkforceImportInterpreterTests
     }
 
     [Fact]
-    public void Employment_start_after_baseline_blocks()
+    public void Employment_start_after_baseline_is_source_fact_not_an_interpretation_issue()
     {
+        // A future start is a lifecycle-scope question the proposal answers (not imported), not a parse error.
         var row = Run(
             ["First Name", "Last Name", "Employment Start", "Organization", "Title"],
             [["Amina", "Mansour", "2030-01-01", "Ops", "Lead"]]).Rows[0];
-        Assert.Contains(row.Issues, i => i.Code == "EmploymentStartAfterBaseline" && i.Severity == "blocker");
+        Assert.Equal(new DateOnly(2030, 1, 1), row.EmploymentStart);
+        Assert.Empty(row.Issues);
     }
 
     [Fact]
@@ -174,9 +177,9 @@ public sealed class WorkforceImportInterpreterTests
                 ["", "Lina", "Ben", "2020-01-01", "EXE", "Engineer", "AST-2003"], // blank identifier → generated later
             ]);
 
-        Assert.Contains(result.Mappings, m => m.Label == "Worker Ref" && m.Field == WorkforceImportField.EmployeeNumber && m.Origin == "structural");
+        Assert.Contains(result.Mappings, m => m.Label == "Worker Ref" && m.Field == WorkforceImportField.EmployeeNumber && m.Origin == ImportResolutionOrigin.Deterministic);
         Assert.DoesNotContain(result.Mappings, m => m.Label == "Worker Ref" && m.Field == WorkforceImportField.WorkerReference);
-        Assert.Contains(result.Mappings, m => m.Label == "Reports To Ref" && m.Field == WorkforceImportField.Manager && m.Origin == "structural");
+        Assert.Contains(result.Mappings, m => m.Label == "Reports To Ref" && m.Field == WorkforceImportField.Manager && m.Origin == ImportResolutionOrigin.Deterministic);
         // A repeated, non-unique code column (Business Unit Ref) is NOT mistaken for identity.
         Assert.DoesNotContain(result.Mappings, m => m.Label == "Business Unit Ref" && m.Field == WorkforceImportField.EmployeeNumber);
         // Source Employee Numbers preserved; blank stays absent for downstream generation.
@@ -215,8 +218,8 @@ public sealed class WorkforceImportInterpreterTests
                 ["A-1", "Z-9", "Amina", "Mansour", "2021-02-01", "Ops", "Lead"],
                 ["A-2", "Z-8", "Sami", "Ali", "2020-01-01", "Ops", "Eng"],
             ]);
-        Assert.Contains(result.Mappings, m => m.Label == "Ref A" && m.Field == WorkforceImportField.Ignored && m.Origin == "unresolved");
-        Assert.Contains(result.Mappings, m => m.Label == "Ref B" && m.Field == WorkforceImportField.Ignored && m.Origin == "unresolved");
+        Assert.Contains(result.Mappings, m => m.Label == "Ref A" && m.Field == WorkforceImportField.Ignored && m.Origin == null);
+        Assert.Contains(result.Mappings, m => m.Label == "Ref B" && m.Field == WorkforceImportField.Ignored && m.Origin == null);
         Assert.DoesNotContain(result.Mappings, m => m.Field == WorkforceImportField.EmployeeNumber);
     }
 
@@ -226,7 +229,7 @@ public sealed class WorkforceImportInterpreterTests
         var row = Run(
             ["First Name", "Last Name", "Employment Start", "Organization", "Title", "Status", "Termination Date"],
             [["Amina", "Mansour", "2021-02-01", "Ops", "Lead", "Terminated", "2024-06-30"]]).Rows[0];
-        Assert.Equal("Terminated", row.LifecycleStatus);
+        Assert.Equal(WorkforceLifecycle.Former, row.Lifecycle);
         Assert.Equal(new DateOnly(2024, 6, 30), row.EmploymentEnd);
     }
 
@@ -252,9 +255,47 @@ public sealed class WorkforceImportInterpreterTests
             ["N+1", "First Name", "Last Name", "Employment Start", "Organization", "Title"],
             [["Youssef", "Amina", "Mansour", "2021-02-01", "Ops", "Lead"], ["Karim", "Sami", "Ali", "2020-01-01", "Ops", "Dev"]],
             new WorkforceImportInterpretation(
-                new Dictionary<int, WorkforceImportField> { [0] = WorkforceImportField.Manager }, null, WorkforceDateFormat.Iso));
-        Assert.Contains(result.Mappings, m => m.ColumnIndex == 0 && m.Field == WorkforceImportField.Manager && m.Origin == "administrator");
+                new Dictionary<int, WorkforceColumnDecision> { [0] = new(WorkforceImportField.Manager, ImportResolutionOrigin.Administrator) }, null, WorkforceDateFormat.Iso));
+        Assert.Contains(result.Mappings, m => m.ColumnIndex == 0 && m.Field == WorkforceImportField.Manager && m.Origin == ImportResolutionOrigin.Administrator);
         Assert.Equal("Youssef", result.Rows[0].ManagerReference);
         Assert.Equal("Karim", result.Rows[1].ManagerReference);
+    }
+
+    [Fact]
+    public void Known_status_vocabulary_is_deterministic_and_unknown_values_stay_open()
+    {
+        var result = Run(
+            ["First Name", "Last Name", "Employment Start", "Organization", "Title", "Status"],
+            [
+                ["Amina", "Mansour", "2021-02-01", "Ops", "Lead", "Active"],
+                ["Sami", "Ali", "2021-02-01", "Ops", "Dev", "Inactive"],
+                ["Lina", "Ben", "2021-02-01", "Ops", "Dev", "On Assignment"],
+            ]);
+        Assert.Contains(result.LifecycleValues, v => v.NormalizedValue == "active" && v.Meaning == WorkforceLifecycle.Active && v.Origin == ImportResolutionOrigin.Deterministic);
+        Assert.Contains(result.LifecycleValues, v => v.NormalizedValue == "inactive" && v.Meaning == WorkforceLifecycle.Former);
+        Assert.Contains(result.LifecycleValues, v => v.NormalizedValue == "on assignment" && v.Meaning is null);
+        Assert.Null(result.Rows[2].Lifecycle);
+    }
+
+    [Fact]
+    public void Two_columns_mapped_to_one_field_is_a_mapping_conflict()
+    {
+        var result = Run(
+            ["First Name", "Last Name", "Employment Start", "Organization", "Department", "Title"],
+            [["Amina", "Mansour", "2021-02-01", "Ops", "Finance", "Lead"]]);
+        Assert.Contains(WorkforceImportField.Organization, result.MappingConflicts);
+    }
+
+    [Fact]
+    public void Lumera_demo_headers_are_understood_without_any_decision()
+    {
+        var result = Run(
+            ["Employee Number", "First Name", "Last Name", "Work Email", "Employment Start", "Current Assignment Since", "Organization", "Display Title", "Manager", "Location", "Status", "Termination Date"],
+            [["LUM-0002", "Yasmine", "Ben Amor", "yasmine@lumera-demo.com", "2019-06-03", "2024-01-01", "People & Culture", "Chief People Officer", "LUM-0001", "Paris", "Active", ""]]);
+        Assert.All(result.Mappings, m => Assert.True(m.Resolved, $"{m.Label} should map"));
+        Assert.Empty(result.UnresolvedRequiredFields);
+        Assert.Empty(result.MappingConflicts);
+        Assert.True(result.HasIdentifierColumn);
+        Assert.All(result.LifecycleValues, v => Assert.NotNull(v.Meaning));
     }
 }

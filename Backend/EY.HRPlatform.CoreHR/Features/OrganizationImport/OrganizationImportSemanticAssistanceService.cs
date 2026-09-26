@@ -1,10 +1,9 @@
-using System.Diagnostics;
-using System.Text;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports.Semantic;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 
 namespace EY.HRPlatform.CoreHR.Features.OrganizationImport;
 
@@ -26,82 +25,38 @@ public sealed class OrganizationImportSemanticAssistanceService(
     TimeProvider? timeProvider = null) : IOrganizationImportSemanticAssistanceService
 {
     private const string AttemptUniqueConstraint = "UX_OrganizationImportSemanticAttempts_Tenant_Session_Fingerprint_Ordinal";
-    private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
 
-    private TimeSpan UploadBudget => TimeSpan.FromSeconds(Math.Clamp(options.UploadBudgetSeconds, 1, 60));
-    private TimeSpan InteractiveBudget => TimeSpan.FromSeconds(Math.Clamp(options.InteractiveBudgetSeconds, 1, 90));
-    private TimeSpan CallTimeout => TimeSpan.FromSeconds(Math.Clamp(options.TimeoutSeconds, 1, 60));
-    private int MaxRetries => Math.Clamp(options.MaxRetries, 0, 2);
-    private OrganizationImportSemanticConsentMode ConsentMode
-        => options.ConsentMode;
+    private readonly ImportSemanticRunner runner = new(
+        dbContext,
+        ImportSemanticBudget.From(options.UploadBudgetSeconds, options.InteractiveBudgetSeconds, options.TimeoutSeconds, options.MaxRetries),
+        ImportSemanticTelemetry.Organization,
+        AttemptUniqueConstraint,
+        logger,
+        timeProvider);
+
+    private ImportSemanticConsentMode ConsentMode => options.ConsentMode;
     private bool Available => provider.IsConfigured;
 
-    public async Task<OrganizationImportSemanticAssistanceDto> DescribeAsync(
+    public async Task<ImportSemanticAssistanceDto> DescribeAsync(
         OrganizationImportSession session,
         OrganizationImportInterpretation review,
         CancellationToken cancellationToken)
     {
         var context = contextBuilder.Build(session, review);
         var request = context.Request;
-        var remaining = request?.Issues.Count ?? 0;
-        var latest = await dbContext.OrganizationImportSemanticAttempts.AsNoTracking()
-            .Where(item => item.SessionId == session.Id && item.Status != OrganizationImportSemanticAttemptStatus.Stale)
-            .OrderByDescending(item => item.AttemptOrdinal)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (latest is null)
-        {
-            if (request is null)
-                return OrganizationImportSemanticAssistanceDto.Of(
-                    context.ExceedsPayloadBudget ? OrganizationImportSemanticAssistanceState.Skipped : OrganizationImportSemanticAssistanceState.NotNeeded,
-                    null, 0);
-            if (!Available)
-                return OrganizationImportSemanticAssistanceDto.Of(OrganizationImportSemanticAssistanceState.Skipped, null, remaining);
-            if (!await HasConsentAsync(session.Id, cancellationToken))
-                return OrganizationImportSemanticAssistanceDto.Of(OrganizationImportSemanticAssistanceState.AwaitingConsent, request.InputFingerprint, remaining)
-                    with { ConsentScope = ConsentScope };
-            return OrganizationImportSemanticAssistanceDto.Of(OrganizationImportSemanticAssistanceState.Ready, request.InputFingerprint, remaining)
-                with { CanRetry = true };
-        }
-
-        var runnable = request is not null && Available;
-        if (latest.Status == OrganizationImportSemanticAttemptStatus.Running)
-        {
-            var abandoned = latest.IsAbandoned(InteractiveBudget);
-            return Contribution(latest, request, remaining) with
-            {
-                State = abandoned ? OrganizationImportSemanticAssistanceState.Failed : OrganizationImportSemanticAssistanceState.Running,
-                FailureCategory = abandoned ? OrganizationImportSemanticFailureCategory.Interrupted : null,
-                CanRetry = abandoned && runnable,
-            };
-        }
-
-        if (latest.Status == OrganizationImportSemanticAttemptStatus.Failed)
-        {
-            var retryAllowed = runnable
-                && latest.FailureCategory is { } category && OrganizationImportSemanticFailures.IsTransient(category)
-                && (latest.RetryAfter is null || latest.RetryAfter <= clock.GetUtcNow().UtcDateTime);
-            return Contribution(latest, request, remaining) with
-            {
-                State = OrganizationImportSemanticAssistanceState.Failed,
-                CanRetry = retryAllowed,
-            };
-        }
-
-        // Succeeded. It becomes stale only when questions appear that this run was never asked;
-        // questions it abstained on are its honest result, not staleness.
-        var asked = latest.QuestionKeys().ToHashSet(StringComparer.Ordinal);
-        var hasNewQuestions = request is not null && request.Issues.Any(issue => !asked.Contains(issue.Key));
-        return Contribution(latest, request, remaining) with
-        {
-            State = hasNewQuestions && runnable
-                ? OrganizationImportSemanticAssistanceState.Stale
-                : OrganizationImportSemanticAssistanceState.Succeeded,
-            CanRetry = hasNewQuestions && runnable,
-        };
+        var latest = await ImportSemanticRunner.LatestAsync(dbContext.OrganizationImportSemanticAttempts, session.Id, cancellationToken);
+        var hasConsent = latest is not null || request is null || !Available || await HasConsentAsync(session.Id, cancellationToken);
+        return runner.Describe(
+            latest,
+            request?.InputFingerprint,
+            request?.Issues.Select(issue => issue.Key).ToList(),
+            context.ExceedsPayloadBudget,
+            Available,
+            hasConsent,
+            ImportSemanticConsentPolicy.ScopeOf(ConsentMode));
     }
 
-    public async Task RunAfterUploadAsync(Guid sessionId, OrganizationImportActor actor, CancellationToken cancellationToken)
+    public async Task RunAfterUploadAsync(Guid sessionId, ImportActor actor, CancellationToken cancellationToken)
     {
         try
         {
@@ -112,14 +67,15 @@ public sealed class OrganizationImportSemanticAssistanceService(
             var request = contextBuilder.Build(session, review).Request;
             if (request is null)
             {
-                OrganizationImportSemanticTelemetry.RecordNotNeeded();
+                ImportSemanticTelemetry.Organization.RecordNotNeeded();
                 return;
             }
             // Per-import consent cannot exist before the administrator has seen the import.
-            if (ConsentMode == OrganizationImportSemanticConsentMode.PerImport) return;
+            if (ConsentMode == ImportSemanticConsentMode.PerImport) return;
             if (!await HasConsentAsync(sessionId, cancellationToken)) return;
             if (await dbContext.OrganizationImportSemanticAttempts.AnyAsync(item => item.SessionId == sessionId, cancellationToken)) return;
-            await RunCoreAsync(session, request, OrganizationImportSemanticTrigger.Upload, UploadBudget, actor, cancellationToken);
+            await runner.RunAsync(dbContext.OrganizationImportSemanticAttempts,
+                BuildRun(session, request, ImportSemanticTrigger.Upload, runner.UploadBudget, actor), cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -133,8 +89,8 @@ public sealed class OrganizationImportSemanticAssistanceService(
 
     public async Task RunAsync(
         Guid sessionId,
-        RunOrganizationImportSemanticAssistanceRequest runRequest,
-        OrganizationImportActor actor,
+        RunImportSemanticAssistanceRequest runRequest,
+        ImportActor actor,
         CancellationToken cancellationToken)
     {
         var session = await LoadSessionAsync(sessionId, cancellationToken);
@@ -143,7 +99,7 @@ public sealed class OrganizationImportSemanticAssistanceService(
         var review = await interpreter.InterpretAsync(session, cancellationToken);
         var request = contextBuilder.Build(session, review).Request
             ?? throw Problem("SemanticAssistanceNotNeeded", "Nothing is left for automatic matching to help with.");
-        if (string.IsNullOrWhiteSpace(runRequest.InputFingerprint) || !FixedEquals(request.InputFingerprint, runRequest.InputFingerprint))
+        if (!ImportFingerprint.Matches(request.InputFingerprint, runRequest.InputFingerprint))
             throw Problem("SemanticSuggestionsChanged", "The import changed. Review the current mappings and try again.");
         if (!Available)
             throw Problem("SemanticAssistanceUnavailable", "Automatic matching is not available. Finish the mappings manually.");
@@ -152,28 +108,23 @@ public sealed class OrganizationImportSemanticAssistanceService(
         {
             if (!runRequest.GrantTenantConsent)
                 throw Problem("SemanticConsentRequired", "Automatic matching needs to be turned on first.");
-            var perImport = ConsentMode == OrganizationImportSemanticConsentMode.PerImport;
-            dbContext.OrganizationImportSemanticConsents.Add(OrganizationImportSemanticConsent.Grant(
-                tenantContext.TenantId, provider.ProviderName, OrganizationImportSemanticVersions.DataContract, actor,
-                perImport ? sessionId : null));
-            try { await dbContext.SaveChangesAsync(cancellationToken); }
-            catch (DbUpdateException) { dbContext.ChangeTracker.Clear(); } // granted concurrently; the active consent exists
+            await ImportSemanticConsentPolicy.GrantAsync(
+                dbContext, tenantContext.TenantId, ConsentMode, provider.ProviderName,
+                OrganizationImportSemanticVersions.DataContract, actor, sessionId, cancellationToken);
             logger.LogInformation("Organization import semantic consent granted. Provider={Provider} Mode={Mode}", provider.ProviderName, ConsentMode);
             session = await LoadSessionAsync(sessionId, cancellationToken);
         }
 
-        var latest = await dbContext.OrganizationImportSemanticAttempts.AsNoTracking()
-            .Where(item => item.SessionId == sessionId && item.Status != OrganizationImportSemanticAttemptStatus.Stale)
-            .OrderByDescending(item => item.AttemptOrdinal)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (latest is { Status: OrganizationImportSemanticAttemptStatus.Running } && !latest.IsAbandoned(InteractiveBudget)) return;
-        if (latest is { Status: OrganizationImportSemanticAttemptStatus.Succeeded }
-            && request.Issues.All(issue => latest.QuestionKeys().Contains(issue.Key))) return;
-        if (latest is { Status: OrganizationImportSemanticAttemptStatus.Failed, RetryAfter: { } retryAfter }
-            && retryAfter > clock.GetUtcNow().UtcDateTime)
-            throw Problem("SemanticSuggestionsRateLimited", "Automatic matching can be retried shortly. You can keep mapping manually.");
+        var latest = await ImportSemanticRunner.LatestAsync(dbContext.OrganizationImportSemanticAttempts, sessionId, cancellationToken);
+        if (!runner.ShouldStartInteractive(latest, request.Issues.Select(issue => issue.Key).ToList(), out var rateLimited))
+        {
+            if (rateLimited)
+                throw Problem("SemanticSuggestionsRateLimited", "Automatic matching can be retried shortly. You can keep mapping manually.");
+            return;
+        }
 
-        await RunCoreAsync(session, request, OrganizationImportSemanticTrigger.Administrator, InteractiveBudget, actor, cancellationToken);
+        await runner.RunAsync(dbContext.OrganizationImportSemanticAttempts,
+            BuildRun(session, request, ImportSemanticTrigger.Administrator, runner.InteractiveBudget, actor), cancellationToken);
     }
 
     public async Task RecordOverridesAsync(Guid sessionId, int overriddenCount, CancellationToken cancellationToken)
@@ -181,107 +132,52 @@ public sealed class OrganizationImportSemanticAssistanceService(
         if (overriddenCount <= 0) return;
         var attempt = await dbContext.OrganizationImportSemanticAttempts
             .Where(item => item.SessionId == sessionId
-                && item.Status == OrganizationImportSemanticAttemptStatus.Succeeded
+                && item.Status == ImportSemanticAttemptStatus.Succeeded
                 && item.SuggestionsApplied > 0)
             .OrderByDescending(item => item.AttemptOrdinal)
             .FirstOrDefaultAsync(cancellationToken);
         if (attempt is null) return;
         attempt.RecordOverrides(overriddenCount);
-        OrganizationImportSemanticTelemetry.RecordOverrides(attempt.Provider, attempt.Model, overriddenCount);
+        ImportSemanticTelemetry.Organization.RecordOverrides(attempt.Provider, attempt.Model, overriddenCount);
     }
 
-    private async Task RunCoreAsync(
+    private ImportSemanticRun<OrganizationImportSemanticAttempt> BuildRun(
         OrganizationImportSession session,
         OrganizationImportSemanticRequest request,
-        OrganizationImportSemanticTrigger trigger,
+        ImportSemanticTrigger trigger,
         TimeSpan budget,
-        OrganizationImportActor actor,
+        ImportActor actor)
+        => new(
+            session.Id,
+            request.InputFingerprint,
+            request.Issues.Count,
+            request.ResultContractVersion,
+            OrganizationImportSemanticVersions.DataContract,
+            OrganizationImportSemanticVersions.Prompt,
+            provider.ProviderName,
+            provider.ModelName,
+            trigger,
+            budget,
+            ordinal => OrganizationImportSemanticAttempt.Start(
+                tenantContext.TenantId, session.Id, ordinal, trigger, request, provider.ProviderName, provider.ModelName),
+            token => provider.SuggestAsync(request, token),
+            (result, token) => ApplyToCurrentAsync(session.Id, request.InputFingerprint, result, actor, token));
+
+    /// <summary>Validates the answers against the import as it is now and applies what survives; null when the import changed.</summary>
+    private async Task<ImportSemanticRunOutcome?> ApplyToCurrentAsync(
+        Guid sessionId,
+        string askedFingerprint,
+        ImportSemanticProviderResult providerResult,
+        ImportActor actor,
         CancellationToken cancellationToken)
     {
-        var attempts = await dbContext.OrganizationImportSemanticAttempts
-            .Where(item => item.SessionId == session.Id)
-            .ToListAsync(cancellationToken);
-        foreach (var abandoned in attempts.Where(item => item.IsAbandoned(InteractiveBudget)))
-            abandoned.Fail(OrganizationImportSemanticFailureCategory.Interrupted, 0, 0, diagnosticCode: "RunAbandoned");
-
-        var attempt = OrganizationImportSemanticAttempt.Start(
-            tenantContext.TenantId,
-            session.Id,
-            attempts.Count == 0 ? 1 : attempts.Max(item => item.AttemptOrdinal) + 1,
-            trigger,
-            request,
-            provider.ProviderName,
-            provider.ModelName);
-        dbContext.OrganizationImportSemanticAttempts.Add(attempt);
-        try
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateException exception) when (IsAttemptClaimConflict(exception))
-        {
-            // A concurrent request claimed this run; its outcome will be the one described.
-            dbContext.ChangeTracker.Clear();
-            return;
-        }
-
-        OrganizationImportSemanticTelemetry.RecordRun(provider.ProviderName, provider.ModelName, trigger, request.Issues.Count);
-        logger.LogInformation(
-            "Organization import semantic assistance started. Trigger={Trigger} Provider={Provider} Model={Model} PromptVersion={PromptVersion} Questions={Questions} AttemptOrdinal={AttemptOrdinal}",
-            trigger, provider.ProviderName, provider.ModelName, OrganizationImportSemanticVersions.Prompt, request.Issues.Count, attempt.AttemptOrdinal);
-
-        var stopwatch = Stopwatch.StartNew();
-        var reused = await FindReusableAsync(request, cancellationToken);
-        OrganizationImportSemanticProviderResult? providerResult = null;
-        var retries = 0;
-        if (reused is not null)
-        {
-            providerResult = new OrganizationImportSemanticProviderResult(
-                reused.AppliedSuggestions()
-                    .Select(item => new OrganizationImportSemanticAnswer(item.QuestionKey, OrganizationImportSemanticDisposition.Suggest, item.TargetKey))
-                    .ToList(),
-                null, null);
-            OrganizationImportSemanticTelemetry.RecordReuse();
-        }
-        else
-        {
-            try
-            {
-                (providerResult, retries) = await CallWithRetriesAsync(request, budget, stopwatch, cancellationToken);
-            }
-            catch (RetriesExhausted exception)
-            {
-                await FinishAsync(attempt.Id, running => running.Fail(
-                    exception.Category, Elapsed(stopwatch), exception.Retries,
-                    exception.RetryAfter, DiagnosticFor(exception.Category)));
-                OrganizationImportSemanticTelemetry.RecordFailure(provider.ProviderName, provider.ModelName, stopwatch.Elapsed.TotalMilliseconds, exception.Category);
-                logger.LogInformation(
-                    "Organization import semantic assistance failed. Category={Category} LatencyMs={LatencyMs}",
-                    exception.Category, Elapsed(stopwatch));
-                return;
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-            {
-                await FinishAsync(attempt.Id, running => running.Fail(
-                    OrganizationImportSemanticFailureCategory.Interrupted, Elapsed(stopwatch), retries, diagnosticCode: "RequestInterrupted"));
-                throw;
-            }
-        }
-
-        // The provider answered for the import as it was. Apply only against the import as it is now.
-        dbContext.ChangeTracker.Clear();
-        var current = await LoadSessionAsync(session.Id, cancellationToken);
+        var current = await LoadSessionAsync(sessionId, cancellationToken);
         var currentReview = await interpreter.InterpretAsync(current, cancellationToken);
         var currentRequest = contextBuilder.Build(current, currentReview).Request;
-        var persisted = await dbContext.OrganizationImportSemanticAttempts.SingleAsync(item => item.Id == attempt.Id, cancellationToken);
-        if (currentRequest is null || !FixedEquals(currentRequest.InputFingerprint, request.InputFingerprint))
-        {
-            persisted.MarkStale();
-            await dbContext.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Organization import semantic result is stale and was not applied. AttemptOrdinal={AttemptOrdinal}", persisted.AttemptOrdinal);
-            return;
-        }
+        if (currentRequest is null || !ImportFingerprint.Matches(currentRequest.InputFingerprint, askedFingerprint))
+            return null;
 
-        var validation = Validate(providerResult!.Answers, currentRequest);
+        var validation = Validate(providerResult.Answers, currentRequest);
         var applied = ApplyToDecisions(current, currentRequest, currentReview, validation.Accepted, actor);
         if (applied.Count > 0)
         {
@@ -289,78 +185,15 @@ public sealed class OrganizationImportSemanticAssistanceService(
             current.ApplyMappingPlan(reinterpreted.MappingPlan
                 ?? throw new InvalidOperationException("The mapping plan is unavailable."));
         }
-        var outcome = new OrganizationImportSemanticRunOutcome(
+        return new ImportSemanticRunOutcome(
             validation.Returned, validation.Accepted.Count, validation.Rejected, validation.Abstentions, applied);
-        persisted.Succeed(outcome, reused is null ? providerResult : null, Elapsed(stopwatch), retries, reused?.Id);
-        try
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            // The administrator changed the import while the provider was answering. Their change
-            // stands; this run's answers are dropped rather than merged over it.
-            dbContext.ChangeTracker.Clear();
-            await FinishAsync(attempt.Id, running => running.MarkStale());
-            return;
-        }
-
-        OrganizationImportSemanticTelemetry.RecordSuccess(
-            provider.ProviderName, provider.ModelName, stopwatch.Elapsed.TotalMilliseconds, outcome, retries, reused is not null);
-        logger.LogInformation(
-            "Organization import semantic assistance succeeded. Questions={Questions} Returned={Returned} Accepted={Accepted} Rejected={Rejected} Applied={Applied} Abstentions={Abstentions} Retries={Retries} Reused={Reused} LatencyMs={LatencyMs}",
-            request.Issues.Count, outcome.Returned, outcome.Accepted, outcome.Rejected, outcome.Applied.Count, outcome.Abstentions,
-            retries, reused is not null, Elapsed(stopwatch));
-    }
-
-    /// <summary>
-    /// One call plus at most <see cref="MaxRetries"/> retries for transient failures, with
-    /// exponential backoff and jitter, all inside the run's budget. Credential and configuration
-    /// failures are never retried; an unfinished budget ends the run as a timeout.
-    /// </summary>
-    private async Task<(OrganizationImportSemanticProviderResult Result, int Retries)> CallWithRetriesAsync(
-        OrganizationImportSemanticRequest request,
-        TimeSpan budget,
-        Stopwatch stopwatch,
-        CancellationToken cancellationToken)
-    {
-        var retries = 0;
-        while (true)
-        {
-            var remaining = budget - stopwatch.Elapsed;
-            if (remaining <= TimeSpan.FromMilliseconds(250))
-                throw new RetriesExhausted(OrganizationImportSemanticFailureCategory.Timeout, null, retries);
-            using var call = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            call.CancelAfter(remaining < CallTimeout ? remaining : CallTimeout);
-            OrganizationImportSemanticProviderException failure;
-            try
-            {
-                return (await provider.SuggestAsync(request, call.Token), retries);
-            }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
-            catch (OperationCanceledException) { failure = new(OrganizationImportSemanticFailureCategory.Timeout, "Timed out."); }
-            catch (HttpRequestException) { failure = new(OrganizationImportSemanticFailureCategory.ProviderUnavailable, "Unavailable."); }
-            catch (OrganizationImportSemanticProviderException exception) { failure = exception; }
-            catch (Exception) { failure = new(OrganizationImportSemanticFailureCategory.ProviderUnavailable, "Unavailable."); }
-
-            if (!failure.Retryable || retries >= MaxRetries)
-                throw new RetriesExhausted(failure.Category, failure.RetryAfter, retries);
-            var delay = TimeSpan.FromMilliseconds(400 * Math.Pow(2, retries) + Random.Shared.Next(0, 250));
-            if (failure.RetryAfter is { } retryAfter && retryAfter - clock.GetUtcNow().UtcDateTime is var wait && wait > delay)
-                delay = wait;
-            if (stopwatch.Elapsed + delay + TimeSpan.FromSeconds(1) >= budget)
-                throw new RetriesExhausted(failure.Category, failure.RetryAfter, retries);
-            OrganizationImportSemanticTelemetry.RecordRetry(provider.ProviderName, provider.ModelName, failure.Category);
-            await Task.Delay(delay, clock, cancellationToken);
-            retries++;
-        }
     }
 
     private sealed record ValidationResult(
         int Returned,
         int Rejected,
         int Abstentions,
-        IReadOnlyList<(OrganizationImportSemanticIssue Issue, string TargetKey)> Accepted);
+        IReadOnlyList<(ImportSemanticIssue Issue, string TargetKey)> Accepted);
 
     /// <summary>
     /// Every answer passes ordinary code before it can touch the plan: the question must still be
@@ -368,13 +201,13 @@ public sealed class OrganizationImportSemanticAssistanceService(
     /// suggestions must be coherent with the source's own topology. Anything else is discarded.
     /// </summary>
     private static ValidationResult Validate(
-        IReadOnlyList<OrganizationImportSemanticAnswer> answers,
+        IReadOnlyList<ImportSemanticAnswer> answers,
         OrganizationImportSemanticRequest request)
     {
         var issues = request.Issues.ToDictionary(issue => issue.Key, StringComparer.Ordinal);
         var answered = new HashSet<string>(StringComparer.Ordinal);
         var claimedFields = new HashSet<string>(StringComparer.Ordinal);
-        var accepted = new List<(OrganizationImportSemanticIssue Issue, string TargetKey)>();
+        var accepted = new List<(ImportSemanticIssue Issue, string TargetKey)>();
         var returned = 0;
         var rejected = 0;
         var abstained = 0;
@@ -382,10 +215,10 @@ public sealed class OrganizationImportSemanticAssistanceService(
         {
             if (!issues.TryGetValue(answer.QuestionKey, out var issue) || !answered.Add(answer.QuestionKey))
             {
-                if (answer.Disposition == OrganizationImportSemanticDisposition.Suggest) { returned++; rejected++; }
+                if (answer.Disposition == ImportSemanticDisposition.Suggest) { returned++; rejected++; }
                 continue;
             }
-            if (answer.Disposition == OrganizationImportSemanticDisposition.Abstain || answer.TargetKey is null)
+            if (answer.Disposition == ImportSemanticDisposition.Abstain || answer.TargetKey is null)
             {
                 abstained++;
                 continue;
@@ -411,22 +244,22 @@ public sealed class OrganizationImportSemanticAssistanceService(
     /// Writes accepted suggestions into the session's decisions. A question the administrator has
     /// already decided is left alone: human decisions outrank AI proposals.
     /// </summary>
-    private static List<OrganizationImportAppliedSuggestion> ApplyToDecisions(
+    private static List<ImportAppliedSuggestion> ApplyToDecisions(
         OrganizationImportSession session,
         OrganizationImportSemanticRequest request,
         OrganizationImportInterpretation review,
-        IReadOnlyList<(OrganizationImportSemanticIssue Issue, string TargetKey)> accepted,
-        OrganizationImportActor actor)
+        IReadOnlyList<(ImportSemanticIssue Issue, string TargetKey)> accepted,
+        ImportActor actor)
     {
         var decisions = (OrganizationImportJson.Deserialize<OrganizationImportDecisions>(session.DecisionsJson)
             ?? new OrganizationImportDecisions()).Normalize();
         var fieldMappings = new Dictionary<string, int?>(decisions.FieldMappings!, StringComparer.Ordinal);
-        var fieldOrigins = new Dictionary<string, OrganizationImportResolutionOrigin>(decisions.FieldMappingOrigins!, StringComparer.Ordinal);
+        var fieldOrigins = new Dictionary<string, ImportResolutionOrigin>(decisions.FieldMappingOrigins!, StringComparer.Ordinal);
         var typeMappings = new Dictionary<string, Guid>(decisions.TypeMappings!, StringComparer.OrdinalIgnoreCase);
-        var typeOrigins = new Dictionary<string, OrganizationImportResolutionOrigin>(decisions.TypeMappingOrigins!, StringComparer.OrdinalIgnoreCase);
+        var typeOrigins = new Dictionary<string, ImportResolutionOrigin>(decisions.TypeMappingOrigins!, StringComparer.OrdinalIgnoreCase);
         var shape = decisions.Shape;
         var shapeOrigin = decisions.ShapeDecisionOrigin;
-        var applied = new List<OrganizationImportAppliedSuggestion>();
+        var applied = new List<ImportAppliedSuggestion>();
 
         foreach (var (issue, targetKey) in accepted)
         {
@@ -441,7 +274,7 @@ public sealed class OrganizationImportSemanticAssistanceService(
                         _ => null,
                     };
                     if (shape is null) continue;
-                    shapeOrigin = OrganizationImportResolutionOrigin.SemanticSuggestion;
+                    shapeOrigin = ImportResolutionOrigin.SemanticSuggestion;
                     break;
                 case OrganizationImportSemanticKinds.FieldMapping:
                     if (issue.SourceColumnIndex is not int column || !targetKey.StartsWith("field:", StringComparison.Ordinal)) continue;
@@ -449,7 +282,7 @@ public sealed class OrganizationImportSemanticAssistanceService(
                     if (fieldMappings.TryGetValue(field, out var decided) && decided is not null) continue;
                     if (fieldMappings.Values.Contains(column)) continue;
                     fieldMappings[field] = column;
-                    fieldOrigins[field] = OrganizationImportResolutionOrigin.SemanticSuggestion;
+                    fieldOrigins[field] = ImportResolutionOrigin.SemanticSuggestion;
                     break;
                 case OrganizationImportSemanticKinds.OrganizationTypeMapping:
                     if (string.IsNullOrWhiteSpace(issue.SourceLabel)
@@ -459,12 +292,12 @@ public sealed class OrganizationImportSemanticAssistanceService(
                         || review.TypeOptions.All(type => type.Id != typeId))
                         continue;
                     typeMappings[issue.SourceLabel] = typeId;
-                    typeOrigins[issue.SourceLabel] = OrganizationImportResolutionOrigin.SemanticSuggestion;
+                    typeOrigins[issue.SourceLabel] = ImportResolutionOrigin.SemanticSuggestion;
                     break;
                 default:
                     continue;
             }
-            applied.Add(new OrganizationImportAppliedSuggestion(issue.Key, issue.Kind, targetKey, issue.SourceLabel));
+            applied.Add(new ImportAppliedSuggestion(issue.Key, issue.Kind, targetKey, issue.SourceLabel));
         }
 
         if (applied.Count == 0) return applied;
@@ -487,8 +320,8 @@ public sealed class OrganizationImportSemanticAssistanceService(
     /// never be the canonical Organization. Incoherent suggestions are discarded; the labels stay
     /// open for the administrator. Field and shape suggestions are unaffected.
     /// </summary>
-    private static List<(OrganizationImportSemanticIssue Issue, string TargetKey)> CorroborateTypeSystem(
-        List<(OrganizationImportSemanticIssue Issue, string TargetKey)> accepted,
+    private static List<(ImportSemanticIssue Issue, string TargetKey)> CorroborateTypeSystem(
+        List<(ImportSemanticIssue Issue, string TargetKey)> accepted,
         OrganizationImportSemanticRequest request)
     {
         var typeByLabel = request.SourceTypeSystem.ToDictionary(t => t.SourceLabel, StringComparer.OrdinalIgnoreCase);
@@ -521,66 +354,10 @@ public sealed class OrganizationImportSemanticAssistanceService(
         return incoherent.Count == 0 ? accepted : accepted.Where(item => !incoherent.Contains(item.Issue.Key)).ToList();
     }
 
-    /// <summary>
-    /// A successful earlier run on the identical input, under the same prompt, result contract,
-    /// provider and model. Refreshing or re-uploading the same file reuses it instead of asking again.
-    /// </summary>
-    private Task<OrganizationImportSemanticAttempt?> FindReusableAsync(
-        OrganizationImportSemanticRequest request,
-        CancellationToken cancellationToken)
-        => dbContext.OrganizationImportSemanticAttempts.AsNoTracking()
-            .Where(item => item.InputFingerprint == request.InputFingerprint
-                && item.Status == OrganizationImportSemanticAttemptStatus.Succeeded
-                && item.ReusedFromAttemptId == null
-                && item.PromptVersion == OrganizationImportSemanticVersions.Prompt
-                && item.ResultContractVersion == request.ResultContractVersion
-                && item.DataContractVersion == OrganizationImportSemanticVersions.DataContract
-                && item.Provider == provider.ProviderName
-                && item.Model == provider.ModelName)
-            .OrderByDescending(item => item.CompletedAt)
-            .FirstOrDefaultAsync(cancellationToken);
-
-    private OrganizationImportSemanticConsentScope ConsentScope
-        => ConsentMode == OrganizationImportSemanticConsentMode.PerImport
-            ? OrganizationImportSemanticConsentScope.Import
-            : OrganizationImportSemanticConsentScope.Tenant;
-
     /// <summary>Whether external processing is allowed for this import under the configured consent mode.</summary>
     private Task<bool> HasConsentAsync(Guid sessionId, CancellationToken cancellationToken)
-    {
-        if (ConsentMode == OrganizationImportSemanticConsentMode.Implicit) return Task.FromResult(true);
-        Guid? scope = ConsentMode == OrganizationImportSemanticConsentMode.PerImport ? sessionId : null;
-        return dbContext.OrganizationImportSemanticConsents.AnyAsync(consent =>
-            consent.Provider == provider.ProviderName
-            && consent.DataContractVersion == OrganizationImportSemanticVersions.DataContract
-            && consent.SessionId == scope
-            && consent.RevokedAt == null, cancellationToken);
-    }
-
-    private static OrganizationImportSemanticAssistanceDto Contribution(
-        OrganizationImportSemanticAttempt attempt,
-        OrganizationImportSemanticRequest? request,
-        int remaining)
-        => new(
-            OrganizationImportSemanticAssistanceState.Succeeded,
-            request?.InputFingerprint,
-            attempt.QuestionsSubmitted,
-            attempt.SuggestionsApplied,
-            attempt.Abstentions,
-            remaining,
-            attempt.CompletedAt,
-            false,
-            attempt.Status == OrganizationImportSemanticAttemptStatus.Failed ? attempt.RetryAfter : null,
-            attempt.Status == OrganizationImportSemanticAttemptStatus.Failed ? attempt.FailureCategory : null);
-
-    private async Task FinishAsync(Guid attemptId, Action<OrganizationImportSemanticAttempt> finish)
-    {
-        dbContext.ChangeTracker.Clear();
-        var attempt = await dbContext.OrganizationImportSemanticAttempts.SingleAsync(item => item.Id == attemptId, CancellationToken.None);
-        if (attempt.Status != OrganizationImportSemanticAttemptStatus.Running) return;
-        finish(attempt);
-        await dbContext.SaveChangesAsync(CancellationToken.None);
-    }
+        => ImportSemanticConsentPolicy.HasConsentAsync(
+            dbContext, ConsentMode, provider.ProviderName, OrganizationImportSemanticVersions.DataContract, sessionId, cancellationToken);
 
     private async Task<OrganizationImportSession> LoadSessionAsync(Guid sessionId, CancellationToken cancellationToken)
         => await dbContext.OrganizationImportSessions
@@ -588,41 +365,8 @@ public sealed class OrganizationImportSemanticAssistanceService(
             .SingleOrDefaultAsync(session => session.Id == sessionId, cancellationToken)
             ?? throw new EntityNotFoundException("Organization import", sessionId);
 
-    private static string DiagnosticFor(OrganizationImportSemanticFailureCategory category) => category switch
-    {
-        OrganizationImportSemanticFailureCategory.InvalidOutput => "ProviderResponseInvalid",
-        OrganizationImportSemanticFailureCategory.Timeout => "BudgetOrCallTimeout",
-        _ => "ProviderRequestFailed",
-    };
-
-    private static int Elapsed(Stopwatch stopwatch) => (int)Math.Min(stopwatch.ElapsedMilliseconds, int.MaxValue);
-
     private static OrganizationImportReviewException Problem(string code, string message)
         => new(code, message, StatusCodes.Status409Conflict);
 
     private static string Normalize(string value) => new(value.ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
-
-    private static bool IsAttemptClaimConflict(DbUpdateException exception)
-        => exception.InnerException is PostgresException postgres
-            && postgres.SqlState == PostgresErrorCodes.UniqueViolation
-            && postgres.ConstraintName == AttemptUniqueConstraint;
-
-    private static bool FixedEquals(string left, string right)
-    {
-        var leftBytes = Encoding.UTF8.GetBytes(left);
-        var rightBytes = Encoding.UTF8.GetBytes(right);
-        return leftBytes.Length == rightBytes.Length
-            && System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(leftBytes, rightBytes);
-    }
-
-    /// <summary>The final failure of a run, carrying how many retries were spent reaching it.</summary>
-    private sealed class RetriesExhausted(
-        OrganizationImportSemanticFailureCategory category,
-        DateTime? retryAfter,
-        int retries) : Exception("Automatic matching could not complete.")
-    {
-        public OrganizationImportSemanticFailureCategory Category { get; } = category;
-        public DateTime? RetryAfter { get; } = retryAfter;
-        public int Retries { get; } = retries;
-    }
 }

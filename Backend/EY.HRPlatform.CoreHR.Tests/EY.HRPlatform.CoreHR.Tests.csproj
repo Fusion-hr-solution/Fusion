@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <None Include="Features\OrganizationImport\SemanticEval\corpus.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Features\Employees\SemanticEval\corpus.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

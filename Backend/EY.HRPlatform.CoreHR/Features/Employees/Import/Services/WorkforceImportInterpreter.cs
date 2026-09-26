@@ -1,4 +1,5 @@
 using System.Globalization;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 
 namespace EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 
@@ -36,16 +37,28 @@ public enum WorkforceNameFormat { FirstLast, LastCommaFirst, LastFirst }
 
 public enum WorkforceDateFormat { Iso, DayMonthYear, MonthDayYear }
 
-/// <summary>Session-level interpretation decisions. Column mappings apply globally, not per row.</summary>
+/// <summary>A decided column meaning and who decided it.</summary>
+public sealed record WorkforceColumnDecision(WorkforceImportField Field, ImportResolutionOrigin Origin);
+
+/// <summary>Match decisions the interpreter applies. Column mappings apply globally, not per row.</summary>
 public sealed record WorkforceImportInterpretation(
-    IReadOnlyDictionary<int, WorkforceImportField> ColumnMappings,
+    IReadOnlyDictionary<int, WorkforceColumnDecision> ColumnMappings,
     WorkforceNameFormat? NameFormat,
-    WorkforceDateFormat? DateFormat)
+    WorkforceDateFormat? DateFormat,
+    IReadOnlyDictionary<string, WorkforceLifecycle>? LifecycleVocabulary = null)
 {
-    public static WorkforceImportInterpretation Empty { get; } = new(new Dictionary<int, WorkforceImportField>(), null, null);
+    public static WorkforceImportInterpretation Empty { get; } = new(new Dictionary<int, WorkforceColumnDecision>(), null, null);
 }
 
-public sealed record WorkforceInterpretationIssue(string Code, string Severity, string Message, WorkforceImportField Field);
+public sealed record WorkforceInterpretationIssue(string Code, string Message, WorkforceImportField Field);
+
+/// <summary>A distinct source status value and its canonical meaning, when known.</summary>
+public sealed record WorkforceLifecycleValue(
+    string NormalizedValue,
+    string SourceValue,
+    WorkforceLifecycle? Meaning,
+    ImportResolutionOrigin? Origin,
+    int OccurrenceCount);
 
 /// <summary>The normalized establishment proposal for one source row (before identity/Org/Manager resolution).</summary>
 public sealed record NormalizedWorkforceRow(
@@ -66,18 +79,28 @@ public sealed record NormalizedWorkforceRow(
     string? ManagerReference,
     string? WorkerKey,
     string? ManagerKey,
-    string? LifecycleStatus,
+    WorkforceLifecycle? Lifecycle,
     DateOnly? EmploymentEnd,
     IReadOnlyList<WorkforceInterpretationIssue> Issues);
 
-public sealed record WorkforceColumnMapping(int ColumnIndex, string? Label, WorkforceImportField Field, string Origin);
+/// <summary>A column's meaning; <see cref="Origin"/> is null when Fusion could not resolve it.</summary>
+public sealed record WorkforceColumnMapping(int ColumnIndex, string? Label, WorkforceImportField Field, ImportResolutionOrigin? Origin)
+{
+    public bool Resolved => Origin is not null;
+}
 
 public sealed record WorkforceInterpretationResult(
     IReadOnlyList<WorkforceColumnMapping> Mappings,
     IReadOnlyList<WorkforceImportField> UnresolvedRequiredFields,
     bool NameFormatDecisionNeeded,
     bool DateFormatDecisionNeeded,
-    IReadOnlyList<NormalizedWorkforceRow> Rows);
+    IReadOnlyList<NormalizedWorkforceRow> Rows,
+    IReadOnlyList<WorkforceImportField> MappingConflicts,
+    IReadOnlyList<WorkforceLifecycleValue> LifecycleValues)
+{
+    /// <summary>Whether a column identifies employees (Employee Number or an explicit Fusion employee reference).</summary>
+    public bool HasIdentifierColumn => Mappings.Any(m => m.Field is WorkforceImportField.EmployeeNumber or WorkforceImportField.FusionEmployeeReference);
+}
 
 /// <summary>
 /// Deterministic Workforce source interpretation: auto-maps native/alias headers, applies global
@@ -129,8 +152,9 @@ public sealed class WorkforceImportInterpreter
         // headers, while genuine source-local keys (a plain "Worker ID" alongside an explicit Employee
         // Number) are left untouched. Administrator column decisions always win over inference.
         mappings = InferIdentityFromStructure(mappings, rows, decisions.ColumnMappings);
-        var byField = mappings.Where(m => m.Field != WorkforceImportField.Ignored)
-            .GroupBy(m => m.Field).ToDictionary(g => g.Key, g => g.First().ColumnIndex);
+        var mapped = mappings.Where(m => m.Field != WorkforceImportField.Ignored).GroupBy(m => m.Field).ToList();
+        var conflicts = mapped.Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        var byField = mapped.ToDictionary(g => g.Key, g => g.First().ColumnIndex);
 
         var hasFullNameOnly = byField.ContainsKey(WorkforceImportField.FullName)
             && !(byField.ContainsKey(WorkforceImportField.FirstName) && byField.ContainsKey(WorkforceImportField.LastName));
@@ -145,14 +169,16 @@ public sealed class WorkforceImportInterpreter
             .Where(byField.ContainsKey).Select(f => byField[f]).ToList();
         var dateFormatNeeded = decisions.DateFormat is null && DateAmbiguityExists(rows, dateColumns);
 
-        var normalized = rows.Select((row, index) => NormalizeRow(index + 1, row, byField, hasFullNameOnly, decisions, baseline)).ToList();
+        var lifecycleValues = LifecycleValues(rows, byField, decisions.LifecycleVocabulary);
+        var meaningByValue = lifecycleValues.ToDictionary(v => v.NormalizedValue, v => v.Meaning, StringComparer.Ordinal);
+        var normalized = rows.Select((row, index) => NormalizeRow(index + 1, row, byField, hasFullNameOnly, decisions, baseline, meaningByValue)).ToList();
 
-        return new WorkforceInterpretationResult(mappings, unresolvedRequired, nameFormatNeeded, dateFormatNeeded, normalized);
+        return new WorkforceInterpretationResult(mappings, unresolvedRequired, nameFormatNeeded, dateFormatNeeded, normalized, conflicts, lifecycleValues);
     }
 
     private static IReadOnlyList<WorkforceColumnMapping> ResolveMappings(
         IReadOnlyList<string?> columnLabels,
-        IReadOnlyDictionary<int, WorkforceImportField> overrides)
+        IReadOnlyDictionary<int, WorkforceColumnDecision> overrides)
     {
         var result = new List<WorkforceColumnMapping>(columnLabels.Count);
         for (var index = 0; index < columnLabels.Count; index++)
@@ -160,13 +186,43 @@ public sealed class WorkforceImportInterpreter
             var label = columnLabels[index];
             if (overrides.TryGetValue(index, out var chosen))
             {
-                result.Add(new WorkforceColumnMapping(index, label, chosen, "administrator"));
+                result.Add(new WorkforceColumnMapping(index, label, chosen.Field, chosen.Origin));
                 continue;
             }
             var auto = AutoMap(label);
-            result.Add(new WorkforceColumnMapping(index, label, auto ?? WorkforceImportField.Ignored, auto is null ? "unresolved" : "deterministic"));
+            result.Add(new WorkforceColumnMapping(index, label, auto ?? WorkforceImportField.Ignored, auto is null ? null : ImportResolutionOrigin.Deterministic));
         }
         return result;
+    }
+
+    /// <summary>
+    /// Distinct status values with their canonical meaning: a Match decision first, then the
+    /// deterministic vocabulary. Unknown values stay open for Match; they are never guessed.
+    /// </summary>
+    private static IReadOnlyList<WorkforceLifecycleValue> LifecycleValues(
+        IReadOnlyList<IReadOnlyList<string?>> rows,
+        IReadOnlyDictionary<WorkforceImportField, int> byField,
+        IReadOnlyDictionary<string, WorkforceLifecycle>? decided)
+    {
+        if (!byField.TryGetValue(WorkforceImportField.LifecycleStatus, out var column)) return [];
+        var values = new Dictionary<string, (string Source, int Count)>(StringComparer.Ordinal);
+        foreach (var row in rows)
+        {
+            var cell = column < row.Count ? Trim(row[column]) : null;
+            if (cell is null) continue;
+            var key = WorkforceLifecycleVocabulary.Normalize(cell);
+            values[key] = values.TryGetValue(key, out var existing) ? (existing.Source, existing.Count + 1) : (cell, 1);
+        }
+        return values
+            .OrderBy(kv => kv.Key, StringComparer.Ordinal)
+            .Select(kv =>
+            {
+                if (decided is not null && decided.TryGetValue(kv.Key, out var chosen))
+                    return new WorkforceLifecycleValue(kv.Key, kv.Value.Source, chosen, ImportResolutionOrigin.Administrator, kv.Value.Count);
+                var known = WorkforceLifecycleVocabulary.Deterministic(kv.Key);
+                return new WorkforceLifecycleValue(kv.Key, kv.Value.Source, known, known is null ? null : ImportResolutionOrigin.Deterministic, kv.Value.Count);
+            })
+            .ToList();
     }
 
     // An opaque business/record identifier: no whitespace, no '@', not a calendar date. Deliberately
@@ -185,7 +241,7 @@ public sealed class WorkforceImportInterpreter
     private static IReadOnlyList<WorkforceColumnMapping> InferIdentityFromStructure(
         IReadOnlyList<WorkforceColumnMapping> mappings,
         IReadOnlyList<IReadOnlyList<string?>> rows,
-        IReadOnlyDictionary<int, WorkforceImportField> overrides)
+        IReadOnlyDictionary<int, WorkforceColumnDecision> overrides)
     {
         if (rows.Count == 0) return mappings;
         // Only infer when the source did not already resolve an Employee Number by header/decision.
@@ -193,7 +249,7 @@ public sealed class WorkforceImportInterpreter
 
         // Candidates are columns Fusion could not resolve and the administrator has not decided.
         var candidates = mappings
-            .Where(m => m.Field == WorkforceImportField.Ignored && m.Origin == "unresolved" && !overrides.ContainsKey(m.ColumnIndex))
+            .Where(m => m.Field == WorkforceImportField.Ignored && m.Origin is null && !overrides.ContainsKey(m.ColumnIndex))
             .Select(m => m.ColumnIndex)
             .ToList();
         if (candidates.Count < 2) return mappings; // need an identity column AND a column referencing it
@@ -242,9 +298,9 @@ public sealed class WorkforceImportInterpreter
         return mappings
             .Select(m =>
                 m.ColumnIndex == identity.Value
-                    ? m with { Field = WorkforceImportField.EmployeeNumber, Origin = "structural" }
+                    ? m with { Field = WorkforceImportField.EmployeeNumber, Origin = ImportResolutionOrigin.Deterministic }
                     : m.ColumnIndex == managerRef.Value && !managerAlreadyMapped
-                        ? m with { Field = WorkforceImportField.Manager, Origin = "structural" }
+                        ? m with { Field = WorkforceImportField.Manager, Origin = ImportResolutionOrigin.Deterministic }
                         : m)
             .ToList();
     }
@@ -275,7 +331,8 @@ public sealed class WorkforceImportInterpreter
         IReadOnlyDictionary<WorkforceImportField, int> byField,
         bool splitFullName,
         WorkforceImportInterpretation decisions,
-        DateOnly baseline)
+        DateOnly baseline,
+        IReadOnlyDictionary<string, WorkforceLifecycle?> lifecycleByValue)
     {
         var issues = new List<WorkforceInterpretationIssue>();
         string? Cell(WorkforceImportField field)
@@ -309,7 +366,7 @@ public sealed class WorkforceImportInterpreter
             {
                 workEffective = null;
                 issues.Add(new WorkforceInterpretationIssue(
-                    "WorkEffectiveDateInvalid", "blocker",
+                    WorkforceIssueCodes.WorkEffectiveDateInvalid,
                     "The supplied work effective date is outside the allowed range (on or after employment start, on or before the workforce-as-of date).",
                     WorkforceImportField.WorkEffectiveFrom));
             }
@@ -319,11 +376,10 @@ public sealed class WorkforceImportInterpreter
             }
         }
 
-        if (employmentStart is not null && employmentStart > baseline)
-            issues.Add(new WorkforceInterpretationIssue(
-                "EmploymentStartAfterBaseline", "blocker",
-                "Employment start is after the workforce-as-of date; use Hire for future employees.",
-                WorkforceImportField.EmploymentStart));
+        var rawStatus = Cell(WorkforceImportField.LifecycleStatus);
+        var lifecycle = rawStatus is null
+            ? (WorkforceLifecycle?)null
+            : lifecycleByValue.GetValueOrDefault(WorkforceLifecycleVocabulary.Normalize(rawStatus));
 
         return new NormalizedWorkforceRow(
             SourceRowNumber: sourceRowNumber,
@@ -343,7 +399,7 @@ public sealed class WorkforceImportInterpreter
             ManagerReference: Cell(WorkforceImportField.Manager),
             WorkerKey: Cell(WorkforceImportField.WorkerReference),
             ManagerKey: Cell(WorkforceImportField.ManagerReference),
-            LifecycleStatus: Cell(WorkforceImportField.LifecycleStatus),
+            Lifecycle: lifecycle,
             EmploymentEnd: employmentEnd,
             Issues: issues);
     }
@@ -363,7 +419,7 @@ public sealed class WorkforceImportInterpreter
         if (nameFormat is null)
         {
             issues.Add(new WorkforceInterpretationIssue(
-                "NameFormatUnresolved", "blocker", "Choose how the combined name column should be read.", WorkforceImportField.FullName));
+                WorkforceIssueCodes.NameFormatUnresolved, "Choose how the combined name column should be read.", WorkforceImportField.FullName));
             return (null, null);
         }
 
@@ -390,8 +446,8 @@ public sealed class WorkforceImportInterpreter
     private static (string?, string?) NameSplitFailed(string full, List<WorkforceInterpretationIssue> issues)
     {
         issues.Add(new WorkforceInterpretationIssue(
-            "NameNotSplittable", "blocker",
-            "This name could not be split into first and last name; map separate columns or fix the source.",
+            WorkforceIssueCodes.NameNotSplittable,
+            "This name couldn't be split into first and last name.",
             WorkforceImportField.FullName));
         return (null, null);
     }
@@ -403,8 +459,7 @@ public sealed class WorkforceImportInterpreter
         {
             if (required)
                 issues.Add(new WorkforceInterpretationIssue(
-                    field == WorkforceImportField.EmploymentStart ? "EmploymentStartMissing" : "DateMissing",
-                    "blocker", "A required date is missing.", field));
+                    WorkforceIssueCodes.EmploymentStartMissing, "Employment start is missing.", field));
             return null;
         }
 
@@ -417,13 +472,13 @@ public sealed class WorkforceImportInterpreter
         {
             // A textual date such as "1 February 2021".
             if (DateOnly.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out var text)) return text;
-            issues.Add(new WorkforceInterpretationIssue("DateUnparseable", "blocker", "This date could not be understood.", field));
+            issues.Add(new WorkforceInterpretationIssue(WorkforceIssueCodes.DateUnparseable, "This date couldn't be read.", field));
             return null;
         }
 
         if (format is null)
         {
-            issues.Add(new WorkforceInterpretationIssue("DateFormatUnresolved", "blocker", "Choose the date format used in this file.", field));
+            issues.Add(new WorkforceInterpretationIssue(WorkforceIssueCodes.DateFormatUnresolved, "Choose the date format used in this file.", field));
             return null;
         }
 
@@ -432,7 +487,7 @@ public sealed class WorkforceImportInterpreter
         try { return new DateOnly(year, month, day); }
         catch (ArgumentOutOfRangeException)
         {
-            issues.Add(new WorkforceInterpretationIssue("DateInvalid", "blocker", "This date is not a valid calendar date.", field));
+            issues.Add(new WorkforceInterpretationIssue(WorkforceIssueCodes.DateInvalid, "This isn't a valid calendar date.", field));
             return null;
         }
     }

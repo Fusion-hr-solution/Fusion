@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -48,11 +49,11 @@ public sealed class OrganizationImportMappingService : IOrganizationImportMappin
             if (decisions.FieldMappings!.TryGetValue(field, out var chosen))
             {
                 var origin = decisions.FieldMappingOrigins!.GetValueOrDefault(
-                    field, OrganizationImportResolutionOrigin.Administrator);
+                    field, ImportResolutionOrigin.Administrator);
                 mappings.Add(new(field, chosen,
                     chosen is null ? OrganizationImportResolutionStatus.Unresolved : OrganizationImportResolutionStatus.Resolved,
                     origin,
-                    origin == OrganizationImportResolutionOrigin.SemanticSuggestion
+                    origin == ImportResolutionOrigin.SemanticSuggestion
                         ? "Accepted semantic suggestion"
                         : "Confirmed by an administrator",
                     chosen is null ? OrganizationImportMappingStatus.NeedsReview : OrganizationImportMappingStatus.Matched));
@@ -63,10 +64,10 @@ public sealed class OrganizationImportMappingService : IOrganizationImportMappin
                 .Select(label => label.Key).ToList();
             var exactNativeIndex = native ? Array.FindIndex(NativeHeaders, header => FieldForNativeHeader(header) == field) : -1;
             mappings.Add(exactNativeIndex >= 0
-                ? new(field, exactNativeIndex, OrganizationImportResolutionStatus.Resolved, OrganizationImportResolutionOrigin.Native, "Fusion template header", OrganizationImportMappingStatus.Matched)
+                ? new(field, exactNativeIndex, OrganizationImportResolutionStatus.Resolved, ImportResolutionOrigin.Native, "Fusion template header", OrganizationImportMappingStatus.Matched)
                 : matches.Count == 1
-                    ? new(field, matches[0], OrganizationImportResolutionStatus.Resolved, OrganizationImportResolutionOrigin.Deterministic, "Matched source header", OrganizationImportMappingStatus.Matched)
-                    : new(field, null, OrganizationImportResolutionStatus.Unresolved, OrganizationImportResolutionOrigin.Deterministic, "No unambiguous source header match", OrganizationImportMappingStatus.NeedsReview));
+                    ? new(field, matches[0], OrganizationImportResolutionStatus.Resolved, ImportResolutionOrigin.Deterministic, "Matched source header", OrganizationImportMappingStatus.Matched)
+                    : new(field, null, OrganizationImportResolutionStatus.Unresolved, ImportResolutionOrigin.Deterministic, "No unambiguous source header match", OrganizationImportMappingStatus.NeedsReview));
         }
 
         var businessIndex = mappings.FindIndex(mapping => mapping.Field == OrganizationImportFields.BusinessCode);
@@ -74,7 +75,7 @@ public sealed class OrganizationImportMappingService : IOrganizationImportMappin
             && mappings[businessIndex].ColumnIndex is null
             && TryInferBusinessCodeColumn(table, mappings, out var inferredBusinessCode, out var evidence))
             mappings[businessIndex] = new(OrganizationImportFields.BusinessCode, inferredBusinessCode,
-                OrganizationImportResolutionStatus.Resolved, OrganizationImportResolutionOrigin.Deterministic, evidence, OrganizationImportMappingStatus.Matched);
+                OrganizationImportResolutionStatus.Resolved, ImportResolutionOrigin.Deterministic, evidence, OrganizationImportMappingStatus.Matched);
 
         var parentIndex = mappings.FindIndex(mapping => mapping.Field == OrganizationImportFields.ParentBusinessCode);
         var codeIndex = mappings.Single(mapping => mapping.Field == OrganizationImportFields.BusinessCode).ColumnIndex;
@@ -92,7 +93,7 @@ public sealed class OrganizationImportMappingService : IOrganizationImportMappin
                 .Where(candidate => candidate.Matching > 0 && candidate.Matching == candidate.Count).ToList();
             if (overlap.Count == 1)
                 mappings[parentIndex] = new(OrganizationImportFields.ParentBusinessCode, overlap[0].Index,
-                    OrganizationImportResolutionStatus.Resolved, OrganizationImportResolutionOrigin.Deterministic,
+                    OrganizationImportResolutionStatus.Resolved, ImportResolutionOrigin.Deterministic,
                     "Every populated value references an organization key", OrganizationImportMappingStatus.Matched);
         }
 
@@ -136,10 +137,10 @@ public sealed class OrganizationImportMappingService : IOrganizationImportMappin
                 ? OrganizationImportMappingStatus.NeedsReview
                 : OrganizationImportMappingStatus.Matched,
             decisions.IdentityStrategy is not null
-                ? OrganizationImportResolutionOrigin.Administrator
+                ? ImportResolutionOrigin.Administrator
                 : hasSourceBusinessCode
                 ? mappings.Single(mapping => mapping.Field == OrganizationImportFields.BusinessCode).Origin
-                : OrganizationImportResolutionOrigin.Deterministic,
+                : ImportResolutionOrigin.Deterministic,
             identityStrategy == OrganizationImportGeneratedIdentityStrategy.SourceBusinessCode
                 ? "Uses the stable identifier supplied by the source"
                 : "Fusion generates stable codes from each name and hierarchy path");
@@ -147,8 +148,8 @@ public sealed class OrganizationImportMappingService : IOrganizationImportMappin
             shape,
             decisions.Shape is not null ? OrganizationImportResolutionStatus.Resolved
                 : deterministicShape == OrganizationImportShape.Unresolved ? OrganizationImportResolutionStatus.Unresolved : OrganizationImportResolutionStatus.Resolved,
-            decisions.Shape is not null ? decisions.ShapeDecisionOrigin ?? OrganizationImportResolutionOrigin.Administrator
-                : native ? OrganizationImportResolutionOrigin.Native : OrganizationImportResolutionOrigin.Deterministic,
+            decisions.Shape is not null ? decisions.ShapeDecisionOrigin ?? ImportResolutionOrigin.Administrator
+                : native ? ImportResolutionOrigin.Native : ImportResolutionOrigin.Deterministic,
             mappings,
             decisions.TypeMappings!,
             levelColumns,
@@ -157,7 +158,7 @@ public sealed class OrganizationImportMappingService : IOrganizationImportMappin
             SourceFingerprint(session),
             decisions.TypeMappings!.Keys.ToDictionary(
                 value => value,
-                value => decisions.TypeMappingOrigins!.GetValueOrDefault(value, OrganizationImportResolutionOrigin.Administrator),
+                value => decisions.TypeMappingOrigins!.GetValueOrDefault(value, ImportResolutionOrigin.Administrator),
                 StringComparer.OrdinalIgnoreCase),
             typeDetails,
             identity,
@@ -200,10 +201,10 @@ public sealed class OrganizationImportMappingService : IOrganizationImportMappin
             if (decisions.TypeMappings!.TryGetValue(raw, out var selected)
                 && typeOptions.FirstOrDefault(type => type.Id == selected) is { } chosen)
             {
-                var origin = decisions.TypeMappingOrigins!.GetValueOrDefault(raw, OrganizationImportResolutionOrigin.Administrator);
+                var origin = decisions.TypeMappingOrigins!.GetValueOrDefault(raw, ImportResolutionOrigin.Administrator);
                 return new OrganizationImportTypeMapping(raw, chosen.Id, chosen.Name, group.Count(),
                     OrganizationImportMappingStatus.Matched, origin,
-                    origin == OrganizationImportResolutionOrigin.SemanticSuggestion ? "Accepted semantic suggestion" : "Confirmed by an administrator");
+                    origin == ImportResolutionOrigin.SemanticSuggestion ? "Accepted semantic suggestion" : "Confirmed by an administrator");
             }
 
             var normalized = Normalize(TypeAlias(raw));
@@ -217,9 +218,9 @@ public sealed class OrganizationImportMappingService : IOrganizationImportMappin
             }
             return deterministic.Count == 1
                 ? new OrganizationImportTypeMapping(raw, deterministic[0].Id, deterministic[0].Name, group.Count(),
-                    OrganizationImportMappingStatus.Matched, OrganizationImportResolutionOrigin.Deterministic, "Matched organization type vocabulary")
+                    OrganizationImportMappingStatus.Matched, ImportResolutionOrigin.Deterministic, "Matched organization type vocabulary")
                 : new OrganizationImportTypeMapping(raw, null, null, group.Count(),
-                    OrganizationImportMappingStatus.NeedsReview, OrganizationImportResolutionOrigin.Deterministic, "No unambiguous organization type match");
+                    OrganizationImportMappingStatus.NeedsReview, ImportResolutionOrigin.Deterministic, "No unambiguous organization type match");
         }).OrderBy(mapping => mapping.SourceValue, StringComparer.OrdinalIgnoreCase).ToList();
     }
 

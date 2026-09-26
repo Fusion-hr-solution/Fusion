@@ -1,3 +1,5 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports.Semantic;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -67,7 +69,7 @@ public sealed record OrganizationImportSessionDto(
     Guid? CommittedByUserId,
     string? CommittedByDisplayName,
     IReadOnlyList<OrganizationImportProvenance>? FinalProvenance,
-    OrganizationImportSemanticAssistanceDto? SemanticAssistance = null,
+    ImportSemanticAssistanceDto? SemanticAssistance = null,
     OrganizationImportMatchDto? Match = null);
 
 /// <summary>
@@ -77,9 +79,9 @@ public sealed record OrganizationImportSessionDto(
 public sealed record OrganizationImportMatchDto(
     OrganizationImportMappingPlan MappingPlan,
     OrganizationImportMatchReadiness Readiness,
-    OrganizationImportMatchCompletionKind CompletionKind,
+    ImportMatchCompletionKind CompletionKind,
     IReadOnlyList<OrganizationImportTypeOption> TypeOptions,
-    OrganizationImportSemanticAssistanceDto? SemanticAssistance);
+    ImportSemanticAssistanceDto? SemanticAssistance);
 
 public sealed record OrganizationImportActiveSummaryDto(
     Guid Id,

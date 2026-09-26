@@ -17,7 +17,7 @@ public sealed class OrganizationImportServiceTests
         var dbName = Guid.NewGuid().ToString();
         await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId), dbName);
         var service = CreateService(context, TestTenantContext.WithTenant(tenantId));
-        var actor = new OrganizationImportActor(Guid.NewGuid(), "Admin One");
+        var actor = new ImportActor(Guid.NewGuid(), "Admin One");
 
         var first = await service.IntakeAsync(
             Csv("Name\nRoot"), "organization.csv", "text/csv", new DateOnly(2026, 8, 12), token, null, actor, CancellationToken.None);
@@ -39,7 +39,7 @@ public sealed class OrganizationImportServiceTests
         var token = Guid.NewGuid();
         await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
         var service = CreateService(context, TestTenantContext.WithTenant(tenantId));
-        var actor = new OrganizationImportActor(Guid.NewGuid(), "Admin");
+        var actor = new ImportActor(Guid.NewGuid(), "Admin");
         await service.IntakeAsync(Csv("Name\nRoot"), "one.csv", null, new DateOnly(2026, 8, 12), token, null, actor, CancellationToken.None);
 
         var exception = await Assert.ThrowsAsync<OrganizationImportSourceException>(() => service.IntakeAsync(
@@ -55,7 +55,7 @@ public sealed class OrganizationImportServiceTests
         var tenantId = Guid.NewGuid();
         await using var context = TestDbContextFactory.Create(TestTenantContext.WithTenant(tenantId));
         var service = CreateService(context, TestTenantContext.WithTenant(tenantId));
-        var actor = new OrganizationImportActor(Guid.NewGuid(), "Admin");
+        var actor = new ImportActor(Guid.NewGuid(), "Admin");
         var first = await service.IntakeAsync(Csv("Name\nRoot"), "one.csv", null, new DateOnly(2026, 8, 12), Guid.NewGuid(), null, actor, CancellationToken.None);
         await service.IntakeAsync(Csv("Name\nOther"), "two.csv", null, new DateOnly(2026, 8, 13), Guid.NewGuid(), null, actor, CancellationToken.None);
 
@@ -81,7 +81,7 @@ public sealed class OrganizationImportServiceTests
             var service = CreateService(firstContext, TestTenantContext.WithTenant(firstTenant));
             var result = await service.IntakeAsync(
                 Csv("Name\nRoot"), "one.csv", null, new DateOnly(2026, 8, 12), Guid.NewGuid(), null,
-                new OrganizationImportActor(Guid.NewGuid(), "Admin"), CancellationToken.None);
+                new ImportActor(Guid.NewGuid(), "Admin"), CancellationToken.None);
             sessionId = result.Session!.Id;
         }
         await using var secondContext = TestDbContextFactory.Create(TestTenantContext.WithTenant(secondTenant), dbName);
@@ -113,7 +113,7 @@ public sealed class OrganizationImportServiceTests
             new OrganizationImportSourceInspectionService(new SafeTabularSourceReader()),
             organization.Object,
             new OrganizationImportInterpreter(context, tenantContext));
-        var actor = new OrganizationImportActor(Guid.NewGuid(), "Admin");
+        var actor = new ImportActor(Guid.NewGuid(), "Admin");
 
         var created = await service.IntakeAsync(
             Csv("Name\nRoot"), "organization.csv", null, firstDate, Guid.NewGuid(), null, actor, CancellationToken.None);

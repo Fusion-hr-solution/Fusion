@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 namespace EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 
 public sealed record WorkforceImportIntakeRequest(
@@ -7,15 +8,13 @@ public sealed record WorkforceImportIntakeRequest(
     string FileName,
     string? ContentType,
     string? SelectedSheetName,
-    WorkforceImportActor Actor,
-    TimeSpan? Retention = null);
+    ImportActor Actor);
 
 public enum WorkforceImportIntakeKind
 {
     Ready,
     SheetSelectionRequired,
     HeaderClarificationRequired,
-    ActiveSessionExists,
     Conflict,
 }
 
@@ -33,13 +32,6 @@ public sealed record WorkforceImportIntakeOutcome(
     WorkforceImportSheetChoice? SheetChoice,
     string? ConflictReason,
     IReadOnlyList<WorkforceHeaderCandidate>? HeaderCandidates = null);
-
-public sealed record WorkforceImportReplaceSourceRequest(
-    Stream File,
-    string FileName,
-    string? ContentType,
-    string? SelectedSheetName,
-    WorkforceImportActor Actor);
 
 public sealed class WorkforceImportNotFoundException(Guid sessionId)
     : Exception($"Workforce Import session {sessionId} was not found.")

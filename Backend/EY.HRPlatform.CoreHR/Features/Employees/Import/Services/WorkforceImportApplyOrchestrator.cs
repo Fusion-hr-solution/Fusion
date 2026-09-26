@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using System.Data;
 using System.Text.Json;
 using EY.HRPlatform.CoreHR.Domain.Entities;
@@ -10,7 +11,13 @@ using Microsoft.EntityFrameworkCore;
 namespace EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 
 public sealed record WorkforceImportApplyResult(
-    Guid SessionId, bool AlreadyApplied, int AddedEmployeeCount, int ManagerRelationshipCount, IReadOnlyList<string> AddedEmployeeKeys);
+    Guid SessionId,
+    bool AlreadyApplied,
+    int AddedEmployeeCount,
+    int ManagerRelationshipCount,
+    IReadOnlyList<string> AddedEmployeeKeys,
+    int ExistingCount = 0,
+    int NotImportedCount = 0);
 
 /// <summary>Structured stale-review outcome — never a bare "validation failed".</summary>
 public sealed record WorkforceReviewOutdatedItem(int SourceRowNumber, string Field, string Reason, string? DecisionKey);
@@ -36,9 +43,7 @@ public sealed class WorkforceImportApplyException(WorkforceImportApplyFailureKin
 public sealed class WorkforceImportApplyOrchestrator(
     CoreHRDbContext context,
     ITenantContext tenant,
-    WorkforceImportInterpreter interpreter,
-    WorkforceImportResolver resolver,
-    WorkforceImportSnapshotLoader snapshotLoader,
+    WorkforceImportDerivation derivation,
     IWorkforceMutationService mutation,
     IEmployeeNumberAllocator allocator)
 {
@@ -50,7 +55,7 @@ public sealed class WorkforceImportApplyOrchestrator(
     /// on blockers, stale review, or transient failure (transaction rolled back).
     /// </summary>
     public async Task<WorkforceImportApplyResult> ExecuteAsync(
-        Guid sessionId, WorkforceImportActor actor, Action<string, int, int?>? onPhase, CancellationToken cancellationToken)
+        Guid sessionId, string reviewedProposalFingerprint, ImportActor actor, Action<string, int, int?>? onPhase, CancellationToken cancellationToken)
     {
         var session = await context.WorkforceImportSessions.Include(s => s.Source)
             .SingleOrDefaultAsync(s => s.Id == sessionId, cancellationToken)
@@ -65,7 +70,14 @@ public sealed class WorkforceImportApplyOrchestrator(
         try
         {
             onPhase?.Invoke("Preparing", 0, null);
-            var result = await ApplyInTransactionAsync(session, actor, onPhase, cancellationToken);
+            if (transaction is not null && context.Database.IsNpgsql())
+            {
+                // One workforce publication per tenant at a time: a concurrent attempt re-derives after
+                // this one commits and sees the employees it created.
+                var lockKey = $"workforce-import:{TenantId}";
+                await context.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))", cancellationToken);
+            }
+            var result = await ApplyInTransactionAsync(session, reviewedProposalFingerprint, actor, onPhase, cancellationToken);
             if (transaction is not null) await transaction.CommitAsync(cancellationToken);
             return result;
         }
@@ -83,30 +95,25 @@ public sealed class WorkforceImportApplyOrchestrator(
     }
 
     private async Task<WorkforceImportApplyResult> ApplyInTransactionAsync(
-        WorkforceImportSession session, WorkforceImportActor actor, Action<string, int, int?>? onPhase, CancellationToken cancellationToken)
+        WorkforceImportSession session, string reviewedProposalFingerprint, ImportActor actor, Action<string, int, int?>? onPhase, CancellationToken cancellationToken)
     {
-        // Fresh recompute under the write boundary — never trust a cached proposal.
+        // Re-derive under the write boundary against current CoreHR; never trust a cached proposal.
         var rows = await context.WorkforceImportRows.Where(r => r.SessionId == session.Id).OrderBy(r => r.SourceRowNumber).ToListAsync(cancellationToken);
-        var columns = DeserializeStringList(session.Source.ColumnsJson) ?? [];
-        var doc = WorkforceImportDecisionDoc.Parse(session.DecisionsJson);
-        var cells = rows.Select(r => (IReadOnlyList<string?>)(DeserializeStringList(r.SourceCellsJson) ?? [])).ToList();
-        var interpretation = interpreter.Interpret(columns, cells, doc.ToInterpretation(), session.BaselineDate);
-        var snapshot = await snapshotLoader.LoadAsync(session.BaselineDate, cancellationToken);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var proposal = resolver.Resolve(interpretation.Rows, snapshot, doc.ToResolutionDecisions(), session.BaselineDate, today);
+        var derived = await derivation.DeriveAsync(session, rows, cancellationToken);
+        var interpretation = derived.Interpretation;
+        var proposal = derived.Proposal;
 
-        // ReviewOutdated: canonical meaning changed since review → do not proceed, preserve work.
-        var outdated = DetectReviewOutdated(session, rows, proposal);
-        if (outdated is not null)
+        // Publish only the exact proposal the administrator confirmed.
+        if (!ImportFingerprint.Matches(derived.ProposalFingerprint, reviewedProposalFingerprint))
             throw new WorkforceImportApplyException(WorkforceImportApplyFailureKind.ReviewOutdated,
-                "A few items changed since your review.", outdated);
+                "The workforce changed since you reviewed it.", DetectReviewOutdated(session, rows, proposal));
 
-        onPhase?.Invoke("Validating", 0, proposal.NewCount);
-        var included = proposal.Rows.Where(r => r.Classification == WorkforceImportRowClassification.NewEmployee).ToList();
-        if (proposal.Rows.Any(r => r.Classification == WorkforceImportRowClassification.NeedsAttention))
+        onPhase?.Invoke("Validating", 0, proposal.CreateCount);
+        var included = proposal.Rows.Where(r => r.Classification == WorkforceImportRowClassification.Create).ToList();
+        if (!derived.Readiness.CanContinue || proposal.BlockedCount > 0)
             throw new WorkforceImportApplyException(WorkforceImportApplyFailureKind.Blocked, "Some rows still need attention.");
         if (included.Count == 0)
-            throw new WorkforceImportApplyException(WorkforceImportApplyFailureKind.Blocked, "There are no new employees to add.");
+            throw new WorkforceImportApplyException(WorkforceImportApplyFailureKind.Blocked, "There's nobody new to import.");
 
         var normalizedByRow = interpretation.Rows.ToDictionary(r => r.SourceRowNumber);
         var actorName = actor.Normalize().DisplayName;
@@ -221,17 +228,21 @@ public sealed class WorkforceImportApplyOrchestrator(
             context.ChangeTracker.AutoDetectChangesEnabled = autoDetect;
         }
 
-        var history = WorkforceImportHistory.Create(TenantId, session.Id, session.BaselineDate, session.Source.OriginalFileName, session.Source.Sha256,
-            actor, DateTime.UtcNow, included.Count, proposal.ExistingAnchorCount, proposal.ExcludedCount, JsonSerializer.Serialize(keys), null);
-        context.WorkforceImportHistories.Add(history);
-
-        var applyResult = new WorkforceImportApplyResult(session.Id, false, included.Count, managerCount, keys);
-        session.Commit(session.ReviewDigest ?? string.Empty, JsonSerializer.Serialize(applyResult), JsonSerializer.Serialize(keys), actor);
+        // The attempt itself is the durable record: who published, when, which proposal, and what it created.
+        var applyResult = new WorkforceImportApplyResult(session.Id, false, included.Count, managerCount, keys, proposal.ExistingCount, proposal.NotImportedCount);
+        var provenance = JsonSerializer.Serialize(new
+        {
+            sourceFileName = session.Source.OriginalFileName,
+            sourceSha256 = session.Source.Sha256,
+            baselineDate = session.BaselineDate,
+            createdEmployeeKeys = keys,
+        });
+        session.Commit(derived.ProposalFingerprint, JsonSerializer.Serialize(applyResult), provenance, actor);
         await context.SaveChangesAsync(cancellationToken); // commit marker + canonical writes persist together
         return applyResult;
     }
 
-    private WorkforceReviewOutdatedResult? DetectReviewOutdated(WorkforceImportSession session, List<WorkforceImportRow> persistedRows, WorkforceImportProposal fresh)
+    private static WorkforceReviewOutdatedResult DetectReviewOutdated(WorkforceImportSession session, List<WorkforceImportRow> persistedRows, WorkforceImportProposal fresh)
     {
         var freshByRow = fresh.Rows.ToDictionary(r => r.SourceRowNumber);
         var items = new List<WorkforceReviewOutdatedItem>();
@@ -244,24 +255,24 @@ public sealed class WorkforceImportApplyOrchestrator(
             // lifecycle, Employee-Number ownership, work-email occupancy, Organization as-of validity,
             // Manager identity/eligibility) surfaces as a changed classification, match, resolved
             // OrgUnit, or resolved manager.
-            var wasClean = persisted.Classification is WorkforceImportRowClassification.NewEmployee or WorkforceImportRowClassification.ExistingAnchor;
-            var nowAttention = now.Classification == WorkforceImportRowClassification.NeedsAttention;
+            var wasClean = persisted.Classification is WorkforceImportRowClassification.Create or WorkforceImportRowClassification.Existing;
+            var nowAttention = now.Classification == WorkforceImportRowClassification.Blocked;
             var matchChanged = persisted.CandidateEmployeeId != now.MatchedEmployeeId;
             var orgChanged = persisted.ResolvedOrgUnitId != now.ResolvedOrgUnitId;
             var managerChanged = !string.Equals(persisted.ResolvedManagerKey, now.Manager.RawReference, StringComparison.Ordinal)
                 && now.Manager.Kind == ManagerResolutionKind.Unresolved;
-            if ((wasClean && nowAttention) || matchChanged || orgChanged || managerChanged)
+            var classificationChanged = persisted.Classification != now.Classification;
+            if ((wasClean && nowAttention) || classificationChanged || matchChanged || orgChanged || managerChanged)
             {
-                var blocker = now.Issues.FirstOrDefault(i => i.Severity == Severities.Blocker);
+                var blocker = now.Issues.FirstOrDefault(i => i.IsBlocker);
                 items.Add(new WorkforceReviewOutdatedItem(persisted.SourceRowNumber,
                     blocker?.Field ?? "Organization",
                     blocker?.Message ?? "A referenced canonical fact changed.",
                     blocker?.DecisionKey));
             }
         }
-        if (items.Count == 0) return null;
         var preserved = persistedRows.Count - items.Count;
-        return new WorkforceReviewOutdatedResult(items.Count, preserved, fresh.NeedsAttentionCount, session.Version, items);
+        return new WorkforceReviewOutdatedResult(items.Count, preserved, fresh.BlockedCount, session.Version, items);
     }
 
     private static WorkforceImportApplyResult ReplayResult(WorkforceImportSession session)
@@ -271,7 +282,7 @@ public sealed class WorkforceImportApplyOrchestrator(
             var stored = JsonSerializer.Deserialize<WorkforceImportApplyResult>(session.CommitResultJson!);
             if (stored is not null) return stored with { AlreadyApplied = true };
         }
-        return new WorkforceImportApplyResult(session.Id, true, session.NewCount, 0, []);
+        return new WorkforceImportApplyResult(session.Id, true, session.CreateCount, 0, []);
     }
 
     /// <summary>
@@ -286,6 +297,4 @@ public sealed class WorkforceImportApplyOrchestrator(
         => new(WorkforceImportApplyFailureKind.Blocked,
             $"A canonical rule prevented establishing this workforce. ({errorCode})");
 
-    private static List<string?>? DeserializeStringList(string? json)
-        => json is null ? null : JsonSerializer.Deserialize<List<string?>>(json, new JsonSerializerOptions(JsonSerializerDefaults.Web));
 }

@@ -44,7 +44,7 @@ public sealed class OrganizationImportReviewContractTests
         Assert.Equal(0, review.Readiness.BlockingIssueCount);
         var warning = Assert.Single(review.Issues);
         Assert.Equal(OrganizationImportIssueCodes.DuplicateDisplayName, warning.Code);
-        Assert.Equal(OrganizationImportIssueSeverity.Warning, warning.Severity);
+        Assert.Equal(ImportIssueSeverity.Warning, warning.Severity);
         Assert.Equal(2, warning.RelatedNodeIds.Count);
         Assert.Null(warning.PreferredResolution);
         Assert.Empty(warning.AllowedResolutions);
@@ -355,7 +355,7 @@ public sealed class OrganizationImportReviewContractTests
         await Assert.ThrowsAsync<EntityNotFoundException>(() => otherImports.GetAsync(session.Id, CancellationToken.None));
     }
 
-    private static readonly OrganizationImportActor Actor = new(Guid.NewGuid(), "Ada Admin");
+    private static readonly ImportActor Actor = new(Guid.NewGuid(), "Ada Admin");
 
     private sealed class Fixture : IAsyncDisposable
     {

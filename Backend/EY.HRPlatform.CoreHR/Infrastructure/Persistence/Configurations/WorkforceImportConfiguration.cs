@@ -17,12 +17,12 @@ public sealed class WorkforceImportSessionConfiguration : IEntityTypeConfigurati
         builder.Property(session => session.SelectedSheetName).HasMaxLength(128).IsRequired();
         builder.Property(session => session.StartedByDisplayName).HasMaxLength(256).IsRequired();
         builder.Property(session => session.LastUpdatedByDisplayName).HasMaxLength(256).IsRequired();
-        builder.Property(session => session.DecisionsJson).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb").IsRequired();
+        builder.Property(session => session.MappingPlanJson).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb").IsRequired();
+        builder.Property(session => session.ResolutionsJson).HasColumnType("jsonb").HasDefaultValueSql("'{}'::jsonb").IsRequired();
         builder.Property(session => session.DecisionsUpdatedByDisplayName).HasMaxLength(256);
-        builder.Property(session => session.ReviewDigest).HasMaxLength(64);
-        builder.Property(session => session.CanonicalObservationDigest).HasMaxLength(64);
+        builder.Property(session => session.ProposalFingerprint).HasMaxLength(64);
         builder.Property(session => session.CommittedByDisplayName).HasMaxLength(256);
-        builder.Property(session => session.FinalSemanticDigest).HasMaxLength(64);
+        builder.Property(session => session.FinalProposalFingerprint).HasMaxLength(64);
         builder.Property(session => session.CommitResultJson).HasColumnType("jsonb");
         builder.Property(session => session.FinalProvenanceJson).HasColumnType("jsonb");
         builder.Property(session => session.CreatedBy).HasMaxLength(256);
@@ -33,14 +33,6 @@ public sealed class WorkforceImportSessionConfiguration : IEntityTypeConfigurati
             .HasDatabaseName("UX_WorkforceImportSessions_Tenant_CreationToken");
         builder.HasIndex(session => new { session.TenantId, session.Status, session.UpdatedAt })
             .HasDatabaseName("IX_WorkforceImportSessions_Tenant_Status_UpdatedAt");
-        // Defense-in-depth for the MVP single-active-session rule; the session service also
-        // enforces it. A tenant may hold at most one non-terminal session at a time.
-        builder.HasIndex(session => session.TenantId)
-            .IsUnique()
-            .HasDatabaseName("UX_WorkforceImportSessions_Tenant_ActiveSingleton")
-            .HasFilter("\"Status\" IN ('Intake','Interpreting','Reviewing','Ready','Applying')");
-        builder.HasIndex(session => new { session.TenantId, session.Status, session.ExpiresAt })
-            .HasDatabaseName("IX_WorkforceImportSessions_Tenant_Status_ExpiresAt");
 
         builder.HasOne(session => session.Source)
             .WithOne(source => source.Session)
@@ -84,7 +76,7 @@ public sealed class WorkforceImportRowConfiguration : IEntityTypeConfiguration<W
         builder.Property(row => row.SourceCellsJson).HasColumnType("jsonb");
         builder.Property(row => row.NormalizedProposalJson).HasColumnType("jsonb");
         builder.Property(row => row.IssueStateJson).HasColumnType("jsonb");
-        builder.Property(row => row.DecisionRefsJson).HasColumnType("jsonb");
+        builder.Property(row => row.SearchText).HasColumnType("text");
         builder.Property(row => row.ResolvedManagerKey).HasMaxLength(256);
         builder.Property(row => row.Classification).HasConversion<string>().HasMaxLength(24).IsRequired();
         builder.Property(row => row.CreatedBy).HasMaxLength(256);
@@ -107,6 +99,7 @@ public sealed class WorkforceImportApplyOperationConfiguration : IEntityTypeConf
         builder.Property(op => op.Status).HasConversion<string>().HasMaxLength(16).IsRequired();
         builder.Property(op => op.Phase).HasMaxLength(24).IsRequired();
         builder.Property(op => op.ActorDisplayName).HasMaxLength(256).IsRequired();
+        builder.Property(op => op.ReviewedProposalFingerprint).HasMaxLength(64).IsRequired().HasDefaultValue(string.Empty);
         builder.Property(op => op.ResultJson).HasColumnType("jsonb");
         builder.Property(op => op.ReviewOutdatedJson).HasColumnType("jsonb");
         builder.Property(op => op.FailureReason).HasMaxLength(2000);
@@ -120,23 +113,40 @@ public sealed class WorkforceImportApplyOperationConfiguration : IEntityTypeConf
     }
 }
 
-public sealed class WorkforceImportHistoryConfiguration : IEntityTypeConfiguration<WorkforceImportHistory>
+public sealed class WorkforceImportSemanticAttemptConfiguration : IEntityTypeConfiguration<WorkforceImportSemanticAttempt>
 {
-    public void Configure(EntityTypeBuilder<WorkforceImportHistory> builder)
+    public void Configure(EntityTypeBuilder<WorkforceImportSemanticAttempt> builder)
     {
-        builder.ToTable("WorkforceImportHistories");
-        builder.HasKey(history => history.Id);
-        builder.Property(history => history.SourceFileName).HasMaxLength(255).IsRequired();
-        builder.Property(history => history.Sha256).HasMaxLength(64).IsRequired();
-        builder.Property(history => history.ActorDisplayName).HasMaxLength(256).IsRequired();
-        builder.Property(history => history.CreatedEmployeeKeysJson).HasColumnType("jsonb").IsRequired();
-        builder.Property(history => history.MappingResolutionSummaryJson).HasColumnType("jsonb");
-        builder.Property(history => history.CreatedBy).HasMaxLength(256);
-        builder.Property(history => history.UpdatedBy).HasMaxLength(256);
-        builder.HasIndex(history => new { history.TenantId, history.SessionId })
+        builder.ToTable("WorkforceImportSemanticAttempts");
+        builder.HasKey(attempt => attempt.Id);
+        builder.Property(attempt => attempt.Version).IsConcurrencyToken();
+        builder.Property(attempt => attempt.Trigger).HasConversion<string>().HasMaxLength(16).IsRequired();
+        builder.Property(attempt => attempt.SourceFingerprint).HasMaxLength(256).IsRequired();
+        builder.Property(attempt => attempt.InputFingerprint).HasMaxLength(64).IsRequired();
+        builder.Property(attempt => attempt.DataContractVersion).HasMaxLength(80).IsRequired();
+        builder.Property(attempt => attempt.ResultContractVersion).HasMaxLength(80).IsRequired();
+        builder.Property(attempt => attempt.PromptVersion).HasMaxLength(80).IsRequired();
+        builder.Property(attempt => attempt.Status).HasConversion<string>().HasMaxLength(16).IsRequired();
+        builder.Property(attempt => attempt.Provider).HasMaxLength(32).IsRequired();
+        builder.Property(attempt => attempt.Model).HasMaxLength(128).IsRequired();
+        builder.Property(attempt => attempt.ProviderResponseId).HasMaxLength(128);
+        builder.Property(attempt => attempt.ProviderSystemFingerprint).HasMaxLength(128);
+        builder.Property(attempt => attempt.DiagnosticCode).HasMaxLength(80);
+        builder.Property(attempt => attempt.EligibleIssueKeysJson).HasColumnType("jsonb").IsRequired();
+        builder.Property(attempt => attempt.SuggestionsJson).HasColumnType("jsonb").IsRequired();
+        builder.Property(attempt => attempt.FailureCategory).HasConversion<string>().HasMaxLength(24);
+        builder.Property(attempt => attempt.CreatedBy).HasMaxLength(256);
+        builder.Property(attempt => attempt.UpdatedBy).HasMaxLength(256);
+        builder.HasIndex(attempt => new { attempt.TenantId, attempt.SessionId, attempt.InputFingerprint, attempt.AttemptOrdinal })
             .IsUnique()
-            .HasDatabaseName("UX_WorkforceImportHistories_Tenant_Session");
-        builder.HasIndex(history => new { history.TenantId, history.CommittedAt })
-            .HasDatabaseName("IX_WorkforceImportHistories_Tenant_CommittedAt");
+            .HasDatabaseName("UX_WorkforceImportSemanticAttempts_Tenant_Session_Fingerprint_Ordinal");
+        builder.HasIndex(attempt => new { attempt.TenantId, attempt.SessionId, attempt.Status })
+            .HasDatabaseName("IX_WorkforceImportSemanticAttempts_Tenant_Session_Status");
+        builder.HasIndex(attempt => new { attempt.TenantId, attempt.InputFingerprint, attempt.Status })
+            .HasDatabaseName("IX_WorkforceImportSemanticAttempts_Tenant_Input_Status");
+        builder.HasOne<WorkforceImportSession>()
+            .WithMany()
+            .HasForeignKey(attempt => attempt.SessionId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

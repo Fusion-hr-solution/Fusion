@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using Microsoft.EntityFrameworkCore;
@@ -50,7 +51,7 @@ public sealed class WorkforceImportApplyProcessor(IServiceProvider serviceProvid
         // crash/restart — report success without re-applying.
         if (session.Status == WorkforceImportStatus.Committed)
         {
-            op.MarkSucceeded(session.CommitResultJson ?? "null", session.NewCount);
+            op.MarkSucceeded(session.CommitResultJson ?? "null", session.CreateCount);
             await db.SaveChangesAsync(cancellationToken);
             return true;
         }
@@ -59,10 +60,10 @@ public sealed class WorkforceImportApplyProcessor(IServiceProvider serviceProvid
         await db.SaveChangesAsync(cancellationToken);
 
         var orchestrator = scope.ServiceProvider.GetRequiredService<WorkforceImportApplyOrchestrator>();
-        var actor = new WorkforceImportActor(op.ActorUserId, op.ActorDisplayName);
+        var actor = new ImportActor(op.ActorUserId, op.ActorDisplayName);
         try
         {
-            var result = await orchestrator.ExecuteAsync(claimed.SessionId, actor,
+            var result = await orchestrator.ExecuteAsync(claimed.SessionId, op.ReviewedProposalFingerprint, actor,
                 (phase, processed, total) => { /* progress persisted opportunistically below */ }, cancellationToken);
             op.MarkSucceeded(System.Text.Json.JsonSerializer.Serialize(result), result.AddedEmployeeCount);
             await db.SaveChangesAsync(cancellationToken);
@@ -76,9 +77,9 @@ public sealed class WorkforceImportApplyProcessor(IServiceProvider serviceProvid
                 freshOp.MarkReviewOutdated(System.Text.Json.JsonSerializer.Serialize(failure.Outdated));
             else
                 freshOp.MarkFailed(failure.Message);
-            // A safely-reviewable failure returns the frozen session to review.
-            if (freshSession is { Status: WorkforceImportStatus.Applying })
-                freshSession.ReturnToReview(actor);
+            // Nothing was written: publication ends and the attempt returns to Review unchanged.
+            if (freshSession is { Status: WorkforceImportStatus.Active })
+                freshSession.EndPublish(actor);
             await db.SaveChangesAsync(cancellationToken);
         }
         return true;
@@ -96,7 +97,7 @@ public sealed class WorkforceImportApplyProcessor(IServiceProvider serviceProvid
             .FirstOrDefaultAsync(cancellationToken);
         if (orphan is null) return false;
         var session = await db.WorkforceImportSessions.IgnoreQueryFilters().SingleAsync(s => s.Id == orphan.SessionId, cancellationToken);
-        orphan.MarkSucceeded(session.CommitResultJson ?? "null", session.NewCount);
+        orphan.MarkSucceeded(session.CommitResultJson ?? "null", session.CreateCount);
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }

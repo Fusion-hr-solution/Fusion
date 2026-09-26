@@ -58,6 +58,12 @@ public sealed class WorkforceImportSnapshotLoader(CoreHRDbContext context, IOrga
             .ToListAsync(cancellationToken))
             .Where(e => e.Status == Domain.Enums.EmploymentStatus.Active)
             .Select(e => e.EmployeeId).ToHashSet();
+        var managerByEmployee = (await context.ManagerRelationships.AsNoTracking()
+                .Where(r => r.EffectiveTo == null)
+                .Select(r => new { EmployeeId = r.SubjectEmployeeId, r.ManagerEmployeeId })
+                .ToListAsync(cancellationToken))
+            .GroupBy(r => r.EmployeeId)
+            .ToDictionary(g => g.Key, g => (Guid?)g.First().ManagerEmployeeId);
         var occupancies = await context.WorkEmailOccupancies.AsNoTracking()
             .ToDictionaryAsync(o => o.NormalizedEmail, o => o.EmployeeId, cancellationToken);
 
@@ -74,10 +80,10 @@ public sealed class WorkforceImportSnapshotLoader(CoreHRDbContext context, IOrga
                 employee.FirstName,
                 employee.LastName,
                 IsFormer: !activeEmploymentEmployees.Contains(employee.Id),
-                OrgUnitCode: assignment is not null && orgById.TryGetValue(assignment.OrgUnitId, out var unit) ? unit.Code : null,
+                OrgUnitId: assignment?.OrgUnitId,
                 DisplayTitle: assignment?.JobTitle,
                 Location: assignment?.WorkLocation,
-                ManagerEmployeeId: null);
+                ManagerEmployeeId: managerByEmployee.GetValueOrDefault(employee.Id));
             byId[employee.Id] = reference;
             if (!string.IsNullOrWhiteSpace(employee.EmployeeNumber))
                 byNumber[WorkforceCanonicalSnapshot.NormalizeNumber(employee.EmployeeNumber)] = reference;
@@ -91,7 +97,6 @@ public sealed class WorkforceImportSnapshotLoader(CoreHRDbContext context, IOrga
             ByEmployeeNumber = byNumber,
             ByWorkEmail = byEmail,
             ByFusionId = byId,
-            ReservedFormerNumbers = new Dictionary<string, Guid>(), // no employee-number reservation model in MVP
             OrgById = orgById,
             OrgByCode = orgByCode,
             OrgByPath = orgByPath,

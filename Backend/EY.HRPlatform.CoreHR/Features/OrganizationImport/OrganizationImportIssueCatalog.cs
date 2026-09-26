@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 namespace EY.HRPlatform.CoreHR.Features.OrganizationImport;
 
 /// <summary>Stable codes for canonical-result issues. Review never carries Match-stage findings.</summary>
@@ -30,13 +31,13 @@ public static class OrganizationImportIssueCodes
 /// </summary>
 public static class OrganizationImportIssueCatalog
 {
-    private const OrganizationImportIssueSeverity Blocker = OrganizationImportIssueSeverity.Blocker;
-    private const OrganizationImportIssueSeverity Warning = OrganizationImportIssueSeverity.Warning;
+    private const ImportIssueSeverity Blocker = ImportIssueSeverity.Blocker;
+    private const ImportIssueSeverity Warning = ImportIssueSeverity.Warning;
     private const OrganizationImportResolutionKind Match = OrganizationImportResolutionKind.ReturnToMatch;
     private const OrganizationImportResolutionKind Source = OrganizationImportResolutionKind.CorrectSource;
     private const OrganizationImportResolutionKind Date = OrganizationImportResolutionKind.ChangeEffectiveDate;
 
-    private sealed record Entry(OrganizationImportIssueSeverity Severity, string Title, OrganizationImportResolutionKind[] Resolutions);
+    private sealed record Entry(ImportIssueSeverity Severity, string Title, OrganizationImportResolutionKind[] Resolutions);
 
     private static readonly Dictionary<string, Entry> Entries = new(StringComparer.Ordinal)
     {
@@ -62,7 +63,7 @@ public static class OrganizationImportIssueCatalog
 
     public static IReadOnlyCollection<string> Codes => Entries.Keys;
 
-    public static OrganizationImportIssueSeverity SeverityOf(string code) => Entries[code].Severity;
+    public static ImportIssueSeverity SeverityOf(string code) => Entries[code].Severity;
 
     public static IReadOnlyList<OrganizationImportResolutionKind> DefaultResolutions(string code) => Entries[code].Resolutions;
 

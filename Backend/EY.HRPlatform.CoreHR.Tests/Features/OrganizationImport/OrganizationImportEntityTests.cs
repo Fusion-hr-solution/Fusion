@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using EY.HRPlatform.CoreHR.Features.OrganizationImport;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence.Interceptors;
 using EY.HRPlatform.CoreHR.Tests.TestHelpers;
@@ -38,7 +39,7 @@ public sealed class OrganizationImportEntityTests
         var currentTenant = Guid.NewGuid();
         var otherTenant = Guid.NewGuid();
         await using var context = TestDbContextFactory.CreateWithInterceptor(TestTenantContext.WithTenant(currentTenant));
-        var actor = new OrganizationImportActor(Guid.NewGuid(), "Admin");
+        var actor = new ImportActor(Guid.NewGuid(), "Admin");
         var session = OrganizationImportSession.Create(
             otherTenant, new DateOnly(2026, 8, 12), Guid.NewGuid(), new string('b', 64), actor);
         session.AttachSource(OrganizationImportSource.Create(
@@ -58,7 +59,7 @@ public sealed class OrganizationImportEntityTests
     public void Discard_PurgesPayloadAndRetainsNormalizedProvenance()
     {
         var tenantId = Guid.NewGuid();
-        var actor = new OrganizationImportActor(Guid.NewGuid(), "Ada Admin");
+        var actor = new ImportActor(Guid.NewGuid(), "Ada Admin");
         var table = new OrganizationSourceTable(
             [new OrganizationSourceColumn(0, "Name")],
             [new string?[] { "Operations" }]);
@@ -83,7 +84,7 @@ public sealed class OrganizationImportEntityTests
     [Fact]
     public void DiscardedSession_CannotReturnToActiveOrChangeDate()
     {
-        var actor = new OrganizationImportActor(Guid.NewGuid(), "Admin");
+        var actor = new ImportActor(Guid.NewGuid(), "Admin");
         var tenantId = Guid.NewGuid();
         var session = OrganizationImportSession.Create(
             tenantId, new DateOnly(2026, 8, 12), Guid.NewGuid(), new string('b', 64), actor);

@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports.Semantic;
 using EY.HRPlatform.CoreHR.Features.OrganizationImport;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -104,11 +105,11 @@ public sealed class OrganizationImportSemanticAttemptConfiguration : IEntityType
     }
 }
 
-public sealed class OrganizationImportSemanticConsentConfiguration : IEntityTypeConfiguration<OrganizationImportSemanticConsent>
+public sealed class ImportSemanticConsentConfiguration : IEntityTypeConfiguration<ImportSemanticConsent>
 {
-    public void Configure(EntityTypeBuilder<OrganizationImportSemanticConsent> builder)
+    public void Configure(EntityTypeBuilder<ImportSemanticConsent> builder)
     {
-        builder.ToTable("OrganizationImportSemanticConsents");
+        builder.ToTable("ImportSemanticConsents");
         builder.HasKey(consent => consent.Id);
         builder.Property(consent => consent.Provider).HasMaxLength(32).IsRequired();
         builder.Property(consent => consent.DataContractVersion).HasMaxLength(80).IsRequired();
@@ -118,10 +119,10 @@ public sealed class OrganizationImportSemanticConsentConfiguration : IEntityType
         builder.HasIndex(consent => new { consent.TenantId, consent.Provider, consent.DataContractVersion })
             .IsUnique()
             .HasFilter("\"RevokedAt\" IS NULL AND \"SessionId\" IS NULL")
-            .HasDatabaseName("UX_OrganizationImportSemanticConsents_Tenant_Provider_Contract_Active");
+            .HasDatabaseName("UX_ImportSemanticConsents_Tenant_Provider_Contract_Active");
         builder.HasIndex(consent => new { consent.TenantId, consent.SessionId, consent.Provider, consent.DataContractVersion })
             .IsUnique()
             .HasFilter("\"RevokedAt\" IS NULL AND \"SessionId\" IS NOT NULL")
-            .HasDatabaseName("UX_OrganizationImportSemanticConsents_Session_Provider_Contract_Active");
+            .HasDatabaseName("UX_ImportSemanticConsents_Session_Provider_Contract_Active");
     }
 }

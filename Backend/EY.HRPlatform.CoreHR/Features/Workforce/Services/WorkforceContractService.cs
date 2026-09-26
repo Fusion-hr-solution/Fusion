@@ -1489,27 +1489,12 @@ public sealed class WorkforceContractService(
         return scope;
     }
 
-    private async Task<string[]> ResolveImportCohortKeysAsync(Guid importBatchId, CancellationToken cancellationToken)
-    {
-        var keysJson = await dbContext.WorkforceImportHistories
-            .AsNoTracking()
-            .Where(history => history.SessionId == importBatchId)
-            .Select(history => history.CreatedEmployeeKeysJson)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (keysJson is null)
-        {
-            return [];
-        }
-
-        try
-        {
-            return System.Text.Json.JsonSerializer.Deserialize<string[]>(keysJson) ?? [];
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return [];
-        }
-    }
+    private Task<string[]> ResolveImportCohortKeysAsync(Guid importBatchId, CancellationToken cancellationToken)
+        => dbContext.Employments.AsNoTracking()
+            .Where(employment => employment.ImportBatchId == importBatchId)
+            .Join(dbContext.Employees.AsNoTracking(), employment => employment.EmployeeId, employee => employee.Id, (_, employee) => employee.StableEmployeeKey)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
 
     /// <summary>
     /// The Employee/Manager baseline is the reviewed recommendation: a person with direct

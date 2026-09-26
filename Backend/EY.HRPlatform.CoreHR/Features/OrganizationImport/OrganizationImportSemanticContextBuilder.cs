@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports.Semantic;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -162,20 +163,20 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
             .Distinct(StringComparer.OrdinalIgnoreCase);
     }
 
-    private static List<OrganizationImportSemanticIssue> BuildIssues(
+    private static List<ImportSemanticIssue> BuildIssues(
         OrganizationImportSession session,
         OrganizationImportInterpretation review,
         OrganizationSourceTable table,
         IReadOnlyList<OrganizationImportSemanticFieldContext> fields,
         bool hasOrderedLevelPattern)
     {
-        var issues = new List<OrganizationImportSemanticIssue>();
+        var issues = new List<ImportSemanticIssue>();
         var decisions = (OrganizationImportJson.Deserialize<OrganizationImportDecisions>(session.DecisionsJson)
             ?? new OrganizationImportDecisions()).Normalize();
 
         if (review.ShapeStatus == OrganizationImportResolutionStatus.Unresolved)
         {
-            issues.Add(new OrganizationImportSemanticIssue(
+            issues.Add(new ImportSemanticIssue(
                 "shape",
                 OrganizationImportSemanticKinds.SourceShape,
                 null,
@@ -203,12 +204,12 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
             {
                 if (ignoredColumns.Contains(field.ColumnIndex)) continue;
                 if (decisions.TypeMappings!.ContainsKey(field.SourceLabel)) continue;
-                issues.Add(new OrganizationImportSemanticIssue(
+                issues.Add(new ImportSemanticIssue(
                     $"level-type:{field.ColumnIndex}",
                     OrganizationImportSemanticKinds.OrganizationTypeMapping,
                     field.ColumnIndex,
                     field.SourceLabel,
-                    review.TypeOptions.Select(type => new OrganizationImportSemanticTarget($"type:{type.Id}", type.Name)).ToList()));
+                    review.TypeOptions.Select(type => new ImportSemanticTarget($"type:{type.Id}", type.Name)).ToList()));
             }
         }
         else
@@ -224,13 +225,13 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
             foreach (var field in fields)
             {
                 if (resolvedColumns.Contains(field.ColumnIndex)) continue;
-                var allowed = new List<OrganizationImportSemanticTarget>();
+                var allowed = new List<ImportSemanticTarget>();
                 AddFieldTarget(OrganizationImportFields.Name, "Name");
                 AddFieldTarget(OrganizationImportFields.BusinessCode, "Business Code");
                 AddFieldTarget(OrganizationImportFields.Type, "Type");
                 AddFieldTarget(OrganizationImportFields.ParentBusinessCode, "Parent reference");
                 if (allowed.Count == 0) continue;
-                issues.Add(new OrganizationImportSemanticIssue(
+                issues.Add(new ImportSemanticIssue(
                     $"field:{field.ColumnIndex}",
                     OrganizationImportSemanticKinds.FieldMapping,
                     field.ColumnIndex,
@@ -240,7 +241,7 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
                 void AddFieldTarget(string key, string label)
                 {
                     if (AllowedFields.Contains(key) && !resolvedFields.Contains(key))
-                        allowed.Add(new OrganizationImportSemanticTarget($"field:{key}", label));
+                        allowed.Add(new ImportSemanticTarget($"field:{key}", label));
                 }
             }
         }
@@ -252,12 +253,12 @@ public sealed partial class OrganizationImportSemanticContextBuilder(
                      .OrderBy(value => value, StringComparer.OrdinalIgnoreCase))
         {
             if (decisions.TypeMappings!.ContainsKey(rawType)) continue;
-            issues.Add(new OrganizationImportSemanticIssue(
+            issues.Add(new ImportSemanticIssue(
                 $"type-value:{HashKey(rawType)}",
                 OrganizationImportSemanticKinds.OrganizationTypeMapping,
                 review.FieldMappings.SingleOrDefault(mapping => mapping.Field == OrganizationImportFields.Type)?.ColumnIndex,
                 rawType,
-                review.TypeOptions.Select(type => new OrganizationImportSemanticTarget($"type:{type.Id}", type.Name)).ToList()));
+                review.TypeOptions.Select(type => new ImportSemanticTarget($"type:{type.Id}", type.Name)).ToList()));
         }
 
         return issues

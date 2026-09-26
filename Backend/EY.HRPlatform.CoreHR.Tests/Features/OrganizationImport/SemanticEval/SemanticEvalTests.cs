@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports.Semantic;
 using EY.HRPlatform.CoreHR.Features.OrganizationImport;
 using Xunit.Abstractions;
 
@@ -99,19 +100,19 @@ public sealed class SemanticEvalTests(ITestOutputHelper output)
         public string ModelName => oracle ? "scripted-oracle" : "scripted-guesser";
         public bool IsConfigured => true;
 
-        public Task<OrganizationImportSemanticProviderResult> SuggestAsync(OrganizationImportSemanticRequest request, CancellationToken cancellationToken)
+        public Task<ImportSemanticProviderResult> SuggestAsync(OrganizationImportSemanticRequest request, CancellationToken cancellationToken)
         {
             var answers = request.Issues.Select(issue =>
             {
                 if (!oracle)
-                    return new OrganizationImportSemanticAnswer(issue.Key, OrganizationImportSemanticDisposition.Suggest, issue.AllowedTargets[0].Key);
+                    return new ImportSemanticAnswer(issue.Key, ImportSemanticDisposition.Suggest, issue.AllowedTargets[0].Key);
                 var expected = SemanticEvalHarness.Expected(evalCase, issue);
                 var target = expected is null || expected == SemanticEvalHarness.Abstain ? null : SemanticEvalHarness.TargetFor(issue, expected, request);
                 return target is null
-                    ? new OrganizationImportSemanticAnswer(issue.Key, OrganizationImportSemanticDisposition.Abstain, null)
-                    : new OrganizationImportSemanticAnswer(issue.Key, OrganizationImportSemanticDisposition.Suggest, target);
+                    ? new ImportSemanticAnswer(issue.Key, ImportSemanticDisposition.Abstain, null)
+                    : new ImportSemanticAnswer(issue.Key, ImportSemanticDisposition.Suggest, target);
             }).ToList();
-            return Task.FromResult(new OrganizationImportSemanticProviderResult(answers, null, null));
+            return Task.FromResult(new ImportSemanticProviderResult(answers, null, null));
         }
     }
 }

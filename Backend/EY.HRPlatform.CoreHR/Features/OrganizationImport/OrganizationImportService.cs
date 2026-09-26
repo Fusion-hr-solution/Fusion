@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using System.Security.Cryptography;
 using System.Text;
 using EY.HRPlatform.CoreHR.Exceptions;
@@ -18,7 +19,7 @@ public interface IOrganizationImportService
         DateOnly effectiveDate,
         Guid creationToken,
         string? selectedSheetName,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken);
     Task<IReadOnlyList<OrganizationImportActiveSummaryDto>> GetActiveAsync(CancellationToken cancellationToken);
     Task<OrganizationImportSessionDto> GetAsync(Guid sessionId, CancellationToken cancellationToken);
@@ -26,31 +27,31 @@ public interface IOrganizationImportService
         Guid sessionId,
         uint expectedVersion,
         DateOnly effectiveDate,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken);
     Task<OrganizationImportSessionDto> DiscardAsync(
         Guid sessionId,
         uint expectedVersion,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken);
     Task<OrganizationImportSessionDto> UpdateReviewResolutionsAsync(
         Guid sessionId,
         uint expectedVersion,
         UpdateOrganizationImportReviewResolutionsRequest request,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken);
     Task<OrganizationImportSessionDto> UpdateMatchAsync(
         Guid sessionId,
         uint expectedVersion,
         UpdateOrganizationImportMatchRequest request,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken);
     Task<OrganizationImportSessionDto> RefreshAsync(Guid sessionId, CancellationToken cancellationToken);
     Task<OrganizationImportCommitResult> CommitAsync(
         Guid sessionId,
         uint expectedVersion,
         string semanticDigest,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken);
 }
 
@@ -74,7 +75,7 @@ public sealed class OrganizationImportService(
         DateOnly effectiveDate,
         Guid creationToken,
         string? selectedSheetName,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken)
     {
         if (creationToken == Guid.Empty) throw new ArgumentException("Creation token is required.");
@@ -157,7 +158,7 @@ public sealed class OrganizationImportService(
         Guid sessionId,
         uint expectedVersion,
         DateOnly effectiveDate,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken)
     {
         var session = await LoadAsync(sessionId, cancellationToken);
@@ -171,7 +172,7 @@ public sealed class OrganizationImportService(
     public async Task<OrganizationImportSessionDto> DiscardAsync(
         Guid sessionId,
         uint expectedVersion,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken)
     {
         var session = await LoadAsync(sessionId, cancellationToken);
@@ -189,7 +190,7 @@ public sealed class OrganizationImportService(
         Guid sessionId,
         uint expectedVersion,
         UpdateOrganizationImportReviewResolutionsRequest request,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken)
     {
         var session = await LoadAsync(sessionId, cancellationToken);
@@ -233,36 +234,36 @@ public sealed class OrganizationImportService(
         Guid sessionId,
         uint expectedVersion,
         UpdateOrganizationImportMatchRequest request,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken)
     {
         var session = await LoadAsync(sessionId, cancellationToken);
         var current = OrganizationImportJson.Deserialize<OrganizationImportDecisions>(session.DecisionsJson)?.Normalize()
             ?? new OrganizationImportDecisions().Normalize();
         var fields = new Dictionary<string, int?>(current.FieldMappings!, StringComparer.Ordinal);
-        var fieldOrigins = new Dictionary<string, OrganizationImportResolutionOrigin>(current.FieldMappingOrigins!, StringComparer.Ordinal);
+        var fieldOrigins = new Dictionary<string, ImportResolutionOrigin>(current.FieldMappingOrigins!, StringComparer.Ordinal);
         var types = new Dictionary<string, Guid>(current.TypeMappings!, StringComparer.OrdinalIgnoreCase);
-        var typeOrigins = new Dictionary<string, OrganizationImportResolutionOrigin>(current.TypeMappingOrigins!, StringComparer.OrdinalIgnoreCase);
+        var typeOrigins = new Dictionary<string, ImportResolutionOrigin>(current.TypeMappingOrigins!, StringComparer.OrdinalIgnoreCase);
         // Every choice made here is the administrator's. Changing a mapping that semantic assistance
         // supplied is an override, counted against the run that supplied it.
         var overrides = 0;
         foreach (var item in request.FieldMappings ?? new Dictionary<string, int?>())
         {
             if (fields.TryGetValue(item.Key, out var previous) && previous == item.Value) continue;
-            if (fieldOrigins.GetValueOrDefault(item.Key) == OrganizationImportResolutionOrigin.SemanticSuggestion) overrides++;
+            if (fieldOrigins.GetValueOrDefault(item.Key) == ImportResolutionOrigin.SemanticSuggestion) overrides++;
             fields[item.Key] = item.Value;
-            fieldOrigins[item.Key] = OrganizationImportResolutionOrigin.Administrator;
+            fieldOrigins[item.Key] = ImportResolutionOrigin.Administrator;
         }
         foreach (var item in request.TypeMappings ?? new Dictionary<string, Guid>())
         {
             if (types.TryGetValue(item.Key, out var previous) && previous == item.Value) continue;
-            if (typeOrigins.GetValueOrDefault(item.Key) == OrganizationImportResolutionOrigin.SemanticSuggestion) overrides++;
+            if (typeOrigins.GetValueOrDefault(item.Key) == ImportResolutionOrigin.SemanticSuggestion) overrides++;
             types[item.Key] = item.Value;
-            typeOrigins[item.Key] = OrganizationImportResolutionOrigin.Administrator;
+            typeOrigins[item.Key] = ImportResolutionOrigin.Administrator;
         }
         var shapeChanged = request.Shape is not null && request.Shape != current.Shape;
-        if (shapeChanged && current.ShapeDecisionOrigin == OrganizationImportResolutionOrigin.SemanticSuggestion) overrides++;
-        var shapeOrigin = shapeChanged ? OrganizationImportResolutionOrigin.Administrator : current.ShapeDecisionOrigin;
+        if (shapeChanged && current.ShapeDecisionOrigin == ImportResolutionOrigin.SemanticSuggestion) overrides++;
+        var shapeOrigin = shapeChanged ? ImportResolutionOrigin.Administrator : current.ShapeDecisionOrigin;
         var next = current with
         {
             Shape = request.Shape ?? current.Shape,
@@ -293,7 +294,7 @@ public sealed class OrganizationImportService(
         Guid sessionId,
         uint expectedVersion,
         string proposalFingerprint,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken)
         => await (publisher ?? new OrganizationImportPublisher(dbContext, tenantContext, organizationService, interpreter))
             .PublishAsync(sessionId, expectedVersion, proposalFingerprint, actor, cancellationToken);
@@ -303,9 +304,7 @@ public sealed class OrganizationImportService(
         string fingerprint,
         CancellationToken cancellationToken)
     {
-        if (!CryptographicOperations.FixedTimeEquals(
-                Encoding.ASCII.GetBytes(existing.CreationFingerprint),
-                Encoding.ASCII.GetBytes(fingerprint)))
+        if (!ImportFingerprint.Matches(existing.CreationFingerprint, fingerprint))
             throw new OrganizationImportSourceException(
                 "IdempotencyConflict",
                 "This upload token is already associated with a different source.",

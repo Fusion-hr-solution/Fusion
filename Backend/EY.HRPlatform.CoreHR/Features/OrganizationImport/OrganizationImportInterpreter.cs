@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -186,7 +187,7 @@ public sealed class OrganizationImportInterpreter : IOrganizationImportInterpret
             if (mappings[index].ColumnIndex == naturalColumn) continue;
             // A value that already identifies an existing unit keeps meaning that unit; the node's
             // Existing classification carries this, so it is not reported as an issue.
-            mappings[index] = new(field, naturalColumn, OrganizationImportResolutionStatus.Resolved, OrganizationImportResolutionOrigin.Deterministic);
+            mappings[index] = new(field, naturalColumn, OrganizationImportResolutionStatus.Resolved, ImportResolutionOrigin.Deterministic);
         }
         return inference with { Mappings = mappings };
     }
@@ -596,7 +597,7 @@ public sealed class OrganizationImportInterpreter : IOrganizationImportInterpret
     private static string NormalizeCode(string value) => value.Trim().ToUpperInvariant();
     private static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
     private sealed record Inference(OrganizationImportShape Shape, OrganizationImportResolutionStatus ShapeStatus,
-        OrganizationImportResolutionOrigin ShapeOrigin, IReadOnlyList<OrganizationImportFieldMapping> Mappings, IReadOnlyList<int> LevelColumns,
+        ImportResolutionOrigin ShapeOrigin, IReadOnlyList<OrganizationImportFieldMapping> Mappings, IReadOnlyList<int> LevelColumns,
         IReadOnlyList<OrganizationImportIgnoredColumn> IgnoredColumns);
     private sealed record CanonicalType(Guid Id, string Name);
     private sealed record Reservation(string Code, Guid OrgUnitId);

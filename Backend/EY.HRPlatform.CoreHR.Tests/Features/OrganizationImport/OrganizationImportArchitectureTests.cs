@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using EY.HRPlatform.CoreHR.Features.OrganizationImport;
 
 namespace EY.HRPlatform.CoreHR.Tests.Features.OrganizationImport;
@@ -10,17 +11,17 @@ public sealed class OrganizationImportArchitectureTests
         var plan = new OrganizationImportMappingPlan(
             OrganizationImportShape.ParentReference,
             OrganizationImportResolutionStatus.Resolved,
-            OrganizationImportResolutionOrigin.Deterministic,
+            ImportResolutionOrigin.Deterministic,
             [
-                new(OrganizationImportFields.Name, 0, OrganizationImportResolutionStatus.Resolved, OrganizationImportResolutionOrigin.Deterministic, MatchStatus: OrganizationImportMappingStatus.Matched),
-                new(OrganizationImportFields.Type, 1, OrganizationImportResolutionStatus.Resolved, OrganizationImportResolutionOrigin.Deterministic, MatchStatus: OrganizationImportMappingStatus.Matched),
-                new(OrganizationImportFields.ParentBusinessCode, 2, OrganizationImportResolutionStatus.Resolved, OrganizationImportResolutionOrigin.Deterministic, MatchStatus: OrganizationImportMappingStatus.Matched),
-                new(OrganizationImportFields.BusinessCode, 3, OrganizationImportResolutionStatus.Resolved, OrganizationImportResolutionOrigin.Deterministic, MatchStatus: OrganizationImportMappingStatus.Matched),
+                new(OrganizationImportFields.Name, 0, OrganizationImportResolutionStatus.Resolved, ImportResolutionOrigin.Deterministic, MatchStatus: OrganizationImportMappingStatus.Matched),
+                new(OrganizationImportFields.Type, 1, OrganizationImportResolutionStatus.Resolved, ImportResolutionOrigin.Deterministic, MatchStatus: OrganizationImportMappingStatus.Matched),
+                new(OrganizationImportFields.ParentBusinessCode, 2, OrganizationImportResolutionStatus.Resolved, ImportResolutionOrigin.Deterministic, MatchStatus: OrganizationImportMappingStatus.Matched),
+                new(OrganizationImportFields.BusinessCode, 3, OrganizationImportResolutionStatus.Resolved, ImportResolutionOrigin.Deterministic, MatchStatus: OrganizationImportMappingStatus.Matched),
             ],
             new Dictionary<string, Guid>(), [], [new(4, "Notes", "Not used")],
             OrganizationImportGeneratedIdentityStrategy.SourceBusinessCode, "source",
-            TypeMappingDetails: [new("Shared Service", null, null, 3, OrganizationImportMappingStatus.Suggested, OrganizationImportResolutionOrigin.SemanticSuggestion)],
-            Identity: new(OrganizationImportGeneratedIdentityStrategy.SourceBusinessCode, 3, OrganizationImportMappingStatus.Matched, OrganizationImportResolutionOrigin.Deterministic, "Source code"));
+            TypeMappingDetails: [new("Shared Service", null, null, 3, OrganizationImportMappingStatus.Suggested, ImportResolutionOrigin.SemanticSuggestion)],
+            Identity: new(OrganizationImportGeneratedIdentityStrategy.SourceBusinessCode, 3, OrganizationImportMappingStatus.Matched, ImportResolutionOrigin.Deterministic, "Source code"));
 
         var evaluator = new OrganizationImportMatchReadinessService();
         var incomplete = evaluator.Evaluate(plan);
@@ -30,11 +31,11 @@ public sealed class OrganizationImportArchitectureTests
         var accepted = plan with
         {
             TypeMappingDetails = [new("Shared Service", Guid.NewGuid(), "Department", 3,
-                OrganizationImportMappingStatus.Matched, OrganizationImportResolutionOrigin.SemanticSuggestion)],
+                OrganizationImportMappingStatus.Matched, ImportResolutionOrigin.SemanticSuggestion)],
         };
         var complete = evaluator.Evaluate(accepted);
         Assert.True(complete.CanContinue);
-        Assert.Equal(OrganizationImportMatchCompletionKind.Confirmed, evaluator.CompletionKind(accepted, complete));
+        Assert.Equal(ImportMatchCompletionKind.Confirmed, evaluator.CompletionKind(accepted, complete));
     }
 
     [Fact]
@@ -43,7 +44,7 @@ public sealed class OrganizationImportArchitectureTests
         var tenantId = Guid.NewGuid();
         var session = OrganizationImportSession.Create(
             tenantId, new DateOnly(2026, 9, 22), Guid.NewGuid(), new string('a', 64),
-            new OrganizationImportActor(Guid.NewGuid(), "Admin"));
+            new ImportActor(Guid.NewGuid(), "Admin"));
         var table = new OrganizationSourceTable(
             [new(0, "Org Key"), new(1, "Structure Label"), new(2, "Upstream Ref"), new(3, "Layer Label")],
             [

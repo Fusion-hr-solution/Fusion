@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports.Semantic;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -55,8 +56,8 @@ public sealed class GroqOrganizationImportSemanticProviderTests
         Assert.Equal(12, result.OutputTokens);
         Assert.Equal(("chatcmpl-demo", "fp_demo"), (result.ResponseId, result.SystemFingerprint));
         Assert.Equal(2, result.Answers.Count);
-        Assert.Equal(OrganizationImportSemanticDisposition.Suggest, result.Answers[0].Disposition);
-        Assert.Equal(OrganizationImportSemanticDisposition.Abstain, result.Answers[1].Disposition);
+        Assert.Equal(ImportSemanticDisposition.Suggest, result.Answers[0].Disposition);
+        Assert.Equal(ImportSemanticDisposition.Abstain, result.Answers[1].Disposition);
         Assert.Null(result.Answers[1].TargetKey);
         using var body = JsonDocument.Parse(requestBody!);
         var root = body.RootElement;
@@ -98,10 +99,10 @@ public sealed class GroqOrganizationImportSemanticProviderTests
             choices = new[] { new { message = new { content = structured } } },
         }))));
 
-        var exception = await Assert.ThrowsAsync<OrganizationImportSemanticProviderException>(
+        var exception = await Assert.ThrowsAsync<ImportSemanticProviderException>(
             () => provider.SuggestAsync(Request(), CancellationToken.None));
 
-        Assert.Equal(OrganizationImportSemanticFailureCategory.InvalidOutput, exception.Category);
+        Assert.Equal(ImportSemanticFailureCategory.InvalidOutput, exception.Category);
     }
 
     [Fact]
@@ -116,26 +117,26 @@ public sealed class GroqOrganizationImportSemanticProviderTests
             return Task.FromResult(response);
         }));
 
-        var exception = await Assert.ThrowsAsync<OrganizationImportSemanticProviderException>(
+        var exception = await Assert.ThrowsAsync<ImportSemanticProviderException>(
             () => provider.SuggestAsync(Request(), CancellationToken.None));
 
-        Assert.Equal(OrganizationImportSemanticFailureCategory.RateLimited, exception.Category);
+        Assert.Equal(ImportSemanticFailureCategory.RateLimited, exception.Category);
         Assert.NotNull(exception.RetryAfter);
         Assert.Equal(1, calls);
         Assert.DoesNotContain("Groq", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
-    [InlineData(401, OrganizationImportSemanticFailureCategory.Unauthorized, false)]
-    [InlineData(403, OrganizationImportSemanticFailureCategory.Unauthorized, false)]
-    [InlineData(404, OrganizationImportSemanticFailureCategory.ProviderRejected, false)]
-    [InlineData(498, OrganizationImportSemanticFailureCategory.ProviderUnavailable, true)]
-    [InlineData(503, OrganizationImportSemanticFailureCategory.ProviderUnavailable, true)]
-    public async Task HttpFailuresAreClassifiedForTheRetryPolicy(int status, OrganizationImportSemanticFailureCategory category, bool retryable)
+    [InlineData(401, ImportSemanticFailureCategory.Unauthorized, false)]
+    [InlineData(403, ImportSemanticFailureCategory.Unauthorized, false)]
+    [InlineData(404, ImportSemanticFailureCategory.ProviderRejected, false)]
+    [InlineData(498, ImportSemanticFailureCategory.ProviderUnavailable, true)]
+    [InlineData(503, ImportSemanticFailureCategory.ProviderUnavailable, true)]
+    public async Task HttpFailuresAreClassifiedForTheRetryPolicy(int status, ImportSemanticFailureCategory category, bool retryable)
     {
         var provider = Provider(new DelegateHandler((_, _) => Task.FromResult(new HttpResponseMessage((HttpStatusCode)status))));
 
-        var exception = await Assert.ThrowsAsync<OrganizationImportSemanticProviderException>(
+        var exception = await Assert.ThrowsAsync<ImportSemanticProviderException>(
             () => provider.SuggestAsync(Request(), CancellationToken.None));
 
         Assert.Equal(category, exception.Category);
@@ -148,10 +149,10 @@ public sealed class GroqOrganizationImportSemanticProviderTests
         var provider = Provider(new DelegateHandler((_, _) =>
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError))));
 
-        var exception = await Assert.ThrowsAsync<OrganizationImportSemanticProviderException>(
+        var exception = await Assert.ThrowsAsync<ImportSemanticProviderException>(
             () => provider.SuggestAsync(Request(), CancellationToken.None));
 
-        Assert.Equal(OrganizationImportSemanticFailureCategory.ProviderUnavailable, exception.Category);
+        Assert.Equal(ImportSemanticFailureCategory.ProviderUnavailable, exception.Category);
         Assert.DoesNotContain("500", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 

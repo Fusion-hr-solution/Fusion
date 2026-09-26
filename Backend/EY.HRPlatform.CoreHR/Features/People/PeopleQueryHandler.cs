@@ -150,26 +150,19 @@ public sealed class PeopleQueryHandler(
     }
 
     /// <summary>
-    /// Resolve the transient imported-cohort filter to the created Employee Keys from durable import
-    /// history. Tenant-scoped and non-disclosing: an unknown/cross-tenant batch yields an empty
-    /// cohort (no rows) rather than the full roster.
+    /// Resolve the transient imported-cohort filter to the Employee Keys that import established,
+    /// read from canonical CoreHR (the Employment rows stamped with the import batch), never from the
+    /// import attempt. Tenant-scoped and non-disclosing: an unknown or cross-tenant batch yields an
+    /// empty cohort rather than the full roster.
     /// </summary>
     private async Task<string[]?> ResolveImportCohortAsync(Guid? importBatchId, CancellationToken cancellationToken)
     {
-        if (importBatchId is not { } sessionId) return null;
-        var keysJson = await dbContext.WorkforceImportHistories.AsNoTracking()
-            .Where(history => history.SessionId == sessionId)
-            .Select(history => history.CreatedEmployeeKeysJson)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (keysJson is null) return [];
-        try
-        {
-            return System.Text.Json.JsonSerializer.Deserialize<string[]>(keysJson) ?? [];
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return [];
-        }
+        if (importBatchId is not { } batchId) return null;
+        return await dbContext.Employments.AsNoTracking()
+            .Where(employment => employment.ImportBatchId == batchId)
+            .Join(dbContext.Employees.AsNoTracking(), employment => employment.EmployeeId, employee => employee.Id, (_, employee) => employee.StableEmployeeKey)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
     }
 
     private static string BuildSql(string orderBy) => $$"""

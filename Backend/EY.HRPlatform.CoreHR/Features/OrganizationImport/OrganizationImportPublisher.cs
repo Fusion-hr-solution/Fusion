@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using System.Security.Cryptography;
 using System.Text;
 using EY.HRPlatform.CoreHR.Exceptions;
@@ -14,7 +15,7 @@ public interface IOrganizationImportPublisher
         Guid attemptId,
         uint expectedVersion,
         string reviewedProposalFingerprint,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken);
 }
 
@@ -32,7 +33,7 @@ public sealed class OrganizationImportPublisher(
         Guid attemptId,
         uint expectedVersion,
         string reviewedProposalFingerprint,
-        OrganizationImportActor actor,
+        ImportActor actor,
         CancellationToken cancellationToken)
     {
         var initiallyLoaded = await LoadAsync(attemptId, cancellationToken);
@@ -55,8 +56,7 @@ public sealed class OrganizationImportPublisher(
         if (!interpretation.MatchReadiness.CanContinue || interpretation.CanonicalDraft is not { } draft || interpretation.Validation is not { } validation)
             throw new OrganizationImportReviewException(
                 "MappingIncomplete", "Complete the source mapping before publishing the organization.", StatusCodes.Status409Conflict);
-        if (string.IsNullOrWhiteSpace(reviewedProposalFingerprint)
-            || !FixedTimeEquals(draft.Fingerprint, reviewedProposalFingerprint.Trim()))
+        if (!ImportFingerprint.Matches(draft.Fingerprint, reviewedProposalFingerprint))
             throw new OrganizationImportReviewException(
                 "ProposalChanged", "The organization changed since you reviewed it. Review the current result before publishing.", StatusCodes.Status409Conflict);
         if (validation.HasBlockingIssues)
@@ -97,7 +97,4 @@ public sealed class OrganizationImportPublisher(
         => OrganizationImportJson.Deserialize<OrganizationImportCommitResult>(session.CommitResultJson)
            ?? throw new InvalidOperationException("The committed import result is unavailable.");
 
-    private static bool FixedTimeEquals(string left, string right)
-        => left.Length == right.Length
-           && CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(left), Encoding.ASCII.GetBytes(right));
 }

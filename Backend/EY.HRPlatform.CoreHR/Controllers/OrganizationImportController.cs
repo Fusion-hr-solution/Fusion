@@ -1,3 +1,5 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports.Semantic;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using EY.HRPlatform.CoreHR.Features.OrganizationImport;
 using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.SharedKernel.Api;
@@ -190,7 +192,7 @@ public sealed class OrganizationImportController(
     [RequestSizeLimit(SemanticRequestLimit)]
     public async Task<ActionResult<ApiResponse<OrganizationImportSessionDto>>> RunSemanticAssistance(
         Guid sessionId,
-        [FromBody] RunOrganizationImportSemanticAssistanceRequest request,
+        [FromBody] RunImportSemanticAssistanceRequest request,
         CancellationToken cancellationToken)
     {
         if (!accessPolicy.CanManageOrganization(User)) return Forbid();
@@ -223,7 +225,7 @@ public sealed class OrganizationImportController(
         catch (OrganizationImportReviewException exception) { return ReviewProblem(exception); }
     }
 
-    private OrganizationImportActor Actor() => new(User.GetUserId(), User.GetFullName());
+    private ImportActor Actor() => new(User.GetUserId(), User.GetFullName());
 
     private ObjectResult SourceProblem(OrganizationImportSourceException exception)
     {

@@ -12,8 +12,7 @@ namespace EY.HRPlatform.CoreHR.Features.Employees.Import.Services;
 /// </summary>
 public sealed partial class WorkforceImportSemanticContextBuilder
 {
-    public const string ContractVersion = "workforce-import-semantic-v1";
-    private const int MaxSampleRows = 200;
+    private const int MaxSampleRows = 500;
     private const int MaxVocabularySamples = 8;
     private const int MaxSampleLength = 48;
 
@@ -35,24 +34,21 @@ public sealed partial class WorkforceImportSemanticContextBuilder
     [GeneratedRegex(@"^\d{1,4}[/\-.]\d{1,2}[/\-.]\d{1,4}$")]
     private static partial Regex NumericDatePattern();
 
-    public WorkforceImportSemanticRequest Build(
+    public IReadOnlyList<WorkforceSemanticColumnContext> BuildColumns(
         IReadOnlyList<string?> columnLabels,
         IReadOnlyList<IReadOnlyList<string?>> rows,
-        IReadOnlyList<int> unresolvedColumnIndexes,
-        IReadOnlyList<WorkforceSemanticTarget> allowedTargets)
-    {
-        var columns = unresolvedColumnIndexes
+        IReadOnlyList<int> columnIndexes)
+        => columnIndexes
             .Select(index => BuildColumn(index, index < columnLabels.Count ? columnLabels[index] : null, rows))
             .ToList();
-        return new WorkforceImportSemanticRequest(ContractVersion, columns, allowedTargets);
-    }
 
     private static WorkforceSemanticColumnContext BuildColumn(int index, string? label, IReadOnlyList<IReadOnlyList<string?>> rows)
     {
         var values = new List<string>();
         var distinct = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var nonEmpty = 0;
-        foreach (var row in rows.Take(MaxSampleRows))
+        var sampled = rows.Take(MaxSampleRows).ToList();
+        foreach (var row in sampled)
         {
             var cell = index < row.Count ? row[index] : null;
             if (string.IsNullOrWhiteSpace(cell)) continue;
@@ -67,7 +63,9 @@ public sealed partial class WorkforceImportSemanticContextBuilder
         var samples = SafeSamples(label, kind, distinct, nonEmpty);
         // Redact the label defensively: a label is safe to send, but never a value that leaked in.
         var safeLabel = string.IsNullOrWhiteSpace(label) ? $"Column {index + 1}" : label.Trim();
-        return new WorkforceSemanticColumnContext(index, safeLabel, kind, nonEmpty, distinct.Count, patternSummary, samples);
+        var fill = sampled.Count == 0 ? 0m : Math.Round((decimal)nonEmpty / sampled.Count, 2);
+        var uniqueness = nonEmpty == 0 ? 0m : Math.Round((decimal)distinct.Count / nonEmpty, 2);
+        return new WorkforceSemanticColumnContext(index, safeLabel, kind, nonEmpty, distinct.Count, fill, uniqueness, patternSummary, samples);
     }
 
     private static WorkforceSemanticValueKind Classify(IReadOnlyList<string> values)

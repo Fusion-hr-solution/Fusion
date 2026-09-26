@@ -1,3 +1,4 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports.Semantic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
@@ -46,8 +47,8 @@ public sealed record SemanticEvalQuestionResult(string Question, string Expected
 
 public sealed record SemanticEvalCaseResult(
     string Case,
-    OrganizationImportSemanticAttemptStatus? RunStatus,
-    OrganizationImportSemanticFailureCategory? Failure,
+    ImportSemanticAttemptStatus? RunStatus,
+    ImportSemanticFailureCategory? Failure,
     int? LatencyMs,
     int Retries,
     IReadOnlyList<SemanticEvalQuestionResult> Questions,
@@ -66,8 +67,8 @@ public sealed record SemanticEvalReport(string Model, IReadOnlyList<SemanticEval
     public int CorrectAbstentions => Sum(SemanticEvalVerdict.CorrectAbstention);
     public int Missed => Sum(SemanticEvalVerdict.Missed);
     public int Runs => Cases.Count(item => item.RunStatus is not null);
-    public int InvalidOutputs => Cases.Count(item => item.Failure == OrganizationImportSemanticFailureCategory.InvalidOutput);
-    public int Failures => Cases.Count(item => item.RunStatus == OrganizationImportSemanticAttemptStatus.Failed);
+    public int InvalidOutputs => Cases.Count(item => item.Failure == ImportSemanticFailureCategory.InvalidOutput);
+    public int Failures => Cases.Count(item => item.RunStatus == ImportSemanticAttemptStatus.Failed);
 
     /// <summary>Of the suggestions that reached the Mapping Plan, how many were right. The headline metric.</summary>
     public double Precision => Ratio(Correct, Correct + Wrong);
@@ -157,7 +158,7 @@ public static class SemanticEvalHarness
         var tenant = TestTenantContext.WithTenant(Guid.NewGuid());
         await using var context = TestDbContextFactory.Create(tenant);
         context.OrganizationalUnitTypes.AddRange(OrganizationalUnitTypeCatalog.BuiltIns.Select(type => OrganizationalUnitType.CreateBuiltIn(type.Id, type.Name)));
-        context.OrganizationImportSemanticConsents.Add(OrganizationImportSemanticConsent.Grant(
+        context.ImportSemanticConsents.Add(ImportSemanticConsent.Grant(
             tenant.TenantId, provider.ProviderName, OrganizationImportSemanticVersions.DataContract, new(Guid.NewGuid(), "Evaluator")));
         var session = CreateSession(tenant.TenantId, evalCase);
         context.OrganizationImportSessions.Add(session);
@@ -198,7 +199,7 @@ public static class SemanticEvalHarness
     }
 
     /// <summary>The ground-truth meaning for a question, or null when the corpus does not label it.</summary>
-    public static string? Expected(SemanticEvalCase evalCase, OrganizationImportSemanticIssue issue)
+    public static string? Expected(SemanticEvalCase evalCase, ImportSemanticIssue issue)
         => issue.Kind switch
         {
             OrganizationImportSemanticKinds.FieldMapping => Lookup(evalCase.Expect.Fields, issue.SourceLabel),
@@ -208,7 +209,7 @@ public static class SemanticEvalHarness
         };
 
     /// <summary>A target key in the corpus's vocabulary: a field key, a type name or a shape.</summary>
-    public static string Meaning(OrganizationImportSemanticIssue issue, string targetKey, OrganizationImportSemanticRequest request)
+    public static string Meaning(ImportSemanticIssue issue, string targetKey, OrganizationImportSemanticRequest request)
     {
         if (targetKey.StartsWith("field:", StringComparison.Ordinal)) return targetKey["field:".Length..];
         if (targetKey.StartsWith("shape:", StringComparison.Ordinal)) return targetKey["shape:".Length..];
@@ -219,7 +220,7 @@ public static class SemanticEvalHarness
     }
 
     /// <summary>The allowed target that carries the expected meaning, if any.</summary>
-    public static string? TargetFor(OrganizationImportSemanticIssue issue, string expected, OrganizationImportSemanticRequest request)
+    public static string? TargetFor(ImportSemanticIssue issue, string expected, OrganizationImportSemanticRequest request)
         => issue.AllowedTargets.FirstOrDefault(target =>
             string.Equals(Meaning(issue, target.Key, request), expected, StringComparison.OrdinalIgnoreCase))?.Key;
 

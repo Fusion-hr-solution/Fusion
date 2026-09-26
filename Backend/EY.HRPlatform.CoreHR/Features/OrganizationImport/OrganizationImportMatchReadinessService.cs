@@ -1,9 +1,10 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 namespace EY.HRPlatform.CoreHR.Features.OrganizationImport;
 
 public interface IOrganizationImportMatchReadinessService
 {
     OrganizationImportMatchReadiness Evaluate(OrganizationImportMappingPlan plan);
-    OrganizationImportMatchCompletionKind CompletionKind(OrganizationImportMappingPlan plan, OrganizationImportMatchReadiness readiness);
+    ImportMatchCompletionKind CompletionKind(OrganizationImportMappingPlan plan, OrganizationImportMatchReadiness readiness);
 }
 
 /// <summary>
@@ -55,17 +56,17 @@ public sealed class OrganizationImportMatchReadinessService : IOrganizationImpor
             complete ? OrganizationImportStage.Review : OrganizationImportStage.Match);
     }
 
-    public OrganizationImportMatchCompletionKind CompletionKind(
+    public ImportMatchCompletionKind CompletionKind(
         OrganizationImportMappingPlan plan,
         OrganizationImportMatchReadiness readiness)
     {
-        if (!readiness.CanContinue) return OrganizationImportMatchCompletionKind.Incomplete;
+        if (!readiness.CanContinue) return ImportMatchCompletionKind.Incomplete;
         var origins = plan.ColumnMappings.Where(mapping => mapping.ColumnIndex is not null).Select(mapping => mapping.Origin)
             .Concat((plan.TypeMappingDetails ?? []).Select(mapping => mapping.Origin))
             .Append(plan.ShapeOrigin)
-            .Append(plan.Identity?.Origin ?? OrganizationImportResolutionOrigin.Deterministic);
-        return origins.All(origin => origin is OrganizationImportResolutionOrigin.Native or OrganizationImportResolutionOrigin.Deterministic)
-            ? OrganizationImportMatchCompletionKind.Automatic
-            : OrganizationImportMatchCompletionKind.Confirmed;
+            .Append(plan.Identity?.Origin ?? ImportResolutionOrigin.Deterministic);
+        return origins.All(origin => origin is ImportResolutionOrigin.Native or ImportResolutionOrigin.Deterministic)
+            ? ImportMatchCompletionKind.Automatic
+            : ImportMatchCompletionKind.Confirmed;
     }
 }

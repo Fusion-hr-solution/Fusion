@@ -1,3 +1,5 @@
+using EY.HRPlatform.CoreHR.Infrastructure.Imports.Semantic;
+using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using EY.HRPlatform.SharedKernel.Domain;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 
@@ -46,7 +48,7 @@ public sealed class OrganizationImportSession : BaseEntity, ITenantEntity
         DateOnly effectiveDate,
         Guid creationToken,
         string creationFingerprint,
-        OrganizationImportActor actor)
+        ImportActor actor)
     {
         if (tenantId == Guid.Empty) throw new ArgumentException("Tenant is required.", nameof(tenantId));
         if (creationToken == Guid.Empty) throw new ArgumentException("Creation token is required.", nameof(creationToken));
@@ -68,7 +70,7 @@ public sealed class OrganizationImportSession : BaseEntity, ITenantEntity
 
     public void AttachSource(OrganizationImportSource source) => Source = source;
 
-    public void ChangeEffectiveDate(DateOnly date, OrganizationImportActor actor)
+    public void ChangeEffectiveDate(DateOnly date, ImportActor actor)
     {
         EnsureActive();
         if (date != EffectiveDate)
@@ -82,7 +84,7 @@ public sealed class OrganizationImportSession : BaseEntity, ITenantEntity
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void ReplaceDecisions(OrganizationImportDecisions decisions, OrganizationImportActor actor)
+    public void ReplaceDecisions(OrganizationImportDecisions decisions, ImportActor actor)
     {
         EnsureActive();
         var normalized = decisions.Normalize();
@@ -104,7 +106,7 @@ public sealed class OrganizationImportSession : BaseEntity, ITenantEntity
         UpdatedAt = DecisionsUpdatedAt;
     }
 
-    public void ConfirmMapping(string digest, OrganizationImportActor actor)
+    public void ConfirmMapping(string digest, ImportActor actor)
     {
         EnsureActive();
         MappingConfirmationJson = OrganizationImportJson.Serialize(new OrganizationImportMappingConfirmation(
@@ -146,7 +148,7 @@ public sealed class OrganizationImportSession : BaseEntity, ITenantEntity
         string semanticDigest,
         OrganizationImportCommitResult result,
         IReadOnlyList<OrganizationImportProvenance> provenance,
-        OrganizationImportActor actor)
+        ImportActor actor)
     {
         EnsureActive();
         Status = OrganizationImportStatus.Committed;
@@ -162,7 +164,7 @@ public sealed class OrganizationImportSession : BaseEntity, ITenantEntity
         Source.PurgePayload();
     }
 
-    public bool Discard(OrganizationImportActor actor)
+    public bool Discard(ImportActor actor)
     {
         if (Status == OrganizationImportStatus.Discarded) return false;
         Status = OrganizationImportStatus.Discarded;
@@ -233,231 +235,28 @@ public sealed class OrganizationImportSource : BaseEntity, ITenantEntity
     }
 }
 
-/// <summary>
-/// One semantic run: what was asked, of which provider/model/prompt, what came back, and what
-/// Fusion did with it. Every contribution question in the semantic contract is answerable from
-/// this row without reading logs. Raw prompts and provider responses are never stored.
-/// </summary>
-public sealed class OrganizationImportSemanticAttempt : BaseEntity, ITenantEntity
+/// <summary>An Organization Import semantic run; the shared attempt record under the organization contract versions.</summary>
+public sealed class OrganizationImportSemanticAttempt : ImportSemanticAttempt
 {
     private OrganizationImportSemanticAttempt() { }
-
-    public Guid TenantId { get; private set; }
-    public Guid SessionId { get; private set; }
-    public int Version { get; private set; } = 1;
-    public int AttemptOrdinal { get; private set; }
-    public OrganizationImportSemanticTrigger Trigger { get; private set; }
-    public string SourceFingerprint { get; private set; } = string.Empty;
-    public string InputFingerprint { get; private set; } = string.Empty;
-    public string DataContractVersion { get; private set; } = string.Empty;
-    public string ResultContractVersion { get; private set; } = string.Empty;
-    public string PromptVersion { get; private set; } = string.Empty;
-    public string Provider { get; private set; } = string.Empty;
-    public string Model { get; private set; } = string.Empty;
-    public OrganizationImportSemanticAttemptStatus Status { get; private set; }
-    /// <summary>The question keys this run was asked, so later questions can be recognised as new.</summary>
-    public string EligibleIssueKeysJson { get; private set; } = "[]";
-    /// <summary>The validated suggestions this run wrote into the Mapping Plan.</summary>
-    public string SuggestionsJson { get; private set; } = "[]";
-    public Guid? ReusedFromAttemptId { get; private set; }
-    public string? ProviderResponseId { get; private set; }
-    public string? ProviderSystemFingerprint { get; private set; }
-    public OrganizationImportSemanticFailureCategory? FailureCategory { get; private set; }
-    public string? DiagnosticCode { get; private set; }
-    public DateTime RequestedAt { get; private set; }
-    public DateTime? CompletedAt { get; private set; }
-    public DateTime? RetryAfter { get; private set; }
-    public int RetryCount { get; private set; }
-    public int? LatencyMilliseconds { get; private set; }
-    public int? InputTokens { get; private set; }
-    public int? OutputTokens { get; private set; }
-    public int QuestionsSubmitted { get; private set; }
-    public int SuggestionsReturned { get; private set; }
-    public int SuggestionsAccepted { get; private set; }
-    public int SuggestionsRejected { get; private set; }
-    public int SuggestionsApplied { get; private set; }
-    public int Abstentions { get; private set; }
-    public int SuggestionsOverridden { get; private set; }
 
     public static OrganizationImportSemanticAttempt Start(
         Guid tenantId,
         Guid sessionId,
         int attemptOrdinal,
-        OrganizationImportSemanticTrigger trigger,
+        ImportSemanticTrigger trigger,
         OrganizationImportSemanticRequest request,
         string provider,
         string model)
     {
-        if (tenantId == Guid.Empty) throw new ArgumentException("Tenant is required.", nameof(tenantId));
-        if (sessionId == Guid.Empty) throw new ArgumentException("Session is required.", nameof(sessionId));
-        if (attemptOrdinal < 1) throw new ArgumentOutOfRangeException(nameof(attemptOrdinal));
-        return new OrganizationImportSemanticAttempt
-        {
-            TenantId = tenantId,
-            SessionId = sessionId,
-            AttemptOrdinal = attemptOrdinal,
-            Trigger = trigger,
-            SourceFingerprint = request.SourceFingerprint,
-            InputFingerprint = request.InputFingerprint,
-            DataContractVersion = OrganizationImportSemanticVersions.DataContract,
-            ResultContractVersion = request.ResultContractVersion,
-            PromptVersion = OrganizationImportSemanticVersions.Prompt,
-            Provider = provider,
-            Model = model,
-            Status = OrganizationImportSemanticAttemptStatus.Running,
-            EligibleIssueKeysJson = OrganizationImportJson.Serialize(request.Issues.Select(issue => issue.Key).ToList()),
-            QuestionsSubmitted = request.Issues.Count,
-            RequestedAt = DateTime.UtcNow,
-        };
+        var attempt = new OrganizationImportSemanticAttempt();
+        attempt.Initialize(
+            tenantId, sessionId, attemptOrdinal, trigger,
+            request.SourceFingerprint, request.InputFingerprint,
+            OrganizationImportSemanticVersions.DataContract, request.ResultContractVersion, OrganizationImportSemanticVersions.Prompt,
+            provider, model, request.Issues.Select(issue => issue.Key).ToList());
+        return attempt;
     }
-
-    public IReadOnlyList<string> QuestionKeys()
-        => OrganizationImportJson.Deserialize<IReadOnlyList<string>>(EligibleIssueKeysJson) ?? [];
-
-    public IReadOnlyList<OrganizationImportAppliedSuggestion> AppliedSuggestions()
-        => OrganizationImportJson.Deserialize<IReadOnlyList<OrganizationImportAppliedSuggestion>>(SuggestionsJson) ?? [];
-
-    public void Succeed(
-        OrganizationImportSemanticRunOutcome outcome,
-        OrganizationImportSemanticProviderResult? providerResult,
-        int elapsedMilliseconds,
-        int retryCount,
-        Guid? reusedFromAttemptId = null)
-    {
-        EnsureRunning();
-        Status = OrganizationImportSemanticAttemptStatus.Succeeded;
-        SuggestionsReturned = outcome.Returned;
-        SuggestionsAccepted = outcome.Accepted;
-        SuggestionsRejected = outcome.Rejected;
-        SuggestionsApplied = outcome.Applied.Count;
-        Abstentions = outcome.Abstentions;
-        SuggestionsJson = OrganizationImportJson.Serialize(outcome.Applied);
-        ProviderResponseId = Trim(providerResult?.ResponseId, 128);
-        ProviderSystemFingerprint = Trim(providerResult?.SystemFingerprint, 128);
-        InputTokens = providerResult?.InputTokens;
-        OutputTokens = providerResult?.OutputTokens;
-        ReusedFromAttemptId = reusedFromAttemptId;
-        RetryCount = retryCount;
-        LatencyMilliseconds = elapsedMilliseconds;
-        FailureCategory = null;
-        RetryAfter = null;
-        CompletedAt = DateTime.UtcNow;
-        Touch();
-    }
-
-    public void Fail(
-        OrganizationImportSemanticFailureCategory category,
-        int elapsedMilliseconds,
-        int retryCount,
-        DateTime? retryAfter = null,
-        string? diagnosticCode = null)
-    {
-        EnsureRunning();
-        Status = OrganizationImportSemanticAttemptStatus.Failed;
-        FailureCategory = category;
-        DiagnosticCode = Trim(diagnosticCode, 80);
-        RetryAfter = retryAfter;
-        RetryCount = retryCount;
-        CompletedAt = DateTime.UtcNow;
-        LatencyMilliseconds = elapsedMilliseconds;
-        Touch();
-    }
-
-    /// <summary>The run's input no longer matches the import, so its answers are not applied.</summary>
-    public void MarkStale()
-    {
-        if (Status == OrganizationImportSemanticAttemptStatus.Stale) return;
-        if (Status == OrganizationImportSemanticAttemptStatus.Running) CompletedAt = DateTime.UtcNow;
-        Status = OrganizationImportSemanticAttemptStatus.Stale;
-        Touch();
-    }
-
-    public void RecordOverrides(int count)
-    {
-        if (count <= 0) return;
-        SuggestionsOverridden += count;
-        Touch();
-    }
-
-    /// <summary>A run still marked Running well past its budget was interrupted (the process stopped mid-call).</summary>
-    public bool IsAbandoned(TimeSpan budget)
-        => Status == OrganizationImportSemanticAttemptStatus.Running && RequestedAt.Add(budget).AddSeconds(5) < DateTime.UtcNow;
-
-    private void EnsureRunning()
-    {
-        if (Status != OrganizationImportSemanticAttemptStatus.Running)
-            throw new InvalidOperationException("Only a running assistance attempt can be completed.");
-    }
-
-    private void Touch()
-    {
-        Version++;
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    private static string? Trim(string? value, int length)
-        => string.IsNullOrWhiteSpace(value) ? null : value.Trim()[..Math.Min(value.Trim().Length, length)];
-}
-
-/// <summary>What Fusion did with one provider answer set.</summary>
-public sealed record OrganizationImportSemanticRunOutcome(
-    int Returned,
-    int Accepted,
-    int Rejected,
-    int Abstentions,
-    IReadOnlyList<OrganizationImportAppliedSuggestion> Applied);
-
-/// <summary>
-/// A tenant administrator's standing permission to send the bounded semantic payload to one
-/// provider under one data contract. It deliberately does not name a model: a model change
-/// does not change what leaves Fusion or who processes it; a provider or data-contract change does.
-/// </summary>
-public sealed class OrganizationImportSemanticConsent : BaseEntity, ITenantEntity
-{
-    private OrganizationImportSemanticConsent() { }
-
-    public Guid TenantId { get; private set; }
-    /// <summary>Null for standing tenant consent; the import it covers in per-import mode.</summary>
-    public Guid? SessionId { get; private set; }
-    public string Provider { get; private set; } = string.Empty;
-    public string DataContractVersion { get; private set; } = string.Empty;
-    public Guid GrantedByUserId { get; private set; }
-    public string GrantedByDisplayName { get; private set; } = string.Empty;
-    public DateTime GrantedAt { get; private set; }
-    public DateTime? RevokedAt { get; private set; }
-
-    public static OrganizationImportSemanticConsent Grant(
-        Guid tenantId,
-        string provider,
-        string dataContractVersion,
-        OrganizationImportActor actor,
-        Guid? sessionId = null)
-    {
-        if (tenantId == Guid.Empty) throw new ArgumentException("Tenant is required.", nameof(tenantId));
-        var normalized = actor.Normalize();
-        return new OrganizationImportSemanticConsent
-        {
-            TenantId = tenantId,
-            SessionId = sessionId,
-            Provider = provider,
-            DataContractVersion = dataContractVersion,
-            GrantedByUserId = normalized.UserId,
-            GrantedByDisplayName = normalized.DisplayName,
-            GrantedAt = DateTime.UtcNow,
-        };
-    }
-
-    public void Revoke()
-    {
-        RevokedAt ??= DateTime.UtcNow;
-        UpdatedAt = RevokedAt;
-    }
-}
-
-public sealed record OrganizationImportActor(Guid UserId, string DisplayName)
-{
-    public OrganizationImportActor Normalize()
-        => new(UserId, string.IsNullOrWhiteSpace(DisplayName) ? "Unknown" : DisplayName.Trim()[..Math.Min(DisplayName.Trim().Length, 256)]);
 }
 
 public sealed record OrganizationImportMappingConfirmation(string Digest, Guid ConfirmedByUserId, string ConfirmedByDisplayName, DateTime ConfirmedAt);

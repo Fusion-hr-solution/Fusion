@@ -19,7 +19,7 @@ namespace EY.HRPlatform.CoreHR.Tests.Features.Employees;
 /// </summary>
 public sealed class WorkforceImportScaleTests(ITestOutputHelper output)
 {
-    private static readonly WorkforceImportActor Actor = new(Guid.NewGuid(), "Scale");
+    private static readonly ImportActor Actor = new(Guid.NewGuid(), "Scale");
 
     [ScaleFact] public Task Apply_1000() => MeasureAsync(1000);
     [ScaleFact] public Task Apply_5000() => MeasureAsync(5000);
@@ -60,28 +60,26 @@ public sealed class WorkforceImportScaleTests(ITestOutputHelper output)
                     .Append(",2021-02-01,OPS,Consultant,").Append(manager).Append('\n');
             }
 
+            // Intake derives the whole proposal, so its time is the review cost.
             Guid sessionId;
-            await using (var db = Db(connectionString, tenantId))
-                sessionId = (await Session(db, tenantId).IntakeAsync(new WorkforceImportIntakeRequest(
-                    Guid.NewGuid(), today, new MemoryStream(Encoding.UTF8.GetBytes(csv.ToString())), "scale.csv", "text/csv", null, Actor), default)).Session!.Id;
-
             var reviewSw = Stopwatch.StartNew();
             await using (var db = Db(connectionString, tenantId))
-            {
-                var current = await db.WorkforceImportSessions.AsNoTracking().SingleAsync(s => s.Id == sessionId);
-                await Review(db, tenantId).RecomputeAndSaveAsync(sessionId, current.Version, Actor, default);
-            }
+                sessionId = (await WorkforceImportTestKit.Sessions(db, tenantId).IntakeAsync(new WorkforceImportIntakeRequest(
+                    Guid.NewGuid(), today, new MemoryStream(Encoding.UTF8.GetBytes(csv.ToString())), "scale.csv", "text/csv", null, Actor), default)).Session!.Id;
             reviewSw.Stop();
 
             var applySw = Stopwatch.StartNew();
+            string fingerprint;
             await using (var db = Db(connectionString, tenantId))
             {
                 var session = await db.WorkforceImportSessions.SingleAsync(s => s.Id == sessionId);
-                session.BeginApply(session.ReviewDigest ?? "", Actor);
+                Assert.True(session.CanPublish);
+                fingerprint = session.ProposalFingerprint!;
+                session.BeginPublish(Actor);
                 await db.SaveChangesAsync();
             }
             await using (var db = Db(connectionString, tenantId))
-                await Apply(db, tenantId).ExecuteAsync(sessionId, Actor, null, default);
+                await WorkforceImportTestKit.Orchestrator(db, tenantId).ExecuteAsync(sessionId, fingerprint, Actor, null, default);
             applySw.Stop();
 
             int employees, managerLinks;
@@ -98,19 +96,6 @@ public sealed class WorkforceImportScaleTests(ITestOutputHelper output)
         finally { await DropDatabaseAsync(baseConnection, databaseName); }
     }
 
-    private static WorkforceImportSessionService Session(CoreHRDbContext db, Guid t)
-        => new(db, TestTenantContext.WithTenant(t), new SafeTabularSourceReader(), new WorkforceImportSourceAdapter());
-    private static WorkforceImportReviewService Review(CoreHRDbContext db, Guid t)
-        => new(db, TestTenantContext.WithTenant(t), new WorkforceImportInterpreter(), new WorkforceImportResolver(),
-            new WorkforceImportSnapshotLoader(db, new EY.HRPlatform.CoreHR.Features.Organization.OrganizationService(db, TestTenantContext.WithTenant(t))));
-    private static WorkforceImportApplyOrchestrator Apply(CoreHRDbContext db, Guid t)
-    {
-        var tc = TestTenantContext.WithTenant(t);
-        return new(db, tc, new WorkforceImportInterpreter(), new WorkforceImportResolver(),
-            new WorkforceImportSnapshotLoader(db, new EY.HRPlatform.CoreHR.Features.Organization.OrganizationService(db, tc)),
-            new EY.HRPlatform.CoreHR.Features.Workforce.Services.WorkforceMutationService(db, tc, new EY.HRPlatform.CoreHR.Features.Workforce.Services.WorkforceCanonicalResolver(db)),
-            new EY.HRPlatform.CoreHR.Features.Workforce.Services.EmployeeNumberAllocatorService(db, tc));
-    }
     private static CoreHRDbContext Db(string cs, Guid t) => new(new DbContextOptionsBuilder<CoreHRDbContext>().UseNpgsql(cs).Options, TestTenantContext.WithTenant(t));
 
     private static async Task CreateDatabaseAsync(string b, string n)

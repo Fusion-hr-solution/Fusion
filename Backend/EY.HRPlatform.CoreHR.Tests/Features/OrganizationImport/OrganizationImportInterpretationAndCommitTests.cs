@@ -115,7 +115,7 @@ public sealed class OrganizationImportInterpretationAndCommitTests
         var node = Assert.Single(review.ProposalNodes);
         Assert.Equal(root.Id, node.CanonicalId);
         Assert.Equal(OrganizationImportNodeClassification.Existing, node.Classification);
-        Assert.DoesNotContain(Issues(review), issue => issue.Severity == OrganizationImportIssueSeverity.Blocker);
+        Assert.DoesNotContain(Issues(review), issue => issue.Severity == ImportIssueSeverity.Blocker);
     }
 
     [Fact]
@@ -151,7 +151,7 @@ public sealed class OrganizationImportInterpretationAndCommitTests
 
         Assert.Equal(OrganizationImportNodeClassification.Conflict, Assert.Single(review.ProposalNodes).Classification);
         var difference = Assert.Single(Issues(review), issue => issue.Code == OrganizationImportIssueCodes.ExistingDifference);
-        Assert.Equal(OrganizationImportIssueSeverity.Blocker, difference.Severity);
+        Assert.Equal(ImportIssueSeverity.Blocker, difference.Severity);
         Assert.Equal(OrganizationImportResolutionKind.KeepExisting, difference.PreferredResolution);
         Assert.DoesNotContain(review.ProposalNodes, node => node.Classification == OrganizationImportNodeClassification.Create);
     }
@@ -283,7 +283,7 @@ public sealed class OrganizationImportInterpretationAndCommitTests
         [new(0, "Fusion OrgUnit ID"), new(1, "Business Code"), new(2, "Name"), new(3, "Type"), new(4, "Parent Business Code")],
         [row]);
 
-    private static OrganizationImportActor Actor() => new(Guid.NewGuid(), "Ada Admin");
+    private static ImportActor Actor() => new(Guid.NewGuid(), "Ada Admin");
 
     private static async Task SeedTypesAsync(EY.HRPlatform.CoreHR.Infrastructure.Persistence.CoreHRDbContext context)
     {
