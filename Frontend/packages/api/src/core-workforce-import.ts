@@ -1,26 +1,123 @@
 import type { ApiClient } from "./types";
 import { ApiError } from "./types";
+import type { OrganizationImportSemanticAssistance } from "./core-organization-import";
 
-/** Quoted If-Match ETag from the session/review version. */
+/** Quoted If-Match ETag from the attempt version. */
 export function workforceImportIfMatch(version: number): string {
   return `"${version}"`;
 }
 
-export type WorkforceImportStatus =
-  | "Intake"
-  | "Interpreting"
-  | "Reviewing"
-  | "Ready"
-  | "Applying"
-  | "Committed"
-  | "Discarded"
-  | "Expired";
+/** The shared CoreHR import lifecycle: an attempt is in progress until it is published or discarded. */
+export type WorkforceImportStatus = "Active" | "Discarded" | "Committed";
+
+/** Where a Match decision came from. An administrator decision always outranks a suggestion. */
+export type ImportResolutionOrigin = "Native" | "Deterministic" | "Administrator" | "SemanticSuggestion";
+
+/** Semantic assistance state; the same contract as Organization Import. */
+export type WorkforceSemanticAssistance = OrganizationImportSemanticAssistance;
+
+export type WorkforceImportField =
+  | "Ignored"
+  | "FusionEmployeeReference"
+  | "FusionOrganizationReference"
+  | "FusionManagerReference"
+  | "EmployeeNumber"
+  | "FirstName"
+  | "LastName"
+  | "FullName"
+  | "PreferredName"
+  | "WorkEmail"
+  | "EmploymentStart"
+  | "WorkEffectiveFrom"
+  | "Organization"
+  | "DisplayTitle"
+  | "Location"
+  | "Manager"
+  | "WorkerReference"
+  | "ManagerReference"
+  | "LifecycleStatus"
+  | "EmploymentEnd";
+
+export type WorkforceDateFormat = "Iso" | "DayMonthYear" | "MonthDayYear";
+export type WorkforceNameFormat = "FirstLast" | "LastCommaFirst" | "LastFirst";
+export type WorkforceLifecycle = "Active" | "Former";
+export type WorkforceIdentityStrategy = "SourceIdentifier" | "GenerateAll";
+export type WorkforceReferenceKind =
+  | "None"
+  | "FusionId"
+  | "Code"
+  | "Path"
+  | "Name"
+  | "EmployeeNumber"
+  | "WorkerReference"
+  | "Email"
+  | "Unrecognized";
+
+export type WorkforceRequiredDecisionKind =
+  | "FieldMapping"
+  | "IdentityStrategy"
+  | "DateFormat"
+  | "NameFormat"
+  | "VocabularyMapping"
+  | "MappingConflict";
+
+export interface WorkforceRequiredDecision {
+  key: string;
+  kind: WorkforceRequiredDecisionKind;
+  field: string | null;
+  columnIndex: number | null;
+  sourceValue: string | null;
+  occurrenceCount: number;
+}
+
+export interface WorkforceMatchReadiness {
+  canContinue: boolean;
+  requiredDecisions: WorkforceRequiredDecision[];
+  completionKind: "Incomplete" | "Automatic" | "Confirmed";
+}
+
+export interface WorkforceMatchColumn {
+  columnIndex: number;
+  sourceLabel: string | null;
+  field: WorkforceImportField;
+  /** Null when Fusion could not resolve the column's meaning. */
+  origin: ImportResolutionOrigin | null;
+  resolved: boolean;
+  nonEmptyCount: number;
+  sampleValues: string[];
+}
+
+export interface WorkforceLifecycleValue {
+  sourceValue: string;
+  meaning: WorkforceLifecycle | null;
+  origin: ImportResolutionOrigin | null;
+  occurrenceCount: number;
+}
+
+/** Match: what the source means. */
+export interface WorkforceImportMatch {
+  columns: WorkforceMatchColumn[];
+  dateFormat: WorkforceDateFormat | null;
+  nameFormat: WorkforceNameFormat | null;
+  dateFormatDecisionNeeded: boolean;
+  nameFormatDecisionNeeded: boolean;
+  identityStrategy: WorkforceIdentityStrategy | null;
+  /** "Create everyone with generated numbers" is only offered where nobody could be duplicated. */
+  generateAllAllowed: boolean;
+  lifecycleValues: WorkforceLifecycleValue[];
+  managerReferenceKind: WorkforceReferenceKind;
+  readiness: WorkforceMatchReadiness;
+  semanticAssistance: WorkforceSemanticAssistance | null;
+  /** The file's first rows as read (bounded), for previewing the mapping. */
+  previewRows: Array<Array<string | null>>;
+}
 
 export interface WorkforceImportSessionDto {
   id: string;
   status: WorkforceImportStatus;
   baselineDate: string;
   version: number;
+  updatedAt: string;
   source: {
     fileName: string | null;
     format: "csv" | "xlsx" | null;
@@ -28,12 +125,20 @@ export interface WorkforceImportSessionDto {
     selectedSheet: string | null;
   };
   counts: {
-    newCount: number;
-    existingAnchorCount: number;
-    needsAttentionCount: number;
-    excludedCount: number;
+    create: number;
+    existing: number;
+    notImported: number;
+    blocked: number;
+    withWarnings: number;
   };
-  expiresAt: string;
+  matchComplete: boolean;
+  canPublish: boolean;
+  proposalFingerprint: string | null;
+  /** The publication in flight, or the last one that did not succeed. */
+  publication: WorkforceApplyStatusDto | null;
+  commitResult: WorkforceApplyStatusDto | null;
+  /** Present when the attempt is fetched to render it. */
+  match: WorkforceImportMatch | null;
 }
 
 export interface WorkforceImportSheetSummary {
@@ -47,12 +152,7 @@ export interface WorkforceHeaderCandidate {
   preview: Array<string | null>;
 }
 
-export type WorkforceImportIntakeKind =
-  | "Ready"
-  | "SheetSelectionRequired"
-  | "HeaderClarificationRequired"
-  | "ActiveSessionExists"
-  | "Conflict";
+export type WorkforceImportIntakeKind = "Ready" | "SheetSelectionRequired" | "HeaderClarificationRequired" | "Conflict";
 
 export interface WorkforceImportIntakeResult {
   kind: WorkforceImportIntakeKind;
@@ -69,80 +169,102 @@ export interface WorkforceImportIntakeResult {
   conflictReason: string | null;
 }
 
-export type WorkforceReviewResult = "New" | "Existing" | "NeedsAttention" | "Excluded";
-export type WorkforceIssueSeverity = "blocker" | "warning" | "information";
+/** What publication will do with a row. Derived, never chosen. */
+export type WorkforceRowClassification = "Unresolved" | "Create" | "Existing" | "NotImported" | "Blocked";
+export type WorkforceIssueSeverity = "Blocker" | "Warning";
+export type WorkforceResolutionKind =
+  | "ReturnToMatch"
+  | "CorrectSource"
+  | "ChooseOrgUnit"
+  | "ChooseManager"
+  | "NoManager"
+  | "KeepDistinct"
+  | "UseBaselineForWorkDates"
+  | "ChangeBaselineDate";
+
+/** Stable issue-category keys the review breaks its remaining work down by. */
+export type WorkforceIssueCategory =
+  | "organization"
+  | "manager"
+  | "identity"
+  | "dates"
+  | "data"
+  | "lifecycle"
+  | "existing";
 
 export interface WorkforceReviewIssueDto {
   code: string;
   severity: WorkforceIssueSeverity;
+  title: string;
   message: string;
   field: string;
   decisionKey: string | null;
+  category: WorkforceIssueCategory;
+  resolutions: WorkforceResolutionKind[];
   affectedCount: number;
 }
 
 export interface WorkforceReviewRowDto {
   sourceRowNumber: number;
-  result: WorkforceReviewResult;
+  classification: WorkforceRowClassification;
   employee: {
     displayName: string;
     employeeNumber: string | null;
     numberGenerated: boolean;
-    identityState: "New" | "Existing";
+    existingEmployeeName: string | null;
+    workEmail: string | null;
   };
-  employment: { startDate: string | null };
+  employment: { startDate: string | null; endDate: string | null };
   work: {
     displayTitle: string | null;
+    /** The canonical unit, once resolved. */
     organization: string | null;
+    /** What the file said. */
+    sourceOrganization: string | null;
     location: string | null;
     effectiveFrom: string | null;
   };
-  manager: { state: "Resolved" | "NoManager" | "Unresolved"; display: string | null; subtext: string | null };
+  manager: {
+    state: "Resolved" | "NoManager" | "Unresolved";
+    display: string | null;
+    subtext: string | null;
+    /** The manager's employee number, when they are someone Fusion knows or is adding. */
+    employeeNumber: string | null;
+  };
   issues: WorkforceReviewIssueDto[];
 }
 
 export interface WorkforceReviewCountsDto {
-  needsAttention: number;
-  new: number;
+  create: number;
   existing: number;
-  excluded: number;
+  notImported: number;
+  blocked: number;
   total: number;
-  /** Distinct decisions still to make (grouped), not affected-row count. */
-  openIssueCount: number;
+  withWarnings: number;
+  /** Distinct blocking decisions still to make (grouped), not affected-row count. */
+  openDecisionCount: number;
 }
 
-/** Stable issue-category keys the review breaks its remaining work down by. */
-export type WorkforceIssueCategory =
-  | "organization"
-  | "workdate"
-  | "manager"
-  | "difference"
-  | "identity"
-  | "lifecycle"
-  | "data";
-
-/**
- * One kind of outstanding decision, so the review can say what the remaining work *is*
- * ("3 organizations to match · 40 people") instead of one alarming affected-people total.
- * `decisionCount` is grouped (shared values counted once); `affectedPeople` is rows touched.
- */
+/** One kind of remaining work or notice, named by category and counted by grouped decisions. */
 export interface WorkforceReviewIssueGroupDto {
   category: WorkforceIssueCategory;
+  severity: WorkforceIssueSeverity;
   decisionCount: number;
   affectedPeople: number;
 }
 
-export type WorkforceReviewState = "NoRows" | "NothingNew" | "NothingIncluded" | "Reviewable";
+export type WorkforceReviewState = "NoRows" | "NothingToImport" | "Reviewable";
 
 export interface WorkforceReviewSummaryDto {
   counts: WorkforceReviewCountsDto;
-  canCommit: boolean;
+  canPublish: boolean;
   state: WorkforceReviewState;
   version: number;
-  reviewDigest: string | null;
-  affectedRows: number;
+  proposalFingerprint: string | null;
   issueGroups: WorkforceReviewIssueGroupDto[];
 }
+
+export type WorkforceReviewFilter = "Create" | "Existing" | "NotImported" | "Blocked" | "Warnings";
 
 export interface WorkforceReviewPageDto {
   rows: WorkforceReviewRowDto[];
@@ -161,32 +283,14 @@ export interface WorkforceManagerCandidateDto {
   title: string | null;
 }
 
-export interface WorkforceColumnMappingDto {
-  columnIndex: number;
-  sourceLabel: string | null;
-  field: string;
-  origin: "native" | "deterministic" | "administrator" | "unresolved" | string;
-}
-
-export interface WorkforceInterpretationSummaryDto {
-  mappings: WorkforceColumnMappingDto[];
-  unresolvedColumnIndexes: number[];
-  unresolvedRequiredFields: string[];
-  nameFormatDecisionNeeded: boolean;
-  dateFormatDecisionNeeded: boolean;
-}
-
-export interface WorkforcePrepareResultDto {
-  interpretation: WorkforceInterpretationSummaryDto;
-  review: WorkforceReviewSummaryDto;
-}
-
 export interface WorkforceApplyResultDto {
   sessionId: string;
   alreadyApplied: boolean;
   addedEmployeeCount: number;
   managerRelationshipCount: number;
   addedEmployeeKeys: string[];
+  existingCount: number;
+  notImportedCount: number;
 }
 
 export interface WorkforceReviewOutdatedItemDto {
@@ -204,12 +308,7 @@ export interface WorkforceReviewOutdatedResultDto {
   items: WorkforceReviewOutdatedItemDto[];
 }
 
-export type WorkforceApplyStatusKind =
-  | "Queued"
-  | "Running"
-  | "Succeeded"
-  | "Failed"
-  | "ReviewOutdated";
+export type WorkforceApplyStatusKind = "Queued" | "Running" | "Succeeded" | "Failed" | "ReviewOutdated";
 
 export interface WorkforceApplyStatusDto {
   status: WorkforceApplyStatusKind;
@@ -221,41 +320,25 @@ export interface WorkforceApplyStatusDto {
   message: string | null;
 }
 
-export interface WorkforceSemanticSuggestionDto {
-  columnIndex: number;
-  sourceLabel: string | null;
-  targetField: string;
-  targetDisplayName: string;
-  rationale: string | null;
+/** A Match change. Only the fields present change. */
+export interface WorkforceMatchUpdateRequest {
+  columnMappings?: Record<number, WorkforceImportField>;
+  dateFormat?: WorkforceDateFormat;
+  nameFormat?: WorkforceNameFormat;
+  identityStrategy?: WorkforceIdentityStrategy;
+  lifecycleVocabulary?: Record<string, WorkforceLifecycle>;
 }
 
-export interface WorkforceSemanticSuggestionsDto {
-  available: boolean;
-  reason: string | null;
-  suggestions: WorkforceSemanticSuggestionDto[];
-}
-
-/** Broadest-safe-scope decision; exactly one decision kind per call is applied server-side. */
-export interface WorkforceDecisionRequest {
-  columnMappings?: Record<number, string>;
-  dateFormat?: string;
-  nameFormat?: string;
+/** A bounded Review resolution for a live issue. It never changes a source fact. */
+export interface WorkforceResolutionsUpdateRequest {
   organizationSourceValue?: string;
   organizationUnitId?: string;
-  managerRowNumber?: number;
-  managerEmployeeKey?: string;
-  noManager?: boolean;
-  /** Reference-scoped manager resolution: resolves every row reporting to this manager reference. */
   managerReference?: string;
-  /** Point the manager reference at a person being added in this same import. */
+  managerEmployeeKey?: string;
   managerImportRowNumber?: number;
-  excludeRow?: number;
-  includeRow?: number;
-  keepFusionUnchangedRow?: number;
+  noManager?: boolean;
   keepAsDistinctRow?: number;
-  /** Establish current work details (and the initial manager relationship) at the baseline for
-   *  people whose source work dates predate their Organization's history in Fusion. */
-  normalizeWorkDatesToBaseline?: boolean;
+  useBaselineForWorkDates?: boolean;
 }
 
 export interface WorkforceImportProblem {
@@ -272,13 +355,12 @@ export const coreWorkforceImportPaths = {
   intake: () => `${base}/intake`,
   header: (id: string) => `${base}/${id}/header`,
   baseline: (id: string) => `${base}/${id}/baseline`,
-  replaceSource: (id: string) => `${base}/${id}/replace-source`,
-  prepare: (id: string) => `${base}/${id}/prepare`,
+  match: (id: string) => `${base}/${id}/match`,
+  runSemanticAssistance: (id: string) => `${base}/${id}/semantic-assistance/run`,
+  refresh: (id: string) => `${base}/${id}/refresh`,
   review: (id: string) => `${base}/${id}/review`,
+  resolutions: (id: string) => `${base}/${id}/review/resolutions`,
   managerCandidates: (id: string) => `${base}/${id}/manager-candidates`,
-  decisions: (id: string) => `${base}/${id}/decisions`,
-  semanticSuggestions: (id: string) => `${base}/${id}/semantic-suggestions`,
-  finish: (id: string) => `${base}/${id}/finish`,
   discard: (id: string) => `${base}/${id}/discard`,
   commit: (id: string) => `${base}/${id}/commit`,
 } as const;
@@ -310,11 +392,13 @@ export function translateWorkforceImportError(error: unknown): WorkforceImportPr
       ? "access-denied"
       : error.status === 404
         ? "not-found"
-        : error.status === 409 || error.status === 412 || error.status === 428
-          ? "concurrency"
-          : error.status === 413 || error.status === 422
-            ? "rejected"
-            : "temporary";
+        : code === "ProposalChanged" || code === "NotPublishable"
+          ? "conflict"
+          : error.status === 409 || error.status === 412 || error.status === 428
+            ? "concurrency"
+            : error.status === 413 || error.status === 422
+              ? "rejected"
+              : "temporary";
   return { kind, code, message };
 }
 
@@ -339,34 +423,29 @@ export function createCoreWorkforceImportApi(client: ApiClient) {
       client.put<WorkforceImportSessionDto>(coreWorkforceImportPaths.header(id), { headerRowIndex }, ifMatch(version)),
     changeBaseline: (id: string, version: number, baselineDate: string) =>
       client.put<WorkforceImportSessionDto>(coreWorkforceImportPaths.baseline(id), { baselineDate }, ifMatch(version)),
-    replaceSource: (id: string, version: number, file: File, selectedSheet?: string) => {
-      const form = new FormData();
-      form.append("file", file);
-      if (selectedSheet) form.append("selectedSheet", selectedSheet);
-      return client.post<WorkforceImportSessionDto>(coreWorkforceImportPaths.replaceSource(id), form, ifMatch(version));
-    },
-    prepare: (id: string, version: number) =>
-      client.post<WorkforcePrepareResultDto>(coreWorkforceImportPaths.prepare(id), undefined, ifMatch(version)),
+    updateMatch: (id: string, version: number, change: WorkforceMatchUpdateRequest) =>
+      client.put<WorkforceImportSessionDto>(coreWorkforceImportPaths.match(id), change, ifMatch(version)),
+    runSemanticAssistance: (id: string, inputFingerprint: string, grantTenantConsent = false) =>
+      client.post<WorkforceImportSessionDto>(coreWorkforceImportPaths.runSemanticAssistance(id), {
+        inputFingerprint,
+        grantTenantConsent,
+      }),
+    refresh: (id: string, version: number) =>
+      client.post<WorkforceImportSessionDto>(coreWorkforceImportPaths.refresh(id), undefined, ifMatch(version)),
     review: (
       id: string,
-      params: { filter?: string; query?: string; page?: number; pageSize?: number },
+      params: { filter?: WorkforceReviewFilter; query?: string; page?: number; pageSize?: number },
       signal?: AbortSignal
     ) => client.get<WorkforceReviewPageDto>(coreWorkforceImportPaths.review(id), { params, signal }),
-    managerCandidates: (
-      id: string,
-      params: { reference?: string; query?: string },
-      signal?: AbortSignal
-    ) => client.get<WorkforceManagerCandidateDto[]>(coreWorkforceImportPaths.managerCandidates(id), { params, signal }),
-    decide: (id: string, version: number, decision: WorkforceDecisionRequest) =>
-      client.put<WorkforceReviewSummaryDto>(coreWorkforceImportPaths.decisions(id), decision, ifMatch(version)),
-    suggestMeanings: (id: string) =>
-      client.post<WorkforceSemanticSuggestionsDto>(coreWorkforceImportPaths.semanticSuggestions(id)),
-    finish: (id: string, version: number) =>
-      client.post<WorkforceImportSessionDto>(coreWorkforceImportPaths.finish(id), undefined, ifMatch(version)),
+    updateResolutions: (id: string, version: number, resolution: WorkforceResolutionsUpdateRequest) =>
+      client.put<WorkforceReviewSummaryDto>(coreWorkforceImportPaths.resolutions(id), resolution, ifMatch(version)),
+    managerCandidates: (id: string, params: { reference?: string; query?: string }, signal?: AbortSignal) =>
+      client.get<WorkforceManagerCandidateDto[]>(coreWorkforceImportPaths.managerCandidates(id), { params, signal }),
     discard: (id: string, version: number) =>
       client.post<void>(coreWorkforceImportPaths.discard(id), undefined, ifMatch(version)),
-    commit: (id: string, version: number) =>
-      client.post<WorkforceApplyStatusDto>(coreWorkforceImportPaths.commit(id), undefined, ifMatch(version)),
+    /** Publish exactly the reviewed proposal. */
+    commit: (id: string, version: number, proposalFingerprint: string) =>
+      client.post<WorkforceApplyStatusDto>(coreWorkforceImportPaths.commit(id), { proposalFingerprint }, ifMatch(version)),
     commitStatus: (id: string, signal?: AbortSignal) =>
       client.get<WorkforceApplyStatusDto>(coreWorkforceImportPaths.commit(id), { signal }),
   };

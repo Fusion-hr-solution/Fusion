@@ -70,6 +70,20 @@ export interface OrganizationReadinessDto {
   isPermanentRootEffective: boolean;
 }
 
+/** Whether CoreHR's foundation is established: a published organization and a sound active workforce. */
+export interface CoreHRReadinessDto {
+  isReady: boolean;
+  organization: OrganizationReadinessDto;
+  workforce: {
+    activeEmployees: number;
+    withoutCurrentAssignment: number;
+    assignedToInactiveUnit: number;
+    withInvalidManager: number;
+    inManagerCycle: number;
+    importInProgress: boolean;
+  };
+}
+
 export interface OrganizationalUnitTypeDto {
   id: string;
   displayName: string;
@@ -222,6 +236,7 @@ export const coreOrganizationPaths = {
   history: (id: string) => `/corehr/organization/units/${id}/history`,
   upcomingChanges: () => "/corehr/organization/changes/upcoming",
   readiness: () => "/corehr/organization/readiness",
+  coreHRReadiness: () => "/corehr/setup/readiness",
   types: () => "/corehr/organization/types",
   root: () => "/corehr/organization/root",
   units: () => "/corehr/organization/units",
@@ -245,6 +260,7 @@ export const coreOrganizationQueryKeys = {
   upcomingChange: (id: string) =>
     [...coreOrganizationQueryKeys.upcomingChanges(), id] as const,
   readiness: () => [...coreOrganizationQueryKeys.all(), "readiness"] as const,
+  coreHRReadiness: () => [...coreOrganizationQueryKeys.all(), "coreHRReadiness"] as const,
   types: () => [...coreOrganizationQueryKeys.all(), "types"] as const,
 } as const;
 
@@ -272,6 +288,8 @@ export function createCoreOrganizationApi(client: ApiClient) {
       }),
     readiness: (signal?: AbortSignal) =>
       client.get<OrganizationReadinessDto>(coreOrganizationPaths.readiness(), { signal }),
+    coreHRReadiness: (signal?: AbortSignal) =>
+      client.get<CoreHRReadinessDto>(coreOrganizationPaths.coreHRReadiness(), { signal }),
     types: (signal?: AbortSignal) =>
       client.get<OrganizationalUnitTypeDto[]>(coreOrganizationPaths.types(), { signal }),
     history: (id: string, signal?: AbortSignal) =>
