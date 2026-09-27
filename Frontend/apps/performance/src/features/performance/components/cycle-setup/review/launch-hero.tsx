@@ -1,31 +1,72 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import Link from "next/link";
-import { CalendarDays, Check, Info, Rocket, TriangleAlert } from "lucide-react";
+import {
+  CalendarDays,
+  Check,
+  FileText,
+  Rocket,
+  ShieldCheck,
+  TriangleAlert,
+  Users2,
+} from "lucide-react";
 import type { CycleDetailDto } from "@repo/api";
 import { AsyncButton } from "@repo/ds/shell";
 import { Button } from "@repo/ds/components/ui/button";
+import { cn } from "@repo/ds/lib/utils";
 import { formatDate } from "../../../lib";
 
-function StatusChip({ value, label }: { value: ReactNode; label: string }) {
+type Tone = "done" | "blocked";
+
+function Stat({
+  icon: Icon,
+  tone,
+  value,
+  label,
+}: {
+  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+  tone: Tone;
+  value: ReactNode;
+  label: string;
+}) {
+  const done = tone === "done";
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-background/50 px-3.5 py-2.5">
-      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-success/15 text-success">
-        <Check className="size-3.5" aria-hidden />
+    <div className="flex min-w-0 items-center gap-3.5 py-1 lg:px-5 lg:first:pl-0 lg:last:pr-0 xl:px-6">
+      <span
+        className={cn(
+          "flex size-12 shrink-0 items-center justify-center rounded-full border",
+          done ? "border-emerald-400/45 text-emerald-400" : "border-amber-400/50 text-amber-400"
+        )}
+      >
+        <Icon className="size-5" strokeWidth={1.75} aria-hidden />
       </span>
-      <span className="min-w-0 type-meta leading-tight">
-        <span className="block font-semibold text-foreground">{value}</span>
-        <span className="block text-muted-foreground">{label}</span>
+      <span
+        className={cn(
+          "flex size-4 shrink-0 items-center justify-center rounded-full text-[#0b0c10]",
+          done ? "bg-emerald-400" : "bg-amber-400"
+        )}
+        aria-hidden
+      >
+        {done ? (
+          <Check className="size-3" strokeWidth={3.5} />
+        ) : (
+          <span className="text-[0.625rem] font-bold leading-none">!</span>
+        )}
+      </span>
+      <span className="min-w-0 leading-tight">
+        <span className="block text-sm font-semibold text-white">{value}</span>
+        <span className="mt-0.5 block type-meta text-zinc-400">{label}</span>
       </span>
     </div>
   );
 }
 
 /**
- * The decision banner. When the Cycle has cleared every check it presents launch as the one
- * dominant, irreversible action; when something still blocks it, it states the blockers plainly
- * and withholds the action rather than offering a button that would fail.
+ * The decision banner — dark in both themes, like the setup hero. When the Cycle has cleared every
+ * check it presents launch as the one dominant, irreversible action; when something still blocks
+ * it, it states the blockers plainly and withholds the action rather than offering a button that
+ * would fail.
  */
 export function LaunchHero({
   detail,
@@ -37,97 +78,132 @@ export function LaunchHero({
   launching: boolean;
 }) {
   const ready = detail.launchReadiness.canActivate;
-
-  if (!ready) {
-    const blockers = detail.launchReadiness.blockers;
-    return (
-      <section className="rounded-2xl border border-warning/40 bg-warning/[0.06] p-5 sm:p-6">
-        <div className="flex items-start gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-warning/15 text-warning">
-            <TriangleAlert className="size-5.5" aria-hidden />
-          </span>
-          <div className="min-w-0 flex-1">
-            <h2 className="type-section-title text-foreground">Not ready to launch yet</h2>
-            {blockers.length > 0 ? (
-              <ul className="mt-2 space-y-1">
-                {blockers.map((blocker) => (
-                  <li key={blocker} className="type-body-secondary text-foreground">
-                    {blocker}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-1 type-body-secondary text-muted-foreground">
-                Resolve the outstanding setup before launching.
-              </p>
-            )}
-            <Button variant="outline" size="sm" asChild className="mt-4">
-              <Link href="/cycle/setup/population">Back to population</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-    );
-  }
+  const blockers = detail.launchReadiness.blockers;
+  const participants = detail.confirmedParticipantCount;
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-card p-5 shadow-sm sm:p-6">
-      {/* Amber glow — the "primed to launch" character, quiet in light, luminous in dark. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-24 -right-16 size-72 rounded-full bg-primary/15 blur-3xl"
-      />
+    <section
+      className={cn(
+        "relative isolate overflow-hidden rounded-2xl border bg-[#0b0c10] text-white shadow-lg",
+        ready ? "border-amber-400/35" : "border-amber-400/20"
+      )}
+    >
+      {ready && <LaunchGlow />}
 
-      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-4 sm:gap-5">
+      <div className="relative p-5 sm:p-7">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-start gap-4 sm:items-center sm:gap-5">
             <span
-              className="flex size-14 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary ring-4 ring-primary/20 sm:size-16"
               aria-hidden
+              className={cn(
+                "flex size-12 shrink-0 items-center justify-center rounded-full border-2 sm:size-16",
+                ready
+                  ? "border-amber-400 bg-amber-400/10 text-amber-400 shadow-[0_0_28px_rgba(245,180,60,0.4),inset_0_0_14px_rgba(245,180,60,0.18)]"
+                  : "border-amber-400/50 bg-amber-400/5 text-amber-400"
+              )}
             >
-              <Check className="size-7 sm:size-8" strokeWidth={2.5} />
+              {ready ? (
+                <Check className="size-6 sm:size-7" strokeWidth={2.5} />
+              ) : (
+                <TriangleAlert className="size-6" strokeWidth={2} />
+              )}
             </span>
             <div className="min-w-0">
-              <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-                Ready to launch
-              </h2>
-              <p className="mt-1 type-body-secondary text-muted-foreground">
-                Everything required for{" "}
-                <span className="font-medium text-foreground">{detail.cycle.name}</span> is in place.
-                Activate it to open planning for participants.
+              <p className="type-eyebrow text-amber-400">
+                {ready ? "Ready to launch" : "Not ready to launch"}
+              </p>
+              <h2 className="type-page-title mt-1 text-white sm:type-display">{detail.cycle.name}</h2>
+              <p className="mt-1.5 type-body text-zinc-300">
+                {ready
+                  ? "All required components are complete. You can launch this cycle now."
+                  : blockers.length > 0
+                    ? `${blockers.length} ${blockers.length === 1 ? "issue blocks" : "issues block"} launch.`
+                    : "Resolve the outstanding setup before launching."}
               </p>
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap">
-            <StatusChip value="Cycle details" label="complete" />
-            <StatusChip
-              value={`${detail.publishedStrategyCount} objective${detail.publishedStrategyCount === 1 ? "" : "s"}`}
-              label="published"
-            />
-            <StatusChip value={detail.confirmedParticipantCount} label="participants confirmed" />
-            <StatusChip value={detail.launchReadiness.blockers.length} label="blockers" />
+          <div className="shrink-0">
+            {ready ? (
+              <AsyncButton
+                size="lg"
+                className="h-12 w-full bg-amber-400 px-6 text-base text-zinc-950 shadow-[0_0_28px_rgba(245,180,60,0.3)] hover:bg-amber-300 sm:w-auto"
+                onClick={onLaunch}
+                pending={launching}
+              >
+                <Rocket className="size-4" data-icon="inline-start" />
+                Launch cycle
+              </AsyncButton>
+            ) : (
+              <Button
+                variant="outline"
+                size="lg"
+                asChild
+                className="w-full border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white sm:w-auto"
+              >
+                <Link href="/cycle/setup/population">Back to population</Link>
+              </Button>
+            )}
           </div>
         </div>
 
-        <div className="shrink-0 lg:pl-4">
-          <AsyncButton size="lg" className="w-full lg:w-auto" onClick={onLaunch} pending={launching}>
-            <Rocket className="size-4" data-icon="inline-start" />
-            Launch cycle
-          </AsyncButton>
+        {!ready && blockers.length > 0 && (
+          <ul className="mt-4 space-y-1.5 sm:pl-[5.25rem]">
+            {blockers.map((blocker) => (
+              <li key={blocker} className="flex items-start gap-2 type-body text-zinc-200">
+                <span className="mt-2 size-1 shrink-0 rounded-full bg-amber-400" aria-hidden />
+                {blocker}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-7 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-0 lg:divide-x lg:divide-white/10">
+          <Stat icon={FileText} tone="done" value="Cycle details" label="Complete" />
+          <Stat
+            icon={Users2}
+            tone={participants > 0 ? "done" : "blocked"}
+            value={participants}
+            label={participants === 1 ? "participant confirmed" : "participants confirmed"}
+          />
+          <Stat
+            icon={ShieldCheck}
+            tone={blockers.length === 0 ? "done" : "blocked"}
+            value={blockers.length}
+            label={blockers.length === 1 ? "blocker" : "blockers"}
+          />
+          <Stat
+            icon={CalendarDays}
+            tone="done"
+            value="Planning opens"
+            label={`through ${formatDate(detail.cycle.planningDeadline)}`}
+          />
         </div>
       </div>
-
-      <div className="relative mt-6 flex flex-col gap-2 border-t border-border/60 pt-4 sm:flex-row sm:items-center sm:gap-6">
-        <span className="inline-flex items-center gap-2 type-meta text-foreground">
-          <CalendarDays className="size-4 text-primary" aria-hidden />
-          Planning opens through {formatDate(detail.cycle.planningDeadline)}
-        </span>
-        <span className="inline-flex items-center gap-2 type-meta text-muted-foreground">
-          <Info className="size-4 shrink-0" aria-hidden />
-          Activation freezes the roster and published direction for this cycle.
-        </span>
-      </div>
     </section>
+  );
+}
+
+/** Warm corner light with a few soft rays — the "primed to launch" moment. Decorative. */
+function LaunchGlow() {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(60% 120% at 92% -10%, rgba(245,180,60,0.26) 0%, rgba(245,180,60,0.07) 35%, transparent 65%)",
+        }}
+      />
+      <div
+        className="absolute -right-10 -top-16 h-72 w-[28rem] opacity-60"
+        style={{
+          background:
+            "repeating-conic-gradient(from 200deg at 85% 0%, rgba(253,230,176,0.10) 0deg 2deg, transparent 2deg 9deg)",
+          maskImage: "radial-gradient(70% 90% at 85% 0%, black 0%, transparent 75%)",
+          WebkitMaskImage: "radial-gradient(70% 90% at 85% 0%, black 0%, transparent 75%)",
+        }}
+      />
+    </div>
   );
 }

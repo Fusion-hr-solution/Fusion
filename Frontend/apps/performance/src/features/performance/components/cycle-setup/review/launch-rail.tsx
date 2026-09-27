@@ -2,15 +2,15 @@
 
 import type { ReactNode } from "react";
 import {
-  CalendarCheck2,
-  Check,
+  Check as CheckIcon,
+  CircleAlert,
+  CircleCheck,
   ClipboardList,
-  Info,
   Lock,
-  Megaphone,
+  MessageSquare,
   Play,
-  ShieldCheck,
   Target,
+  Users2,
   X,
 } from "lucide-react";
 import type { CycleDetailDto, PopulationDto } from "@repo/api";
@@ -27,7 +27,7 @@ import { formatDate } from "../../../lib";
 interface Check {
   ok: boolean;
   label: string;
-  detail?: string;
+  detail?: string[];
 }
 
 function deriveChecks(detail: CycleDetailDto, population: PopulationDto): Check[] {
@@ -43,24 +43,29 @@ function deriveChecks(detail: CycleDetailDto, population: PopulationDto): Check[
     {
       ok: datesValid,
       label: "Cycle dates are valid",
-      detail: `${formatDate(c.startDate)} – ${formatDate(c.endDate)} · plans due ${formatDate(c.planningDeadline)}`,
+      detail: [
+        `${formatDate(c.startDate)} – ${formatDate(c.endDate)}`,
+        `Plans due ${formatDate(c.planningDeadline)}`,
+      ],
     },
     {
       ok: detail.populationConfirmed && reviewersResolved,
       label: "Population is confirmed",
-      detail: `${detail.confirmedParticipantCount} participants, all with reviewers`,
+      detail: [`${detail.confirmedParticipantCount} participants, all with reviewers`],
     },
   ];
 }
 
-function RailCard({ children }: { children: ReactNode }) {
+function RailCard({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">{children}</section>
+    <section className={cn("rounded-2xl border border-border bg-card p-5 sm:p-6", className)}>
+      {children}
+    </section>
   );
 }
 
 function RailHeading({ children }: { children: ReactNode }) {
-  return <h2 className="type-panel-title text-foreground">{children}</h2>;
+  return <h2 className="type-page-title text-foreground">{children}</h2>;
 }
 
 export function LaunchReadinessPanel({
@@ -72,86 +77,100 @@ export function LaunchReadinessPanel({
 }) {
   const checks = deriveChecks(detail, population);
   const ready = checks.every((check) => check.ok);
+  const failing = checks.filter((check) => !check.ok).length;
 
-  const notRequired: Check[] = [
+  const notRequired = [
     {
-      ok: true,
+      icon: Target,
       label: "Strategic direction",
       detail:
         detail.publishedStrategyCount > 0
           ? `${detail.publishedStrategyCount} objective${detail.publishedStrategyCount === 1 ? "" : "s"} published`
-          : "Can be established after launch",
+          : "Can be created later after launch",
     },
-    { ok: true, label: "Employee plans", detail: "Created as participants begin planning" },
-    { ok: true, label: "Communications", detail: "No notifications are sent at launch" },
+    { icon: ClipboardList, label: "Employee plans", detail: "Created as participants begin planning" },
+    { icon: MessageSquare, label: "Communications", detail: "No notifications are sent at launch" },
   ];
 
-  const notRequiredIcons = [Target, ClipboardList, Megaphone];
-
   return (
-    <RailCard>
-      <div className="flex items-center justify-between gap-3">
-        <RailHeading>Launch readiness</RailHeading>
+    <RailCard className="flex flex-1 flex-col">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <RailHeading>Launch readiness</RailHeading>
+          <p className="mt-1 type-meta text-muted-foreground">
+            {ready
+              ? "All required conditions are met."
+              : `${failing} required ${failing === 1 ? "condition is" : "conditions are"} not met.`}
+          </p>
+        </div>
         <span
           className={cn(
-            "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-            ready ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
+            "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold",
+            ready
+              ? "border-success/35 bg-success/10 text-success"
+              : "border-warning/40 bg-warning/10 text-warning"
           )}
         >
-          {ready ? <ShieldCheck className="size-3" aria-hidden /> : null}
+          {ready ? (
+            <CircleCheck className="size-3.5" aria-hidden />
+          ) : (
+            <CircleAlert className="size-3.5" aria-hidden />
+          )}
           {ready ? "Ready" : "Not ready"}
         </span>
       </div>
 
-      <ul className="mt-4 space-y-3.5">
+      <ul className="mt-5 space-y-4">
         {checks.map((check) => (
           <li key={check.label} className="flex items-start gap-3">
             <span
               className={cn(
-                "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full",
-                check.ok ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"
+                "flex size-6 shrink-0 items-center justify-center rounded-full",
+                check.ok ? "bg-success text-background" : "bg-destructive text-background"
               )}
               aria-hidden
             >
-              {check.ok ? <Check className="size-3" /> : <X className="size-3" />}
+              {check.ok ? (
+                <CheckIcon className="size-3.5" strokeWidth={3} />
+              ) : (
+                <X className="size-3.5" strokeWidth={3} />
+              )}
             </span>
-            <span className="min-w-0">
-              <span className="block type-body-secondary font-medium text-foreground">
-                {check.label}
-              </span>
-              {check.detail ? (
+            <span className="min-w-0 pt-0.5">
+              <span className="block type-body font-medium text-foreground">{check.label}</span>
+              {check.detail?.map((line) => (
                 <span
+                  key={line}
                   className={cn(
                     "mt-0.5 block type-meta",
                     check.ok ? "text-muted-foreground" : "text-destructive"
                   )}
                 >
-                  {check.detail}
+                  {line}
                 </span>
-              ) : null}
+              ))}
             </span>
           </li>
         ))}
       </ul>
 
-      <div className="mt-5 border-t border-border/70 pt-5">
-        <p className="type-eyebrow text-muted-foreground">Not required to launch</p>
-        <ul className="mt-3 space-y-3">
-          {notRequired.map((item, i) => {
-            const Icon = notRequiredIcons[i] ?? Info;
-            return (
+      <div className="mt-auto pt-5">
+        <div className="border-t border-border/70 pt-5">
+          <p className="type-meta text-muted-foreground">Not required to launch</p>
+          <ul className="mt-3.5 space-y-3.5">
+            {notRequired.map((item) => (
               <li key={item.label} className="flex items-start gap-3">
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  <Icon className="size-3" aria-hidden />
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <item.icon className="size-4" aria-hidden />
                 </span>
                 <span className="min-w-0">
-                  <span className="block type-body-secondary text-foreground">{item.label}</span>
+                  <span className="block type-body text-foreground">{item.label}</span>
                   <span className="mt-0.5 block type-meta text-muted-foreground">{item.detail}</span>
                 </span>
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </ul>
+        </div>
       </div>
     </RailCard>
   );
@@ -161,7 +180,7 @@ const CONSEQUENCES: { icon: typeof Play; label: string; detail: string }[] = [
   { icon: Play, label: "The cycle goes live", detail: "Participants can begin planning." },
   { icon: Lock, label: "Details lock", detail: "The cycle and policy can no longer be changed." },
   {
-    icon: CalendarCheck2,
+    icon: Users2,
     label: "The roster is fixed",
     detail: "The confirmed population becomes final.",
   },
@@ -170,17 +189,15 @@ const CONSEQUENCES: { icon: typeof Play; label: string; detail: string }[] = [
 export function LaunchConsequences() {
   return (
     <RailCard>
-      <RailHeading>When you launch</RailHeading>
-      <ul className="mt-4 space-y-4">
+      <RailHeading>What happens when you launch</RailHeading>
+      <ul className="mt-5 space-y-4">
         {CONSEQUENCES.map((item) => (
-          <li key={item.label} className="flex items-start gap-3">
-            <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <item.icon className="size-4" aria-hidden />
+          <li key={item.label} className="flex items-start gap-3.5">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
+              <item.icon className="size-[1.125rem]" aria-hidden />
             </span>
-            <span className="min-w-0">
-              <span className="block type-body-secondary font-medium text-foreground">
-                {item.label}
-              </span>
+            <span className="min-w-0 pt-0.5">
+              <span className="block type-body font-semibold text-foreground">{item.label}</span>
               <span className="mt-0.5 block type-meta text-muted-foreground">{item.detail}</span>
             </span>
           </li>
