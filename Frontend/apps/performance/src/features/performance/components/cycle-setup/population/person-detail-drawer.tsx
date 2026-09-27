@@ -15,7 +15,7 @@ import { StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { readinessIssueDetail } from "@/features/performance/lib";
 import { candidateStatus, initials, reviewerView } from "./population-model";
-import { coreProfileHref } from "./needs-attention";
+import { coreProfileHref } from "./population-model";
 
 /**
  * A quiet inspector for one person — identity, how they entered the population, their org and

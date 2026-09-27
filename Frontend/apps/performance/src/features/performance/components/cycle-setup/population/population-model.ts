@@ -123,3 +123,7 @@ export function computeOrgStates(
   for (const root of roots) walk(root, false);
   return map;
 }
+
+export function coreProfileHref(employeeId: string): string {
+  return `/core/people/${employeeId}`;
+}

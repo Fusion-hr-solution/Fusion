@@ -14,8 +14,19 @@ import { Button } from "@repo/ds/components/ui/button";
 import { Label } from "@repo/ds/components/ui/label";
 import { Textarea } from "@repo/ds/components/ui/textarea";
 import { AsyncButton } from "@repo/ds/shell";
+import type { PopulationCandidateDto } from "@repo/api";
+import { readinessIssueDetail } from "@/features/performance/lib";
+import { primaryIssue } from "./population-model";
 
 const REASON_MAX = 240;
+
+/** The candidate's blocking readiness issue, phrased as an exclusion reason; empty when healthy. */
+export function issueReason(candidate: PopulationCandidateDto, eligibilityDate: string): string {
+  const issue = primaryIssue(candidate);
+  if (!issue) return "";
+  const detail = readinessIssueDetail(issue.code, eligibilityDate);
+  return detail ? `${issue.label}: ${detail}` : issue.label;
+}
 
 /**
  * Excluding a person from the cycle is a decision that must be justified — the reason is captured
@@ -24,12 +35,15 @@ const REASON_MAX = 240;
  */
 export function ExcludeDialog({
   name,
+  defaultReason,
   confirmLabel,
   open,
   onOpenChange,
   onExclude,
 }: {
   name: string | null;
+  /** Prefills the reason, e.g. with the readiness issue that blocks the person. */
+  defaultReason?: string;
   /** The confirm button's label; defaults to a singular exclude. Bulk passes "Exclude N employees". */
   confirmLabel?: string;
   open: boolean;
@@ -41,10 +55,10 @@ export function ExcludeDialog({
 
   useEffect(() => {
     if (open) {
-      setReason("");
+      setReason((defaultReason ?? "").slice(0, REASON_MAX));
       setPending(false);
     }
-  }, [open]);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps -- seed once per opening
 
   const trimmed = reason.trim();
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CircleCheck, TriangleAlert } from "lucide-react";
+import { ArrowRight, CircleCheck } from "lucide-react";
 import { toast } from "sonner";
 import type {
   OrgUnitSelectionInput,
@@ -21,13 +21,11 @@ import { SetupStepFooter } from "./setup-step-footer";
 import { PopulationHero } from "./population/population-hero";
 import { PopulationScope } from "./population/population-scope";
 import { ResolvedPopulation } from "./population/resolved-population";
-import { NeedsAttention } from "./population/needs-attention";
 import { PeopleInScope } from "./population/people-in-scope";
-import { ExcludeDialog } from "./population/exclude-dialog";
+import { ExcludeDialog, issueReason } from "./population/exclude-dialog";
 import { AddInclusionSheet } from "./population/add-inclusion-sheet";
 import { PersonDetailDrawer } from "./population/person-detail-drawer";
 import {
-  candidateStatus,
   selectionToRequest,
 } from "./population/population-model";
 
@@ -163,14 +161,6 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
     setInspectOpen(true);
   }, []);
 
-  const attention = useMemo(
-    () =>
-      (data?.candidates ?? []).filter(
-        (candidate) => candidateStatus(candidate) === "attention"
-      ),
-    [data?.candidates]
-  );
-
   // People the org-unit rule matched (everyone resolved except those added as individual
   // exceptions) — the real, resolved figure the scope picker reads back, not an estimate.
   const matchedCount = useMemo(
@@ -255,11 +245,6 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
             onRefresh={() => void population.refetch()}
             refreshing={population.isFetching || set.isLoading}
           />
-          <NeedsAttention
-            candidates={attention}
-            eligibilityDate={selection.eligibilityDate}
-            onExclude={setExcludeTarget}
-          />
           <PeopleInScope
             candidates={data.candidates}
             onExclude={setExcludeTarget}
@@ -300,9 +285,8 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
           ) : !canConfirm && data.needsAttentionCount > 0 ? (
             <span
               id={footerMessageId}
-              className="inline-flex items-center gap-2 type-label text-amber-600 dark:text-amber-400"
+              className="type-label text-amber-600 dark:text-amber-400"
             >
-              <TriangleAlert className="size-4" aria-hidden />
               {data.needsAttentionCount}{" "}
               {data.needsAttentionCount === 1 ? "issue" : "issues"} must be
               resolved before confirmation.
@@ -372,6 +356,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
 
       <ExcludeDialog
         name={excludeTarget?.displayName ?? null}
+        defaultReason={excludeTarget ? issueReason(excludeTarget, selection.eligibilityDate) : undefined}
         open={excludeTarget !== null}
         onOpenChange={(open) => {
           if (!open) setExcludeTarget(null);

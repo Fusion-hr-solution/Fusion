@@ -103,7 +103,7 @@ export function OrgScopePicker({
       commit(
         exists
           ? latest.current.filter((s) => s.orgUnitId !== id)
-          : [...latest.current, { orgUnitId: id, includeDescendants: false }]
+          : [...latest.current, { orgUnitId: id, includeDescendants: true }]
       );
     },
     [commit]
@@ -132,17 +132,29 @@ export function OrgScopePicker({
   );
   const searching = term.trim().length > 0;
 
-  const names = useMemo(() => {
-    const map = new Map<string, string>();
-    const walk = (node: OrganizationHierarchyNodeDto) => {
-      map.set(node.unit.id, node.unit.name);
-      node.children.forEach(walk);
+  const { names, parents } = useMemo(() => {
+    const names = new Map<string, string>();
+    const parents = new Map<string, string | null>();
+    const walk = (node: OrganizationHierarchyNodeDto, parent: string | null) => {
+      names.set(node.unit.id, node.unit.name);
+      parents.set(node.unit.id, parent);
+      node.children.forEach((child) => walk(child, node.unit.id));
     };
-    roots.forEach(walk);
-    return map;
+    roots.forEach((root) => walk(root, null));
+    return { names, parents };
   }, [roots]);
 
   const selectedList = working.filter((s) => names.has(s.orgUnitId));
+
+  // Selections the tree can't currently show — inside a collapsed branch or filtered out by the
+  // search — surface as chips so nothing chosen is ever out of sight.
+  const hiddenSelections = selectedList.filter((selection) => {
+    if (visibleIds) return !visibleIds.has(selection.orgUnitId);
+    for (let id = parents.get(selection.orgUnitId); id; id = parents.get(id)) {
+      if (collapsed.has(id)) return true;
+    }
+    return false;
+  });
 
   function toggleCollapse(id: string) {
     setCollapsed((prev) => {
@@ -171,9 +183,10 @@ export function OrgScopePicker({
       <li key={node.unit.id}>
         <div
           className={cn(
-            "group relative flex items-center rounded-object py-1.5 pr-3 transition-colors",
-            state?.inherited ? "" : "hover:bg-muted/50",
-            state?.selected && "bg-primary/10 ring-1 ring-primary/30"
+            "group relative flex min-h-14 items-center rounded-xl border py-2 pr-2.5 transition-colors",
+            state?.selected
+              ? "border-primary/40 bg-primary/10"
+              : cn("border-transparent", !state?.inherited && "hover:bg-muted/40")
           )}
           style={{ paddingLeft: depth * INDENT + 4 }}
         >
@@ -207,7 +220,7 @@ export function OrgScopePicker({
             )}
           >
             <Checkbox
-              className="ml-1.5"
+              className="ml-2 size-5 disabled:cursor-default disabled:opacity-100"
               checked={checked}
               disabled={state?.inherited}
               onCheckedChange={() => toggleUnit(node.unit.id)}
@@ -216,17 +229,17 @@ export function OrgScopePicker({
             <span
               aria-hidden
               className={cn(
-                "mx-2.5 grid size-8 shrink-0 place-items-center rounded-lg",
-                covered ? "bg-primary/12 text-primary" : "bg-muted text-foreground/80"
+                "ml-3 hidden size-9 shrink-0 place-items-center rounded-full sm:mr-3 sm:grid",
+                covered ? "bg-primary/15 text-primary" : "bg-muted text-foreground/80"
               )}
             >
               <OrgTypeIcon typeName={node.unit.typeName} />
             </span>
-            <span className="min-w-0 flex-1">
+            <span className="ml-3 min-w-0 flex-1 sm:ml-0">
               <span
                 className={cn(
-                  "block truncate type-body font-medium",
-                  covered ? "text-foreground" : "text-foreground/85"
+                  "block truncate type-body font-semibold",
+                  covered ? "text-foreground" : "text-foreground/90"
                 )}
               >
                 {node.unit.name}
@@ -238,11 +251,12 @@ export function OrgScopePicker({
           </label>
 
           {state?.inherited ? (
-            <span className="shrink-0 type-meta text-muted-foreground">
-              via parent
+            <span className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1 type-meta text-muted-foreground sm:flex">
+              <Network className="size-3.5" aria-hidden />
+              Inherited via parent
             </span>
-          ) : state?.selected ? (
-            <label className="flex shrink-0 cursor-pointer items-center gap-2 pl-2">
+          ) : state?.selected && hasChildren ? (
+            <label className="flex shrink-0 cursor-pointer items-center gap-2.5 rounded-full border border-primary/35 py-1 pl-1 pr-1 sm:pl-3.5">
               <span
                 className={cn(
                   "hidden type-meta sm:inline",
@@ -272,129 +286,97 @@ export function OrgScopePicker({
   }
 
   return (
-    <div className="mt-4 grid gap-4 lg:grid-cols-2">
-      {/* Left — the org tree */}
-      <div className="flex h-[26rem] flex-col overflow-hidden rounded-xl border border-border bg-background">
-        <div className="border-b border-border px-4 pb-3 pt-4">
-          <p className="type-label text-foreground">Organization units</p>
-          <div className="relative mt-2.5">
-            <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden
-            />
-            <Input
-              value={term}
-              onChange={(event) => setTerm(event.target.value)}
-              placeholder="Search organization units..."
-              className="h-9 pl-9"
-            />
+    <div className="mt-4 flex h-[34rem] flex-col overflow-hidden rounded-2xl border border-border bg-background p-4 sm:p-5">
+      <div>
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
+          <div>
+            <h3 className="type-section-title text-foreground">Organization units</h3>
+            <p className="mt-0.5 type-body-secondary text-muted-foreground">
+              Select the organization units to include in this population.
+            </p>
+          </div>
+          <div className="flex w-full items-center divide-x divide-border rounded-xl border border-border bg-muted/30 py-2 type-body-secondary tabular-nums text-muted-foreground sm:w-auto">
+            <span className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-2.5 sm:flex-none sm:px-3.5">
+              <Network className="size-4 text-primary" aria-hidden />
+              <span className="font-semibold text-foreground">{selectedList.length}</span>
+              {selectedList.length === 1 ? "unit" : "units"}
+              <span className="-ml-1 hidden sm:inline">selected</span>
+            </span>
+            <span className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-2.5 sm:flex-none sm:px-3.5">
+              <Users2 className="size-4" aria-hidden />
+              <span className="font-semibold text-foreground">
+                {matchedCount === null ? "—" : matchedCount}
+              </span>
+              {matchedCount === 1 ? "person" : "people"}
+              <span className="-ml-1 hidden sm:inline">matched</span>
+            </span>
           </div>
         </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-          {hierarchy.isLoading || (roots.length === 0 && current.isLoading) ? (
-            <div className="space-y-2 px-2 py-1">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton key={index} className="h-8 w-full" />
-              ))}
-            </div>
-          ) : hierarchy.error ? (
-            <TreeError onRetry={() => void hierarchy.refetch()} />
-          ) : roots.length === 0 ? (
-            <EmptyTree asOf={asOf} startsOn={startsOn} />
-          ) : visibleIds && visibleIds.size === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
-              <Search className="size-5 text-muted-foreground" aria-hidden />
-              <p className="type-body-secondary text-muted-foreground">
-                No units match &ldquo;{term}&rdquo;.
-              </p>
-            </div>
-          ) : (
-            <ul>{roots.map((root) => renderNode(root, 0))}</ul>
-          )}
+        <div className="relative mt-4">
+          <Search
+            className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden
+          />
+          <Input
+            value={term}
+            onChange={(event) => setTerm(event.target.value)}
+            placeholder="Search organization units..."
+            className="h-11 pl-10"
+          />
         </div>
+        {hiddenSelections.length > 0 ? (
+          <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label="Selected units out of view">
+            {hiddenSelections.map((selection) => (
+              <li
+                key={selection.orgUnitId}
+                className="flex items-center gap-1 rounded-md bg-primary/12 py-0.5 pl-2 pr-0.5 type-meta font-medium text-primary"
+              >
+                {names.get(selection.orgUnitId)}
+                <button
+                  type="button"
+                  onClick={() => toggleUnit(selection.orgUnitId)}
+                  className="grid size-5 place-items-center rounded hover:bg-primary/15"
+                  aria-label={`Remove ${names.get(selection.orgUnitId) ?? "unit"} from scope`}
+                >
+                  <X className="size-3" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
-      {/* Right — the resolved selection */}
-      <div className="flex h-[26rem] flex-col rounded-xl border border-border bg-background p-4">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="type-label text-foreground">Selected scope</p>
-          <p className="type-meta text-muted-foreground">
-            {selectedList.length} organization{" "}
-            {selectedList.length === 1 ? "unit" : "units"}
-          </p>
-        </div>
-
-        {selectedList.length === 0 ? (
-          <div className="mt-3 flex flex-1 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border px-6 py-10 text-center">
-            <Network className="size-5 text-muted-foreground" aria-hidden />
-            <div>
-              <p className="type-label text-foreground">
-                No organization units selected yet.
-              </p>
-              <p className="mt-1 type-body-secondary text-muted-foreground">
-                Select one or more units to resolve the population.
-              </p>
-            </div>
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-xl border border-border p-1.5">
+        {hierarchy.isLoading || (roots.length === 0 && current.isLoading) ? (
+          <div className="py-1" aria-busy aria-label="Loading organization units">
+            {[0, 1, 2, 2, 1, 2].map((depth, index) => (
+              <div
+                key={index}
+                className="flex min-h-14 items-center gap-3 pr-3"
+                style={{ paddingLeft: depth * INDENT + 38 }}
+              >
+                <Skeleton className="size-5 shrink-0" />
+                <Skeleton className="hidden size-9 shrink-0 rounded-full sm:block" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-40 max-w-full" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : hierarchy.error ? (
+          <TreeError onRetry={() => void hierarchy.refetch()} />
+        ) : roots.length === 0 ? (
+          <EmptyTree asOf={asOf} startsOn={startsOn} />
+        ) : visibleIds && visibleIds.size === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
+            <Search className="size-5 text-muted-foreground" aria-hidden />
+            <p className="type-body-secondary text-muted-foreground">
+              No units match &ldquo;{term}&rdquo;.
+            </p>
           </div>
         ) : (
-          <>
-            <ul className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto">
-              {selectedList.map((selection) => (
-                <li
-                  key={selection.orgUnitId}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5"
-                >
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                    <Network className="size-4" aria-hidden />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="type-label truncate text-foreground">
-                      {names.get(selection.orgUnitId) ?? "Unit"}
-                    </p>
-                    {selection.includeDescendants ? (
-                      <p className="type-meta text-muted-foreground">
-                        Includes all sub-units
-                      </p>
-                    ) : null}
-                  </div>
-                  {selection.includeDescendants ? (
-                    <span className="shrink-0 rounded-md bg-primary/15 px-2 py-0.5 type-meta font-medium text-primary">
-                      With sub-units
-                    </span>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={() => toggleUnit(selection.orgUnitId)}
-                    className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                    aria-label={`Remove ${names.get(selection.orgUnitId) ?? "unit"} from scope`}
-                  >
-                    <X className="size-4" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-4 grid grid-cols-2 gap-4 border-t border-border pt-4">
-              <div>
-                <p className="type-metric text-foreground tabular-nums leading-none">
-                  {selectedList.length}
-                </p>
-                <p className="mt-1.5 type-meta text-muted-foreground">
-                  Organization units selected
-                </p>
-              </div>
-              <div>
-                <p className="type-metric text-foreground tabular-nums leading-none">
-                  {matchedCount === null ? "—" : matchedCount}
-                </p>
-                <p className="mt-1.5 flex items-center gap-1.5 type-meta text-muted-foreground">
-                  <Users2 className="size-3.5" aria-hidden />
-                  Matched by scope
-                </p>
-              </div>
-            </div>
-          </>
+          <ul>{roots.map((root) => renderNode(root, 0))}</ul>
         )}
       </div>
     </div>

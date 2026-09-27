@@ -57,7 +57,7 @@ import {
   ReviewerCell,
   StatusCell,
 } from "./population-cells";
-import { coreProfileHref } from "./needs-attention";
+import { coreProfileHref } from "./population-model";
 import { ExcludeDialog } from "./exclude-dialog";
 
 type Filter = "all" | CandidateStatus;
@@ -165,6 +165,13 @@ export function PeopleInScope({
             : String(av).localeCompare(String(bv));
         return sort.dir === "asc" ? cmp : -cmp;
       });
+    } else {
+      // Unsorted, the people blocking confirmation lead so they are never buried a page deep.
+      rows.sort(
+        (a, b) =>
+          Number(candidateStatus(b) === "attention") -
+          Number(candidateStatus(a) === "attention")
+      );
     }
     return rows;
   }, [candidates, filter, term, sort]);

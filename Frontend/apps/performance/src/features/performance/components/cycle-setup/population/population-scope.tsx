@@ -87,7 +87,7 @@ export function PopulationScope({
         <ScopeTile
           selected={!byScope}
           onClick={() => onSetMode("AllActive")}
-          icon={<UsersRound className="size-5" />}
+          icon={<UsersRound className="size-5" strokeWidth={1.75} />}
           title="All active employees"
           description={`Everyone eligible across ${tenantName ?? "the organization"}.`}
           recommended
@@ -95,7 +95,7 @@ export function PopulationScope({
         <ScopeTile
           selected={byScope}
           onClick={() => onSetMode("ByScope")}
-          icon={<Network className="size-5" />}
+          icon={<Network className="size-5" strokeWidth={1.75} />}
           title="Selected organization units"
           description="Choose specific units and optionally their sub-units."
         />
@@ -207,38 +207,38 @@ function ScopeTile({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        "group flex items-start gap-3 rounded-xl border p-4 text-left transition-colors",
+        "group flex min-w-0 items-center gap-3 rounded-xl border px-4 py-4 text-left transition-colors sm:gap-4 sm:px-5",
         selected
-          ? "border-primary bg-primary/[0.06] ring-1 ring-primary/40"
-          : "border-border bg-card hover:border-border/80 hover:bg-muted/30"
+          ? "border-primary/80 bg-primary/[0.07] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_35%,transparent)]"
+          : "border-border bg-muted/20 hover:border-muted-foreground/30 hover:bg-muted/40"
       )}
     >
       <span
         className={cn(
-          "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-          selected ? "border-primary" : "border-muted-foreground/40"
+          "flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+          selected ? "border-primary" : "border-muted-foreground/40 group-hover:border-muted-foreground/60"
         )}
         aria-hidden
       >
         {selected ? (
-          <span className="size-2.5 rounded-full bg-primary" />
+          <span className="size-3 rounded-full bg-primary" />
         ) : null}
       </span>
       <span
         className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors",
+          "flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors sm:size-12",
           selected
             ? "bg-primary/15 text-primary"
-            : "bg-muted text-muted-foreground"
+            : "bg-muted text-foreground/80"
         )}
       >
         {icon}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="type-label text-foreground">{title}</span>
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="type-body font-semibold text-foreground">{title}</span>
           {recommended ? (
-            <span className="rounded-md bg-primary/15 px-1.5 py-0.5 type-meta font-medium text-primary">
+            <span className="rounded-md bg-primary/15 px-2 py-0.5 type-meta font-medium text-primary">
               Recommended
             </span>
           ) : null}
