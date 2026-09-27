@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlertCircle,
   Building2,
   ChevronDown,
   ChevronRight,
@@ -14,15 +16,17 @@ import type {
   OrganizationHierarchyNodeDto,
   OrgUnitSelectionInput,
 } from "@repo/api";
-import { useOrgHierarchy } from "@repo/workforce-ui";
+import { OrgTypeIcon, useOrgHierarchy } from "@repo/workforce-ui";
 import { Checkbox } from "@repo/ds/components/ui/checkbox";
 import { Switch } from "@repo/ds/components/ui/switch";
 import { Input } from "@repo/ds/components/ui/input";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
+import { formatDate } from "@/features/performance/lib";
 import { computeOrgStates } from "./population-model";
 
 const APPLY_DEBOUNCE_MS = 250;
+const INDENT = 26;
 
 /**
  * The inline organization-scope picker: a live tree on the left, the resolved selection on the
@@ -44,6 +48,9 @@ export function OrgScopePicker({
 }) {
   const hierarchy = useOrgHierarchy(true, asOf);
   const roots = useMemo(() => hierarchy.data?.roots ?? [], [hierarchy.data]);
+  // An empty tree on the cycle date may only mean the structure takes effect later; check today's.
+  const current = useOrgHierarchy(hierarchy.data !== undefined && roots.length === 0);
+  const startsOn = useMemo(() => earliestEffectiveFrom(current.data?.roots ?? []), [current.data]);
 
   // Local working copy for instant feedback; seeded once (this surface is remounted whenever the
   // mode toggles away and back, which re-reads the authoritative selection from props).
@@ -164,52 +171,69 @@ export function OrgScopePicker({
       <li key={node.unit.id}>
         <div
           className={cn(
-            "group flex items-center gap-2 rounded-lg py-1.5 pr-2 transition-colors",
-            state?.inherited ? "opacity-70" : "hover:bg-muted/50"
+            "group relative flex items-center rounded-object py-1.5 pr-3 transition-colors",
+            state?.inherited ? "" : "hover:bg-muted/50",
+            state?.selected && "bg-primary/10 ring-1 ring-primary/30"
           )}
-          style={{ paddingLeft: `${depth * 1.25 + 0.25}rem` }}
+          style={{ paddingLeft: depth * INDENT + 4 }}
         >
-          {hasChildren ? (
-            <button
-              type="button"
-              onClick={() => toggleCollapse(node.unit.id)}
-              className="flex size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-              aria-label={
-                isCollapsed
-                  ? `Expand ${node.unit.name}`
-                  : `Collapse ${node.unit.name}`
-              }
-              aria-expanded={!isCollapsed}
-            >
-              {isCollapsed ? (
-                <ChevronRight className="size-4" />
-              ) : (
-                <ChevronDown className="size-4" />
-              )}
-            </button>
-          ) : (
-            <span className="size-5 shrink-0" aria-hidden />
-          )}
+          <Guides depth={depth} />
+          <span className="grid size-6 shrink-0 place-items-center">
+            {hasChildren ? (
+              <button
+                type="button"
+                onClick={() => toggleCollapse(node.unit.id)}
+                className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label={
+                  isCollapsed
+                    ? `Expand ${node.unit.name}`
+                    : `Collapse ${node.unit.name}`
+                }
+                aria-expanded={!isCollapsed}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="size-4" />
+                ) : (
+                  <ChevronDown className="size-4" />
+                )}
+              </button>
+            ) : null}
+          </span>
 
           <label
             className={cn(
-              "flex min-w-0 flex-1 items-center gap-2.5",
+              "flex min-w-0 flex-1 items-center",
               state?.inherited ? "cursor-default" : "cursor-pointer"
             )}
           >
             <Checkbox
+              className="ml-1.5"
               checked={checked}
               disabled={state?.inherited}
               onCheckedChange={() => toggleUnit(node.unit.id)}
               aria-label={node.unit.name}
             />
             <span
+              aria-hidden
               className={cn(
-                "type-body truncate",
-                covered ? "text-foreground" : "text-muted-foreground"
+                "mx-2.5 grid size-8 shrink-0 place-items-center rounded-lg",
+                covered ? "bg-primary/12 text-primary" : "bg-muted text-foreground/80"
               )}
             >
-              {node.unit.name}
+              <OrgTypeIcon typeName={node.unit.typeName} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span
+                className={cn(
+                  "block truncate type-body font-medium",
+                  covered ? "text-foreground" : "text-foreground/85"
+                )}
+              >
+                {node.unit.name}
+              </span>
+              <span className="block truncate type-meta text-muted-foreground">
+                {[node.unit.typeName, node.unit.code].filter(Boolean).join(" • ")}
+              </span>
             </span>
           </label>
 
@@ -221,7 +245,7 @@ export function OrgScopePicker({
             <label className="flex shrink-0 cursor-pointer items-center gap-2 pl-2">
               <span
                 className={cn(
-                  "type-meta",
+                  "hidden type-meta sm:inline",
                   state.includeDescendants
                     ? "text-primary"
                     : "text-muted-foreground"
@@ -250,7 +274,7 @@ export function OrgScopePicker({
   return (
     <div className="mt-4 grid gap-4 lg:grid-cols-2">
       {/* Left — the org tree */}
-      <div className="flex h-[22rem] flex-col overflow-hidden rounded-xl border border-border bg-background">
+      <div className="flex h-[26rem] flex-col overflow-hidden rounded-xl border border-border bg-background">
         <div className="border-b border-border px-4 pb-3 pt-4">
           <p className="type-label text-foreground">Organization units</p>
           <div className="relative mt-2.5">
@@ -268,14 +292,16 @@ export function OrgScopePicker({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-          {hierarchy.isLoading ? (
+          {hierarchy.isLoading || (roots.length === 0 && current.isLoading) ? (
             <div className="space-y-2 px-2 py-1">
               {Array.from({ length: 6 }).map((_, index) => (
                 <Skeleton key={index} className="h-8 w-full" />
               ))}
             </div>
+          ) : hierarchy.error ? (
+            <TreeError onRetry={() => void hierarchy.refetch()} />
           ) : roots.length === 0 ? (
-            <EmptyTree />
+            <EmptyTree asOf={asOf} startsOn={startsOn} />
           ) : visibleIds && visibleIds.size === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
               <Search className="size-5 text-muted-foreground" aria-hidden />
@@ -290,7 +316,7 @@ export function OrgScopePicker({
       </div>
 
       {/* Right — the resolved selection */}
-      <div className="flex h-[22rem] flex-col rounded-xl border border-border bg-background p-4">
+      <div className="flex h-[26rem] flex-col rounded-xl border border-border bg-background p-4">
         <div className="flex items-baseline justify-between gap-3">
           <p className="type-label text-foreground">Selected scope</p>
           <p className="type-meta text-muted-foreground">
@@ -375,15 +401,83 @@ export function OrgScopePicker({
   );
 }
 
-function EmptyTree() {
+/** Quiet connector lines: one vertical per ancestor level and an elbow into the row. */
+function Guides({ depth }: { depth: number }) {
+  if (depth === 0) return null;
+  return (
+    <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0">
+      {Array.from({ length: depth }, (_, level) => (
+        <span
+          key={level}
+          className="absolute inset-y-0 border-l border-border"
+          style={{ left: level * INDENT + 4 + 11 }}
+        />
+      ))}
+      <span
+        className="absolute top-1/2 w-3 border-t border-border"
+        style={{ left: (depth - 1) * INDENT + 4 + 11 }}
+      />
+    </span>
+  );
+}
+
+function EmptyTree({ asOf, startsOn }: { asOf: string; startsOn: string | null }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
       <Building2 className="size-6 text-muted-foreground" aria-hidden />
-      <p className="type-body-secondary text-muted-foreground">
-        No organization units exist yet.
-      </p>
+      {startsOn ? (
+        <>
+          <p className="type-label text-foreground">
+            Your organization structure starts on {formatDate(startsOn)}
+          </p>
+          <p className="type-body-secondary max-w-xs text-muted-foreground">
+            This cycle starts on {formatDate(asOf)}, before any units exist.
+          </p>
+          <Link
+            href="/cycle/setup/details"
+            className="type-label mt-1 text-primary underline-offset-4 hover:underline"
+          >
+            Change cycle dates
+          </Link>
+        </>
+      ) : (
+        <p className="type-body-secondary text-muted-foreground">
+          No organization units exist yet.
+        </p>
+      )}
     </div>
   );
+}
+
+function TreeError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
+      <AlertCircle className="size-6 text-destructive" aria-hidden />
+      <p className="type-body-secondary text-muted-foreground">
+        Couldn&rsquo;t load organization units.
+      </p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="type-label text-primary underline-offset-4 hover:underline"
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
+function earliestEffectiveFrom(nodes: OrganizationHierarchyNodeDto[]): string | null {
+  let min: string | null = null;
+  const walk = (list: OrganizationHierarchyNodeDto[]) => {
+    for (const node of list) {
+      const from = node.unit.effectiveFrom;
+      if (from && (min === null || from < min)) min = from;
+      walk(node.children);
+    }
+  };
+  walk(nodes);
+  return min;
 }
 
 /**
