@@ -23,7 +23,7 @@ export function CycleSetupStepper({
   state: Record<SetupStep, StepView>;
 }) {
   return (
-    <ol className="flex items-start">
+    <ol className="mx-auto flex max-w-5xl items-start">
       {SETUP_STEPS.map((step, index) => {
         const view = state[step.key];
         const isCurrent = step.key === current;
@@ -46,8 +46,8 @@ export function CycleSetupStepper({
         );
 
         return (
-          <li key={step.key} className={cn("flex flex-col", isLast ? "shrink-0" : "flex-1")}>
-            <div className="flex items-center">
+          <li key={step.key} className="relative flex flex-1 flex-col items-center text-center">
+            <div className="relative z-10 flex items-center">
               {navigable ? (
                 <Link
                   href={setupStepHref(step.key)}
@@ -59,38 +59,27 @@ export function CycleSetupStepper({
               ) : (
                 node
               )}
-              {!isLast ? (
-                <span
-                  className={cn(
-                    "mx-3 h-0.5 flex-1 rounded-full transition-colors",
-                    view.complete ? "bg-primary" : "bg-border",
-                  )}
-                  aria-hidden
-                />
-              ) : null}
             </div>
+            {!isLast ? (
+              // Connector: from just past this node's centre to just before the next one's.
+              <span
+                className={cn(
+                  "absolute top-[17px] left-[calc(50%+30px)] right-[calc(-50%+30px)] h-0.5 rounded-full transition-colors",
+                  view.complete ? "bg-primary" : "bg-border",
+                )}
+                aria-hidden
+              />
+            ) : null}
             <div className="mt-3" aria-current={isCurrent ? "step" : undefined}>
               <div
                 className={cn(
-                  // step 1: aligned under its circle (as-is). step 2: centered on its circle.
-                  // last step: text ends at the right edge of the stepper.
-                  index === 1
-                    ? "ml-[18px] w-max -translate-x-1/2 text-center"
-                    : isLast
-                      ? "ml-9 w-max -translate-x-full text-right"
-                      : "pr-6 text-left",
+                  "type-label",
+                  isCurrent || view.complete ? "text-foreground" : "text-muted-foreground",
                 )}
               >
-                <div
-                  className={cn(
-                    "type-label",
-                    isCurrent || view.complete ? "text-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  {step.label}
-                </div>
-                <div className="type-meta mt-0.5 text-muted-foreground">{step.caption}</div>
+                {step.label}
               </div>
+              <div className="type-meta mt-0.5 text-muted-foreground">{step.caption}</div>
             </div>
           </li>
         );
