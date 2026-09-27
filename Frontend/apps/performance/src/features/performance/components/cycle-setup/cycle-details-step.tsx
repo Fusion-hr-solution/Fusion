@@ -236,6 +236,8 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
                     <Calendar
                       mode="range"
                       autoFocus
+                      fixedWeeks
+                      showOutsideDays
                       numberOfMonths={2}
                       defaultMonth={fromISODate(startDate)}
                       selected={{ from: fromISODate(startDate), to: fromISODate(endDate) }}
@@ -260,6 +262,8 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
                     <Calendar
                       mode="single"
                       autoFocus
+                      fixedWeeks
+                      showOutsideDays
                       selected={fromISODate(planningDeadline)}
                       defaultMonth={fromISODate(planningDeadline) ?? fromISODate(startDate)}
                       disabled={deadlineDisabled.length > 0 ? deadlineDisabled : undefined}
