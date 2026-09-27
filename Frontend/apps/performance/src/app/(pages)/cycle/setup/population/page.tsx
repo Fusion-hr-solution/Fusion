@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { PageSkeleton } from "@repo/ds/shell";
+import { PopulationStepSkeleton } from "@/features/performance/components/cycle-setup/setup-skeletons";
 import { useCurrentCycle } from "@/features/performance/api/use-performance";
 import { PopulationStep } from "@/features/performance/components/cycle-setup/population-step";
 import { canAccessStep, deriveSetupState } from "@/features/performance/components/cycle-setup/setup-readiness";
@@ -18,6 +18,6 @@ export default function CycleSetupPopulationPage() {
     if (!detail.isLoading && !allowed) router.replace("/cycle/setup/details");
   }, [detail.isLoading, allowed, router]);
 
-  if (!detail.data || !allowed) return <PageSkeleton rows={4} label="Loading population" />;
+  if (!detail.data || !allowed) return <PopulationStepSkeleton />;
   return <PopulationStep cycleId={detail.data.cycle.id} />;
 }

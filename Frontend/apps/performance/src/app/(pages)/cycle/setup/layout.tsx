@@ -4,7 +4,8 @@ import { useCallback, useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Save } from "lucide-react";
 import { Button } from "@repo/ds/components/ui/button";
-import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
+import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
+import { SetupShellSkeleton } from "@/features/performance/components/cycle-setup/setup-skeletons";
 import { useCurrentCycle, usePerformanceAccess } from "@/features/performance/api/use-performance";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { CycleSetupStepper } from "@/features/performance/components/cycle-setup/cycle-setup-stepper";
@@ -44,7 +45,7 @@ export default function CycleSetupLayout({ children }: { children: ReactNode }) 
 
   const fallbackExit = useCallback(() => router.push("/performance"), [router]);
 
-  if (access.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
+  if (access.isLoading) return <SetupShellSkeleton step={currentStep(pathname)} label="Loading Performance" />;
   if (!canAdminister) {
     return (
       <PagePermissionNotice
@@ -53,11 +54,11 @@ export default function CycleSetupLayout({ children }: { children: ReactNode }) 
       />
     );
   }
-  if (detail.isLoading) return <PageSkeleton rows={4} label="Loading Cycle setup" />;
+  if (detail.isLoading) return <SetupShellSkeleton step={currentStep(pathname)} />;
   if (detail.error) {
     return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject="The Cycle" />;
   }
-  if (establishedCycle) return <PageSkeleton rows={4} label="Opening Cycle" />;
+  if (establishedCycle) return <SetupShellSkeleton step={currentStep(pathname)} label="Opening Cycle" />;
 
   const setup = deriveSetupState(detail.data);
   const active = currentStep(pathname);

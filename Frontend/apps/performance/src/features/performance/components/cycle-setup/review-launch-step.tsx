@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CycleDetailDto, OrganizationHierarchyNodeDto } from "@repo/api";
-import { PageSkeleton } from "@repo/ds/shell";
+import { ReviewBodySkeleton } from "./setup-skeletons";
 import { useOrgHierarchy } from "@repo/workforce-ui";
 import { useActivateCycle, usePopulation, useSettings } from "@/features/performance/api/use-performance";
 import { ActivationReview } from "@/features/performance/components/activation-review";
@@ -73,7 +73,7 @@ export function ReviewLaunchStep({ detail }: { detail: CycleDetailDto }) {
           </div>
         </div>
       ) : (
-        <PageSkeleton rows={4} label="Loading review" />
+        <ReviewBodySkeleton />
       )}
 
       <ActivationReview

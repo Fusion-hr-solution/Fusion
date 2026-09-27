@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
+import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
+import { CycleSurfaceSkeleton } from "@/features/performance/components/cycle-setup/setup-skeletons";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { useCurrentCycle, usePerformanceAccess } from "@/features/performance/api/use-performance";
 import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
@@ -32,7 +33,7 @@ export default function CyclePage() {
     if (noCycle) router.replace("/");
   }, [noCycle, router]);
 
-  if (access.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
+  if (access.isLoading) return <CycleSurfaceSkeleton />;
   if (!canAdminister) {
     return (
       <PagePermissionNotice
@@ -41,11 +42,11 @@ export default function CyclePage() {
       />
     );
   }
-  if (detail.isLoading) return <PageSkeleton rows={4} label="Loading Cycle" />;
+  if (detail.isLoading) return <CycleSurfaceSkeleton />;
   if (detail.error) {
     return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject="The Cycle" />;
   }
-  if (!detail.data || isDraft) return <PageSkeleton rows={4} label="Loading Cycle" />;
+  if (!detail.data || isDraft) return <CycleSurfaceSkeleton />;
 
   const cycleDetail = detail.data;
   const isActive = cycleDetail.cycle.state === "Active";

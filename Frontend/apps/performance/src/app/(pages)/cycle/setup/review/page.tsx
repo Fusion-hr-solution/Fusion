@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { PageSkeleton } from "@repo/ds/shell";
+import { ReviewStepSkeleton } from "@/features/performance/components/cycle-setup/setup-skeletons";
 import { useCurrentCycle } from "@/features/performance/api/use-performance";
 import { ReviewLaunchStep } from "@/features/performance/components/cycle-setup/review-launch-step";
 import {
@@ -23,6 +23,6 @@ export default function CycleSetupReviewPage() {
     if (!detail.isLoading && !allowed) router.replace(setupStepHref(earliestIncompleteStep(setup)));
   }, [detail.isLoading, allowed, setup, router]);
 
-  if (!detail.data || !allowed) return <PageSkeleton rows={4} label="Loading review" />;
+  if (!detail.data || !allowed) return <ReviewStepSkeleton />;
   return <ReviewLaunchStep detail={detail.data} />;
 }

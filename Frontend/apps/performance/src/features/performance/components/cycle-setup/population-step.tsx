@@ -11,7 +11,7 @@ import type {
   SetPopulationRequest,
 } from "@repo/api";
 import { AsyncButton } from "@repo/ds/shell";
-import { PageSkeleton } from "@repo/ds/shell";
+import { PopulationStepSkeleton } from "./setup-skeletons";
 import {
   usePopulation,
   usePopulationMutations,
@@ -211,7 +211,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
     );
   }
   if (population.isLoading || !data || !selection) {
-    return <PageSkeleton rows={4} label="Resolving population" />;
+    return <PopulationStepSkeleton />;
   }
 
   const isConfirmed = selection.isConfirmed;
