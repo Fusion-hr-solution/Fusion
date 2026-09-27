@@ -2,114 +2,165 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { CalendarRange, CircleCheck, Pencil, SlidersHorizontal, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarClock,
+  CalendarDays,
+  CalendarRange,
+  ChartColumnBig,
+  Check,
+  CircleMinus,
+  FileText,
+  Layers,
+  Network,
+  Target,
+  Unlink,
+  Users,
+} from "lucide-react";
 import type { CycleDetailDto, CycleSettingsDto, PopulationDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";
 import { formatDate, MEASUREMENT_LABELS } from "../../../lib";
 
 /**
- * The three settled facts of the Cycle, laid out as calm read-only records the admin confirms
- * before committing. Each card names what it captures, marks itself settled, and offers one route
- * back to its own setup step — no re-editing in place, no restating what the values already say.
+ * The three settled decisions of the Cycle — details, population, policy — gathered into one
+ * summary the admin confirms before launch. Each block states its facts at a glance and offers a
+ * single route back to the step that owns them; nothing is re-edited in place.
  */
 
-function CompleteBadge({ children = "Complete" }: { children?: ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-xs font-medium text-success">
-      <CircleCheck className="size-3" aria-hidden />
-      {children}
-    </span>
-  );
-}
+type Icon = typeof Users;
 
-function SummaryCard({
-  icon: Icon,
-  title,
-  badge,
-  editHref,
-  editLabel,
-  children,
-}: {
-  icon: typeof Users;
-  title: string;
-  badge: ReactNode;
-  editHref?: string;
-  editLabel?: string;
-  children: ReactNode;
-}) {
+export function CycleSetupSummary({ children }: { children: ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-card">
-      <header className="flex items-center gap-3 border-b border-border/70 px-5 py-4 sm:px-6">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-success/12 text-success">
-          <Icon className="size-4.5" aria-hidden />
-        </span>
-        <h2 className="type-panel-title text-foreground">{title}</h2>
-        {badge}
-        {editHref ? (
-          <Button variant="ghost" size="sm" asChild className="ml-auto -my-1">
-            <Link href={editHref} aria-label={editLabel ?? `Edit ${title.toLowerCase()}`}>
-              <Pencil className="size-3.5" data-icon="inline-start" />
-              Edit
-            </Link>
-          </Button>
-        ) : null}
-      </header>
-      <dl className="px-5 sm:px-6">{children}</dl>
+    <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
+      <h2 className="type-page-title text-foreground">Cycle setup summary</h2>
+      <p className="mt-1 type-body-secondary text-muted-foreground">
+        Review the key details for this cycle. You can go back to make changes if needed.
+      </p>
+      <div className="mt-5 space-y-4">{children}</div>
     </section>
   );
 }
 
-function Row({
-  label,
+function SummaryBlock({
+  icon: Icon,
+  title,
+  caption,
+  editHref,
   children,
-  align = "top",
 }: {
-  label: string;
+  icon: Icon;
+  title: string;
+  caption: string;
+  editHref: string;
   children: ReactNode;
-  align?: "top" | "center";
 }) {
   return (
-    <div
-      className={cn(
-        "grid grid-cols-1 gap-x-6 gap-y-1 border-b border-border/50 py-3.5 last:border-0 sm:grid-cols-[minmax(0,10.5rem)_minmax(0,1fr)]",
-        align === "center" ? "sm:items-center" : "sm:items-baseline"
-      )}
-    >
-      <dt className="type-body-secondary text-muted-foreground">{label}</dt>
-      <dd className="type-body-secondary text-foreground">{children}</dd>
+    <section className="@container rounded-xl border border-border bg-muted/20 p-4 sm:p-5">
+      <header className="flex items-start gap-3 sm:gap-4">
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-success/15 text-success sm:size-12">
+          <Icon className="size-5" strokeWidth={1.75} aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1 self-center sm:self-auto sm:pt-0.5">
+          <h3 className="type-section-title text-foreground">{title}</h3>
+          <p className="hidden type-meta text-muted-foreground sm:block">{caption}</p>
+        </div>
+        <Button variant="outline" size="sm" asChild className="shrink-0">
+          <Link href={editHref} aria-label={`Edit ${title.toLowerCase()}`}>
+            Edit
+          </Link>
+        </Button>
+      </header>
+      <div className="mt-4 border-t border-border/70 pt-4">{children}</div>
+    </section>
+  );
+}
+
+/** A row of labelled facts; vertical rules separate them once they sit side by side. */
+function Facts({ className, children }: { className: string; children: ReactNode }) {
+  return <dl className={cn("grid gap-4 divide-border", className)}>{children}</dl>;
+}
+
+function Fact({
+  icon: Icon,
+  label,
+  children,
+}: {
+  icon: Icon;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 items-start gap-3 [&:not(:first-child)]:pl-[var(--fact-gap,0px)]">
+      <Icon className="mt-0.5 size-5 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden />
+      <div className="min-w-0">
+        <dt className="type-meta text-muted-foreground">{label}</dt>
+        <dd className="mt-0.5 type-body font-semibold text-foreground">{children}</dd>
+      </div>
     </div>
   );
 }
 
-export function CycleDetailsCard({ detail }: { detail: CycleDetailDto }) {
+/* Facts sit side by side, ruled apart, once their block (not the viewport) has room for them. */
+const ROW_3 =
+  "@sm:grid-cols-2 @xl:grid-cols-[minmax(0,1fr)_auto_auto] @xl:divide-x @xl:[--fact-gap:1.25rem]";
+const ROW_2 = "@sm:grid-cols-2 @sm:divide-x @sm:[--fact-gap:1.25rem]";
+const ROW_4 = "@sm:grid-cols-2 @2xl:grid-cols-4 @2xl:divide-x @2xl:[--fact-gap:1.25rem]";
+
+export function CycleDetailsBlock({ detail }: { detail: CycleDetailDto }) {
   const c = detail.cycle;
   return (
-    <SummaryCard
-      icon={CalendarRange}
+    <SummaryBlock
+      icon={FileText}
       title="Cycle details"
-      badge={<CompleteBadge />}
+      caption="Basic information and timeline for this cycle."
       editHref="/cycle/setup/details"
     >
-      <Row label="Name">
-        <span className="font-medium text-foreground">{c.name}</span>
-      </Row>
-      <Row label="Description">
-        {c.description ? c.description : <span className="text-muted-foreground">Not set</span>}
-      </Row>
-      <Row label="Performance period">
-        <span className="tabular-nums">
-          {formatDate(c.startDate)} – {formatDate(c.endDate)}
-        </span>
-      </Row>
-      <Row label="Planning deadline">
-        <span className="tabular-nums">{formatDate(c.planningDeadline)}</span>
-      </Row>
-    </SummaryCard>
+      <Facts className={ROW_3}>
+        <Fact icon={FileText} label="Cycle name">
+          <span className="break-words">{c.name}</span>
+        </Fact>
+        <Fact icon={CalendarRange} label="Performance period">
+          <span className="tabular-nums @xl:whitespace-nowrap">
+            {formatDate(c.startDate)} – {formatDate(c.endDate)}
+          </span>
+        </Fact>
+        <Fact icon={CalendarClock} label="Planning deadline">
+          <span className="tabular-nums @xl:whitespace-nowrap">{formatDate(c.planningDeadline)}</span>
+        </Fact>
+      </Facts>
+      {c.description ? (
+        <p className="mt-4 line-clamp-3 border-t border-border/50 pt-3 type-body-secondary text-muted-foreground">
+          {c.description}
+        </p>
+      ) : null}
+    </SummaryBlock>
   );
 }
 
-export function PopulationCard({
+function Stat({
+  icon,
+  value,
+  label,
+}: {
+  icon: ReactNode;
+  value: ReactNode;
+  label: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-3 px-4 py-3 sm:px-5">
+      {icon}
+      <div className="min-w-0">
+        <div className="type-body font-semibold tabular-nums text-foreground">{value}</div>
+        <div className="type-meta text-muted-foreground">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+
+export function PopulationBlock({
   detail,
   population,
   unitNames,
@@ -125,99 +176,99 @@ export function PopulationCard({
   const required = population.reviewerRequiredCount;
   const ready = population.reviewerReadyCount;
   const fullCoverage = required === 0 || ready >= required;
+  const excluded = sel.exclusions.length;
+  const included = sel.inclusions.length;
+  const units = unitNames?.length ? unitNames.join(", ") : null;
 
   return (
-    <SummaryCard
+    <SummaryBlock
       icon={Users}
       title="Population"
-      badge={<CompleteBadge>Confirmed</CompleteBadge>}
+      caption="Who will be included in this cycle."
       editHref="/cycle/setup/population"
     >
-      <Row label="Scope">
-        {byScope ? "Selected organization units" : "All active employees"}
-      </Row>
-      <Row label="Eligibility date">
-        <span className="tabular-nums">{formatDate(sel.eligibilityDate)}</span>
-      </Row>
-      {byScope ? (
-        <Row label="Organization units">
-          {unitNames && unitNames.length > 0 ? (
-            <span>
-              {unitNames.join(", ")}
-              {includeDescendants ? (
-                <span className="mt-0.5 block type-meta text-muted-foreground">
-                  Including all sub-units
-                </span>
-              ) : null}
+      <Facts className={ROW_2}>
+        <Fact icon={Network} label="Scope">
+          {byScope ? "Selected organization units" : "All active employees"}
+          {byScope ? (
+            <span className="mt-0.5 block truncate type-meta font-normal text-muted-foreground" title={units ?? undefined}>
+              {units ??
+                `${sel.orgUnitSelections.length} ${plural(sel.orgUnitSelections.length, "unit", "units")}`}
+              {includeDescendants ? " · including sub-units" : null}
+            </span>
+          ) : null}
+        </Fact>
+        <Fact icon={CalendarDays} label="Eligibility date">
+          <span className="tabular-nums">{formatDate(sel.eligibilityDate)}</span>
+        </Fact>
+      </Facts>
+
+      <div className="mt-4 grid divide-y divide-border rounded-xl border border-border bg-background/40 @xl:grid-cols-[auto_auto_minmax(0,1fr)] @xl:divide-x @xl:divide-y-0">
+        <Stat
+          icon={<Users className="size-5 shrink-0 text-success" strokeWidth={1.75} aria-hidden />}
+          value={detail.confirmedParticipantCount}
+          label={
+            <>
+              confirmed {plural(detail.confirmedParticipantCount, "participant", "participants")}
+              {included > 0 ? ` · ${included} added individually` : null}
+            </>
+          }
+        />
+        <Stat
+          icon={<CircleMinus className="size-5 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden />}
+          value={excluded}
+          label={`excluded ${plural(excluded, "person", "people")}`}
+        />
+        <div className="flex min-w-0 items-center gap-3 px-4 py-3 sm:px-5">
+          {fullCoverage ? (
+            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-success text-background">
+              <Check className="size-3.5" strokeWidth={3} aria-hidden />
             </span>
           ) : (
-            <span className="tabular-nums">
-              {sel.orgUnitSelections.length}{" "}
-              {sel.orgUnitSelections.length === 1 ? "unit" : "units"}
-            </span>
+            <AlertTriangle className="size-5 shrink-0 text-warning" strokeWidth={1.75} aria-hidden />
           )}
-        </Row>
-      ) : null}
-      {sel.inclusions.length > 0 ? (
-        <Row label="Added individually">
-          <span className="tabular-nums">
-            {sel.inclusions.length} {sel.inclusions.length === 1 ? "person" : "people"}
-          </span>
-        </Row>
-      ) : null}
-      {sel.exclusions.length > 0 ? (
-        <Row label="Excluded">
-          <span className="tabular-nums">
-            {sel.exclusions.length} {sel.exclusions.length === 1 ? "person" : "people"}
-          </span>
-        </Row>
-      ) : null}
-      <Row label="Confirmed participants" align="center">
-        <span className="text-base font-semibold tabular-nums text-foreground">
-          {detail.confirmedParticipantCount}
-        </span>
-      </Row>
-      <Row label="Reviewer coverage" align="center">
-        {fullCoverage ? (
-          <span className="inline-flex items-center gap-1.5">
-            <CircleCheck className="size-4 text-success" aria-hidden />
-            <span>Every participant has a reviewer</span>
-          </span>
-        ) : (
-          <span className="tabular-nums text-warning">
-            {ready} of {required} assigned
-          </span>
-        )}
-      </Row>
-    </SummaryCard>
+          <div className="min-w-0">
+            <div className="type-meta text-muted-foreground">Reviewer coverage</div>
+            <div className="type-body font-semibold text-foreground">
+              {fullCoverage ? (
+                "Every participant has a reviewer"
+              ) : (
+                <span className="tabular-nums text-warning">
+                  {ready} of {required} assigned
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </SummaryBlock>
   );
 }
 
-export function PolicyCard({ settings }: { settings: CycleSettingsDto }) {
+export function PolicyBlock({ settings }: { settings: CycleSettingsDto }) {
   const { suggestedObjectiveCountMin: min, suggestedObjectiveCountMax: max } = settings;
   const count = min === max ? `${min}` : `${min}–${max}`;
   return (
-    <SummaryCard
-      icon={SlidersHorizontal}
+    <SummaryBlock
+      icon={ChartColumnBig}
       title="Performance policy"
-      badge={
-        <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground">
-          Frozen at launch
-        </span>
-      }
+      caption="How performance will be measured and planned."
+      editHref="/settings"
     >
-      <Row label="Measurement method">
-        {MEASUREMENT_LABELS[settings.defaultMeasurementMethod]}
-      </Row>
-      <Row label="Objectives per plan">
-        <span className="tabular-nums">{count} suggested</span>
-      </Row>
-      <Row label="Standalone objectives">
-        {settings.allowStandaloneObjectives ? "Allowed" : "Must align to direction"}
-      </Row>
-      <Row label="Planning window">
-        <span className="tabular-nums">{settings.planningDeadlineOffsetDays} days</span> from start
-      </Row>
-    </SummaryCard>
+      <Facts className={ROW_4}>
+        <Fact icon={Target} label="Measurement method">
+          {MEASUREMENT_LABELS[settings.defaultMeasurementMethod]}
+        </Fact>
+        <Fact icon={Layers} label="Objectives per plan">
+          <span className="tabular-nums">{count} suggested</span>
+        </Fact>
+        <Fact icon={Unlink} label="Standalone objectives">
+          {settings.allowStandaloneObjectives ? "Allowed" : "Must align to direction"}
+        </Fact>
+        <Fact icon={CalendarClock} label="Planning window">
+          <span className="tabular-nums">{settings.planningDeadlineOffsetDays} days</span> from start
+        </Fact>
+      </Facts>
+    </SummaryBlock>
   );
 }

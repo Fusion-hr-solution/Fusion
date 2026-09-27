@@ -10,7 +10,12 @@ import { ActivationReview } from "@/features/performance/components/activation-r
 import { SetupStepFooter } from "./setup-step-footer";
 import { LaunchHero } from "./review/launch-hero";
 import { LaunchConsequences, LaunchReadinessPanel } from "./review/launch-rail";
-import { CycleDetailsCard, PolicyCard, PopulationCard } from "./review/review-summary";
+import {
+  CycleDetailsBlock,
+  CycleSetupSummary,
+  PolicyBlock,
+  PopulationBlock,
+} from "./review/review-summary";
 
 /**
  * Step 3 — the confirmation-and-launch surface. It brings the three settled decisions (cycle,
@@ -57,17 +62,17 @@ export function ReviewLaunchStep({ detail }: { detail: CycleDetailDto }) {
 
       {population.data && settings.data ? (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] xl:grid-cols-[minmax(0,1fr)_22rem]">
-          <div className="space-y-6">
-            <CycleDetailsCard detail={detail} />
-            <PopulationCard
+          <CycleSetupSummary>
+            <CycleDetailsBlock detail={detail} />
+            <PopulationBlock
               detail={detail}
               population={population.data}
               unitNames={unitNames}
               includeDescendants={includeDescendants}
             />
-            <PolicyCard settings={settings.data} />
-          </div>
-          <div className="space-y-6">
+            <PolicyBlock settings={settings.data} />
+          </CycleSetupSummary>
+          <div className="flex flex-col gap-6">
             <LaunchReadinessPanel detail={detail} population={population.data} />
             <LaunchConsequences />
           </div>
