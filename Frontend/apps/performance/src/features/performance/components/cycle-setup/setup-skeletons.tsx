@@ -1,5 +1,6 @@
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { PageContainer } from "@repo/ds/shell";
+import { cn } from "@repo/ds/lib/utils";
 import type { SetupStep } from "./setup-readiness";
 
 /*
@@ -9,7 +10,7 @@ import type { SetupStep } from "./setup-readiness";
  */
 
 function Card({ className = "", children }: { className?: string; children: React.ReactNode }) {
-  return <div className={`rounded-2xl border border-border bg-card p-6 lg:p-7 ${className}`}>{children}</div>;
+  return <div className={cn("rounded-2xl border border-border bg-card p-6 lg:p-7", className)}>{children}</div>;
 }
 
 function CardHeading() {
@@ -21,11 +22,25 @@ function CardHeading() {
   );
 }
 
-function Field() {
+/** The Details step's card title: icon tile, serif title, caption. */
+function TitleBlock() {
   return (
-    <div className="space-y-1.5">
+    <div className="flex items-center gap-4">
+      <Skeleton className="size-12 shrink-0 rounded-xl" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-6 w-44" />
+        <Skeleton className="h-4 w-64 max-w-full" />
+      </div>
+    </div>
+  );
+}
+
+function Field({ tall = false }: { tall?: boolean }) {
+  return (
+    <div className="space-y-2">
       <Skeleton className="h-4 w-24" />
-      <Skeleton className="h-9 w-full" />
+      <Skeleton className="h-3 w-56 max-w-full" />
+      <Skeleton className={cn("w-full", tall ? "h-16" : "h-11")} />
     </div>
   );
 }
@@ -63,30 +78,40 @@ function HeroSkeleton({ tall = false }: { tall?: boolean }) {
 export function DetailsStepSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <Card>
-          <CardHeading />
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <Card className="lg:p-8">
+          <TitleBlock />
+          <div className="mt-7 space-y-6">
             <Field />
-            <Field />
-            <div className="md:col-span-2">
+            <Field tall />
+          </div>
+          <div className="mt-8 border-t border-border/70 pt-7">
+            <TitleBlock />
+            <div className="mt-6 grid gap-6 sm:grid-cols-2">
+              <Field />
               <Field />
             </div>
-            <Field />
-            <Field />
           </div>
         </Card>
-        <Card className="space-y-4">
-          <Skeleton className="h-5 w-32" />
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <Skeleton className="size-8 rounded-lg" />
-              <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-4 w-28" />
-                <Skeleton className="h-3 w-40" />
-              </div>
+        <Card className="flex flex-col">
+          <TitleBlock />
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-24 rounded-xl" />
+          </div>
+          <div className="mt-6 border-t border-border/70 pt-5">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="mt-6 h-0.5 w-full" />
+            <div className="mt-8 flex justify-between">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-8 w-24" />
             </div>
-          ))}
+          </div>
+          <div className="mt-auto space-y-2.5 border-t border-border/70 pt-5">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-16 rounded-xl" />
+            <Skeleton className="h-16 rounded-xl" />
+          </div>
         </Card>
       </div>
       <Footer />
@@ -182,7 +207,7 @@ export function ReviewStepSkeleton() {
   );
 }
 
-export function SetupStepSkeleton({ step }: { step: SetupStep }) {
+function SetupStepSkeleton({ step }: { step: SetupStep }) {
   if (step === "population") return <PopulationStepSkeleton />;
   if (step === "review") return <ReviewStepSkeleton />;
   return <DetailsStepSkeleton />;

@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@repo/ds/components/ui/
 import { Label } from "@repo/ds/components/ui/label";
 import { AsyncButton } from "@repo/ds/shell";
 import { useCreateCycle, useSettings, useUpdateCycle } from "@/features/performance/api/use-performance";
+import { formatDate } from "@/features/performance/lib";
 import { SetupStepFooter } from "./setup-step-footer";
 import { CycleTimeline } from "./cycle-timeline";
 import { useSetupShell } from "./setup-shell-context";
@@ -28,16 +29,11 @@ function toISODate(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-/** A new Cycle opens on a one-year horizon from today; the planning deadline is the backend's to
- *  derive from tenant policy, so it stays empty until the draft exists. */
 function fromISODate(value: string): Date | undefined {
   return value ? new Date(`${value}T00:00:00`) : undefined;
 }
 
-function formatDay(value: string): string {
-  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-}
-
+/** A new Cycle opens on a one-year horizon from today. */
 function newCycleDefaults(): { startDate: string; endDate: string } {
   const start = new Date();
   const end = new Date(start);
@@ -48,8 +44,8 @@ function newCycleDefaults(): { startDate: string; endDate: string } {
 
 /** Start date + the tenant's planning-deadline offset, clamped to the cycle end. */
 function defaultDeadline(start: string, end: string, offsetDays: number): string {
-  if (!start) return "";
-  const d = new Date(`${start}T00:00:00`);
+  const d = fromISODate(start);
+  if (!d) return "";
   d.setDate(d.getDate() + offsetDays);
   const iso = toISODate(d);
   return end && iso > end ? end : iso;
@@ -229,7 +225,7 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
                 <Popover>
                   <DateTrigger id="cycle-dates" empty={!startDate}>
                     {startDate
-                      ? `${formatDay(startDate)} – ${endDate ? formatDay(endDate) : "…"}`
+                      ? `${formatDate(startDate)} – ${endDate ? formatDate(endDate) : "…"}`
                       : "Pick start and end dates"}
                   </DateTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
@@ -256,7 +252,7 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
               >
                 <Popover open={deadlineOpen} onOpenChange={setDeadlineOpen}>
                   <DateTrigger id="cycle-deadline" empty={!planningDeadline}>
-                    {planningDeadline ? formatDay(planningDeadline) : "Pick a date"}
+                    {planningDeadline ? formatDate(planningDeadline) : "Pick a date"}
                   </DateTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
