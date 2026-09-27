@@ -1,15 +1,14 @@
 import { cn } from "@repo/ds/lib/utils";
 import { formatDate } from "@/features/performance/lib";
 
-function clamp(n: number, lo: number, hi: number) {
-  return Math.min(hi, Math.max(lo, n));
-}
+/** Where the deadline marker may sit, in % of the track — keeps its label clear of start/end. */
+const DEADLINE_MIN = 24;
+const DEADLINE_MAX = 70;
 
 /**
- * A proportional read of the cycle's shape: where the planning deadline falls between start and
- * end. Pure structure — it shows the timeline rather than describing it, and updates live as the
- * dates change. The planning-deadline marker is pinned above the track so its label never collides
- * with the start/end labels, however close the dates sit.
+ * The cycle's shape at a glance: start → planning deadline → end. The deadline is placed in
+ * proportion to the dates, but eased into a readable band so it never crowds the start or end
+ * labels — legibility wins over strict scale. Updates live as the dates change.
  */
 export function CycleTimeline({
   startDate,
@@ -24,37 +23,37 @@ export function CycleTimeline({
   const e = endDate ? Date.parse(endDate) : NaN;
   const d = planningDeadline ? Date.parse(planningDeadline) : NaN;
   const hasRange = !Number.isNaN(s) && !Number.isNaN(e) && e > s;
-  const frac = hasRange && !Number.isNaN(d) ? clamp((d - s) / (e - s), 0, 1) : null;
-  const pct = frac === null ? 0 : frac * 100;
+  const frac = hasRange && !Number.isNaN(d) ? Math.min(1, Math.max(0, (d - s) / (e - s))) : null;
+  const pct = frac === null ? null : DEADLINE_MIN + frac * (DEADLINE_MAX - DEADLINE_MIN);
 
   return (
-    <div className="px-2">
-      <div className="relative h-24 select-none">
-        {/* planning-deadline marker, pinned above the track */}
-        {frac !== null ? (
-          <div className="absolute top-3 flex flex-col items-center" style={{ left: `${pct}%`, transform: "translateX(-50%)" }}>
-            <span className="whitespace-nowrap text-center">
-              <span className="type-label tabular-nums text-foreground">{formatDate(planningDeadline)}</span>
-              <span className="type-meta block text-muted-foreground">Planning deadline</span>
-            </span>
-            <span className="mt-1 h-3.5 w-px bg-border" aria-hidden />
-          </div>
+    <div className="relative h-[7.5rem] select-none px-1.5">
+      <div className="relative h-full">
+        {/* track */}
+        <div
+          className={cn(
+            "absolute inset-x-0 top-[3.25rem] h-0.5 -translate-y-1/2 rounded-full",
+            hasRange ? "bg-primary" : "bg-border",
+          )}
+        />
+
+        {/* planning deadline: label above, dashed tick down to the node */}
+        {pct !== null ? (
+          <>
+            <Tick left={`${pct}%`} className="top-1 h-[3.25rem]" />
+            <Label left={`${pct}%`} className="top-0" date={planningDeadline} label="Planning deadline" />
+            <Node left={`${pct}%`} filled />
+          </>
         ) : null}
 
-        {/* base track */}
-        <div className="absolute inset-x-0 top-[3.75rem] h-0.5 -translate-y-1/2 rounded-full bg-border" />
-        {/* filled to the planning deadline */}
-        {frac !== null ? (
-          <div className="absolute left-0 top-[3.75rem] h-0.5 -translate-y-1/2 rounded-full bg-primary" style={{ width: `${pct}%` }} />
-        ) : null}
+        {/* start: node, dashed tick down, label */}
+        <Node left="0%" filled={hasRange} />
+        <Tick left="0%" className="top-[3.25rem] h-7" />
+        <Label left="0%" className="top-[4.5rem]" date={startDate} label="Cycle starts" />
 
-        <Node left="0%" filled />
-        {frac !== null ? <Node left={`${pct}%`} filled /> : null}
+        {/* end: hollow node, label right-aligned under it */}
         <Node left="100%" ring />
-
-        {/* start / end labels below the track */}
-        <Caption left="0%" transform="translateX(0)" textAlign="text-left" date={startDate} label="Cycle starts" />
-        <Caption left="100%" transform="translateX(-100%)" textAlign="text-right" date={endDate} label="Cycle ends" />
+        <Label left="100%" className="top-[4.5rem]" date={endDate} label="Cycle ends" alignEnd />
       </div>
     </div>
   );
@@ -65,34 +64,48 @@ function Node({ left, filled, ring }: { left: string; filled?: boolean; ring?: b
     <span
       style={{ left }}
       className={cn(
-        "absolute top-[3.75rem] size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full",
+        "absolute top-[3.25rem] z-10 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full",
         filled ? "bg-primary ring-4 ring-primary/15" : "",
         ring ? "border-2 border-primary bg-card" : "",
+        !filled && !ring ? "border-2 border-border bg-card" : "",
       )}
       aria-hidden
     />
   );
 }
 
-function Caption({
+function Tick({ left, className }: { left: string; className: string }) {
+  return (
+    <span
+      style={{ left }}
+      className={cn("absolute w-0 -translate-x-1/2 border-l border-dashed border-primary/60", className)}
+      aria-hidden
+    />
+  );
+}
+
+function Label({
   left,
-  transform,
-  textAlign,
+  className,
   date,
   label,
+  alignEnd,
 }: {
   left: string;
-  transform: string;
-  textAlign: string;
+  className: string;
   date: string;
   label: string;
+  alignEnd?: boolean;
 }) {
   return (
-    <div className={cn("absolute top-[4.5rem] whitespace-nowrap", textAlign)} style={{ left, transform }}>
-      <div className={cn("type-label tabular-nums", date ? "text-foreground" : "text-muted-foreground")}>
+    <div
+      style={{ left, transform: alignEnd ? "translateX(-100%)" : "translateX(0.5rem)" }}
+      className={cn("absolute whitespace-nowrap leading-tight", alignEnd ? "text-right" : "text-left", className)}
+    >
+      <div className={cn("text-[0.8125rem] font-semibold tabular-nums", date ? "text-foreground" : "text-muted-foreground")}>
         {date ? formatDate(date) : "—"}
       </div>
-      <div className="type-meta text-muted-foreground">{label}</div>
+      <div className="mt-0.5 text-xs text-muted-foreground">{label}</div>
     </div>
   );
 }

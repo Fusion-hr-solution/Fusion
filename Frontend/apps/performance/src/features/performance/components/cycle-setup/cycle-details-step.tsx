@@ -1,13 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CalendarDays, FileText, Flag, Gauge, Users } from "lucide-react";
+import { ArrowRight, CalendarDays, ChevronRight, Clock, FileText, Flag, Users } from "lucide-react";
 import { toast } from "sonner";
 import type { CycleDetailDto } from "@repo/api";
 import { Input } from "@repo/ds/components/ui/input";
 import { Textarea } from "@repo/ds/components/ui/textarea";
-import { DatePicker } from "@repo/ds/components/ui/date-picker";
+import { cn } from "@repo/ds/lib/utils";
+import { Calendar } from "@repo/ds/components/ui/calendar";
+import { Button } from "@repo/ds/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@repo/ds/components/ui/popover";
 import { Label } from "@repo/ds/components/ui/label";
 import { AsyncButton } from "@repo/ds/shell";
 import { useCreateCycle, useSettings, useUpdateCycle } from "@/features/performance/api/use-performance";
@@ -27,6 +30,14 @@ function toISODate(date: Date): string {
 
 /** A new Cycle opens on a one-year horizon from today; the planning deadline is the backend's to
  *  derive from tenant policy, so it stays empty until the draft exists. */
+function fromISODate(value: string): Date | undefined {
+  return value ? new Date(`${value}T00:00:00`) : undefined;
+}
+
+function formatDay(value: string): string {
+  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
 function newCycleDefaults(): { startDate: string; endDate: string } {
   const start = new Date();
   const end = new Date(start);
@@ -63,6 +74,7 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
   const [description, setDescription] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [deadlineOpen, setDeadlineOpen] = useState(false);
   const [planningDeadline, setPlanningDeadline] = useState("");
   const [deadlineTouched, setDeadlineTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -156,132 +168,143 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
     return Math.round((d - s) / DAY);
   }, [startDate, planningDeadline]);
 
+  const deadlineDisabled = [
+    ...(startDate ? [{ before: fromISODate(startDate)! }] : []),
+    ...(endDate ? [{ after: fromISODate(endDate)! }] : []),
+  ];
+
   return (
     <div>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* main form card */}
-        <section className="rounded-2xl border border-border bg-card p-6 lg:p-7">
-          <div className="flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <FileText className="size-5" aria-hidden />
-            </span>
-            <h2 className="type-section-title text-foreground">Cycle details</h2>
-          </div>
+        <section className="flex flex-col rounded-2xl border border-border bg-card p-6 lg:p-8">
+          <CardTitle icon={FileText} title="Cycle details" caption="Give your performance cycle a clear name and timeline." />
 
-          <div className="mt-6 grid gap-5 md:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="cycle-name">
-                Cycle name <Required />
-              </Label>
+          <div className="mt-7 space-y-6">
+            <Field
+              htmlFor="cycle-name"
+              label={<>Cycle name <Required /></>}
+              hint="This name will be used across Fusion to identify the cycle."
+            >
               <Input
                 id="cycle-name"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 placeholder="Performance 2026"
+                className="h-11"
                 autoFocus
               />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-baseline justify-between">
-                <Label htmlFor="cycle-description">
-                  Description <span className="text-muted-foreground">(optional)</span>
-                </Label>
+            </Field>
+            <Field
+              htmlFor="cycle-description"
+              label={<>Description <span className="ml-1 font-normal text-muted-foreground">(optional)</span></>}
+              hint="Add a brief description to provide context for this cycle."
+              aside={
                 <span className="type-meta tabular-nums text-muted-foreground">
                   {description.length}/{DESCRIPTION_MAX}
                 </span>
-              </div>
+              }
+            >
               <Textarea
                 id="cycle-description"
                 value={description}
                 maxLength={DESCRIPTION_MAX}
                 onChange={(event) => setDescription(event.target.value)}
-                rows={3}
+                rows={2}
+                className="resize-none"
                 placeholder="What this cycle is for…"
               />
-            </div>
+            </Field>
           </div>
 
-          <div className="mt-8 flex items-center gap-3">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <CalendarDays className="size-5" aria-hidden />
-            </span>
-            <h3 className="type-subsection-title text-foreground">Timeline</h3>
-          </div>
+          <div className="mt-8 border-t border-border/70 pt-7">
+            <CardTitle icon={CalendarDays} title="Timeline" caption="Set the cycle dates and planning deadline." />
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="cycle-start">
-                Start date <Required />
-              </Label>
-              <DatePicker id="cycle-start" value={startDate} onChange={setStartDate} />
+            <div className="mt-6 grid gap-6 sm:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+              <Field
+                htmlFor="cycle-dates"
+                label={<>Cycle dates <Required /></>}
+                hint="The start and end dates for this performance cycle."
+              >
+                <Popover>
+                  <DateTrigger id="cycle-dates" empty={!startDate}>
+                    {startDate
+                      ? `${formatDay(startDate)} – ${endDate ? formatDay(endDate) : "…"}`
+                      : "Pick start and end dates"}
+                  </DateTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="range"
+                      autoFocus
+                      numberOfMonths={2}
+                      defaultMonth={fromISODate(startDate)}
+                      selected={{ from: fromISODate(startDate), to: fromISODate(endDate) }}
+                      onSelect={(range: { from?: Date; to?: Date } | undefined) => {
+                        setStartDate(range?.from ? toISODate(range.from) : "");
+                        setEndDate(range?.to ? toISODate(range.to) : "");
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </Field>
+              <Field
+                htmlFor="cycle-deadline"
+                label={<>Planning deadline <Required /></>}
+                hint="The last day to complete planning."
+              >
+                <Popover open={deadlineOpen} onOpenChange={setDeadlineOpen}>
+                  <DateTrigger id="cycle-deadline" empty={!planningDeadline}>
+                    {planningDeadline ? formatDay(planningDeadline) : "Pick a date"}
+                  </DateTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      autoFocus
+                      selected={fromISODate(planningDeadline)}
+                      defaultMonth={fromISODate(planningDeadline) ?? fromISODate(startDate)}
+                      disabled={deadlineDisabled.length > 0 ? deadlineDisabled : undefined}
+                      onSelect={(date: Date | undefined) => {
+                        if (!date) return;
+                        setDeadlineTouched(true);
+                        setPlanningDeadline(toISODate(date));
+                        setDeadlineOpen(false);
+                      }}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </Field>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="cycle-deadline">
-                Planning deadline <Required />
-              </Label>
-              <DatePicker
-                id="cycle-deadline"
-                value={planningDeadline}
-                min={startDate || undefined}
-                max={endDate || undefined}
-                onChange={(value) => {
-                  setDeadlineTouched(true);
-                  setPlanningDeadline(value);
-                }}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="cycle-end">
-                End date <Required />
-              </Label>
-              <DatePicker id="cycle-end" value={endDate} min={startDate || undefined} onChange={setEndDate} />
-            </div>
-          </div>
 
-          {datesInvalid ? (
-            <p className="mt-3 text-sm text-destructive">The end date must be after the start date.</p>
-          ) : null}
-
-          <div className="mt-7">
-            <CycleTimeline startDate={startDate} endDate={endDate} planningDeadline={planningDeadline} />
+            {datesInvalid ? (
+              <p className="mt-3 text-sm text-destructive">The end date must be after the start date.</p>
+            ) : null}
           </div>
         </section>
 
         {/* live summary aside */}
-        <aside className="rounded-2xl border border-border bg-muted/30 p-6">
-          <div className="flex items-center gap-2.5">
-            <Gauge className="size-4 text-primary" aria-hidden />
-            <h2 className="type-panel-title text-foreground">At a glance</h2>
-          </div>
+        <aside className="flex flex-col rounded-2xl border border-border bg-card p-6 lg:p-7">
+          <CardTitle icon={Clock} title="At a glance" caption="Key details for this performance cycle." compact />
 
-          <div className="mt-5 space-y-5">
-            <div>
-              <p className="type-metric text-foreground">
-                {span ? span.value : "—"}
-                {span ? <span className="ml-1.5 type-body-secondary text-muted-foreground">{span.unit}</span> : null}
-              </p>
-              <p className="type-meta mt-0.5 text-muted-foreground">Cycle length</p>
-            </div>
-            <div>
-              <p className="type-subsection-title text-foreground">
-                {planningWindow !== null ? (
-                  <>
-                    {planningWindow}
-                    <span className="ml-1.5 type-body-secondary text-muted-foreground">
-                      day{planningWindow === 1 ? "" : "s"} to plan
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">Set automatically</span>
-                )}
-              </p>
-              <p className="type-meta mt-0.5 text-muted-foreground">Planning window</p>
-            </div>
+          <div className="mt-6 grid grid-cols-2 gap-3">
+            <Metric value={span ? span.value : "—"} unit={span?.unit} icon={Clock} label="Cycle length" />
+            <Metric
+              value={planningWindow ?? "—"}
+              unit={planningWindow !== null ? "days to plan" : undefined}
+              icon={CalendarDays}
+              label="Planning window"
+            />
           </div>
 
           <div className="mt-6 border-t border-border/70 pt-5">
+            <h3 className="type-panel-title text-foreground">Timeline</h3>
+            <div className="mt-2">
+              <CycleTimeline startDate={startDate} endDate={endDate} planningDeadline={planningDeadline} />
+            </div>
+          </div>
+
+          <div className="mt-auto border-t border-border/70 pt-5">
             <p className="type-eyebrow text-muted-foreground">Up next</p>
-            <ul className="mt-3 space-y-3">
+            <ul className="mt-3 space-y-2.5">
               <UpNext icon={Users} step={2} label="Population" caption="Choose who takes part" />
               <UpNext icon={Flag} step={3} label="Review & launch" caption="Confirm and go live" />
             </ul>
@@ -299,6 +322,102 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
   );
 }
 
+function CardTitle({
+  icon: Icon,
+  title,
+  caption,
+  compact,
+}: {
+  icon: typeof Users;
+  title: string;
+  caption: string;
+  compact?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-4">
+      <span
+        className={cn(
+          "flex shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary ring-1 ring-inset ring-primary/20",
+          compact ? "size-11" : "size-12",
+        )}
+      >
+        <Icon className="size-5" aria-hidden />
+      </span>
+      <div className="min-w-0">
+        <h2 className={cn("text-foreground", compact ? "type-page-title" : "type-display")}>{title}</h2>
+        <p className="type-body-secondary mt-0.5 text-muted-foreground">{caption}</p>
+      </div>
+    </div>
+  );
+}
+
+function Field({
+  htmlFor,
+  label,
+  hint,
+  aside,
+  children,
+}: {
+  htmlFor: string;
+  label: ReactNode;
+  hint: string;
+  aside?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div>
+      <Label htmlFor={htmlFor}>{label}</Label>
+      <div className="mt-1 mb-2.5 flex items-baseline justify-between gap-3">
+        <p className="type-meta text-muted-foreground">{hint}</p>
+        {aside}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function DateTrigger({ id, empty, children }: { id: string; empty: boolean; children: ReactNode }) {
+  return (
+    <PopoverTrigger asChild>
+      <Button
+        id={id}
+        type="button"
+        variant="outline"
+        data-empty={empty}
+        className="h-11 w-full justify-start gap-3 text-left font-normal data-[empty=true]:text-muted-foreground"
+      >
+        <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <span className="flex-1 truncate tabular-nums">{children}</span>
+      </Button>
+    </PopoverTrigger>
+  );
+}
+
+function Metric({
+  value,
+  unit,
+  icon: Icon,
+  label,
+}: {
+  value: ReactNode;
+  unit?: string;
+  icon: typeof Users;
+  label: string;
+}) {
+  return (
+    <div className="min-w-0 rounded-xl border border-border bg-muted/20 px-4 py-3.5">
+      <p className="flex items-baseline gap-1.5 whitespace-nowrap">
+        <span className="type-display tabular-nums text-primary">{value}</span>
+        {unit ? <span className="type-body-secondary text-foreground/80">{unit}</span> : null}
+      </p>
+      <p className="type-meta mt-2 flex items-center gap-1.5 text-muted-foreground">
+        <Icon className="size-3.5" aria-hidden />
+        {label}
+      </p>
+    </div>
+  );
+}
+
 function UpNext({
   icon: Icon,
   step,
@@ -311,16 +430,17 @@ function UpNext({
   caption: string;
 }) {
   return (
-    <li className="flex items-center gap-3">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground">
+    <li className="flex items-center gap-3.5 rounded-xl border border-border bg-muted/20 px-4 py-3">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
         <Icon className="size-4" aria-hidden />
       </span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="type-label text-foreground">
-          <span className="tabular-nums text-muted-foreground">{step}.</span> {label}
+          {step}. {label}
         </p>
         <p className="type-meta text-muted-foreground">{caption}</p>
       </div>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
     </li>
   );
 }
