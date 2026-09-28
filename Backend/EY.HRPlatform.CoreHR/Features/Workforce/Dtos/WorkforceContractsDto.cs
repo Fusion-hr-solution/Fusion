@@ -144,6 +144,21 @@ public sealed record InternalWorkforceAllActiveRequest(
     DateTime AsOf,
     bool IncludeInactive = false);
 
+public sealed record InternalOrgUnitResolveRequest(
+    DateTime AsOf,
+    IReadOnlyList<Guid> OrgUnitIds);
+
+/// <summary>
+/// Effective-dated organizational context for an internal consumer. Ancestors are ordered
+/// root-to-immediate-parent and deliberately use stable ids rather than display-name paths.
+/// </summary>
+public sealed record InternalOrgUnitSnapshotDto(
+    Guid OrgUnitId,
+    string Name,
+    Guid? ParentOrgUnitId,
+    bool IsActive,
+    IReadOnlyList<Guid> AncestorOrgUnitIds);
+
 public sealed record WorkforceOrgUnitSummaryDto(
     Guid Id,
     string StableKey,

@@ -8,6 +8,11 @@ namespace EY.HRPlatform.CoreHR.Features.Workforce.Services;
 
 public interface IInternalWorkforceSnapshotService
 {
+    Task<IReadOnlyList<InternalOrgUnitSnapshotDto>> ResolveOrgUnitsAsync(
+        DateTime asOf,
+        IReadOnlyCollection<Guid> orgUnitIds,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>> ResolveEmployeesAsync(
         DateTime asOf,
         IReadOnlyCollection<Guid> employeeIds,
@@ -36,6 +41,57 @@ public interface IInternalWorkforceSnapshotService
 
 public sealed class InternalWorkforceSnapshotService(CoreHRDbContext dbContext) : IInternalWorkforceSnapshotService
 {
+    public async Task<IReadOnlyList<InternalOrgUnitSnapshotDto>> ResolveOrgUnitsAsync(
+        DateTime asOf,
+        IReadOnlyCollection<Guid> orgUnitIds,
+        CancellationToken cancellationToken)
+    {
+        if (orgUnitIds.Count == 0)
+        {
+            return [];
+        }
+
+        var at = DateOnly.FromDateTime(Normalize(asOf));
+        var states = await dbContext.OrgUnitEffectiveStates
+            .AsNoTracking()
+            .Where(state => state.EffectiveFrom <= at
+                && (state.EffectiveTo == null || at < state.EffectiveTo))
+            .Select(state => new
+            {
+                state.OrgUnitId,
+                state.Name,
+                state.ParentOrgUnitId,
+                state.LifecycleState,
+            })
+            .ToListAsync(cancellationToken);
+
+        var byId = states.ToDictionary(state => state.OrgUnitId);
+        var requested = orgUnitIds.ToHashSet();
+        var result = new List<InternalOrgUnitSnapshotDto>();
+
+        foreach (var state in states.Where(state => requested.Contains(state.OrgUnitId)))
+        {
+            var ancestors = new List<Guid>();
+            var guard = new HashSet<Guid> { state.OrgUnitId };
+            var parentId = state.ParentOrgUnitId;
+            while (parentId is Guid id && guard.Add(id) && byId.TryGetValue(id, out var parent))
+            {
+                ancestors.Add(id);
+                parentId = parent.ParentOrgUnitId;
+            }
+            ancestors.Reverse();
+
+            result.Add(new InternalOrgUnitSnapshotDto(
+                state.OrgUnitId,
+                state.Name,
+                state.ParentOrgUnitId,
+                state.LifecycleState == OrgUnitLifecycleState.Active,
+                ancestors));
+        }
+
+        return result;
+    }
+
     public async Task<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>> ResolveEmployeesAsync(
         DateTime asOf,
         IReadOnlyCollection<Guid> employeeIds,

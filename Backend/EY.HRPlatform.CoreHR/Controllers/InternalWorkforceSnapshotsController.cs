@@ -14,6 +14,20 @@ public sealed class InternalWorkforceSnapshotsController(
     IInternalServiceRequestAuthorizer authorizer,
     IInternalWorkforceSnapshotService workforceSnapshotService) : ControllerBase
 {
+    [HttpPost("org-units/resolve")]
+    public async Task<ActionResult<IReadOnlyList<InternalOrgUnitSnapshotDto>>> ResolveOrgUnits(
+        [FromBody] InternalOrgUnitResolveRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await authorizer.AuthorizeAsync(Request, cancellationToken))
+            return Unauthorized();
+
+        return Ok(await workforceSnapshotService.ResolveOrgUnitsAsync(
+            request.AsOf,
+            request.OrgUnitIds,
+            cancellationToken));
+    }
+
     [HttpPost("resolve")]
     public async Task<ActionResult<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>>> ResolveEmployees(
         [FromBody] InternalWorkforceEmployeeResolveRequest request,

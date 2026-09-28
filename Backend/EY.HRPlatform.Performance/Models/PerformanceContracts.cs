@@ -253,12 +253,12 @@ public sealed record GoalDetailDto(
     bool CanConfigureContribution);
 
 public sealed record CreateOrganizationalObjectiveRequest(
-    Guid OrgUnitId,
+    Guid? OrgUnitId,
     string? OrgUnitName,
     string Title,
     string? Description,
     Guid AccountablePersonId,
-    Guid ParentObjectiveId,
+    Guid? ParentObjectiveId,
     DateOnly? StartDate,
     DateOnly? EndDate,
     ObjectiveProgressSource ProgressSource,
@@ -268,12 +268,27 @@ public sealed record UpdateOrganizationalObjectiveRequest(
     string Title,
     string? Description,
     Guid AccountablePersonId,
+    Guid? ParentObjectiveId,
     DateOnly StartDate,
     DateOnly EndDate,
     ObjectiveProgressSource ProgressSource,
     MeasurementInput? Measurement);
 
-public sealed record AlignObjectiveRequest(Guid ParentObjectiveId);
+public sealed record AlignObjectiveRequest(Guid? ParentObjectiveId);
+
+public sealed record TeamObjectiveWorkspaceItemDto(
+    GoalNodeDto Node,
+    string? Description,
+    AlignmentTargetDto? Parent);
+
+public sealed record TeamObjectiveWorkspaceDto(
+    Guid OrgUnitId,
+    string OrgUnitName,
+    IReadOnlyList<TeamObjectiveWorkspaceItemDto> Objectives,
+    IReadOnlyList<AlignmentTargetDto> AlignmentTargets,
+    IReadOnlyList<PersonRefDto> EligibleOwners,
+    bool CanCreate,
+    bool CanChooseTeam);
 
 public sealed record ContributionInput(Guid ChildObjectiveId, decimal Weight);
 

@@ -21,6 +21,13 @@ public sealed record WorkforceOrgSnapshot(Guid OrgUnitId, string Name);
 
 public sealed record WorkforceManagerSnapshot(Guid EmployeeId, string DisplayName, bool IsActive);
 
+public sealed record WorkforceOrgUnitContext(
+    Guid OrgUnitId,
+    string Name,
+    Guid? ParentOrgUnitId,
+    bool IsActive,
+    IReadOnlyList<Guid> AncestorOrgUnitIds);
+
 // Request bodies sent to Core's internal snapshot endpoints.
 public sealed record WorkforceResolveRequest(DateTime AsOf, IReadOnlyList<Guid> EmployeeIds);
 
@@ -31,3 +38,5 @@ public sealed record WorkforceByScopeRequest(
     bool IncludeInactive = false);
 
 public sealed record WorkforceAllActiveRequest(DateTime AsOf, bool IncludeInactive = false);
+
+public sealed record WorkforceOrgUnitResolveRequest(DateTime AsOf, IReadOnlyList<Guid> OrgUnitIds);

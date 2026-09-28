@@ -37,7 +37,7 @@ public sealed class Objective : PerformanceAggregate
     /// <summary>This objective's weight within its employee plan (employee objectives only); the plan totals 100%.</summary>
     public decimal? PlanWeight { get; private set; }
 
-    /// <summary>The single aligned parent objective (null for strategic; required for organizational; optional for employee).</summary>
+    /// <summary>The single aligned parent objective. Organizational and employee objectives may be standalone.</summary>
     public Guid? ParentObjectiveId { get; private set; }
 
     public DateOnly StartDate { get; private set; }
@@ -182,13 +182,13 @@ public sealed class Objective : PerformanceAggregate
         string title,
         string? description,
         Guid accountablePersonId,
-        Guid parentObjectiveId,
+        Guid? parentObjectiveId,
         DateOnly startDate,
         DateOnly endDate,
         ObjectiveProgressSource progressSource,
         ObjectiveMeasurement? measurement,
-        DateOnly parentStart,
-        DateOnly parentEnd,
+        DateOnly? parentStart,
+        DateOnly? parentEnd,
         DateOnly cycleStart,
         DateOnly cycleEnd)
     {
@@ -197,10 +197,15 @@ public sealed class Objective : PerformanceAggregate
         if (orgUnitId == Guid.Empty) throw new ArgumentException("An organizational objective requires an owning organizational unit.", nameof(orgUnitId));
         if (string.IsNullOrWhiteSpace(title)) throw new ArgumentException("An organizational objective requires a title.", nameof(title));
         if (accountablePersonId == Guid.Empty) throw new ArgumentException("An organizational objective requires an accountable person.", nameof(accountablePersonId));
-        if (parentObjectiveId == Guid.Empty) throw new ArgumentException("An organizational objective must align to a parent objective.", nameof(parentObjectiveId));
+        if (parentObjectiveId == Guid.Empty) parentObjectiveId = null;
 
         ValidateDatesWithin(startDate, endDate, cycleStart, cycleEnd, "the Cycle's dates");
-        ValidateDatesWithin(startDate, endDate, parentStart, parentEnd, "its parent objective's dates");
+        if (parentObjectiveId is not null)
+        {
+            if (parentStart is null || parentEnd is null)
+                throw new ArgumentException("An aligned organizational objective requires its parent's dates.", nameof(parentStart));
+            ValidateDatesWithin(startDate, endDate, parentStart.Value, parentEnd.Value, "its parent objective's dates");
+        }
         RequireProgressSource(progressSource, measurement);
 
         var objective = new Objective
@@ -229,12 +234,13 @@ public sealed class Objective : PerformanceAggregate
         string title,
         string? description,
         Guid accountablePersonId,
+        Guid? parentObjectiveId,
         DateOnly startDate,
         DateOnly endDate,
         ObjectiveProgressSource progressSource,
         ObjectiveMeasurement? measurement,
-        DateOnly parentStart,
-        DateOnly parentEnd,
+        DateOnly? parentStart,
+        DateOnly? parentEnd,
         DateOnly cycleStart,
         DateOnly cycleEnd)
     {
@@ -243,14 +249,21 @@ public sealed class Objective : PerformanceAggregate
             throw new InvalidOperationException("Only a Draft objective can be edited.");
         if (string.IsNullOrWhiteSpace(title)) throw new ArgumentException("An organizational objective requires a title.", nameof(title));
         if (accountablePersonId == Guid.Empty) throw new ArgumentException("An organizational objective requires an accountable person.", nameof(accountablePersonId));
+        if (parentObjectiveId == Guid.Empty) parentObjectiveId = null;
 
         ValidateDatesWithin(startDate, endDate, cycleStart, cycleEnd, "the Cycle's dates");
-        ValidateDatesWithin(startDate, endDate, parentStart, parentEnd, "its parent objective's dates");
+        if (parentObjectiveId is not null)
+        {
+            if (parentStart is null || parentEnd is null)
+                throw new ArgumentException("An aligned organizational objective requires its parent's dates.", nameof(parentStart));
+            ValidateDatesWithin(startDate, endDate, parentStart.Value, parentEnd.Value, "its parent objective's dates");
+        }
         RequireProgressSource(progressSource, measurement);
 
         Title = title.Trim();
         Description = Normalize(description);
         AccountablePersonId = accountablePersonId;
+        ParentObjectiveId = parentObjectiveId;
         StartDate = startDate;
         EndDate = endDate;
 
@@ -277,16 +290,21 @@ public sealed class Objective : PerformanceAggregate
         MarkUpdated();
     }
 
-    /// <summary>Re-aligns to a different parent, preserving the child's own definition (product-spec §10).</summary>
-    public void AlignTo(Guid parentObjectiveId, DateOnly parentStart, DateOnly parentEnd)
+    /// <summary>Sets or clears a Draft objective's parent while preserving its definition.</summary>
+    public void AlignTo(Guid? parentObjectiveId, DateOnly? parentStart, DateOnly? parentEnd)
     {
         RequireOrganizational();
         if (State != ObjectiveLifecycleState.Draft)
             throw new InvalidOperationException("Alignment can only change while the objective is Draft.");
-        if (parentObjectiveId == Guid.Empty) throw new ArgumentException("A parent objective is required.", nameof(parentObjectiveId));
+        if (parentObjectiveId == Guid.Empty) parentObjectiveId = null;
         if (parentObjectiveId == Id) throw new InvalidOperationException("An objective cannot be its own parent.");
 
-        ValidateDatesWithin(StartDate, EndDate, parentStart, parentEnd, "its parent objective's dates");
+        if (parentObjectiveId is not null)
+        {
+            if (parentStart is null || parentEnd is null)
+                throw new ArgumentException("An aligned organizational objective requires its parent's dates.", nameof(parentStart));
+            ValidateDatesWithin(StartDate, EndDate, parentStart.Value, parentEnd.Value, "its parent objective's dates");
+        }
         ParentObjectiveId = parentObjectiveId;
         MarkUpdated();
     }

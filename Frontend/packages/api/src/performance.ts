@@ -2,7 +2,10 @@ import type { ApiClient } from "./types";
 
 // ── Enumerations (mirror the Performance service contracts) ──────────────────
 
-export type MeasurementMethod = "ManualPercentage" | "NumericTarget" | "WeightedMilestones";
+export type MeasurementMethod =
+  | "ManualPercentage"
+  | "NumericTarget"
+  | "WeightedMilestones";
 export type ImprovementDirection = "Increase" | "Decrease";
 export type CycleLifecycleState = "Draft" | "Active" | "Closed";
 export type ObjectiveLifecycleState = "Draft" | "Published";
@@ -11,10 +14,28 @@ export type ObjectiveOwnershipScope = "Company" | "OrgUnit" | "Employee";
 export type ObjectiveProgressSource = "Direct" | "Calculated";
 export type PlanLifecycleState = "Draft" | "Submitted" | "Approved";
 export type PlanApprovalKind = "Normal" | "Exceptional";
-export type PlanDecisionKind = "Submitted" | "Returned" | "Approved" | "ApprovedExceptionally";
-export type RosterPlanStatus = "NotStarted" | "Draft" | "ReturnedForChanges" | "Submitted" | "Approved";
-export type RosterActivityKind = "None" | "DraftUpdated" | "Returned" | "Submitted" | "ProgressUpdated";
-export type ProgressEventKind = "PercentageSet" | "NumericActual" | "MilestoneCompleted" | "MilestoneReopened";
+export type PlanDecisionKind =
+  | "Submitted"
+  | "Returned"
+  | "Approved"
+  | "ApprovedExceptionally";
+export type RosterPlanStatus =
+  | "NotStarted"
+  | "Draft"
+  | "ReturnedForChanges"
+  | "Submitted"
+  | "Approved";
+export type RosterActivityKind =
+  | "None"
+  | "DraftUpdated"
+  | "Returned"
+  | "Submitted"
+  | "ProgressUpdated";
+export type ProgressEventKind =
+  | "PercentageSet"
+  | "NumericActual"
+  | "MilestoneCompleted"
+  | "MilestoneReopened";
 export type EvidenceKind = "File" | "Link" | "Reference";
 export type ReadinessIssueCode =
   | "InactiveEmployment"
@@ -249,12 +270,13 @@ export interface GoalDetailDto {
 }
 
 export interface CreateOrganizationalObjectiveRequest {
-  orgUnitId: string;
+  /** Omitted by managers; administrators provide the team they are acting for. */
+  orgUnitId?: string | null;
   orgUnitName?: string | null;
   title: string;
   description?: string | null;
   accountablePersonId: string;
-  parentObjectiveId: string;
+  parentObjectiveId: string | null;
   startDate?: string | null;
   endDate?: string | null;
   progressSource: ObjectiveProgressSource;
@@ -265,6 +287,7 @@ export interface UpdateOrganizationalObjectiveRequest {
   title: string;
   description?: string | null;
   accountablePersonId: string;
+  parentObjectiveId: string | null;
   startDate: string;
   endDate: string;
   progressSource: ObjectiveProgressSource;
@@ -272,7 +295,23 @@ export interface UpdateOrganizationalObjectiveRequest {
 }
 
 export interface AlignObjectiveRequest {
-  parentObjectiveId: string;
+  parentObjectiveId: string | null;
+}
+
+export interface TeamObjectiveWorkspaceItemDto {
+  node: GoalNodeDto;
+  description: string | null;
+  parent: AlignmentTargetDto | null;
+}
+
+export interface TeamObjectiveWorkspaceDto {
+  orgUnitId: string;
+  orgUnitName: string;
+  objectives: TeamObjectiveWorkspaceItemDto[];
+  alignmentTargets: AlignmentTargetDto[];
+  eligibleOwners: PersonRefDto[];
+  canCreate: boolean;
+  canChooseTeam: boolean;
 }
 
 export interface ContributionInput {
@@ -568,7 +607,11 @@ export interface MeasurementInput {
   target?: number | null;
   unit?: string | null;
   direction?: ImprovementDirection | null;
-  milestones?: Array<{ title: string; weight: number; dueDate?: string | null }> | null;
+  milestones?: Array<{
+    title: string;
+    weight: number;
+    dueDate?: string | null;
+  }> | null;
 }
 
 export interface CreateStrategicObjectiveRequest {
@@ -613,34 +656,55 @@ export const performancePaths = {
   publishStrategy: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/strategy/${objectiveId}/publish`,
   population: (cycleId: string) => `/performance/cycles/${cycleId}/population`,
-  confirmPopulation: (cycleId: string) => `/performance/cycles/${cycleId}/population/confirm`,
+  confirmPopulation: (cycleId: string) =>
+    `/performance/cycles/${cycleId}/population/confirm`,
   goals: (cycleId: string) => `/performance/cycles/${cycleId}/goals`,
-  goal: (cycleId: string, objectiveId: string) => `/performance/cycles/${cycleId}/goals/${objectiveId}`,
-  alignGoal: (cycleId: string, objectiveId: string) => `/performance/cycles/${cycleId}/goals/${objectiveId}/align`,
-  publishGoal: (cycleId: string, objectiveId: string) => `/performance/cycles/${cycleId}/goals/${objectiveId}/publish`,
-  goalContribution: (cycleId: string, objectiveId: string) => `/performance/cycles/${cycleId}/goals/${objectiveId}/contribution`,
+  teamObjectiveWorkspace: (cycleId: string, orgUnitId?: string | null) => {
+    const base = `/performance/cycles/${cycleId}/goals/team-workspace`;
+    return orgUnitId
+      ? `${base}?orgUnitId=${encodeURIComponent(orgUnitId)}`
+      : base;
+  },
+  goal: (cycleId: string, objectiveId: string) =>
+    `/performance/cycles/${cycleId}/goals/${objectiveId}`,
+  alignGoal: (cycleId: string, objectiveId: string) =>
+    `/performance/cycles/${cycleId}/goals/${objectiveId}/align`,
+  publishGoal: (cycleId: string, objectiveId: string) =>
+    `/performance/cycles/${cycleId}/goals/${objectiveId}/publish`,
+  goalContribution: (cycleId: string, objectiveId: string) =>
+    `/performance/cycles/${cycleId}/goals/${objectiveId}/contribution`,
   lockGoalContribution: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/goals/${objectiveId}/contribution/lock`,
   myPlan: (cycleId: string) => `/performance/cycles/${cycleId}/plan`,
-  alignmentTargets: (cycleId: string) => `/performance/cycles/${cycleId}/plan/alignment-targets`,
-  planObjectives: (cycleId: string) => `/performance/cycles/${cycleId}/plan/objectives`,
+  alignmentTargets: (cycleId: string) =>
+    `/performance/cycles/${cycleId}/plan/alignment-targets`,
+  planObjectives: (cycleId: string) =>
+    `/performance/cycles/${cycleId}/plan/objectives`,
   planObjective: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/plan/objectives/${objectiveId}`,
-  planWeights: (cycleId: string) => `/performance/cycles/${cycleId}/plan/weights`,
+  planWeights: (cycleId: string) =>
+    `/performance/cycles/${cycleId}/plan/weights`,
   submitPlan: (cycleId: string) => `/performance/cycles/${cycleId}/plan/submit`,
-  planReviews: (cycleId: string) => `/performance/cycles/${cycleId}/plans/reviews`,
-  teamRoster: (cycleId: string) => `/performance/cycles/${cycleId}/plans/roster`,
-  planDetail: (cycleId: string, planId: string) => `/performance/cycles/${cycleId}/plans/${planId}`,
-  returnPlan: (cycleId: string, planId: string) => `/performance/cycles/${cycleId}/plans/${planId}/return`,
-  approvePlan: (cycleId: string, planId: string) => `/performance/cycles/${cycleId}/plans/${planId}/approve`,
+  planReviews: (cycleId: string) =>
+    `/performance/cycles/${cycleId}/plans/reviews`,
+  teamRoster: (cycleId: string) =>
+    `/performance/cycles/${cycleId}/plans/roster`,
+  planDetail: (cycleId: string, planId: string) =>
+    `/performance/cycles/${cycleId}/plans/${planId}`,
+  returnPlan: (cycleId: string, planId: string) =>
+    `/performance/cycles/${cycleId}/plans/${planId}/return`,
+  approvePlan: (cycleId: string, planId: string) =>
+    `/performance/cycles/${cycleId}/plans/${planId}/approve`,
   exceptionalApprovePlan: (cycleId: string, planId: string) =>
     `/performance/cycles/${cycleId}/plans/${planId}/exceptional-approve`,
   objectiveProgress: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/objectives/${objectiveId}/progress`,
   objectiveProgressHistory: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/objectives/${objectiveId}/progress/history`,
-  evidenceUpload: (cycleId: string) => `/performance/cycles/${cycleId}/evidence/upload`,
-  evidenceDownload: (cycleId: string, evidenceId: string) => `/performance/cycles/${cycleId}/evidence/${evidenceId}`,
+  evidenceUpload: (cycleId: string) =>
+    `/performance/cycles/${cycleId}/evidence/upload`,
+  evidenceDownload: (cycleId: string, evidenceId: string) =>
+    `/performance/cycles/${cycleId}/evidence/${evidenceId}`,
 } as const;
 
 export const performanceQueryKeys = {
@@ -648,17 +712,32 @@ export const performanceQueryKeys = {
   access: () => [...performanceQueryKeys.all(), "access"] as const,
   settings: () => [...performanceQueryKeys.all(), "settings"] as const,
   cycles: () => [...performanceQueryKeys.all(), "cycles"] as const,
-  currentCycle: () => [...performanceQueryKeys.all(), "cycle", "current"] as const,
+  currentCycle: () =>
+    [...performanceQueryKeys.all(), "cycle", "current"] as const,
   cycle: (id: string) => [...performanceQueryKeys.all(), "cycle", id] as const,
-  strategy: (cycleId: string) => [...performanceQueryKeys.all(), "strategy", cycleId] as const,
-  population: (cycleId: string) => [...performanceQueryKeys.all(), "population", cycleId] as const,
-  goals: (cycleId: string) => [...performanceQueryKeys.all(), "goals", cycleId] as const,
+  strategy: (cycleId: string) =>
+    [...performanceQueryKeys.all(), "strategy", cycleId] as const,
+  population: (cycleId: string) =>
+    [...performanceQueryKeys.all(), "population", cycleId] as const,
+  goals: (cycleId: string) =>
+    [...performanceQueryKeys.all(), "goals", cycleId] as const,
+  teamObjectiveWorkspace: (cycleId: string, orgUnitId?: string | null) =>
+    [
+      ...performanceQueryKeys.all(),
+      "team-objectives",
+      cycleId,
+      orgUnitId ?? "own-team",
+    ] as const,
   goal: (cycleId: string, objectiveId: string) =>
     [...performanceQueryKeys.all(), "goal", cycleId, objectiveId] as const,
-  myPlan: (cycleId: string) => [...performanceQueryKeys.all(), "my-plan", cycleId] as const,
-  alignmentTargets: (cycleId: string) => [...performanceQueryKeys.all(), "alignment-targets", cycleId] as const,
-  planReviews: (cycleId: string) => [...performanceQueryKeys.all(), "plan-reviews", cycleId] as const,
-  teamRoster: (cycleId: string) => [...performanceQueryKeys.all(), "team-roster", cycleId] as const,
+  myPlan: (cycleId: string) =>
+    [...performanceQueryKeys.all(), "my-plan", cycleId] as const,
+  alignmentTargets: (cycleId: string) =>
+    [...performanceQueryKeys.all(), "alignment-targets", cycleId] as const,
+  planReviews: (cycleId: string) =>
+    [...performanceQueryKeys.all(), "plan-reviews", cycleId] as const,
+  teamRoster: (cycleId: string) =>
+    [...performanceQueryKeys.all(), "team-roster", cycleId] as const,
   planDetail: (cycleId: string, planId: string) =>
     [...performanceQueryKeys.all(), "plan", cycleId, planId] as const,
   objectiveProgress: (cycleId: string, objectiveId: string) =>
@@ -680,7 +759,9 @@ export function createPerformanceApi(client: ApiClient) {
       client.get<CycleSummaryDto[]>(performancePaths.cycles(), { signal }),
     /** The primary/current Cycle's composed detail, or null when none exists. */
     getCurrentCycle: (signal?: AbortSignal) =>
-      client.get<CycleDetailDto | null>(performancePaths.currentCycle(), { signal }),
+      client.get<CycleDetailDto | null>(performancePaths.currentCycle(), {
+        signal,
+      }),
     getCycle: (id: string, signal?: AbortSignal) =>
       client.get<CycleDetailDto>(performancePaths.cycle(id), { signal }),
     createCycle: (request: CreateCycleRequest) =>
@@ -691,39 +772,104 @@ export function createPerformanceApi(client: ApiClient) {
       client.post<CycleDetailDto>(performancePaths.activate(id), {}),
 
     listStrategy: (cycleId: string, signal?: AbortSignal) =>
-      client.get<StrategicObjectiveDto[]>(performancePaths.strategy(cycleId), { signal }),
-    createStrategy: (cycleId: string, request: CreateStrategicObjectiveRequest) =>
-      client.post<StrategicObjectiveDto>(performancePaths.strategy(cycleId), request),
-    updateStrategy: (cycleId: string, objectiveId: string, request: UpdateStrategicObjectiveRequest) =>
-      client.put<StrategicObjectiveDto>(performancePaths.strategyItem(cycleId, objectiveId), request),
+      client.get<StrategicObjectiveDto[]>(performancePaths.strategy(cycleId), {
+        signal,
+      }),
+    createStrategy: (
+      cycleId: string,
+      request: CreateStrategicObjectiveRequest
+    ) =>
+      client.post<StrategicObjectiveDto>(
+        performancePaths.strategy(cycleId),
+        request
+      ),
+    updateStrategy: (
+      cycleId: string,
+      objectiveId: string,
+      request: UpdateStrategicObjectiveRequest
+    ) =>
+      client.put<StrategicObjectiveDto>(
+        performancePaths.strategyItem(cycleId, objectiveId),
+        request
+      ),
     publishStrategy: (cycleId: string, objectiveId: string) =>
-      client.post<StrategicObjectiveDto>(performancePaths.publishStrategy(cycleId, objectiveId), {}),
+      client.post<StrategicObjectiveDto>(
+        performancePaths.publishStrategy(cycleId, objectiveId),
+        {}
+      ),
     deleteStrategy: (cycleId: string, objectiveId: string) =>
-      client.delete<boolean>(performancePaths.strategyItem(cycleId, objectiveId)),
+      client.delete<boolean>(
+        performancePaths.strategyItem(cycleId, objectiveId)
+      ),
 
     getPopulation: (cycleId: string, signal?: AbortSignal) =>
-      client.get<PopulationDto>(performancePaths.population(cycleId), { signal }),
+      client.get<PopulationDto>(performancePaths.population(cycleId), {
+        signal,
+      }),
     setPopulation: (cycleId: string, request: SetPopulationRequest) =>
       client.put<PopulationDto>(performancePaths.population(cycleId), request),
     confirmPopulation: (cycleId: string) =>
-      client.post<PopulationDto>(performancePaths.confirmPopulation(cycleId), {}),
+      client.post<PopulationDto>(
+        performancePaths.confirmPopulation(cycleId),
+        {}
+      ),
 
     getGoals: (cycleId: string, signal?: AbortSignal) =>
       client.get<GoalsOverviewDto>(performancePaths.goals(cycleId), { signal }),
     getGoal: (cycleId: string, objectiveId: string, signal?: AbortSignal) =>
-      client.get<GoalDetailDto>(performancePaths.goal(cycleId, objectiveId), { signal }),
-    createGoal: (cycleId: string, request: CreateOrganizationalObjectiveRequest) =>
-      client.post<GoalDetailDto>(performancePaths.goals(cycleId), request),
-    updateGoal: (cycleId: string, objectiveId: string, request: UpdateOrganizationalObjectiveRequest) =>
-      client.put<GoalDetailDto>(performancePaths.goal(cycleId, objectiveId), request),
-    alignGoal: (cycleId: string, objectiveId: string, request: AlignObjectiveRequest) =>
-      client.post<GoalDetailDto>(performancePaths.alignGoal(cycleId, objectiveId), request),
+      client.get<GoalDetailDto>(performancePaths.goal(cycleId, objectiveId), {
+        signal,
+      }),
+    getTeamObjectiveWorkspace: (
+      cycleId: string,
+      orgUnitId?: string | null,
+      signal?: AbortSignal
+    ) =>
+      client.get<TeamObjectiveWorkspaceDto>(
+        performancePaths.teamObjectiveWorkspace(cycleId, orgUnitId),
+        { signal }
+      ),
+    createTeamObjective: (
+      cycleId: string,
+      request: CreateOrganizationalObjectiveRequest
+    ) => client.post<GoalDetailDto>(performancePaths.goals(cycleId), request),
+    updateGoal: (
+      cycleId: string,
+      objectiveId: string,
+      request: UpdateOrganizationalObjectiveRequest
+    ) =>
+      client.put<GoalDetailDto>(
+        performancePaths.goal(cycleId, objectiveId),
+        request
+      ),
+    alignGoal: (
+      cycleId: string,
+      objectiveId: string,
+      request: AlignObjectiveRequest
+    ) =>
+      client.post<GoalDetailDto>(
+        performancePaths.alignGoal(cycleId, objectiveId),
+        request
+      ),
     publishGoal: (cycleId: string, objectiveId: string) =>
-      client.post<GoalDetailDto>(performancePaths.publishGoal(cycleId, objectiveId), {}),
-    configureGoalContribution: (cycleId: string, objectiveId: string, request: ConfigureContributionRequest) =>
-      client.put<GoalDetailDto>(performancePaths.goalContribution(cycleId, objectiveId), request),
+      client.post<GoalDetailDto>(
+        performancePaths.publishGoal(cycleId, objectiveId),
+        {}
+      ),
+    configureGoalContribution: (
+      cycleId: string,
+      objectiveId: string,
+      request: ConfigureContributionRequest
+    ) =>
+      client.put<GoalDetailDto>(
+        performancePaths.goalContribution(cycleId, objectiveId),
+        request
+      ),
     lockGoalContribution: (cycleId: string, objectiveId: string) =>
-      client.post<GoalDetailDto>(performancePaths.lockGoalContribution(cycleId, objectiveId), {}),
+      client.post<GoalDetailDto>(
+        performancePaths.lockGoalContribution(cycleId, objectiveId),
+        {}
+      ),
     deleteGoal: (cycleId: string, objectiveId: string) =>
       client.delete<boolean>(performancePaths.goal(cycleId, objectiveId)),
 
@@ -731,55 +877,128 @@ export function createPerformanceApi(client: ApiClient) {
     getMyPlan: (cycleId: string, signal?: AbortSignal) =>
       client.get<MyPlanStateDto>(performancePaths.myPlan(cycleId), { signal }),
     getAlignmentTargets: (cycleId: string, signal?: AbortSignal) =>
-      client.get<AlignmentTargetDto[]>(performancePaths.alignmentTargets(cycleId), { signal }),
+      client.get<AlignmentTargetDto[]>(
+        performancePaths.alignmentTargets(cycleId),
+        { signal }
+      ),
     createMyPlan: (cycleId: string) =>
       client.post<EmployeePlanDto>(performancePaths.myPlan(cycleId), {}),
     addPlanObjective: (cycleId: string, request: AddPlanObjectiveRequest) =>
-      client.post<EmployeePlanDto>(performancePaths.planObjectives(cycleId), request),
-    updatePlanObjective: (cycleId: string, objectiveId: string, request: UpdatePlanObjectiveRequest) =>
-      client.put<EmployeePlanDto>(performancePaths.planObjective(cycleId, objectiveId), request),
+      client.post<EmployeePlanDto>(
+        performancePaths.planObjectives(cycleId),
+        request
+      ),
+    updatePlanObjective: (
+      cycleId: string,
+      objectiveId: string,
+      request: UpdatePlanObjectiveRequest
+    ) =>
+      client.put<EmployeePlanDto>(
+        performancePaths.planObjective(cycleId, objectiveId),
+        request
+      ),
     removePlanObjective: (cycleId: string, objectiveId: string) =>
-      client.delete<EmployeePlanDto>(performancePaths.planObjective(cycleId, objectiveId)),
+      client.delete<EmployeePlanDto>(
+        performancePaths.planObjective(cycleId, objectiveId)
+      ),
     setPlanWeights: (cycleId: string, request: SetPlanWeightsRequest) =>
-      client.put<EmployeePlanDto>(performancePaths.planWeights(cycleId), request),
+      client.put<EmployeePlanDto>(
+        performancePaths.planWeights(cycleId),
+        request
+      ),
     submitPlan: (cycleId: string) =>
       client.post<EmployeePlanDto>(performancePaths.submitPlan(cycleId), {}),
     getPlanReviews: (cycleId: string, signal?: AbortSignal) =>
-      client.get<PlanReviewListDto>(performancePaths.planReviews(cycleId), { signal }),
+      client.get<PlanReviewListDto>(performancePaths.planReviews(cycleId), {
+        signal,
+      }),
     getTeamRoster: (cycleId: string, signal?: AbortSignal) =>
-      client.get<TeamRosterDto>(performancePaths.teamRoster(cycleId), { signal }),
+      client.get<TeamRosterDto>(performancePaths.teamRoster(cycleId), {
+        signal,
+      }),
     getPlanDetail: (cycleId: string, planId: string, signal?: AbortSignal) =>
-      client.get<EmployeePlanDto>(performancePaths.planDetail(cycleId, planId), { signal }),
+      client.get<EmployeePlanDto>(
+        performancePaths.planDetail(cycleId, planId),
+        { signal }
+      ),
     returnPlan: (cycleId: string, planId: string, request: ReturnPlanRequest) =>
-      client.post<EmployeePlanDto>(performancePaths.returnPlan(cycleId, planId), request),
+      client.post<EmployeePlanDto>(
+        performancePaths.returnPlan(cycleId, planId),
+        request
+      ),
     approvePlan: (cycleId: string, planId: string) =>
-      client.post<EmployeePlanDto>(performancePaths.approvePlan(cycleId, planId), {}),
-    exceptionalApprovePlan: (cycleId: string, planId: string, request: ExceptionalApprovePlanRequest) =>
-      client.post<EmployeePlanDto>(performancePaths.exceptionalApprovePlan(cycleId, planId), request),
+      client.post<EmployeePlanDto>(
+        performancePaths.approvePlan(cycleId, planId),
+        {}
+      ),
+    exceptionalApprovePlan: (
+      cycleId: string,
+      planId: string,
+      request: ExceptionalApprovePlanRequest
+    ) =>
+      client.post<EmployeePlanDto>(
+        performancePaths.exceptionalApprovePlan(cycleId, planId),
+        request
+      ),
 
     // Progress & contribution (Chunk D)
-    getObjectiveProgress: (cycleId: string, objectiveId: string, signal?: AbortSignal) =>
-      client.get<ObjectiveProgressDto>(performancePaths.objectiveProgress(cycleId, objectiveId), { signal }),
-    getObjectiveProgressHistory: (cycleId: string, objectiveId: string, cursor: string | null, limit?: number, signal?: AbortSignal) => {
+    getObjectiveProgress: (
+      cycleId: string,
+      objectiveId: string,
+      signal?: AbortSignal
+    ) =>
+      client.get<ObjectiveProgressDto>(
+        performancePaths.objectiveProgress(cycleId, objectiveId),
+        { signal }
+      ),
+    getObjectiveProgressHistory: (
+      cycleId: string,
+      objectiveId: string,
+      cursor: string | null,
+      limit?: number,
+      signal?: AbortSignal
+    ) => {
       const params = new URLSearchParams();
       if (cursor) params.set("cursor", cursor);
       if (limit) params.set("limit", String(limit));
       const qs = params.toString();
-      const base = performancePaths.objectiveProgressHistory(cycleId, objectiveId);
-      return client.get<ProgressHistoryPageDto>(qs ? `${base}?${qs}` : base, { signal });
+      const base = performancePaths.objectiveProgressHistory(
+        cycleId,
+        objectiveId
+      );
+      return client.get<ProgressHistoryPageDto>(qs ? `${base}?${qs}` : base, {
+        signal,
+      });
     },
-    submitProgress: (cycleId: string, objectiveId: string, request: SubmitProgressRequest) =>
-      client.post<ObjectiveProgressDto>(performancePaths.objectiveProgress(cycleId, objectiveId), request),
+    submitProgress: (
+      cycleId: string,
+      objectiveId: string,
+      request: SubmitProgressRequest
+    ) =>
+      client.post<ObjectiveProgressDto>(
+        performancePaths.objectiveProgress(cycleId, objectiveId),
+        request
+      ),
     uploadEvidence: (cycleId: string, file: File) => {
       const form = new FormData();
       form.append("file", file);
-      return client.post<EvidenceDescriptorDto>(performancePaths.evidenceUpload(cycleId), form);
+      return client.post<EvidenceDescriptorDto>(
+        performancePaths.evidenceUpload(cycleId),
+        form
+      );
     },
     evidenceDownloadPath: (cycleId: string, evidenceId: string) =>
       performancePaths.evidenceDownload(cycleId, evidenceId),
     /** Fetches a file-evidence item as a Blob with auth attached — a plain link cannot carry the bearer token. */
-    downloadEvidence: (cycleId: string, evidenceId: string, signal?: AbortSignal) =>
-      client.get<Blob>(performancePaths.evidenceDownload(cycleId, evidenceId), { responseType: "blob", signal }),
+    downloadEvidence: (
+      cycleId: string,
+      evidenceId: string,
+      signal?: AbortSignal
+    ) =>
+      client.get<Blob>(performancePaths.evidenceDownload(cycleId, evidenceId), {
+        responseType: "blob",
+        signal,
+      }),
   };
 }
 

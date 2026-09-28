@@ -18,7 +18,11 @@ namespace EY.HRPlatform.Performance.Features.Progress;
 /// accountability (self for an employee objective); named-detail visibility (evidence, history)
 /// gates on ownership, the responsible-manager relationship, or tenant administration.
 /// </summary>
-public sealed record ProgressActorContext(Guid CallerEmployeeId, bool IsAdmin, bool CanReviewReports);
+public sealed record ProgressActorContext(
+    Guid CallerEmployeeId,
+    bool IsAdmin,
+    bool CanReviewReports,
+    bool HasOrgManageGrant = false);
 
 public sealed record GetObjectiveProgressQuery(Guid CycleId, Guid ObjectiveId, ProgressActorContext Actor) : IQuery<Result<ObjectiveProgressDto>>;
 public sealed record GetProgressHistoryPageQuery(Guid CycleId, Guid ObjectiveId, string? Cursor, int Limit, ProgressActorContext Actor) : IQuery<Result<ProgressHistoryPageDto>>;
@@ -28,7 +32,36 @@ public sealed record SubmitProgressCommand(Guid CycleId, Guid ObjectiveId, Submi
 public sealed record EvidenceFileRef(string StorageKey, string FileName, string ContentType);
 public sealed record ResolveEvidenceFileQuery(Guid CycleId, Guid EvidenceId, ProgressActorContext Actor) : IQuery<Result<EvidenceFileRef>>;
 
-public sealed class ResolveEvidenceFileHandler(PerformanceDbContext db) : IQueryHandler<ResolveEvidenceFileQuery, Result<EvidenceFileRef>>
+internal static class ProgressAuthorization
+{
+    public static async Task<bool> CanSeeNamedDetailAsync(
+        PerformanceDbContext db,
+        ICoreWorkforceClient workforce,
+        Objective objective,
+        EmployeePlan? plan,
+        ProgressActorContext actor,
+        CancellationToken cancellationToken)
+    {
+        if (ProgressComposer.CanSeeNamedDetail(objective, plan, actor))
+            return true;
+        if (!actor.HasOrgManageGrant
+            || objective.OwnershipScope != ObjectiveOwnershipScope.OrgUnit
+            || objective.OrgUnitId is not Guid orgUnitId)
+            return false;
+
+        var cycle = await db.Cycles.AsNoTracking()
+            .FirstOrDefaultAsync(candidate => candidate.Id == objective.CycleId, cancellationToken);
+        return cycle is not null
+            && await TeamObjectivePolicy.CanGovernAsync(
+                workforce,
+                cycle,
+                new GoalActorContext(actor.CallerEmployeeId, actor.IsAdmin, actor.HasOrgManageGrant),
+                orgUnitId,
+                cancellationToken);
+    }
+}
+
+public sealed class ResolveEvidenceFileHandler(PerformanceDbContext db, ICoreWorkforceClient workforce) : IQueryHandler<ResolveEvidenceFileQuery, Result<EvidenceFileRef>>
 {
     public async Task<Result<EvidenceFileRef>> Handle(ResolveEvidenceFileQuery request, CancellationToken cancellationToken)
     {
@@ -46,7 +79,7 @@ public sealed class ResolveEvidenceFileHandler(PerformanceDbContext db) : IQuery
         var plan = objective.EmployeePlanId is null ? null
             : await db.EmployeePlans.AsNoTracking().FirstOrDefaultAsync(p => p.Id == objective.EmployeePlanId, cancellationToken);
 
-        if (!ProgressComposer.CanSeeNamedDetail(objective, plan, request.Actor))
+        if (!await ProgressAuthorization.CanSeeNamedDetailAsync(db, workforce, objective, plan, request.Actor, cancellationToken))
             return Result.Failure<EvidenceFileRef>(Error.Forbidden("Evidence.Forbidden", "You are not authorized to open this evidence."));
 
         return Result.Success(new EvidenceFileRef(item.StorageKey, item.FileName ?? "attachment", item.ContentType ?? "application/octet-stream"));
@@ -67,7 +100,7 @@ public sealed class GetObjectiveProgressHandler(PerformanceDbContext db, ICoreWo
         var plan = objective.EmployeePlanId is null ? null
             : await db.EmployeePlans.AsNoTracking().FirstOrDefaultAsync(p => p.Id == objective.EmployeePlanId, cancellationToken);
 
-        if (!ProgressComposer.CanSeeNamedDetail(objective, plan, request.Actor))
+        if (!await ProgressAuthorization.CanSeeNamedDetailAsync(db, workforce, objective, plan, request.Actor, cancellationToken))
             return Result.Failure<ObjectiveProgressDto>(Error.Forbidden("Progress.ViewForbidden", "You are not authorized to view this objective's progress detail."));
 
         var dto = await ProgressComposer.BuildAsync(db, workforce, objective, plan, request.Actor, cancellationToken);
@@ -87,7 +120,7 @@ public sealed class GetProgressHistoryPageHandler(PerformanceDbContext db, ICore
         var plan = objective.EmployeePlanId is null ? null
             : await db.EmployeePlans.AsNoTracking().FirstOrDefaultAsync(p => p.Id == objective.EmployeePlanId, cancellationToken);
 
-        if (!ProgressComposer.CanSeeNamedDetail(objective, plan, request.Actor))
+        if (!await ProgressAuthorization.CanSeeNamedDetailAsync(db, workforce, objective, plan, request.Actor, cancellationToken))
             return Result.Failure<ProgressHistoryPageDto>(Error.Forbidden("Progress.ViewForbidden", "You are not authorized to view this objective's progress detail."));
 
         var limit = request.Limit <= 0 ? ProgressComposer.HistoryPageSize : request.Limit;

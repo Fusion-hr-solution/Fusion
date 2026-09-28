@@ -19,6 +19,42 @@ public class WorkforceContractServiceTests
     private const string SettingsJson = """{"employeeFieldConfig":{"jobTitle":{"visible":true,"required":false,"visibleToEmployee":true,"visibleToManager":true}},"orgUnitTypes":["Department","Team"]}""";
 
     [Fact]
+    public async Task InternalOrgUnitSnapshot_uses_the_requested_date_and_returns_ordered_ancestors()
+    {
+        var dbName = Guid.NewGuid().ToString();
+        var tenantContext = TestTenantContext.WithTenant(TenantId);
+        var root = OrgUnit.CreateCanonical(TenantId, "ROOT", isRoot: true);
+        var oldDivision = OrgUnit.CreateCanonical(TenantId, "OLD", isRoot: false);
+        var newDivision = OrgUnit.CreateCanonical(TenantId, "NEW", isRoot: false);
+        var team = OrgUnit.CreateCanonical(TenantId, "TEAM", isRoot: false);
+
+        await using (var seedContext = TestDbContextFactory.CreateWithoutTenant(dbName))
+        {
+            seedContext.OrganizationalUnitTypes.Add(
+                OrganizationalUnitType.CreateBuiltIn(OrganizationalUnitTypeCatalog.UnitId, "Unit"));
+            seedContext.OrgUnits.AddRange(root, oldDivision, newDivision, team);
+            seedContext.OrgUnitEffectiveStates.AddRange(
+                OrgUnitEffectiveState.Create(TenantId, root.Id, OrganizationalUnitTypeCatalog.UnitId, null, "Fusion", OrgUnitLifecycleState.Active, new DateOnly(2025, 1, 1)),
+                OrgUnitEffectiveState.Create(TenantId, oldDivision.Id, OrganizationalUnitTypeCatalog.UnitId, root.Id, "Operations", OrgUnitLifecycleState.Active, new DateOnly(2025, 1, 1)),
+                OrgUnitEffectiveState.Create(TenantId, newDivision.Id, OrganizationalUnitTypeCatalog.UnitId, root.Id, "People", OrgUnitLifecycleState.Active, new DateOnly(2025, 1, 1)),
+                OrgUnitEffectiveState.Create(TenantId, team.Id, OrganizationalUnitTypeCatalog.UnitId, oldDivision.Id, "Talent", OrgUnitLifecycleState.Active, new DateOnly(2025, 1, 1), new DateOnly(2026, 7, 1)),
+                OrgUnitEffectiveState.Create(TenantId, team.Id, OrganizationalUnitTypeCatalog.UnitId, newDivision.Id, "Talent", OrgUnitLifecycleState.Active, new DateOnly(2026, 7, 1)));
+            await seedContext.SaveChangesAsync();
+        }
+
+        await using var context = TestDbContextFactory.Create(tenantContext, dbName);
+        var service = new InternalWorkforceSnapshotService(context);
+
+        var atCycleStart = Assert.Single(await service.ResolveOrgUnitsAsync(
+            new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), [team.Id], default));
+        var afterReorganization = Assert.Single(await service.ResolveOrgUnitsAsync(
+            new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc), [team.Id], default));
+
+        Assert.Equal([root.Id, oldDivision.Id], atCycleStart.AncestorOrgUnitIds);
+        Assert.Equal([root.Id, newDivision.Id], afterReorganization.AncestorOrgUnitIds);
+    }
+
+    [Fact]
     public async Task GetEmployeeAsync_ManagerCanReadDirectReportButNotPeer()
     {
         var dbName = Guid.NewGuid().ToString();

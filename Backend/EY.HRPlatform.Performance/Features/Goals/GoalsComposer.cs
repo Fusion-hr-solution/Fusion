@@ -62,29 +62,49 @@ public static class GoalsComposer
 
     public static Result<GoalsOverviewDto> BuildOverview(PerformanceCycle cycle, Graph graph)
     {
-        var nodes = graph.All
-            .Where(o => o.OwnershipScope != ObjectiveOwnershipScope.Employee)
+        var connectedIds = graph.All
+            .Where(objective => objective.OwnershipScope != ObjectiveOwnershipScope.Employee
+                && ConnectsToCompany(objective, graph))
+            .Select(objective => objective.Id)
+            .ToHashSet();
+        var visible = graph.All.Where(objective => connectedIds.Contains(objective.Id)).ToList();
+        var nodes = visible
             .OrderBy(o => o.OwnershipScope)
             .ThenByDescending(o => o.State == ObjectiveLifecycleState.Published)
             .ThenBy(o => o.Title)
             .Select(o => ToNode(o, graph))
             .ToList();
 
-        var org = graph.All.Where(o => o.OwnershipScope == ObjectiveOwnershipScope.OrgUnit).ToList();
+        var org = visible.Where(o => o.OwnershipScope == ObjectiveOwnershipScope.OrgUnit).ToList();
         return Result.Success(new GoalsOverviewDto(
             cycle.Id,
             cycle.Name,
             cycle.State,
             cycle.StartDate,
             cycle.EndDate,
-            graph.All.Count(o => o.OwnershipScope == ObjectiveOwnershipScope.Company),
+            visible.Count(o => o.OwnershipScope == ObjectiveOwnershipScope.Company),
             org.Count,
             org.Count(o => o.State == ObjectiveLifecycleState.Published),
             org.Count(o => o.State == ObjectiveLifecycleState.Draft),
             nodes));
     }
 
-    public static Result<GoalDetailDto> BuildDetail(Objective objective, Graph graph, GoalActorContext actor)
+    private static bool ConnectsToCompany(Objective objective, Graph graph)
+    {
+        var current = objective;
+        var guard = new HashSet<Guid>();
+        while (guard.Add(current.Id))
+        {
+            if (current.OwnershipScope == ObjectiveOwnershipScope.Company)
+                return true;
+            if (current.ParentObjectiveId is not Guid parentId
+                || !graph.ById.TryGetValue(parentId, out current!))
+                return false;
+        }
+        return false;
+    }
+
+    public static Result<GoalDetailDto> BuildDetail(Objective objective, Graph graph, GoalActorContext actor, bool canGovernTeam = false)
     {
         var parent = objective.ParentObjectiveId is not null ? graph.ById.GetValueOrDefault(objective.ParentObjectiveId.Value) : null;
         var children = graph.ChildrenByParent[objective.Id].OrderBy(o => o.Title).ToList();
@@ -107,7 +127,9 @@ public static class GoalsComposer
         // contribution also accept the objective's own accountable person as additional maintenance
         // authority — but that never confers publish, so reassigning the accountable person cannot take
         // publish away from the authorized scope manager.
-        var canManage = CanManageOrganizational(actor);
+        var canManage = objective.OwnershipScope == ObjectiveOwnershipScope.OrgUnit
+            ? canGovernTeam
+            : CanManageOrganizational(actor);
         var canMaintain = canManage || objective.AccountablePersonId == actor.CallerEmployeeId;
 
         return Result.Success(new GoalDetailDto(
@@ -167,25 +189,11 @@ public static class GoalsComposer
     // ── Authorization helpers ────────────────────────────────────────────────
 
     /// <summary>
-    /// Organizational-objective management authority: governed Performance administration
-    /// (`cycle.manage @Tenant`) or the organizational-objective management grant
-    /// (`objective.org.manage @Tenant`). In the direct MVP this is a coarse tenant-wide authority —
-    /// the holder may establish/edit/publish organizational objectives anywhere in the tenant.
-    /// Fine-grained per-OrgUnit scoping is deferred to the future tenant Access/Profile design. This
-    /// authority is deliberately independent of a particular objective's accountable person.
+    /// Coarse capability check used only for non-team projections. Team-owned objective actions must
+    /// also pass <see cref="TeamObjectivePolicy"/>, which resolves the caller's Cycle-start team.
     /// </summary>
     public static bool CanManageOrganizational(GoalActorContext actor)
         => actor.IsAdmin || actor.HasOrgManageGrant;
-
-    /// <summary>
-    /// Maintenance authority (edit / configure contribution / delete a Draft): organizational
-    /// management authority, OR being that objective's own accountable person. Publishing is the
-    /// stricter, management-only act handled directly by <see cref="CanManageOrganizational"/>, so
-    /// reassigning the accountable person never removes the scope manager's ability to publish.
-    /// </summary>
-    public static bool CanMaintain(GoalActorContext actor, Objective objective)
-        => CanManageOrganizational(actor)
-            || objective.AccountablePersonId == actor.CallerEmployeeId;
 
     /// <summary>Would aligning <paramref name="objectiveId"/> under <paramref name="newParentId"/> create a cycle?</summary>
     public static async Task<bool> CreatesCycleAsync(PerformanceDbContext db, Guid cycleId, Guid objectiveId, Guid newParentId, CancellationToken cancellationToken)

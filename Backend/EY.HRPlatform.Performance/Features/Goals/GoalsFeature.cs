@@ -1,5 +1,6 @@
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
+using EY.HRPlatform.Performance.Features.Plans;
 using EY.HRPlatform.Performance.Infrastructure.Core;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Models;
@@ -14,15 +15,15 @@ namespace EY.HRPlatform.Performance.Features.Goals;
 /// The caller's authorization inputs for organizational-goal actions, resolved once by the
 /// controller from the token. <paramref name="IsAdmin"/> = governed Performance administration
 /// (`cycle.manage @Tenant`); <paramref name="HasOrgManageGrant"/> = holds the organizational-
-/// objective management capability (`objective.org.manage @Tenant`). Either confers coarse
-/// tenant-wide authority to establish/edit/publish organizational objectives in the direct MVP
-/// (fine-grained per-OrgUnit scoping is deferred). This authority is deliberately separate from a
-/// particular objective's accountable person.
+/// objective management capability (`objective.org.manage @Tenant`). Administrators may govern
+/// any active team; managers are resolved to their own Cycle-start team by the server. This
+/// authority is deliberately separate from a particular objective's accountable person.
 /// </summary>
 public sealed record GoalActorContext(Guid CallerEmployeeId, bool IsAdmin, bool HasOrgManageGrant);
 
 public sealed record GetGoalsOverviewQuery(Guid CycleId, GoalActorContext Actor) : IQuery<Result<GoalsOverviewDto>>;
 public sealed record GetGoalDetailQuery(Guid CycleId, Guid ObjectiveId, GoalActorContext Actor) : IQuery<Result<GoalDetailDto>>;
+public sealed record GetTeamObjectiveWorkspaceQuery(Guid CycleId, Guid? OrgUnitId, GoalActorContext Actor) : IQuery<Result<TeamObjectiveWorkspaceDto>>;
 public sealed record CreateOrganizationalObjectiveCommand(Guid CycleId, CreateOrganizationalObjectiveRequest Request, GoalActorContext Actor) : ICommand<Result<GoalDetailDto>>;
 public sealed record UpdateOrganizationalObjectiveCommand(Guid CycleId, Guid ObjectiveId, UpdateOrganizationalObjectiveRequest Request, GoalActorContext Actor) : ICommand<Result<GoalDetailDto>>;
 public sealed record AlignObjectiveCommand(Guid CycleId, Guid ObjectiveId, AlignObjectiveRequest Request, GoalActorContext Actor) : ICommand<Result<GoalDetailDto>>;
@@ -61,7 +62,67 @@ public sealed class GetGoalDetailHandler(PerformanceDbContext db, ICoreWorkforce
         if (target is null)
             return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", request.ObjectiveId));
 
-        return GoalsComposer.BuildDetail(target, graph, request.Actor);
+        var canGovern = target.OrgUnitId is Guid unitId
+            && await TeamObjectivePolicy.CanGovernAsync(workforce, cycle, request.Actor, unitId, cancellationToken);
+        if (target.OwnershipScope == ObjectiveOwnershipScope.OrgUnit
+            && !canGovern
+            && target.AccountablePersonId != request.Actor.CallerEmployeeId)
+            return Result.Failure<GoalDetailDto>(Error.Forbidden(
+                "Objective.ViewForbidden",
+                "You are not authorized to view this team's objective detail."));
+        return GoalsComposer.BuildDetail(target, graph, request.Actor, canGovern);
+    }
+}
+
+public sealed class GetTeamObjectiveWorkspaceHandler(PerformanceDbContext db, ICoreWorkforceClient workforce)
+    : IQueryHandler<GetTeamObjectiveWorkspaceQuery, Result<TeamObjectiveWorkspaceDto>>
+{
+    public async Task<Result<TeamObjectiveWorkspaceDto>> Handle(GetTeamObjectiveWorkspaceQuery request, CancellationToken cancellationToken)
+    {
+        var cycle = await db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
+        if (cycle is null)
+            return Result.Failure<TeamObjectiveWorkspaceDto>(Error.NotFound("Cycle", request.CycleId));
+
+        var scopeResult = await TeamObjectivePolicy.ResolveScopeAsync(workforce, cycle, request.Actor, request.OrgUnitId, cancellationToken);
+        if (scopeResult.IsFailure)
+            return Result.Failure<TeamObjectiveWorkspaceDto>(scopeResult.Error);
+        var scope = scopeResult.Value;
+
+        var graph = await GoalsComposer.LoadGraphAsync(db, workforce, cycle, cancellationToken);
+        var eligible = await TeamObjectivePolicy.EligibleParentsAsync(db, cycle, scope, cancellationToken);
+        var allTargets = PlansComposer.AlignmentTargets(graph);
+        var targetsById = allTargets.ToDictionary(target => target.Id);
+        // Keep the policy's nearest-team-first order rather than the alphabetical target order.
+        var targets = eligible
+            .Select(objective => targetsById.GetValueOrDefault(objective.Id))
+            .OfType<AlignmentTargetDto>()
+            .ToList();
+        var objectives = graph.All
+            .Where(objective => objective.OwnershipScope == ObjectiveOwnershipScope.OrgUnit
+                && objective.OrgUnitId == scope.Unit.OrgUnitId)
+            .OrderBy(objective => objective.State == ObjectiveLifecycleState.Draft ? 0 : 1)
+            .ThenBy(objective => objective.EndDate)
+            .ThenBy(objective => objective.Title)
+            .Select(objective => new TeamObjectiveWorkspaceItemDto(
+                GoalsComposer.ToNode(objective, graph),
+                objective.Description,
+                objective.ParentObjectiveId is Guid parentId && targetsById.TryGetValue(parentId, out var parent)
+                    ? parent
+                    : null))
+            .ToList();
+        var owners = scope.ActiveMembers
+            .OrderBy(member => member.DisplayName)
+            .Select(member => new PersonRefDto(member.EmployeeId, member.DisplayName))
+            .ToList();
+
+        return Result.Success(new TeamObjectiveWorkspaceDto(
+            scope.Unit.OrgUnitId,
+            scope.Unit.Name,
+            objectives,
+            targets,
+            owners,
+            CanCreate: !cycle.IsClosed,
+            CanChooseTeam: request.Actor.IsAdmin));
     }
 }
 
@@ -70,6 +131,7 @@ public sealed class GetGoalDetailHandler(PerformanceDbContext db, ICoreWorkforce
 public abstract class GoalCommandHandlerBase(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
 {
     protected PerformanceDbContext Db => db;
+    protected ICoreWorkforceClient Workforce => workforce;
     protected ITenantContext Tenant => tenant;
 
     protected async Task<Result<PerformanceCycle>> LoadOpenCycleAsync(Guid cycleId, CancellationToken cancellationToken)
@@ -93,7 +155,22 @@ public abstract class GoalCommandHandlerBase(PerformanceDbContext db, ICoreWorkf
         var node = graph.ById.GetValueOrDefault(objectiveId);
         if (node is null)
             return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", objectiveId));
-        return GoalsComposer.BuildDetail(node, graph, actor);
+        var canGovern = node.OrgUnitId is Guid unitId
+            && await TeamObjectivePolicy.CanGovernAsync(workforce, cycle, actor, unitId, cancellationToken);
+        return GoalsComposer.BuildDetail(node, graph, actor, canGovern);
+    }
+
+    protected async Task<bool> CanMaintainTeamObjectiveAsync(
+        PerformanceCycle cycle,
+        Objective objective,
+        GoalActorContext actor,
+        CancellationToken cancellationToken)
+    {
+        if (objective.OwnershipScope != ObjectiveOwnershipScope.OrgUnit || objective.OrgUnitId is not Guid orgUnitId)
+            return false;
+
+        return objective.AccountablePersonId == actor.CallerEmployeeId
+            || await TeamObjectivePolicy.CanGovernAsync(workforce, cycle, actor, orgUnitId, cancellationToken);
     }
 }
 
@@ -109,18 +186,19 @@ public sealed class CreateOrganizationalObjectiveHandler(PerformanceDbContext db
         var cycle = cycleResult.Value;
         var request = command.Request;
 
-        var parent = await Db.Objectives.AsNoTracking().FirstOrDefaultAsync(o => o.Id == request.ParentObjectiveId, cancellationToken);
-        if (parent is null)
-            return Result.Failure<GoalDetailDto>(Error.NotFound("ParentObjective", request.ParentObjectiveId));
-        if (parent.CycleId != cycle.Id)
-            return Result.Failure<GoalDetailDto>(Error.Validation("Objective.Alignment", "The parent objective belongs to a different Cycle."));
-        if (!parent.IsAlignmentBaseline)
-            return Result.Failure<GoalDetailDto>(Error.Conflict("Objective.ParentNotBaseline", "You can only align to a published objective."));
-
-        // Establishment authority is organizational-objective management (governed admin, or the
-        // org-manage grant) — not being the parent objective's owner. Coarse tenant-wide in the MVP.
-        if (!GoalsComposer.CanManageOrganizational(command.Actor))
-            return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.CreateForbidden", "You are not authorized to establish organizational objectives."));
+        var scopeResult = await TeamObjectivePolicy.ResolveScopeAsync(
+            Workforce, cycle, command.Actor, request.OrgUnitId, cancellationToken);
+        if (scopeResult.IsFailure)
+            return Result.Failure<GoalDetailDto>(scopeResult.Error);
+        var scope = scopeResult.Value;
+        var ownerResult = TeamObjectivePolicy.ValidateOwner(scope, request.AccountablePersonId);
+        if (ownerResult.IsFailure)
+            return Result.Failure<GoalDetailDto>(ownerResult.Error);
+        var parentResult = await TeamObjectivePolicy.ResolveParentAsync(
+            Db, cycle, scope, request.ParentObjectiveId, cancellationToken);
+        if (parentResult.IsFailure)
+            return Result.Failure<GoalDetailDto>(parentResult.Error);
+        var parent = parentResult.Value;
 
         try
         {
@@ -131,18 +209,18 @@ public sealed class CreateOrganizationalObjectiveHandler(PerformanceDbContext db
             var objective = Objective.CreateOrganizational(
                 Tenant.TenantId,
                 cycle.Id,
-                request.OrgUnitId,
-                request.OrgUnitName,
+                scope.Unit.OrgUnitId,
+                scope.Unit.Name,
                 request.Title,
                 request.Description,
                 request.AccountablePersonId,
                 request.ParentObjectiveId,
-                request.StartDate ?? parent.StartDate,
-                request.EndDate ?? parent.EndDate,
+                request.StartDate ?? parent?.StartDate ?? cycle.StartDate,
+                request.EndDate ?? parent?.EndDate ?? cycle.EndDate,
                 request.ProgressSource,
                 measurement,
-                parent.StartDate,
-                parent.EndDate,
+                parent?.StartDate,
+                parent?.EndDate,
                 cycle.StartDate,
                 cycle.EndDate);
 
@@ -171,15 +249,25 @@ public sealed class UpdateOrganizationalObjectiveHandler(PerformanceDbContext db
         var objective = await LoadTrackedAsync(cycle.Id, command.ObjectiveId, cancellationToken);
         if (objective is null)
             return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", command.ObjectiveId));
-        if (!GoalsComposer.CanMaintain(command.Actor, objective))
+        if (objective.OrgUnitId is not Guid orgUnitId)
+            return Result.Failure<GoalDetailDto>(Error.Conflict("Objective.NotOrganizational", "Only a team objective can be maintained here."));
+        var canGovern = await TeamObjectivePolicy.CanGovernAsync(Workforce, cycle, command.Actor, orgUnitId, cancellationToken);
+        if (!canGovern && objective.AccountablePersonId != command.Actor.CallerEmployeeId)
             return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.MaintainForbidden", "You are not authorized to maintain this objective."));
 
-        var parent = objective.ParentObjectiveId is null ? null
-            : await Db.Objectives.AsNoTracking().FirstOrDefaultAsync(o => o.Id == objective.ParentObjectiveId, cancellationToken);
-        if (parent is null)
-            return Result.Failure<GoalDetailDto>(Error.Validation("Objective.Alignment", "The parent objective is missing."));
-
         var request = command.Request;
+        var scopeResult = await TeamObjectivePolicy.ResolveUnitAsync(Workforce, cycle, orgUnitId, cancellationToken);
+        if (scopeResult.IsFailure)
+            return Result.Failure<GoalDetailDto>(scopeResult.Error);
+        var scope = scopeResult.Value;
+        var ownerResult = TeamObjectivePolicy.ValidateOwner(scope, request.AccountablePersonId);
+        if (ownerResult.IsFailure)
+            return Result.Failure<GoalDetailDto>(ownerResult.Error);
+        var parentResult = await TeamObjectivePolicy.ResolveParentAsync(
+            Db, cycle, scope, request.ParentObjectiveId, cancellationToken);
+        if (parentResult.IsFailure)
+            return Result.Failure<GoalDetailDto>(parentResult.Error);
+        var parent = parentResult.Value;
         try
         {
             var measurement = request.ProgressSource == ObjectiveProgressSource.Direct && request.Measurement is not null
@@ -190,12 +278,13 @@ public sealed class UpdateOrganizationalObjectiveHandler(PerformanceDbContext db
                 request.Title,
                 request.Description,
                 request.AccountablePersonId,
+                request.ParentObjectiveId,
                 request.StartDate,
                 request.EndDate,
                 request.ProgressSource,
                 measurement,
-                parent.StartDate,
-                parent.EndDate,
+                parent?.StartDate,
+                parent?.EndDate,
                 cycle.StartDate,
                 cycle.EndDate);
 
@@ -226,26 +315,31 @@ public sealed class AlignObjectiveHandler(PerformanceDbContext db, ICoreWorkforc
         var objective = await LoadTrackedAsync(cycle.Id, command.ObjectiveId, cancellationToken);
         if (objective is null)
             return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", command.ObjectiveId));
-        if (!GoalsComposer.CanMaintain(command.Actor, objective))
+        if (objective.OrgUnitId is not Guid orgUnitId)
+            return Result.Failure<GoalDetailDto>(Error.Conflict("Objective.NotOrganizational", "Only a team objective can be aligned here."));
+        var canGovern = await TeamObjectivePolicy.CanGovernAsync(Workforce, cycle, command.Actor, orgUnitId, cancellationToken);
+        if (!canGovern && objective.AccountablePersonId != command.Actor.CallerEmployeeId)
             return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.MaintainForbidden", "You are not authorized to maintain this objective."));
 
         var newParentId = command.Request.ParentObjectiveId;
-        var newParent = await Db.Objectives.AsNoTracking().FirstOrDefaultAsync(o => o.Id == newParentId, cancellationToken);
-        if (newParent is null)
-            return Result.Failure<GoalDetailDto>(Error.NotFound("ParentObjective", newParentId));
-        if (newParent.CycleId != cycle.Id)
-            return Result.Failure<GoalDetailDto>(Error.Validation("Objective.Alignment", "The parent objective belongs to a different Cycle."));
-        if (!newParent.IsAlignmentBaseline)
-            return Result.Failure<GoalDetailDto>(Error.Conflict("Objective.ParentNotBaseline", "You can only align to a published objective."));
+        var scopeResult = await TeamObjectivePolicy.ResolveUnitAsync(Workforce, cycle, orgUnitId, cancellationToken);
+        if (scopeResult.IsFailure)
+            return Result.Failure<GoalDetailDto>(scopeResult.Error);
+        var parentResult = await TeamObjectivePolicy.ResolveParentAsync(
+            Db, cycle, scopeResult.Value, newParentId, cancellationToken);
+        if (parentResult.IsFailure)
+            return Result.Failure<GoalDetailDto>(parentResult.Error);
+        var newParent = parentResult.Value;
 
         // Reject a cycle: the new parent must not be the objective itself or one of its descendants.
-        var wouldCycle = await GoalsComposer.CreatesCycleAsync(Db, cycle.Id, objective.Id, newParentId, cancellationToken);
+        var wouldCycle = newParentId is not null
+            && await GoalsComposer.CreatesCycleAsync(Db, cycle.Id, objective.Id, newParentId.Value, cancellationToken);
         if (wouldCycle)
             return Result.Failure<GoalDetailDto>(Error.Validation("Objective.Alignment", "That alignment would create a circular hierarchy."));
 
         try
         {
-            objective.AlignTo(newParentId, newParent.StartDate, newParent.EndDate);
+            objective.AlignTo(newParentId, newParent?.StartDate, newParent?.EndDate);
             await Db.SaveChangesAsync(cancellationToken);
             return await ProjectAsync(cycle, objective.Id, command.Actor, cancellationToken);
         }
@@ -278,7 +372,8 @@ public sealed class PublishObjectiveHandler(PerformanceDbContext db, ICoreWorkfo
         // management authority (governed admin, or the org-manage grant) — NOT merely being the
         // objective's accountable person. This keeps a scope manager able to publish a Draft even
         // after assigning someone else as its accountable person.
-        if (!GoalsComposer.CanManageOrganizational(command.Actor))
+        if (objective.OrgUnitId is not Guid orgUnitId
+            || !await TeamObjectivePolicy.CanGovernAsync(Workforce, cycle, command.Actor, orgUnitId, cancellationToken))
             return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.PublishForbidden", "You are not authorized to publish organizational objectives."));
 
         try
@@ -309,7 +404,7 @@ public sealed class ConfigureContributionHandler(PerformanceDbContext db, ICoreW
         var objective = await LoadTrackedAsync(cycle.Id, command.ObjectiveId, cancellationToken);
         if (objective is null)
             return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", command.ObjectiveId));
-        if (!GoalsComposer.CanMaintain(command.Actor, objective))
+        if (!await CanMaintainTeamObjectiveAsync(cycle, objective, command.Actor, cancellationToken))
             return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.MaintainForbidden", "You are not authorized to maintain this objective."));
 
         // A contributor must be an aligned child of this objective (alignment ≠ contribution, but a
@@ -353,7 +448,7 @@ public sealed class LockContributionHandler(PerformanceDbContext db, ICoreWorkfo
         var objective = await LoadTrackedAsync(cycle.Id, command.ObjectiveId, cancellationToken);
         if (objective is null)
             return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", command.ObjectiveId));
-        if (!GoalsComposer.CanMaintain(command.Actor, objective))
+        if (!await CanMaintainTeamObjectiveAsync(cycle, objective, command.Actor, cancellationToken))
             return Result.Failure<GoalDetailDto>(Error.Forbidden("Objective.MaintainForbidden", "You are not authorized to maintain this objective."));
 
         var childIds = objective.ContributionLinks.Select(l => l.ChildObjectiveId).ToList();
@@ -374,28 +469,31 @@ public sealed class LockContributionHandler(PerformanceDbContext db, ICoreWorkfo
     }
 }
 
-public sealed class DeleteObjectiveHandler(PerformanceDbContext db)
-    : ICommandHandler<DeleteObjectiveCommand, Result<bool>>
+public sealed class DeleteObjectiveHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
+    : GoalCommandHandlerBase(db, workforce, tenant), ICommandHandler<DeleteObjectiveCommand, Result<bool>>
 {
     public async Task<Result<bool>> Handle(DeleteObjectiveCommand command, CancellationToken cancellationToken)
     {
-        var objective = await db.Objectives.Include(o => o.ContributionLinks)
-            .FirstOrDefaultAsync(o => o.Id == command.ObjectiveId && o.CycleId == command.CycleId, cancellationToken);
+        var cycleResult = await LoadOpenCycleAsync(command.CycleId, cancellationToken);
+        if (cycleResult.IsFailure) return Result.Failure<bool>(cycleResult.Error);
+        var cycle = cycleResult.Value;
+
+        var objective = await LoadTrackedAsync(cycle.Id, command.ObjectiveId, cancellationToken);
         if (objective is null)
             return Result.Failure<bool>(Error.NotFound("Objective", command.ObjectiveId));
         if (objective.OwnershipScope != ObjectiveOwnershipScope.OrgUnit)
             return Result.Failure<bool>(Error.Conflict("Objective.NotOrganizational", "Only an organizational objective can be removed here."));
-        if (!GoalsComposer.CanMaintain(command.Actor, objective))
+        if (!await CanMaintainTeamObjectiveAsync(cycle, objective, command.Actor, cancellationToken))
             return Result.Failure<bool>(Error.Forbidden("Objective.MaintainForbidden", "You are not authorized to remove this objective."));
         if (objective.State != ObjectiveLifecycleState.Draft)
             return Result.Failure<bool>(Error.Conflict("Objective.NotDraft", "Only a Draft objective can be removed."));
 
-        var hasChildren = await db.Objectives.AnyAsync(o => o.ParentObjectiveId == objective.Id, cancellationToken);
+        var hasChildren = await Db.Objectives.AnyAsync(o => o.ParentObjectiveId == objective.Id, cancellationToken);
         if (hasChildren)
             return Result.Failure<bool>(Error.Conflict("Objective.HasChildren", "Re-align or remove the aligned children first."));
 
-        db.Objectives.Remove(objective);
-        await db.SaveChangesAsync(cancellationToken);
+        Db.Objectives.Remove(objective);
+        await Db.SaveChangesAsync(cancellationToken);
         return Result.Success(true);
     }
 }

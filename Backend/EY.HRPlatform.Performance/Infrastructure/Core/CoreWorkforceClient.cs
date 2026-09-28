@@ -12,6 +12,11 @@ namespace EY.HRPlatform.Performance.Infrastructure.Core;
 /// </summary>
 public interface ICoreWorkforceClient
 {
+    Task<IReadOnlyList<WorkforceOrgUnitContext>> ResolveOrgUnitsAsync(
+        DateTime asOf,
+        IReadOnlyCollection<Guid> orgUnitIds,
+        CancellationToken cancellationToken);
+
     Task<IReadOnlyList<WorkforceSnapshot>> GetAllActiveAsOfAsync(DateTime asOf, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<WorkforceSnapshot>> GetByScopeAsync(
@@ -32,6 +37,20 @@ public sealed class CoreWorkforceClient(
     ITenantContext tenantContext) : ICoreWorkforceClient
 {
     private const string BasePath = "internal/corehr/workforce/snapshots";
+
+    public Task<IReadOnlyList<WorkforceOrgUnitContext>> ResolveOrgUnitsAsync(
+        DateTime asOf,
+        IReadOnlyCollection<Guid> orgUnitIds,
+        CancellationToken cancellationToken)
+    {
+        if (orgUnitIds.Count == 0)
+            return Task.FromResult<IReadOnlyList<WorkforceOrgUnitContext>>([]);
+
+        return PostAsync<WorkforceOrgUnitResolveRequest, WorkforceOrgUnitContext>(
+            $"{BasePath}/org-units/resolve",
+            new WorkforceOrgUnitResolveRequest(asOf, orgUnitIds.ToList()),
+            cancellationToken);
+    }
 
     public Task<IReadOnlyList<WorkforceSnapshot>> GetAllActiveAsOfAsync(DateTime asOf, CancellationToken cancellationToken)
         => PostAsync($"{BasePath}/all-active", new WorkforceAllActiveRequest(asOf), cancellationToken);
@@ -65,7 +84,13 @@ public sealed class CoreWorkforceClient(
             cancellationToken);
     }
 
-    private async Task<IReadOnlyList<WorkforceSnapshot>> PostAsync<TRequest>(
+    private Task<IReadOnlyList<WorkforceSnapshot>> PostAsync<TRequest>(
+        string path,
+        TRequest body,
+        CancellationToken cancellationToken)
+        => PostAsync<TRequest, WorkforceSnapshot>(path, body, cancellationToken);
+
+    private async Task<IReadOnlyList<TResponse>> PostAsync<TRequest, TResponse>(
         string path,
         TRequest body,
         CancellationToken cancellationToken)
@@ -88,7 +113,7 @@ public sealed class CoreWorkforceClient(
         using var response = await httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        var snapshots = await response.Content.ReadFromJsonAsync<List<WorkforceSnapshot>>(cancellationToken: cancellationToken);
+        var snapshots = await response.Content.ReadFromJsonAsync<List<TResponse>>(cancellationToken: cancellationToken);
         return snapshots ?? [];
     }
 }

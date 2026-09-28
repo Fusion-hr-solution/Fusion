@@ -52,7 +52,16 @@ public sealed class FakeCoreWorkforceClient : ICoreWorkforceClient
 {
     public List<WorkforceSnapshot> AllActive { get; } = [];
     public Dictionary<Guid, WorkforceSnapshot> ById { get; } = [];
+    public Dictionary<Guid, WorkforceOrgUnitContext> OrgUnits { get; } = [];
     public DateTime? LastAsOf { get; private set; }
+
+    public Task<IReadOnlyList<WorkforceOrgUnitContext>> ResolveOrgUnitsAsync(
+        DateTime asOf, IReadOnlyCollection<Guid> orgUnitIds, CancellationToken cancellationToken)
+    {
+        LastAsOf = asOf;
+        return Task.FromResult<IReadOnlyList<WorkforceOrgUnitContext>>(
+            orgUnitIds.Where(OrgUnits.ContainsKey).Select(id => OrgUnits[id]).ToList());
+    }
 
     public Task<IReadOnlyList<WorkforceSnapshot>> GetAllActiveAsOfAsync(DateTime asOf, CancellationToken cancellationToken)
     {

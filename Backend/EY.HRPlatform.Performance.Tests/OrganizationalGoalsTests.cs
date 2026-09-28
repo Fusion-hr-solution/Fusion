@@ -1,6 +1,7 @@
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Features.Goals;
+using EY.HRPlatform.Performance.Infrastructure.Core;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Models;
 using EY.HRPlatform.Performance.Tests.TestHelpers;
@@ -12,14 +13,11 @@ namespace EY.HRPlatform.Performance.Tests;
 /// <summary>
 /// Chunk B — organizational objective alignment, publication, and contribution baseline.
 /// <para>
-/// Authority to establish/publish an organizational objective is <b>organizational-objective
-/// management</b>: governed Performance administration (`cycle.manage @Tenant`) or the
-/// `objective.org.manage @Tenant` grant. In the direct MVP this is a coarse tenant-wide authority —
-/// a holder may manage organizational objectives anywhere in the tenant; fine-grained per-OrgUnit
-/// scoping is deferred to the future tenant Access/Profile design. It is deliberately separate from
-/// the objective's named accountable person, so reassigning the accountable person never removes the
-/// scope manager's ability to publish. Exercises the handlers over the shared in-memory store the way
-/// the API does.
+/// Authority to establish/publish a team objective is resolved against the Cycle-start organization:
+/// governed Performance administrators may act for any active team, while a holder of
+/// `objective.org.manage @Tenant` may act only for their own team. Accountable owners remain able to
+/// maintain Draft definitions and record Published progress. Exercises the handlers over the shared
+/// in-memory store the way the API does.
 /// </para>
 /// </summary>
 public sealed class OrganizationalGoalsTests
@@ -35,7 +33,8 @@ public sealed class OrganizationalGoalsTests
         Guid CooId,
         Guid TalentPodId,
         Guid OtherUnitId,
-        Guid NourId);
+        Guid NourId,
+        Guid OtherMemberId);
 
     private static async Task<Fixture> ArrangeAsync(bool draftCycle = true)
     {
@@ -43,11 +42,13 @@ public sealed class OrganizationalGoalsTests
         var workforce = new FakeCoreWorkforceClient();
         var coo = workforce.Add("Coralie Ops");
 
-        // Nour holds the org-manage grant; two distinct org units exist to show the MVP boundary is
-        // coarse (she may manage objectives in either).
+        // Talent Pod is an ancestor of Delivery Pod in the Cycle-start hierarchy.
         var talentPod = Guid.NewGuid();
         var otherUnit = Guid.NewGuid();
         var nour = workforce.Add("Nour Lead", orgUnitId: talentPod, orgUnitName: "Talent Pod");
+        var otherMember = workforce.Add("Delivery Owner", orgUnitId: otherUnit, orgUnitName: "Delivery Pod");
+        workforce.OrgUnits[talentPod] = new WorkforceOrgUnitContext(talentPod, "Talent Pod", null, true, []);
+        workforce.OrgUnits[otherUnit] = new WorkforceOrgUnitContext(otherUnit, "Delivery Pod", talentPod, true, [talentPod]);
 
         var cycle = PerformanceCycle.CreateDraft(store.TenantId, "FY2026", CycleStart, CycleEnd, CycleStart.AddDays(30));
         var strategic = Objective.CreateStrategic(store.TenantId, cycle.Id, "Grow the company", null, coo.EmployeeId,
@@ -69,12 +70,12 @@ public sealed class OrganizationalGoalsTests
             }
         }
 
-        return new Fixture(store, workforce, cycle.Id, strategic.Id, coo.EmployeeId, talentPod, otherUnit, nour.EmployeeId);
+        return new Fixture(store, workforce, cycle.Id, strategic.Id, coo.EmployeeId, talentPod, otherUnit, nour.EmployeeId, otherMember.EmployeeId);
     }
 
     // Governed Performance administration (`cycle.manage @Tenant`).
     private static GoalActorContext Admin(Guid id) => new(id, IsAdmin: true, HasOrgManageGrant: false);
-    // Holds `objective.org.manage @Tenant` — coarse tenant-wide organizational management authority.
+    // Holds `objective.org.manage @Tenant`; the handler resolves their Cycle-start team.
     private static GoalActorContext Manager(Guid id) => new(id, IsAdmin: false, HasOrgManageGrant: true);
     // No management authority (ordinary employee / view-only holder).
     private static GoalActorContext Person(Guid id) => new(id, IsAdmin: false, HasOrgManageGrant: false);
@@ -146,6 +147,178 @@ public sealed class OrganizationalGoalsTests
         Assert.True(result.IsFailure);
     }
 
+    [Fact]
+    public async Task Manager_can_create_a_standalone_objective_without_a_team_override()
+    {
+        var f = await ArrangeAsync();
+        var request = new CreateOrganizationalObjectiveRequest(
+            null, null, "Build leadership bench", null, f.NourId, null, null, null,
+            ObjectiveProgressSource.Direct,
+            new MeasurementInput(MeasurementMethod.ManualPercentage, null, null, null, null, null));
+
+        var created = await CreateAsync(f, request, Manager(f.NourId));
+
+        Assert.True(created.IsSuccess, created.IsFailure ? created.Error.Message : null);
+        Assert.Null(created.Value.Node.ParentObjectiveId);
+        Assert.Equal(f.TalentPodId, created.Value.Node.OrgUnitId);
+        Assert.Equal(CycleStart, created.Value.Node.StartDate);
+        Assert.Equal(CycleEnd, created.Value.Node.EndDate);
+    }
+
+    [Fact]
+    public async Task Team_workspace_returns_all_team_objectives_but_org_overview_excludes_standalone_branches()
+    {
+        var f = await ArrangeAsync();
+        var manager = Manager(f.NourId);
+        var standalone = await CreateAsync(f, new CreateOrganizationalObjectiveRequest(
+            null, null, "Standalone delivery", null, f.NourId, null, null, null,
+            ObjectiveProgressSource.Direct,
+            new MeasurementInput(MeasurementMethod.ManualPercentage, null, null, null, null, null)), manager);
+        var aligned = await CreateAsync(f, DirectNumeric(f.TalentPodId, f.NourId, f.StrategicId, "Aligned delivery"), manager);
+        Assert.True(standalone.IsSuccess && aligned.IsSuccess);
+
+        await using var db = f.Store.NewContext();
+        var workspace = await new GetTeamObjectiveWorkspaceHandler(db, f.Workforce)
+            .Handle(new GetTeamObjectiveWorkspaceQuery(f.CycleId, null, manager), default);
+        var overview = await new GetGoalsOverviewHandler(db, f.Workforce)
+            .Handle(new GetGoalsOverviewQuery(f.CycleId, manager), default);
+
+        Assert.True(workspace.IsSuccess, workspace.IsFailure ? workspace.Error.Message : null);
+        Assert.Equal(2, workspace.Value.Objectives.Count);
+        Assert.Contains(workspace.Value.Objectives, objective => objective.Node.Id == standalone.Value.Node.Id && objective.Parent is null);
+        Assert.Contains(workspace.Value.Objectives, objective => objective.Node.Id == aligned.Value.Node.Id && objective.Parent?.Id == f.StrategicId);
+        Assert.DoesNotContain(overview.Value.Nodes, objective => objective.Id == standalone.Value.Node.Id);
+        Assert.Contains(overview.Value.Nodes, objective => objective.Id == aligned.Value.Node.Id);
+    }
+
+    [Fact]
+    public async Task Workspace_returns_every_published_company_direction_without_selecting_one()
+    {
+        var f = await ArrangeAsync();
+        Guid secondDirectionId;
+        await using (var db = f.Store.NewContext())
+        {
+            var second = Objective.CreateStrategic(f.Store.TenantId, f.CycleId, "Expand customer trust", null, f.CooId,
+                CycleStart, CycleEnd, ObjectiveMeasurement.ManualPercentage(), CycleStart, CycleEnd);
+            second.Publish();
+            db.Objectives.Add(second);
+            await db.SaveChangesAsync();
+            secondDirectionId = second.Id;
+        }
+
+        await using var readDb = f.Store.NewContext();
+        var workspace = await new GetTeamObjectiveWorkspaceHandler(readDb, f.Workforce)
+            .Handle(new GetTeamObjectiveWorkspaceQuery(f.CycleId, null, Manager(f.NourId)), default);
+
+        Assert.True(workspace.IsSuccess, workspace.IsFailure ? workspace.Error.Message : null);
+        Assert.Equal(2, workspace.Value.AlignmentTargets.Count);
+        Assert.Contains(workspace.Value.AlignmentTargets, target => target.Id == f.StrategicId);
+        Assert.Contains(workspace.Value.AlignmentTargets, target => target.Id == secondDirectionId);
+    }
+
+    [Fact]
+    public async Task Owner_must_be_an_active_direct_member_of_the_selected_team()
+    {
+        var f = await ArrangeAsync();
+
+        var result = await CreateAsync(
+            f,
+            DirectNumeric(f.TalentPodId, f.OtherMemberId, f.StrategicId),
+            Admin(f.CooId));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Objective.OwnerOutsideTeam", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task Inactive_owner_and_cross_cycle_parent_ids_fail_closed()
+    {
+        var f = await ArrangeAsync();
+        var inactive = f.Workforce.Add(
+            "Inactive Owner", isActive: false, orgUnitId: f.TalentPodId, orgUnitName: "Talent Pod");
+        var inactiveOwner = await CreateAsync(
+            f,
+            DirectNumeric(f.TalentPodId, inactive.EmployeeId, f.StrategicId),
+            Admin(f.CooId));
+
+        Guid otherCycleParentId;
+        await using (var db = f.Store.NewContext())
+        {
+            var otherCycle = PerformanceCycle.CreateDraft(
+                f.Store.TenantId, "FY2027", new DateOnly(2027, 1, 1), new DateOnly(2027, 12, 31), new DateOnly(2027, 1, 31));
+            var otherParent = Objective.CreateStrategic(
+                f.Store.TenantId, otherCycle.Id, "Other cycle direction", null, f.CooId,
+                otherCycle.StartDate, otherCycle.EndDate, ObjectiveMeasurement.ManualPercentage(), otherCycle.StartDate, otherCycle.EndDate);
+            otherParent.Publish();
+            db.Cycles.Add(otherCycle);
+            db.Objectives.Add(otherParent);
+            await db.SaveChangesAsync();
+            otherCycleParentId = otherParent.Id;
+        }
+        var crossCycle = await CreateAsync(
+            f,
+            DirectNumeric(f.TalentPodId, f.NourId, otherCycleParentId),
+            Admin(f.CooId));
+
+        Assert.True(inactiveOwner.IsFailure);
+        Assert.Equal("Objective.OwnerOutsideTeam", inactiveOwner.Error.Code);
+        Assert.True(crossCycle.IsFailure);
+        Assert.Equal("Objective.AlignmentIneligible", crossCycle.Error.Code);
+    }
+
+    [Fact]
+    public async Task Same_team_and_disconnected_ancestor_objectives_are_not_eligible_parents()
+    {
+        var f = await ArrangeAsync();
+        var admin = Admin(f.CooId);
+        var disconnected = await CreateAsync(f, new CreateOrganizationalObjectiveRequest(
+            f.TalentPodId, null, "Local standalone", null, f.NourId, null, null, null,
+            ObjectiveProgressSource.Direct,
+            new MeasurementInput(MeasurementMethod.ManualPercentage, null, null, null, null, null)), admin);
+        Assert.True(disconnected.IsSuccess);
+        Assert.True((await PublishAsync(f, disconnected.Value.Node.Id, admin)).IsSuccess);
+
+        var sameTeam = await CreateAsync(
+            f,
+            DirectNumeric(f.TalentPodId, f.NourId, disconnected.Value.Node.Id, "Same team child"),
+            admin);
+        var descendant = await CreateAsync(
+            f,
+            DirectNumeric(f.OtherUnitId, f.OtherMemberId, disconnected.Value.Node.Id, "Disconnected child"),
+            admin);
+
+        Assert.True(sameTeam.IsFailure);
+        Assert.True(descendant.IsFailure);
+        Assert.Equal("Objective.AlignmentIneligible", sameTeam.Error.Code);
+        Assert.Equal("Objective.AlignmentIneligible", descendant.Error.Code);
+    }
+
+    [Fact]
+    public async Task Draft_alignment_can_be_cleared_but_published_alignment_is_locked()
+    {
+        var f = await ArrangeAsync();
+        var actor = Manager(f.NourId);
+        var created = await CreateAsync(f, DirectNumeric(f.TalentPodId, f.NourId, f.StrategicId), actor);
+        Assert.True(created.IsSuccess);
+
+        await using (var db = f.Store.NewContext())
+        {
+            var cleared = await new AlignObjectiveHandler(db, f.Workforce, f.Store.Tenant)
+                .Handle(new AlignObjectiveCommand(f.CycleId, created.Value.Node.Id, new AlignObjectiveRequest(null), actor), default);
+            Assert.True(cleared.IsSuccess, cleared.IsFailure ? cleared.Error.Message : null);
+            Assert.Null(cleared.Value.Node.ParentObjectiveId);
+        }
+
+        Assert.True((await PublishAsync(f, created.Value.Node.Id, actor)).IsSuccess);
+        await using (var db = f.Store.NewContext())
+        {
+            var realign = await new AlignObjectiveHandler(db, f.Workforce, f.Store.Tenant)
+                .Handle(new AlignObjectiveCommand(f.CycleId, created.Value.Node.Id, new AlignObjectiveRequest(f.StrategicId), actor), default);
+            Assert.True(realign.IsFailure);
+            Assert.Equal("Objective.NotEditable", realign.Error.Code);
+        }
+    }
+
     // ── Organizational-objective management authority (coarse tenant MVP) ───────────────────
 
     [Fact]
@@ -173,25 +346,45 @@ public sealed class OrganizationalGoalsTests
     }
 
     [Fact]
-    public async Task Manager_can_manage_an_objective_in_another_org_unit_too()
+    public async Task Manager_cannot_forge_another_org_unit()
     {
         var f = await ArrangeAsync();
 
-        // Coarse MVP: the org-manage grant is tenant-wide, so Nour may establish/publish for a unit
-        // she does not belong to. (Fine-grained per-OrgUnit scoping is deferred.)
         var created = await CreateAsync(f, DirectNumeric(f.OtherUnitId, f.NourId, f.StrategicId, "Cross-unit goal"), Manager(f.NourId));
-        Assert.True(created.IsSuccess, created.IsFailure ? created.Error.Message : null);
+        Assert.True(created.IsFailure);
+        Assert.Contains("own team", created.Error.Message, StringComparison.OrdinalIgnoreCase);
+    }
 
-        var published = await PublishAsync(f, created.Value.Node.Id, Manager(f.NourId));
-        Assert.True(published.IsSuccess, published.IsFailure ? published.Error.Message : null);
-        Assert.Equal(ObjectiveLifecycleState.Published, published.Value.Node.State);
+    [Fact]
+    public async Task Team_objective_detail_is_visible_only_to_its_governors_and_accountable_owner()
+    {
+        var f = await ArrangeAsync();
+        var created = await CreateAsync(
+            f,
+            DirectNumeric(f.OtherUnitId, f.OtherMemberId, f.StrategicId, "Delivery objective"),
+            Admin(f.CooId));
+        Assert.True(created.IsSuccess);
+
+        await using var db = f.Store.NewContext();
+        var handler = new GetGoalDetailHandler(db, f.Workforce);
+        var outsideManager = await handler.Handle(
+            new GetGoalDetailQuery(f.CycleId, created.Value.Node.Id, Manager(f.NourId)), default);
+        var accountableOwner = await handler.Handle(
+            new GetGoalDetailQuery(f.CycleId, created.Value.Node.Id, Person(f.OtherMemberId)), default);
+        var admin = await handler.Handle(
+            new GetGoalDetailQuery(f.CycleId, created.Value.Node.Id, Admin(f.CooId)), default);
+
+        Assert.True(outsideManager.IsFailure);
+        Assert.Equal("Objective.ViewForbidden", outsideManager.Error.Code);
+        Assert.True(accountableOwner.IsSuccess);
+        Assert.True(admin.IsSuccess);
     }
 
     [Fact]
     public async Task Reassigning_the_accountable_person_does_not_remove_the_managers_authority()
     {
         var f = await ArrangeAsync();
-        var other = f.Workforce.Add("Other Person", orgUnitId: f.OtherUnitId);
+        var other = f.Workforce.Add("Other Person", orgUnitId: f.TalentPodId, orgUnitName: "Talent Pod");
 
         // Nour creates with herself accountable (the composer default), then hands accountability off.
         var created = await CreateAsync(f, DirectNumeric(f.TalentPodId, f.NourId, f.StrategicId), Manager(f.NourId));
@@ -202,7 +395,7 @@ public sealed class OrganizationalGoalsTests
         {
             var reassign = await new UpdateOrganizationalObjectiveHandler(db, f.Workforce, f.Store.Tenant).Handle(
                 new UpdateOrganizationalObjectiveCommand(f.CycleId, objectiveId,
-                    new UpdateOrganizationalObjectiveRequest("Improve reliability", null, other.EmployeeId, CycleStart, CycleEnd,
+                    new UpdateOrganizationalObjectiveRequest("Improve reliability", null, other.EmployeeId, f.StrategicId, CycleStart, CycleEnd,
                         ObjectiveProgressSource.Direct, new MeasurementInput(MeasurementMethod.NumericTarget, 80m, 95m, "%", ImprovementDirection.Increase, null)),
                     Manager(f.NourId)), default);
             Assert.True(reassign.IsSuccess, reassign.IsFailure ? reassign.Error.Message : null);
@@ -251,7 +444,7 @@ public sealed class OrganizationalGoalsTests
         var f = await ArrangeAsync();
         var adminId = Guid.NewGuid();
 
-        var created = await CreateAsync(f, DirectNumeric(f.OtherUnitId, f.NourId, f.StrategicId, "Admin-established"), Admin(adminId));
+        var created = await CreateAsync(f, DirectNumeric(f.OtherUnitId, f.OtherMemberId, f.StrategicId, "Admin-established"), Admin(adminId));
         Assert.True(created.IsSuccess, created.IsFailure ? created.Error.Message : null);
 
         var published = await PublishAsync(f, created.Value.Node.Id, Admin(adminId));
@@ -271,7 +464,7 @@ public sealed class OrganizationalGoalsTests
         var opsId = ops.Value.Node.Id;
         Assert.True((await PublishAsync(f, opsId, Admin(f.CooId))).IsSuccess);
 
-        var child = await CreateAsync(f, DirectNumeric(f.TalentPodId, f.NourId, opsId, "Cut response time"), Admin(f.CooId));
+        var child = await CreateAsync(f, DirectNumeric(f.OtherUnitId, f.OtherMemberId, opsId, "Cut response time"), Admin(f.CooId));
         Assert.True(child.IsSuccess, child.IsFailure ? child.Error.Message : null);
         Assert.Equal(opsId, child.Value.Parent!.Id);
     }
@@ -285,7 +478,7 @@ public sealed class OrganizationalGoalsTests
         Assert.True(ops.IsSuccess, ops.IsFailure ? ops.Error.Message : null);
 
         // Ops is never published, so it is not yet an alignment baseline.
-        var child = await CreateAsync(f, DirectNumeric(f.TalentPodId, f.NourId, ops.Value.Node.Id, "Cut response time"), Admin(f.CooId));
+        var child = await CreateAsync(f, DirectNumeric(f.OtherUnitId, f.OtherMemberId, ops.Value.Node.Id, "Cut response time"), Admin(f.CooId));
         Assert.True(child.IsFailure);
         Assert.Contains("published", child.Error.Message, StringComparison.OrdinalIgnoreCase);
     }
@@ -299,8 +492,8 @@ public sealed class OrganizationalGoalsTests
         var opsId = await CreateCalculatedAsync(f, f.NourId, f.StrategicId, admin);
         Assert.True((await PublishAsync(f, opsId, admin)).IsSuccess);
 
-        var childA = (await CreateAsync(f, DirectNumeric(f.TalentPodId, f.NourId, opsId, "Child A"), admin)).Value.Node.Id;
-        var childB = (await CreateAsync(f, DirectNumeric(f.OtherUnitId, f.NourId, opsId, "Child B"), admin)).Value.Node.Id;
+        var childA = (await CreateAsync(f, DirectNumeric(f.OtherUnitId, f.OtherMemberId, opsId, "Child A"), admin)).Value.Node.Id;
+        var childB = (await CreateAsync(f, DirectNumeric(f.OtherUnitId, f.OtherMemberId, opsId, "Child B"), admin)).Value.Node.Id;
         Assert.True((await PublishAsync(f, childA, admin)).IsSuccess);
         Assert.True((await PublishAsync(f, childB, admin)).IsSuccess);
 
@@ -343,8 +536,8 @@ public sealed class OrganizationalGoalsTests
         var opsId = await CreateCalculatedAsync(f, f.NourId, f.StrategicId, admin);
         Assert.True((await PublishAsync(f, opsId, admin)).IsSuccess);
 
-        var childA = (await CreateAsync(f, DirectNumeric(f.TalentPodId, f.NourId, opsId, "Child A"), admin)).Value.Node.Id;
-        var childB = (await CreateAsync(f, DirectNumeric(f.OtherUnitId, f.NourId, opsId, "Child B"), admin)).Value.Node.Id;
+        var childA = (await CreateAsync(f, DirectNumeric(f.OtherUnitId, f.OtherMemberId, opsId, "Child A"), admin)).Value.Node.Id;
+        var childB = (await CreateAsync(f, DirectNumeric(f.OtherUnitId, f.OtherMemberId, opsId, "Child B"), admin)).Value.Node.Id;
         Assert.True((await PublishAsync(f, childA, admin)).IsSuccess); // childB stays Draft
 
         await using (var db = f.Store.NewContext())

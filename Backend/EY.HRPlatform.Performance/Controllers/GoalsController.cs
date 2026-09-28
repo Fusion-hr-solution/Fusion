@@ -41,6 +41,17 @@ public sealed class GoalsController(IMediator mediator, IPerformanceAccessPolicy
         return MapResult(await mediator.Send(new GetGoalDetailQuery(cycleId, objectiveId, Actor), cancellationToken));
     }
 
+    [HttpGet("team-workspace")]
+    public async Task<ActionResult<ApiResponse<TeamObjectiveWorkspaceDto>>> TeamWorkspace(
+        Guid cycleId,
+        [FromQuery] Guid? orgUnitId,
+        CancellationToken cancellationToken)
+    {
+        if (!policy.CanEnterPerformance(User)) return Forbid();
+        return MapResult(await mediator.Send(
+            new GetTeamObjectiveWorkspaceQuery(cycleId, orgUnitId, Actor), cancellationToken));
+    }
+
     [HttpPost]
     public async Task<ActionResult<ApiResponse<GoalDetailDto>>> Create(
         Guid cycleId, [FromBody] CreateOrganizationalObjectiveRequest request, CancellationToken cancellationToken)

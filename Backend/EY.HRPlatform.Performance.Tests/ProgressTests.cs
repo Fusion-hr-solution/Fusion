@@ -3,6 +3,7 @@ using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Progress;
 using EY.HRPlatform.Performance.Features.Goals;
 using EY.HRPlatform.Performance.Features.Progress;
+using EY.HRPlatform.Performance.Infrastructure.Core;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Models;
 using EY.HRPlatform.Performance.Tests.TestHelpers;
@@ -185,6 +186,47 @@ public sealed class ProgressTests
         var result = await Submit(f, db, f.StrategicId, Manual(30m), Owner(f.OwnerId));
         Assert.True(result.IsFailure);
         Assert.Contains("Closed", result.Error.Code, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Governing_manager_can_read_delegated_team_objective_progress_but_another_manager_cannot()
+    {
+        var store = TestStore.ForNewTenant();
+        var workforce = new FakeCoreWorkforceClient();
+        var teamId = Guid.NewGuid();
+        var otherTeamId = Guid.NewGuid();
+        var manager = workforce.Add("Mina Manager", orgUnitId: teamId, orgUnitName: "Talent");
+        var owner = workforce.Add("Omar Owner", orgUnitId: teamId, orgUnitName: "Talent");
+        var otherManager = workforce.Add("Other Manager", orgUnitId: otherTeamId, orgUnitName: "Finance");
+        workforce.OrgUnits[teamId] = new WorkforceOrgUnitContext(teamId, "Talent", null, true, []);
+        workforce.OrgUnits[otherTeamId] = new WorkforceOrgUnitContext(otherTeamId, "Finance", null, true, []);
+
+        var cycle = PerformanceCycle.CreateDraft(store.TenantId, "FY2026", Start, End, Start.AddDays(30));
+        var objective = Objective.CreateOrganizational(
+            store.TenantId, cycle.Id, teamId, "Talent", "Grow leaders", null, owner.EmployeeId, null,
+            Start, End, ObjectiveProgressSource.Direct, ObjectiveMeasurement.ManualPercentage(), null, null, Start, End);
+        objective.Publish();
+        objective.ApplyManualPercentage(35m);
+        await using (var db = store.NewContext())
+        {
+            db.Cycles.Add(cycle);
+            db.Objectives.Add(objective);
+            await db.SaveChangesAsync();
+        }
+
+        await using var readDb = store.NewContext();
+        var handler = new GetObjectiveProgressHandler(readDb, workforce);
+        var governed = await handler.Handle(
+            new GetObjectiveProgressQuery(cycle.Id, objective.Id,
+                new ProgressActorContext(manager.EmployeeId, false, false, HasOrgManageGrant: true)), default);
+        var outside = await handler.Handle(
+            new GetObjectiveProgressQuery(cycle.Id, objective.Id,
+                new ProgressActorContext(otherManager.EmployeeId, false, false, HasOrgManageGrant: true)), default);
+
+        Assert.True(governed.IsSuccess, governed.IsFailure ? governed.Error.Message : null);
+        Assert.Equal(35m, governed.Value.DerivedProgress);
+        Assert.True(outside.IsFailure);
+        Assert.Equal("Progress.ViewForbidden", outside.Error.Code);
     }
 
     // ── Graph builders ────────────────────────────────────────────────────

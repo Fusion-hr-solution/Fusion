@@ -25,9 +25,8 @@ public interface IPerformanceAccessPolicyService
     bool CanManageOwnParticipation(ClaimsPrincipal user);
 
     /// <summary>
-    /// Holds the organizational-objective management grant. In the direct MVP this is a coarse
-    /// tenant-wide authority: the holder may establish/edit/publish organizational objectives
-    /// anywhere in the tenant. Fine-grained per-OrgUnit scoping is deferred.
+    /// Holds the organizational-objective management grant. Handlers combine this capability with
+    /// the caller's Cycle-start workforce assignment before allowing a team-scoped action.
     /// </summary>
     bool CanManageOrganizationalObjectives(ClaimsPrincipal user);
 
