@@ -2,7 +2,6 @@
 
 import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { MyPlan } from "@/features/performance/components/plan/my-plan";
 import { NotStartedBadge, PlanStateBadge } from "@/features/performance/components/plan/plan-header";
@@ -43,13 +42,12 @@ export default function PlanPage() {
     );
   }
 
-  // Once the plan is approved and locked, the surface has moved from planning to execution: the page
-  // subtitle follows, and the stale planning deadline drops out of the Cycle context.
+  // Once the plan is approved and locked, the surface has moved from planning to execution, and the page
+  // subtitle follows.
   const executing = plan?.isLocked ?? false;
 
   return (
     <PageContainer>
-      <CycleContextBar cycle={cycle} showPlanningDeadline={!executing} />
       <PerformancePageHeading
         title={
           <span className="inline-flex flex-wrap items-center gap-2.5">

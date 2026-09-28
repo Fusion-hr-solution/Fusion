@@ -1,71 +1,86 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useAuth } from "@repo/auth";
+import type {
+  AlignmentTargetDto,
+  CycleSummaryDto,
+  GoalNodeDto,
+  TeamObjectiveWorkspaceItemDto,
+} from "@repo/api";
+import { Button } from "@repo/ds/components/ui/button";
 import {
-  ArrowRight,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@repo/ds/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/ds/components/ui/select";
+import { Skeleton } from "@repo/ds/components/ui/skeleton";
+import { StatusBadge } from "@repo/ds/shell";
+import { cn } from "@repo/ds/lib/utils";
+import {
+  CalendarDays,
+  ChartColumn,
+  ChevronRight,
+  CornerLeftUp,
+  Eye,
+  Flag,
+  Info,
+  Layers,
   ExternalLink,
   Gauge,
-  Layers,
+  MoreHorizontal,
   Pencil,
   Plus,
   Target,
   Trash2,
+  UserRound,
   Users,
   Waypoints,
 } from "lucide-react";
 import { toast } from "sonner";
-import type {
-  CycleSummaryDto,
-  GoalNodeDto,
-  ObjectiveProgressDto,
-} from "@repo/api";
-import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
-import { Button } from "@repo/ds/components/ui/button";
-import { StatusBadge } from "@repo/ds/shell";
-import { cn } from "@repo/ds/lib/utils";
-import { OrgObjectiveDetailDrawer } from "../goals/org-objective-detail-drawer";
 import {
-  OrgComposerHost,
-  type ComposerState,
-} from "../goals/org-composer-host";
-import { initials, STATE_LABEL, STATE_TONE } from "../goals/goals-lib";
-import { MEASUREMENT_METHOD_LABEL, formatMeasureValue } from "../plan/plan-lib";
-import {
-  resolveWorkspace,
-  type UnitContext,
-} from "../goals/working-context-lib";
-import {
+  useGoal,
   useGoalMutations,
-  useGoals,
-  useObjectiveProgress,
+  useTeamObjectiveWorkspace,
 } from "../../api/use-performance";
 import { useWorkforceMe } from "../../api/use-workforce-me";
 import { formatDate } from "../../lib";
+import { AlignmentTargetPicker } from "../goals/org-objective-composer";
+import { OrgObjectiveDetailDrawer } from "../goals/org-objective-detail-drawer";
+import {
+  OrgComposerHost,
+  type ComposerAlignmentContext,
+  type ComposerState,
+} from "../goals/org-composer-host";
+import { STATE_LABEL, STATE_TONE } from "../goals/goals-lib";
+import type { UnitContext } from "../goals/working-context-lib";
 import { TeamObjectiveRecordDrawer } from "./team-objective-record-drawer";
+import {
+  initialDirectionForTargets,
+  visibleTeamObjectives,
+  type AlignmentFilter,
+  type LifecycleFilter,
+  type ObjectiveSort,
+} from "./team-objectives-model";
 
-/**
- * Team Direction — the manager's operational read of the direction their scope inherited and the
- * organizational objective their scope owns. The "team objective" here is NOT a Team-Performance copy:
- * it is the same canonical organizational objective used by Organization Goals, resolved through the
- * same `resolveWorkspace` derivation. Creating it opens the shared Organizational Objective Composer;
- * viewing it opens the shared objective panel; progress comes from the canonical objective-progress
- * truth. Organization Goals and Team Performance are two presentations of one resource.
- *
- * It is a scoped-leader concept: it renders only when the actor has a real organizational placement.
- * A tenant-wide/administration actor with no owning unit sees nothing here.
- */
 export function TeamDirection({
   cycle,
   canViewOrgGoals,
 }: {
   cycle: CycleSummaryDto;
-  /** Whether the actor can legitimately open Organization Goals (gates the section-level link). */
   canViewOrgGoals: boolean;
 }) {
+  const { user } = useAuth();
   const me = useWorkforceMe(true);
-  const goals = useGoals(cycle.id, true);
-  const goalMutations = useGoalMutations(cycle.id);
-
   const ownUnit: UnitContext | null = useMemo(() => {
     const org = me.data?.employee?.orgUnit;
     if (!org) return null;
@@ -79,63 +94,203 @@ export function TeamDirection({
     };
   }, [me.data]);
 
-  // The manager's own scope, its inherited upstream direction, and the objective their scope owns
-  // (if any) — all from the same canonical alignment derivation Organization Goals uses.
-  const resolved = useMemo(() => {
-    if (!ownUnit || !goals.data) return null;
-    const workspace = resolveWorkspace(goals.data.nodes, {
-      ownUnit,
-      broad: false,
-    });
-    if (workspace.kind === "unit") {
-      // The scope owns at least one objective. The team objective is its primary (first) one; its
-      // direct parent is the inherited upstream direction.
-      const block = workspace.blocks[0]!;
-      return { upstream: block.ancestors.at(-1) ?? null, team: block.node };
-    }
-    if (workspace.kind === "unit-empty") {
-      // No objective yet — the first published direction the scope could align under is the upstream,
-      // and also the parent a newly created objective aligns beneath.
-      return {
-        upstream: workspace.candidates[0]?.node ?? null,
-        team: null as GoalNodeDto | null,
-      };
-    }
-    return null;
-  }, [ownUnit, goals.data]);
+  const workspace = useTeamObjectiveWorkspace(
+    cycle.id,
+    ownUnit?.orgUnitId,
+    ownUnit !== null
+  );
+  const targets = useMemo(
+    () => workspace.data?.alignmentTargets ?? [],
+    [workspace.data]
+  );
+  const [direction, setDirection] = useState<ComposerAlignmentContext>(null);
+  const initializedTeam = useRef<string | null>(null);
 
-  const teamId = resolved?.team?.id ?? null;
-  const upstreamId = resolved?.upstream?.id ?? null;
-  const teamProgress = useObjectiveProgress(cycle.id, teamId);
-  const upstreamProgress = useObjectiveProgress(cycle.id, upstreamId);
+  useEffect(() => {
+    const data = workspace.data;
+    if (!data) return;
+    if (initializedTeam.current !== data.orgUnitId) {
+      initializedTeam.current = data.orgUnitId;
+      setDirection(initialDirectionForTargets(data.alignmentTargets));
+      return;
+    }
+    if (
+      direction?.mode === "aligned" &&
+      !data.alignmentTargets.some((target) => target.id === direction.parentId)
+    )
+      setDirection(null);
+  }, [workspace.data, direction]);
 
-  const [panelId, setPanelId] = useState<string | null>(null);
+  const selectedParentId =
+    direction?.mode === "aligned" ? direction.parentId : null;
+  const selectedDirection = useGoal(cycle.id, selectedParentId);
   const [composer, setComposer] = useState<ComposerState | null>(null);
-  const [recording, setRecording] = useState(false);
+  const [panelId, setPanelId] = useState<string | null>(null);
+  const [recording, setRecording] =
+    useState<TeamObjectiveWorkspaceItemDto | null>(null);
+  const mutations = useGoalMutations(cycle.id);
 
-  // A leader without an organizational placement, or a scope with no published direction to inherit,
-  // has no Team Direction to show — stay silent rather than render an empty scaffold.
-  if (me.isLoading || goals.isLoading) return <SectionSkeleton />;
-  if (!ownUnit || !resolved || !resolved.upstream) return null;
+  if (me.isLoading || workspace.isLoading) return <TeamDirectionSkeleton />;
+  if (!ownUnit) return null;
+  if (workspace.error || !workspace.data) {
+    return (
+      <section className="rounded-2xl border border-border bg-card p-6">
+        <h2 className="type-section-title text-foreground">
+          Upstream direction
+        </h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Team objectives could not be loaded.
+        </p>
+        <Button
+          variant="outline"
+          className="mt-4"
+          onClick={() => void workspace.refetch()}
+        >
+          Try again
+        </Button>
+      </section>
+    );
+  }
 
-  const { upstream, team } = resolved;
-  const goalsHref = team
-    ? `/performance/goals?focus=${team.id}`
+  const data = workspace.data;
+  const openCreate = (alignment: ComposerAlignmentContext) =>
+    setComposer({ mode: "create", alignment, orgUnitId: data.orgUnitId });
+  const goalsHref = selectedParentId
+    ? `/performance/goals?focus=${selectedParentId}`
     : "/performance/goals";
 
   return (
+    <>
+      <div className="space-y-4">
+        <StrategicDirection
+          cycle={cycle}
+          targets={targets}
+          direction={direction}
+          onDirectionChange={setDirection}
+          selectedNode={selectedDirection.data?.node ?? null}
+          selectedDescription={selectedDirection.data?.description ?? null}
+          detailLoading={selectedDirection.isLoading}
+          canCreate={data.canCreate && data.eligibleOwners.length > 0}
+          noEligibleOwners={data.eligibleOwners.length === 0}
+          canViewOrgGoals={canViewOrgGoals}
+          goalsHref={goalsHref}
+          onCreate={() => openCreate(direction)}
+          onInspect={setPanelId}
+        />
+        <TeamObjectives
+          items={data.objectives}
+          canCreate={data.canCreate && data.eligibleOwners.length > 0}
+          onCreate={() => openCreate(direction)}
+          onInspect={setPanelId}
+          onChangeAlignment={(item) =>
+            setComposer({
+              mode: "edit",
+              objectiveId: item.node.id,
+              focusAlignment: true,
+            })
+          }
+          onEdit={(item) =>
+            setComposer({ mode: "edit", objectiveId: item.node.id })
+          }
+          onDelete={async (item) => {
+            try {
+              await mutations.remove.mutateAsync(item.node.id);
+              toast.success("Draft objective deleted.");
+            } catch (error) {
+              toast.error(
+                error instanceof Error
+                  ? error.message
+                  : "The objective could not be deleted."
+              );
+            }
+          }}
+          onViewDirection={(item) => item.parent && setPanelId(item.parent.id)}
+          onRecord={setRecording}
+          currentEmployeeId={user?.employeeId ?? null}
+        />
+      </div>
+      <OrgObjectiveDetailDrawer
+        cycleId={cycle.id}
+        objectiveId={panelId}
+        open={panelId !== null}
+        onOpenChange={(open) => {
+          if (!open) setPanelId(null);
+        }}
+      />
+      {composer ? (
+        <OrgComposerHost
+          cycle={cycle}
+          state={composer}
+          ownUnit={ownUnit}
+          onClose={() => setComposer(null)}
+        />
+      ) : null}
+      {recording ? (
+        <TeamObjectiveRecordDrawer
+          cycleId={cycle.id}
+          objectiveId={recording.node.id}
+          title={recording.node.title}
+          open
+          onOpenChange={(open) => {
+            if (!open) setRecording(null);
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function StrategicDirection({
+  cycle,
+  targets,
+  direction,
+  onDirectionChange,
+  selectedNode,
+  selectedDescription,
+  detailLoading,
+  canCreate,
+  noEligibleOwners,
+  canViewOrgGoals,
+  goalsHref,
+  onCreate,
+  onInspect,
+}: {
+  cycle: CycleSummaryDto;
+  targets: AlignmentTargetDto[];
+  direction: ComposerAlignmentContext;
+  onDirectionChange: (direction: ComposerAlignmentContext) => void;
+  selectedNode: GoalNodeDto | null;
+  selectedDescription: string | null;
+  detailLoading: boolean;
+  canCreate: boolean;
+  noEligibleOwners: boolean;
+  canViewOrgGoals: boolean;
+  goalsHref: string;
+  onCreate: () => void;
+  onInspect: (id: string) => void;
+}) {
+  const aligned = direction?.mode === "aligned";
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const selectionValue = aligned
+    ? direction.parentId
+    : direction?.mode === "standalone"
+      ? "__standalone__"
+      : null;
+  return (
     <section
-      aria-labelledby="team-direction-heading"
+      aria-labelledby="strategic-direction-heading"
       className="rounded-2xl border border-border bg-muted/20 p-5 sm:p-6"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 id="team-direction-heading" className="type-page-title text-foreground">
-            Team Direction
+          <h2
+            id="strategic-direction-heading"
+            className="type-section-title text-foreground"
+          >
+            Upstream direction
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Your team&apos;s objective and its alignment to the broader
-            organizational direction.
+            Company objectives and objectives from teams above yours.
           </p>
         </div>
         {canViewOrgGoals ? (
@@ -151,595 +306,821 @@ export function TeamDirection({
           </Button>
         ) : null}
       </div>
-
-      <div className="mt-5 grid items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.1fr)]">
-        <UpstreamCard
-          node={upstream}
-          progress={upstreamProgress.data ?? null}
-          onInspect={setPanelId}
-        />
-        <SupportsConnector />
-        {team ? (
-          <TeamObjectiveCard
-            unitName={ownUnit.name}
-            node={team}
-            progress={teamProgress.data ?? null}
-            onInspect={setPanelId}
-            onResumeDraft={() =>
-              setComposer({ mode: "edit", objectiveId: team.id })
-            }
-            onDelete={async () => {
-              try {
-                await goalMutations.remove.mutateAsync(team.id);
-                toast.success("Draft objective deleted.");
-              } catch (error) {
-                toast.error(
-                  error instanceof Error
-                    ? error.message
-                    : "Could not delete the objective."
-                );
-              }
-            }}
-            onRecord={() => setRecording(true)}
+      <div
+        className="relative mt-5 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]"
+      >
+        <CardLink />
+        {detailLoading && aligned ? (
+          <DirectionCardSkeleton />
+        ) : aligned && selectedNode ? (
+          <DirectionCard
+            node={selectedNode}
+            description={selectedDescription}
+            onInspect={onInspect}
+          />
+        ) : direction?.mode === "standalone" ? (
+          <StandaloneCard
+            targetCount={targets.length}
+            onChoose={() => setPickerOpen(true)}
           />
         ) : (
-          <TeamObjectiveEmptyCard
-            onCreate={() =>
-              setComposer({
-                mode: "create",
-                parentId: upstream.id,
-                orgUnitId: ownUnit.orgUnitId,
-              })
-            }
+          <EmptyDirectionCard
+            targetCount={targets.length}
+            onChoose={() => setPickerOpen(true)}
+            onStandalone={() => onDirectionChange({ mode: "standalone" })}
           />
         )}
+        <div className="flex flex-col rounded-xl border border-primary/45 bg-card p-4 sm:p-5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-8 items-center justify-center rounded-lg border border-primary/35 bg-primary/[0.1] text-primary">
+              <Target className="size-4" aria-hidden />
+            </span>
+            <p className="type-eyebrow text-primary">Next team objective</p>
+          </div>
+          <div className="mt-3">
+            <h3 className="text-lg font-semibold tracking-tight text-foreground">
+              Create a team objective
+            </h3>
+            <p className="mt-1 max-w-xl text-sm leading-5 text-muted-foreground">
+              Choose what it supports before defining its result and measure.
+            </p>
+          </div>
+          <div className="mt-4 space-y-1.5">
+            <label className="type-label text-foreground">Align to</label>
+            <AlignmentTargetPicker
+              targets={targets}
+              value={selectionValue}
+              onChange={(parentId) =>
+                onDirectionChange({ mode: "aligned", parentId })
+              }
+              includeStandalone
+              open={pickerOpen}
+              onOpenChange={setPickerOpen}
+              onStandalone={() => onDirectionChange({ mode: "standalone" })}
+            />
+          </div>
+          <div className="mt-auto pt-4">
+            <Button onClick={onCreate} disabled={!direction || !canCreate}>
+              <Plus className="size-4" data-icon="inline-start" aria-hidden />
+              Create team objective
+            </Button>
+            {noEligibleOwners ? (
+              <p className="mt-2 text-xs text-destructive">
+                No active team member can own an objective in this cycle.
+              </p>
+            ) : !direction ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Choose an upstream objective or No alignment first.
+              </p>
+            ) : cycle.state === "Closed" ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                This cycle is closed.
+              </p>
+            ) : null}
+          </div>
+        </div>
       </div>
-
-      <OrgObjectiveDetailDrawer
-        cycleId={cycle.id}
-        objectiveId={panelId}
-        open={panelId !== null}
-        onOpenChange={(open) => {
-          if (!open) setPanelId(null);
-        }}
-      />
-
-      {composer ? (
-        <OrgComposerHost
-          cycle={cycle}
-          state={composer}
-          ownUnit={ownUnit}
-          onClose={() => setComposer(null)}
-        />
-      ) : null}
-
-      {recording && team ? (
-        <TeamObjectiveRecordDrawer
-          cycleId={cycle.id}
-          objectiveId={team.id}
-          title={team.title}
-          open={recording}
-          onOpenChange={setRecording}
-        />
-      ) : null}
     </section>
   );
 }
 
-// ── Upstream (inherited) direction — the quieter context card ─────────────────────
+function DirectionFact({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted/50 text-muted-foreground [&_svg]:size-4">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="truncate text-sm font-semibold text-foreground">
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
 
-function UpstreamCard({
+function DirectionCard({
   node,
-  progress,
+  description,
   onInspect,
 }: {
   node: GoalNodeDto;
-  progress: ObjectiveProgressDto | null;
+  description: string | null;
   onInspect: (id: string) => void;
 }) {
-  const kindLabel =
+  const progress = Math.max(
+    0,
+    Math.min(100, Math.round(node.hasProgress ? node.derivedProgress : 0))
+  );
+  const kind =
     node.ownershipScope === "Company"
-      ? "Company strategic objective"
-      : `${node.orgUnitName ?? "Organizational"} objective`;
-
+      ? "Company objective"
+      : `${node.orgUnitName ?? "Team"} objective`;
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card p-5">
-      {/* Top row: identity + status on the left, the objective's date far right. */}
+    <div className="flex flex-col rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <IconTile icon={Waypoints} />
-          <p className="type-eyebrow text-muted-foreground">
-            Upstream objective
-          </p>
-          <StatusBadge tone={STATE_TONE[node.state]} dot>
-            {STATE_LABEL[node.state]}
-          </StatusBadge>
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-8 items-center justify-center rounded-lg border border-primary/35 bg-primary/[0.1] text-primary">
+            <Target className="size-4" aria-hidden />
+          </span>
+          <p className="type-eyebrow text-primary">Selected direction</p>
         </div>
-        <ObjectiveDate node={node} progress={progress} />
+        <StatusBadge tone={STATE_TONE[node.state]} dot>
+          {STATE_LABEL[node.state]}
+        </StatusBadge>
       </div>
 
-      {/* Title + scope, dropped below the identity row. */}
-      <div className="mt-3">
-        <button
-          type="button"
-          onClick={() => onInspect(node.id)}
-          className="block rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          <h3 className="text-lg font-semibold leading-snug tracking-tight text-foreground hover:underline">
-            {node.title}
-          </h3>
-        </button>
-        <p className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-medium text-primary">
-          <Target className="size-3.5" aria-hidden />
-          {kindLabel}
-        </p>
-      </div>
-
-      {/* Progress + meta as one bottom-anchored group, structured identically to the team card so the
-          bars and dividers line up across both cards regardless of title/height differences. */}
-      {/* Footer skeleton shared with the team card — progress over one row of facts + actions. The facts
-          stay on a single line (no wrap) so both cards' footers are the same height and their progress
-          bars and rows line up regardless of how many actions each carries. */}
-      <div className="mt-auto">
-        <div className="mb-1.5 pt-4">
-          <ProgressBar progress={progress} tone="muted" />
-        </div>
-        <div className="flex items-center gap-4 border-t border-border/60 pt-4">
-          <div className="flex min-w-0 flex-1 items-start gap-x-6">
-            <AccountableFact name={node.accountablePersonName} />
-            <MeasurementFact node={node} progress={progress} />
-          </div>
-          <ViewDetailsLink className="shrink-0" onClick={() => onInspect(node.id)} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── The manager's own objective — the focal card ──────────────────────────────────
-
-/**
- * The scope's owned objective, rendered with clear ownership weight — a raised card, the accent icon
- * tile, an eyebrow that reads as "mine", and greater width in the row. Ownership is carried by
- * structure and the restrained Fusion accent, never a green "yours" outline: green stays reserved for
- * real status (a completed objective). Published planning shows definition only; once the objective
- * has real progress (or the actor may record it), the execution band appears.
- */
-function TeamObjectiveCard({
-  unitName,
-  node,
-  progress,
-  onInspect,
-  onResumeDraft,
-  onDelete,
-  onRecord,
-}: {
-  unitName: string;
-  node: GoalNodeDto;
-  progress: ObjectiveProgressDto | null;
-  onInspect: (id: string) => void;
-  onResumeDraft: () => void;
-  onDelete: () => void | Promise<void>;
-  onRecord: () => void;
-}) {
-  const isDraft = node.state === "Draft";
-  // A draft with nothing aligned beneath it can be discarded outright.
-  const canDelete = isDraft && node.childCount === 0;
-  // Execution-aware: the band appears once there is progress to read, or the actor may record it.
-  // Direct-measurement objectives expose the manual recorder; calculated ones roll up and never do.
-  const canRecord =
-    Boolean(progress?.canUpdate) && node.progressSource === "Direct";
-
-  return (
-    <div
-      className="relative flex flex-col overflow-hidden rounded-xl border border-primary bg-card p-5 shadow-raised"
-    >
-      {/* Top row: identity + status on the left, the objective's date far right. */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <IconTile icon={Users} accent />
-          <p className="type-eyebrow text-primary">Your team objective</p>
-          <StatusBadge tone={STATE_TONE[node.state]} dot>
-            {STATE_LABEL[node.state]}
-          </StatusBadge>
-        </div>
-        <ObjectiveDate node={node} progress={progress} />
-      </div>
-
-      {/* Title + scope, dropped below the identity row. */}
-      <div className="mt-3">
-        <button
-          type="button"
-          onClick={() => onInspect(node.id)}
-          className="block rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        >
-          <h3 className="text-xl font-semibold leading-snug tracking-tight text-foreground hover:underline">
-            {node.title}
-          </h3>
-        </button>
-        <p className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-medium text-primary">
-          <Target className="size-3.5" aria-hidden />
-          {node.orgUnitName ?? unitName}
-        </p>
-      </div>
-
-      {/* Progress + meta anchored as one bottom group, structured identically to the upstream card so
-          both cards' bars and dividers align. */}
-      <div className="mt-auto">
-        <div className="mb-1.5 pt-4">
-          <ProgressBar progress={progress} />
-        </div>
-
-        <div className="flex items-center gap-4 border-t border-border/60 pt-4">
-          <div className="flex min-w-0 flex-1 items-start gap-x-6">
-            <AccountableFact name={node.accountablePersonName} />
-            <MeasurementFact node={node} progress={progress} />
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-          {isDraft ? (
-            <>
-              {canDelete ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground hover:text-destructive"
-                  onClick={() => void onDelete()}
-                >
-                  <Trash2
-                    className="size-3.5"
-                    data-icon="inline-start"
-                    aria-hidden
-                  />{" "}
-                  Delete
-                </Button>
-              ) : null}
-              <Button variant="outline" size="sm" onClick={onResumeDraft}>
-                <Pencil
-                  className="size-3.5"
-                  data-icon="inline-start"
-                  aria-hidden
-                />{" "}
-                Resume editing
-              </Button>
-            </>
-          ) : canRecord ? (
-            // Update progress is the primary action; details stay reachable by clicking the title, so the
-            // redundant View details link is dropped here to keep the facts + action on one clean row.
-            <Button size="sm" onClick={onRecord}>
-              Update progress
-            </Button>
-          ) : (
-            <ViewDetailsLink onClick={() => onInspect(node.id)} />
-          )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * The owned empty state — the scope has inherited direction but established no objective yet. A
- * purposeful call to create the canonical organizational objective, aligned to the upstream direction,
- * launched through the shared composer. Its dashed accent frame marks it as an owned space awaiting
- * action; "Not set" is a presentational absence marker, not a fabricated lifecycle status.
- */
-function TeamObjectiveEmptyCard({ onCreate }: { onCreate: () => void }) {
-  return (
-    <div className="relative flex flex-col overflow-hidden rounded-xl border border-dashed border-primary/45 bg-primary/[0.03] p-5 sm:p-6">
-      <div className="flex items-center gap-3">
-        <IconTile icon={Users} accent />
-        <p className="type-eyebrow text-muted-foreground">
-          Your team objective
-        </p>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-          {/* <CircleDashed className="size-3.5" aria-hidden /> */}○ Not set
-        </span>
-      </div>
-
-      <div className="mt-5 flex flex-1 flex-col justify-center">
-        <h3 className="text-2xl font-semibold tracking-tight text-foreground">
-          No team objective yet
+      <button
+        type="button"
+        onClick={() => onInspect(node.id)}
+        className="mt-3 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <h3 className="text-lg font-semibold leading-snug tracking-tight text-foreground hover:underline">
+          {node.title}
         </h3>
-        <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-          Create a team objective to align your team&apos;s work with this
-          direction and drive measurable impact.
+      </button>
+      {description ? (
+        <p className="mt-1 line-clamp-2 max-w-2xl text-sm leading-5 text-muted-foreground">
+          {description}
         </p>
-        <div className="mt-5">
-          <Button size="lg" onClick={onCreate}>
-            <Plus className="size-4" data-icon="inline-start" aria-hidden />{" "}
-            Create objective
-          </Button>
-        </div>
+      ) : null}
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3 sm:divide-x sm:divide-border [&>*]:sm:pl-4 [&>*:first-child]:sm:pl-0">
+        <DirectionFact
+          icon={<UserRound aria-hidden />}
+          label="Accountable owner"
+          value={node.accountablePersonName ?? "No owner"}
+        />
+        <DirectionFact
+          icon={<ChartColumn aria-hidden />}
+          label="Measurement"
+          value={node.measurementSummary}
+        />
+        <DirectionFact
+          icon={<Flag aria-hidden />}
+          label="Objective type"
+          value={kind}
+        />
       </div>
+
+      <div className="mt-4 flex items-end gap-5 border-t border-border/60 pt-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-muted-foreground">
+            Progress toward target
+          </p>
+          <div className="relative mt-2 h-1.5 rounded-full bg-muted">
+            <span
+              className="absolute inset-y-0 left-0 rounded-full bg-primary"
+              style={{ width: `${progress}%` }}
+            />
+            <span
+              className="absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-card"
+              style={{ left: `${progress}%` }}
+              aria-hidden
+            />
+          </div>
+        </div>
+        <p className="shrink-0 text-xs text-muted-foreground">
+          <span className="text-sm font-semibold tabular-nums text-foreground">
+            {progress}%
+          </span>{" "}
+          of target
+        </p>
+      </div>
+
     </div>
   );
 }
 
-// ── Shared pieces ─────────────────────────────────────────────────────────────────
-
-/** The quiet, amber "View details →" affordance — the canonical objective panel opener. */
-function ViewDetailsLink({
+/** Footer row that opens the Align to picker; shared by the aligned and standalone states. */
+function EligibleRow({
+  count,
+  hint,
   onClick,
-  className,
 }: {
+  count: number;
+  hint: string;
   onClick: () => void;
-  className?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1 pb-0.5 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        className
-      )}
+      className="group mt-3 flex items-center gap-3 border-t border-border/60 pt-3 text-left focus-visible:outline-none"
     >
-      View details
-      <ArrowRight className="size-3.5" aria-hidden />
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50 text-muted-foreground">
+        <Layers className="size-4" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+        {count} eligible objective{count === 1 ? "" : "s"}{" "}
+        <span className="font-normal text-muted-foreground">· {hint}</span>
+      </span>
+      <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground transition-colors group-hover:bg-muted group-hover:text-foreground group-focus-visible:ring-2 group-focus-visible:ring-ring">
+        <ChevronRight className="size-4" aria-hidden />
+      </span>
     </button>
   );
 }
 
-/**
- * The objective's timestamp on the top row — the last progress update when execution is under way,
- * otherwise the published date. Omitted for a Draft or an objective with neither (never a placeholder).
- */
-function ObjectiveDate({
-  node,
-  progress,
+function StandaloneCard({
+  targetCount,
+  onChoose,
 }: {
-  node: GoalNodeDto;
-  progress: ObjectiveProgressDto | null;
+  targetCount: number;
+  onChoose: () => void;
 }) {
-  const lastUpdate = progress?.hasProgress
-    ? (progress.history[0]?.recordedAt ?? null)
-    : null;
-  const [label, iso] = lastUpdate
-    ? (["Updated", lastUpdate] as const)
-    : node.state === "Published" && node.publishedAt
-      ? (["Published", node.publishedAt] as const)
-      : // A Draft carries its last-saved date (last edit, else creation).
-        (["Saved", node.updatedAt ?? node.createdAt] as const);
-  if (!iso) return null;
   return (
-    <span className="shrink-0 whitespace-nowrap text-xs text-muted-foreground">
-      <span className="text-muted-foreground/70">{label}</span>{" "}
-      {formatDate(iso.slice(0, 10))}
-    </span>
+    <div className="flex flex-col rounded-xl border border-border bg-card p-4 sm:p-5">
+      <div className="flex items-start gap-4">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-info/35 bg-info/10 text-info">
+          <Waypoints className="size-5" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-lg font-semibold tracking-tight text-foreground">
+            No upstream objective selected
+          </h3>
+          <p className="mt-1 max-w-md text-sm leading-5 text-muted-foreground">
+            The next team objective will be standalone and won&apos;t be aligned
+            to an objective from a team above yours.
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 flex items-start gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+        <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">
+            Standalone objectives stay in Team Performance
+          </p>
+          <p className="text-xs text-muted-foreground">
+            They appear in Organization Goals once aligned.
+          </p>
+        </div>
+      </div>
+      {targetCount > 0 ? (
+        <div className="mt-auto">
+          <EligibleRow count={targetCount} hint="choose one" onClick={onChoose} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
-/** A rounded-square glyph tile — the card's identity mark, accent-filled for the owned objective. */
-function IconTile({
-  icon: Icon,
-  accent,
-}: {
-  icon: typeof Users;
-  accent?: boolean;
-}) {
+/**
+ * Glowing node joining the direction card to the next-objective card, centred on the gap between
+ * the two fixed columns (1.25fr / 1fr with a 1rem gap → boundary at 5/9 of the free width).
+ */
+function CardLink() {
   return (
     <span
       aria-hidden
-      className={cn(
-        "flex size-10 shrink-0 items-center justify-center rounded-lg border",
-        accent
-          ? "border-primary/40 bg-primary/[0.12] text-primary"
-          : "border-border bg-muted/60 text-muted-foreground"
-      )}
+      className="pointer-events-none absolute top-1/2 z-10 hidden size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-primary/40 bg-background shadow-[0_0_8px_-4px_var(--primary)] lg:flex"
+      style={{ left: "calc((100% - 1rem) * 5 / 9 + 0.5rem)" }}
     >
-      <Icon className="size-5" />
+      <span className="size-3 rounded-full bg-primary shadow-[0_0_4px_-1px_var(--primary)]" />
     </span>
   );
 }
 
-/**
- * The relationship connector. On wide layouts it is a flowchart-style elbow — the alignment path exits
- * the upstream card low on the left, jogs up with rounded corners, and arrives at the team card with an
- * arrowhead, the "Supports" pill riding the path. On narrow (stacked) layouts it collapses to a short
- * vertical link between the two cards so the relationship survives stacking.
- */
-function SupportsConnector() {
+function DirectionChip({
+  icon,
+  children,
+  onClick,
+}: {
+  icon: ReactNode;
+  children: ReactNode;
+  onClick: () => void;
+}) {
   return (
-    <div
-      className="relative flex items-center justify-center py-1 lg:h-28 lg:w-24 lg:self-center lg:py-0"
-      aria-hidden
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg border border-border bg-muted/30 px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/45 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5 [&_svg]:text-primary"
     >
-      {/* Stacked (narrow): a plain vertical link behind the pill. */}
-      <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border lg:hidden" />
-
-      {/* Wide: a steep S that bleeds into the grid gaps so its tips meet both cards — an arrowhead
-          points into the upstream direction, a dot anchors the team end. */}
-      <svg
-        viewBox="0 0 120 112"
-        fill="none"
-        preserveAspectRatio="none"
-        className="absolute -inset-x-3 inset-y-0 hidden text-muted-foreground/45 lg:block"
-      >
-        {/* Mirrored horizontally so the arrowhead points into the upstream card — the team objective
-            supports the upstream direction; a dot anchors the team end. */}
-        <g transform="translate(120,0) scale(-1,1)">
-          <path
-            d="M4 88 H46 a14 14 0 0 0 14 -14 V38 a14 14 0 0 1 14 -14 H110"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-          <circle cx="4" cy="88" r="3.5" className="fill-muted-foreground/70" />
-          <path
-            d="M108 17 L120 24 L108 31 Z"
-            className="fill-muted-foreground/70"
-          />
-        </g>
-      </svg>
-
-      <span className="relative z-10 inline-flex items-center rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-sm">
-        Supports
-      </span>
-    </div>
+      {icon}
+      {children}
+    </button>
   );
 }
 
-/**
- * The objective's progress — a "Progress" label over a headline percent and a full-width bar. Shared by
- * both cards; `muted` quiets the fill for the upstream context, `accent` carries the owned objective.
- * Missing progress reads as a truthful 0% over an empty track, never a fabricated figure.
- */
-function ProgressBar({
-  progress,
-  tone = "accent",
+/** Nothing chosen yet: eligible objectives flowing into the team's next objective. */
+function EmptyDirectionCard({
+  targetCount,
+  onChoose,
+  onStandalone,
 }: {
-  progress: ObjectiveProgressDto | null;
-  tone?: "muted" | "accent";
+  targetCount: number;
+  onChoose: () => void;
+  onStandalone: () => void;
 }) {
-  const value = progress?.hasProgress ? Math.round(progress.derivedProgress) : 0;
-  const clamped = Math.max(0, Math.min(100, value));
-  const complete = value >= 100;
+  const hasTargets = targetCount > 0;
   return (
-    <div>
-      <p className="type-eyebrow text-muted-foreground">Progress</p>
-      <div className="mt-1.5 flex items-center gap-3">
-        <span
-          className={cn(
-            "text-lg font-semibold tabular-nums leading-none",
-            complete
-              ? "text-success"
-              : tone === "muted"
-                ? "text-muted-foreground"
-                : "text-foreground"
-          )}
-        >
-          {value}%
-        </span>
-        <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-          <span
-            className={cn(
-              "block h-full rounded-full",
-              complete
-                ? "bg-success"
-                : tone === "muted"
-                  ? "bg-muted-foreground/45"
-                  : "bg-primary"
-            )}
-            style={{ width: `${clamped}%` }}
-          />
-        </span>
+    <div className="flex flex-col rounded-xl border border-border bg-card p-4 sm:p-5">
+      <div className="flex items-center gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="type-eyebrow text-muted-foreground">
+            Upstream direction
+          </p>
+          <h3 className="mt-3 text-xl font-semibold tracking-tight text-foreground">
+            {hasTargets ? "No direction selected" : "No published direction yet"}
+          </h3>
+          <p className="mt-2.5 max-w-md text-sm leading-6 text-muted-foreground">
+            {hasTargets
+              ? "Choose one of the eligible objectives for this team, or continue without alignment for a standalone team objective."
+              : "Nothing above your team is published yet. You can still create a standalone team objective."}
+          </p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            {hasTargets ? (
+              <DirectionChip icon={<Target aria-hidden />} onClick={onChoose}>
+                {targetCount} eligible objective{targetCount === 1 ? "" : "s"}
+              </DirectionChip>
+            ) : null}
+            <DirectionChip
+              icon={<Waypoints className="!text-info" aria-hidden />}
+              onClick={onStandalone}
+            >
+              Standalone allowed
+            </DirectionChip>
+          </div>
+        </div>
+        <DirectionIllustration />
+      </div>
+      <div className="mt-3 flex items-center gap-2.5 border-t border-border/60 pt-5 text-sm text-muted-foreground">
+        <Info className="size-4 shrink-0" aria-hidden />
+        Your selection sets the upstream direction for the next team objective.
       </div>
     </div>
   );
 }
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
+function IllustrationNode({
+  y,
+  dashed = false,
+}: {
+  y: number;
+  dashed?: boolean;
+}) {
   return (
-    <div className="min-w-0">
-      <dt className="type-eyebrow text-muted-foreground/70">{label}</dt>
-      {/* A fixed value height, vertically centered — so a value with an avatar (Accountable) and a plain
-          text value (Measurement) sit on the same line rather than at different heights. */}
-      <dd className="mt-1.5 flex min-h-7 items-center">{children}</dd>
+    <g>
+      <rect
+        x="1"
+        y={y}
+        width="112"
+        height="42"
+        rx="9"
+        className={cn(
+          "stroke-border",
+          dashed ? "fill-transparent" : "fill-muted/40"
+        )}
+        strokeDasharray={dashed ? "4 4" : undefined}
+      />
+      <circle
+        cx="22"
+        cy={y + 21}
+        r="8"
+        className="fill-none stroke-muted-foreground/50"
+        strokeWidth="1.5"
+        strokeDasharray={dashed ? "3 3" : undefined}
+      />
+      <rect x="40" y={y + 12} width="54" height="6" rx="3" className="fill-muted-foreground/30" />
+      <rect x="40" y={y + 24} width="36" height="5" rx="2.5" className="fill-muted-foreground/20" />
+    </g>
+  );
+}
+
+function DirectionIllustration() {
+  return (
+    <div className="relative hidden w-60 shrink-0 xl:block" aria-hidden>
+      <svg viewBox="0 0 256 170" className="h-auto w-full overflow-visible">
+        <IllustrationNode y={4} />
+        <IllustrationNode y={64} />
+        <IllustrationNode y={124} dashed />
+        <path
+          d="M 118 25 C 150 25, 150 80, 172 85"
+          className="fill-none stroke-primary"
+          strokeWidth="1.5"
+          strokeDasharray="3 4"
+        />
+        <path
+          d="M 118 85 C 145 85, 150 85, 172 85"
+          className="fill-none stroke-primary"
+          strokeWidth="1.5"
+        />
+        <path
+          d="M 118 145 C 150 145, 150 90, 172 85"
+          className="fill-none stroke-muted-foreground/40"
+          strokeWidth="1.5"
+          strokeDasharray="3 4"
+        />
+        <circle cx="118" cy="25" r="3" className="fill-primary" />
+        <circle cx="118" cy="85" r="3" className="fill-primary" />
+      </svg>
+      <div className="absolute right-0 top-1/2 flex w-[68px] -translate-y-1/2 flex-col items-center gap-1.5 rounded-xl border border-primary/60 bg-primary/[0.06] px-2 py-2.5 shadow-[0_0_22px_-6px_var(--primary)]">
+        <span className="flex size-7 items-center justify-center rounded-lg bg-primary/15 text-primary">
+          <Users className="size-4" />
+        </span>
+        <span className="h-1.5 w-9 rounded-full bg-muted-foreground/30" />
+        <span className="h-1 w-6 rounded-full bg-muted-foreground/20" />
+      </div>
     </div>
   );
 }
 
-function AccountableFact({ name }: { name: string | null }) {
-  return (
-    <Fact label="Accountable">
-      <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-        <Avatar className="size-7">
-          <AvatarFallback className="text-[10px]">
-            {initials(name)}
-          </AvatarFallback>
-        </Avatar>
-        <span className="truncate">{name ?? "Unassigned"}</span>
-      </span>
-    </Fact>
-  );
-}
 
-/**
- * The measurement facet — the method (with numeric direction) over the concrete measure. Prefers the
- * canonical progress DTO's structured fields (method, direction, baseline → target); falls back to the
- * node's summary string before the detail resolves. Numeric targets read as a labelled baseline →
- * target strip so the measure is legible at a glance, not a bare pair of numbers.
- */
-function MeasurementFact({
-  node,
-  progress,
+function TeamObjectives({
+  items,
+  canCreate,
+  onCreate,
+  onInspect,
+  onChangeAlignment,
+  onEdit,
+  onDelete,
+  onViewDirection,
+  onRecord,
+  currentEmployeeId,
 }: {
-  node: GoalNodeDto;
-  progress: ObjectiveProgressDto | null;
+  items: TeamObjectiveWorkspaceItemDto[];
+  canCreate: boolean;
+  onCreate: () => void;
+  onInspect: (id: string) => void;
+  onChangeAlignment: (item: TeamObjectiveWorkspaceItemDto) => void;
+  onEdit: (item: TeamObjectiveWorkspaceItemDto) => void;
+  onDelete: (item: TeamObjectiveWorkspaceItemDto) => void | Promise<void>;
+  onViewDirection: (item: TeamObjectiveWorkspaceItemDto) => void;
+  onRecord: (item: TeamObjectiveWorkspaceItemDto) => void;
+  currentEmployeeId: string | null;
 }) {
-  const summary = node.measurementSummary?.trim();
-  if (!progress && !summary) return null;
-
-  if (progress) {
-    const method = MEASUREMENT_METHOD_LABEL[progress.method];
-    const Icon = node.progressSource === "Calculated" ? Layers : Gauge;
-
-    if (progress.method === "NumericTarget") {
-      return (
-        <Fact label="Measurement">
-          <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-            <Icon className="size-3.5 text-muted-foreground" aria-hidden />
-            <span className="tabular-nums">
-              {formatMeasureValue(progress.baseline, progress.unit)} →{" "}
-              {formatMeasureValue(progress.target, progress.unit)}
-            </span>
-            {progress.direction ? (
-              <span className="font-normal text-muted-foreground">
-                · {progress.direction}
-              </span>
-            ) : null}
-          </span>
-        </Fact>
-      );
-    }
-
-    if (progress.method === "WeightedMilestones") {
-      const count = progress.milestones.length;
-      const done = progress.milestones.filter((m) => m.isCompleted).length;
-      return (
-        <Fact label="Measurement">
-          <span className="flex items-center gap-1.5 text-sm font-medium leading-snug text-foreground">
-            <Icon className="size-3.5 text-muted-foreground" aria-hidden />
-            {method}
-          </span>
-          <span className="mt-0.5 block text-xs text-muted-foreground">
-            {done} of {count} milestone{count === 1 ? "" : "s"} complete
-          </span>
-        </Fact>
-      );
-    }
-
-    return (
-      <Fact label="Measurement">
-        <span className="flex items-center gap-1.5 text-sm font-medium text-foreground">
-          <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-          <span className="truncate whitespace-nowrap">{method}</span>
-        </span>
-      </Fact>
-    );
-  }
-
-  return (
-    <Fact label="Measurement">
-      <span className="block truncate whitespace-nowrap text-sm font-medium tabular-nums text-foreground">
-        {summary}
-      </span>
-    </Fact>
+  const [lifecycle, setLifecycle] = useState<LifecycleFilter>("all");
+  const [alignment, setAlignment] = useState<AlignmentFilter>("all");
+  const [sort, setSort] = useState<ObjectiveSort>("default");
+  const visible = useMemo(
+    () => visibleTeamObjectives(items, lifecycle, alignment, sort),
+    [items, lifecycle, alignment, sort]
   );
-}
-
-function SectionSkeleton() {
   return (
     <section
-      className="rounded-2xl border border-border bg-muted/20 p-5 sm:p-6"
-      aria-hidden
+      aria-labelledby="team-objectives-heading"
+      className="rounded-2xl border border-border bg-card p-5 sm:p-6"
     >
-      <div className="h-6 w-40 animate-pulse rounded bg-muted" />
-      <div className="mt-5 grid gap-3 lg:grid-cols-2">
-        <div className="h-48 animate-pulse rounded-2xl bg-muted" />
-        <div className="h-48 animate-pulse rounded-2xl bg-muted" />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <h2
+              id="team-objectives-heading"
+              className="type-section-title text-foreground"
+            >
+              Team Objectives
+            </h2>
+            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">
+              {items.length}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            The objectives this team owns in the current cycle.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={lifecycle}
+            onValueChange={(value) => setLifecycle(value as LifecycleFilter)}
+          >
+            <SelectTrigger aria-label="Filter by lifecycle">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All states</SelectItem>
+              <SelectItem value="Draft">Draft</SelectItem>
+              <SelectItem value="Published">Published</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={alignment}
+            onValueChange={(value) => setAlignment(value as AlignmentFilter)}
+          >
+            <SelectTrigger aria-label="Filter by alignment">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All alignment</SelectItem>
+              <SelectItem value="aligned">Aligned</SelectItem>
+              <SelectItem value="standalone">Standalone</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={sort}
+            onValueChange={(value) => setSort(value as ObjectiveSort)}
+          >
+            <SelectTrigger aria-label="Sort objectives">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Priority order</SelectItem>
+              <SelectItem value="due">Due date</SelectItem>
+              <SelectItem value="recent">Recently edited</SelectItem>
+              <SelectItem value="title">Title</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={onCreate} disabled={!canCreate}>
+            <Plus className="size-4" data-icon="inline-start" aria-hidden />{" "}
+            Create your team objective
+          </Button>
+        </div>
       </div>
+      {items.length === 0 ? (
+        <div className="mt-5 rounded-xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center">
+          <Target
+            className="mx-auto size-8 text-muted-foreground"
+            aria-hidden
+          />
+          <h3 className="mt-3 text-base font-semibold text-foreground">
+            No team objectives yet
+          </h3>
+          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
+            Create an objective to define what the team will deliver this cycle.
+          </p>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={onCreate}
+            disabled={!canCreate}
+          >
+            Create your team objective
+          </Button>
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="mt-5 rounded-xl bg-muted/30 px-6 py-8 text-center">
+          <p className="text-sm font-medium text-foreground">
+            No objectives match these filters.
+          </p>
+          <Button
+            variant="ghost"
+            className="mt-2"
+            onClick={() => {
+              setLifecycle("all");
+              setAlignment("all");
+            }}
+          >
+            Clear filters
+          </Button>
+        </div>
+      ) : (
+        <div className="mt-5 space-y-2.5">
+          {visible.map((item) => (
+            <TeamObjectiveRow
+              key={item.node.id}
+              item={item}
+              currentEmployeeId={currentEmployeeId}
+              onInspect={onInspect}
+              onChangeAlignment={onChangeAlignment}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onViewDirection={onViewDirection}
+              onRecord={onRecord}
+            />
+          ))}
+        </div>
+      )}
     </section>
+  );
+}
+
+function TeamObjectiveRow({
+  item,
+  currentEmployeeId,
+  onInspect,
+  onChangeAlignment,
+  onEdit,
+  onDelete,
+  onViewDirection,
+  onRecord,
+}: {
+  item: TeamObjectiveWorkspaceItemDto;
+  currentEmployeeId: string | null;
+  onInspect: (id: string) => void;
+  onChangeAlignment: (item: TeamObjectiveWorkspaceItemDto) => void;
+  onEdit: (item: TeamObjectiveWorkspaceItemDto) => void;
+  onDelete: (item: TeamObjectiveWorkspaceItemDto) => void | Promise<void>;
+  onViewDirection: (item: TeamObjectiveWorkspaceItemDto) => void;
+  onRecord: (item: TeamObjectiveWorkspaceItemDto) => void;
+}) {
+  const { node } = item;
+  const isDraft = node.state === "Draft";
+  const canRecord =
+    !isDraft &&
+    node.progressSource === "Direct" &&
+    node.accountablePersonId === currentEmployeeId;
+  const progress = Math.round(node.hasProgress ? node.derivedProgress : 0);
+  return (
+    <article className="rounded-xl border border-border bg-background px-4 py-4 sm:px-5">
+      <div className="grid gap-4 lg:grid-cols-[minmax(16rem,1.8fr)_minmax(9rem,.75fr)_minmax(9rem,.65fr)_minmax(8rem,.55fr)_auto] lg:items-center">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onInspect(node.id)}
+              className="min-w-0 truncate text-left text-sm font-semibold text-foreground hover:underline"
+            >
+              {node.title}
+            </button>
+            <StatusBadge tone={STATE_TONE[node.state]} dot>
+              {STATE_LABEL[node.state]}
+            </StatusBadge>
+          </div>
+          {item.description ? (
+            <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
+              {item.description}
+            </p>
+          ) : null}
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+            {item.parent ? (
+              <button
+                type="button"
+                onClick={() =>
+                  isDraft ? onChangeAlignment(item) : onViewDirection(item)
+                }
+                className="inline-flex min-w-0 items-center gap-1.5 font-medium text-primary hover:underline"
+              >
+                <Target className="size-3.5 shrink-0" aria-hidden />
+                <span className="truncate">Aligned to {item.parent.title}</span>
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 font-medium text-info">
+                <Waypoints className="size-3.5 shrink-0" aria-hidden />{" "}
+                Standalone
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+              <UserRound className="size-3.5" aria-hidden />{" "}
+              {node.accountablePersonName ?? "No owner"}
+            </span>
+            {isDraft ? (
+              <button
+                type="button"
+                onClick={() => onChangeAlignment(item)}
+                className="font-medium text-foreground hover:underline"
+              >
+                Change alignment
+              </button>
+            ) : item.parent ? (
+              <button
+                type="button"
+                onClick={() => onViewDirection(item)}
+                className="font-medium text-foreground hover:underline"
+              >
+                View direction
+              </button>
+            ) : null}
+          </div>
+        </div>
+        <RowFact label="Measurement">
+          <span className="inline-flex items-center gap-1.5">
+            <Gauge className="size-3.5 text-muted-foreground" aria-hidden />
+            {node.measurementSummary || "Not set"}
+          </span>
+        </RowFact>
+        <RowFact label="Progress">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold tabular-nums">{progress}%</span>
+            <span className="h-2 min-w-16 flex-1 overflow-hidden rounded-full bg-muted">
+              <span
+                className={cn(
+                  "block h-full rounded-full",
+                  progress >= 100
+                    ? "bg-success"
+                    : item.parent
+                      ? "bg-primary"
+                      : "bg-info"
+                )}
+                style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+              />
+            </span>
+          </div>
+        </RowFact>
+        <RowFact label="Due date">
+          <span className="inline-flex items-center gap-1.5">
+            <CalendarDays
+              className="size-3.5 text-muted-foreground"
+              aria-hidden
+            />
+            {formatDate(node.endDate)}
+          </span>
+        </RowFact>
+        <div className="flex items-center justify-end gap-2">
+          {canRecord ? (
+            <Button size="sm" onClick={() => onRecord(item)}>
+              Update progress
+            </Button>
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Actions for ${node.title}`}
+              >
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onSelect={() => onInspect(node.id)}>
+                <Eye className="size-3.5" data-icon="inline-start" /> View
+                details
+              </DropdownMenuItem>
+              {isDraft ? (
+                <>
+                  <DropdownMenuItem onSelect={() => onEdit(item)}>
+                    <Pencil className="size-3.5" data-icon="inline-start" />{" "}
+                    Edit objective
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => onChangeAlignment(item)}>
+                    <Waypoints className="size-3.5" data-icon="inline-start" />{" "}
+                    Change alignment
+                  </DropdownMenuItem>
+                  {node.childCount === 0 ? (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onSelect={() => void onDelete(item)}
+                      >
+                        <Trash2 className="size-3.5" data-icon="inline-start" />{" "}
+                        Delete draft
+                      </DropdownMenuItem>
+                    </>
+                  ) : null}
+                </>
+              ) : item.parent ? (
+                <DropdownMenuItem onSelect={() => onViewDirection(item)}>
+                  <CornerLeftUp className="size-3.5" data-icon="inline-start" />{" "}
+                  View direction
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function RowFact({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0 border-t border-border/60 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
+      <p className="type-eyebrow text-muted-foreground">{label}</p>
+      <div className="mt-1 min-w-0 truncate text-sm font-medium text-foreground">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function DirectionCardSkeleton() {
+  return (
+    <div className="space-y-4 rounded-xl border border-border bg-card p-5">
+      <Skeleton className="h-5 w-40" />
+      <Skeleton className="h-7 w-4/5" />
+      <Skeleton className="h-4 w-1/2" />
+      <Skeleton className="h-16 w-full" />
+      <Skeleton className="h-2 w-full rounded-full" />
+    </div>
+  );
+}
+
+export function TeamDirectionSkeleton() {
+  return (
+    <div aria-hidden className="space-y-4">
+      <section className="rounded-2xl border border-border bg-muted/20 p-5 sm:p-6">
+        <div className="flex justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-9 w-48" />
+        </div>
+        <div className="mt-5 grid gap-3 lg:grid-cols-2">
+          <DirectionCardSkeleton />
+          <DirectionCardSkeleton />
+        </div>
+      </section>
+      <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <div className="flex justify-between gap-4">
+          <Skeleton className="h-6 w-44" />
+          <Skeleton className="h-9 w-72" />
+        </div>
+        <div className="mt-5 space-y-2.5">
+          {Array.from({ length: 2 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 w-full rounded-xl" />
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }

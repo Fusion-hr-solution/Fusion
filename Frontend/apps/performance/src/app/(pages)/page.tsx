@@ -15,7 +15,6 @@ import {
   useStrategy,
 } from "@/features/performance/api/use-performance";
 import { formatDate, measurementSummary } from "@/features/performance/lib";
-import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { LaunchReadiness } from "@/features/performance/components/launch-readiness";
 import { MilestoneRail } from "@/features/performance/components/milestone-rail";
@@ -124,7 +123,6 @@ function CycleOverview({
 
   return (
     <PageContainer>
-      <CycleContextBar cycle={detail.cycle} />
       <PerformancePageHeading
         title="Overview"
         actions={

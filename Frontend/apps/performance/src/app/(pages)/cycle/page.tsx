@@ -6,7 +6,6 @@ import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
 import { CycleSurfaceSkeleton } from "@/features/performance/components/cycle-setup/setup-skeletons";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { useCurrentCycle, usePerformanceAccess } from "@/features/performance/api/use-performance";
-import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { MilestoneRail } from "@/features/performance/components/milestone-rail";
 
@@ -53,7 +52,6 @@ export default function CyclePage() {
 
   return (
     <PageContainer>
-      <CycleContextBar cycle={cycleDetail.cycle} />
       <PerformancePageHeading
         title="Cycle"
         description={

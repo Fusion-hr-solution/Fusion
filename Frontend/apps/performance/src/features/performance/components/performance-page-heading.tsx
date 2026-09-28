@@ -19,6 +19,7 @@ export function PerformancePageHeading({
   eyebrow,
   back,
   className,
+  size = "default",
 }: {
   title: ReactNode;
   description?: ReactNode;
@@ -26,6 +27,7 @@ export function PerformancePageHeading({
   eyebrow?: ReactNode;
   back?: { href: string; label: string };
   className?: string;
+  size?: "default" | "display";
 }) {
   return (
     <div className={cn("mb-4", className)}>
@@ -41,7 +43,7 @@ export function PerformancePageHeading({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           {eyebrow ? <div className="mb-1">{eyebrow}</div> : null}
-          <h1 className="type-page-title text-foreground">{title}</h1>
+          <h1 className={cn(size === "display" ? "type-display" : "type-page-title", "text-foreground")}>{title}</h1>
           {description ? (
             typeof description === "string" ? (
               <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">

@@ -55,7 +55,7 @@ import { formatDate } from "../../lib";
  * appears only when the caller actually holds decision authority — roster membership never implies it.
  */
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 5;
 
 // One column template shared by the header, the rows, and the loading skeleton so they stay aligned.
 const ROW_COLS =
@@ -172,7 +172,7 @@ export function YourPeople({
       className="mt-6 space-y-5 rounded-2xl border border-border bg-muted/20 p-5 sm:p-6"
     >
       <div>
-        <h2 id="your-people-heading" className="type-page-title text-foreground">
+        <h2 id="your-people-heading" className="type-section-title text-foreground">
           Your People
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -579,7 +579,7 @@ function Pager({
  * shimmer, so the layout does not jump when the data lands. Shares ROW_COLS with the live table so the
  * skeleton columns align exactly with the real ones.
  */
-function RosterSkeleton() {
+export function RosterSkeleton() {
   return (
     <section
       aria-hidden
@@ -616,7 +616,7 @@ function RosterSkeleton() {
               ))}
             </div>
             <div className="divide-y divide-border">
-              {Array.from({ length: 6 }, (_, r) => (
+              {Array.from({ length: 5 }, (_, r) => (
                 <div key={r} className={cn(ROW_COLS, "py-3.5")}>
                   <div className="flex items-center gap-3">
                     <Skeleton className="size-9 shrink-0 rounded-full" />

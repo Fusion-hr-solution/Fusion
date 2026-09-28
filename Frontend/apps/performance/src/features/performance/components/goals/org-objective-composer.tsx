@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowUpRight, Building2, Gauge, Info, Sigma, UserRound } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Building2, Gauge, Info, Sigma, Target, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import type {
   CreateOrganizationalObjectiveRequest,
   CycleSummaryDto,
   GoalDetailDto,
-  GoalNodeDto,
+  AlignmentTargetDto,
   ImprovementDirection,
   MeasurementInput,
   MeasurementMethod,
@@ -25,24 +25,36 @@ import {
 import { Input } from "@repo/ds/components/ui/input";
 import { Label } from "@repo/ds/components/ui/label";
 import { Textarea } from "@repo/ds/components/ui/textarea";
-import { StatusBadge } from "@repo/ds/shell";
+import {
+  EntityPicker,
+  type EntityOption,
+} from "@repo/ds/components/ui/entity-picker";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxGroup,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+  ComboboxTrigger,
+} from "@repo/ds/components/ui/combobox";
+import { RadioGroup, RadioGroupItem } from "@repo/ds/components/ui/radio-group";
 import { cn } from "@repo/ds/lib/utils";
 import {
-  EmployeePicker,
   OrgUnitPicker,
   type PickedEmployee,
   type PickedOrgUnit,
 } from "@repo/workforce-ui";
-import { parseNumeric } from "../../lib";
-import {
-  MeasurementEditor,
-} from "../measurement/measurement-editor";
+import { useTeamObjectiveWorkspace } from "../../api/use-performance";
+import { formatDate, parseNumeric } from "../../lib";
+import { MeasurementEditor } from "../measurement/measurement-editor";
 import {
   milestonesFromMeasurement,
   type MilestoneRow,
 } from "../measurement/milestone-editor";
-import { initials, scopeLabel } from "./goals-lib";
+import { initials } from "./goals-lib";
 import { ObjectiveComposerSection } from "../objective-composer-section";
+import type { ComposerAlignmentContext } from "./org-composer-host";
 
 /**
  * The Create / Edit Organizational Objective composer — a surface-agnostic modal (modelled on the
@@ -58,10 +70,13 @@ import { ObjectiveComposerSection } from "../objective-composer-section";
 export function OrgObjectiveComposer({
   open,
   onOpenChange,
-  parent,
+  cycle,
+  initialAlignment,
   objective,
   defaultAccountable,
   defaultOrgUnit,
+  teamLocked,
+  focusAlignment,
   onCreate,
   onUpdate,
   onPublish,
@@ -69,26 +84,34 @@ export function OrgObjectiveComposer({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   cycle: CycleSummaryDto;
-  parent: GoalNodeDto;
+  initialAlignment: ComposerAlignmentContext;
   objective?: GoalDetailDto;
   /** Convenience default for a new objective's accountable person (the signed-in user); editable. */
   defaultAccountable?: PickedEmployee | null;
   /** Preselected organizational scope when launched from a scoped context (the actor's own unit); editable. */
   defaultOrgUnit?: PickedOrgUnit | null;
+  teamLocked: boolean;
+  focusAlignment?: boolean;
   /** Persists a new draft and returns it (the caller reads `node.id`). */
-  onCreate: (request: CreateOrganizationalObjectiveRequest) => Promise<GoalDetailDto>;
+  onCreate: (
+    request: CreateOrganizationalObjectiveRequest
+  ) => Promise<GoalDetailDto>;
   /** Persists edits to an existing draft. */
-  onUpdate: (objectiveId: string, request: UpdateOrganizationalObjectiveRequest) => Promise<void>;
+  onUpdate: (
+    objectiveId: string,
+    request: UpdateOrganizationalObjectiveRequest
+  ) => Promise<void>;
   /** Publishes a persisted draft as organizational direction. */
   onPublish: (objectiveId: string) => Promise<void>;
 }) {
   const isEdit = Boolean(objective);
-  // Child dates are bounded by the parent objective (which is itself bounded by the Cycle),
-  // so the parent's window is the authoritative min/max the server enforces.
-  const minDate = parent.startDate;
-  const maxDate = parent.endDate;
-
   const node = objective?.node;
+  const [alignmentMode, setAlignmentMode] = useState<
+    "aligned" | "standalone" | null
+  >(initialAlignment?.mode ?? null);
+  const [parentId, setParentId] = useState(
+    initialAlignment?.mode === "aligned" ? initialAlignment.parentId : ""
+  );
   const [title, setTitle] = useState(node?.title ?? "");
   const [description, setDescription] = useState(objective?.description ?? "");
   const [person, setPerson] = useState<PickedEmployee | null>(
@@ -108,6 +131,29 @@ export function OrgObjectiveComposer({
         }
       : (defaultOrgUnit ?? null)
   );
+  const workspace = useTeamObjectiveWorkspace(
+    cycle.id,
+    orgUnit?.id ?? null,
+    open && orgUnit !== null
+  );
+  const targets = useMemo(
+    () => workspace.data?.alignmentTargets ?? [],
+    [workspace.data]
+  );
+  const owners = useMemo(
+    () => workspace.data?.eligibleOwners ?? [],
+    [workspace.data]
+  );
+  const selectedTarget =
+    targets.find((target) => target.id === parentId) ?? null;
+  const minDate =
+    alignmentMode === "aligned" && selectedTarget
+      ? selectedTarget.startDate
+      : cycle.startDate;
+  const maxDate =
+    alignmentMode === "aligned" && selectedTarget
+      ? selectedTarget.endDate
+      : cycle.endDate;
   const [startDate, setStartDate] = useState(node?.startDate ?? minDate);
   const [endDate, setEndDate] = useState(node?.endDate ?? maxDate);
   const [source, setSource] = useState<ObjectiveProgressSource>(
@@ -131,12 +177,50 @@ export function OrgObjectiveComposer({
     milestonesFromMeasurement(measurement)
   );
   const [busy, setBusy] = useState<null | "draft" | "publish">(null);
+  const alignmentRef = useRef<HTMLDivElement>(null);
   // Once a new draft has been created (or on edit), the objective exists on the server: its org unit
   // and parent are fixed, and any further action updates rather than re-creates it.
   const [committedId, setCommittedId] = useState<string | null>(null);
   const persistedId = objective?.node.id ?? committedId;
   const isPersisted = persistedId !== null;
-  const scopeLocked = isEdit || committedId !== null;
+  const scopeLocked = teamLocked || isEdit || committedId !== null;
+
+  useEffect(() => {
+    if (focusAlignment)
+      alignmentRef.current?.scrollIntoView({ block: "start" });
+  }, [focusAlignment]);
+
+  useEffect(() => {
+    if (!workspace.data) return;
+    if (
+      parentId &&
+      !workspace.data.alignmentTargets.some((target) => target.id === parentId)
+    ) {
+      setParentId("");
+    }
+    if (
+      person &&
+      !workspace.data.eligibleOwners.some((owner) => owner.id === person.id)
+    ) {
+      setPerson(null);
+      return;
+    }
+    if (!person && defaultAccountable) {
+      const eligible = workspace.data.eligibleOwners.find(
+        (owner) => owner.id === defaultAccountable.id
+      );
+      if (eligible)
+        setPerson({
+          id: eligible.id,
+          name: eligible.name ?? defaultAccountable.name,
+        });
+    }
+  }, [workspace.data, parentId, person, defaultAccountable]);
+
+  useEffect(() => {
+    if (startDate < minDate || startDate >= maxDate) setStartDate(minDate);
+    if (endDate > maxDate || endDate <= minDate) setEndDate(maxDate);
+  }, [minDate, maxDate, startDate, endDate]);
 
   const base = parseNumeric(baseline);
   const tgt = parseNumeric(target);
@@ -156,6 +240,11 @@ export function OrgObjectiveComposer({
   const missing: string[] = [];
   if (title.trim() === "") missing.push("a title");
   if (!scopeLocked && orgUnit === null) missing.push("an organizational scope");
+  if (alignmentMode === null) missing.push("an alignment choice");
+  if (alignmentMode === "aligned" && !selectedTarget)
+    missing.push("an upstream objective");
+  if (workspace.isLoading) missing.push("team options to finish loading");
+  if (workspace.error) missing.push("available team options");
   if (person === null) missing.push("an accountable person");
   if (!(endDate > startDate)) missing.push("valid dates");
   if (source === "Direct" && method === "NumericTarget") {
@@ -215,7 +304,7 @@ export function OrgObjectiveComposer({
       title: title.trim(),
       description: description.trim() || null,
       accountablePersonId: person!.id,
-      parentObjectiveId: parent.id,
+      parentObjectiveId: alignmentMode === "aligned" ? parentId : null,
       startDate,
       endDate,
       progressSource: source,
@@ -228,6 +317,7 @@ export function OrgObjectiveComposer({
       title: title.trim(),
       description: description.trim() || null,
       accountablePersonId: person!.id,
+      parentObjectiveId: alignmentMode === "aligned" ? parentId : null,
       startDate,
       endDate,
       progressSource: source,
@@ -285,7 +375,7 @@ export function OrgObjectiveComposer({
       setBusy(null);
       return;
     }
-    toast.success("Published as organizational direction.");
+    toast.success("Team objective published.");
     onOpenChange(false);
   }
 
@@ -295,17 +385,57 @@ export function OrgObjectiveComposer({
         {/* Header — identity only; the fixed parent context leads the scrolling body. */}
         <div className="border-b border-border px-6 py-5 pr-14">
           <DialogTitle>
-            {isEdit ? "Edit objective" : "Create organizational objective"}
+            {isEdit ? "Edit team objective" : "Create team objective"}
           </DialogTitle>
         </div>
 
         {/* Body — scrolls; header and footer stay put. */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
           <div className="space-y-8">
-            <ParentDirectionBand parent={parent} />
+            {!teamLocked && !isPersisted ? (
+              <section className="rounded-2xl border border-border bg-card p-5">
+                <Label className="flex items-center gap-1.5">
+                  <Building2
+                    className="size-3.5 text-muted-foreground"
+                    aria-hidden
+                  />
+                  Owning team <span className="text-destructive">*</span>
+                </Label>
+                <div className="mt-2">
+                  <OrgUnitPicker
+                    value={orgUnit}
+                    onChange={(unit) => {
+                      setOrgUnit(unit);
+                      setPerson(null);
+                      setParentId("");
+                      setAlignmentMode(null);
+                    }}
+                  />
+                </div>
+              </section>
+            ) : null}
+            <div ref={alignmentRef} className="scroll-mt-4">
+              <AlignmentEditor
+                mode={alignmentMode}
+                onModeChange={(mode) => {
+                  setAlignmentMode(mode);
+                  if (mode === "standalone") setParentId("");
+                }}
+                parentId={parentId}
+                onParentChange={setParentId}
+                targets={targets}
+                loading={workspace.isLoading}
+                error={workspace.error}
+                disabled={orgUnit === null || busy !== null}
+              />
+            </div>
 
             {/* 1. Objective definition */}
-            <ObjectiveComposerSection n={1} title="Objective definition" bodyClassName="space-y-4">
+            <ObjectiveComposerSection
+              n={1}
+              title="Objective definition"
+              bodyClassName="space-y-4"
+            >
               <div className="space-y-1.5">
                 <Label htmlFor="og-title">
                   Title <span className="text-destructive">*</span>
@@ -336,7 +466,11 @@ export function OrgObjectiveComposer({
             </ObjectiveComposerSection>
 
             {/* 2. Scope & accountability — two distinct concepts, shown side by side, plus the window. */}
-            <ObjectiveComposerSection n={2} title="Scope & accountability" bodyClassName="space-y-4">
+            <ObjectiveComposerSection
+              n={2}
+              title="Scope & accountability"
+              bodyClassName="space-y-4"
+            >
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label className="flex items-center gap-1.5">
@@ -347,14 +481,16 @@ export function OrgObjectiveComposer({
                     Organizational scope{" "}
                     <span className="text-destructive">*</span>
                   </Label>
-                  {scopeLocked ? (
+                  {orgUnit ? (
                     <div className="flex h-8 items-center gap-2 rounded-xl border border-border bg-muted/40 px-2.5 text-sm">
                       <span className="truncate font-medium">
                         {orgUnit?.name ?? node?.orgUnitName ?? "Owning unit"}
                       </span>
                     </div>
                   ) : (
-                    <OrgUnitPicker value={orgUnit} onChange={setOrgUnit} />
+                    <div className="flex h-8 items-center rounded-xl border border-dashed border-border px-2.5 text-sm text-muted-foreground">
+                      Choose the owning team above
+                    </div>
                   )}
                 </div>
                 <div className="space-y-1.5">
@@ -363,9 +499,25 @@ export function OrgObjectiveComposer({
                       className="size-3.5 text-muted-foreground"
                       aria-hidden
                     />
-                    Accountable person <span className="text-destructive">*</span>
+                    Accountable person{" "}
+                    <span className="text-destructive">*</span>
                   </Label>
-                  <EmployeePicker value={person} onChange={setPerson} />
+                  <OwnerPicker
+                    value={person}
+                    onChange={setPerson}
+                    owners={owners}
+                    loading={workspace.isLoading}
+                    disabled={
+                      orgUnit === null ||
+                      workspace.isLoading ||
+                      owners.length === 0
+                    }
+                  />
+                  {!workspace.isLoading && orgUnit && owners.length === 0 ? (
+                    <p className="text-xs text-destructive">
+                      This team has no eligible owners for the cycle.
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
@@ -439,7 +591,8 @@ export function OrgObjectiveComposer({
               ) : (
                 <div className="flex items-center gap-2.5 rounded-xl border border-info/25 bg-info-subtle px-4 py-3 text-sm text-info">
                   <Info className="size-4 shrink-0" aria-hidden />
-                  Progress rolls up from the objectives aligned beneath this one.
+                  Progress rolls up from the objectives aligned beneath this
+                  one.
                 </div>
               )}
             </ObjectiveComposerSection>
@@ -477,49 +630,358 @@ export function OrgObjectiveComposer({
   );
 }
 
-// ── Parent direction ───────────────────────────────────────────────────────────
+// ── Alignment and owner selection ─────────────────────────────────────────────
 
-function ParentDirectionBand({ parent }: { parent: GoalNodeDto }) {
-  const summary = parent.measurementSummary?.trim();
+function AlignmentEditor({
+  mode,
+  onModeChange,
+  parentId,
+  onParentChange,
+  targets,
+  loading,
+  error,
+  disabled,
+}: {
+  mode: "aligned" | "standalone" | null;
+  onModeChange: (mode: "aligned" | "standalone") => void;
+  parentId: string;
+  onParentChange: (id: string) => void;
+  targets: AlignmentTargetDto[];
+  loading: boolean;
+  error: Error | null;
+  disabled: boolean;
+}) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <p className="type-eyebrow inline-flex items-center gap-1.5 text-primary">
-            <ArrowUpRight className="size-3.5" aria-hidden /> Parent objective
-          </p>
-          <p className="mt-1.5 truncate text-lg font-semibold tracking-tight text-foreground">
-            {parent.title}
-          </p>
-        </div>
-        <StatusBadge tone="success" dot>
-          Published
-        </StatusBadge>
+    <section
+      className="rounded-2xl border border-border bg-muted/25 p-5"
+      aria-labelledby="objective-alignment-heading"
+    >
+      <div>
+        <h2
+          id="objective-alignment-heading"
+          className="type-section-title text-foreground"
+        >
+          Alignment
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Choose the organizational direction this objective supports.
+        </p>
       </div>
-      <div className="mt-3 flex w-full flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-        <span className="inline-flex items-center gap-2">
-          <Building2 className="size-4 text-muted-foreground/80" aria-hidden />{" "}
-          <span className="font-medium text-foreground">{scopeLabel(parent)}</span>
-        </span>
-        {parent.accountablePersonName ? (
-          <span className="inline-flex items-center gap-2">
-            <Avatar className="size-6">
-              <AvatarFallback className="text-[0.625rem]">
-                {initials(parent.accountablePersonName)}
-              </AvatarFallback>
-            </Avatar>
-            <span className="font-medium text-foreground">
-              {parent.accountablePersonName}
+      <RadioGroup
+        className="mt-4 grid gap-3 sm:grid-cols-2"
+        value={mode ?? ""}
+        onValueChange={(value) =>
+          onModeChange(value as "aligned" | "standalone")
+        }
+      >
+        <label
+          className={cn(
+            "flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors",
+            mode === "aligned"
+              ? "border-primary bg-primary/[0.06]"
+              : "border-border bg-card hover:border-primary/40",
+            (disabled || targets.length === 0) &&
+              "cursor-not-allowed opacity-60"
+          )}
+        >
+          <RadioGroupItem
+            value="aligned"
+            disabled={disabled || targets.length === 0}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="block text-sm font-medium text-foreground">
+              Align to organizational direction
+            </span>
+            <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+              Connect this objective to a published upstream objective.
             </span>
           </span>
-        ) : null}
-        {summary ? (
-          <span className="ml-auto font-semibold tabular-nums text-primary">
-            {summary}
+        </label>
+        <label
+          className={cn(
+            "flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors",
+            mode === "standalone"
+              ? "border-primary bg-primary/[0.06]"
+              : "border-border bg-card hover:border-primary/40",
+            disabled && "cursor-not-allowed opacity-60"
+          )}
+        >
+          <RadioGroupItem
+            value="standalone"
+            disabled={disabled}
+            className="mt-0.5"
+          />
+          <span>
+            <span className="block text-sm font-medium text-foreground">
+              Standalone team objective
+            </span>
+            <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
+              Keep this objective within Team Performance without an upstream
+              link.
+            </span>
           </span>
-        ) : null}
-      </div>
-    </div>
+        </label>
+      </RadioGroup>
+
+      {mode === "aligned" ? (
+        <div className="mt-4 space-y-1.5">
+          <Label>Upstream objective</Label>
+          <AlignmentTargetPicker
+            targets={targets}
+            value={parentId || null}
+            onChange={onParentChange}
+            disabled={disabled || loading}
+          />
+        </div>
+      ) : null}
+
+      {error ? (
+        <p className="mt-3 text-sm text-destructive">
+          Team options could not be loaded. Close and try again.
+        </p>
+      ) : !loading && targets.length === 0 ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          No published upstream objectives are available. You can still create a
+          standalone objective.
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+export function AlignmentTargetPicker({
+  targets,
+  value,
+  onChange,
+  includeStandalone = false,
+  onStandalone,
+  disabled,
+  open: openProp,
+  onOpenChange,
+}: {
+  targets: AlignmentTargetDto[];
+  value: string | null;
+  onChange: (id: string) => void;
+  includeStandalone?: boolean;
+  onStandalone?: () => void;
+  disabled?: boolean;
+  /** Optional control so a surface can open the picker from elsewhere. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [innerOpen, setInnerOpen] = useState(false);
+  const open = openProp ?? innerOpen;
+  const setOpen = (next: boolean) => {
+    setInnerOpen(next);
+    onOpenChange?.(next);
+  };
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [container, setContainer] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    if (open)
+      setContainer(
+        triggerRef.current?.closest<HTMLElement>(
+          "[data-slot='dialog-content']"
+        ) ?? null
+      );
+  }, [open]);
+
+  const selected = targets.find((target) => target.id === value) ?? null;
+  const company = targets.filter(
+    (target) => target.ownershipScope === "Company"
+  );
+  const organizational = targets.filter(
+    (target) => target.ownershipScope === "OrgUnit"
+  );
+  const groups = new Map<string, AlignmentTargetDto[]>();
+  for (const target of organizational) {
+    const key = target.orgUnitName ?? "Organizational direction";
+    groups.set(key, [...(groups.get(key) ?? []), target]);
+  }
+
+  const renderTarget = (target: AlignmentTargetDto) => (
+    <ComboboxItem
+      key={target.id}
+      value={target.id}
+      className="items-start rounded-lg py-2"
+    >
+      <Target className="mt-0.5 size-4 text-primary" aria-hidden />
+      <span className="min-w-0">
+        <span className="block truncate font-medium text-foreground">
+          {target.title}
+        </span>
+        <span className="block truncate text-xs text-muted-foreground">
+          {target.accountablePersonName ?? "No owner"} ·{" "}
+          {formatDate(target.startDate)} to {formatDate(target.endDate)}
+        </span>
+      </span>
+    </ComboboxItem>
+  );
+
+  return (
+    <Combobox
+      items={[
+        ...targets.map((target) => target.id),
+        ...(includeStandalone ? ["__standalone__"] : []),
+      ]}
+      value={value}
+      onValueChange={(next) => {
+        if (next === "__standalone__") onStandalone?.();
+        else if (typeof next === "string") onChange(next);
+      }}
+      filter={null}
+      open={open}
+      onOpenChange={setOpen}
+    >
+      <ComboboxTrigger
+        disabled={disabled}
+        render={
+          <Button
+            ref={triggerRef}
+            variant="outline"
+            className="h-auto min-h-9 w-full justify-between py-2 font-normal"
+          />
+        }
+      >
+        {value === "__standalone__" ? (
+          <span className="min-w-0 truncate text-left font-medium text-foreground">
+            No alignment
+          </span>
+        ) : selected ? (
+          <span className="min-w-0 text-left">
+            <span className="block truncate font-medium text-foreground">
+              {selected.title}
+            </span>
+            <span className="block truncate text-xs text-muted-foreground">
+              {selected.ownershipScope === "Company"
+                ? "Company"
+                : (selected.orgUnitName ?? "Organizational")}
+            </span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground">
+            Choose an upstream objective
+          </span>
+        )}
+      </ComboboxTrigger>
+      <ComboboxContent
+        // Outside a dialog there is no container; a null container would keep the portal unmounted.
+        container={container ?? undefined}
+        className="max-w-(--anchor-width) min-w-(--anchor-width)"
+      >
+        <ComboboxList>
+          {[...groups.entries()].map(([label, items]) => (
+            <ComboboxGroup key={label}>
+              <ComboboxLabel>{label}</ComboboxLabel>
+              {items.map(renderTarget)}
+            </ComboboxGroup>
+          ))}
+          {company.length > 0 ? (
+            <ComboboxGroup>
+              <ComboboxLabel>Company</ComboboxLabel>
+              {company.map(renderTarget)}
+            </ComboboxGroup>
+          ) : null}
+          {includeStandalone ? (
+            <ComboboxGroup>
+              <ComboboxLabel>Standalone</ComboboxLabel>
+              <ComboboxItem value="__standalone__" className="items-start rounded-lg py-2">
+                <span
+                  className="mt-0.5 flex size-4 items-center justify-center rounded-full border border-muted-foreground/50 text-[10px] text-muted-foreground"
+                  aria-hidden
+                >
+                  ○
+                </span>
+                <span>
+                  <span className="block font-medium text-foreground">
+                    No alignment
+                  </span>
+                  <span className="block text-xs text-muted-foreground">
+                    Create a team objective without an upstream link.
+                  </span>
+                </span>
+              </ComboboxItem>
+            </ComboboxGroup>
+          ) : null}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  );
+}
+
+function OwnerPicker({
+  value,
+  onChange,
+  owners,
+  loading,
+  disabled,
+}: {
+  value: PickedEmployee | null;
+  onChange: (owner: PickedEmployee) => void;
+  owners: Array<{ id: string; name: string | null }>;
+  loading: boolean;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const query = search.trim().toLowerCase();
+  const filtered = query
+    ? owners.filter((owner) => (owner.name ?? "").toLowerCase().includes(query))
+    : owners;
+  const options: EntityOption[] = filtered.map((owner) => ({
+    id: owner.id,
+    title: owner.name ?? "Team member",
+    description: "Active team member at cycle start",
+    media: (
+      <Avatar className="size-6">
+        <AvatarFallback className="text-[0.625rem]">
+          {initials(owner.name)}
+        </AvatarFallback>
+      </Avatar>
+    ),
+  }));
+
+  return (
+    <EntityPicker
+      selection={
+        value
+          ? {
+              title: value.name,
+              media: (
+                <Avatar className="size-6">
+                  <AvatarFallback className="text-[0.625rem]">
+                    {initials(value.name)}
+                  </AvatarFallback>
+                </Avatar>
+              ),
+            }
+          : null
+      }
+      selectedId={value?.id ?? null}
+      options={options}
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setSearch("");
+      }}
+      search={search}
+      onSearchChange={setSearch}
+      onSelect={(id) => {
+        const owner = owners.find((candidate) => candidate.id === id);
+        if (!owner) return;
+        onChange({ id: owner.id, name: owner.name ?? "Team member" });
+        setOpen(false);
+        setSearch("");
+      }}
+      loading={loading}
+      disabled={disabled}
+      placeholder="Choose an accountable owner"
+      placeholderIcon={<UserRound className="size-3.5" aria-hidden />}
+      searchPlaceholder="Search team members…"
+      emptyLabel="No eligible team members match your search."
+      hint="No eligible team members."
+    />
   );
 }
 

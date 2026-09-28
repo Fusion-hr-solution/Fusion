@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { CalendarRange } from "lucide-react";
 import type { CycleSummaryDto } from "@repo/api";
 import { StatusBadge, type StatusTone } from "@repo/ds/shell";
@@ -19,76 +18,42 @@ const STATE_LABEL: Record<CycleSummaryDto["state"], string> = {
   Closed: "Closed",
 };
 
+/** Today as a `YYYY-MM-DD` local date, comparable with DateOnly strings from the API. */
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /**
- * The persistent, quiet Cycle context every Performance route sits inside — which
- * Cycle, its state, its horizon, and its planning deadline. Deliberately secondary:
- * it orients without competing with the page title beneath it, so "which Cycle" and
- * "what page" never carry the same visual weight.
+ * The persistent Cycle context every Performance route sits inside — which Cycle, its state, its
+ * horizon, and (while it still matters) its planning deadline. Rendered once in the module top bar,
+ * a single quiet line that orients without competing with the page title. On narrow widths it
+ * collapses to identity and state.
  */
-export function CycleContextBar({
-  cycle,
-  action,
-  showPlanningDeadline = true,
-  compact = false,
-  className,
-}: {
-  cycle: CycleSummaryDto;
-  /** Optional trailing control (e.g. an edit affordance), pushed to the far right. */
-  action?: ReactNode;
-  /**
-   * Whether to show the planning deadline. Once a surface has moved past planning (e.g. an approved,
-   * locked plan under execution), the deadline is stale guidance — the caller drops it rather than
-   * showing a passed date as if it still mattered.
-   */
-  showPlanningDeadline?: boolean;
-  /** A quiet identity-and-state pair for pages where the Cycle is ambient context. */
-  compact?: boolean;
-  className?: string;
-}) {
-  if (compact) {
-    return (
-      <div className={cn("mb-5 flex flex-wrap items-center gap-3", className)}>
-        <span className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm font-medium text-foreground shadow-raised">
-          <CalendarRange className="size-4.5 text-primary" aria-hidden />
-          {cycle.name}
-        </span>
-        <StatusBadge
-          tone={STATE_TONE[cycle.state]}
-          dot
-          className="gap-2 px-3.5 py-2 text-sm font-semibold"
-        >
-          {STATE_LABEL[cycle.state]}
-        </StatusBadge>
-      </div>
-    );
-  }
+export function CycleContextBar({ cycle, className }: { cycle: CycleSummaryDto; className?: string }) {
+  // The planning deadline is guidance only while planning is still open; once it has passed (or the
+  // Cycle is not running) it drops out rather than showing a stale date.
+  const showPlanningDeadline = cycle.state === "Active" && cycle.planningDeadline >= todayIso();
 
   return (
-    <div
-      className={cn(
-        "mb-5 flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-xl border border-border bg-transparent px-4 py-2.5 text-sm",
-        className
-      )}
-    >
-      <span className="font-medium text-foreground">{cycle.name}</span>
-      <StatusBadge tone={STATE_TONE[cycle.state]} dot>
+    <div className={cn("flex min-w-0 items-center gap-x-2.5 text-sm", className)}>
+      <span className="truncate font-medium text-foreground">{cycle.name}</span>
+      <StatusBadge tone={STATE_TONE[cycle.state]} dot className="shrink-0">
         {STATE_LABEL[cycle.state]}
       </StatusBadge>
-      <span aria-hidden className="text-border">|</span>
-      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+      <span aria-hidden className="hidden text-border md:inline">|</span>
+      <span className="hidden shrink-0 items-center gap-1.5 text-muted-foreground md:inline-flex">
         <CalendarRange className="size-3.5" aria-hidden />
         {formatDateRange(cycle.startDate, cycle.endDate)}
       </span>
       {showPlanningDeadline ? (
         <>
-          <span aria-hidden className="text-border">|</span>
-          <span className="text-muted-foreground">
-            Planning by{" "}
-            <span className="text-foreground/80">{formatDate(cycle.planningDeadline)}</span>
+          <span aria-hidden className="hidden text-border lg:inline">|</span>
+          <span className="hidden shrink-0 text-muted-foreground lg:inline">
+            Planning by <span className="text-foreground/80">{formatDate(cycle.planningDeadline)}</span>
           </span>
         </>
       ) : null}
-      {action ? <div className="ml-auto">{action}</div> : null}
     </div>
   );
 }

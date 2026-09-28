@@ -6,9 +6,13 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@repo/ds/components/ui/button";
 import { useOrgHierarchy } from "@repo/workforce-ui";
-import { PageContainer, PageError, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
+import {
+  PageContainer,
+  PageError,
+  PagePermissionNotice,
+  PageSkeleton,
+} from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { ObjectiveContextPanel } from "@/features/performance/components/goals/objective-context-panel";
 import { ObjectiveWorkspace } from "@/features/performance/components/goals/objective-workspace";
@@ -32,9 +36,7 @@ import {
   useGoalMutations,
   useSaveStrategy,
 } from "@/features/performance/api/use-performance";
-import {
-  useWorkforceMe,
-} from "@/features/performance/api/use-workforce-me";
+import { useWorkforceMe } from "@/features/performance/api/use-workforce-me";
 
 export default function GoalsPage() {
   return (
@@ -51,7 +53,8 @@ function GoalsWorkspace() {
   const access = usePerformanceAccess();
   const a = access.data;
   const scope = a?.aggregateViewScope ?? null;
-  const hasOrgRead = scope === "DirectReports" || scope === "OrgUnit" || scope === "Tenant";
+  const hasOrgRead =
+    scope === "DirectReports" || scope === "OrgUnit" || scope === "Tenant";
   // Organization Goals is an organization-direction surface, not a universal employee destination:
   // it opens for organizational/strategic/admin responsibility or organizational read authority.
   // Ordinary Self-only participants reach direction through Overview, not here.
@@ -64,7 +67,8 @@ function GoalsWorkspace() {
   // tenant-breadth read) is responsible for the whole organization, so they land organization-wide;
   // everyone else is centered on the unit they actually belong to. Both drill the same hierarchy.
   const broad = (a?.canAdminister ?? false) || scope === "Tenant";
-  const canReachSetup = (a?.canAdminister ?? false) || (a?.canPublishStrategy ?? false);
+  const canReachSetup =
+    (a?.canAdminister ?? false) || (a?.canPublishStrategy ?? false);
   const requestedScopeId = searchParams.get("scope");
   const focusId = searchParams.get("focus");
 
@@ -88,7 +92,8 @@ function GoalsWorkspace() {
   const [revealId, setRevealId] = useState<string | null>(null);
   const [panelId, setPanelId] = useState<string | null>(null);
   const [composer, setComposer] = useState<ComposerState | null>(null);
-  const [companyComposer, setCompanyComposer] = useState<CompanyComposerState | null>(null);
+  const [companyComposer, setCompanyComposer] =
+    useState<CompanyComposerState | null>(null);
 
   const ownUnit: UnitContext | null = useMemo(() => {
     const org = me.data?.employee?.orgUnit;
@@ -105,14 +110,14 @@ function GoalsWorkspace() {
 
   const scopeUnits = useMemo(
     () => scopeUnitsFromTree(organization.data?.roots ?? []),
-    [organization.data],
+    [organization.data]
   );
   const selectedScope = useMemo(
     () =>
       requestedScopeId
-        ? scopeUnits.find((unit) => unit.id === requestedScopeId) ?? null
+        ? (scopeUnits.find((unit) => unit.id === requestedScopeId) ?? null)
         : null,
-    [requestedScopeId, scopeUnits],
+    [requestedScopeId, scopeUnits]
   );
   const workingUnit: UnitContext | null = broad
     ? selectedScope
@@ -128,7 +133,10 @@ function GoalsWorkspace() {
     : ownUnit;
   const organizationWide = broad && workingUnit === null;
 
-  const replaceContext = (next: { focusId?: string | null; scopeId?: string | null }) => {
+  const replaceContext = (next: {
+    focusId?: string | null;
+    scopeId?: string | null;
+  }) => {
     const query = new URLSearchParams(searchParams.toString());
     if (next.focusId !== undefined) {
       if (next.focusId) query.set("focus", next.focusId);
@@ -143,12 +151,25 @@ function GoalsWorkspace() {
     });
   };
 
-  if (access.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
+  if (access.isLoading)
+    return <PageSkeleton rows={4} label="Loading Performance" />;
   if (!canViewOrgGoals) {
-    return <PagePermissionNotice title="No Organization Goals access" description="Organization Goals is available to leadership and performance administration." />;
+    return (
+      <PagePermissionNotice
+        title="No Organization Goals access"
+        description="Organization Goals is available to leadership and performance administration."
+      />
+    );
   }
   if (detail.isLoading) return <PageSkeleton rows={4} label="Loading Cycle" />;
-  if (detail.error) return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject="The Cycle" />;
+  if (detail.error)
+    return (
+      <ContentUnavailable
+        error={detail.error}
+        onRetry={detail.refetch}
+        subject="The Cycle"
+      />
+    );
   if (!cycle) {
     return (
       <PageContainer>
@@ -163,16 +184,22 @@ function GoalsWorkspace() {
   // Authoring organizational objectives is governed by organizational-scope management authority
   // (governed admin, or the org-manage grant). The precise per-org-unit check is enforced
   // server-side when the unit is chosen, so this only decides whether to offer the affordance.
-  const canAuthorOrgObjectives = (a?.canAdminister ?? false) || (a?.canManageOrgObjectives ?? false);
+  const canAuthorOrgObjectives =
+    (a?.canAdminister ?? false) || (a?.canManageOrgObjectives ?? false);
   // Company (strategic) direction — create / edit / publish — is the strategy-publish authority.
-  const canManageCompany = (a?.canAdminister ?? false) || (a?.canPublishStrategy ?? false);
+  const canManageCompany =
+    (a?.canAdminister ?? false) || (a?.canPublishStrategy ?? false);
 
   async function handleDeleteOrg(objectiveId: string) {
     try {
       await goalMutations.remove.mutateAsync(objectiveId);
       toast.success("Draft objective removed.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not remove the objective.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not remove the objective."
+      );
     }
   }
 
@@ -181,7 +208,11 @@ function GoalsWorkspace() {
       await strategyMutations.publish.mutateAsync(objectiveId);
       toast.success("Published as company direction.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not publish the objective.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Could not publish the objective."
+      );
     }
   }
 
@@ -199,8 +230,12 @@ function GoalsWorkspace() {
         />
       ) : null}
       {canManageCompany ? (
-        <Button size="sm" onClick={() => setCompanyComposer({ mode: "create" })}>
-          <Plus className="size-4" data-icon="inline-start" /> Create company objective
+        <Button
+          size="sm"
+          onClick={() => setCompanyComposer({ mode: "create" })}
+        >
+          <Plus className="size-4" data-icon="inline-start" /> Create company
+          objective
         </Button>
       ) : null}
     </>
@@ -213,12 +248,15 @@ function GoalsWorkspace() {
         description="Explore and manage the organizational goals that drive performance."
         actions={actions}
       />
-      <CycleContextBar cycle={cycle} compact />
 
       {goals.isLoading || meResolving ? (
         <PageSkeleton rows={4} label="Loading goals" />
       ) : goals.error || !overview ? (
-        <PageError title="Goals unavailable" description={goals.error?.message} onRetry={goals.refetch} />
+        <PageError
+          title="Goals unavailable"
+          description={goals.error?.message}
+          onRetry={goals.refetch}
+        />
       ) : (
         <ObjectiveWorkspace
           cycleId={cycle.id}
@@ -232,11 +270,19 @@ function GoalsWorkspace() {
           canReachSetup={canReachSetup}
           onFocus={(id) => replaceContext({ focusId: id })}
           onInspect={setPanelId}
-          onCreate={(parentId, orgUnitId) => setComposer({ mode: "create", parentId, orgUnitId })}
+          onCreate={(parentId, orgUnitId) =>
+            setComposer({
+              mode: "create",
+              alignment: { mode: "aligned", parentId },
+              orgUnitId,
+            })
+          }
           onResumeDraft={(id) => setComposer({ mode: "edit", objectiveId: id })}
           onDelete={handleDeleteOrg}
           onCreateCompany={() => setCompanyComposer({ mode: "create" })}
-          onEditCompany={(id) => setCompanyComposer({ mode: "edit", objectiveId: id })}
+          onEditCompany={(id) =>
+            setCompanyComposer({ mode: "edit", objectiveId: id })
+          }
           onPublishCompany={handlePublishCompany}
         />
       )}
@@ -270,7 +316,11 @@ function GoalsWorkspace() {
       ) : null}
 
       {companyComposer ? (
-        <CompanyComposerHost cycle={cycle} state={companyComposer} onClose={() => setCompanyComposer(null)} />
+        <CompanyComposerHost
+          cycle={cycle}
+          state={companyComposer}
+          onClose={() => setCompanyComposer(null)}
+        />
       ) : null}
     </PageContainer>
   );

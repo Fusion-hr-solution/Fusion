@@ -135,6 +135,19 @@ export function useGoals(cycleId: string | null, enabled = true) {
   );
 }
 
+export function useTeamObjectiveWorkspace(
+  cycleId: string | null,
+  orgUnitId?: string | null,
+  enabled = true
+) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.teamObjectiveWorkspace(cycleId ?? "none", orgUnitId),
+    (signal) => performance.getTeamObjectiveWorkspace(cycleId as string, orgUnitId, signal),
+    { enabled: Boolean(cycleId) && enabled }
+  );
+}
+
 export function useGoal(cycleId: string | null, objectiveId: string | null) {
   const { performance } = useApis();
   return useApiQuery(
@@ -150,12 +163,14 @@ export function useGoalMutations(cycleId: string) {
   // area plus the current Cycle detail (counts on the overview).
   const invalidate = [
     { queryKey: performanceQueryKeys.goals(cycleId) },
+    { queryKey: [...performanceQueryKeys.all(), "team-objectives", cycleId] },
     { queryKey: [...performanceQueryKeys.all(), "goal", cycleId] },
+    { queryKey: [...performanceQueryKeys.all(), "progress", cycleId] },
     { queryKey: performanceQueryKeys.cycle(cycleId) },
     { queryKey: performanceQueryKeys.currentCycle() },
   ];
   const create = useApiMutation(
-    (request: CreateOrganizationalObjectiveRequest) => performance.createGoal(cycleId, request),
+    (request: CreateOrganizationalObjectiveRequest) => performance.createTeamObjective(cycleId, request),
     { invalidateQueries: invalidate }
   );
   const update = useApiMutation(
@@ -305,6 +320,7 @@ export function useProgressMutations(cycleId: string, objectiveId: string) {
     // Organization Goals carries progress on every hierarchy node. A child update can also change
     // one or more calculated ancestors, so refresh the bounded cycle overview and open goal details.
     { queryKey: performanceQueryKeys.goals(cycleId) },
+    { queryKey: [...performanceQueryKeys.all(), "team-objectives", cycleId] },
     { queryKey: [...performanceQueryKeys.all(), "goal", cycleId] },
   ];
   const submit = useApiMutation(

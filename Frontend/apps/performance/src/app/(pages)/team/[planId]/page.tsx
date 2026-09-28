@@ -3,7 +3,6 @@
 import { useParams } from "next/navigation";
 import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
 import { PlanReview } from "@/features/performance/components/plan/plan-review";
 import { usePerformanceAccess, useCurrentCycle } from "@/features/performance/api/use-performance";
 
@@ -44,7 +43,6 @@ export default function PlanReviewPage() {
 
   return (
     <PageContainer>
-      <CycleContextBar cycle={cycle} />
       <PlanReview cycle={cycle} planId={planId} />
     </PageContainer>
   );

@@ -143,10 +143,13 @@ export function ObjectiveEditor({
         ? numericComplete
         : milestonesComplete;
 
+  const withinCycle = startDate >= cycle.startDate && endDate <= cycle.endDate;
+
   const valid =
     title.trim() !== "" &&
     person !== null &&
     endDate > startDate &&
+    withinCycle &&
     measurementValid;
 
   const disabledReason = valid
@@ -157,7 +160,9 @@ export function ObjectiveEditor({
         ? "Choose an accountable person"
         : !(endDate > startDate)
           ? "The end date must be after the start date"
-          : method === "NumericTarget"
+          : !withinCycle
+            ? "Keep the dates within the cycle period"
+            : method === "NumericTarget"
             ? "Set a baseline, target, and unit for the measure"
             : method === "WeightedMilestones"
               ? "Give each milestone a weight totalling 100%"
