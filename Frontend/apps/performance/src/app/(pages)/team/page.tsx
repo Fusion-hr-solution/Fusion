@@ -64,17 +64,15 @@ export default function TeamPerformancePage() {
   );
 }
 
-/** Shape-matched page loading: cycle context, display title, Team Direction, Your People. */
+/**
+ * Shape-matched page loading: display title, Upstream direction + Team Objectives, Your People.
+ * The Cycle context lives in the module top bar, so it has no placeholder here.
+ */
 function TeamPageSkeleton() {
   return (
     <PageContainer width="wide">
       <div role="status" aria-label="Loading Team Performance">
-        <div className="flex items-center gap-2.5">
-          <Skeleton className="h-4 w-36" />
-          <Skeleton className="h-5 w-16 rounded-full" />
-          <Skeleton className="hidden h-4 w-40 md:block" />
-        </div>
-        <div className="mb-4 mt-5 space-y-2.5">
+        <div className="mb-4 space-y-2.5">
           <Skeleton className="h-9 w-72 max-w-full" />
           <Skeleton className="h-4 w-56" />
         </div>

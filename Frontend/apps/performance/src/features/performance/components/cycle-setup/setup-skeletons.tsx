@@ -367,12 +367,11 @@ export function SetupShellSkeleton({ step, label }: { step: SetupStep; label?: s
   );
 }
 
-/** The established /cycle surface: context bar, heading, milestone rail, population block. */
+/** The established /cycle surface: heading, milestone rail, population block (Cycle context is in the top bar). */
 export function CycleSurfaceSkeleton() {
   return (
     <PageContainer>
       <div aria-busy aria-label="Loading Cycle" className="space-y-8">
-        <Skeleton className="h-12 w-full rounded-xl" />
         <div className="space-y-2">
           <Skeleton className="h-7 w-32" />
           <Skeleton className="h-4 w-96 max-w-full" />
