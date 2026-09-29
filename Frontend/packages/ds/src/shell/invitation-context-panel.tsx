@@ -95,7 +95,7 @@ function ContextRow({
 }) {
   return (
     <div className="flex items-center gap-4 px-5 py-3">
-      <span className="grid size-9 shrink-0 place-items-center rounded-object bg-white/[0.05] text-muted-foreground ring-1 ring-inset ring-white/[0.08]">
+      <span className="grid size-9 shrink-0 place-items-center rounded-control bg-white/[0.05] text-muted-foreground ring-1 ring-inset ring-white/[0.08]">
         <Icon aria-hidden="true" className="size-4" />
       </span>
       <div className="min-w-0">

@@ -38,7 +38,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-object border border-border bg-background p-0.5",
+        "inline-flex items-center gap-0.5 rounded-control border border-border bg-background p-0.5",
         className
       )}
       role="group"

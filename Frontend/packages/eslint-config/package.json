@@ -5,7 +5,8 @@
   "license": "MIT",
   "files": [
     "base.js",
-    "next.js"
+    "next.js",
+    "design-roles.js"
   ],
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.20.0",

@@ -110,8 +110,8 @@ function CardFooter({
       data-density={density}
       className={cn(
         density === "compact"
-          ? "flex items-center border-t bg-muted/50 p-3 group-data-[size=sm]/card:p-3"
-          : "flex items-center border-t bg-muted/50 p-4 group-data-[size=sm]/card:p-3",
+          ? "flex items-center border-t bg-inlay p-3 group-data-[size=sm]/card:p-3"
+          : "flex items-center border-t bg-inlay p-4 group-data-[size=sm]/card:p-3",
         className
       )}
       {...props}

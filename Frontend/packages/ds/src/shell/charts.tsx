@@ -34,7 +34,7 @@ export const CHART_TONES = {
 const TOOLTIP_STYLE = {
   background: "var(--popover)",
   border: "1px solid var(--border)",
-  borderRadius: "8px",
+  borderRadius: "0.625rem", // radius-control
   fontSize: "12px",
   color: "var(--popover-foreground)",
   padding: "6px 10px",
@@ -106,7 +106,7 @@ export function DonutChart({
         {data.map((d, i) => (
           <li key={d.name} className="flex items-center gap-2 text-sm">
             <span
-              className="size-2.5 shrink-0 rounded-[3px]"
+              className="size-2.5 shrink-0 rounded-detail"
               style={{ background: d.color ?? CHART_PALETTE[i % CHART_PALETTE.length] }}
             />
             <span className="min-w-0 flex-1 truncate text-muted-foreground">{d.name}</span>

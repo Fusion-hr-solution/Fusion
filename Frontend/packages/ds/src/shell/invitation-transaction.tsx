@@ -12,7 +12,7 @@ export function InvitationWordmark({ className }: { className?: string }) {
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <span
         aria-hidden="true"
-        className="grid size-8 place-items-center rounded-object bg-primary font-heading text-base font-bold text-primary-foreground"
+        className="grid size-8 place-items-center rounded-control bg-primary font-heading text-base font-bold text-primary-foreground"
       >
         F
       </span>
@@ -81,17 +81,17 @@ export function InvitationTransactionLoading() {
         <div className="mx-auto flex h-full max-w-[34rem] flex-col lg:max-w-[33rem]" aria-hidden="true">
           <InvitationWordmark />
           <div className="mt-12 animate-pulse motion-reduce:animate-none lg:mt-16">
-            <div className="h-4 w-28 rounded bg-white/[0.06]" />
+            <div className="h-4 w-28 rounded-detail bg-white/[0.06]" />
             <div className="mt-5 h-12 w-full rounded-control bg-white/[0.1]" />
             <div className="mt-3 h-12 w-2/3 rounded-control bg-white/[0.08]" />
-            <div className="mt-8 h-4 w-5/6 rounded bg-white/[0.06]" />
+            <div className="mt-8 h-4 w-5/6 rounded-detail bg-white/[0.06]" />
             <div className="mt-10 h-40 w-full rounded-surface bg-white/[0.05]" />
           </div>
         </div>
       }
     >
       <div className="animate-pulse space-y-5 motion-reduce:animate-none" aria-label="Loading invitation">
-        <div className="h-8 w-3/4 rounded-object bg-muted" />
+        <div className="h-8 w-3/4 rounded-control bg-muted" />
         <div className="grid grid-cols-2 gap-5">
           <div className="h-11 rounded-control bg-muted" />
           <div className="h-11 rounded-control bg-muted" />

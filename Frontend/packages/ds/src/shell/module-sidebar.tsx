@@ -87,11 +87,11 @@ export function ModuleSidebar({
             <DropdownMenu>
               <DropdownMenuTrigger
                 className={cn(
-                  "flex items-center gap-2.5 rounded-affordance p-1.5 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                  "flex items-center gap-2.5 rounded-control p-1.5 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring",
                   collapsed && "justify-center"
                 )}
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-object bg-sidebar-primary text-sidebar-primary-foreground">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-sidebar-primary text-sidebar-primary-foreground">
                   <BrandIcon className="h-5 w-5" />
                 </span>
                 {!collapsed ? (
@@ -146,7 +146,7 @@ export function ModuleSidebar({
                 collapsed && "justify-center"
               )}
             >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-object bg-sidebar-primary text-sidebar-primary-foreground">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-control bg-sidebar-primary text-sidebar-primary-foreground">
                 <BrandIcon className="h-5 w-5" />
               </span>
               {!collapsed ? (
@@ -192,7 +192,7 @@ export function ModuleSidebar({
                           collapsed && "justify-center"
                         )}
                       >
-                        <Skeleton className="h-4 w-4 shrink-0 rounded" />
+                        <Skeleton className="h-4 w-4 shrink-0 rounded-detail" />
                         {!collapsed ? <Skeleton className="h-4 flex-1" /> : null}
                       </div>
                     ))}
@@ -215,7 +215,7 @@ export function ModuleSidebar({
                   const content = (
                     <span
                       className={cn(
-                        "group relative flex items-center gap-3 rounded-affordance px-2.5 py-2 text-sm font-medium transition-colors",
+                        "group relative flex items-center gap-3 rounded-control px-2.5 py-2 text-sm font-medium transition-colors",
                         active
                           ? "bg-sidebar-accent text-sidebar-accent-foreground"
                           : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
@@ -225,7 +225,7 @@ export function ModuleSidebar({
                       )}
                     >
                       {active ? (
-                        <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r bg-sidebar-primary" />
+                        <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-sidebar-primary" />
                       ) : null}
                       <Icon className="h-4 w-4 shrink-0" />
                       {!collapsed ? (

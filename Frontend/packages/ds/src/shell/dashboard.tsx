@@ -42,7 +42,7 @@ export function KpiStat({
           {label}
         </p>
         {Icon ? (
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-object bg-muted text-muted-foreground">
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-control bg-muted text-muted-foreground">
             <Icon className="size-4" />
           </span>
         ) : href ? (

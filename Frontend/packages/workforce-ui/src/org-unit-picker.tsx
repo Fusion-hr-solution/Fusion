@@ -35,7 +35,7 @@ function OrgIcon({ className }: { className?: string }) {
   return (
     <span
       className={
-        "flex shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground " +
+        "flex shrink-0 items-center justify-center rounded-control bg-muted text-muted-foreground " +
         (className ?? "size-6")
       }
     >

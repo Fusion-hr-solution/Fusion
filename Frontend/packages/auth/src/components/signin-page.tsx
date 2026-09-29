@@ -126,7 +126,7 @@ export function SignInPage({
       />
 
       <div className="relative w-full max-w-[26rem]">
-        <div className="rounded-feature border border-border bg-card px-8 py-9 shadow-overlay">
+        <div className="rounded-surface border border-border bg-card px-8 py-9 shadow-overlay">
           <div className="flex flex-col items-center gap-6">
             <Wordmark />
 
@@ -276,7 +276,7 @@ export function SignInPage({
 function Wordmark() {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="grid size-9 place-items-center rounded-object bg-primary font-heading text-lg font-bold text-primary-foreground">
+      <span className="grid size-9 place-items-center rounded-control bg-primary font-heading text-lg font-bold text-primary-foreground">
         F
       </span>
       <span className="type-section-title text-xl text-card-foreground">

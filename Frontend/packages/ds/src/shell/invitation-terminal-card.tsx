@@ -31,7 +31,7 @@ export function InvitationTerminalCard({
     <div>
       <span
         className={cn(
-          "grid size-12 shrink-0 place-items-center rounded-2xl",
+          "grid size-12 shrink-0 place-items-center rounded-surface",
           resolved
             ? "bg-foreground/[0.06] text-foreground ring-1 ring-inset ring-foreground/10"
             : "bg-destructive/10 text-destructive ring-1 ring-inset ring-destructive/20"

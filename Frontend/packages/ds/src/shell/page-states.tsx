@@ -27,7 +27,7 @@ function StateShell({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center rounded-surface border border-dashed border-border bg-card/40 px-6 py-14 text-center",
+        "flex flex-col items-center justify-center rounded-surface border border-dashed border-border px-6 py-14 text-center",
         className
       )}
     >
@@ -139,7 +139,7 @@ export function PageListSkeleton({ rows = 3, className, label }: PageListSkeleto
               <Skeleton className="h-7 w-12" />
               <Skeleton className="h-3 w-16" />
             </div>
-            <Skeleton className="size-5 shrink-0 rounded" />
+            <Skeleton className="size-5 shrink-0 rounded-detail" />
           </div>
         </div>
       </div>
@@ -152,7 +152,7 @@ export function PageListSkeleton({ rows = 3, className, label }: PageListSkeleto
             <Skeleton className="h-4 w-48 max-w-full" />
             <Skeleton className="h-3 w-64 max-w-full" />
           </div>
-          <Skeleton className="size-4 shrink-0 rounded" />
+          <Skeleton className="size-4 shrink-0 rounded-detail" />
         </div>
       ))}
     </div>

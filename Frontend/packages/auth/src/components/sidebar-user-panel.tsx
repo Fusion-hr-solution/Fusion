@@ -74,7 +74,7 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
           </div>
           <a
             href="/"
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            className="flex h-7 w-7 items-center justify-center rounded-control text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             title="Home"
             aria-label="Home"
           >
@@ -85,7 +85,7 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
               await logout();
               window.location.href = "/auth/signin";
             }}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            className="flex h-7 w-7 items-center justify-center rounded-control text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
             title="Sign out"
             aria-label="Sign out"
           >
@@ -105,7 +105,7 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
               className="fixed inset-0 z-40"
               onClick={() => setMenuOpen(false)}
             />
-            <div className="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-lg border border-border bg-popover py-1 text-popover-foreground shadow-lg">
+            <div className="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-surface border border-border bg-popover py-1 text-popover-foreground shadow-lg">
               {canOpenProfile ? (
                 <a
                   href="/profile"
@@ -149,7 +149,7 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
         {/* Trigger — user info row */}
         <button
           onClick={() => setMenuOpen((v) => !v)}
-          className="flex w-full items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent transition-colors"
+          className="flex w-full items-center gap-3 rounded-control px-2 py-2 hover:bg-accent transition-colors"
         >
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background dark:bg-secondary dark:text-secondary-foreground">
             {initial}
@@ -177,7 +177,7 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
     return (
       <a
         href="/auth/signin"
-        className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors mx-auto"
+        className="flex h-8 w-8 items-center justify-center rounded-control text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors mx-auto"
         title="Sign in"
       >
         <LogIn className="h-3.5 w-3.5" />
@@ -188,7 +188,7 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
   return (
     <a
       href="/auth/signin"
-      className="flex items-center gap-3 rounded-lg px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+      className="flex items-center gap-3 rounded-control px-2.5 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
     >
       <LogIn className="h-4 w-4 shrink-0" />
       <span>Sign In</span>
