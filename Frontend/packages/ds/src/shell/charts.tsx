@@ -34,7 +34,7 @@ export const CHART_TONES = {
 const TOOLTIP_STYLE = {
   background: "var(--popover)",
   border: "1px solid var(--border)",
-  borderRadius: "0.625rem", // radius-control
+  borderRadius: "var(--radius-menu)",
   fontSize: "12px",
   color: "var(--popover-foreground)",
   padding: "6px 10px",

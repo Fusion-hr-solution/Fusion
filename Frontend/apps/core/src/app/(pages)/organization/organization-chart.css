@@ -5,10 +5,15 @@
 
 .react-flow__controls {
   border: 1px solid var(--border);
-  border-radius: 0.625rem;
+  border-radius: var(--radius-menu);
   overflow: hidden;
   box-shadow: 0 1px 3px oklch(0 0 0 / 0.08);
   background: var(--card);
+}
+@supports (corner-shape: squircle) {
+  .react-flow__controls {
+    corner-shape: squircle;
+  }
 }
 
 .react-flow__controls-button {
