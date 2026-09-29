@@ -49,3 +49,6 @@ e2e/.artifacts
 # Misc
 *.tsbuildinfo
 *.log
+
+# Next.js generated type references (rewritten by dev/build)
+next-env.d.ts
