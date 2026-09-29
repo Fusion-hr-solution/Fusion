@@ -64,7 +64,10 @@ public sealed class GetGoalDetailHandler(PerformanceDbContext db, ICoreWorkforce
 
         var canGovern = target.OrgUnitId is Guid unitId
             && await TeamObjectivePolicy.CanGovernAsync(workforce, cycle, request.Actor, unitId, cancellationToken);
+        // Published team objectives are already offered to every plan author as alignment targets, so
+        // their detail is readable too; a Draft stays with its team's governors and accountable person.
         if (target.OwnershipScope == ObjectiveOwnershipScope.OrgUnit
+            && target.State != ObjectiveLifecycleState.Published
             && !canGovern
             && target.AccountablePersonId != request.Actor.CallerEmployeeId)
             return Result.Failure<GoalDetailDto>(Error.Forbidden(
