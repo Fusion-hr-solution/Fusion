@@ -138,7 +138,7 @@ export function TeamDirection({
   if (!ownUnit) return null;
   if (workspace.error || !workspace.data) {
     return (
-      <section className="rounded-2xl border border-border bg-card p-6">
+      <section className="rounded-surface border border-border bg-section p-6">
         <h2 className="type-section-title text-foreground">
           Upstream direction
         </h2>
@@ -276,7 +276,7 @@ function StrategicDirection({
   return (
     <section
       aria-labelledby="strategic-direction-heading"
-      className="rounded-2xl border border-border bg-muted/20 p-5 sm:p-6"
+      className="rounded-surface border border-border bg-section p-5 sm:p-6"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -325,9 +325,9 @@ function StrategicDirection({
             onStandalone={() => onDirectionChange({ mode: "standalone" })}
           />
         )}
-        <div className="flex flex-col rounded-xl border border-primary/45 bg-card p-4 sm:p-5">
+        <div className="flex flex-col rounded-surface border border-primary/45 bg-card p-4 sm:p-5">
           <div className="flex items-center gap-2.5">
-            <span className="flex size-8 items-center justify-center rounded-lg border border-primary/35 bg-primary/[0.1] text-primary">
+            <span className="flex size-8 items-center justify-center rounded-control border border-primary/35 bg-primary/[0.1] text-primary">
               <Target className="size-4" aria-hidden />
             </span>
             <p className="type-eyebrow text-primary">Next team objective</p>
@@ -390,7 +390,7 @@ function DirectionFact({
 }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted/50 text-muted-foreground [&_svg]:size-4">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-inlay text-muted-foreground [&_svg]:size-4">
         {icon}
       </span>
       <div className="min-w-0">
@@ -421,10 +421,10 @@ function DirectionCard({
       ? "Company objective"
       : `${node.orgUnitName ?? "Team"} objective`;
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card p-4 sm:p-5">
+    <div className="flex flex-col rounded-surface border border-border bg-card p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-lg border border-primary/35 bg-primary/[0.1] text-primary">
+          <span className="flex size-8 items-center justify-center rounded-control border border-primary/35 bg-primary/[0.1] text-primary">
             <Target className="size-4" aria-hidden />
           </span>
           <p className="type-eyebrow text-primary">Selected direction</p>
@@ -437,7 +437,7 @@ function DirectionCard({
       <button
         type="button"
         onClick={() => onInspect(node.id)}
-        className="mt-3 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mt-3 rounded-detail text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <h3 className="text-lg font-semibold leading-snug tracking-tight text-foreground hover:underline">
           {node.title}
@@ -511,7 +511,7 @@ function EligibleRow({
       onClick={onClick}
       className="group mt-3 flex items-center gap-3 border-t border-border/60 pt-3 text-left focus-visible:outline-none"
     >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50 text-muted-foreground">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-control border border-border bg-inlay text-muted-foreground">
         <Layers className="size-4" aria-hidden />
       </span>
       <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
@@ -533,7 +533,7 @@ function StandaloneCard({
   onChoose: () => void;
 }) {
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card p-4 sm:p-5">
+    <div className="flex flex-col rounded-surface border border-border bg-card p-4 sm:p-5">
       <div className="flex items-start gap-4">
         <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-info/35 bg-info/10 text-info">
           <Waypoints className="size-5" aria-hidden />
@@ -548,7 +548,7 @@ function StandaloneCard({
           </p>
         </div>
       </div>
-      <div className="mt-4 flex items-start gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+      <div className="mt-4 flex items-start gap-3 rounded-surface border border-border bg-inlay px-4 py-3">
         <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">
@@ -580,7 +580,7 @@ function CardLink() {
   return (
     <span
       aria-hidden
-      className="pointer-events-none absolute top-1/2 z-10 hidden size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-primary/40 bg-background shadow-[0_0_8px_-4px_var(--primary)] lg:flex"
+      className="pointer-events-none absolute top-1/2 z-10 hidden size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-primary/40 bg-section shadow-[0_0_8px_-4px_var(--primary)] lg:flex"
       style={{ left: "calc((100% - 1rem) * 5 / 9 + 0.5rem)" }}
     >
       <span className="size-3 rounded-full bg-primary shadow-[0_0_4px_-1px_var(--primary)]" />
@@ -601,7 +601,7 @@ function DirectionChip({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 whitespace-nowrap rounded-lg border border-border bg-muted/30 px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/45 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5 [&_svg]:text-primary"
+      className="inline-flex items-center gap-2 whitespace-nowrap rounded-control border border-border bg-inlay px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/45 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5 [&_svg]:text-primary"
     >
       {icon}
       {children}
@@ -621,8 +621,9 @@ function EmptyDirectionCard({
 }) {
   const hasTargets = targetCount > 0;
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card p-4 sm:p-5">
-      <div className="flex items-center gap-4">
+    <div className="flex flex-col rounded-surface border border-border bg-card p-4 sm:p-5">
+      {/* The card stretches to its neighbour's height; the body takes the slack so the note stays on the bottom edge. */}
+      <div className="flex flex-1 items-center gap-4">
         <div className="min-w-0 flex-1">
           <p className="type-eyebrow text-muted-foreground">
             Upstream direction
@@ -653,7 +654,7 @@ function EmptyDirectionCard({
         </div>
         <DirectionIllustration />
       </div>
-      <div className="mt-3 flex items-center gap-2.5 border-t border-border/60 pt-5 text-sm text-muted-foreground">
+      <div className="mt-4 flex items-center gap-2.5 border-t border-border/60 pt-4 text-sm text-muted-foreground">
         <Info className="size-4 shrink-0" aria-hidden />
         Your selection sets the upstream direction for the next team objective.
       </div>
@@ -737,8 +738,8 @@ function DirectionIllustration() {
         <circle cx="118" cy="25" r="3" className="fill-primary" />
         <circle cx="118" cy="85" r="3" className="fill-primary" />
       </svg>
-      <div className="absolute right-0 top-1/2 flex w-[68px] -translate-y-1/2 flex-col items-center gap-1.5 rounded-xl border border-primary/60 bg-primary/[0.06] px-2 py-2.5 shadow-[0_0_22px_-6px_var(--primary)]">
-        <span className="flex size-7 items-center justify-center rounded-lg bg-primary/15 text-primary">
+      <div className="absolute right-0 top-1/2 flex w-[68px] -translate-y-1/2 flex-col items-center gap-1.5 rounded-control border border-primary/60 bg-primary/[0.06] px-2 py-2.5 shadow-[0_0_22px_-6px_var(--primary)]">
+        <span className="flex size-7 items-center justify-center rounded-control-sm bg-primary/15 text-primary">
           <Users className="size-4" />
         </span>
         <span className="h-1.5 w-9 rounded-full bg-muted-foreground/30" />
@@ -779,7 +780,7 @@ function TeamObjectives({
   return (
     <section
       aria-labelledby="team-objectives-heading"
-      className="rounded-2xl border border-border bg-card p-5 sm:p-6"
+      className="rounded-surface border border-border bg-section p-5 sm:p-6"
     >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
@@ -852,7 +853,7 @@ function TeamObjectives({
       {items.length === 0 ? (
         <TeamObjectivesEmpty canCreate={canCreate} onCreate={onCreate} />
       ) : visible.length === 0 ? (
-        <div className="mt-5 rounded-xl bg-muted/30 px-6 py-8 text-center">
+        <div className="mt-5 rounded-surface border border-dashed border-border px-6 py-8 text-center">
           <p className="text-sm font-medium text-foreground">
             No objectives match these filters.
           </p>
@@ -901,11 +902,11 @@ function TeamObjectivesEmpty({
     { icon: <ChartColumn aria-hidden />, label: "Track progress" },
   ];
   return (
-    <div className="relative mt-5 overflow-hidden rounded-xl border border-border bg-background px-6 pb-8 pt-10 text-center">
+    <div className="relative mt-5 overflow-hidden rounded-surface border border-border bg-card px-6 pb-8 pt-10 text-center">
       {/* Horizon glow behind the emblem. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute left-1/2 top-[88px] h-[420px] w-[720px] -translate-x-1/2 rounded-[50%] border-t border-primary/25 bg-[radial-gradient(ellipse_at_top,var(--primary)_0%,transparent_45%)] opacity-[0.14]"
+        className="pointer-events-none absolute left-1/2 top-[88px] h-[420px] w-[720px] -translate-x-1/2 rounded-full border-t border-primary/25 bg-[radial-gradient(ellipse_at_top,var(--primary)_0%,transparent_45%)] opacity-[0.14]"
       />
       <EmptyOrbit />
       <div className="relative mx-auto flex size-[72px] items-center justify-center rounded-full border border-primary/40 bg-primary/10 shadow-[0_0_32px_-8px_var(--primary)]">
@@ -942,8 +943,8 @@ function TeamObjectivesEmpty({
                 className="hidden h-4 w-px bg-border sm:block"
               />
             ) : null}
-            <span className="inline-flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 py-1.5 pl-1.5 pr-3.5 text-sm text-foreground">
-              <span className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary [&_svg]:size-4">
+            <span className="inline-flex items-center gap-2.5 rounded-control border border-border bg-inlay py-1.5 pl-1.5 pr-3.5 text-sm text-foreground">
+              <span className="flex size-7 items-center justify-center rounded-control-sm bg-primary/10 text-primary [&_svg]:size-4">
                 {step.icon}
               </span>
               {step.label}
@@ -1006,7 +1007,7 @@ function TeamObjectiveRow({
     node.accountablePersonId === currentEmployeeId;
   const progress = Math.round(node.hasProgress ? node.derivedProgress : 0);
   return (
-    <article className="rounded-xl border border-border bg-background px-4 py-4 sm:px-5">
+    <article className="rounded-surface border border-border bg-card px-4 py-4 sm:px-5">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2.6fr)_minmax(7.5rem,.7fr)_minmax(7.5rem,.7fr)_minmax(6.5rem,.55fr)_auto] lg:items-center">
         <div className="flex min-w-0 items-center gap-4">
           <div className="min-w-0 flex-1">
@@ -1029,12 +1030,17 @@ function TeamObjectiveRow({
             ) : null}
             <div className="mt-2 flex min-w-0 items-center text-xs">
               {item.parent ? (
-                <span className="inline-flex min-w-0 items-center gap-1.5 font-medium text-primary">
+                <button
+                  type="button"
+                  onClick={() => onViewDirection(item)}
+                  aria-label={`View direction: ${item.parent.title}`}
+                  className="inline-flex min-w-0 items-center gap-1.5 rounded-control font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
                   <Target className="size-3.5 shrink-0" aria-hidden />
                   <span className="truncate">
                     Aligned to {item.parent.title}
                   </span>
-                </span>
+                </button>
               ) : (
                 <span className="inline-flex items-center gap-1.5 font-medium text-info">
                   <Waypoints className="size-3.5 shrink-0" aria-hidden />{" "}
@@ -1190,10 +1196,10 @@ function OwnerAvatar({ id, name }: { id: string; name: string | null }) {
 /** Mirrors DirectionCard: eyebrow + badge, title, description, three facts, progress row. */
 function DirectionCardSkeleton() {
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card p-4 sm:p-5">
+    <div className="flex flex-col rounded-surface border border-border bg-card p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <Skeleton className="size-8 rounded-lg" />
+          <Skeleton className="size-8 rounded-control" />
           <Skeleton className="h-3 w-32" />
         </div>
         <Skeleton className="h-6 w-20 rounded-full" />
@@ -1228,16 +1234,16 @@ function DirectionCardSkeleton() {
 /** Mirrors the Next team objective card: eyebrow, title, description, Align to picker, CTA. */
 function NextObjectiveCardSkeleton() {
   return (
-    <div className="flex flex-col rounded-xl border border-border bg-card p-4 sm:p-5">
+    <div className="flex flex-col rounded-surface border border-border bg-card p-4 sm:p-5">
       <div className="flex items-center gap-2.5">
-        <Skeleton className="size-8 rounded-lg" />
+        <Skeleton className="size-8 rounded-control" />
         <Skeleton className="h-3 w-36" />
       </div>
       <Skeleton className="mt-3 h-6 w-3/5" />
       <Skeleton className="mt-2 h-3.5 w-4/5" />
       <div className="mt-4 space-y-1.5">
         <Skeleton className="h-3.5 w-16" />
-        <Skeleton className="h-11 w-full rounded-lg" />
+        <Skeleton className="h-11 w-full rounded-control" />
       </div>
       <div className="mt-auto pt-4">
         <Skeleton className="h-9 w-48" />
@@ -1249,7 +1255,7 @@ function NextObjectiveCardSkeleton() {
 /** Mirrors TeamObjectiveRow's five columns. */
 function ObjectiveRowSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-background px-4 py-4 sm:px-5">
+    <div className="rounded-surface border border-border bg-card px-4 py-4 sm:px-5">
       <div className="grid gap-4 lg:grid-cols-[minmax(0,2.6fr)_minmax(7.5rem,.7fr)_minmax(7.5rem,.7fr)_minmax(6.5rem,.55fr)_auto] lg:items-center">
         <div className="flex min-w-0 items-center gap-4">
           <div className="min-w-0 flex-1 space-y-2">
@@ -1274,7 +1280,7 @@ function ObjectiveRowSkeleton() {
             <Skeleton className={`h-4 ${w}`} />
           </div>
         ))}
-        <Skeleton className="size-8 justify-self-end rounded-md" />
+        <Skeleton className="size-8 justify-self-end rounded-control" />
       </div>
     </div>
   );
@@ -1283,7 +1289,7 @@ function ObjectiveRowSkeleton() {
 export function TeamDirectionSkeleton() {
   return (
     <div aria-hidden className="space-y-4">
-      <section className="rounded-2xl border border-border bg-muted/20 p-5 sm:p-6">
+      <section className="rounded-surface border border-border bg-section p-5 sm:p-6">
         <div className="flex justify-between gap-4">
           <div className="space-y-2">
             <Skeleton className="h-6 w-44" />
@@ -1296,7 +1302,7 @@ export function TeamDirectionSkeleton() {
           <NextObjectiveCardSkeleton />
         </div>
       </section>
-      <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+      <section className="rounded-surface border border-border bg-section p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-2">
             <div className="flex items-center gap-2.5">

@@ -1,8 +1,9 @@
 "use client";
 
-import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
+import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
+import { PlanPageSkeleton } from "@/features/performance/components/plan/plan-skeleton";
 import { MyPlan } from "@/features/performance/components/plan/my-plan";
 import { NotStartedBadge, PlanStateBadge } from "@/features/performance/components/plan/plan-header";
 import { usePerformanceAccess, useCurrentCycle, useMyPlan } from "@/features/performance/api/use-performance";
@@ -20,7 +21,7 @@ export default function PlanPage() {
   const planState = useMyPlan(cycle?.id ?? null, canParticipate);
   const plan = planState.data?.plan ?? null;
 
-  if (access.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
+  if (access.isLoading) return <PlanPageSkeleton />;
   if (!canParticipate) {
     return (
       <PagePermissionNotice
@@ -29,7 +30,7 @@ export default function PlanPage() {
       />
     );
   }
-  if (detail.isLoading) return <PageSkeleton rows={4} label="Loading Cycle" />;
+  if (detail.isLoading) return <PlanPageSkeleton />;
   if (detail.error) return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject="The Cycle" />;
   if (!cycle) {
     return (
@@ -47,7 +48,7 @@ export default function PlanPage() {
   const executing = plan?.isLocked ?? false;
 
   return (
-    <PageContainer>
+    <PageContainer className="max-w-7xl">
       <PerformancePageHeading
         title={
           <span className="inline-flex flex-wrap items-center gap-2.5">

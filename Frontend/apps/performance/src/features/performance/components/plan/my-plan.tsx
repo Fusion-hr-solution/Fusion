@@ -1,18 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import {
-  ArrowUpRight,
   CalendarDays,
   Check,
-  Clock,
   FileText,
   History,
-  Lightbulb,
+  BarChart3,
   MessageSquareQuote,
   Plus,
   Quote,
+  Send,
+  Share2,
+  Target,
+  User,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -23,15 +25,26 @@ import type {
   PlanObjectiveDto,
 } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@repo/ds/components/ui/alert-dialog";
 import { Button } from "@repo/ds/components/ui/button";
-import { AllocationGauge, AsyncButton, PageError, PageSkeleton } from "@repo/ds/shell";
+import { AllocationGauge, AsyncButton, PageError } from "@repo/ds/shell";
+import { PlanSurfaceSkeleton } from "./plan-skeleton";
+import { OrgObjectiveDetailDrawer } from "../goals/org-objective-detail-drawer";
 import { cn } from "@repo/ds/lib/utils";
 import {
   useAlignmentTargets,
   useMyPlan,
   usePerformanceAccess,
   usePlanMutations,
-  useSettings,
 } from "../../api/use-performance";
 import { formatDate, formatDateTime } from "../../lib";
 import { PlanDirection, directionFromTargets } from "./plan-direction";
@@ -49,7 +62,6 @@ export function MyPlan({ cycle }: { cycle: CycleSummaryDto }) {
   const access = usePerformanceAccess();
   const state = useMyPlan(cycleId);
   const targetsQuery = useAlignmentTargets(cycleId, state.data?.participatesInCycle ?? false);
-  const settingsQuery = useSettings(state.data?.participatesInCycle ?? false);
   const mutations = usePlanMutations(cycleId);
 
   const [composer, setComposer] = useState<{ objective?: PlanObjectiveDto } | null>(null);
@@ -65,7 +77,7 @@ export function MyPlan({ cycle }: { cycle: CycleSummaryDto }) {
     (a?.canPublishStrategy ?? false) ||
     (a?.canManageOrgObjectives ?? false);
 
-  if (state.isLoading) return <PageSkeleton rows={4} label="Loading your plan" />;
+  if (state.isLoading) return <PlanSurfaceSkeleton />;
   if (state.error || !state.data) {
     return <PageError title="Plan unavailable" description={state.error?.message} onRetry={state.refetch} />;
   }
@@ -99,8 +111,9 @@ export function MyPlan({ cycle }: { cycle: CycleSummaryDto }) {
       cycle={cycle}
       targets={targets}
       standaloneAllowed={
-        plan?.readiness.standaloneAllowed ?? settingsQuery.data?.allowStandaloneObjectives ?? false
+        plan?.readiness.standaloneAllowed ?? preview?.standaloneAllowed ?? false
       }
+      teamName={plan?.orgUnitName ?? preview?.orgUnitName}
       objective={composer.objective}
       otherWeightTotal={(plan?.readiness.weightTotal ?? 0) - (composer.objective?.planWeight ?? 0)}
       onCreate={async (request: AddPlanObjectiveRequest) => {
@@ -133,16 +146,15 @@ export function MyPlan({ cycle }: { cycle: CycleSummaryDto }) {
           canViewOrgGoals={canViewOrgGoals}
         />
 
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        {/* Both columns stretch to one height so the ledger and the rail share a bottom edge. */}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
           <PlanNotStarted
             cycleName={cycle.name}
-            reviewerName={reviewerName}
-            canViewOrgGoals={canViewOrgGoals}
             onStart={() => setComposer({})}
           />
-          <aside className="space-y-4 lg:sticky lg:top-6">
+          <aside className="flex flex-col gap-4">
             <PlanSnapshotEmpty />
-            <PlanNextSteps reviewerName={reviewerName} />
+            <PlanNextSteps reviewerName={reviewerName} className="flex-1" />
           </aside>
         </div>
 
@@ -194,8 +206,10 @@ export function MyPlan({ cycle }: { cycle: CycleSummaryDto }) {
         canViewOrgGoals={canViewOrgGoals}
       />
 
-      <div className={cn(rail && "grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]")}>
-        <div className="space-y-4">
+      {/* As in the empty state, both columns share one height: the ledger fills its cell and the rail's
+          last card takes up the slack, so the two bottom edges meet. */}
+      <div className={cn(rail && "grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]")}>
+        <div className="flex flex-col gap-4">
           <ObjectiveLedger
             plan={plan}
             targets={targets}
@@ -209,26 +223,29 @@ export function MyPlan({ cycle }: { cycle: CycleSummaryDto }) {
               }
             }}
           />
+          {isAuthor ? (
+            <PlanActionBar
+              canSubmit={plan.canSubmit}
+              submitting={mutations.submit.isLoading}
+              resubmit={returned}
+              reviewerName={reviewerName}
+              objectiveCount={plan.objectives.length}
+              onSubmit={async () => {
+                try {
+                  await mutations.submit.mutateAsync();
+                  toast.success(returned ? "Plan resubmitted for review." : "Plan submitted for review.");
+                  return true;
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Could not submit your plan.");
+                  return false;
+                }
+              }}
+            />
+          ) : null}
         </div>
 
-        {rail ? <aside className="space-y-4 lg:sticky lg:top-6">{rail}</aside> : null}
+        {rail ? <aside className="flex flex-col gap-4 [&>*:last-child]:flex-1">{rail}</aside> : null}
       </div>
-
-      {isAuthor ? (
-        <PlanActionBar
-          canSubmit={plan.canSubmit}
-          submitting={mutations.submit.isLoading}
-          resubmit={returned}
-          onSubmit={async () => {
-            try {
-              await mutations.submit.mutateAsync();
-              toast.success(returned ? "Plan resubmitted for review." : "Plan submitted for review.");
-            } catch (error) {
-              toast.error(error instanceof Error ? error.message : "Could not submit your plan.");
-            }
-          }}
-        />
-      ) : null}
 
       {composerNode}
     </div>
@@ -256,6 +273,7 @@ function ObjectiveLedger({
   // One drawer, two modes: the eye opens details; Update progress opens the same drawer in record mode.
   const [drawer, setDrawer] = useState<{ id: string; mode: "details" | "record" } | null>(null);
   const detailId = drawer?.id ?? null;
+  const [alignedId, setAlignedId] = useState<string | null>(null);
 
   // Resolve each aligned objective's parent scope label (e.g. "Talent Pod") once from the targets.
   const scopeByTitle = useMemo(() => {
@@ -272,14 +290,18 @@ function ObjectiveLedger({
   const detail = detailIndex >= 0 ? plan.objectives[detailIndex] ?? null : null;
 
   return (
-    <section className="rounded-2xl border border-border bg-card">
+    <section className="flex-1 rounded-surface border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border px-5 py-3">
         <div className="flex items-center gap-2">
           <span className="type-eyebrow text-muted-foreground">Your objectives</span>
           <span className="text-xs tabular-nums text-muted-foreground">{plan.objectives.length}</span>
         </div>
         {plan.canAuthor ? (
-          <Button variant="outline" size="sm" onClick={onAdd}>
+          <Button
+            size="sm"
+            onClick={onAdd}
+            className="bg-foreground text-background hover:bg-foreground/90"
+          >
             <Plus className="size-4" data-icon="inline-start" /> Add objective
           </Button>
         ) : null}
@@ -305,6 +327,7 @@ function ObjectiveLedger({
               onRemove={plan.canAuthor ? () => onRemove(objective.id) : undefined}
               onOpenProgress={plan.isLocked ? () => setDrawer({ id: objective.id, mode: "record" }) : undefined}
               onViewDetails={() => setDrawer({ id: objective.id, mode: "details" })}
+              onViewAlignment={setAlignedId}
             />
           ))}
         </div>
@@ -321,6 +344,14 @@ function ObjectiveLedger({
         cycleId={plan.isLocked ? plan.cycleId : undefined}
         initialMode={drawer?.mode ?? "details"}
       />
+      <OrgObjectiveDetailDrawer
+        cycleId={plan.cycleId}
+        objectiveId={alignedId}
+        open={alignedId !== null}
+        onOpenChange={(open) => {
+          if (!open) setAlignedId(null);
+        }}
+      />
     </section>
   );
 }
@@ -334,22 +365,57 @@ function PlanActionBar({
   canSubmit,
   submitting,
   resubmit,
+  reviewerName,
+  objectiveCount,
   onSubmit,
 }: {
   canSubmit: boolean;
   submitting: boolean;
   resubmit: boolean;
-  onSubmit: () => void;
+  reviewerName: string | null;
+  objectiveCount: number;
+  onSubmit: () => Promise<boolean>;
 }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const label = resubmit ? "Resubmit plan for review" : "Submit plan for review";
+  const reviewer = reviewerName ?? "your reviewer";
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card px-5 py-4">
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-surface border border-border bg-card px-5 py-4">
       <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
         <Check className="size-4 text-success" aria-hidden />
         All changes saved
       </span>
-      <AsyncButton size="lg" pending={submitting} disabled={!canSubmit} onClick={onSubmit}>
-        {resubmit ? "Resubmit plan for review" : "Submit plan for review"}
-      </AsyncButton>
+      <AlertDialog open={confirmOpen} onOpenChange={(o) => { if (!submitting) setConfirmOpen(o); }}>
+        <AlertDialogTrigger asChild>
+          <Button size="lg" disabled={!canSubmit}>
+            <Send className="size-4" data-icon="inline-start" /> {label}
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{resubmit ? "Resubmit your plan?" : "Submit your plan?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your{" "}
+              <span className="font-medium text-foreground">
+                {objectiveCount} objective{objectiveCount === 1 ? "" : "s"}
+              </span>{" "}
+              go to <span className="font-medium text-foreground">{reviewer}</span>. You{" "}
+              <span className="font-medium text-foreground">can&apos;t edit them</span> while the plan is in review.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submitting}>Keep editing</AlertDialogCancel>
+            <AsyncButton
+              pending={submitting}
+              onClick={async () => {
+                if (await onSubmit()) setConfirmOpen(false);
+              }}
+            >
+              <Send className="size-4" data-icon="inline-start" /> {resubmit ? "Resubmit" : "Submit"}
+            </AsyncButton>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -369,9 +435,9 @@ function ReviewerFeedback({
   at: string | null;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <div className="flex items-start gap-3.5">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary ring-1 ring-primary/20">
           <MessageSquareQuote className="size-5" aria-hidden />
         </span>
         <div className="min-w-0">
@@ -391,7 +457,7 @@ function ReviewerFeedback({
       </div>
 
       {feedback ? (
-        <blockquote className="relative mt-4 rounded-xl bg-foreground/[0.06] py-3 pl-9 pr-4">
+        <blockquote className="relative mt-4 rounded-surface bg-foreground/[0.06] py-3 pl-9 pr-4">
           <Quote className="absolute left-3.5 top-3 size-3.5 fill-current text-muted-foreground/40" aria-hidden />
           <p className="text-sm leading-relaxed text-foreground/80">{feedback}</p>
         </blockquote>
@@ -421,7 +487,7 @@ function PlanSnapshot({ plan }: { plan: EmployeePlanDto }) {
     tone === "success" ? "text-success" : tone === "danger" ? "text-destructive" : "text-foreground";
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <p className="type-eyebrow text-muted-foreground">Plan snapshot</p>
       <div className="mt-4 flex items-center gap-5">
         <div className="shrink-0">
@@ -436,7 +502,6 @@ function PlanSnapshot({ plan }: { plan: EmployeePlanDto }) {
         </div>
         <dl className="min-w-0 flex-1 space-y-3.5">
           <SnapshotFact icon={FileText} label={`${count} objective${count === 1 ? "" : "s"}`} />
-          <SnapshotFact icon={Clock} label={`${pct(total)}% allocated`} />
           {submitted ? (
             <SnapshotFact
               icon={CalendarDays}
@@ -457,7 +522,7 @@ function SnapshotFact({
   label,
   value,
 }: {
-  icon: typeof Clock;
+  icon: typeof FileText;
   label: string;
   value?: string;
 }) {
@@ -479,64 +544,87 @@ function SnapshotFact({
  */
 function PlanNotStarted({
   cycleName,
-  reviewerName,
-  canViewOrgGoals,
   onStart,
 }: {
   cycleName: string;
-  reviewerName: string | null;
-  canViewOrgGoals: boolean;
   onStart: () => void;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-card">
+    <section className="flex flex-col rounded-surface border border-border bg-card">
       <div className="border-b border-border px-5 py-3">
         <span className="type-eyebrow text-muted-foreground">Your objectives</span>
       </div>
 
-      <div className="flex flex-col items-center px-6 py-14 text-center">
-        <span className="relative mb-6 flex size-16 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-          <FileText className="size-8" strokeWidth={1.5} aria-hidden />
-          <span className="absolute -bottom-1.5 -right-1.5 flex size-7 items-center justify-center rounded-full bg-primary text-primary-foreground ring-4 ring-card">
-            <Plus className="size-4" aria-hidden />
-          </span>
-        </span>
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">
-          Your {cycleName} plan hasn&apos;t been started yet.
+      <div className="flex flex-1 flex-col items-center justify-center px-6 py-10 text-center">
+        <PlanIllustration />
+        <h2 className="mt-6 text-2xl font-semibold tracking-tight text-foreground">
+          Create your {cycleName} plan
         </h2>
-        <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
-          Build a set of measurable objectives for the Cycle.
-          {reviewerName ? ` Your completed plan will be reviewed by ${reviewerName}.` : ""}
+        <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+          Define your objectives and align them to your team.
         </p>
-        <Button size="lg" onClick={onStart} className="mt-6">
+
+        <ul className="mt-8 grid w-full max-w-3xl gap-5 text-left sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-border">
+          {PLAN_PILLARS.map(({ icon: Icon, title }) => (
+            <li key={title} className="flex items-center justify-center gap-3 sm:px-5">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-inlay text-muted-foreground">
+                <Icon className="size-4" aria-hidden />
+              </span>
+              <p className="text-sm font-semibold text-foreground">{title}</p>
+            </li>
+          ))}
+        </ul>
+
+        <Button size="lg" onClick={onStart} className="mt-8">
+          <Plus data-icon="inline-start" aria-hidden />
           Start my plan
         </Button>
       </div>
-
-      {canViewOrgGoals ? (
-        <div className="flex items-center justify-between gap-4 border-t border-border px-5 py-4">
-          <div className="flex items-start gap-3">
-            <Lightbulb className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-foreground">Need inspiration?</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Review your organizational goals or past objectives to get started.
-              </p>
-            </div>
-          </div>
-          <GoalsTextLink />
-        </div>
-      ) : null}
     </section>
+  );
+}
+
+const PLAN_PILLARS = [
+  { icon: Target, title: "Set meaningful objectives" },
+  { icon: Share2, title: "Align to your team" },
+  { icon: BarChart3, title: "Track progress" },
+] as const;
+
+/** A plan document with a target, linked from you to your team by dotted amber connectors. */
+function PlanIllustration() {
+  return (
+    <div className="relative h-36 w-72" aria-hidden>
+      <span className="absolute left-1/2 top-1/2 size-36 -translate-x-1/2 -translate-y-1/2 rounded-full bg-inlay" />
+      <svg className="absolute inset-0 size-full text-muted-foreground/50" viewBox="0 0 288 144" fill="none">
+        <path d="M58 100 C 70 80, 80 70, 100 64" stroke="currentColor" strokeDasharray="3 4" />
+        <path d="M188 88 C 205 88, 215 80, 230 72" stroke="currentColor" strokeDasharray="3 4" />
+      </svg>
+      <span className="absolute left-[98px] top-[60px] size-2 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
+      <span className="absolute left-[184px] top-[84px] size-2 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
+      <div className="absolute left-1/2 top-2 flex h-32 w-28 -translate-x-1/2 flex-col gap-2 rounded-surface border border-border bg-card p-3 shadow-lg">
+        <span className="flex size-9 items-center justify-center rounded-full bg-primary/15 text-primary">
+          <Target className="size-5" />
+        </span>
+        <span className="mt-2 h-1.5 w-3/4 rounded-full bg-muted" />
+        <span className="h-1.5 w-full rounded-full bg-muted" />
+        <span className="h-1.5 w-2/3 rounded-full bg-muted" />
+      </div>
+      <span className="absolute left-9 top-[92px] flex size-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
+        <User className="size-4" />
+      </span>
+      <span className="absolute right-9 top-[48px] flex size-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
+        <Users className="size-4" />
+      </span>
+    </div>
   );
 }
 
 /** The zero-state snapshot: the same card as an authored plan, its ring empty and its facts at zero. */
 function PlanSnapshotEmpty() {
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <p className="type-eyebrow text-muted-foreground">Plan snapshot</p>
-      <div className="mt-4 flex items-center gap-5">
+      <div className="mt-5 flex items-center gap-5">
         <div className="shrink-0">
           <AllocationGauge
             value={0}
@@ -544,12 +632,11 @@ function PlanSnapshotEmpty() {
             centerValue="0%"
             centerLabel="allocated"
             centerClassName="tabular-nums text-muted-foreground"
-            height={124}
+            height={144}
           />
         </div>
-        <dl className="min-w-0 flex-1 space-y-3.5">
+        <dl className="min-w-0 flex-1 space-y-5">
           <SnapshotFact icon={FileText} label="0 objectives" />
-          <SnapshotFact icon={Clock} label="0% allocated" />
           <SnapshotFact icon={CalendarDays} label="Not started" value="—" />
         </dl>
       </div>
@@ -561,7 +648,13 @@ function PlanSnapshotEmpty() {
  * The planning path from here: author, submit, and manager review, as a three-step numbered rail with
  * the first step live. It names the reviewer the plan will go to, so the sequence is concrete.
  */
-function PlanNextSteps({ reviewerName }: { reviewerName: string | null }) {
+function PlanNextSteps({
+  reviewerName,
+  className,
+}: {
+  reviewerName: string | null;
+  className?: string;
+}) {
   const steps = [
     { title: "Create your plan", desc: "Add objectives and assign weights.", active: true },
     {
@@ -575,25 +668,26 @@ function PlanNextSteps({ reviewerName }: { reviewerName: string | null }) {
   ];
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className={cn("flex flex-col rounded-surface border border-border bg-card p-5", className)}>
       <p className="type-eyebrow text-muted-foreground">Next steps</p>
-      <ol className="mt-4">
+      {/* Steps share the card's spare height, so the rail spans the column instead of pooling at the top. */}
+      <ol className="mt-5 flex flex-1 flex-col">
         {steps.map((step, index) => (
-          <li key={step.title} className="relative flex gap-3 pb-5 last:pb-0">
+          <li key={step.title} className="relative flex min-h-20 flex-1 gap-3.5 last:min-h-0 last:flex-none">
             {index < steps.length - 1 ? (
-              <span className="absolute left-3 top-7 bottom-0 w-px -translate-x-1/2 bg-border" aria-hidden />
+              <span className="absolute left-4 top-10 bottom-2 w-px -translate-x-1/2 bg-border" aria-hidden />
             ) : null}
             <span
               className={cn(
-                "relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
+                "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums",
                 step.active
                   ? "bg-primary text-primary-foreground"
-                  : "border border-border bg-card text-muted-foreground"
+                  : "border border-border bg-inlay text-muted-foreground"
               )}
             >
               {index + 1}
             </span>
-            <div className="min-w-0 pb-0.5">
+            <div className="min-w-0 pt-1">
               <p className="text-sm font-medium leading-tight text-foreground">{step.title}</p>
               <p className="mt-0.5 text-xs text-muted-foreground">{step.desc}</p>
             </div>
@@ -601,19 +695,6 @@ function PlanNextSteps({ reviewerName }: { reviewerName: string | null }) {
         ))}
       </ol>
     </section>
-  );
-}
-
-/** The quiet accent link into Organization Goals, matching the direction card's affordance. */
-function GoalsTextLink() {
-  return (
-    <Link
-      href="/goals"
-      className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-    >
-      View in Goals
-      <ArrowUpRight className="size-3.5" aria-hidden />
-    </Link>
   );
 }
 

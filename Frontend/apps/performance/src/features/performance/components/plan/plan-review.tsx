@@ -27,6 +27,7 @@ import {
 } from "../../api/use-performance";
 import { formatDate } from "../../lib";
 import { PerformanceBreadcrumbLabel } from "@/shell/performance-breadcrumb";
+import { OrgObjectiveDetailDrawer } from "../goals/org-objective-detail-drawer";
 import { ObjectiveDetailDrawer } from "./objective-detail-drawer";
 import { PlanBannerMark } from "./plan-banner";
 import { PlanDirection } from "./plan-direction";
@@ -209,7 +210,7 @@ function ReviewContextCard({ plan, firstName }: { plan: EmployeePlanDto; firstNa
   const Icon = lead.icon;
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <div className="flex items-start gap-3.5">
         <PlanBannerMark className={lead.tint}>
           <Icon className="size-5" aria-hidden />
@@ -254,6 +255,7 @@ function ObjectiveLedgerReadOnly({
   cycleId: string;
 }) {
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [alignedId, setAlignedId] = useState<string | null>(null);
 
   const scopeByTitle = useMemo(() => {
     const map = new Map<string, string>();
@@ -272,7 +274,7 @@ function ObjectiveLedgerReadOnly({
     objective.isAligned ? scopeByTitle.get(objective.directionPath.at(-1) ?? "") : undefined;
 
   return (
-    <section className="rounded-2xl border border-border bg-card">
+    <section className="rounded-surface border border-border bg-card">
       <div className="flex items-center gap-2 border-b border-border px-5 py-3">
         <span className="type-eyebrow text-muted-foreground">{plan.isLocked ? "Objectives" : "Submitted objectives"}</span>
         <span className="text-xs tabular-nums text-muted-foreground">{plan.objectives.length}</span>
@@ -289,6 +291,7 @@ function ObjectiveLedgerReadOnly({
             showProgress={plan.isLocked}
             active={detailId === objective.id}
             onViewDetails={() => setDetailId(objective.id)}
+            onViewAlignment={setAlignedId}
           />
         ))}
       </div>
@@ -304,6 +307,14 @@ function ObjectiveLedgerReadOnly({
         // On a locked plan the drawer carries current progress + history; record mode stays hidden because
         // the objective is not the manager's to update (`canUpdateProgress` is false server-side).
         cycleId={plan.isLocked ? cycleId : undefined}
+      />
+      <OrgObjectiveDetailDrawer
+        cycleId={cycleId}
+        objectiveId={alignedId}
+        open={alignedId !== null}
+        onOpenChange={(open) => {
+          if (!open) setAlignedId(null);
+        }}
       />
     </section>
   );
@@ -339,7 +350,7 @@ function ReviewDecision({
     if (returning) {
       const canReturn = feedback.trim().length > 0;
       return (
-        <section className="rounded-2xl border border-border bg-card p-5">
+        <section className="rounded-surface border border-border bg-card p-5">
           <p className="type-eyebrow text-muted-foreground">Request changes</p>
           <p className="mt-2 text-sm text-foreground">
             Tell {firstName} what needs to change before you can approve this Plan.
@@ -387,7 +398,7 @@ function ReviewDecision({
     }
 
     return (
-      <section className="rounded-2xl border border-border bg-card p-5">
+      <section className="rounded-surface border border-border bg-card p-5">
         <p className="type-eyebrow text-muted-foreground">Review decision</p>
         <div className="mt-4 grid grid-cols-2 gap-2.5">
           <Button variant="outline" onClick={() => setReturning(true)}>
@@ -441,7 +452,7 @@ function ReviewDecision({
   const returned = plan.state === "Draft" && plan.history.some((h) => h.kind === "Returned");
   if (returned) {
     return (
-      <section className="rounded-2xl border border-warning/30 bg-warning/[0.06] p-5">
+      <section className="rounded-surface border border-warning/30 bg-warning/[0.06] p-5">
         <p className="flex items-center gap-2 text-sm font-medium text-warning">
           <RotateCcw className="size-4" aria-hidden /> Changes requested
         </p>

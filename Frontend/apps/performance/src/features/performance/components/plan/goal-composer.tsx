@@ -66,6 +66,7 @@ export function PlanGoalComposer({
   cycle,
   targets,
   standaloneAllowed,
+  teamName,
   objective,
   otherWeightTotal,
   onCreate,
@@ -76,6 +77,8 @@ export function PlanGoalComposer({
   cycle: CycleSummaryDto;
   targets: AlignmentTargetDto[];
   standaloneAllowed: boolean;
+  /** The author's own team; a new aligned objective starts on that team's objective. */
+  teamName?: string | null;
   objective?: PlanObjectiveDto;
   /** Combined weight of the plan's other objectives — the allocation before this objective is committed. */
   otherWeightTotal: number;
@@ -106,7 +109,13 @@ export function PlanGoalComposer({
     if (!open) return;
     const m = objective?.measurement;
     setMode(objective && !objective.isAligned ? "standalone" : "aligned");
-    setParentId(objective?.parentObjectiveId ?? "");
+    setParentId(
+      objective
+        ? (objective.parentObjectiveId ?? "")
+        : (targets.find(
+            (t) => t.ownershipScope !== "Company" && teamName != null && t.orgUnitName === teamName
+          )?.id ?? "")
+    );
     setTitle(objective?.title ?? "");
     setDescription(objective?.description ?? "");
     setWeight(
@@ -125,6 +134,8 @@ export function PlanGoalComposer({
         ? { from: objective.startDate, to: objective.endDate ?? undefined }
         : null
     );
+    // Seed only when the composer opens; later target refetches must not overwrite the author's choice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, objective]);
 
   const selectedTarget = useMemo(
@@ -299,7 +310,7 @@ export function PlanGoalComposer({
               />
             </div>
           </div>
-          <div className="flex items-center gap-3 rounded-xl border border-border bg-muted/30 px-3.5 py-2">
+          <div className="flex items-center gap-3 rounded-surface border border-border px-3.5 py-2">
             <div className="flex items-baseline gap-1.5">
               <span className="text-lg font-semibold tabular-nums leading-none text-primary">
                 {pct(existing)}%
@@ -351,13 +362,14 @@ export function PlanGoalComposer({
                       : "Not permitted this cycle — every objective must align to direction."
                   }
                   disabled={!standaloneAllowed}
+                  tone="info"
                   onClick={() => standaloneAllowed && setMode("standalone")}
                 />
               </div>
 
               {mode === "aligned" ? (
                 targets.length === 0 ? (
-                  <p className="rounded-lg border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
+                  <p className="rounded-surface border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
                     No published organizational objectives to align to yet.
                   </p>
                 ) : (
@@ -563,7 +575,7 @@ export function PlanGoalComposer({
         </div>
 
         {/* Footer — stable. Cancel is quiet; the primary action commits the pending objective. */}
-        <div className="flex items-center justify-end gap-2 border-t border-border bg-muted/30 px-6 py-4">
+        <div className="flex items-center justify-end gap-2 border-t border-border px-6 py-4">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
@@ -593,15 +605,35 @@ export function PlanGoalComposer({
 
 // ── Alignment choice tile ───────────────────────────────────────────────────────────
 
+/** Aligned reads yellow and standalone reads blue, matching the objective rows. */
+const TILE_TONES = {
+  primary: {
+    active: "border-primary bg-primary/[0.05] ring-1 ring-primary/30",
+    hover: "hover:border-primary/40",
+    radio: "border-primary",
+    dot: "bg-primary",
+    icon: "text-primary",
+  },
+  info: {
+    active: "border-info bg-info/[0.06] ring-1 ring-info/30",
+    hover: "hover:border-info/40",
+    radio: "border-info",
+    dot: "bg-info",
+    icon: "text-info",
+  },
+} as const;
+
 function ChoiceTile({
   active,
   icon: Icon,
   title,
   detail,
   disabled = false,
+  tone = "primary",
   onClick,
 }: {
   active: boolean;
+  tone?: keyof typeof TILE_TONES;
   icon: typeof Target;
   title: string;
   detail: string;
@@ -615,10 +647,10 @@ function ChoiceTile({
       disabled={disabled}
       aria-pressed={active}
       className={cn(
-        "flex items-start gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "flex items-start gap-3 rounded-surface border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         active
-          ? "border-primary bg-primary/[0.05] ring-1 ring-primary/30"
-          : "border-border hover:border-primary/40 hover:bg-muted/40",
+          ? TILE_TONES[tone].active
+          : cn("border-border hover:bg-muted/40", TILE_TONES[tone].hover),
         disabled &&
           "cursor-not-allowed opacity-55 hover:border-border hover:bg-transparent"
       )}
@@ -626,11 +658,11 @@ function ChoiceTile({
       <span
         className={cn(
           "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border",
-          active ? "border-primary" : "border-muted-foreground/40"
+          active ? TILE_TONES[tone].radio : "border-muted-foreground/40"
         )}
         aria-hidden
       >
-        {active ? <span className="size-2 rounded-full bg-primary" /> : null}
+        {active ? <span className={cn("size-2 rounded-full", TILE_TONES[tone].dot)} /> : null}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold text-foreground">
@@ -643,7 +675,7 @@ function ChoiceTile({
       <Icon
         className={cn(
           "size-5 shrink-0",
-          active ? "text-primary" : "text-muted-foreground/50"
+          active ? TILE_TONES[tone].icon : "text-muted-foreground/50"
         )}
         aria-hidden
       />

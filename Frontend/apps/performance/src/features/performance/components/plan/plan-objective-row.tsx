@@ -3,12 +3,11 @@
 import {
   ArrowRight,
   CalendarRange,
-  Eye,
   Flag,
   Gauge,
   LineChart,
   MoreHorizontal,
-  Pencil,
+  SquarePen,
   Target,
   Trash2,
   Unlink,
@@ -49,6 +48,7 @@ export function PlanObjectiveRow({
   onRemove,
   onOpenProgress,
   onViewDetails,
+  onViewAlignment,
 }: {
   index: number;
   objective: PlanObjectiveDto;
@@ -62,6 +62,8 @@ export function PlanObjectiveRow({
   onOpenProgress?: () => void;
   /** Opens the objective's detail surface. Shown on the reading/authoring rows (not the progress row). */
   onViewDetails?: () => void;
+  /** Opens the aligned parent objective's details. */
+  onViewAlignment?: (parentId: string) => void;
 }) {
   const weight = objective.planWeight ?? 0;
   const progress = objective.derivedProgress;
@@ -77,27 +79,48 @@ export function PlanObjectiveRow({
   return (
     <div
       className={cn(
-        "rounded-xl border p-5 transition-colors",
+        "rounded-surface border p-5 transition-colors",
         active
           ? "border-primary/60 bg-primary/[0.05] ring-1 ring-primary/25"
-          : "border-border bg-muted/40"
+          : "border-border bg-inlay"
       )}
     >
       {/* Top line: identity + weight + actions. */}
       <div className="flex items-start gap-4">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/[0.06] text-base font-semibold tabular-nums text-primary">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-control border border-primary/25 bg-primary/[0.06] text-base font-semibold tabular-nums text-primary">
           {String(index + 1).padStart(2, "0")}
         </span>
 
         <div className="min-w-0 flex-1">
-          <p className="font-medium tracking-tight text-foreground">{objective.title}</p>
+          {onViewDetails ? (
+            <button
+              type="button"
+              onClick={onViewDetails}
+              aria-pressed={active}
+              className="rounded-control text-left font-medium tracking-tight text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {objective.title}
+            </button>
+          ) : (
+            <p className="font-medium tracking-tight text-foreground">{objective.title}</p>
+          )}
           <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
             {objective.isAligned ? (
               <>
                 <Target className="size-3 shrink-0 text-primary/70" aria-hidden />
                 <span>
                   Aligned to{" "}
-                  <span className="font-medium text-primary">{parentObjective ?? "direction"}</span>
+                  {onViewAlignment && objective.parentObjectiveId ? (
+                    <button
+                      type="button"
+                      onClick={() => onViewAlignment(objective.parentObjectiveId!)}
+                      className="rounded-control font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {parentObjective ?? "direction"}
+                    </button>
+                  ) : (
+                    <span className="font-medium text-primary">{parentObjective ?? "direction"}</span>
+                  )}
                 </span>
                 {alignmentScope ? (
                   <span className="text-muted-foreground/70">· {alignmentScope}</span>
@@ -113,17 +136,6 @@ export function PlanObjectiveRow({
         </div>
 
         <div className="flex shrink-0 items-start gap-1">
-          <div className="text-right">
-            <p
-              className={cn(
-                "text-lg font-semibold tabular-nums leading-none",
-                weight > 0 ? "text-primary" : "text-muted-foreground/50"
-              )}
-            >
-              {pct(weight)}%
-            </p>
-            <p className="mt-1 type-eyebrow text-muted-foreground/70">Weight</p>
-          </div>
           {canAuthor ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -134,7 +146,7 @@ export function PlanObjectiveRow({
               <DropdownMenuContent align="end">
                 {onEdit ? (
                   <DropdownMenuItem onSelect={onEdit}>
-                    <Pencil className="size-3.5" /> Edit objective
+                    <SquarePen className="size-3.5" /> Edit objective
                   </DropdownMenuItem>
                 ) : null}
                 {onRemove ? (
@@ -189,21 +201,17 @@ export function PlanObjectiveRow({
           {formatDateRange(objective.startDate, objective.endDate)}
         </MetaCell>
       </dl>
-        {!showProgress ? (
-          <Button
-            variant="outline"
-            size="icon-sm"
+        <div className="shrink-0 text-right">
+          <p
             className={cn(
-              "shrink-0 self-end",
-              active && "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+              "text-lg font-semibold tabular-nums leading-none",
+              weight > 0 ? "text-primary" : "text-muted-foreground/50"
             )}
-            onClick={onViewDetails}
-            aria-label={`View details for ${objective.title}`}
-            aria-pressed={active}
           >
-            <Eye className="size-4" />
-          </Button>
-        ) : null}
+            {pct(weight)}%
+          </p>
+          <p className="mt-1 type-eyebrow text-muted-foreground/70">Weight</p>
+        </div>
       </div>
 
       {/* Execution row for a locked plan: the approved measurement, its latest reported truth, and the
@@ -223,20 +231,6 @@ export function PlanObjectiveRow({
                   View
                 </Button>
               )
-            ) : null}
-            {onViewDetails ? (
-              <Button
-                variant="outline"
-                size="icon-sm"
-                onClick={onViewDetails}
-                aria-label={`View details for ${objective.title}`}
-                aria-pressed={active}
-                className={cn(
-                  active && "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
-                )}
-              >
-                <Eye className="size-4" />
-              </Button>
             ) : null}
           </div>
         </div>

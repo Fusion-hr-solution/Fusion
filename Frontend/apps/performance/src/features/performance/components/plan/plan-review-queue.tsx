@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Inbox } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import type { PlanReviewSummaryDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { cn } from "@repo/ds/lib/utils";
@@ -20,7 +20,7 @@ export function PlanReviewQueue({ plans }: { plans: PlanReviewSummaryDto[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+    <div className="overflow-hidden rounded-surface border border-border bg-card">
       <div className="divide-y divide-border">
         {plans.map((plan) => (
           <Link

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Building2, Gauge, Info, Sigma, Target, UserRound } from "lucide-react";
+import { Building2, Gauge, Info, Sigma, Target, UserRound, Waypoints } from "lucide-react";
 import { toast } from "sonner";
 import type {
   CreateOrganizationalObjectiveRequest,
@@ -387,7 +387,7 @@ export function OrgObjectiveComposer({
         <div className="flex-1 overflow-y-auto px-6 py-6">
           <div className="space-y-8">
             {!teamLocked && !isPersisted ? (
-              <section className="rounded-2xl border border-border bg-card p-5">
+              <section className="rounded-surface border border-border bg-card p-5">
                 <Label className="flex items-center gap-1.5">
                   <Building2
                     className="size-3.5 text-muted-foreground"
@@ -476,13 +476,13 @@ export function OrgObjectiveComposer({
                     <span className="text-destructive">*</span>
                   </Label>
                   {orgUnit ? (
-                    <div className="flex h-8 items-center gap-2 rounded-xl border border-border bg-muted/40 px-2.5 text-sm">
+                    <div className="flex h-8 items-center gap-2 rounded-control border border-border dark:bg-input/30 px-2.5 text-sm">
                       <span className="truncate font-medium">
                         {orgUnit?.name ?? node?.orgUnitName ?? "Owning unit"}
                       </span>
                     </div>
                   ) : (
-                    <div className="flex h-8 items-center rounded-xl border border-dashed border-border px-2.5 text-sm text-muted-foreground">
+                    <div className="flex h-8 items-center rounded-control border border-dashed border-border px-2.5 text-sm text-muted-foreground">
                       Choose the owning team above
                     </div>
                   )}
@@ -583,7 +583,7 @@ export function OrgObjectiveComposer({
                   milestoneReadyLabel="Ready to publish"
                 />
               ) : (
-                <div className="flex items-center gap-2.5 rounded-xl border border-info/25 bg-info-subtle px-4 py-3 text-sm text-info">
+                <div className="flex items-center gap-2.5 rounded-surface border border-info/25 bg-info-subtle px-4 py-3 text-sm text-info">
                   <Info className="size-4 shrink-0" aria-hidden />
                   Progress rolls up from the objectives aligned beneath this
                   one.
@@ -594,7 +594,7 @@ export function OrgObjectiveComposer({
         </div>
 
         {/* Footer — stable. Cancel is quiet; Draft is resumable; Publish is the happy-path outcome. */}
-        <div className="flex items-center justify-between gap-2 border-t border-border bg-muted/30 px-6 py-4">
+        <div className="flex items-center justify-between gap-2 border-t border-border px-6 py-4">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
@@ -647,7 +647,7 @@ function AlignmentEditor({
 }) {
   return (
     <section
-      className="rounded-2xl border border-border bg-muted/25 p-5"
+      className="rounded-surface border border-border p-5"
       aria-labelledby="objective-alignment-heading"
     >
       <div>
@@ -670,7 +670,7 @@ function AlignmentEditor({
       >
         <label
           className={cn(
-            "flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors",
+            "flex cursor-pointer items-start gap-3 rounded-surface border p-3.5 transition-colors",
             mode === "aligned"
               ? "border-primary bg-primary/[0.06]"
               : "border-border bg-card hover:border-primary/40",
@@ -694,7 +694,7 @@ function AlignmentEditor({
         </label>
         <label
           className={cn(
-            "flex cursor-pointer items-start gap-3 rounded-xl border p-3.5 transition-colors",
+            "flex cursor-pointer items-start gap-3 rounded-surface border p-3.5 transition-colors",
             mode === "standalone"
               ? "border-primary bg-primary/[0.06]"
               : "border-border bg-card hover:border-primary/40",
@@ -798,7 +798,7 @@ export function AlignmentTargetPicker({
     <ComboboxItem
       key={target.id}
       value={target.id}
-      className="items-start rounded-lg py-2"
+      className="items-start rounded-inset py-2"
     >
       <Target className="mt-0.5 size-4 text-primary" aria-hidden />
       <span className="min-w-0">
@@ -839,8 +839,9 @@ export function AlignmentTargetPicker({
         }
       >
         {value === "__standalone__" ? (
-          <span className="min-w-0 truncate text-left font-medium text-foreground">
-            No alignment
+          <span className="inline-flex min-w-0 items-center gap-2 text-left font-medium text-info">
+            <Waypoints className="size-4 shrink-0" aria-hidden />
+            <span className="truncate">No alignment</span>
           </span>
         ) : selected ? (
           <span className="min-w-0 text-left">
@@ -880,13 +881,8 @@ export function AlignmentTargetPicker({
           {includeStandalone ? (
             <ComboboxGroup>
               <ComboboxLabel>Standalone</ComboboxLabel>
-              <ComboboxItem value="__standalone__" className="items-start rounded-lg py-2">
-                <span
-                  className="mt-0.5 flex size-4 items-center justify-center rounded-full border border-muted-foreground/50 text-[10px] text-muted-foreground"
-                  aria-hidden
-                >
-                  ○
-                </span>
+              <ComboboxItem value="__standalone__" className="items-start rounded-inset py-2">
+                <Waypoints className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
                 <span>
                   <span className="block font-medium text-foreground">
                     No alignment
@@ -1000,7 +996,7 @@ function SourceCard({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "group flex items-start gap-3 rounded-xl border p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "group flex items-start gap-3 rounded-surface border p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         active
           ? "border-primary bg-primary/[0.06] ring-1 ring-primary/40"
           : "border-border hover:border-primary/40 hover:bg-muted/40"
@@ -1008,7 +1004,7 @@ function SourceCard({
     >
       <span
         className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors",
+          "flex size-10 shrink-0 items-center justify-center rounded-control transition-colors",
           active
             ? "bg-primary/15 text-primary"
             : "bg-muted text-muted-foreground group-hover:text-foreground"
