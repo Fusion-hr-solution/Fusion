@@ -8,6 +8,7 @@ import type {
   GoalNodeDto,
   TeamObjectiveWorkspaceItemDto,
 } from "@repo/api";
+import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { Button } from "@repo/ds/components/ui/button";
 import {
   DropdownMenu,
@@ -42,6 +43,7 @@ import {
   Plus,
   Target,
   Trash2,
+  TrendingUp,
   UserRound,
   Users,
   Waypoints,
@@ -61,7 +63,7 @@ import {
   type ComposerAlignmentContext,
   type ComposerState,
 } from "../goals/org-composer-host";
-import { STATE_LABEL, STATE_TONE } from "../goals/goals-lib";
+import { initials, STATE_LABEL, STATE_TONE } from "../goals/goals-lib";
 import type { UnitContext } from "../goals/working-context-lib";
 import { TeamObjectiveRecordDrawer } from "./team-objective-record-drawer";
 import {
@@ -182,13 +184,6 @@ export function TeamDirection({
           canCreate={data.canCreate && data.eligibleOwners.length > 0}
           onCreate={() => openCreate(direction)}
           onInspect={setPanelId}
-          onChangeAlignment={(item) =>
-            setComposer({
-              mode: "edit",
-              objectiveId: item.node.id,
-              focusAlignment: true,
-            })
-          }
           onEdit={(item) =>
             setComposer({ mode: "edit", objectiveId: item.node.id })
           }
@@ -306,9 +301,7 @@ function StrategicDirection({
           </Button>
         ) : null}
       </div>
-      <div
-        className="relative mt-5 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]"
-      >
+      <div className="relative mt-5 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <CardLink />
         {detailLoading && aligned ? (
           <DirectionCardSkeleton />
@@ -496,7 +489,6 @@ function DirectionCard({
           of target
         </p>
       </div>
-
     </div>
   );
 }
@@ -567,7 +559,11 @@ function StandaloneCard({
       </div>
       {targetCount > 0 ? (
         <div className="mt-auto">
-          <EligibleRow count={targetCount} hint="choose one" onClick={onChoose} />
+          <EligibleRow
+            count={targetCount}
+            hint="choose one"
+            onClick={onChoose}
+          />
         </div>
       ) : null}
     </div>
@@ -630,7 +626,9 @@ function EmptyDirectionCard({
             Upstream direction
           </p>
           <h3 className="mt-3 text-xl font-semibold tracking-tight text-foreground">
-            {hasTargets ? "No direction selected" : "No published direction yet"}
+            {hasTargets
+              ? "No direction selected"
+              : "No published direction yet"}
           </h3>
           <p className="mt-2.5 max-w-md text-sm leading-6 text-muted-foreground">
             {hasTargets
@@ -690,8 +688,22 @@ function IllustrationNode({
         strokeWidth="1.5"
         strokeDasharray={dashed ? "3 3" : undefined}
       />
-      <rect x="40" y={y + 12} width="54" height="6" rx="3" className="fill-muted-foreground/30" />
-      <rect x="40" y={y + 24} width="36" height="5" rx="2.5" className="fill-muted-foreground/20" />
+      <rect
+        x="40"
+        y={y + 12}
+        width="54"
+        height="6"
+        rx="3"
+        className="fill-muted-foreground/30"
+      />
+      <rect
+        x="40"
+        y={y + 24}
+        width="36"
+        height="5"
+        rx="2.5"
+        className="fill-muted-foreground/20"
+      />
     </g>
   );
 }
@@ -734,13 +746,11 @@ function DirectionIllustration() {
   );
 }
 
-
 function TeamObjectives({
   items,
   canCreate,
   onCreate,
   onInspect,
-  onChangeAlignment,
   onEdit,
   onDelete,
   onViewDirection,
@@ -751,7 +761,6 @@ function TeamObjectives({
   canCreate: boolean;
   onCreate: () => void;
   onInspect: (id: string) => void;
-  onChangeAlignment: (item: TeamObjectiveWorkspaceItemDto) => void;
   onEdit: (item: TeamObjectiveWorkspaceItemDto) => void;
   onDelete: (item: TeamObjectiveWorkspaceItemDto) => void | Promise<void>;
   onViewDirection: (item: TeamObjectiveWorkspaceItemDto) => void;
@@ -828,7 +837,11 @@ function TeamObjectives({
               <SelectItem value="title">Title</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" onClick={onCreate} disabled={!canCreate}>
+          <Button
+            onClick={onCreate}
+            disabled={!canCreate}
+            className="bg-foreground text-background hover:bg-foreground/90"
+          >
             <Plus className="size-4" data-icon="inline-start" aria-hidden />{" "}
             Create your team objective
           </Button>
@@ -879,7 +892,6 @@ function TeamObjectives({
               item={item}
               currentEmployeeId={currentEmployeeId}
               onInspect={onInspect}
-              onChangeAlignment={onChangeAlignment}
               onEdit={onEdit}
               onDelete={onDelete}
               onViewDirection={onViewDirection}
@@ -896,7 +908,6 @@ function TeamObjectiveRow({
   item,
   currentEmployeeId,
   onInspect,
-  onChangeAlignment,
   onEdit,
   onDelete,
   onViewDirection,
@@ -905,7 +916,6 @@ function TeamObjectiveRow({
   item: TeamObjectiveWorkspaceItemDto;
   currentEmployeeId: string | null;
   onInspect: (id: string) => void;
-  onChangeAlignment: (item: TeamObjectiveWorkspaceItemDto) => void;
   onEdit: (item: TeamObjectiveWorkspaceItemDto) => void;
   onDelete: (item: TeamObjectiveWorkspaceItemDto) => void | Promise<void>;
   onViewDirection: (item: TeamObjectiveWorkspaceItemDto) => void;
@@ -920,64 +930,53 @@ function TeamObjectiveRow({
   const progress = Math.round(node.hasProgress ? node.derivedProgress : 0);
   return (
     <article className="rounded-xl border border-border bg-background px-4 py-4 sm:px-5">
-      <div className="grid gap-4 lg:grid-cols-[minmax(16rem,1.8fr)_minmax(9rem,.75fr)_minmax(9rem,.65fr)_minmax(8rem,.55fr)_auto] lg:items-center">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => onInspect(node.id)}
-              className="min-w-0 truncate text-left text-sm font-semibold text-foreground hover:underline"
-            >
-              {node.title}
-            </button>
-            <StatusBadge tone={STATE_TONE[node.state]} dot>
-              {STATE_LABEL[node.state]}
-            </StatusBadge>
-          </div>
-          {item.description ? (
-            <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
-              {item.description}
-            </p>
-          ) : null}
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-            {item.parent ? (
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2.6fr)_minmax(7.5rem,.7fr)_minmax(7.5rem,.7fr)_minmax(6.5rem,.55fr)_auto] lg:items-center">
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() =>
-                  isDraft ? onChangeAlignment(item) : onViewDirection(item)
-                }
-                className="inline-flex min-w-0 items-center gap-1.5 font-medium text-primary hover:underline"
+                onClick={() => onInspect(node.id)}
+                className="min-w-0 truncate text-left text-sm font-semibold text-foreground hover:underline"
               >
-                <Target className="size-3.5 shrink-0" aria-hidden />
-                <span className="truncate">Aligned to {item.parent.title}</span>
+                {node.title}
               </button>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 font-medium text-info">
-                <Waypoints className="size-3.5 shrink-0" aria-hidden />{" "}
-                Standalone
-              </span>
-            )}
-            <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-              <UserRound className="size-3.5" aria-hidden />{" "}
-              {node.accountablePersonName ?? "No owner"}
-            </span>
-            {isDraft ? (
-              <button
-                type="button"
-                onClick={() => onChangeAlignment(item)}
-                className="font-medium text-foreground hover:underline"
-              >
-                Change alignment
-              </button>
-            ) : item.parent ? (
-              <button
-                type="button"
-                onClick={() => onViewDirection(item)}
-                className="font-medium text-foreground hover:underline"
-              >
-                View direction
-              </button>
+              <StatusBadge tone={STATE_TONE[node.state]} dot>
+                {STATE_LABEL[node.state]}
+              </StatusBadge>
+            </div>
+            {item.description ? (
+              <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
+                {item.description}
+              </p>
             ) : null}
+            <div className="mt-2 flex min-w-0 items-center text-xs">
+              {item.parent ? (
+                <span className="inline-flex min-w-0 items-center gap-1.5 font-medium text-primary">
+                  <Target className="size-3.5 shrink-0" aria-hidden />
+                  <span className="truncate">
+                    Aligned to {item.parent.title}
+                  </span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 font-medium text-info">
+                  <Waypoints className="size-3.5 shrink-0" aria-hidden />{" "}
+                  Standalone
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2.5">
+            <OwnerAvatar
+              id={node.accountablePersonId}
+              name={node.accountablePersonName}
+            />
+            <div className="min-w-0">
+              <p className="type-eyebrow text-muted-foreground">Accountable</p>
+              <p className="max-w-36 truncate text-sm font-medium text-foreground">
+                {node.accountablePersonName ?? "No owner"}
+              </p>
+            </div>
           </div>
         </div>
         <RowFact label="Measurement">
@@ -1013,12 +1012,7 @@ function TeamObjectiveRow({
             {formatDate(node.endDate)}
           </span>
         </RowFact>
-        <div className="flex items-center justify-end gap-2">
-          {canRecord ? (
-            <Button size="sm" onClick={() => onRecord(item)}>
-              Update progress
-            </Button>
-          ) : null}
+        <div className="flex items-center justify-end">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -1034,15 +1028,17 @@ function TeamObjectiveRow({
                 <Eye className="size-3.5" data-icon="inline-start" /> View
                 details
               </DropdownMenuItem>
+              {canRecord ? (
+                <DropdownMenuItem onSelect={() => onRecord(item)}>
+                  <TrendingUp className="size-3.5" data-icon="inline-start" />{" "}
+                  Update progress
+                </DropdownMenuItem>
+              ) : null}
               {isDraft ? (
                 <>
                   <DropdownMenuItem onSelect={() => onEdit(item)}>
                     <Pencil className="size-3.5" data-icon="inline-start" />{" "}
                     Edit objective
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => onChangeAlignment(item)}>
-                    <Waypoints className="size-3.5" data-icon="inline-start" />{" "}
-                    Change alignment
                   </DropdownMenuItem>
                   {node.childCount === 0 ? (
                     <>
@@ -1082,14 +1078,127 @@ function RowFact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+// Identity hues for person avatars (the DS chart ramp is single-hue amber, so it can't tell people apart).
+const OWNER_TONES = [
+  "bg-violet-500/20 text-violet-300 ring-violet-400/60",
+  "bg-sky-500/20 text-sky-300 ring-sky-400/60",
+  "bg-emerald-500/20 text-emerald-300 ring-emerald-400/60",
+  "bg-rose-500/20 text-rose-300 ring-rose-400/60",
+  "bg-amber-500/20 text-amber-300 ring-amber-400/60",
+  "bg-teal-500/20 text-teal-300 ring-teal-400/60",
+] as const;
+
+/** Stable per-person tone so the same owner always reads the same across rows. */
+function ownerTone(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
+  return OWNER_TONES[Math.abs(hash) % OWNER_TONES.length] ?? OWNER_TONES[0];
+}
+
+function OwnerAvatar({ id, name }: { id: string; name: string | null }) {
+  return (
+    <Avatar
+      className={cn(
+        "size-8 ring-2 ring-offset-2 ring-offset-background",
+        ownerTone(id)
+      )}
+    >
+      <AvatarFallback className="bg-transparent text-xs font-semibold text-inherit">
+        {initials(name)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
+
+/** Mirrors DirectionCard: eyebrow + badge, title, description, three facts, progress row. */
 function DirectionCardSkeleton() {
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card p-5">
-      <Skeleton className="h-5 w-40" />
-      <Skeleton className="h-7 w-4/5" />
-      <Skeleton className="h-4 w-1/2" />
-      <Skeleton className="h-16 w-full" />
-      <Skeleton className="h-2 w-full rounded-full" />
+    <div className="flex flex-col rounded-xl border border-border bg-card p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <Skeleton className="size-8 rounded-lg" />
+          <Skeleton className="h-3 w-32" />
+        </div>
+        <Skeleton className="h-6 w-20 rounded-full" />
+      </div>
+      <Skeleton className="mt-3 h-6 w-4/5" />
+      <div className="mt-2 space-y-1.5">
+        <Skeleton className="h-3.5 w-full max-w-md" />
+        <Skeleton className="h-3.5 w-3/5 max-w-sm" />
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {Array.from({ length: 3 }, (_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <Skeleton className="size-8 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3.5 w-28" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="mt-4 flex items-end gap-5 border-t border-border/60 pt-3">
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="h-1.5 w-full rounded-full" />
+        </div>
+        <Skeleton className="h-4 w-20" />
+      </div>
+    </div>
+  );
+}
+
+/** Mirrors the Next team objective card: eyebrow, title, description, Align to picker, CTA. */
+function NextObjectiveCardSkeleton() {
+  return (
+    <div className="flex flex-col rounded-xl border border-border bg-card p-4 sm:p-5">
+      <div className="flex items-center gap-2.5">
+        <Skeleton className="size-8 rounded-lg" />
+        <Skeleton className="h-3 w-36" />
+      </div>
+      <Skeleton className="mt-3 h-6 w-3/5" />
+      <Skeleton className="mt-2 h-3.5 w-4/5" />
+      <div className="mt-4 space-y-1.5">
+        <Skeleton className="h-3.5 w-16" />
+        <Skeleton className="h-11 w-full rounded-lg" />
+      </div>
+      <div className="mt-auto pt-4">
+        <Skeleton className="h-9 w-48" />
+      </div>
+    </div>
+  );
+}
+
+/** Mirrors TeamObjectiveRow's five columns. */
+function ObjectiveRowSkeleton() {
+  return (
+    <div className="rounded-xl border border-border bg-background px-4 py-4 sm:px-5">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,2.6fr)_minmax(7.5rem,.7fr)_minmax(7.5rem,.7fr)_minmax(6.5rem,.55fr)_auto] lg:items-center">
+        <div className="flex min-w-0 items-center gap-4">
+          <div className="min-w-0 flex-1 space-y-2">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-3/5" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+            </div>
+            <Skeleton className="h-3.5 w-4/5" />
+            <Skeleton className="h-3 w-40" />
+          </div>
+          <div className="flex shrink-0 items-center gap-2.5">
+            <Skeleton className="size-8 rounded-full" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-3 w-16" />
+              <Skeleton className="h-3.5 w-24" />
+            </div>
+          </div>
+        </div>
+        {["w-24", "w-28", "w-20"].map((w, i) => (
+          <div key={i} className="space-y-1.5">
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className={`h-4 ${w}`} />
+          </div>
+        ))}
+        <Skeleton className="size-8 justify-self-end rounded-md" />
+      </div>
     </div>
   );
 }
@@ -1100,24 +1209,35 @@ export function TeamDirectionSkeleton() {
       <section className="rounded-2xl border border-border bg-muted/20 p-5 sm:p-6">
         <div className="flex justify-between gap-4">
           <div className="space-y-2">
-            <Skeleton className="h-6 w-40" />
-            <Skeleton className="h-4 w-72" />
+            <Skeleton className="h-6 w-44" />
+            <Skeleton className="h-4 w-80" />
           </div>
-          <Skeleton className="h-9 w-48" />
+          <Skeleton className="h-9 w-52" />
         </div>
-        <div className="mt-5 grid gap-3 lg:grid-cols-2">
+        <div className="mt-5 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
           <DirectionCardSkeleton />
-          <DirectionCardSkeleton />
+          <NextObjectiveCardSkeleton />
         </div>
       </section>
       <section className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <div className="flex justify-between gap-4">
-          <Skeleton className="h-6 w-44" />
-          <Skeleton className="h-9 w-72" />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2.5">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-5 w-7 rounded-full" />
+            </div>
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Skeleton className="h-9 w-28" />
+            <Skeleton className="h-9 w-32" />
+            <Skeleton className="h-9 w-32" />
+            <Skeleton className="h-9 w-52" />
+          </div>
         </div>
         <div className="mt-5 space-y-2.5">
-          {Array.from({ length: 2 }).map((_, index) => (
-            <Skeleton key={index} className="h-28 w-full rounded-xl" />
+          {Array.from({ length: 3 }, (_, i) => (
+            <ObjectiveRowSkeleton key={i} />
           ))}
         </div>
       </section>

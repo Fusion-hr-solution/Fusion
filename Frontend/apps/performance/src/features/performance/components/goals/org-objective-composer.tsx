@@ -76,7 +76,6 @@ export function OrgObjectiveComposer({
   defaultAccountable,
   defaultOrgUnit,
   teamLocked,
-  focusAlignment,
   onCreate,
   onUpdate,
   onPublish,
@@ -91,7 +90,6 @@ export function OrgObjectiveComposer({
   /** Preselected organizational scope when launched from a scoped context (the actor's own unit); editable. */
   defaultOrgUnit?: PickedOrgUnit | null;
   teamLocked: boolean;
-  focusAlignment?: boolean;
   /** Persists a new draft and returns it (the caller reads `node.id`). */
   onCreate: (
     request: CreateOrganizationalObjectiveRequest
@@ -185,10 +183,6 @@ export function OrgObjectiveComposer({
   const isPersisted = persistedId !== null;
   const scopeLocked = teamLocked || isEdit || committedId !== null;
 
-  useEffect(() => {
-    if (focusAlignment)
-      alignmentRef.current?.scrollIntoView({ block: "start" });
-  }, [focusAlignment]);
 
   useEffect(() => {
     if (!workspace.data) return;

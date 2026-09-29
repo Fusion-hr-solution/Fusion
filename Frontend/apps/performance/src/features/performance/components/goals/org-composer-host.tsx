@@ -30,7 +30,7 @@ export type ComposerState =
       alignment: ComposerAlignmentContext;
       orgUnitId: string | null;
     }
-  | { mode: "edit"; objectiveId: string; focusAlignment?: boolean };
+  | { mode: "edit"; objectiveId: string };
 
 /**
  * Resolves the modal's inputs on open — the parent (for create) or the full draft and its parent (for
@@ -127,7 +127,6 @@ export function OrgComposerHost({
       defaultAccountable={defaultAccountable}
       defaultOrgUnit={defaultOrgUnit}
       teamLocked={!canChooseTeam || !isCreate}
-      focusAlignment={!isCreate && state.focusAlignment === true}
       onCreate={async (request) => {
         const created = await mutations.create.mutateAsync(request);
         if (request.parentObjectiveId)
@@ -193,7 +192,7 @@ function ComposerSkeleton({
       <DialogContent className="flex max-h-[92vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
         <div className="border-b border-border px-6 py-5 pr-14">
           <DialogTitle>
-            {isCreate ? "Create organizational objective" : "Edit objective"}
+            {isCreate ? "Create team objective" : "Edit team objective"}
           </DialogTitle>
         </div>
         <div
@@ -202,10 +201,24 @@ function ComposerSkeleton({
           aria-label="Loading objective"
         >
           <div className="space-y-8">
-            <div className="space-y-2 rounded-2xl border border-border bg-muted/30 p-4">
-              <Skeleton className="h-3 w-28" />
-              <Skeleton className="h-5 w-2/3" />
-              <Skeleton className="h-3.5 w-40" />
+            {/* Alignment editor: heading, then the Aligned / Standalone choice cards. */}
+            <div className="rounded-2xl border border-border bg-muted/25 p-5">
+              <Skeleton className="h-5 w-28" />
+              <Skeleton className="mt-2 h-3.5 w-72" />
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {Array.from({ length: 2 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5"
+                  >
+                    <Skeleton className="mt-0.5 size-4 shrink-0 rounded-full" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-44" />
+                      <Skeleton className="h-3 w-full" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="space-y-4">
               <SectionHead width="w-44" />
