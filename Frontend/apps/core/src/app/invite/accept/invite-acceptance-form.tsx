@@ -520,7 +520,7 @@ function AcceptanceForm({
             {/* The invited address as a fact, not a field to change: the recipient
                 confirms the invitation is theirs and sees the address they will
                 sign in with. */}
-            <InputGroup className="h-11 bg-muted/40 dark:bg-muted/40">
+            <InputGroup className="h-11 bg-inlay dark:bg-inlay">
               <InputGroupInput
                 id="workEmail"
                 type="email"

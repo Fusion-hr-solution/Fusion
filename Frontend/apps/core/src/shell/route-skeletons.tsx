@@ -61,12 +61,12 @@ export function OverviewPageSkeleton() {
       />
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 rounded-xl" />
+          <Skeleton key={i} className="h-24 rounded-surface" />
         ))}
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
-        <Skeleton className="h-64 rounded-xl lg:col-span-2" />
-        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-64 rounded-surface lg:col-span-2" />
+        <Skeleton className="h-64 rounded-surface" />
       </div>
     </PageContainer>
   );
@@ -111,7 +111,7 @@ export function AccessPageSkeleton() {
         <Skeleton className="h-9 w-36 shrink-0" />
       </div>
 
-      <div className="flex flex-col gap-6 rounded-2xl border bg-muted/30 p-5 lg:flex-row lg:items-center lg:gap-8">
+      <div className="flex flex-col gap-6 rounded-surface border bg-section p-5 lg:flex-row lg:items-center lg:gap-8">
         <div className="flex flex-1 items-start gap-4">
           <Skeleton className="size-11 shrink-0 rounded-full" />
           <div className="space-y-2">
@@ -141,7 +141,7 @@ export function AccessPageSkeleton() {
         </div>
 
         <aside className="hidden xl:block">
-          <div className="space-y-5 rounded-2xl border bg-card p-5">
+          <div className="space-y-5 rounded-surface border bg-card p-5">
             <div className="flex items-center gap-3">
               <Skeleton className="size-10 rounded-full" />
               <div className="space-y-2">
@@ -159,7 +159,7 @@ export function AccessPageSkeleton() {
             </div>
             <div className="space-y-2 border-t pt-4">
               {[0, 1, 2].map((i) => (
-                <Skeleton key={i} className="h-14 w-full rounded-xl" />
+                <Skeleton key={i} className="h-14 w-full rounded-surface" />
               ))}
             </div>
           </div>
@@ -171,8 +171,8 @@ export function AccessPageSkeleton() {
 
 function AccessTableSkeleton({ rows }: { rows: number }) {
   return (
-    <div className="overflow-hidden rounded-xl border">
-      <div className="border-b bg-muted/40 px-4 py-3">
+    <div className="overflow-hidden rounded-surface border">
+      <div className="border-b bg-inlay px-4 py-3">
         <Skeleton className="h-3 w-24" />
       </div>
       {Array.from({ length: rows }).map((_, i) => (
@@ -218,12 +218,12 @@ export function OrgChartPageSkeleton() {
         description="Workforce structure and reporting lines."
         actions={<Skeleton className="h-9 w-32 shrink-0" />}
       />
-      <div className="flex items-center gap-2 rounded-2xl border bg-card p-3">
-        <Skeleton className="h-9 w-56 rounded-xl" />
-        <Skeleton className="h-9 w-28 rounded-xl" />
-        <Skeleton className="h-9 w-24 rounded-xl" />
+      <div className="flex items-center gap-2 rounded-surface border bg-card p-3">
+        <Skeleton className="h-9 w-56 rounded-control" />
+        <Skeleton className="h-9 w-28 rounded-control" />
+        <Skeleton className="h-9 w-24 rounded-control" />
       </div>
-      <Skeleton className="h-[70vh] rounded-2xl" />
+      <Skeleton className="h-[70vh] rounded-surface" />
     </PageContainer>
   );
 }
@@ -236,8 +236,8 @@ export function SettingsPageSkeleton() {
         description={<Skeleton className="h-4 w-80 max-w-full" />}
       />
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <Skeleton className="h-96 rounded-xl" />
-        <Skeleton className="h-136 rounded-xl" />
+        <Skeleton className="h-96 rounded-surface" />
+        <Skeleton className="h-136 rounded-surface" />
       </div>
     </PageContainer>
   );
@@ -294,7 +294,7 @@ export function SetupPageSkeleton() {
                 ].map((borderClass, index) => (
                   <div
                     key={index}
-                    className={`flex flex-col items-center gap-4 rounded-xl border p-5 text-center ${borderClass}`}
+                    className={`flex flex-col items-center gap-4 rounded-surface border p-5 text-center ${borderClass}`}
                   >
                     <Skeleton className="size-12 rounded-full" />
                     <div className="space-y-1">
@@ -315,7 +315,7 @@ export function SetupPageSkeleton() {
               <Skeleton className="h-5 w-32" />
             </CardHeader>
             <CardContent className="flex flex-1 flex-col items-center justify-center py-12">
-              <div className="flex size-8 items-center justify-center rounded-full border bg-muted/30 text-muted-foreground/60">
+              <div className="flex size-8 items-center justify-center rounded-full border bg-inlay text-muted-foreground/60">
                 <Skeleton className="size-3.5 rounded-full" />
               </div>
               <Skeleton className="mt-2 h-4 w-28" />

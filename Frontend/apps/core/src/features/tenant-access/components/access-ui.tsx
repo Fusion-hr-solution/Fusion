@@ -109,7 +109,7 @@ export function IdentityMark({
 /** Names the person a confirmation is about, so the decision is never abstract. */
 export function SubjectCard({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 rounded-md border px-3 py-2.5">
+    <div className="flex min-w-0 items-center gap-3 rounded-control border px-3 py-2.5">
       <IdentityMark name={title} />
       <div className="min-w-0">
         <p className="truncate text-sm font-medium">{title}</p>

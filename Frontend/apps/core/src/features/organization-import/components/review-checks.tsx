@@ -99,7 +99,7 @@ function CheckGroup({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-object border",
+        "overflow-hidden rounded-control border",
         count === 0 && "border-border",
         count > 0 && blocker && "border-destructive/40",
         count > 0 && !blocker && "border-warning/45"
@@ -221,7 +221,7 @@ function CheckItem({ issue, review, saving, matchHref, focusedKey, itemRefs, onV
         if (element) itemRefs.current.set(issue.key, element);
         else itemRefs.current.delete(issue.key);
       }}
-      className={cn("space-y-3 px-4 py-4 transition-colors", focused && "bg-muted/40")}
+      className={cn("space-y-3 px-4 py-4 transition-colors", focused && "bg-inlay")}
     >
       <div>
         <h3 className="type-body font-semibold text-foreground">{issue.title}</h3>
@@ -231,7 +231,7 @@ function CheckItem({ issue, review, saving, matchHref, focusedKey, itemRefs, onV
       {anchor && anchor.identityEvidence.length > 0 ? (
         <ul className="space-y-2">
           {anchor.identityEvidence.map((evidence) => (
-            <li key={`${evidence.identifier}-${evidence.unitId}`} className="rounded-object border border-border px-3 py-2">
+            <li key={`${evidence.identifier}-${evidence.unitId}`} className="rounded-control border border-border px-3 py-2">
               <p className="type-meta text-muted-foreground">
                 {evidence.identifier === "fusionOrgUnitId" ? "Fusion ID" : "Business code"} · {evidence.suppliedValue}
               </p>
@@ -248,7 +248,7 @@ function CheckItem({ issue, review, saving, matchHref, focusedKey, itemRefs, onV
       {pathways.includes("ChooseExistingUnit") && anchor && anchor.candidates.length > 0 ? (
         <ul className="space-y-2">
           {anchor.candidates.map((candidate) => (
-            <li key={candidate.id} className="flex items-center justify-between gap-3 rounded-object border border-border px-3 py-2">
+            <li key={candidate.id} className="flex items-center justify-between gap-3 rounded-control border border-border px-3 py-2">
               <span className="min-w-0">
                 <span className="block truncate type-body font-medium text-foreground">{candidate.name}</span>
                 <span className="block truncate type-meta text-muted-foreground">
@@ -281,7 +281,7 @@ function CheckItem({ issue, review, saving, matchHref, focusedKey, itemRefs, onV
             <button
               type="button"
               onClick={() => onViewUnits(issue)}
-              className="inline-flex items-center gap-1.5 rounded-md px-1 py-1 type-body font-medium text-primary-foreground outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring dark:text-primary"
+              className="inline-flex items-center gap-1.5 rounded-control px-1 py-1 type-body font-medium text-primary-foreground outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring dark:text-primary"
             >
               {issue.nodeIds.length > 1 ? "View units" : "View unit"}
               <ArrowRight aria-hidden className="size-4" />

@@ -97,7 +97,7 @@ export function DataTable<TData>({
     return (
       <div className="space-y-2">
         {Array.from({ length: skeletonRowCount }).map((_, index) => (
-          <Skeleton key={index} className="h-12 w-full rounded-lg" />
+          <Skeleton key={index} className="h-12 w-full rounded-control" />
         ))}
       </div>
     );
@@ -123,9 +123,11 @@ export function DataTable<TData>({
   }
 
   return (
-    <div className="relative overflow-x-auto rounded-xl border">
+    <div className="relative overflow-x-auto rounded-surface border">
       {isFetching && (
-        <div className="bg-background/50 absolute inset-0 z-10 rounded-xl" />
+        // A refetch scrim, not a surface: it has to let the stale rows show through.
+        // eslint-disable-next-line no-restricted-syntax
+        <div className="bg-background/50 absolute inset-0 z-10 rounded-surface" />
       )}
 
       <Table className={tableClassName} style={minWidth ? { minWidth } : undefined}>

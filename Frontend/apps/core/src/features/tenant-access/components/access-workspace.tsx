@@ -287,7 +287,7 @@ export default function AccessWorkspace() {
 
         {isWide ? (
           <aside aria-label="Administrator details">
-            <div className="sticky top-6 overflow-hidden rounded-2xl border bg-card">
+            <div className="sticky top-6 overflow-hidden rounded-surface border bg-card">
               {detail ?? <DetailPlaceholder />}
             </div>
           </aside>
@@ -367,7 +367,7 @@ function DetailPlaceholder() {
 /** One section failing does not take the page with it, and it offers its own retry. */
 function SectionFailure({ label, onRetry }: { label: string; onRetry: () => void }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-surface border px-4 py-3">
       <p className="type-body text-muted-foreground">The {label} could not be loaded.</p>
       <Button variant="outline" size="sm" onClick={onRetry}>
         Retry

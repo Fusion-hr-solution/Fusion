@@ -261,7 +261,7 @@ function InspectorContent({
             }
           >
             {data.availableActions.length > 0 && canManage ? (
-              <div className="mt-4 flex w-fit items-center rounded-lg border bg-muted/30 p-1">
+              <div className="mt-4 flex w-fit items-center rounded-control border bg-muted p-1">
                 {(["Employee", "Manager"] as WorkforceBaselineChoice[]).map(
                   (choice) => (
                     <button
@@ -269,7 +269,7 @@ function InspectorContent({
                       type="button"
                       onClick={() => setBaseline(choice)}
                       className={cn(
-                        "rounded-md px-3 py-1.5 type-label transition-colors",
+                        "rounded-control px-3 py-1.5 type-label transition-colors",
                         baseline === choice
                           ? "bg-foreground text-background shadow-raised"
                           : "text-muted-foreground hover:text-foreground"
@@ -355,7 +355,7 @@ function InspectorContent({
                 </div>
               ) : null}
               {data.isAdministrator ? (
-                <div className="flex items-start gap-3 rounded-lg bg-muted/40 px-3 py-3">
+                <div className="flex items-start gap-3 rounded-control border border-border px-3 py-3">
                   <ShieldCheck
                     className="mt-0.5 size-4 text-muted-foreground"
                     aria-hidden="true"
@@ -451,7 +451,7 @@ function InspectorActions({
   restoreLoading: boolean;
 }) {
   return (
-    <div className="border-t bg-background px-7 py-4">
+    <div className="border-t bg-popover px-7 py-4">
       {data.availableActions.length > 0 && canManage ? (
         <div className="space-y-2">
           {data.availableActions.map((action) => (
@@ -533,7 +533,7 @@ function InspectorActions({
             <button
               type="button"
               onClick={() => onCorrect(data)}
-              className="flex w-full items-center justify-center gap-1 rounded-md px-3 py-1.5 type-meta text-muted-foreground transition-colors hover:text-foreground"
+              className="flex w-full items-center justify-center gap-1 rounded-control px-3 py-1.5 type-meta text-muted-foreground transition-colors hover:text-foreground"
             >
               Wrong person? Correct identity link
             </button>
@@ -548,7 +548,7 @@ function InspectorActions({
           You can view workforce access but not change it.
         </p>
       ) : (
-        <div className="flex items-start gap-3 rounded-lg bg-warning-subtle px-3 py-3">
+        <div className="flex items-start gap-3 rounded-control bg-warning-subtle px-3 py-3">
           <AlertTriangle
             className="mt-0.5 size-4 shrink-0 text-warning"
             aria-hidden="true"

@@ -90,7 +90,7 @@ function AsOfPicker({ value, busy, onChange }: { value: string; busy: boolean; o
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" disabled={busy} className="h-10 gap-2 bg-background/40 font-normal">
+        <Button variant="outline" disabled={busy} className="h-10 gap-2 font-normal">
           {busy ? <Spinner className="size-4" aria-hidden /> : <CalendarDays className="size-4 text-muted-foreground" aria-hidden />}
           <span className="text-muted-foreground">Workforce as of</span>
           <span className="font-semibold text-foreground">{formatWorkforceDate(value)}</span>
@@ -154,7 +154,7 @@ export function WorkforceReviewNotices({ notices, onView }: { notices: ReviewNot
               key={notice.key}
               className={cn(
                 "flex flex-wrap items-center gap-x-5 gap-y-3 px-3 py-3.5 sm:flex-nowrap",
-                primary && "rounded-object border border-destructive/30 bg-destructive/[0.07]"
+                primary && "rounded-control border border-destructive/30 bg-destructive/[0.07]"
               )}
             >
               <div className="flex shrink-0 items-center gap-4">

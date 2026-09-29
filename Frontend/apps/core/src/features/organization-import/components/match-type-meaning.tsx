@@ -34,7 +34,7 @@ export function MatchTypeMeaning({ match, locked = false }: { match: Organizatio
               className={cn(
                 TYPE_GRID,
                 "px-4 py-2",
-                attention && "relative z-10 rounded-object bg-primary/[0.07] ring-1 ring-primary/70 ring-inset"
+                attention && "relative z-10 rounded-control bg-primary/[0.07] ring-1 ring-primary/70 ring-inset"
               )}
             >
               <span role="rowheader" className="flex min-w-0 items-center gap-2">

@@ -122,7 +122,7 @@ export function ReviewTree({
             onClick={() => onSelect(node.id)}
             onKeyDown={(event) => onKeyDown(event, row, index)}
             className={cn(
-              "group relative flex cursor-default items-center rounded-object py-1.5 pr-3 outline-none transition-colors",
+              "group relative flex cursor-default items-center rounded-control py-1.5 pr-3 outline-none transition-colors",
               "hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-ring",
               highlighted && "bg-warning-subtle",
               selected && "bg-primary/10 ring-1 ring-primary/30"
@@ -141,7 +141,7 @@ export function ReviewTree({
                     event.stopPropagation();
                     onToggle(node.id);
                   }}
-                  className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:hover:bg-transparent"
+                  className="grid size-6 place-items-center rounded-control-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:hover:bg-transparent"
                 >
                   {row.expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
                 </button>
@@ -150,7 +150,7 @@ export function ReviewTree({
             <span
               aria-hidden
               className={cn(
-                "mx-2 grid size-8 shrink-0 place-items-center rounded-lg",
+                "mx-2 grid size-8 shrink-0 place-items-center rounded-control",
                 node.isPlaceholder ? "border border-dashed border-warning text-warning" : "bg-muted text-foreground/80"
               )}
             >
@@ -178,7 +178,7 @@ export function ReviewTree({
                   <TriangleAlert className="size-4 shrink-0 fill-warning/15 text-warning" aria-label="Warning" />
                 ) : null}
                 {markExisting && !node.isNew && !node.isPlaceholder ? (
-                  <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 type-meta text-muted-foreground">Existing</span>
+                  <span className="shrink-0 rounded-control bg-muted px-1.5 py-0.5 type-meta text-muted-foreground">Existing</span>
                 ) : null}
               </span>
               {!node.isPlaceholder ? (

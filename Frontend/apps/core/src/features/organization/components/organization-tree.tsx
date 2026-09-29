@@ -219,7 +219,7 @@ function Row({
       aria-selected={selected}
       aria-expanded={hasChildren ? open : undefined}
       className={cn(
-        "flex items-center gap-1 rounded-md pr-2 transition-colors",
+        "flex items-center gap-1 rounded-control pr-2 transition-colors",
         selected ? "bg-primary/[0.08]" : "hover:bg-muted/70"
       )}
       style={{ paddingLeft: `${0.25 + depth * 1}rem` }}
@@ -229,7 +229,7 @@ function Row({
           type="button"
           aria-label={open ? "Collapse" : "Expand"}
           onClick={onToggle}
-          className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="grid size-6 shrink-0 place-items-center rounded-detail text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <ChevronRight className={cn("size-4 transition-transform", open && "rotate-90")} aria-hidden />
         </button>
@@ -241,7 +241,7 @@ function Row({
       <button
         type="button"
         onClick={onSelect}
-        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded"
+        className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-detail"
       >
         <Building2 className={cn("size-4 shrink-0", selected ? "text-primary" : "text-muted-foreground")} aria-hidden />
         <span className="min-w-0">

@@ -66,10 +66,10 @@ export function ImportUploadSkeleton({ domain = "organization" }: { domain?: Imp
         <section className="rounded-surface border border-border bg-card p-5 shadow-raised sm:p-8">
           <Skeleton className="h-7 w-64" />
           <Skeleton className="mt-2 h-4 w-96 max-w-full" />
-          <Skeleton className="mt-6 h-24 w-full rounded-object" />
+          <Skeleton className="mt-6 h-24 w-full rounded-control" />
           <Skeleton className="mt-7 h-4 w-28" />
           <div className="mt-2 flex flex-wrap items-center gap-3">
-            <Skeleton className="h-11 min-w-56 flex-1 basis-64 rounded-object sm:max-w-md" />
+            <Skeleton className="h-11 min-w-56 flex-1 basis-64 rounded-control sm:max-w-md" />
             <div className="ml-auto flex items-center gap-3">
               <Skeleton className="h-11 w-36" />
               <Skeleton className="h-11 w-20" />
@@ -149,8 +149,8 @@ function MatchBody() {
                     key={index}
                     className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-4"
                   >
-                    <Skeleton className="h-9 rounded-object" />
-                    <Skeleton className="h-9 rounded-object" />
+                    <Skeleton className="h-9 rounded-control" />
+                    <Skeleton className="h-9 rounded-control" />
                   </div>
                 ))}
               </div>
@@ -159,7 +159,7 @@ function MatchBody() {
               <Skeleton className="h-5 w-48" />
               <div className="mt-4 space-y-3">
                 {Array.from({ length: 4 }).map((_, index) => (
-                  <Skeleton key={index} className="h-11 rounded-object" />
+                  <Skeleton key={index} className="h-11 rounded-control" />
                 ))}
               </div>
             </Panel>
@@ -167,7 +167,7 @@ function MatchBody() {
           <aside className="min-w-0 space-y-6">
             <Panel>
               <Skeleton className="h-5 w-32" />
-              <Skeleton className="mt-4 h-52 rounded-object" />
+              <Skeleton className="mt-4 h-52 rounded-control" />
             </Panel>
             <Panel>
               <Skeleton className="h-5 w-28" />
@@ -200,12 +200,12 @@ function ReviewBody() {
         <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
           <Panel>
             <Skeleton className="h-5 w-48" />
-            <Skeleton className="mt-4 h-9 w-full rounded-object sm:max-w-md" />
+            <Skeleton className="mt-4 h-9 w-full rounded-control sm:max-w-md" />
             <div className="mt-4 space-y-3">
               {TREE_DEPTHS.map((depth, index) => (
                 <Skeleton
                   key={index}
-                  className="h-7 rounded-object"
+                  className="h-7 rounded-control-sm"
                   style={{
                     marginInlineStart: `${depth * 1.5}rem`,
                     width: `${55 - depth * 6}%`,
@@ -219,7 +219,7 @@ function ReviewBody() {
               <Skeleton className="h-5 w-32" />
               <div className="mt-4 space-y-3">
                 {Array.from({ length: 3 }).map((_, index) => (
-                  <Skeleton key={index} className="h-12 rounded-object" />
+                  <Skeleton key={index} className="h-12 rounded-control" />
                 ))}
               </div>
             </Panel>
@@ -255,19 +255,19 @@ function PeopleReviewBody() {
               <Skeleton className="h-4 w-[26rem] max-w-full" />
             </div>
           </div>
-          <Skeleton className="h-10 w-56 rounded-object" />
+          <Skeleton className="h-10 w-56 rounded-control" />
         </div>
         <section className="min-w-0 overflow-hidden rounded-surface border border-border bg-card">
           <div className="space-y-4 px-4 pb-4 pt-5 sm:px-5">
             <Skeleton className="h-6 w-48" />
             <div className="flex flex-wrap items-center gap-3">
-              <Skeleton className="h-10 w-full rounded-object sm:w-96" />
+              <Skeleton className="h-10 w-full rounded-control sm:w-96" />
               {Array.from({ length: 3 }).map((_, index) => (
                 <Skeleton key={index} className="h-10 w-24 rounded-full" />
               ))}
             </div>
           </div>
-          <div className="border-y border-border bg-muted/40 px-5 py-3">
+          <div className="border-y border-border bg-inlay px-5 py-3">
             <Skeleton className="h-3.5 w-2/3" />
           </div>
           {Array.from({ length: 8 }).map((_, index) => (
@@ -325,7 +325,7 @@ function BannerSkeleton({ metrics }: { metrics: number }) {
 
 function FooterSkeleton() {
   return (
-    <div className="sticky bottom-0 z-20 mt-8 border-t border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+    <div className="sticky bottom-0 z-20 mt-8 border-t border-border bg-background">
       <PageContainer className="flex items-center justify-between gap-4 py-3">
         <Skeleton className="h-9 w-28" />
         <div className="flex items-center gap-4">

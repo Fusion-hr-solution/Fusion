@@ -102,7 +102,7 @@ function QuickLink({ href, icon: Icon, children }: { href: string; icon: typeof 
   return (
     <Link
       href={href}
-      className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
+      className="flex items-center gap-2 rounded-control border border-border px-3 py-2 text-sm font-medium transition-colors hover:border-primary/40 hover:bg-muted/10"
     >
       <Icon className="size-4 text-muted-foreground" />
       <span className="flex-1">{children}</span>
@@ -362,8 +362,8 @@ function WorkforceDashboard({
                             key={idx}
                             className={
                               iss.blocker
-                                ? "rounded bg-destructive/10 px-1.5 py-0.5 text-[11px] font-medium text-destructive"
-                                : "rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary"
+                                ? "rounded-detail bg-destructive/10 px-1.5 py-0.5 text-[11px] font-medium text-destructive"
+                                : "rounded-detail bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary"
                             }
                           >
                             {iss.label}
@@ -378,7 +378,7 @@ function WorkforceDashboard({
                 ))}
               </ul>
             ) : (
-              <div className="flex items-center gap-3 rounded-lg border border-dashed border-border bg-muted/10 px-4 py-8 text-sm text-muted-foreground">
+              <div className="flex items-center gap-3 rounded-surface border border-dashed border-border px-4 py-8 text-sm text-muted-foreground">
                 <UserCheck className="size-5 text-emerald-600" />
                 Every workforce record is complete and healthy.
               </div>
@@ -460,7 +460,7 @@ function WorkforceDashboard({
                 ))}
               </ul>
             ) : (
-              <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+              <div className="rounded-surface border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
                 No recent hires yet.
               </div>
             )}
@@ -557,7 +557,7 @@ function ManagerDashboard({ me }: { me: WorkforceMeContext }) {
             {isTeamLoading ? (
               <div className="space-y-2">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                  <Skeleton key={i} className="h-12 w-full rounded-control" />
                 ))}
               </div>
             ) : teamList.length > 0 ? (
@@ -584,7 +584,7 @@ function ManagerDashboard({ me }: { me: WorkforceMeContext }) {
                           </span>
                         </span>
                         {attn ? (
-                          <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+                          <span className="shrink-0 rounded-detail bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
                             Needs attention
                           </span>
                         ) : (
@@ -596,7 +596,7 @@ function ManagerDashboard({ me }: { me: WorkforceMeContext }) {
                 })}
               </ul>
             ) : (
-              <div className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
+              <div className="rounded-surface border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
                 No direct reports currently assigned.
               </div>
             )}
@@ -613,7 +613,7 @@ function ManagerDashboard({ me }: { me: WorkforceMeContext }) {
               ].map(([label, value]) => (
                 <div
                   key={label}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+                  className="flex items-center justify-between rounded-control border border-border px-3 py-2 text-sm"
                 >
                   <dt className="text-muted-foreground">{label}</dt>
                   <dd className="truncate pl-2 font-medium">{value}</dd>
@@ -698,7 +698,7 @@ function EmployeeDashboard({ me }: { me: WorkforceMeContext }) {
               ].map(([label, value]) => (
                 <div
                   key={label}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
+                  className="flex items-center justify-between rounded-control border border-border px-3 py-2 text-sm"
                 >
                   <dt className="text-muted-foreground">{label}</dt>
                   <dd className="truncate pl-2 font-medium">{value}</dd>

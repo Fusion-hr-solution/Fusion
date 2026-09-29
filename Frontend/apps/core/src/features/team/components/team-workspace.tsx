@@ -122,7 +122,7 @@ export default function TeamWorkspace() {
                 <Link
                   key={employee.id}
                   href={`/people/${employee.stableEmployeeKey}`}
-                  className="group rounded-xl border bg-background p-4 transition-colors hover:border-primary/40 hover:bg-muted/10"
+                  className="group rounded-surface border bg-inlay p-4 transition-colors hover:border-primary/40 hover:bg-muted"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 space-y-1">

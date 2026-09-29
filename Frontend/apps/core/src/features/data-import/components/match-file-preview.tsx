@@ -55,9 +55,9 @@ export function ImportFilePreview({
         ) : null}
       </header>
 
-      <div className="mt-4 overflow-x-auto rounded-object border border-border">
+      <div className="mt-4 overflow-x-auto rounded-control border border-border">
         <table className="w-full min-w-[24rem] border-collapse text-left">
-          <thead className="bg-muted/50">
+          <thead className="bg-inlay">
             <tr className="type-eyebrow text-muted-foreground">
               {columns.map((column) => (
                 <th key={column.key} scope="col" className="px-3 py-2 font-semibold whitespace-nowrap">

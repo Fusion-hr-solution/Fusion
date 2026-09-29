@@ -442,8 +442,8 @@ function ContinuityCard({
         }`;
 
   return (
-    <article className="flex items-center gap-4 rounded-2xl border bg-card p-4 shadow-raised sm:p-5">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground/75 ring-1 ring-inset ring-border">
+    <article className="flex items-center gap-4 rounded-surface border bg-card p-4 shadow-raised sm:p-5">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-muted text-foreground/75 ring-1 ring-inset ring-border">
         <ShieldCheck className="size-5" aria-hidden />
       </span>
       <div className="min-w-0 flex-1 space-y-1">
@@ -463,7 +463,7 @@ function ContinuityCard({
       </div>
       <Link
         href="/access"
-        className="type-label group/action inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg text-foreground underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="type-label group/action inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-control text-foreground underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         Manage access
         <ArrowRight
@@ -487,8 +487,8 @@ function AdministrationCard({ entry }: { entry: ComposedCapability }) {
   const action = actionLabel(entry);
 
   return (
-    <article className="flex items-center gap-4 rounded-2xl border bg-card p-4 shadow-raised sm:p-5">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground/75 ring-1 ring-inset ring-border">
+    <article className="flex items-center gap-4 rounded-surface border bg-card p-4 shadow-raised sm:p-5">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-muted text-foreground/75 ring-1 ring-inset ring-border">
         <Glyph className="size-5" aria-hidden />
       </span>
       <div className="min-w-0 flex-1 space-y-1">
@@ -503,7 +503,7 @@ function AdministrationCard({ entry }: { entry: ComposedCapability }) {
       {isActionable && capability.route ? (
         <Link
           href={capability.route}
-          className="type-label group/action inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-lg text-foreground underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="type-label group/action inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-control text-foreground underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {action}
           <ArrowRight
@@ -535,7 +535,7 @@ function ReadinessMeter({
   readyCount: number;
 }) {
   return (
-    <div className="flex shrink-0 flex-col gap-2.5 rounded-2xl border bg-card px-5 py-4 shadow-raised sm:min-w-[13.5rem]">
+    <div className="flex shrink-0 flex-col gap-2.5 rounded-surface border bg-card px-5 py-4 shadow-raised sm:min-w-[13.5rem]">
       <div className="flex items-baseline justify-between gap-3">
         <span className="type-eyebrow text-muted-foreground">Foundation</span>
         <span className="type-meta text-muted-foreground">
@@ -586,7 +586,7 @@ function RecommendationPanel({ entry }: { entry: ComposedCapability }) {
   return (
     <section
       aria-labelledby="recommended-destination-heading"
-      className="relative overflow-hidden rounded-2xl border border-primary/40 bg-primary/[0.06] p-6 shadow-raised sm:p-7"
+      className="relative overflow-hidden rounded-surface border border-primary/40 bg-primary/[0.06] p-6 shadow-raised sm:p-7"
     >
       {/* A quiet brand seam anchoring the one active step, not a decorative glow. */}
       <span
@@ -595,7 +595,7 @@ function RecommendationPanel({ entry }: { entry: ComposedCapability }) {
       />
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 gap-5">
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary ring-1 ring-inset ring-primary/30">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-control bg-primary/15 text-primary ring-1 ring-inset ring-primary/30">
             <Icon className="size-6" aria-hidden />
           </span>
           <div className="min-w-0 space-y-2">
@@ -656,7 +656,7 @@ function LadderNode({
       <div className="flex w-11 shrink-0 flex-col items-center">
         <span
           className={cn(
-            "relative z-10 flex size-11 items-center justify-center rounded-xl transition-colors",
+            "relative z-10 flex size-11 items-center justify-center rounded-control transition-colors",
             MARKER_TONE[tone]
           )}
         >
@@ -718,7 +718,7 @@ function LadderNode({
               <button
                 type="button"
                 onClick={onRetry}
-                className="type-label inline-flex min-h-8 items-center rounded-lg text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="type-label inline-flex min-h-8 items-center rounded-control text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Retry status
               </button>
@@ -726,7 +726,7 @@ function LadderNode({
             {isActionable && capability.route ? (
               <Link
                 href={capability.route}
-                className="type-label group/action inline-flex min-h-8 items-center gap-1.5 rounded-lg text-foreground underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="type-label group/action inline-flex min-h-8 items-center gap-1.5 rounded-control text-foreground underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {action}
                 <ArrowRight
@@ -783,15 +783,15 @@ export function LaunchpadSkeleton() {
             <Skeleton className="h-9 w-72 max-w-full" />
             <Skeleton className="h-5 w-[30rem] max-w-full" />
           </div>
-          <Skeleton className="h-[4.75rem] w-full rounded-2xl sm:w-[13.5rem]" />
+          <Skeleton className="h-[4.75rem] w-full rounded-surface sm:w-[13.5rem]" />
         </div>
-        <Skeleton className="h-32 w-full rounded-2xl" />
+        <Skeleton className="h-32 w-full rounded-surface" />
         <div className="space-y-5">
           <Skeleton className="h-5 w-40" />
           <div className="space-y-8">
             {Array.from({ length: 4 }).map((_, index) => (
               <div key={index} className="flex gap-5">
-                <Skeleton className="size-11 shrink-0 rounded-xl" />
+                <Skeleton className="size-11 shrink-0 rounded-control" />
                 <div className="flex-1 space-y-2 pt-0.5">
                   <Skeleton className="h-4 w-40" />
                   <Skeleton className="h-3.5 w-64 max-w-full" />

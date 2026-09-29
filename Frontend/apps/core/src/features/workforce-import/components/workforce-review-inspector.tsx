@@ -151,7 +151,7 @@ function Notices({ row }: { row: WorkforceReviewRowDto }) {
   return (
     <ul className="space-y-2">
       {warnings.map((w) => (
-        <li key={w.code} className="rounded-md bg-[var(--color-warning-subtle)] px-3 py-2">
+        <li key={w.code} className="rounded-control bg-[var(--color-warning-subtle)] px-3 py-2">
           <p className="type-label font-medium text-foreground">{w.title}</p>
           <p className="type-meta text-muted-foreground">{w.message}</p>
         </li>
@@ -237,7 +237,7 @@ function OrganizationResolution({
   return (
     <div>
       <AttentionHeading issue={issue} />
-      <div className="rounded-md bg-muted/40 px-3 py-2">
+      <div className="rounded-control bg-inlay px-3 py-2">
         <p className="type-meta text-muted-foreground">Your file</p>
         <p className="type-label font-medium text-foreground">{sourceValue || "—"}</p>
       </div>
@@ -279,7 +279,7 @@ function OrganizationResolution({
         {loadingUnits
           ? Array.from({ length: 4 }).map((_, i) => (
               <li key={i}>
-                <Skeleton className="h-11 w-full rounded-md" />
+                <Skeleton className="h-11 w-full rounded-control" />
               </li>
             ))
           : rest.length === 0
@@ -300,7 +300,7 @@ function UnitButton({ unit, busy, onClick, suggested }: { unit: FlatUnit; busy: 
       disabled={busy}
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left disabled:opacity-50",
+        "flex w-full items-center gap-2.5 rounded-control px-2.5 py-2 text-left disabled:opacity-50",
         suggested ? "bg-primary/[0.04] ring-1 ring-inset ring-primary/15 hover:bg-primary/[0.08]" : "hover:bg-muted/60"
       )}
     >
@@ -350,7 +350,7 @@ function ManagerResolution({
     <div>
       <AttentionHeading issue={issue} />
       {reference ? (
-        <div className="rounded-md bg-muted/40 px-3 py-2">
+        <div className="rounded-control bg-inlay px-3 py-2">
           <p className="type-meta text-muted-foreground">Your file</p>
           <p className="type-label font-medium text-foreground">{reference}</p>
         </div>
@@ -379,7 +379,7 @@ function ManagerResolution({
                   type="button"
                   disabled={busy}
                   onClick={() => pickImport(c.sourceRowNumber)}
-                  className="w-full rounded-md px-2 py-1.5 text-left hover:bg-muted/60 disabled:opacity-50"
+                  className="w-full rounded-control px-2 py-1.5 text-left hover:bg-muted/60 disabled:opacity-50"
                 >
                   <EmployeeIdentity
                     name={c.displayName}
@@ -404,7 +404,7 @@ function ManagerResolution({
                   type="button"
                   disabled={busy}
                   onClick={() => pickExisting(person.employeeKey)}
-                  className="w-full rounded-md px-2 py-1.5 text-left hover:bg-muted/60 disabled:opacity-50"
+                  className="w-full rounded-control px-2 py-1.5 text-left hover:bg-muted/60 disabled:opacity-50"
                 >
                   <EmployeeIdentity
                     name={person.displayName}

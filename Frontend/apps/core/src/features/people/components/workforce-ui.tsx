@@ -59,7 +59,7 @@ export function Monogram({
     <span
       aria-hidden="true"
       className={cn(
-        "grid shrink-0 place-items-center rounded-object font-semibold tracking-tight tabular-nums",
+        "grid shrink-0 place-items-center rounded-control font-semibold tracking-tight tabular-nums",
         accent
           ? "bg-primary/12 text-foreground ring-1 ring-inset ring-primary/25"
           : "bg-muted text-muted-foreground",
@@ -101,7 +101,7 @@ export function EmployeeIdentity({
     <Link
       href={href}
       className={cn(
-        "type-label font-semibold underline-offset-4 outline-none hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring",
+        "type-label font-semibold underline-offset-4 outline-none hover:underline focus-visible:rounded-control focus-visible:ring-2 focus-visible:ring-ring",
         linkClassName
       )}
     >
@@ -169,7 +169,7 @@ export function PersonIdentity({
           {href ? (
             <Link
               href={href}
-              className="type-label truncate font-semibold underline-offset-4 outline-none hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
+              className="type-label truncate font-semibold underline-offset-4 outline-none hover:underline focus-visible:rounded-control focus-visible:ring-2 focus-visible:ring-ring"
             >
               {name}
             </Link>

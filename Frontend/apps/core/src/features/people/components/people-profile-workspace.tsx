@@ -233,7 +233,7 @@ export default function PeopleProfileWorkspace({
         backLink={
           <Link
             href="/people"
-            className="inline-flex items-center gap-2 type-body text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex items-center gap-2 type-body text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:rounded-control focus-visible:ring-2 focus-visible:ring-ring"
           >
             <ArrowLeft className="size-4" /> People
           </Link>
@@ -345,7 +345,7 @@ function ProfileNotice({
 }) {
   return (
     <PageContainer>
-      <Empty className="min-h-[26rem] rounded-2xl border">
+      <Empty className="min-h-[26rem] rounded-surface border">
         <EmptyMedia variant="icon">
           <Icon />
         </EmptyMedia>
@@ -381,7 +381,7 @@ function AsOfControl({
   onPick: (date: string) => void;
 }) {
   return (
-    <label className="inline-flex items-center gap-2 rounded-lg border bg-card px-3 py-1.5 type-body text-muted-foreground focus-within:ring-2 focus-within:ring-ring">
+    <label className="inline-flex items-center gap-2 rounded-control border bg-card px-3 py-1.5 type-body text-muted-foreground focus-within:ring-2 focus-within:ring-ring">
       <CalendarDays className="size-4" aria-hidden />
       <span className="type-label">As of Today</span>
       <span aria-hidden className="text-muted-foreground/40">
@@ -474,7 +474,7 @@ function WorkEmailEditorDialog({
             void handleSubmit();
           }}
         >
-          <div className="rounded-xl border bg-muted/10 px-4 py-3">
+          <div className="rounded-surface border bg-inlay px-4 py-3">
             <p className="type-label">{displayName}</p>
             <p className="mt-1 type-code text-muted-foreground">{employeeNumber}</p>
           </div>

@@ -86,7 +86,7 @@ export function IdentityCorrection({
       {/* Current relationship — what the account is linked to today. */}
       <section className="space-y-3">
         <h2 className="type-eyebrow text-muted-foreground">Current relationship</h2>
-        <div className="rounded-xl border p-4">
+        <div className="rounded-surface border p-4">
           <PersonLine
             name={source.displayName}
             detail={source.accountEmail ?? source.workEmail ?? source.jobTitle ?? "Linked account"}
@@ -101,7 +101,7 @@ export function IdentityCorrection({
       <section className="space-y-3">
         <h2 className="type-eyebrow text-muted-foreground">Corrected person</h2>
         {target ? (
-          <div className="flex items-center justify-between gap-3 rounded-xl border p-4">
+          <div className="flex items-center justify-between gap-3 rounded-surface border p-4">
             <PersonLine
               name={target.displayName}
               detail={target.workEmail || "No work email"}
@@ -144,13 +144,13 @@ export function IdentityCorrection({
 
           <section className="space-y-2">
             <h2 className="type-eyebrow text-muted-foreground">Access baseline</h2>
-            <div className="inline-flex rounded-lg border p-0.5">
+            <div className="inline-flex rounded-control border p-0.5">
               {(["Employee", "Manager"] as WorkforceBaselineChoice[]).map((choice) => (
                 <button
                   key={choice}
                   type="button"
                   onClick={() => setBaseline(choice)}
-                  className={`rounded-md px-3 py-1 type-label transition-colors ${
+                  className={`rounded-control px-3 py-1 type-label transition-colors ${
                     baseline === choice
                       ? "bg-foreground text-background"
                       : "text-muted-foreground hover:text-foreground"
@@ -177,7 +177,7 @@ export function IdentityCorrection({
           </section>
 
           {error ? (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3">
+            <div className="rounded-surface border border-destructive/40 bg-destructive/5 px-4 py-3">
               <p className="type-meta text-destructive">{error}</p>
             </div>
           ) : null}
@@ -243,7 +243,7 @@ function TargetSearch({
           No unlinked people match that search.
         </p>
       ) : (
-        <div className="divide-y overflow-hidden rounded-xl border">
+        <div className="divide-y overflow-hidden rounded-surface border">
           {results.map((person) => (
             <button
               key={person.employeeId}
@@ -292,7 +292,7 @@ function BeforeAfter({
   tone: "muted" | "success";
 }) {
   return (
-    <div className="rounded-xl border p-4">
+    <div className="rounded-surface border p-4">
       <p className="type-eyebrow text-muted-foreground">{label}</p>
       <div className="mt-2 flex items-center gap-2">
         <StatusBadge tone={tone} dot>

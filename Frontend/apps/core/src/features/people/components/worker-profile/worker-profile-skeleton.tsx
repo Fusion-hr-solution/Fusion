@@ -19,9 +19,9 @@ export function WorkerProfileSkeleton({
       {showEyebrow ? <Skeleton className="h-3 w-16" /> : null}
 
       {/* Hero */}
-      <section className="rounded-2xl border bg-card p-6 sm:p-7">
+      <section className="rounded-surface border bg-card p-6 sm:p-7">
         <div className="flex items-start gap-5">
-          <Skeleton className="size-16 shrink-0 rounded-object" />
+          <Skeleton className="size-16 shrink-0 rounded-control" />
           <div className="flex-1 space-y-2.5 pt-1">
             <Skeleton className="h-8 w-64 max-w-full" />
             <Skeleton className="h-4 w-48" />
@@ -58,9 +58,9 @@ export function WorkerProfileSkeleton({
 
 function CardSkeleton({ rows }: { rows: number }) {
   return (
-    <section className="overflow-hidden rounded-2xl border bg-card">
+    <section className="overflow-hidden rounded-surface border bg-card">
       <header className="flex items-center gap-3 border-b px-6 py-4">
-        <Skeleton className="size-9 shrink-0 rounded-object" />
+        <Skeleton className="size-9 shrink-0 rounded-control" />
         <Skeleton className="h-4 w-40" />
       </header>
       <div className="grid gap-x-6 gap-y-5 px-6 py-5 sm:grid-cols-2">

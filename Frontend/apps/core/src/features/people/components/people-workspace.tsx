@@ -162,10 +162,10 @@ function OrganizationFilter({
               className="grid grid-cols-2 gap-2"
               aria-label="Organization scope"
             >
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm has-data-[state=checked]:border-foreground/30 has-data-[state=checked]:bg-muted/50">
+              <label className="flex cursor-pointer items-center gap-2 rounded-control border px-3 py-2 text-sm has-data-[state=checked]:border-foreground/30 has-data-[state=checked]:bg-muted/50">
                 <RadioGroupItem value="Subtree" /> Unit and teams below
               </label>
-              <label className="flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm has-data-[state=checked]:border-foreground/30 has-data-[state=checked]:bg-muted/50">
+              <label className="flex cursor-pointer items-center gap-2 rounded-control border px-3 py-2 text-sm has-data-[state=checked]:border-foreground/30 has-data-[state=checked]:bg-muted/50">
                 <RadioGroupItem value="Direct" /> This unit only
               </label>
             </RadioGroup>
@@ -188,13 +188,13 @@ function OrganizationFilter({
 
 function PeopleSkeleton() {
   return (
-    <div className="overflow-hidden rounded-2xl border" aria-label="Loading people">
-      <div className="flex items-center gap-6 border-b bg-muted/30 px-4 py-3">
+    <div className="overflow-hidden rounded-surface border" aria-label="Loading people">
+      <div className="flex items-center gap-6 border-b bg-inlay px-4 py-3">
         {Array.from({ length: 4 }, (_, index) => <Skeleton key={index} className="h-3 w-24" />)}
       </div>
       {Array.from({ length: 7 }, (_, index) => (
         <div key={index} className="flex items-center gap-4 border-b px-4 py-4 last:border-b-0">
-          <Skeleton className="size-9 rounded-object" />
+          <Skeleton className="size-9 rounded-control" />
           <div className="flex-1 space-y-2"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-24" /></div>
           <div className="hidden flex-1 space-y-2 sm:block"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-44" /></div>
           <Skeleton className="h-5 w-20 rounded-full" />
@@ -244,10 +244,10 @@ function PeopleTable({ people, emptyState }: { people: PeopleRowDto[]; emptyStat
   // responsive desktop/mobile split.
   if (people.length === 0) {
     return (
-      <div className="overflow-hidden rounded-2xl border">
+      <div className="overflow-hidden rounded-surface border">
         <Table>
           <TableHeader className="max-sm:hidden">
-            <TableRow className="bg-muted/30 hover:bg-muted/30">
+            <TableRow className="bg-inlay hover:bg-inlay">
               <TableHead className="h-10 w-[28%] type-eyebrow text-muted-foreground">Employee</TableHead>
               <TableHead className="w-[34%] type-eyebrow text-muted-foreground">Work</TableHead>
               <TableHead className="w-[20%] type-eyebrow text-muted-foreground max-lg:hidden">Manager</TableHead>
@@ -265,10 +265,10 @@ function PeopleTable({ people, emptyState }: { people: PeopleRowDto[]; emptyStat
   }
   return (
     <>
-      <div className="hidden overflow-hidden rounded-2xl border sm:block">
+      <div className="hidden overflow-hidden rounded-surface border sm:block">
         <Table>
           <TableHeader>
-            <TableRow className="bg-muted/30 hover:bg-muted/30">
+            <TableRow className="bg-inlay hover:bg-inlay">
               <TableHead className="h-10 w-[28%] type-eyebrow text-muted-foreground">Employee</TableHead>
               <TableHead className={cn("type-eyebrow text-muted-foreground", showLocation ? "w-[28%]" : "w-[34%]")}>Work</TableHead>
               <TableHead className="w-[20%] type-eyebrow text-muted-foreground max-lg:hidden">Manager</TableHead>
@@ -348,7 +348,7 @@ function EstablishAction({
     <Link
       href={href}
       className={cn(
-        "group flex items-center gap-4 rounded-2xl border p-4 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+        "group flex items-center gap-4 rounded-surface border p-4 outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
         tone === "primary"
           ? "border-primary/40 bg-primary/[0.06] hover:bg-primary/10"
           : tone === "default"
@@ -358,7 +358,7 @@ function EstablishAction({
     >
       <span
         className={cn(
-          "grid size-11 shrink-0 place-items-center rounded-object",
+          "grid size-11 shrink-0 place-items-center rounded-control",
           tone === "primary" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
         )}
       >
@@ -522,7 +522,7 @@ export default function PeopleWorkspace() {
               <NativeSelect id="people-sort" value={`${sort}:${direction}`} onChange={(event) => {
                 const [nextSort, nextDirection] = event.target.value.split(":") as [PeopleSortField, PeopleSortDirection];
                 updateUrl({ sort: nextSort === "Name" ? null : nextSort, direction: nextDirection === "Asc" ? null : nextDirection, page: null });
-              }} aria-label="Sort People" className="w-40 border-transparent bg-muted/40 text-foreground">
+              }} aria-label="Sort People" className="w-40 border-transparent bg-inlay text-foreground">
                 <NativeSelectOption value="Name:Asc">Name A–Z</NativeSelectOption>
                 <NativeSelectOption value="Name:Desc">Name Z–A</NativeSelectOption>
                 <NativeSelectOption value="EmployeeNumber:Asc">Employee Number</NativeSelectOption>
@@ -532,7 +532,7 @@ export default function PeopleWorkspace() {
           </section>
 
       {people.isLoading && !people.data ? <PeopleSkeleton /> : people.error ? (
-        <Empty className="min-h-72 rounded-2xl border">
+        <Empty className="min-h-72 rounded-surface border">
           <EmptyMedia variant="icon"><RotateCcw /></EmptyMedia>
           <EmptyHeader><EmptyTitle>People could not be loaded</EmptyTitle></EmptyHeader>
           <EmptyContent><Button variant="outline" onClick={() => void people.refetch()}>Retry</Button></EmptyContent>
@@ -599,7 +599,7 @@ function PeoplePagination({
   return (
     <nav
       aria-label="People pages"
-      className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
+      className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-surface border border-border px-4 py-3"
     >
       <p aria-live="polite" className="text-sm text-muted-foreground">
         Showing <span className="tabular-nums text-foreground">{from.toLocaleString()}</span>–

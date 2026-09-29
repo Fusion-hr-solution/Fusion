@@ -76,7 +76,7 @@ function PersonCell({
             {name}
           </span>
           {self ? (
-            <span className="type-meta shrink-0 rounded bg-primary/15 px-1.5 py-0.5 font-medium text-primary">
+            <span className="type-meta shrink-0 rounded-detail bg-primary/15 px-1.5 py-0.5 font-medium text-primary">
               You
             </span>
           ) : null}
@@ -90,7 +90,7 @@ function PersonCell({
 /** A quiet, bordered surface an empty section stands on rather than collapsing. */
 export function EmptyStateCard({ icon, title, hint }: { icon: React.ReactNode; title: string; hint?: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-dashed bg-muted/20 px-4 py-3.5">
+    <div className="flex items-center gap-3 rounded-surface border border-dashed px-4 py-3.5">
       <span aria-hidden className="shrink-0 text-muted-foreground/50">
         {icon}
       </span>
@@ -124,7 +124,7 @@ export function AdministratorTable({
   onSelect: (membershipId: string) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border">
+    <div className="overflow-x-auto rounded-surface border">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
@@ -234,7 +234,7 @@ export function InvitationsTable({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-xl border">
+      <div className="overflow-x-auto rounded-surface border">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -447,7 +447,7 @@ function ChangeEmailDialog({
 
 export function RemovedTable({ removed }: { removed: RemovedAdministratorDto[] }) {
   return (
-    <div className="overflow-x-auto rounded-xl border">
+    <div className="overflow-x-auto rounded-surface border">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent">

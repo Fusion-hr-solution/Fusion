@@ -696,7 +696,7 @@ export default function EmployeeRosterWorkspace() {
         </Alert>
       ) : null}
 
-      <div className="flex flex-col gap-3 rounded-2xl border bg-card p-3">
+      <div className="flex flex-col gap-3 rounded-surface border bg-card p-3">
         <Toolbar
           search={search}
           onSearchChange={handleSearchChange}

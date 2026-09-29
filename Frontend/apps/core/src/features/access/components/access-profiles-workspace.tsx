@@ -221,15 +221,15 @@ function AccessProfilesPageSkeleton({
           <CardHeader className="space-y-3">
             <Skeleton className="h-6 w-40" />
             <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-16 rounded-xl" />
-            <Skeleton className="h-16 rounded-xl" />
+            <Skeleton className="h-16 rounded-surface" />
+            <Skeleton className="h-16 rounded-surface" />
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="space-y-3">
             <Skeleton className="h-6 w-56" />
             <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-64 rounded-xl" />
+            <Skeleton className="h-64 rounded-surface" />
           </CardHeader>
         </Card>
       </div>
@@ -461,10 +461,10 @@ export function AccessProfilesWorkspace({
           <CardContent className="space-y-2">
             {isProfilesLoading ? (
               Array.from({ length: 4 }).map((_, index) => (
-                <Skeleton key={index} className="h-24 rounded-lg" />
+                <Skeleton key={index} className="h-24 rounded-surface" />
               ))
             ) : accessProfiles.length === 0 ? (
-                      <div className="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
+                      <div className="rounded-surface border border-dashed px-4 py-6 text-sm text-muted-foreground">
                         No profiles yet.
                       </div>
             ) : (
@@ -475,7 +475,7 @@ export function AccessProfilesWorkspace({
                     key={profile.id}
                     type="button"
                     onClick={() => setSelectedProfileId(profile.id)}
-                    className={`w-full rounded-lg border px-3 py-3 text-left transition-all ${
+                    className={`w-full rounded-surface border px-3 py-3 text-left transition-all ${
                       isSelected
                         ? "border-primary/60 bg-primary/[3%] shadow-raised ring-1 ring-primary/15"
                         : "hover:border-primary/30 hover:bg-muted/10"
@@ -538,7 +538,7 @@ export function AccessProfilesWorkspace({
             </CardHeader>
             <CardContent className="space-y-6">
               {!selectedProfile ? (
-                      <div className="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
+                      <div className="rounded-surface border border-dashed px-4 py-6 text-sm text-muted-foreground">
                         Select a profile.
                       </div>
               ) : (
@@ -593,10 +593,10 @@ export function AccessProfilesWorkspace({
 
                     {isCatalogLoading ? (
                       Array.from({ length: 4 }).map((_, index) => (
-                        <Skeleton key={index} className="h-24 rounded-xl" />
+                        <Skeleton key={index} className="h-24 rounded-surface" />
                       ))
                     ) : (
-                      <Accordion type="multiple" className="rounded-xl border">
+                      <Accordion type="multiple" className="rounded-surface border">
                         {groupedPermissions.map((group) => {
                           const grantedCount = group.items.filter(
                             (item) =>
@@ -624,7 +624,7 @@ export function AccessProfilesWorkspace({
                                 </div>
                               </AccordionTrigger>
                               <AccordionContent className="pb-4">
-                                <div className="overflow-hidden rounded-lg border">
+                                <div className="overflow-hidden rounded-surface border">
                                   <div className="divide-y">
                                     {group.items.map((permission) => {
                                       const selectedScope =
@@ -707,7 +707,7 @@ export function AccessProfilesWorkspace({
                     )}
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/20 ">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-control bg-inlay ">
                     {hasProfileChanges ? (
                       <span className="text-sm text-muted-foreground">
                         Unsaved access profile changes
@@ -754,7 +754,7 @@ export function AccessProfilesWorkspace({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/10 px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-surface border bg-inlay px-4 py-3">
                   <div>
                     <p className="text-sm font-medium">
                       {formatAssignedUserCount(

@@ -97,7 +97,7 @@ export function ImportStepper({
               <Link
                 href={step.href}
                 className={cn(
-                  "relative flex flex-col items-center rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring [&:hover_span]:text-foreground",
+                  "relative flex flex-col items-center rounded-control outline-none focus-visible:ring-2 focus-visible:ring-ring [&:hover_span]:text-foreground",
                   compact ? "gap-1" : "gap-2"
                 )}
               >

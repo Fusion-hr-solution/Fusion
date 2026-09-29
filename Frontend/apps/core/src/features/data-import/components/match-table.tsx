@@ -36,7 +36,7 @@ export function MappingSection({
         </h2>
         {description ? <p className="mt-0.5 type-meta text-muted-foreground">{description}</p> : null}
       </header>
-      <div className="@container mt-3 overflow-x-auto rounded-object border border-border">
+      <div className="@container mt-3 overflow-x-auto rounded-control border border-border">
         <div role="table" aria-labelledby={id} className="min-w-[30rem]">
           {children}
         </div>
@@ -54,7 +54,7 @@ export function MappingHead({
   labels: [string, string, string, string];
 }) {
   return (
-    <div role="row" className={cn(grid, "type-eyebrow bg-muted/40 px-4 py-2.5 text-muted-foreground")}>
+    <div role="row" className={cn(grid, "type-eyebrow bg-inlay px-4 py-2.5 text-muted-foreground")}>
       {labels.map((label, index) => (
         <span
           key={label}

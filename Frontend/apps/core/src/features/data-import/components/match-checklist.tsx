@@ -20,7 +20,7 @@ export function ImportMatchChecklist({ lines }: { lines: MatchChecklistLine[] })
           <p className="type-meta text-muted-foreground">Current interpretation status.</p>
         </div>
       </header>
-      <ul className="mt-4 divide-y divide-border overflow-hidden rounded-object border border-border">
+      <ul className="mt-4 divide-y divide-border overflow-hidden rounded-control border border-border">
         {lines.map((line) => (
           <li key={line.label} className="flex items-center gap-3 px-3 py-2">
             <StatusMark done={line.done} />

@@ -55,7 +55,7 @@ export function UploadStage() {
           <button
             type="button"
             onClick={() => void download("export", effectiveDate)}
-            className="mt-1 rounded-sm type-meta text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+            className="mt-1 rounded-control type-meta text-muted-foreground underline-offset-4 outline-none hover:text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring"
           >
             Export current structure
           </button>

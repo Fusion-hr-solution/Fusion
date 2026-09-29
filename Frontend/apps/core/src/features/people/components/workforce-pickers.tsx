@@ -51,12 +51,12 @@ export function Segmented<T extends string>({
       value={value}
       onValueChange={(next) => onValueChange(next as T)}
       aria-label={label}
-      className="inline-flex flex-wrap gap-1 rounded-xl border bg-muted/40 p-1"
+      className="inline-flex flex-wrap gap-1 rounded-control border bg-inlay p-1"
     >
       {options.map((option) => (
         <label
           key={option.value}
-          className="cursor-pointer rounded-lg px-3.5 py-1.5 type-label text-muted-foreground transition-colors has-data-[state=checked]:bg-background has-data-[state=checked]:text-foreground has-data-[state=checked]:shadow-raised focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none"
+          className="cursor-pointer rounded-nested px-3.5 py-1.5 type-label text-muted-foreground transition-colors has-data-[state=checked]:bg-background has-data-[state=checked]:text-foreground has-data-[state=checked]:shadow-raised focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none"
         >
           <RadioGroupItem value={option.value} className="sr-only" />
           {option.label}
@@ -161,7 +161,7 @@ export function ManagerPicker({
               key={option.employeeId}
               onClick={() => onChange(option.employeeId)}
               aria-pressed={value === option.employeeId}
-              className="flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-muted"
+              className="flex w-full items-center justify-between gap-3 rounded-control px-2.5 py-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-muted"
             >
               <EmployeeIdentity
                 name={option.displayName}

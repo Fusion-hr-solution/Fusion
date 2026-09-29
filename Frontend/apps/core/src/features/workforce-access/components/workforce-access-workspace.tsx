@@ -339,7 +339,7 @@ export default function WorkforceAccessWorkspace() {
               <div
                 className={cn(
                   "flex items-center justify-between gap-3 border-b px-4 py-2.5",
-                  "bg-muted/25"
+                  "bg-inlay"
                 )}
               >
                 <div className="flex items-center gap-3">
@@ -658,12 +658,12 @@ function SelectionBar({
   const reviewCount = scopeSelected ? scopeCount : selectedCount;
 
   return (
-    <div className="sticky bottom-3 z-10 mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 rounded-2xl border bg-background/95 px-4 py-3 shadow-raised backdrop-blur supports-[padding:max(0px)]:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+    <div className="sticky bottom-3 z-10 mx-auto flex w-full max-w-3xl flex-wrap items-center justify-between gap-3 rounded-surface border bg-popover px-4 py-3 shadow-raised backdrop-blur supports-[padding:max(0px)]:pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onClear}
-          className="rounded-md p-1 text-muted-foreground hover:text-foreground"
+          className="rounded-control p-1 text-muted-foreground hover:text-foreground"
           aria-label="Clear selection"
         >
           <X className="size-4" />
@@ -709,7 +709,7 @@ function SelectionBar({
 
 function EmptyRoster({ filtered }: { filtered: boolean }) {
   return (
-    <div className="rounded-xl border border-dashed px-4 py-12 text-center">
+    <div className="rounded-surface border border-dashed px-4 py-12 text-center">
       <p className="type-body text-muted-foreground">
         {filtered
           ? "No people match these filters."
@@ -721,7 +721,7 @@ function EmptyRoster({ filtered }: { filtered: boolean }) {
 
 function SectionFailure({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-surface border px-4 py-3">
       <p className="type-body text-muted-foreground">
         The workforce could not be loaded.
       </p>
@@ -836,7 +836,7 @@ function ScopeButton({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex-1 rounded-lg border px-3 py-1.5 type-meta transition-colors",
+        "flex-1 rounded-control border px-3 py-1.5 type-meta transition-colors",
         active
           ? "border-foreground/30 bg-muted text-foreground"
           : "border-border text-muted-foreground hover:bg-muted/50"
@@ -860,7 +860,7 @@ function BaselineFilter({
 }) {
   return (
     <div
-      className="inline-flex items-center rounded-lg border p-0.5"
+      className="inline-flex items-center rounded-control border p-0.5"
       role="group"
       aria-label="Filter by baseline"
     >
@@ -871,7 +871,7 @@ function BaselineFilter({
           aria-pressed={value === option.key}
           onClick={() => onSelect(option.key)}
           className={cn(
-            "rounded-md px-3 py-1.5 type-meta transition-colors",
+            "rounded-control px-3 py-1.5 type-meta transition-colors",
             value === option.key
               ? "bg-muted text-foreground"
               : "text-muted-foreground hover:text-foreground"

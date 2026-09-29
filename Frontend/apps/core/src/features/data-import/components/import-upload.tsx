@@ -239,7 +239,7 @@ export function ImportUpload(props: ImportUploadProps) {
               value={value}
               onChange={setValue}
               disabled={busy || source.kind === "header"}
-              className="h-11 min-w-56 flex-1 basis-64 rounded-object px-3 type-body text-foreground sm:max-w-md"
+              className="h-11 min-w-56 flex-1 basis-64 rounded-control px-3 type-body text-foreground sm:max-w-md"
             />
             <div className="ml-auto flex items-center gap-3">
               <Button
@@ -359,12 +359,12 @@ function SourceField({
         aria-label={`${noun} source drop area`}
         {...dropHandlers}
         className={cn(
-          "flex min-h-24 flex-wrap items-center justify-between gap-4 rounded-object border border-dashed px-5 py-4 transition-colors duration-[var(--duration-normal)]",
+          "flex min-h-24 flex-wrap items-center justify-between gap-4 rounded-control border border-dashed px-5 py-4 transition-colors duration-[var(--duration-normal)]",
           dragging ? "border-primary bg-primary/[0.06]" : "border-border bg-foreground/[0.02]"
         )}
       >
         <div className="flex min-w-0 flex-1 basis-60 items-center gap-4">
-          <span className="grid size-12 shrink-0 place-items-center rounded-object bg-primary/15 text-primary-foreground ring-1 ring-primary/25 dark:text-primary">
+          <span className="grid size-12 shrink-0 place-items-center rounded-control bg-primary/15 text-primary-foreground ring-1 ring-primary/25 dark:text-primary">
             <Upload className="size-5" aria-hidden />
           </span>
           <div className="min-w-0">
@@ -394,7 +394,7 @@ function SourceField({
       aria-label={`${noun} source`}
       {...dropHandlers}
       className={cn(
-        "relative flex min-h-24 flex-wrap items-center justify-between gap-4 overflow-hidden rounded-object border px-5 py-4 transition-colors duration-[var(--duration-normal)]",
+        "relative flex min-h-24 flex-wrap items-center justify-between gap-4 overflow-hidden rounded-control border px-5 py-4 transition-colors duration-[var(--duration-normal)]",
         reading && "pb-7",
         dragging
           ? "border-dashed border-primary bg-primary/[0.06]"
@@ -402,13 +402,13 @@ function SourceField({
             ? "border-destructive/45 bg-destructive/[0.03]"
             : failed
               ? "border-warning/50 bg-warning/[0.04]"
-              : "border-border bg-background/40"
+              : "border-border"
       )}
     >
       <div className="flex min-w-0 flex-1 basis-60 items-center gap-4">
         <span
           className={cn(
-            "grid size-12 shrink-0 place-items-center rounded-object",
+            "grid size-12 shrink-0 place-items-center rounded-control",
             failed && !failed.retryable
               ? "bg-destructive/10 text-destructive"
               : kind === "xlsx"
@@ -463,7 +463,7 @@ function SourceField({
 /** Only when a workbook holds several data sheets and none is plainly the one. Never a stage of its own. */
 function SheetChoice({ fileNoun, sheets, value, onChange }: { fileNoun: string; sheets: string[]; value: string; onChange: (sheet: string) => void }) {
   return (
-    <fieldset className="mt-5 rounded-object border border-border p-5">
+    <fieldset className="mt-5 rounded-control border border-border p-5">
       <legend className="sr-only">Sheet to import</legend>
       <p className="type-label font-semibold text-foreground">This workbook contains several data sheets.</p>
       <p className="mt-1 type-meta text-muted-foreground">Choose the {fileNoun} data to import.</p>
@@ -472,7 +472,7 @@ function SheetChoice({ fileNoun, sheets, value, onChange }: { fileNoun: string; 
           <label
             key={sheet}
             className={cn(
-              "flex cursor-pointer items-center gap-3 rounded-object border px-4 py-3 transition-colors",
+              "flex cursor-pointer items-center gap-3 rounded-control border px-4 py-3 transition-colors",
               value === sheet ? "border-primary/60 bg-primary/[0.05]" : "border-border hover:bg-muted/40"
             )}
           >
@@ -488,7 +488,7 @@ function SheetChoice({ fileNoun, sheets, value, onChange }: { fileNoun: string; 
 /** Only when title rows sit above the headers and more than one row could be them. Same grammar as the sheet choice. */
 function HeaderChoice({ candidates, value, onChange }: { candidates: UploadHeaderCandidate[]; value: number; onChange: (rowIndex: number) => void }) {
   return (
-    <fieldset className="mt-5 rounded-object border border-border p-5">
+    <fieldset className="mt-5 rounded-control border border-border p-5">
       <legend className="sr-only">Header row</legend>
       <p className="type-label font-semibold text-foreground">Which row holds the column names?</p>
       <RadioGroup value={String(value)} onValueChange={(v) => onChange(Number(v))} className="mt-4 gap-2">
@@ -498,7 +498,7 @@ function HeaderChoice({ candidates, value, onChange }: { candidates: UploadHeade
             <label
               key={candidate.rowIndex}
               className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-object border px-4 py-3 transition-colors",
+                "flex cursor-pointer items-center gap-3 rounded-control border px-4 py-3 transition-colors",
                 value === candidate.rowIndex ? "border-primary/60 bg-primary/[0.05]" : "border-border hover:bg-muted/40"
               )}
             >
@@ -528,7 +528,7 @@ function SideAction({
 }) {
   return (
     <div className="flex items-center gap-4 rounded-surface border border-border bg-card px-5 py-5">
-      <span className="grid size-12 shrink-0 place-items-center rounded-object bg-muted text-muted-foreground">{icon}</span>
+      <span className="grid size-12 shrink-0 place-items-center rounded-control bg-muted text-muted-foreground">{icon}</span>
       <div className="min-w-0 flex-1">
         <p className="type-label font-semibold text-foreground">{title}</p>
         <p className="mt-1.5 type-meta text-muted-foreground">{description}</p>

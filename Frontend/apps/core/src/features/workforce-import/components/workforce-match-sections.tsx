@@ -68,7 +68,7 @@ export function WorkforceColumnMapping({ match, edits, locked }: { match: Workfo
             <div
               key={row.columnIndex}
               role="row"
-              className={cn(COLUMN_GRID, "px-4 py-2", attention && "relative z-10 rounded-object bg-primary/[0.07] ring-1 ring-primary/70 ring-inset")}
+              className={cn(COLUMN_GRID, "px-4 py-2", attention && "relative z-10 rounded-control bg-primary/[0.07] ring-1 ring-primary/70 ring-inset")}
             >
               <span role="rowheader" className="min-w-0">
                 <span className="block truncate type-label font-semibold text-foreground" title={row.label}>
@@ -146,7 +146,7 @@ export function WorkforceStatusMeaning({ match, edits, locked }: { match: Workfo
             <div
               key={row.sourceValue}
               role="row"
-              className={cn(TYPE_GRID, "px-4 py-2", attention && "relative z-10 rounded-object bg-primary/[0.07] ring-1 ring-primary/70 ring-inset")}
+              className={cn(TYPE_GRID, "px-4 py-2", attention && "relative z-10 rounded-control bg-primary/[0.07] ring-1 ring-primary/70 ring-inset")}
             >
               <span role="rowheader" className="flex min-w-0 items-center gap-2">
                 {attention ? <CircleAlert aria-hidden className="size-4.5 shrink-0 fill-primary stroke-card" strokeWidth={2.25} /> : null}
@@ -216,7 +216,7 @@ export function WorkforceInterpretationPanel({ match, edits, locked }: { match: 
           Workforce interpretation
         </h2>
       </header>
-      <ul className="mt-3 grid gap-px overflow-hidden rounded-object border border-border bg-border md:grid-cols-2">
+      <ul className="mt-3 grid gap-px overflow-hidden rounded-control border border-border bg-border md:grid-cols-2">
         {[...settled, ...deciding].map((item, index) => (
           <InterpretationRow
             key={item.key}
@@ -358,7 +358,7 @@ function InterpretationDecision({
             disabled={disabled}
             onClick={() => void edit(kind, choice.key, choice.change)}
             className={cn(
-              "rounded-object border border-border bg-background px-3 py-2 text-left type-label font-medium text-foreground transition-colors",
+              "rounded-control border border-border bg-inlay px-3 py-2 text-left type-label font-medium text-foreground transition-colors",
               "hover:border-primary/60 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50",
               pending === choice.key && "border-primary bg-primary/10"
             )}

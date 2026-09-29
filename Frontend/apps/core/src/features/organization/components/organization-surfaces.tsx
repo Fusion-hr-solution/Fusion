@@ -189,7 +189,7 @@ function TypePicker({
                   setOpen(false);
                 }}
                 className={cn(
-                  "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted",
+                  "flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-left text-sm outline-none hover:bg-muted focus-visible:bg-muted",
                   type.id === value && "bg-primary/[0.07]"
                 )}
               >
@@ -274,7 +274,7 @@ function HierarchyPicker({
                   setOpen(false);
                 }}
                 className={cn(
-                  "flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none hover:bg-muted focus-visible:bg-muted",
+                  "flex w-full items-start gap-2 rounded-control px-2 py-1.5 text-left outline-none hover:bg-muted focus-visible:bg-muted",
                   unit.id === value && "bg-primary/[0.07]"
                 )}
               >
@@ -328,7 +328,7 @@ export function RootEstablishment({
   if (!canManage) {
     return (
       <div className="mx-auto flex min-h-[420px] max-w-xl flex-col justify-center px-6">
-        <div className="mb-5 grid h-11 w-11 place-items-center rounded-xl bg-muted text-muted-foreground">
+        <div className="mb-5 grid h-11 w-11 place-items-center rounded-control bg-muted text-muted-foreground">
           <CalendarClock className="h-5 w-5" />
         </div>
         <h2 className="text-xl font-semibold tracking-tight">
@@ -384,9 +384,9 @@ export function RootEstablishment({
         </div>
         <Link
           href="/organization/import"
-          className="group flex items-center gap-4 rounded-2xl border bg-card p-4 pr-5 transition-colors hover:border-primary/40 hover:bg-primary/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="group flex items-center gap-4 rounded-surface border bg-card p-4 pr-5 transition-colors hover:border-primary/40 hover:bg-primary/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control bg-primary/10 text-primary">
             <UploadCloud className="h-5 w-5" />
           </span>
           <span className="min-w-0 flex-1 font-semibold">
@@ -433,7 +433,7 @@ export function RootEstablishment({
         </div>
         <div className="space-y-1.5">
           <Label>Type</Label>
-          <div className="flex h-9 items-center rounded-xl border bg-muted/35 px-3 text-sm">
+          <div className="flex h-9 items-center rounded-surface border bg-inlay px-3 text-sm">
             Organization{" "}
             <span className="ml-auto text-xs text-muted-foreground">
               System-defined
@@ -643,7 +643,7 @@ export function UnitFormPanel({
                   onChange={setParentId}
                 />
               ) : (
-                <div className="rounded-xl border bg-muted/35 px-3 py-4 text-sm text-muted-foreground">
+                <div className="rounded-surface border bg-inlay px-3 py-4 text-sm text-muted-foreground">
                   Resolving eligible parents for {effectiveDate}…
                 </div>
               )}
@@ -796,7 +796,7 @@ export function ManageTypesPanel({
               {builtIn.map((type) => (
                 <span
                   key={type.id}
-                  className="rounded-md border bg-muted/40 px-2.5 py-1 text-sm"
+                  className="rounded-control border bg-inlay px-2.5 py-1 text-sm"
                 >
                   {type.displayName}
                 </span>
@@ -900,7 +900,7 @@ export function ManageTypesPanel({
                 ))}
               </div>
             ) : (
-              <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
+              <p className="rounded-surface border border-dashed px-3 py-4 text-sm text-muted-foreground">
                 No custom types yet.
               </p>
             )}
@@ -984,7 +984,7 @@ export function MoveReviewDialog({
             Everything beneath {source?.name ?? "this unit"} moves with it.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 rounded-xl border bg-muted/25 p-4 text-sm">
+        <div className="space-y-4 rounded-surface border p-4 text-sm">
           <div className="grid grid-cols-[110px_1fr] gap-x-4 gap-y-3">
             <span className="text-muted-foreground">Unit</span>
             <strong className="min-w-0 truncate">{source?.name}</strong>
@@ -1030,7 +1030,7 @@ export function MoveReviewDialog({
             <div>
               <Label>New parent</Label>
               {resolving ? (
-                <div className="mt-1 rounded-xl border bg-background px-3 py-4 text-muted-foreground">
+                <div className="mt-1 rounded-surface border px-3 py-4 text-muted-foreground">
                   Resolving eligible destinations for {proposal.effectiveDate}…
                 </div>
               ) : (
@@ -1154,7 +1154,7 @@ export function InactivateDialog({
         </DialogHeader>
         <EffectiveDateField value={date} onChange={setDate} today={today} />
         {!dateModel ? (
-          <div className="rounded-xl border bg-muted/35 px-3 py-4 text-sm text-muted-foreground">
+          <div className="rounded-surface border bg-inlay px-3 py-4 text-sm text-muted-foreground">
             Checking units as of {date}…
           </div>
         ) : blocked && blockingUnit ? (
@@ -1460,7 +1460,7 @@ export function CorrectionPanel({
                   onChange={setParentId}
                 />
               ) : (
-                <div className="rounded-xl border bg-muted/35 px-3 py-4 text-sm text-muted-foreground">
+                <div className="rounded-surface border bg-inlay px-3 py-4 text-sm text-muted-foreground">
                   Resolving the hierarchy for {effectiveDate}…
                 </div>
               )}

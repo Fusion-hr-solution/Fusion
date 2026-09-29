@@ -92,12 +92,12 @@ function Segmented<T extends string>({
       value={value}
       onValueChange={(next) => onValueChange(next as T)}
       aria-label={label}
-      className="inline-flex flex-wrap gap-1 rounded-xl border bg-muted/40 p-1"
+      className="inline-flex flex-wrap gap-1 rounded-control border bg-inlay p-1"
     >
       {options.map((option) => (
         <label
           key={option.value}
-          className="cursor-pointer rounded-lg px-3.5 py-1.5 type-label text-muted-foreground transition-colors has-data-[state=checked]:bg-background has-data-[state=checked]:text-foreground has-data-[state=checked]:shadow-raised focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none"
+          className="cursor-pointer rounded-nested px-3.5 py-1.5 type-label text-muted-foreground transition-colors has-data-[state=checked]:bg-background has-data-[state=checked]:text-foreground has-data-[state=checked]:shadow-raised focus-within:ring-2 focus-within:ring-ring motion-reduce:transition-none"
         >
           <RadioGroupItem value={option.value} className="sr-only" />
           {option.label}
@@ -202,7 +202,7 @@ function ManagerPicker({
               key={option.employeeId}
               onClick={() => onChange(option.employeeId)}
               aria-pressed={value === option.employeeId}
-              className="flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-muted"
+              className="flex w-full items-center justify-between gap-3 rounded-control px-2.5 py-2 text-left hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-muted"
             >
               <EmployeeIdentity
                 name={option.displayName}
@@ -399,7 +399,7 @@ export default function EstablishmentWorkspace({ mode }: { mode: EstablishmentMo
 
   return (
     <PageContainer width="wide" className="pb-16">
-      <Link href="/people" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <Link href="/people" className="mb-6 inline-flex items-center gap-2 text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline focus-visible:rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <ArrowLeft className="size-4" />People
       </Link>
       <header className="mb-8 max-w-3xl">
@@ -410,7 +410,7 @@ export default function EstablishmentWorkspace({ mode }: { mode: EstablishmentMo
       <div className="grid items-start gap-12 xl:grid-cols-[minmax(0,34rem)_1fr]">
         {/* Left column: editing form or focused review */}
         <div className="min-w-0">
-          {errors.form && !reviewing ? <div role="alert" className="mb-6 rounded-xl border border-destructive/25 bg-destructive/8 px-4 py-3 text-sm text-destructive">{errors.form}</div> : null}
+          {errors.form && !reviewing ? <div role="alert" className="mb-6 rounded-surface border border-destructive/25 bg-destructive/8 px-4 py-3 text-sm text-destructive">{errors.form}</div> : null}
 
           <form
             onSubmit={(event) => { event.preventDefault(); void review(); }}
@@ -524,19 +524,19 @@ export default function EstablishmentWorkspace({ mode }: { mode: EstablishmentMo
               </div>
 
               {reviewResult?.conflict ? (
-                <div role="alert" className="mt-5 rounded-xl border border-destructive/25 bg-destructive/8 p-4 text-sm">
+                <div role="alert" className="mt-5 rounded-surface border border-destructive/25 bg-destructive/8 p-4 text-sm">
                   <p className="font-semibold text-destructive">This person already exists</p>
                   <p className="mt-1 text-muted-foreground">{reviewResult.conflict.message}</p>
-                  <Link className="mt-3 inline-flex items-center gap-2 rounded-lg border bg-background px-3 py-2 font-medium underline-offset-4 hover:bg-muted" href={`/people/${reviewResult.conflict.employeeKey}`}>
+                  <Link className="mt-3 inline-flex items-center gap-2 rounded-control border bg-inlay px-3 py-2 font-medium underline-offset-4 hover:bg-muted" href={`/people/${reviewResult.conflict.employeeKey}`}>
                     <Monogram name={reviewResult.conflict.displayName} size="sm" /> {reviewResult.conflict.displayName} · {reviewResult.conflict.employeeNumber}
                   </Link>
                 </div>
               ) : null}
 
-              <div className="mt-5 rounded-2xl border bg-card p-5">{summary}</div>
+              <div className="mt-5 rounded-surface border bg-card p-5">{summary}</div>
 
               {reviewResult?.suggestions.length ? (
-                <div className="mt-5 rounded-xl border border-warning/30 bg-warning-subtle/50 p-4">
+                <div className="mt-5 rounded-surface border border-warning/30 bg-warning-subtle/50 p-4">
                   <p className="type-label font-semibold">This may already be someone in Fusion</p>
                   <ul className="mt-3 space-y-2.5">
                     {reviewResult.suggestions.map((suggestion) => (
@@ -548,7 +548,7 @@ export default function EstablishmentWorkspace({ mode }: { mode: EstablishmentMo
                 </div>
               ) : null}
 
-              {errors.form ? <p role="alert" className="mt-5 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{errors.form}</p> : null}
+              {errors.form ? <p role="alert" className="mt-5 rounded-control bg-destructive/10 px-3 py-2 text-sm text-destructive">{errors.form}</p> : null}
 
               {!reviewResult?.conflict ? (
                 <div className="mt-6 flex items-center gap-3 border-t pt-6">
@@ -565,9 +565,9 @@ export default function EstablishmentWorkspace({ mode }: { mode: EstablishmentMo
 
         {/* Right column: live resulting-state summary (desktop) */}
         <aside className="top-6 hidden xl:sticky xl:block" aria-label="Resulting employee">
-          <div className="rounded-2xl border bg-muted/25 p-5">
+          <div className="rounded-surface border bg-inlay p-5">
             <div className="flex items-center gap-2">
-              <span className="grid size-7 place-items-center rounded-lg bg-background text-muted-foreground">
+              <span className="grid size-7 place-items-center rounded-control-sm bg-muted text-muted-foreground">
                 {displayName ? <span className="type-code text-xs font-semibold">{initials(displayName)}</span> : <Plus className="size-4" />}
               </span>
               <p className="type-eyebrow text-muted-foreground">{reviewing ? "Ready to add" : "Resulting employee"}</p>

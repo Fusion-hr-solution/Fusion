@@ -30,7 +30,7 @@ const POSTURE_DOT: Record<ContinuityState, string> = {
 };
 
 const POSTURE_SURFACE: Record<ContinuityState, string> = {
-  Healthy: "border-border bg-muted/30",
+  Healthy: "border-border bg-section",
   AtRisk: "border-warning/30 bg-warning-subtle/50",
   RecoveryRequired: "border-destructive/30 bg-destructive/5",
 };
@@ -50,14 +50,14 @@ export function ContinuityBanner({
     <section
       aria-label="Administrative continuity"
       className={cn(
-        "flex flex-col gap-6 rounded-2xl border p-5 lg:flex-row lg:items-center lg:gap-8",
+        "flex flex-col gap-6 rounded-surface border p-5 lg:flex-row lg:items-center lg:gap-8",
         POSTURE_SURFACE[summary.continuity]
       )}
     >
       <div className="flex min-w-0 flex-1 items-start gap-4">
         <span
           aria-hidden
-          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-background/70 text-muted-foreground ring-1 ring-border"
+          className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground ring-1 ring-border"
         >
           <Users className="size-5" />
         </span>

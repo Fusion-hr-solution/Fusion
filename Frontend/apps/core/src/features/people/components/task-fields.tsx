@@ -24,7 +24,7 @@ export function EffectiveDateField({
   label?: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-xl border bg-card px-4 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-surface border bg-card px-4 py-3">
       <label className="inline-flex items-center gap-2.5">
         <CalendarClock className={cn("size-4", isFuture ? "text-primary" : "text-muted-foreground")} aria-hidden />
         <span className="type-label">{label}</span>
@@ -33,7 +33,7 @@ export function EffectiveDateField({
           value={value}
           min={min}
           onChange={(event) => onChange(event.target.value)}
-          className="rounded-md border bg-background px-2.5 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [color-scheme:light] dark:[color-scheme:dark]"
+          className="rounded-control border bg-transparent dark:bg-input/30 px-2.5 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring [color-scheme:light] dark:[color-scheme:dark]"
           aria-label={label}
         />
       </label>
@@ -72,7 +72,7 @@ export function ConsequencePanel({
       ? "ring-destructive/20 bg-destructive/[0.03]"
       : "ring-primary/25 bg-primary/[0.04]";
   return (
-    <div className="overflow-hidden rounded-2xl border bg-card">
+    <div className="overflow-hidden rounded-surface border bg-card">
       <div className="border-b px-5 py-3.5">
         <p className="type-eyebrow text-muted-foreground">Now</p>
         <div className="mt-2.5">{now}</div>
@@ -80,7 +80,7 @@ export function ConsequencePanel({
       <div className="grid place-items-center py-1.5" aria-hidden>
         <ArrowDown className="size-4 text-muted-foreground/60" />
       </div>
-      <div className={cn("px-5 py-4 ring-1 ring-inset", pending ? "bg-muted/30 ring-transparent" : ring)}>
+      <div className={cn("px-5 py-4 ring-1 ring-inset", pending ? "bg-inlay ring-transparent" : ring)}>
         <p className={cn("type-eyebrow", pending ? "text-muted-foreground" : accent)}>
           {isFuture ? `After ${formatWorkforceDate(effectiveDate, { month: "long" })}` : "After this change"}
         </p>

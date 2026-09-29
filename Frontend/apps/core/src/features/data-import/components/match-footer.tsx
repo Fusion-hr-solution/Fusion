@@ -23,7 +23,7 @@ export function ImportMatchFooter({
 }) {
   const router = useRouter();
   return (
-    <div className="sticky bottom-0 z-20 mt-8 border-t border-border bg-background/90 backdrop-blur supports-[backdrop-filter]:bg-background/75">
+    <div className="sticky bottom-0 z-20 mt-8 border-t border-border bg-background">
       <PageContainer className="flex items-center justify-between gap-4 py-3">
         <Button variant="outline" asChild>
           <Link href={uploadHref}>

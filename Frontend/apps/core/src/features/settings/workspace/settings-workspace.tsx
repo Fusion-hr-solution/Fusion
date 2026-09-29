@@ -306,7 +306,7 @@ function SectionSkeleton() {
         <Skeleton className="h-4 w-96 max-w-full" />
       </CardHeader>
       <CardContent>
-        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-64 rounded-surface" />
       </CardContent>
     </Card>
   );
@@ -435,14 +435,14 @@ function mergeAuditRows(
 function AuditTable({ rows }: { rows: AuditRow[] }) {
   if (rows.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed px-4 py-6 text-sm text-muted-foreground">
+      <div className="rounded-surface border border-dashed px-4 py-6 text-sm text-muted-foreground">
         No settings or access profile changes have been recorded yet.
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border">
+    <div className="overflow-hidden rounded-surface border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -876,7 +876,7 @@ export default function SettingsWorkspace() {
                   key={section.id}
                   type="button"
                   aria-current={isActive ? "page" : undefined}
-                  className={`flex min-w-max items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors lg:w-full ${
+                  className={`flex min-w-max items-center gap-2 rounded-control px-3 py-2 text-sm font-medium transition-colors lg:w-full ${
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -1009,7 +1009,7 @@ export default function SettingsWorkspace() {
                   <CardTitle>Employee fields</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="overflow-hidden rounded-lg border">
+                  <div className="overflow-hidden rounded-surface border">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -1115,7 +1115,7 @@ export default function SettingsWorkspace() {
                   <div className="space-y-3">
                     <p className="text-sm font-medium">Self-service editing</p>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="flex items-center justify-between gap-3 rounded-lg border px-3 py-3 text-sm">
+                      <label className="flex items-center justify-between gap-3 rounded-surface border px-3 py-3 text-sm">
                         <span>Preferred name</span>
                         <Switch
                           checked={draftSelfService.canEditPreferredName}
@@ -1129,7 +1129,7 @@ export default function SettingsWorkspace() {
                           }}
                         />
                       </label>
-                      <label className="flex items-center justify-between gap-3 rounded-lg border px-3 py-3 text-sm">
+                      <label className="flex items-center justify-between gap-3 rounded-surface border px-3 py-3 text-sm">
                         <span>Phone</span>
                         <Switch
                           checked={draftSelfService.canEditPhone}

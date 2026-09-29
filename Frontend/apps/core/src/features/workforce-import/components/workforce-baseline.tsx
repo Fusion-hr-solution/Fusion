@@ -40,7 +40,7 @@ export function BaselineControl({
   return (
     <div>
       <div className="flex items-center gap-3">
-        <span className="grid size-9 place-items-center rounded-object bg-foreground/[0.06] text-muted-foreground">
+        <span className="grid size-9 place-items-center rounded-control bg-foreground/[0.06] text-muted-foreground">
           <CalendarDays className="size-4" aria-hidden />
         </span>
         <div>
@@ -53,7 +53,7 @@ export function BaselineControl({
               max={today}
               onChange={(e) => onChange(e.target.value)}
               onBlur={() => setEditing(false)}
-              className="mt-0.5 rounded-md border border-input bg-background px-2 py-1 type-label font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="mt-0.5 rounded-control border border-input bg-transparent dark:bg-input/30 px-2 py-1 type-label font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           ) : (
             <button

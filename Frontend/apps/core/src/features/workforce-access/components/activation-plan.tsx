@@ -338,7 +338,7 @@ function ActivationPlanLoading({
               person before showing the consequences.
             </p>
           </div>
-          <div className="inline-flex shrink-0 items-center gap-2 rounded-full border bg-muted/30 px-3 py-1.5 type-meta text-foreground">
+          <div className="inline-flex shrink-0 items-center gap-2 rounded-full border bg-inlay px-3 py-1.5 type-meta text-foreground">
             <Spinner className="size-3.5" />
             Resolving account states
           </div>
@@ -587,7 +587,7 @@ function PlanRow({
 
           {!blocked && editable && editing ? (
             <div
-              className="inline-flex rounded-xl border bg-background p-0.5"
+              className="inline-flex rounded-surface border bg-inlay p-0.5"
               role="group"
               aria-label={`Access recommendation for ${person.displayName}`}
             >
@@ -601,7 +601,7 @@ function PlanRow({
                   }}
                   aria-pressed={baseline === choice}
                   className={cn(
-                    "inline-flex items-center gap-1 rounded-lg px-2.5 py-1 type-meta transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "inline-flex items-center gap-1 rounded-control px-2.5 py-1 type-meta transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                     baseline === choice
                       ? "bg-foreground text-background"
                       : "text-muted-foreground hover:text-foreground"
@@ -729,7 +729,7 @@ function InlineWorkEmailEditor({
 
   return (
     <form
-      className="w-full max-w-md space-y-3 rounded-xl border bg-muted/15 p-3 text-left"
+      className="w-full max-w-md space-y-3 rounded-surface border bg-inlay p-3 text-left"
       onSubmit={(event) => {
         event.preventDefault();
         void save();

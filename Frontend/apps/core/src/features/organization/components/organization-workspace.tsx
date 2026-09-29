@@ -118,12 +118,12 @@ const EMPTY_REVEAL: ReadonlySet<string> = new Set();
 const OrganizationChart = dynamic(() => import("./organization-chart"), {
   ssr: false,
   loading: () => (
-    <div className="grid h-full min-h-[520px] place-items-center bg-muted/15">
+    <div className="grid h-full min-h-[520px] place-items-center bg-section">
       <div className="space-y-4 text-center">
-        <Skeleton className="mx-auto h-24 w-56 rounded-xl" />
+        <Skeleton className="mx-auto h-24 w-56 rounded-surface" />
         <div className="flex gap-12">
-          <Skeleton className="h-24 w-56 rounded-xl" />
-          <Skeleton className="h-24 w-56 rounded-xl" />
+          <Skeleton className="h-24 w-56 rounded-surface" />
+          <Skeleton className="h-24 w-56 rounded-surface" />
         </div>
         <p className="text-xs text-muted-foreground">
           Laying out the hierarchy…
@@ -154,13 +154,13 @@ function eventContext(change: OrganizationChangeDto) {
 
 function StructureSkeleton() {
   return (
-    <div className="grid min-h-[560px] place-items-center bg-muted/10">
+    <div className="grid min-h-[560px] place-items-center bg-section">
       <div className="space-y-12">
-        <Skeleton className="mx-auto h-24 w-56 rounded-xl" />
+        <Skeleton className="mx-auto h-24 w-56 rounded-surface" />
         <div className="flex gap-16">
-          <Skeleton className="h-24 w-56 rounded-xl" />
-          <Skeleton className="h-24 w-56 rounded-xl" />
-          <Skeleton className="h-24 w-56 rounded-xl" />
+          <Skeleton className="h-24 w-56 rounded-surface" />
+          <Skeleton className="h-24 w-56 rounded-surface" />
+          <Skeleton className="h-24 w-56 rounded-surface" />
         </div>
       </div>
     </div>
@@ -846,7 +846,7 @@ export default function OrganizationWorkspace() {
           </nav>
         </div>
         {readOnly ? (
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border bg-muted/35 px-3.5 py-1.5 text-sm">
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-control border bg-inlay px-3.5 py-1.5 text-sm">
             <span className="flex items-center gap-1.5">
               <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="font-medium">Viewing {urlState.asOf}</span>
@@ -901,7 +901,7 @@ export default function OrganizationWorkspace() {
         />
       ) : futureRoot && urlState.asOf < futureRoot ? (
         <div className="mx-auto flex flex-1 max-w-2xl flex-col justify-center px-6">
-          <div className="mb-5 grid h-11 w-11 place-items-center rounded-xl bg-warning-subtle text-warning">
+          <div className="mb-5 grid h-11 w-11 place-items-center rounded-control bg-warning-subtle text-warning">
             <CalendarDays className="h-5 w-5" />
           </div>
           <h2 className="text-xl font-semibold">
@@ -948,7 +948,7 @@ export default function OrganizationWorkspace() {
                 </Button>
               ) : null}
               {urlState.search.trim().length >= 2 ? (
-                <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 max-h-80 overflow-y-auto rounded-xl border bg-popover p-1 shadow-overlay">
+                <div className="absolute left-0 right-0 top-[calc(100%+6px)] z-30 max-h-80 overflow-y-auto rounded-surface border bg-popover p-1 shadow-overlay">
                   {search.isLoading ? (
                     <div className="space-y-2 p-3">
                       <Skeleton className="h-9 w-full" />
@@ -963,7 +963,7 @@ export default function OrganizationWorkspace() {
                           select(unit.id);
                           navigate({ search: "", selectedId: unit.id });
                         }}
-                        className="flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left outline-none hover:bg-muted focus-visible:bg-muted"
+                        className="flex w-full items-start gap-3 rounded-control px-3 py-2 text-left outline-none hover:bg-muted focus-visible:bg-muted"
                       >
                         <Network className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                         <span className="min-w-0">
@@ -1002,7 +1002,7 @@ export default function OrganizationWorkspace() {
                   navigate({ representation: value });
               }}
               aria-label="Structure representation"
-              className="rounded-lg border bg-muted/40 p-0.5"
+              className="rounded-control border bg-inlay p-0.5"
             >
               <ToggleGroupItem
                 value="chart"
@@ -1147,7 +1147,7 @@ export default function OrganizationWorkspace() {
             {model &&
             (editor !== null || (urlState.selectedId && inspectorOpen)) ? (
               <aside
-                className="min-h-0 w-[360px] shrink-0 border-l bg-background max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-overlay"
+                className="min-h-0 w-[360px] shrink-0 border-l bg-card max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-20 max-xl:shadow-overlay"
                 aria-label="Organization panel"
               >
                 {editor?.kind === "unit-form" ? (

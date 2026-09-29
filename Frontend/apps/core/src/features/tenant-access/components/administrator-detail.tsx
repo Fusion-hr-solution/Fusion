@@ -345,7 +345,7 @@ function ActionCard({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors",
+        "flex w-full items-start gap-3 rounded-surface border p-3 text-left transition-colors",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
         "disabled:pointer-events-none disabled:opacity-45",
         destructive

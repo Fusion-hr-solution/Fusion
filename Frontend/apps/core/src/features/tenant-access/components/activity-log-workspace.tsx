@@ -105,7 +105,7 @@ export default function ActivityLogWorkspace() {
       />
 
       {status === "error" && items.length === 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-surface border px-4 py-3">
           <p className="type-body text-muted-foreground">The activity log could not be loaded.</p>
           <Button variant="outline" size="sm" onClick={() => void load(null, false)}>
             Retry

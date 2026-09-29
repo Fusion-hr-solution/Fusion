@@ -105,8 +105,8 @@ export function OrganizationOutline({
   }
 
   return (
-    <div role="treegrid" aria-label="Organization structure outline" aria-rowcount={rows.length} className="h-full min-h-[520px] overflow-auto bg-background">
-      <div role="row" className="sticky top-0 z-10 grid grid-cols-[minmax(280px,1fr)_180px_150px_110px] border-b bg-muted/70 px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur-sm">
+    <div role="treegrid" aria-label="Organization structure outline" aria-rowcount={rows.length} className="h-full min-h-[520px] overflow-auto bg-section">
+      <div role="row" className="sticky top-0 z-10 grid grid-cols-[minmax(280px,1fr)_180px_150px_110px] border-b bg-card px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur-sm">
         <span role="columnheader">Organizational unit</span>
         <span role="columnheader">Type</span>
         <span role="columnheader">Business code</span>
@@ -143,7 +143,7 @@ export function OrganizationOutline({
           >
             <div role="gridcell" className="flex min-w-0 items-center" style={{ paddingInlineStart: `${row.depth * 24}px` }}>
               {row.hasChildren ? (
-                <button type="button" aria-label={`${row.expanded ? "Collapse" : "Expand"} ${row.unit.name}`} onClick={() => onToggle(row.unit.id)} className="mr-1 grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
+                <button type="button" aria-label={`${row.expanded ? "Collapse" : "Expand"} ${row.unit.name}`} onClick={() => onToggle(row.unit.id)} className="mr-1 grid h-7 w-7 shrink-0 place-items-center rounded-control-sm text-muted-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring">
                   {row.expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                 </button>
               ) : <span className="mr-1 h-7 w-7 shrink-0" />}
@@ -166,7 +166,7 @@ export function OrganizationOutline({
                         setDragId(row.unit.id);
                       }}
                       onDragEnd={() => { setDragId(null); setOverId(null); }}
-                      className="grid h-7 w-7 cursor-grab place-items-center rounded-md text-muted-foreground outline-none hover:bg-muted hover:text-foreground active:cursor-grabbing"
+                      className="grid h-7 w-7 cursor-grab place-items-center rounded-control-sm text-muted-foreground outline-none hover:bg-muted hover:text-foreground active:cursor-grabbing"
                     >
                       <GripVertical className="h-3.5 w-3.5" />
                     </span>

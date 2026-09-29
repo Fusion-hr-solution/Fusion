@@ -97,7 +97,7 @@ export function WorkforceProposal({
 
       <div className="overflow-x-auto">
         <div className="min-w-[68rem]">
-          <div aria-hidden className={cn(GRID, "border-y border-border bg-muted/40 px-5 py-2.5 type-meta text-muted-foreground")}>
+          <div aria-hidden className={cn(GRID, "border-y border-border bg-inlay px-5 py-2.5 type-meta text-muted-foreground")}>
             {["Employee", "Organization", "Job title", "Manager", "Employment", "Import result"].map((label) => (
               <span key={label} className="font-medium">
                 {label}
@@ -318,7 +318,7 @@ function PageButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "grid size-8 place-items-center rounded-md tabular-nums outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40",
+        "grid size-8 place-items-center rounded-control tabular-nums outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40",
         current ? "border border-primary text-foreground" : "hover:bg-muted hover:text-foreground"
       )}
     >

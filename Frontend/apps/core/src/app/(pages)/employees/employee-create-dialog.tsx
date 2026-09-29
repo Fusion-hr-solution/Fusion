@@ -233,7 +233,7 @@ function SearchPickerField<TOption extends { id: string }>({
             aria-invalid={fieldError ? true : undefined}
             aria-describedby={fieldError ? errorId : undefined}
             className={cn(
-              "h-auto min-h-12 w-full justify-between rounded-xl px-3 py-2 text-left font-normal shadow-none",
+              "h-auto min-h-12 w-full justify-between rounded-control px-3 py-2 text-left font-normal shadow-none",
               !selectedOption && "text-muted-foreground",
               fieldError && "border-destructive"
             )}
@@ -545,7 +545,7 @@ export function EmployeeCreateDialog({
         showCloseButton={!isSubmitting}
         className="overflow-hidden p-0 sm:max-w-[720px]"
       >
-        <DialogHeader className="border-b bg-muted/20 px-6 py-5 text-left">
+        <DialogHeader className="border-b px-6 py-5 text-left">
           <DialogTitle className="text-xl font-semibold">
             Add employee
           </DialogTitle>
@@ -558,9 +558,9 @@ export function EmployeeCreateDialog({
           className="flex max-h-[85vh] flex-col"
           onSubmit={form.handleSubmit((values) => void handleSubmit(values))}
         >
-          <div className="flex-1 overflow-y-auto bg-muted/10">
+          <div className="flex-1 overflow-y-auto">
             <div className="space-y-5 px-6 py-5 pt-2">
-              <section className="space-y-4 rounded-xl border bg-background p-4 sm:p-5">
+              <section className="space-y-4 rounded-surface border p-4 sm:p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   Employee details
                 </p>
@@ -695,7 +695,7 @@ export function EmployeeCreateDialog({
                 </div>
               </section>
 
-              <section className="space-y-4 rounded-xl border bg-background p-4 sm:p-5">
+              <section className="space-y-4 rounded-surface border p-4 sm:p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   Organization
                 </p>
@@ -779,7 +779,7 @@ export function EmployeeCreateDialog({
             </div>
           </div>
 
-          <div className="border-t bg-background/95 px-6 py-4">
+          <div className="border-t px-6 py-4">
             {submitError ? (
               <Alert variant="destructive" className="mb-4">
                 <AlertTitle>Unable to add employee</AlertTitle>
