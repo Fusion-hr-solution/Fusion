@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { GoalDetailDto, ObjectiveProgressDto, PlanObjectiveDto } from "@repo/api";
 import { ObjectiveDetailDrawer } from "../plan/objective-detail-drawer";
 import { useGoal, useObjectiveProgress } from "../../api/use-performance";
@@ -23,22 +23,33 @@ export function OrgObjectiveDetailDrawer({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  const detail = useGoal(cycleId, open ? objectiveId : null);
-  const progress = useObjectiveProgress(cycleId, open ? objectiveId : null);
+  // Hold the last objective shown so closing (which clears the caller's id) keeps the content in place
+  // through the exit animation instead of flashing back to the loading state.
+  const [shownId, setShownId] = useState(objectiveId);
+  if (objectiveId && objectiveId !== shownId) setShownId(objectiveId);
+
+  const detail = useGoal(cycleId, shownId);
+  const progress = useObjectiveProgress(cycleId, shownId);
+
+  // Only trust data that belongs to the objective being shown — a query keeping the previous result
+  // while the next one loads must not paint the old objective into the new drawer.
+  const current = detail.data?.node.id === shownId ? detail.data : undefined;
+  const currentProgress =
+    progress.data?.objectiveId === shownId ? progress.data : null;
 
   const objective = useMemo(
-    () => (detail.data ? toObjectiveView(detail.data, progress.data ?? null) : null),
-    [detail.data, progress.data]
+    () => (current ? toObjectiveView(current, currentProgress) : null),
+    [current, currentProgress]
   );
 
-  const node = detail.data?.node;
+  const node = current?.node;
   const kindLabel = node
     ? node.ownershipScope === "Company"
       ? "Company strategic objective"
       : `${node.orgUnitName ?? "Organizational"} objective`
     : undefined;
 
-  const parent = detail.data?.parent ?? null;
+  const parent = current?.parent ?? null;
   const alignmentScope = parent
     ? parent.ownershipScope === "Company"
       ? "Company strategy"
@@ -55,6 +66,7 @@ export function OrgObjectiveDetailDrawer({
       cycleId={cycleId}
       open={open}
       onOpenChange={onOpenChange}
+      error={detail.error ? { onRetry: () => void detail.refetch() } : undefined}
     />
   );
 }

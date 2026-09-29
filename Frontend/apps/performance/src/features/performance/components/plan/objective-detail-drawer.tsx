@@ -68,6 +68,7 @@ export function ObjectiveDetailDrawer({
   initialMode,
   variant = "plan",
   kindLabel,
+  error,
 }: {
   objective: PlanObjectiveDto | null;
   /** Zero-based position in the ledger — shown as the same two-digit chip the row carries. */
@@ -84,6 +85,8 @@ export function ObjectiveDetailDrawer({
   variant?: ObjectiveDetailVariant;
   /** For the organizational variant, the header's scope chip (e.g. "Company strategic objective"). */
   kindLabel?: string;
+  /** Set when an objective fetched on open failed to load; replaces the loading state. */
+  error?: { onRetry: () => void };
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -98,6 +101,8 @@ export function ObjectiveDetailDrawer({
             variant={variant}
             kindLabel={kindLabel}
           />
+        ) : error ? (
+          <DrawerUnavailable onRetry={error.onRetry} />
         ) : (
           // Only reached when the objective is fetched on open (the organizational reader); keeps a title
           // present for accessibility and shows the drawer's shape while the detail loads.
@@ -105,6 +110,18 @@ export function ObjectiveDetailDrawer({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function DrawerUnavailable({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+      <SheetTitle className="text-base">This objective could not be loaded</SheetTitle>
+      <SheetDescription className="sr-only">Loading the objective failed.</SheetDescription>
+      <Button variant="outline" size="sm" onClick={onRetry}>
+        Try again
+      </Button>
+    </div>
   );
 }
 
