@@ -243,10 +243,10 @@ export function PeopleInScope({
   }
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-card">
+    <section className="overflow-hidden rounded-surface border border-border bg-card">
       <div className="space-y-4 p-5">
         <div className="flex items-start gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary/12 text-primary">
             <Users className="size-5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">
@@ -306,7 +306,7 @@ export function PeopleInScope({
         </div>
 
         {selectionVisible && selectedCount > 0 ? (
-          <div className="flex items-center justify-between gap-4 rounded-xl border border-primary/40 bg-primary/[0.06] px-4 py-2.5">
+          <div className="flex items-center justify-between gap-4 rounded-surface border border-primary/40 bg-primary/[0.06] px-4 py-2.5">
             <p className="type-label text-foreground">
               {selectedCount} selected
             </p>
@@ -610,7 +610,7 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex items-center gap-2 rounded-lg border px-3 py-1.5 type-label transition-colors",
+        "flex items-center gap-2 rounded-control border px-3 py-1.5 type-label transition-colors",
         active
           ? "border-primary/50 bg-primary/[0.08] text-foreground"
           : "border-border text-muted-foreground hover:text-foreground"
@@ -680,7 +680,7 @@ function Pager({
             type="button"
             onClick={() => onChange(entry - 1)}
             className={cn(
-              "flex size-8 items-center justify-center rounded-lg type-label tabular-nums transition-colors",
+              "flex size-8 items-center justify-center rounded-control type-label tabular-nums transition-colors",
               entry === current
                 ? "border border-primary/50 bg-primary/[0.08] text-foreground"
                 : "text-muted-foreground hover:text-foreground"

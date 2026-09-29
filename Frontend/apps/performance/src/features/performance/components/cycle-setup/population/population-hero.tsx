@@ -5,7 +5,7 @@
  */
 export function PopulationHero() {
   return (
-    <section className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c10] text-white shadow-lg">
+    <section className="relative isolate overflow-hidden rounded-surface border border-white/10 bg-[#0b0c10] text-white shadow-lg">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0"

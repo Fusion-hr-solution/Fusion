@@ -103,7 +103,7 @@ export function MeasurementEditor({
       </div>
 
       {method === "ManualPercentage" ? (
-        <div className="flex items-center gap-2.5 rounded-xl border border-info/25 bg-info-subtle px-4 py-3 text-sm text-info">
+        <div className="flex items-center gap-2.5 rounded-surface border border-info/25 bg-info-subtle px-4 py-3 text-sm text-info">
           <Info className="size-4 shrink-0" aria-hidden />
           You&rsquo;ll update progress as a percentage during the cycle.
         </div>
@@ -157,7 +157,7 @@ function MethodTile({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex items-start gap-3 rounded-xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "flex items-start gap-3 rounded-surface border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         active
           ? "border-primary bg-primary/[0.05] ring-1 ring-primary/30"
           : "border-border hover:border-primary/40 hover:bg-muted/40"
@@ -222,7 +222,7 @@ function NumericTargetEditor({
       ? "Baseline and target must differ."
       : null;
   return (
-    <div className="space-y-3 rounded-xl border border-border/70 bg-muted/30 p-4">
+    <div className="space-y-3 rounded-surface border border-border/70 p-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <NumericField
           id="me-baseline"
@@ -248,7 +248,7 @@ function NumericTargetEditor({
         </div>
         <div className="space-y-1.5">
           <Label>Direction</Label>
-          <div className="grid grid-cols-2 gap-1 rounded-lg border border-border p-0.5">
+          <div className="grid grid-cols-2 gap-1 rounded-control border border-border p-0.5">
             <DirectionOption
               active={direction === "Increase"}
               icon={TrendingUp}
@@ -359,7 +359,7 @@ function DirectionOption({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex h-8 items-center justify-center gap-1.5 rounded-md px-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex h-8 items-center justify-center gap-1.5 rounded-control px-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
           ? "bg-primary/10 text-primary"
           : "text-muted-foreground hover:text-foreground"

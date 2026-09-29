@@ -246,7 +246,7 @@ function MilestoneForm({
     >
       <div>
         <p className="text-sm font-medium text-foreground">Update milestones</p>
-        <ul className="mt-2.5 divide-y divide-border rounded-xl border border-border">
+        <ul className="mt-2.5 divide-y divide-border rounded-surface border border-border">
           {progress.milestones.map((m) => {
             const on = pending[m.id] ?? false;
             return (
@@ -258,7 +258,7 @@ function MilestoneForm({
                   disabled={submitting}
                   onClick={() => setPending((prev) => ({ ...prev, [m.id]: !prev[m.id] }))}
                   className={cn(
-                    "flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors",
+                    "flex size-5 shrink-0 items-center justify-center rounded-detail border transition-colors",
                     on ? "border-primary bg-primary text-primary-foreground" : "border-input hover:border-primary"
                   )}
                 >
@@ -351,7 +351,7 @@ function NumberField({
   });
 
   return (
-    <div className="flex h-11 w-full items-stretch overflow-hidden rounded-lg border border-input bg-transparent focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40">
+    <div className="flex h-11 w-full items-stretch overflow-hidden rounded-control border border-input bg-transparent focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/40">
       <input
         ref={ref}
         id={id}
@@ -454,7 +454,7 @@ export function DerivedCard({
   const complete = derived >= 100;
   const clamped = Math.max(0, Math.min(100, derived));
   return (
-    <div className="rounded-xl border border-border bg-muted/25 p-4">
+    <div className="rounded-surface border border-border p-4">
       {label ? <p className="type-eyebrow text-muted-foreground">{label}</p> : null}
       <div className={cn("flex items-center gap-3", label && "mt-2")}>
         <span className={cn("text-2xl font-semibold tabular-nums leading-none", complete ? "text-success" : "text-foreground")}>

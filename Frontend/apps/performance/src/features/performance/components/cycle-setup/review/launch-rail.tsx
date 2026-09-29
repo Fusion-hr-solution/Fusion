@@ -58,7 +58,7 @@ function deriveChecks(detail: CycleDetailDto, population: PopulationDto): Check[
 
 function RailCard({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section className={cn("rounded-2xl border border-border bg-card p-5 sm:p-6", className)}>
+    <section className={cn("rounded-surface border border-border bg-card p-5 sm:p-6", className)}>
       {children}
     </section>
   );
@@ -105,7 +105,7 @@ export function LaunchReadinessPanel({
         </div>
         <span
           className={cn(
-            "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold",
+            "inline-flex shrink-0 items-center gap-1.5 rounded-control border px-2.5 py-1 text-xs font-semibold",
             ready
               ? "border-success/35 bg-success/10 text-success"
               : "border-warning/40 bg-warning/10 text-warning"
@@ -160,7 +160,7 @@ export function LaunchReadinessPanel({
           <ul className="mt-3.5 space-y-3.5">
             {notRequired.map((item) => (
               <li key={item.label} className="flex items-start gap-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-muted text-muted-foreground">
                   <item.icon className="size-4" aria-hidden />
                 </span>
                 <span className="min-w-0">
@@ -193,7 +193,7 @@ export function LaunchConsequences() {
       <ul className="mt-5 space-y-4">
         {CONSEQUENCES.map((item) => (
           <li key={item.label} className="flex items-start gap-3.5">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
               <item.icon className="size-[1.125rem]" aria-hidden />
             </span>
             <span className="min-w-0 pt-0.5">

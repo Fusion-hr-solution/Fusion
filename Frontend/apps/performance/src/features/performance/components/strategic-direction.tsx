@@ -169,7 +169,7 @@ function ObjectiveCard({
   return (
     <article
       className={cn(
-        "rounded-2xl border p-5",
+        "rounded-surface border p-5",
         isDraft
           ? "border-dashed border-primary/40 bg-primary/[0.02]"
           : "border-primary/25 bg-primary/[0.04]"

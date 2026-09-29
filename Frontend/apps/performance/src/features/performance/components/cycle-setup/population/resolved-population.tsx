@@ -69,7 +69,7 @@ export function ResolvedPopulation({
   }, []);
 
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-card">
+    <section className="overflow-hidden rounded-surface border border-border bg-card">
       <div className="flex items-start justify-between gap-4 px-5 pt-5">
         <div className="flex items-center gap-3">
           <span className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-primary type-meta font-semibold tabular-nums">
@@ -99,7 +99,7 @@ export function ResolvedPopulation({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className="rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="rounded-control text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       aria-label="How Fusion resolves the population"
                     >
                       <Info className="size-3.5" aria-hidden />
@@ -251,7 +251,7 @@ function Chip({ tone, children }: { tone: Tone; children: ReactNode }) {
   return (
     <span
       className={cn(
-        "flex size-10 shrink-0 items-center justify-center rounded-xl",
+        "flex size-10 shrink-0 items-center justify-center rounded-control",
         toneClass
       )}
     >
@@ -290,7 +290,7 @@ function HealthStrip({
   if (ready > 0) return null;
 
   return (
-    <div className="flex items-center gap-3 border-t border-border bg-muted/30 px-5 py-3">
+    <div className="flex items-center gap-3 border-t border-border bg-inlay px-5 py-3">
       <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
         <UserX className="size-3.5" aria-hidden />
       </span>

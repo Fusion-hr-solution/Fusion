@@ -169,7 +169,7 @@ export function YourPeople({
   return (
     <section
       aria-labelledby="your-people-heading"
-      className="mt-6 space-y-5 rounded-2xl border border-border bg-muted/20 p-5 sm:p-6"
+      className="mt-6 space-y-5 rounded-surface border border-border bg-section p-5 sm:p-6"
     >
       <div>
         <h2 id="your-people-heading" className="type-section-title text-foreground">
@@ -244,10 +244,10 @@ export function YourPeople({
         <EmptyRoster />
       ) : (
         <>
-          <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          <div className="overflow-hidden rounded-surface border border-border bg-card">
             <div className="overflow-x-auto">
               <div className="min-w-[880px]">
-                <div role="row" className={cn(ROW_COLS, "border-b border-border bg-muted/30 py-2.5")}>
+                <div role="row" className={cn(ROW_COLS, "border-b border-border bg-inlay py-2.5")}>
                   <HeaderCell>Person</HeaderCell>
                   <HeaderCell>Plan</HeaderCell>
                   <HeaderCell>Objectives</HeaderCell>
@@ -294,7 +294,7 @@ export function YourPeople({
  */
 export function AddPeopleCallout() {
   return (
-    <div className="mt-6 flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4">
+    <div className="mt-6 flex flex-wrap items-center gap-4 rounded-surface border border-border bg-section px-5 py-4">
       <Lightbulb className="size-5 shrink-0 text-primary" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground">Need to add someone to your team?</p>
@@ -583,7 +583,7 @@ export function RosterSkeleton() {
   return (
     <section
       aria-hidden
-      className="mt-6 space-y-5 rounded-2xl border border-border bg-muted/20 p-5 sm:p-6"
+      className="mt-6 space-y-5 rounded-surface border border-border bg-section p-5 sm:p-6"
     >
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="space-y-2.5">
@@ -607,10 +607,10 @@ export function RosterSkeleton() {
         <Skeleton className="ml-auto h-9 w-36" />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="overflow-hidden rounded-surface border border-border bg-card">
         <div className="overflow-x-auto">
           <div className="min-w-[880px]">
-            <div className={cn(ROW_COLS, "border-b border-border bg-muted/30 py-2.5")}>
+            <div className={cn(ROW_COLS, "border-b border-border bg-inlay py-2.5")}>
               {Array.from({ length: 6 }, (_, i) => (
                 <Skeleton key={i} className="h-3 w-16" />
               ))}
@@ -653,7 +653,7 @@ export function RosterSkeleton() {
 
 function EmptyRoster() {
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-muted/10 px-6 py-16 text-center">
+    <div className="rounded-surface border border-dashed border-border px-6 py-16 text-center">
       <Users className="mx-auto size-8 text-muted-foreground/50" aria-hidden />
       <p className="mt-3 text-sm font-medium text-foreground">No one reports to you this cycle</p>
       <p className="mt-1 text-sm text-muted-foreground">

@@ -183,7 +183,7 @@ export function OrgScopePicker({
       <li key={node.unit.id}>
         <div
           className={cn(
-            "group relative flex min-h-14 items-center rounded-xl border py-2 pr-2.5 transition-colors",
+            "group relative flex min-h-14 items-center rounded-control border py-2 pr-2.5 transition-colors",
             state?.selected
               ? "border-primary/40 bg-primary/10"
               : cn("border-transparent", !state?.inherited && "hover:bg-muted/40")
@@ -196,7 +196,7 @@ export function OrgScopePicker({
               <button
                 type="button"
                 onClick={() => toggleCollapse(node.unit.id)}
-                className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="grid size-6 place-items-center rounded-control-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                 aria-label={
                   isCollapsed
                     ? `Expand ${node.unit.name}`
@@ -251,7 +251,7 @@ export function OrgScopePicker({
           </label>
 
           {state?.inherited ? (
-            <span className="hidden shrink-0 items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1 type-meta text-muted-foreground sm:flex">
+            <span className="hidden shrink-0 items-center gap-1.5 rounded-control border border-border px-2.5 py-1 type-meta text-muted-foreground sm:flex">
               <Network className="size-3.5" aria-hidden />
               Inherited via parent
             </span>
@@ -286,7 +286,7 @@ export function OrgScopePicker({
   }
 
   return (
-    <div className="mt-4 flex h-[34rem] flex-col overflow-hidden rounded-2xl border border-border bg-background p-4 sm:p-5">
+    <div className="mt-4 flex h-[34rem] flex-col overflow-hidden rounded-surface border border-border bg-inlay p-4 sm:p-5">
       <div>
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
           <div>
@@ -295,7 +295,7 @@ export function OrgScopePicker({
               Select the organization units to include in this population.
             </p>
           </div>
-          <div className="flex w-full items-center divide-x divide-border rounded-xl border border-border bg-muted/30 py-2 type-body-secondary tabular-nums text-muted-foreground sm:w-auto">
+          <div className="flex w-full items-center divide-x divide-border rounded-surface border border-border py-2 type-body-secondary tabular-nums text-muted-foreground sm:w-auto">
             <span className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-2.5 sm:flex-none sm:px-3.5">
               <Network className="size-4 text-primary" aria-hidden />
               <span className="font-semibold text-foreground">{selectedList.length}</span>
@@ -329,13 +329,13 @@ export function OrgScopePicker({
             {hiddenSelections.map((selection) => (
               <li
                 key={selection.orgUnitId}
-                className="flex items-center gap-1 rounded-md bg-primary/12 py-0.5 pl-2 pr-0.5 type-meta font-medium text-primary"
+                className="flex items-center gap-1 rounded-control bg-primary/12 py-0.5 pl-2 pr-0.5 type-meta font-medium text-primary"
               >
                 {names.get(selection.orgUnitId)}
                 <button
                   type="button"
                   onClick={() => toggleUnit(selection.orgUnitId)}
-                  className="grid size-5 place-items-center rounded hover:bg-primary/15"
+                  className="grid size-5 place-items-center rounded-detail hover:bg-primary/15"
                   aria-label={`Remove ${names.get(selection.orgUnitId) ?? "unit"} from scope`}
                 >
                   <X className="size-3" />
@@ -346,7 +346,7 @@ export function OrgScopePicker({
         ) : null}
       </div>
 
-      <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-xl border border-border p-1.5">
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto rounded-surface border border-border p-1.5">
         {hierarchy.isLoading || (roots.length === 0 && current.isLoading) ? (
           <div className="py-1" aria-busy aria-label="Loading organization units">
             {[0, 1, 2, 2, 1, 2].map((depth, index) => (

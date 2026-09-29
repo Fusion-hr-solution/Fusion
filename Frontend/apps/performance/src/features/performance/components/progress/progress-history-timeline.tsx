@@ -104,7 +104,7 @@ function HistoryRow({
           className={cn(
             "block w-full text-left",
             expandable &&
-              "-mx-2 -my-1 rounded-lg px-2 py-1 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              "-mx-2 -my-1 rounded-control px-2 py-1 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           )}
         >
           {/* Date + attachment/note indicators + a chevron when the row expands. */}
@@ -165,7 +165,7 @@ function ExpandedDetail({
   openingFileId: string | null;
 }) {
   return (
-    <div className="mt-3 space-y-3 rounded-xl border border-border bg-muted/25 p-3.5">
+    <div className="mt-3 space-y-3 rounded-surface border border-border p-3.5">
       {note ? (
         <div className="flex gap-3">
           <FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground/70" aria-hidden />
@@ -179,7 +179,7 @@ function ExpandedDetail({
       {evidence.length > 0 ? (
         <div className={cn(note && "border-t border-border/70 pt-3")}>
           <p className="type-eyebrow text-muted-foreground">Evidence ({evidence.length})</p>
-          <ul className="mt-2 divide-y divide-border/70 overflow-hidden rounded-lg border border-border bg-card">
+          <ul className="mt-2 divide-y divide-border/70 overflow-hidden rounded-surface border border-border bg-card">
             {evidence.map((item) => (
               <EvidenceRow key={item.id} item={item} onOpenFile={onOpenFile} opening={openingFileId === item.id} />
             ))}
@@ -209,13 +209,13 @@ function EvidenceRow({
   const linkHref = !isFile ? item.url : null;
 
   const openClasses =
-    "inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60";
+    "inline-flex shrink-0 items-center gap-1 rounded-control px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60";
 
   return (
     <li className="flex items-center gap-3 px-3 py-2.5">
       <span
         className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-md",
+          "flex size-8 shrink-0 items-center justify-center rounded-control",
           isFile ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
         )}
       >
@@ -246,7 +246,7 @@ function EvidenceRow({
 /** A quiet indicator pill for a note, file, or link attached to a progress update. */
 function Chip({ icon, label }: { icon: ReactNode; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
+    <span className="inline-flex items-center gap-1.5 rounded-control border border-border px-2 py-1 text-xs text-muted-foreground">
       {icon}
       {label}
     </span>
@@ -261,7 +261,7 @@ function DeltaBadge({ delta, correction }: { delta: number; correction: boolean 
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+        "inline-flex items-center gap-1 rounded-control px-1.5 py-0.5 text-xs font-semibold tabular-nums",
         up ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"
       )}
     >

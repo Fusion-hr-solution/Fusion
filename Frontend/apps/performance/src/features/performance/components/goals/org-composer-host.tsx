@@ -171,7 +171,7 @@ function FieldSkeleton({
   return (
     <div className="space-y-1.5">
       <Skeleton className={`h-4 ${label}`} />
-      <Skeleton className={`w-full rounded-xl ${control}`} />
+      <Skeleton className={`w-full rounded-control ${control}`} />
     </div>
   );
 }
@@ -202,14 +202,14 @@ function ComposerSkeleton({
         >
           <div className="space-y-8">
             {/* Alignment editor: heading, then the Aligned / Standalone choice cards. */}
-            <div className="rounded-2xl border border-border bg-muted/25 p-5">
+            <div className="rounded-surface border border-border p-5">
               <Skeleton className="h-5 w-28" />
               <Skeleton className="mt-2 h-3.5 w-72" />
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {Array.from({ length: 2 }, (_, i) => (
                   <div
                     key={i}
-                    className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5"
+                    className="flex items-start gap-3 rounded-surface border border-border bg-card p-3.5"
                   >
                     <Skeleton className="mt-0.5 size-4 shrink-0 rounded-full" />
                     <div className="flex-1 space-y-1.5">
@@ -242,9 +242,9 @@ function ComposerSkeleton({
                 {Array.from({ length: 2 }).map((_, i) => (
                   <div
                     key={i}
-                    className="flex gap-3 rounded-xl border border-border p-4"
+                    className="flex gap-3 rounded-surface border border-border p-4"
                   >
-                    <Skeleton className="size-9 shrink-0 rounded-lg" />
+                    <Skeleton className="size-9 shrink-0 rounded-control" />
                     <div className="flex-1 space-y-2">
                       <Skeleton className="h-4 w-36" />
                       <Skeleton className="h-3.5 w-full" />
@@ -255,7 +255,7 @@ function ComposerSkeleton({
             </div>
           </div>
         </div>
-        <div className="flex items-center justify-between gap-2 border-t border-border bg-muted/30 px-6 py-4">
+        <div className="flex items-center justify-between gap-2 border-t border-border px-6 py-4">
           <Skeleton className="h-9 w-20" />
           <div className="flex items-center gap-2">
             <Skeleton className="h-9 w-32" />

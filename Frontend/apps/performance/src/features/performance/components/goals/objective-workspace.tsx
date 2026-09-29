@@ -400,7 +400,7 @@ function SubjectCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border bg-card p-5 shadow-raised sm:p-6",
+        "relative overflow-hidden rounded-surface border bg-card p-5 shadow-raised sm:p-6",
         own
           ? "border-primary/45 ring-1 ring-primary/20"
           : "border-foreground/20 ring-1 ring-foreground/[0.06]"
@@ -410,10 +410,10 @@ function SubjectCard({
         <span
           aria-hidden
           className={cn(
-            "hidden size-12 shrink-0 items-center justify-center rounded-2xl border sm:flex",
+            "hidden size-12 shrink-0 items-center justify-center rounded-control border sm:flex",
             own || isCompany
               ? "border-primary/25 bg-primary/10 text-primary"
-              : "border-border bg-muted/50 text-foreground/70"
+              : "border-border bg-inlay text-foreground/70"
           )}
         >
           <ScopeMark className="size-7" muted={!(own || isCompany)} />
@@ -436,7 +436,7 @@ function SubjectCard({
           <button
             type="button"
             onClick={() => actions.onInspect(node.id)}
-            className="mt-1 block rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="mt-1 block rounded-detail text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <h3 className="text-xl font-semibold leading-snug tracking-tight text-foreground hover:underline">
               {node.title}
@@ -559,7 +559,7 @@ function DirectionStrip({
       ? companyEyebrow(orgName)
       : `${node.orgUnitName ?? "Organizational"} objective`;
   return (
-    <div className="relative overflow-hidden rounded-xl border border-border bg-card/60 p-3.5 pl-4 sm:p-4 sm:pl-5">
+    <div className="relative overflow-hidden rounded-surface border border-border bg-card p-3.5 pl-4 sm:p-4 sm:pl-5">
       <span
         aria-hidden
         className="absolute inset-y-0 left-0 w-1 bg-primary/25"
@@ -568,7 +568,7 @@ function DirectionStrip({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <span
           aria-hidden
-          className="hidden size-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted/40 text-muted-foreground sm:flex"
+          className="hidden size-8 shrink-0 items-center justify-center rounded-full border border-border bg-inlay text-muted-foreground sm:flex"
         >
           <ScopeMark className="size-4.5" muted />
         </span>
@@ -577,7 +577,7 @@ function DirectionStrip({
           <button
             type="button"
             onClick={() => onInspect(node.id)}
-            className="block rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="block rounded-detail text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <span className="text-base font-semibold tracking-tight text-foreground hover:underline">
               {node.title}
@@ -732,8 +732,8 @@ function ObjectiveRow({
       className={cn(
         "group relative border transition-colors hover:border-primary/40",
         nested
-          ? "rounded-lg bg-muted/[0.22]"
-          : "rounded-xl bg-card",
+          ? "rounded-control bg-inlay"
+          : "rounded-surface bg-card",
         isDraft
           ? "border-dashed border-border"
           : nested
@@ -748,9 +748,9 @@ function ObjectiveRow({
           aria-label="Open objective"
           className={cn(
             "flex shrink-0 items-center justify-center border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            nested ? "size-8 rounded-lg" : "size-10 rounded-xl",
+            nested ? "size-8 rounded-control" : "size-10 rounded-control",
             isDraft
-              ? "border-border bg-muted/40 text-muted-foreground"
+              ? "border-border bg-inlay text-muted-foreground"
               : "border-primary/25 bg-primary/10 text-primary"
           )}
         >
@@ -762,7 +762,7 @@ function ObjectiveRow({
             <button
               type="button"
               onClick={() => tree.onInspect(node.id)}
-              className="min-w-0 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-w-0 rounded-detail text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span
                 className={cn(
@@ -831,7 +831,7 @@ function ObjectiveRow({
               type="button"
               onClick={() => tree.onToggle(node.id)}
               aria-expanded={open}
-              className="inline-flex items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-control px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="tabular-nums">{node.childCount}</span>
               <span>child {node.childCount === 1 ? "objective" : "objectives"}</span>
@@ -918,7 +918,7 @@ function AddAligned({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="inline-flex items-center gap-1.5 rounded-control px-2.5 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <Plus className="size-4" aria-hidden /> Add aligned objective
     </button>
@@ -968,7 +968,7 @@ function GroupHeader({
       <button
         type="button"
         onClick={onToggle}
-        className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex items-center gap-1.5 rounded-control px-1.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         aria-expanded={open}
       >
         <span className="tabular-nums text-foreground/80">{count}</span>
@@ -985,7 +985,7 @@ function GroupHeader({
 
 function EmptyChildren({ isCompany }: { isCompany: boolean }) {
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-border bg-muted/20 px-4 py-3.5 text-sm text-muted-foreground">
+    <div className="flex items-center gap-2.5 rounded-surface border border-dashed border-border px-4 py-3.5 text-sm text-muted-foreground">
       <ScopeMark className="size-5 shrink-0 text-muted-foreground/50" muted />
       {isCompany
         ? "No aligned child objectives yet."
@@ -1010,10 +1010,10 @@ function ContextHeader({
   memberCount?: number | null;
 }) {
   return (
-    <section className="flex items-center gap-4 rounded-2xl border border-border bg-muted/30 p-4 sm:px-5">
+    <section className="flex items-center gap-4 rounded-surface border border-border bg-section p-4 sm:px-5">
       <span
         aria-hidden
-        className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-primary/30 bg-primary/10 text-sm font-semibold text-primary"
+        className="flex size-11 shrink-0 items-center justify-center rounded-control border border-primary/30 bg-primary/10 text-sm font-semibold text-primary"
       >
         {initials(title)}
       </span>
@@ -1054,7 +1054,7 @@ function companyEyebrow(orgName: string | null): string {
 function LineageChips({ ancestors }: { ancestors: GoalNodeDto[] }) {
   const ordered = [...ancestors].reverse();
   return (
-    <div className="mb-3 inline-flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg border border-border/70 bg-muted/20 px-2.5 py-1.5 text-xs text-muted-foreground">
+    <div className="mb-3 inline-flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-1 rounded-control border border-border/70 bg-inlay px-2.5 py-1.5 text-xs text-muted-foreground">
       <ScopeMark
         className="mr-0.5 size-3.5 shrink-0 text-muted-foreground/60"
         muted
@@ -1111,7 +1111,7 @@ function FocusTrail({
       <button
         type="button"
         onClick={() => onFocus(null)}
-        className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex items-center gap-1.5 rounded-control px-2 py-1 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <Building2 className="size-3.5" aria-hidden /> Direction
       </button>
@@ -1128,7 +1128,7 @@ function FocusTrail({
               onClick={() => onFocus(isLast ? null : node.id)}
               disabled={isLast}
               className={cn(
-                "max-w-[16rem] truncate rounded-md px-2 py-1 font-medium transition-colors",
+                "max-w-[16rem] truncate rounded-control px-2 py-1 font-medium transition-colors",
                 isLast
                   ? "text-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -1188,7 +1188,7 @@ function EmptyUnitContext({
       />
       <AlignmentConnector />
 
-      <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-8 text-center">
+      <div className="rounded-surface border border-dashed border-border px-6 py-8 text-center">
         <ScopeMark className="mx-auto size-12 text-foreground/70" />
         <p className="mt-3 text-base font-semibold tracking-tight text-foreground">
           No objective for {unit.name} yet
@@ -1237,7 +1237,7 @@ function DirectionSelector({
             onClick={() => onSelect(direction.id)}
             aria-pressed={active}
             className={cn(
-              "max-w-[16rem] truncate rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              "max-w-[16rem] truncate rounded-control border px-2.5 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
               active
                 ? "border-primary bg-primary/[0.08] text-foreground"
                 : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
@@ -1262,7 +1262,7 @@ function NoPublishedDirection({
 }) {
   return (
     <div className="space-y-9">
-      <section className="overflow-hidden rounded-2xl border border-border bg-card shadow-raised">
+      <section className="overflow-hidden rounded-surface border border-border bg-card shadow-raised">
         <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.9fr)] gap-6 px-6 py-8 sm:gap-8 sm:px-8 lg:gap-10 lg:px-10 lg:py-10">
           <div className="flex items-center gap-6 sm:gap-8">
             <div className="relative grid size-24 shrink-0 place-items-center rounded-full border border-primary/30 bg-primary/[0.05] before:absolute before:inset-3 before:rounded-full before:border before:border-primary/40 sm:size-28">
@@ -1320,9 +1320,9 @@ function NoPublishedDirection({
           </p>
         </div>
 
-        <div className="mt-5 grid min-h-64 place-items-center rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+        <div className="mt-5 grid min-h-64 place-items-center rounded-surface border border-dashed border-border px-6 py-12 text-center">
           <div className="max-w-lg">
-            <div className="mx-auto grid size-16 place-items-center rounded-full border border-border bg-background text-muted-foreground shadow-raised">
+            <div className="mx-auto grid size-16 place-items-center rounded-full border border-border bg-card text-muted-foreground shadow-raised">
               <Network className="size-6" aria-hidden />
             </div>
             <p className="mt-5 text-base font-semibold tracking-tight text-foreground">

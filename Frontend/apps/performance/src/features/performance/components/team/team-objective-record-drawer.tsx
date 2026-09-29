@@ -64,7 +64,7 @@ export function TeamObjectiveRecordDrawer({
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-border bg-background px-5 py-3.5">
+        <div className="flex items-center justify-between gap-3 border-t border-border bg-popover px-5 py-3.5">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>

@@ -32,7 +32,7 @@ type Icon = typeof Users;
 
 export function CycleSetupSummary({ children }: { children: ReactNode }) {
   return (
-    <section className="rounded-2xl border border-border bg-card p-4 sm:p-6">
+    <section className="rounded-surface border border-border bg-card p-4 sm:p-6">
       <h2 className="type-page-title text-foreground">Cycle setup summary</h2>
       <p className="mt-1 type-body-secondary text-muted-foreground">
         Review the key details for this cycle. You can go back to make changes if needed.
@@ -56,7 +56,7 @@ function SummaryBlock({
   children: ReactNode;
 }) {
   return (
-    <section className="@container rounded-xl border border-border bg-muted/20 p-4 sm:p-5">
+    <section className="@container rounded-surface border border-border bg-card p-4 sm:p-5">
       <header className="flex items-start gap-3 sm:gap-4">
         <span className="grid size-10 shrink-0 place-items-center rounded-full bg-success/15 text-success sm:size-12">
           <Icon className="size-5" strokeWidth={1.75} aria-hidden />
@@ -203,7 +203,7 @@ export function PopulationBlock({
         </Fact>
       </Facts>
 
-      <div className="mt-4 grid divide-y divide-border rounded-xl border border-border bg-background/40 @xl:grid-cols-[auto_auto_minmax(0,1fr)] @xl:divide-x @xl:divide-y-0">
+      <div className="mt-4 grid divide-y divide-border rounded-surface border border-border bg-inlay @xl:grid-cols-[auto_auto_minmax(0,1fr)] @xl:divide-x @xl:divide-y-0">
         <Stat
           icon={<Users className="size-5 shrink-0 text-success" strokeWidth={1.75} aria-hidden />}
           value={detail.confirmedParticipantCount}

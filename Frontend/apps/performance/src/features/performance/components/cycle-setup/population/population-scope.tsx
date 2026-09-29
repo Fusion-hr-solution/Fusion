@@ -54,7 +54,7 @@ export function PopulationScope({
   const byScope = mode === "ByScope";
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5 lg:p-6">
+    <section className="rounded-surface border border-border bg-card p-5 lg:p-6">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-primary type-meta font-semibold tabular-nums">
@@ -69,7 +69,7 @@ export function PopulationScope({
             </p>
           </div>
         </div>
-        <span className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-1.5">
+        <span className="flex items-center gap-2 rounded-control border border-border bg-inlay px-3 py-1.5">
           <CalendarCheck
             className="size-3.5 text-muted-foreground"
             aria-hidden
@@ -111,10 +111,10 @@ export function PopulationScope({
       ) : null}
 
       {byScope || inclusions.length > 0 ? (
-        <div className="mt-4 rounded-xl border border-border bg-muted/20 p-4">
+        <div className="mt-4 rounded-surface border border-border bg-inlay p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-card text-muted-foreground">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-muted text-muted-foreground">
                 <Users2 className="size-4" aria-hidden />
               </span>
               <div className="min-w-0">
@@ -147,7 +147,7 @@ export function PopulationScope({
               {inclusions.map((candidate) => (
                 <li
                   key={candidate.employeeId}
-                  className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2"
+                  className="flex items-center gap-2.5 rounded-surface border border-border bg-card px-3 py-2"
                 >
                   <Avatar className="size-8 shrink-0">
                     <AvatarFallback className="text-[10px]">
@@ -171,7 +171,7 @@ export function PopulationScope({
                   <button
                     type="button"
                     onClick={() => onRemoveInclusion(candidate.employeeId)}
-                    className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-control-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     aria-label={`Remove ${candidate.displayName}`}
                   >
                     <X className="size-4" />
@@ -207,10 +207,10 @@ function ScopeTile({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        "group flex min-w-0 items-center gap-3 rounded-xl border px-4 py-4 text-left transition-colors sm:gap-4 sm:px-5",
+        "group flex min-w-0 items-center gap-3 rounded-surface border px-4 py-4 text-left transition-colors sm:gap-4 sm:px-5",
         selected
           ? "border-primary/80 bg-primary/[0.07] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_35%,transparent)]"
-          : "border-border bg-muted/20 hover:border-muted-foreground/30 hover:bg-muted/40"
+          : "border-border bg-inlay hover:border-muted-foreground/30 hover:bg-muted"
       )}
     >
       <span
@@ -226,7 +226,7 @@ function ScopeTile({
       </span>
       <span
         className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-xl transition-colors sm:size-12",
+          "flex size-10 shrink-0 items-center justify-center rounded-control transition-colors sm:size-12",
           selected
             ? "bg-primary/15 text-primary"
             : "bg-muted text-foreground/80"
@@ -238,7 +238,7 @@ function ScopeTile({
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="type-body font-semibold text-foreground">{title}</span>
           {recommended ? (
-            <span className="rounded-md bg-primary/15 px-2 py-0.5 type-meta font-medium text-primary">
+            <span className="rounded-control bg-primary/15 px-2 py-0.5 type-meta font-medium text-primary">
               Recommended
             </span>
           ) : null}

@@ -223,7 +223,7 @@ function ScopeOption({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2 rounded-lg py-2 pr-2 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex w-full items-center gap-2 rounded-inset py-2 pr-2 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active && "bg-primary/[0.10] text-foreground"
       )}
       style={{ paddingLeft: `${0.625 + depth * 1.25}rem` }}

@@ -165,7 +165,7 @@ function ReviewsCallout({ cycleId }: { cycleId: string }) {
   const top = reviews.data?.plans[0];
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <div className="flex flex-wrap items-center gap-4">
         <span className="type-metric text-foreground">{count}</span>
         <div className="min-w-0">
@@ -234,7 +234,7 @@ function MyPlanCallout({
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="min-w-0">
           <p className="type-eyebrow text-muted-foreground">My plan</p>
@@ -284,7 +284,7 @@ function AdminActiveCommand({ detail }: { detail: CycleDetailDto }) {
         </div>
 
         {detail.launchReadiness.blockers.length > 0 ? (
-          <div className="rounded-xl border border-warning/30 bg-warning-subtle p-3.5">
+          <div className="rounded-surface border border-warning/30 bg-warning-subtle p-3.5">
             <p className="flex items-center gap-1.5 text-sm font-medium text-warning">
               <AlertTriangle className="size-3.5" aria-hidden />
               Needs attention

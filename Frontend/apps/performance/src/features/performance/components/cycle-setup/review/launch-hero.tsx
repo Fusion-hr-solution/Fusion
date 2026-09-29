@@ -84,7 +84,7 @@ export function LaunchHero({
   return (
     <section
       className={cn(
-        "relative isolate overflow-hidden rounded-2xl border bg-[#0b0c10] text-white shadow-lg",
+        "relative isolate overflow-hidden rounded-surface border bg-[#0b0c10] text-white shadow-lg",
         ready ? "border-amber-400/35" : "border-amber-400/20"
       )}
     >

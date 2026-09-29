@@ -167,7 +167,7 @@ export function AddInclusionSheet({
               {tray.map((person) => (
                 <li
                   key={person.employeeId}
-                  className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 py-1 pl-3 pr-1.5"
+                  className="flex items-center gap-1.5 rounded-full border border-border bg-muted py-1 pl-3 pr-1.5"
                 >
                   <span className="type-meta text-foreground">
                     {person.displayName}
@@ -269,7 +269,7 @@ function ResultRow({
 
   if (disabled) {
     return (
-      <li className="flex items-center gap-3 rounded-lg px-3 py-2 opacity-60">
+      <li className="flex items-center gap-3 rounded-control px-3 py-2 opacity-60">
         {body}
         <Check className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       </li>
@@ -283,7 +283,7 @@ function ResultRow({
         onClick={onToggle}
         aria-pressed={selected}
         className={cn(
-          "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors",
+          "flex w-full items-center gap-3 rounded-control px-3 py-2 text-left transition-colors",
           selected
             ? "bg-primary/[0.06] ring-1 ring-primary/30"
             : "hover:bg-muted/50"
@@ -291,12 +291,12 @@ function ResultRow({
       >
         {body}
         {selected ? (
-          <span className="flex shrink-0 items-center gap-1 rounded-md bg-primary px-2 py-1 type-meta font-medium text-primary-foreground">
+          <span className="flex shrink-0 items-center gap-1 rounded-control bg-primary px-2 py-1 type-meta font-medium text-primary-foreground">
             <Check className="size-3.5" aria-hidden />
             Selected
           </span>
         ) : (
-          <span className="flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1 type-meta font-medium text-foreground">
+          <span className="flex shrink-0 items-center gap-1 rounded-control border border-border px-2 py-1 type-meta font-medium text-foreground">
             <Plus className="size-3.5" aria-hidden />
             Add
           </span>

@@ -163,11 +163,11 @@ export function FilteredObjectives({
       </div>
 
       {rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
+        <div className="rounded-surface border border-dashed p-10 text-center text-sm text-muted-foreground">
           No objectives match these filters.
         </div>
       ) : (
-        <div className="divide-y overflow-hidden rounded-2xl border">
+        <div className="divide-y overflow-hidden rounded-surface border">
           {rows.map((node) => (
             <ResultRow key={node.id} node={node} onInspect={onInspect} />
           ))}

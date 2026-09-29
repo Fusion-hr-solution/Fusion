@@ -52,8 +52,8 @@ export function ObjectiveContextPanel({
             </SheetHeader>
             <div className="space-y-4 p-6">
               <Skeleton className="h-6 w-2/3" />
-              <Skeleton className="h-24 w-full rounded-xl" />
-              <Skeleton className="h-40 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-surface" />
+              <Skeleton className="h-40 w-full rounded-surface" />
             </div>
           </>
         ) : (
@@ -111,7 +111,7 @@ function PanelBody({
       <div className="flex-1 space-y-6 p-6">
         {detail.description ? <p className="text-sm leading-relaxed text-muted-foreground">{detail.description}</p> : null}
 
-        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border bg-border">
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-surface border bg-border">
           <Field label="Accountable">
             <span className="flex items-center gap-2">
               <Avatar className="size-5"><AvatarFallback className="text-[9px]">{initials(detail.accountable.name)}</AvatarFallback></Avatar>
@@ -136,7 +136,7 @@ function PanelBody({
         {detail.children.length > 0 ? (
           <section className="space-y-2">
             <SectionLabel>Aligned objectives · {detail.children.length}</SectionLabel>
-            <div className="divide-y overflow-hidden rounded-2xl border">
+            <div className="divide-y overflow-hidden rounded-surface border">
               {detail.children.map((child) => (
                 <button
                   key={child.id}
@@ -160,7 +160,7 @@ function PanelBody({
 
       {/* Owner actions */}
       {isOrg && (detail.canEdit || detail.canPublish) ? (
-        <div className="sticky bottom-0 flex items-center justify-between gap-2 border-t bg-background p-4">
+        <div className="sticky bottom-0 flex items-center justify-between gap-2 border-t bg-popover p-4">
           <div className="flex gap-2">
             {detail.canEdit ? (
               <Button variant="outline" size="sm" onClick={onEdit}>Edit</Button>
@@ -239,7 +239,7 @@ function ContributionSection({
         <SectionLabel>
           <span className="inline-flex items-center gap-1.5"><Lock className="size-3.5" aria-hidden /> Contribution baseline</span>
         </SectionLabel>
-        <div className="space-y-1.5 rounded-2xl border border-success/30 bg-success-subtle p-4">
+        <div className="space-y-1.5 rounded-surface border border-success/30 bg-success-subtle p-4">
           {detail.contribution.map((link) => (
             <div key={link.childObjectiveId} className="flex items-center justify-between text-sm">
               <span className="truncate">{link.childTitle}</span>
@@ -259,7 +259,7 @@ function ContributionSection({
     return (
       <section className="space-y-2">
         <SectionLabel>Contribution baseline</SectionLabel>
-        <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+        <p className="rounded-surface border border-dashed p-4 text-sm text-muted-foreground">
           Create the contributing objectives beneath this one, then set how much each contributes.
         </p>
       </section>
@@ -271,7 +271,7 @@ function ContributionSection({
   return (
     <section className="space-y-3">
       <SectionLabel>Contribution baseline</SectionLabel>
-      <div className="space-y-3 rounded-2xl border p-4">
+      <div className="space-y-3 rounded-surface border p-4">
         <p className="text-xs text-muted-foreground">
           Set how much each aligned objective contributes. Aligned objectives with no weight support the direction but do not roll up.
         </p>

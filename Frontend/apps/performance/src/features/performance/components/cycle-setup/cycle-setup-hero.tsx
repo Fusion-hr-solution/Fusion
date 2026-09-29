@@ -13,7 +13,7 @@ const VALUES = [
  */
 export function CycleSetupHero() {
   return (
-    <section className="relative isolate overflow-hidden rounded-2xl border border-white/10 bg-[#0b0c10] text-white shadow-lg">
+    <section className="relative isolate overflow-hidden rounded-surface border border-white/10 bg-[#0b0c10] text-white shadow-lg">
       {/* warm summit glow */}
       <div
         aria-hidden
@@ -47,7 +47,7 @@ export function CycleSetupHero() {
           <ul className="mt-6 flex flex-row flex-wrap items-center gap-x-7 gap-y-3 sm:flex-nowrap">
             {VALUES.map((v) => (
               <li key={v.label} className="flex items-center gap-2.5">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-400/12 text-amber-400 ring-1 ring-inset ring-amber-400/20">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-amber-400/12 text-amber-400 ring-1 ring-inset ring-amber-400/20">
                   <v.icon className="size-4" aria-hidden />
                 </span>
                 <span className="whitespace-nowrap text-sm font-medium text-zinc-200">{v.label}</span>

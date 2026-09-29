@@ -22,7 +22,7 @@ export function PlanSubmissionChecks({ readiness }: { readiness: PlanReadinessDt
   const [open, setOpen] = useState(true);
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <p className="type-eyebrow text-muted-foreground">Submission checks</p>
 
       {allPassed ? (

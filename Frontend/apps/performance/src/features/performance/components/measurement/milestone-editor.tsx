@@ -96,7 +96,7 @@ export function MilestoneEditor({
     onChange((rows) => (rows.length > 1 ? rows.filter((row) => row.id !== id) : rows));
 
   return (
-    <div className="space-y-3 rounded-xl border border-border/70 bg-muted/30 p-4">
+    <div className="space-y-3 rounded-surface border border-border/70 p-4">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext
           items={milestones.map((row) => row.id)}
@@ -131,7 +131,7 @@ export function MilestoneEditor({
           </span>
           <span
             className={cn(
-              "min-w-[3.25rem] rounded-md px-2 py-0.5 text-center text-sm font-semibold tabular-nums transition-colors",
+              "min-w-[3.25rem] rounded-control px-2 py-0.5 text-center text-sm font-semibold tabular-nums transition-colors",
               ready
                 ? "bg-success-subtle text-success"
                 : over
@@ -172,13 +172,13 @@ function SortableMilestoneRow({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "flex items-center gap-2.5 rounded-lg",
+        "flex items-center gap-2.5 rounded-control",
         isDragging && "relative z-10 bg-card shadow-overlay"
       )}
     >
       <button
         type="button"
-        className="flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground/60 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
+        className="flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-control-sm text-muted-foreground/60 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
         aria-label={`Reorder milestone ${index + 1}`}
         {...attributes}
         {...listeners}

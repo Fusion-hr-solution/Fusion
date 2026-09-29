@@ -10,14 +10,14 @@ import type { SetupStep } from "./setup-readiness";
  */
 
 function Card({ className = "", children }: { className?: string; children: React.ReactNode }) {
-  return <div className={cn("rounded-2xl border border-border bg-card p-6 lg:p-7", className)}>{children}</div>;
+  return <div className={cn("rounded-surface border border-border bg-card p-6 lg:p-7", className)}>{children}</div>;
 }
 
 /** The Details step's card title: icon tile, serif title, caption. */
 function TitleBlock() {
   return (
     <div className="flex items-center gap-4">
-      <Skeleton className="size-12 shrink-0 rounded-xl" />
+      <Skeleton className="size-12 shrink-0 rounded-control" />
       <div className="flex-1 space-y-2">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-4 w-64 max-w-full" />
@@ -55,7 +55,7 @@ function HeroSkeleton({ tall = false }: { tall?: boolean }) {
   return (
     <div
       className={cn(
-        "relative rounded-2xl border border-white/10 bg-[#0b0c10] p-7 shadow-lg lg:p-9",
+        "relative rounded-surface border border-white/10 bg-[#0b0c10] p-7 shadow-lg lg:p-9",
         tall ? "min-h-60" : "min-h-44"
       )}
     >
@@ -78,7 +78,7 @@ function HeroSkeleton({ tall = false }: { tall?: boolean }) {
 /** Step 2's compact hero: copy on the left, tagline on the right. */
 function PopulationHeroSkeleton() {
   return (
-    <div className="flex items-center justify-between gap-8 rounded-2xl border border-white/10 bg-[#0b0c10] p-6 shadow-lg lg:p-7">
+    <div className="flex items-center justify-between gap-8 rounded-surface border border-white/10 bg-[#0b0c10] p-6 shadow-lg lg:p-7">
       <div className="w-full max-w-xl">
         <DarkBar className="h-3 w-44" />
         <DarkBar className="mt-2.5 h-7 w-72 max-w-full" />
@@ -131,8 +131,8 @@ export function DetailsStepSkeleton() {
         <Card className="flex flex-col">
           <TitleBlock />
           <div className="mt-6 grid grid-cols-2 gap-3">
-            <Skeleton className="h-24 rounded-xl" />
-            <Skeleton className="h-24 rounded-xl" />
+            <Skeleton className="h-24 rounded-surface" />
+            <Skeleton className="h-24 rounded-surface" />
           </div>
           <div className="mt-6 border-t border-border/70 pt-5">
             <Skeleton className="h-4 w-20" />
@@ -150,8 +150,8 @@ export function DetailsStepSkeleton() {
           </div>
           <div className="mt-auto space-y-2.5 border-t border-border/70 pt-5">
             <Skeleton className="h-3 w-16" />
-            <Skeleton className="h-16 rounded-xl" />
-            <Skeleton className="h-16 rounded-xl" />
+            <Skeleton className="h-16 rounded-surface" />
+            <Skeleton className="h-16 rounded-surface" />
           </div>
         </Card>
       </div>
@@ -172,12 +172,12 @@ export function PopulationStepSkeleton() {
 
       {/* 1 · Population scope */}
       <Card className="lg:p-6">
-        <NumberedHeading aside={<Skeleton className="hidden h-9 w-52 rounded-lg sm:block" />} />
+        <NumberedHeading aside={<Skeleton className="hidden h-9 w-52 rounded-control sm:block" />} />
         <div className="mt-5 grid gap-3 md:grid-cols-2">
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 rounded-xl border border-border px-5 py-4">
+            <div key={i} className="flex items-center gap-4 rounded-surface border border-border px-5 py-4">
               <Skeleton className="size-6 shrink-0 rounded-full" />
-              <Skeleton className="size-12 shrink-0 rounded-xl" />
+              <Skeleton className="size-12 shrink-0 rounded-control" />
               <div className="flex-1 space-y-2">
                 <Skeleton className="h-4 w-44 max-w-full" />
                 <Skeleton className="h-3.5 w-64 max-w-full" />
@@ -214,7 +214,7 @@ export function PopulationStepSkeleton() {
       <Card className="!p-0 overflow-hidden">
         <div className="space-y-4 p-5">
           <div className="flex items-start gap-3">
-            <Skeleton className="size-10 shrink-0 rounded-xl" />
+            <Skeleton className="size-10 shrink-0 rounded-control" />
             <div className="flex-1 space-y-1.5">
               <Skeleton className="h-5 w-36" />
               <Skeleton className="h-3 w-72 max-w-full" />
@@ -224,11 +224,11 @@ export function PopulationStepSkeleton() {
           <div className="flex flex-wrap items-center gap-2">
             <Skeleton className="h-9 w-full sm:w-96" />
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-8 w-24 rounded-lg" />
+              <Skeleton key={i} className="h-8 w-24 rounded-control" />
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-4 border-y border-border bg-muted/30 px-5 py-2.5">
+        <div className="flex items-center gap-4 border-y border-border bg-inlay px-5 py-2.5">
           <Skeleton className="size-4" />
           <Skeleton className="h-3 w-20" />
           <Skeleton className="ml-auto hidden h-3 w-24 md:block" />
@@ -271,7 +271,7 @@ export function ReviewBodySkeleton() {
         <Skeleton className="mt-2 h-4 w-80 max-w-full" />
         <div className="mt-5 space-y-4">
           {[3, 2, 4].map((facts, i) => (
-            <div key={i} className="@container rounded-xl border border-border p-4 sm:p-5">
+            <div key={i} className="@container rounded-surface border border-border p-4 sm:p-5">
               <div className="flex items-start gap-4">
                 <Skeleton className="size-11 shrink-0 rounded-full sm:size-12" />
                 <div className="flex-1 space-y-2 pt-1">
@@ -296,7 +296,7 @@ export function ReviewBodySkeleton() {
                   </div>
                 ))}
               </div>
-              {facts === 2 ? <Skeleton className="mt-4 h-16 rounded-xl" /> : null}
+              {facts === 2 ? <Skeleton className="mt-4 h-16 rounded-surface" /> : null}
             </div>
           ))}
         </div>
@@ -311,7 +311,7 @@ export function ReviewBodySkeleton() {
             </div>
           ))}
         </Card>
-        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-32 rounded-surface" />
       </div>
     </div>
   );
@@ -385,7 +385,7 @@ export function CycleSurfaceSkeleton() {
             </div>
           ))}
         </div>
-        <Skeleton className="h-48 w-full rounded-2xl" />
+        <Skeleton className="h-48 w-full rounded-surface" />
       </div>
     </PageContainer>
   );

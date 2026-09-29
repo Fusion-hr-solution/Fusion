@@ -67,7 +67,7 @@ export function EvidenceUploader({
       {items.length > 0 ? (
         <ul className="space-y-1.5">
           {items.map((item, index) => (
-            <li key={index} className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+            <li key={index} className="flex items-center gap-2 rounded-control border px-3 py-2 text-sm">
               {item.kind === "File" ? <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden /> : null}
               {item.kind === "Link" ? <Link2 className="size-4 shrink-0 text-muted-foreground" aria-hidden /> : null}
               {item.kind === "Reference" ? <Type className="size-4 shrink-0 text-muted-foreground" aria-hidden /> : null}
@@ -125,7 +125,7 @@ export function EvidenceUploader({
       ) : null}
 
       {mode === "link" ? (
-        <div className="space-y-2 rounded-lg border p-3">
+        <div className="space-y-2 rounded-surface border p-3">
           <Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://…" autoFocus />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => setMode("none")}>Cancel</Button>

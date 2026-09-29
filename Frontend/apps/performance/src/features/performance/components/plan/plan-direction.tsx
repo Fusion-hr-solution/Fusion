@@ -75,7 +75,7 @@ export function PlanDirection({
   const goalsLink = canViewOrgGoals ? (
     <Link
       href="/goals"
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:ml-auto"
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-control border border-border bg-transparent dark:bg-input/30 px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:ml-auto"
     >
       View in Goals
       <ArrowUpRight className="size-3.5" aria-hidden />
@@ -86,7 +86,7 @@ export function PlanDirection({
   // radius, padding) as the full banner so heights stay in the same family, without a direction mark.
   if (!leading) {
     return (
-      <section className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl border border-border bg-card px-4 py-3">
+      <section className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-surface border border-border bg-card px-4 py-3">
         {reviewer}
         {goalsLink}
       </section>

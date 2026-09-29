@@ -93,7 +93,7 @@ export function PlanSubmissionStatus({ plan }: { plan: EmployeePlanDto }) {
   ];
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <p className="type-eyebrow text-muted-foreground">Submission status</p>
       <ol className="mt-4">
         {steps.map((step, index) => (

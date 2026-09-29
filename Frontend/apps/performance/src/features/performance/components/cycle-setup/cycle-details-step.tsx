@@ -173,7 +173,7 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
     <div>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
         {/* main form card */}
-        <section className="flex flex-col rounded-2xl border border-border bg-card p-6 lg:p-8">
+        <section className="flex flex-col rounded-surface border border-border bg-card p-6 lg:p-8">
           <CardTitle icon={FileText} title="Cycle details" caption="Give your performance cycle a clear name and timeline." />
 
           <div className="mt-7 space-y-6">
@@ -282,7 +282,7 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
         </section>
 
         {/* live summary aside */}
-        <aside className="flex flex-col rounded-2xl border border-border bg-card p-6 lg:p-7">
+        <aside className="flex flex-col rounded-surface border border-border bg-card p-6 lg:p-7">
           <CardTitle icon={Clock} title="At a glance" caption="Key details for this performance cycle." compact />
 
           <div className="mt-6 grid grid-cols-2 gap-3">
@@ -337,7 +337,7 @@ function CardTitle({
     <div className="flex items-center gap-4">
       <span
         className={cn(
-          "flex shrink-0 items-center justify-center rounded-xl bg-primary/12 text-primary ring-1 ring-inset ring-primary/20",
+          "flex shrink-0 items-center justify-center rounded-control bg-primary/12 text-primary ring-1 ring-inset ring-primary/20",
           compact ? "size-11" : "size-12",
         )}
       >
@@ -405,7 +405,7 @@ function Metric({
   label: string;
 }) {
   return (
-    <div className="min-w-0 rounded-xl border border-border bg-muted/20 px-4 py-3.5">
+    <div className="min-w-0 rounded-surface border border-border bg-inlay px-4 py-3.5">
       <p className="flex items-baseline gap-1.5 whitespace-nowrap">
         <span className="type-display tabular-nums text-primary">{value}</span>
         {unit ? <span className="type-body-secondary text-foreground/80">{unit}</span> : null}
@@ -430,7 +430,7 @@ function UpNext({
   caption: string;
 }) {
   return (
-    <li className="flex items-center gap-3.5 rounded-xl border border-border bg-muted/20 px-4 py-3">
+    <li className="flex items-center gap-3.5 rounded-surface border border-border bg-inlay px-4 py-3">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
         <Icon className="size-4" aria-hidden />
       </span>

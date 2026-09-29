@@ -27,7 +27,7 @@ export function PlanProgressCard({
 
   if (!anyProgress) {
     return (
-      <section className="rounded-2xl border border-border bg-card p-5">
+      <section className="rounded-surface border border-border bg-card p-5">
         <p className="type-eyebrow text-muted-foreground">Plan progress</p>
         <div className="mt-4 flex flex-col items-center text-center">
           <AllocationGauge
@@ -47,7 +47,7 @@ export function PlanProgressCard({
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <p className="type-eyebrow text-muted-foreground">Plan progress</p>
       <div className="mt-4 flex flex-col items-center text-center">
         <AllocationGauge
@@ -66,7 +66,7 @@ export function PlanProgressCard({
           const tone = objectiveProgressTone(objective.isAligned, objective.derivedProgress);
           return (
             <li key={objective.id} className="flex items-center gap-3">
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-border bg-muted/50 text-[0.6875rem] font-semibold tabular-nums text-muted-foreground">
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-control-sm border border-border bg-inlay text-[0.6875rem] font-semibold tabular-nums text-muted-foreground">
                 {String(index + 1).padStart(2, "0")}
               </span>
               <div className="min-w-0 flex-1">

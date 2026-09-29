@@ -25,7 +25,7 @@ export function PlanBanner({
   return (
     <section
       className={cn(
-        "flex flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl border border-border bg-card px-4 py-3",
+        "flex flex-wrap items-center gap-x-6 gap-y-4 rounded-surface border border-border bg-card px-4 py-3",
         className
       )}
     >
@@ -46,7 +46,7 @@ export function PlanBannerMark({ className, children }: { className?: string; ch
   return (
     <span
       className={cn(
-        "flex size-11 shrink-0 items-center justify-center rounded-xl ring-1",
+        "flex size-11 shrink-0 items-center justify-center rounded-control ring-1",
         className
       )}
     >

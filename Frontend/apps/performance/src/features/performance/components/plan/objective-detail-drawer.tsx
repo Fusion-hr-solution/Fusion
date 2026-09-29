@@ -133,7 +133,7 @@ function DrawerLoading() {
         <SheetTitle className="sr-only">Objective details</SheetTitle>
         <SheetDescription className="sr-only">Loading objective details.</SheetDescription>
         <div className="flex items-start gap-3.5">
-          <Skeleton className="size-10 shrink-0 rounded-lg" />
+          <Skeleton className="size-10 shrink-0 rounded-control" />
           <div className="w-full space-y-2">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-3 w-40" />
@@ -141,9 +141,9 @@ function DrawerLoading() {
         </div>
       </div>
       <div className="space-y-4 px-5 py-5">
-        <Skeleton className="h-16 w-full rounded-xl" />
-        <Skeleton className="h-32 w-full rounded-2xl" />
-        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-16 w-full rounded-surface" />
+        <Skeleton className="h-32 w-full rounded-surface" />
+        <Skeleton className="h-28 w-full rounded-surface" />
       </div>
     </>
   );
@@ -220,9 +220,9 @@ function ObjectiveDetailBody({
 
         <Section label="Alignment">
           {objective.isAligned && parentTitle ? (
-            <div className="rounded-xl border border-border bg-muted/40 p-4">
+            <div className="rounded-surface border border-border p-4">
               <div className="flex items-start gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/20">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary ring-1 ring-primary/20">
                   <ScopeMark className="size-6" />
                 </span>
                 <div className="min-w-0">
@@ -270,7 +270,7 @@ function ObjectiveDetailBody({
           {measurement?.method === "NumericTarget" ? <NumericTargetStrip measurement={measurement} /> : null}
 
           {measurement?.method === "WeightedMilestones" && measurement.milestones.length > 0 ? (
-            <ul className="mt-3 space-y-2 rounded-xl border border-border bg-muted/40 px-3.5 py-3">
+            <ul className="mt-3 space-y-2 rounded-surface border border-border px-3.5 py-3">
               {measurement.milestones.map((m) => (
                 <li key={m.id} className="flex items-center gap-2.5 text-sm">
                   <Flag className="size-3.5 shrink-0 text-muted-foreground/70" aria-hidden />
@@ -346,7 +346,7 @@ function DrawerHeader({
   return (
     <div className="border-b border-border px-5 pb-4 pt-5 pr-12">
       <div className="flex items-start gap-3.5">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/[0.06] text-base font-semibold tabular-nums text-primary">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-control border border-primary/25 bg-primary/[0.06] text-base font-semibold tabular-nums text-primary">
           {String(index + 1).padStart(2, "0")}
         </span>
         <div className="min-w-0">
@@ -443,7 +443,7 @@ function RecordProgressBody({
       </div>
 
       {/* Pinned footer — the two terminal actions sit at the drawer's base, not at the end of the content. */}
-      <div className="flex items-center justify-between gap-3 border-t border-border bg-background px-5 py-3.5">
+      <div className="flex items-center justify-between gap-3 border-t border-border bg-popover px-5 py-3.5">
         <Button type="button" variant="outline" onClick={onBack}>
           Cancel
         </Button>
@@ -503,7 +503,7 @@ function RecordMeasurementCard({ measurement }: { measurement: MeasurementDto | 
 /** The read-only numeric target line — baseline → target with the improvement direction, shared by both measurement cards. */
 function NumericTargetStrip({ measurement }: { measurement: MeasurementDto }) {
   return (
-    <div className="mt-3 rounded-xl border border-border bg-muted/40 px-3.5 py-3">
+    <div className="mt-3 rounded-surface border border-border px-3.5 py-3">
       <p className="type-eyebrow text-muted-foreground">Target</p>
       <p className="mt-1 inline-flex items-center gap-1.5 text-sm tabular-nums text-foreground">
         {formatMeasureValue(measurement.baseline, measurement.unit)}
@@ -575,7 +575,7 @@ function ProgressSections({
           {has ? (
             <DerivedCard derived={objective.derivedProgress} subtitle={subtitle} />
           ) : (
-            <div className="flex items-center gap-3.5 rounded-xl border border-border bg-muted/25 p-4">
+            <div className="flex items-center gap-3.5 rounded-surface border border-border p-4">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground/60">
                 <Minus className="size-5" aria-hidden />
               </span>
@@ -636,9 +636,9 @@ function Card({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col rounded-2xl border border-border bg-card p-4">
+    <section className="flex flex-col rounded-surface border border-border bg-card p-4">
       <div className="flex items-start gap-3">
-        <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl ring-1", iconTint)}>
+        <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-control ring-1", iconTint)}>
           {icon}
         </span>
         <div className="min-w-0">
@@ -659,14 +659,14 @@ function Card({
 function MiniFact({ icon, label, value, dense }: { icon: ReactNode; label: string; value: string; dense?: boolean }) {
   if (dense) {
     return (
-      <div className="rounded-xl border border-border bg-muted/40 p-3">
+      <div className="rounded-surface border border-border p-3">
         <p className="type-eyebrow text-muted-foreground">{label}</p>
         <p className="mt-1.5 text-sm font-medium leading-snug text-foreground">{value}</p>
       </div>
     );
   }
   return (
-    <div className="rounded-xl border border-border bg-muted/40 p-3.5">
+    <div className="rounded-surface border border-border p-3.5">
       <div className="flex items-start gap-2.5">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
           {icon}

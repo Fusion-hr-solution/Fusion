@@ -39,7 +39,7 @@ export function PlanApprovedStatus({
         : "This is now your locked baseline.";
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <div className="flex items-start gap-3.5">
         <PlanBannerMark className="text-success bg-success/12 ring-success/20">
           <Check className="size-5" aria-hidden />

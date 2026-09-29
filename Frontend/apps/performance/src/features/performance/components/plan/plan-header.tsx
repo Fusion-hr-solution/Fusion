@@ -44,7 +44,7 @@ export function NotStartedBadge() {
 export function PlanReviewerCard({ plan }: { plan: EmployeePlanDto }) {
   const reviewer = plan.responsibleManager?.name ?? "your manager";
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-3.5 py-2.5">
+    <div className="flex items-center gap-3 rounded-surface border border-border bg-card px-3.5 py-2.5">
       <Avatar className="size-9">
         <AvatarFallback className="text-xs">{initials(reviewer)}</AvatarFallback>
       </Avatar>

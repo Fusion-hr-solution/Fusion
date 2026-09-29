@@ -45,9 +45,9 @@ export function CompanyComposerHost({
         <DialogContent className="sm:max-w-3xl">
           <DialogTitle>Opening objective…</DialogTitle>
           <div className="mt-4 space-y-3" aria-hidden>
-            <div className="h-9 animate-pulse rounded-lg bg-muted" />
-            <div className="h-24 animate-pulse rounded-lg bg-muted" />
-            <div className="h-24 animate-pulse rounded-lg bg-muted" />
+            <div className="h-9 animate-pulse rounded-control bg-muted" />
+            <div className="h-24 animate-pulse rounded-surface bg-muted" />
+            <div className="h-24 animate-pulse rounded-surface bg-muted" />
           </div>
         </DialogContent>
       </Dialog>

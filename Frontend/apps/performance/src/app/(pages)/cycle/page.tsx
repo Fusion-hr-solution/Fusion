@@ -63,7 +63,7 @@ export default function CyclePage() {
       <div className="space-y-8">
         <MilestoneRail milestones={cycleDetail.milestones} />
         {/* Population read-only surface temporarily stubbed while the population UI is rebuilt. */}
-        <div className="flex min-h-48 items-center justify-center rounded-2xl border border-dashed border-border bg-muted/20 p-10 text-center">
+        <div className="flex min-h-48 items-center justify-center rounded-surface border border-dashed border-border p-10 text-center">
           <p className="type-body-secondary text-muted-foreground">
             Population summary — building next.
           </p>
