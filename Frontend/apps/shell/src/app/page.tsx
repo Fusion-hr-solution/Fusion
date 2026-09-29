@@ -30,7 +30,7 @@ export default function HomePage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-xl items-center px-6 py-16">
-      <section className="w-full rounded-xl border bg-card p-8 text-card-foreground">
+      <section className="w-full rounded-surface border bg-card p-8 text-card-foreground">
         <p className="text-sm font-medium text-muted-foreground">Fusion account</p>
         <h1 className="mt-2 text-2xl font-semibold">No workspace is available</h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
@@ -39,7 +39,7 @@ export default function HomePage() {
         </p>
         <button
           type="button"
-          className="mt-6 rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="mt-6 rounded-control border px-4 py-2 text-sm font-medium hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           onClick={async () => {
             await logout();
             window.location.assign("/auth/signin");
@@ -59,7 +59,7 @@ function ShellEntrySkeleton() {
       aria-busy="true"
       aria-label="Opening your Fusion workspace"
     >
-      <div className="h-48 w-full animate-pulse rounded-xl bg-muted" />
+      <div className="h-48 w-full animate-pulse rounded-surface bg-muted" />
     </main>
   );
 }
