@@ -29,7 +29,9 @@ import { StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import {
   CalendarDays,
+  ArrowRight,
   ChartColumn,
+  Compass,
   ChevronRight,
   CornerLeftUp,
   Eye,
@@ -848,26 +850,7 @@ function TeamObjectives({
         </div>
       </div>
       {items.length === 0 ? (
-        <div className="mt-5 rounded-xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center">
-          <Target
-            className="mx-auto size-8 text-muted-foreground"
-            aria-hidden
-          />
-          <h3 className="mt-3 text-base font-semibold text-foreground">
-            No team objectives yet
-          </h3>
-          <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
-            Create an objective to define what the team will deliver this cycle.
-          </p>
-          <Button
-            variant="outline"
-            className="mt-4"
-            onClick={onCreate}
-            disabled={!canCreate}
-          >
-            Create your team objective
-          </Button>
-        </div>
+        <TeamObjectivesEmpty canCreate={canCreate} onCreate={onCreate} />
       ) : visible.length === 0 ? (
         <div className="mt-5 rounded-xl bg-muted/30 px-6 py-8 text-center">
           <p className="text-sm font-medium text-foreground">
@@ -901,6 +884,100 @@ function TeamObjectives({
         </div>
       )}
     </section>
+  );
+}
+
+/** First-objective invitation: an orbiting target emblem, the CTA, and the three steps it starts. */
+function TeamObjectivesEmpty({
+  canCreate,
+  onCreate,
+}: {
+  canCreate: boolean;
+  onCreate: () => void;
+}) {
+  const steps = [
+    { icon: <Compass aria-hidden />, label: "Set direction" },
+    { icon: <Waypoints aria-hidden />, label: "Choose alignment" },
+    { icon: <ChartColumn aria-hidden />, label: "Track progress" },
+  ];
+  return (
+    <div className="relative mt-5 overflow-hidden rounded-xl border border-border bg-background px-6 pb-8 pt-10 text-center">
+      {/* Horizon glow behind the emblem. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-[88px] h-[420px] w-[720px] -translate-x-1/2 rounded-[50%] border-t border-primary/25 bg-[radial-gradient(ellipse_at_top,var(--primary)_0%,transparent_45%)] opacity-[0.14]"
+      />
+      <EmptyOrbit />
+      <div className="relative mx-auto flex size-[72px] items-center justify-center rounded-full border border-primary/40 bg-primary/10 shadow-[0_0_32px_-8px_var(--primary)]">
+        <Target
+          className="size-9 text-primary"
+          strokeWidth={1.75}
+          aria-hidden
+        />
+        <Flag
+          className="absolute -right-2 -top-3 size-6 rotate-12 fill-primary/80 text-primary"
+          aria-hidden
+        />
+      </div>
+      <h3 className="relative mt-6 text-2xl font-semibold tracking-tight text-foreground">
+        No team objectives yet
+      </h3>
+      <p className="relative mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+        Create an objective to define what the team will deliver this cycle.
+      </p>
+      <Button
+        onClick={onCreate}
+        disabled={!canCreate}
+        className="relative mt-6 h-10 px-5 shadow-[0_0_24px_-8px_var(--primary)]"
+      >
+        Create your team objective
+        <ArrowRight className="size-4" data-icon="inline-end" aria-hidden />
+      </Button>
+      <ol className="relative mt-7 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
+        {steps.map((step, i) => (
+          <li key={step.label} className="flex items-center gap-3">
+            {i > 0 ? (
+              <span
+                aria-hidden
+                className="hidden h-4 w-px bg-border sm:block"
+              />
+            ) : null}
+            <span className="inline-flex items-center gap-2.5 rounded-lg border border-border bg-muted/30 py-1.5 pl-1.5 pr-3.5 text-sm text-foreground">
+              <span className="flex size-7 items-center justify-center rounded-md bg-primary/10 text-primary [&_svg]:size-4">
+                {step.icon}
+              </span>
+              {step.label}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/** Dashed orbits and drifting dots framing the emblem. */
+function EmptyOrbit() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 400 120"
+      className="pointer-events-none absolute left-1/2 top-3 w-[420px] max-w-[90%] -translate-x-1/2 overflow-visible"
+    >
+      <path
+        d="M 40 118 C 90 10, 310 10, 360 118"
+        className="fill-none stroke-muted-foreground/25"
+        strokeDasharray="3 5"
+      />
+      <path
+        d="M 80 118 C 120 40, 280 40, 320 118"
+        className="fill-none stroke-muted-foreground/20"
+        strokeDasharray="3 5"
+      />
+      <circle cx="120" cy="36" r="3.5" className="fill-primary" />
+      <circle cx="292" cy="38" r="3" className="fill-muted-foreground/50" />
+      <circle cx="74" cy="72" r="2.5" className="fill-muted-foreground/40" />
+      <circle cx="318" cy="66" r="2.5" className="fill-primary/70" />
+    </svg>
   );
 }
 
