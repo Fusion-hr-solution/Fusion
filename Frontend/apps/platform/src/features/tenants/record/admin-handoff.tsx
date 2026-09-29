@@ -46,7 +46,7 @@ export function AdminHandoff() {
   const person = handoffPerson(tenant, continuity);
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <div className="flex items-center gap-3">
         <UsersRound
           aria-hidden="true"
@@ -62,7 +62,7 @@ export function AdminHandoff() {
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-4 rounded-xl border border-border bg-background px-4 py-3.5">
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-4 rounded-surface border border-border bg-inlay px-4 py-3.5">
         <div className="flex min-w-0 items-center gap-3">
           <PersonAvatar identity={person.identity} />
           <div className="min-w-0">

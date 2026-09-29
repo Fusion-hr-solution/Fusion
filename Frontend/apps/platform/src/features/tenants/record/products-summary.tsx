@@ -84,7 +84,7 @@ export function TenantProducts() {
   });
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <div className="flex flex-wrap items-center gap-3">
         <Layers aria-hidden="true" className="size-8 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
@@ -101,7 +101,7 @@ export function TenantProducts() {
         </Button>
       </div>
 
-      <ul className="mt-4 divide-y divide-border overflow-hidden rounded-xl border border-border bg-background">
+      <ul className="mt-4 divide-y divide-border overflow-hidden rounded-surface border border-border bg-inlay">
         {rows.map((row) => (
           <li key={row.key} className="flex items-center gap-4 px-4 py-3">
             <row.icon

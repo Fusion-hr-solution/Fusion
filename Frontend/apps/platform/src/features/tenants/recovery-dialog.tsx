@@ -116,7 +116,7 @@ export function ConfirmRecoveryDialog({
 
         {/* The address the action acts on, stated where the decision is made
             rather than left to be remembered from the surface behind. */}
-        <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+        <div className="rounded-control border border-border px-3 py-2 text-sm">
           <span className="text-muted-foreground">
             {/* Revoking sends nothing, so it names the invitation rather than
                 claiming a destination. */}

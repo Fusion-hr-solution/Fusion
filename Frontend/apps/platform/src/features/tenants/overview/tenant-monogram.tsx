@@ -57,7 +57,7 @@ export function TenantMonogram({
       // Decorative: the tenant's name sits beside it in full.
       aria-hidden="true"
       className={cn(
-        "flex size-9 shrink-0 select-none items-center justify-center rounded-lg text-xs font-semibold tracking-wide",
+        "flex size-9 shrink-0 select-none items-center justify-center rounded-control text-xs font-semibold tracking-wide",
         tintFor(name),
         className
       )}

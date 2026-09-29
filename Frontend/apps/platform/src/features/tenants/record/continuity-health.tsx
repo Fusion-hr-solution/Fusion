@@ -67,7 +67,7 @@ export function ContinuityHealth({ tenantId }: { tenantId: string }) {
           </div>
 
           {needsRecovery ? (
-            <div className="space-y-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
+            <div className="space-y-3 rounded-surface border border-destructive/40 bg-destructive/5 p-4">
               <div>
                 <p className="font-medium">Administrator recovery required</p>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -81,7 +81,7 @@ export function ContinuityHealth({ tenantId }: { tenantId: string }) {
           ) : null}
 
           {data.latestRecoveryAttempt ? (
-            <div className="rounded-lg border p-4 text-sm">
+            <div className="rounded-surface border p-4 text-sm">
               <p className="font-medium">
                 {data.recoveryStatus === "Completed"
                   ? "Recovery completed"

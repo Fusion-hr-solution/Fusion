@@ -46,7 +46,7 @@ export function ModuleGrid({
     return (
       <div className="grid gap-2.5 sm:grid-cols-2">
         {Array.from({ length: 6 }).map((_, index) => (
-          <Skeleton key={index} className="h-[86px] rounded-xl" />
+          <Skeleton key={index} className="h-[86px] rounded-surface" />
         ))}
       </div>
     );
@@ -57,7 +57,7 @@ export function ModuleGrid({
   // entitlements the tenant will not actually have.
   if (error) {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-border px-4 py-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-surface border border-dashed border-border px-4 py-5">
         <p className="text-sm text-muted-foreground">
           Module entitlements could not be loaded, so a tenant cannot be
           provisioned yet.
@@ -102,7 +102,7 @@ function ModuleCard({
   return (
     <li
       className={cn(
-        "relative flex items-start gap-3 rounded-xl border p-3.5 transition-colors",
+        "relative flex items-start gap-3 rounded-surface border p-3.5 transition-colors",
         isSelectable && "cursor-pointer",
         isSelectable && isSelected
           ? "border-primary bg-primary/[0.05] inset-ring-1 inset-ring-primary/40"
@@ -110,7 +110,7 @@ function ModuleCard({
         isSelectable && !isSelected && "hover:border-foreground/25 hover:bg-foreground/[0.03]",
         // Unavailable stays legible rather than greyed into unreadability: the
         // operator still needs to know the module exists.
-        isUnavailable && "border-dashed bg-muted/30"
+        isUnavailable && "border-dashed"
       )}
     >
       {/* The whole card is the target, as a label rather than a click handler.
@@ -119,14 +119,14 @@ function ModuleCard({
           which bubbled straight back into the row and toggled again, forever.
           A label forwards natively and cannot feed itself. */}
       {isSelectable ? (
-        <label htmlFor={inputId} className="absolute inset-0 cursor-pointer rounded-xl">
+        <label htmlFor={inputId} className="absolute inset-0 cursor-pointer rounded-surface">
           <span className="sr-only">{option.label}</span>
         </label>
       ) : null}
 
       <span
         className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-lg",
+          "flex size-9 shrink-0 items-center justify-center rounded-control",
           option.availability === "included"
             ? "bg-primary/15 text-primary"
             : isSelected
@@ -212,7 +212,7 @@ function ModuleState({
             // Nothing to activate — it exists to carry the explanation to a
             // pointer and to the keyboard alike.
             onClick={(event) => event.preventDefault()}
-            className="shrink-0 cursor-default whitespace-nowrap rounded-sm text-xs text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="shrink-0 cursor-default whitespace-nowrap rounded-control text-xs text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             {UNAVAILABLE_EXPLANATION}
           </button>

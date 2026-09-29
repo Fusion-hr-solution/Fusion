@@ -172,7 +172,7 @@ function RecordHeader({ tenant }: { tenant: TenantDetail }) {
     <header className="mb-6 flex min-w-0 items-center gap-4 sm:gap-5">
       <TenantMonogram
         name={tenant.name}
-        className="size-14 rounded-xl text-base sm:size-16 sm:text-lg"
+        className="size-14 rounded-surface text-base sm:size-16 sm:text-lg"
       />
 
       <div className="min-w-0 flex-1">
@@ -355,7 +355,7 @@ function TenantKey({ slug }: { slug: string }) {
             type="button"
             onClick={copy}
             aria-label={copied ? "Tenant key copied" : `Copy tenant key ${slug}`}
-            className="group -ml-1 inline-flex min-h-7 items-center gap-1.5 rounded-md px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
+            className="group -ml-1 inline-flex min-h-7 items-center gap-1.5 rounded-control px-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
           >
             <span className="font-mono">{slug}</span>
             {copied ? (
@@ -419,7 +419,7 @@ function RecordNavigation({
                 aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "-mb-px inline-flex items-center whitespace-nowrap border-b-2 py-3 text-sm transition-colors motion-reduce:transition-none",
-                  "focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                  "focus-visible:rounded-control focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
                   isActive
                     ? "border-primary font-semibold text-foreground"
                     : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
@@ -472,7 +472,7 @@ export function TenantIdentifier({
               type="button"
               onClick={copy}
               aria-label={copied ? "Tenant ID copied" : `Copy tenant ID ${tenantId}`}
-              className="inline-flex min-h-7 min-w-7 items-center gap-1.5 rounded-sm px-1 font-mono text-xs text-foreground transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
+              className="inline-flex min-h-7 min-w-7 items-center gap-1.5 rounded-control px-1 font-mono text-xs text-foreground transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
             >
               {shortened}
               {copied ? (
@@ -534,7 +534,7 @@ function RecordSkeleton() {
   return (
     <div aria-busy aria-label="Loading tenant">
       <div className="mb-6 flex items-center gap-5">
-        <Skeleton className="size-16 shrink-0 rounded-xl" />
+        <Skeleton className="size-16 shrink-0 rounded-surface" />
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-3">
             <Skeleton className="h-9 w-64" />
@@ -542,7 +542,7 @@ function RecordSkeleton() {
           </div>
           <Skeleton className="mt-2 h-4 w-32" />
         </div>
-        <Skeleton className="size-9 shrink-0 self-start rounded-md" />
+        <Skeleton className="size-9 shrink-0 self-start rounded-control" />
       </div>
 
       <div className="mb-6 flex gap-7 border-b border-border pb-3">
@@ -557,7 +557,7 @@ function RecordSkeleton() {
           content lands in place without a reflow. */}
       <div className="space-y-5">
         {/* Lifecycle banner */}
-        <div className="flex items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4">
+        <div className="flex items-center gap-4 rounded-surface border border-border bg-card px-5 py-4">
           <Skeleton className="size-10 shrink-0 rounded-full" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-4 w-32" />
@@ -592,12 +592,12 @@ function SkeletonCardHeader({
 }) {
   return (
     <div className="flex items-center gap-3">
-      <Skeleton className="size-8 shrink-0 rounded-lg" />
+      <Skeleton className="size-8 shrink-0 rounded-control" />
       <div className="min-w-0 flex-1 space-y-1.5">
         <Skeleton className={cn("h-4", titleWidth)} />
         {subtitleWidth ? <Skeleton className={cn("h-3.5", subtitleWidth)} /> : null}
       </div>
-      {action ? <Skeleton className="h-8 w-24 shrink-0 rounded-md" /> : null}
+      {action ? <Skeleton className="h-8 w-24 shrink-0 rounded-control" /> : null}
     </div>
   );
 }
@@ -605,9 +605,9 @@ function SkeletonCardHeader({
 /** Administrative handoff: header, then the person / status / action strip. */
 function HandoffSkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="rounded-surface border border-border bg-card p-5">
       <SkeletonCardHeader titleWidth="w-40" subtitleWidth="w-64" />
-      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-4 rounded-xl border border-border bg-background px-4 py-3.5">
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-4 rounded-surface border border-border bg-inlay px-4 py-3.5">
         <div className="flex min-w-0 items-center gap-3">
           <Skeleton className="size-10 shrink-0 rounded-full" />
           <div className="space-y-1.5">
@@ -619,7 +619,7 @@ function HandoffSkeleton() {
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-3 w-24" />
         </div>
-        <Skeleton className="ml-auto h-8 w-32 rounded-md" />
+        <Skeleton className="ml-auto h-8 w-32 rounded-control" />
       </div>
     </div>
   );
@@ -628,12 +628,12 @@ function HandoffSkeleton() {
 /** Products: header with a trailing button, then six catalogue rows. */
 function ProductsSkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="rounded-surface border border-border bg-card p-5">
       <SkeletonCardHeader titleWidth="w-24" subtitleWidth="w-48" action />
-      <ul className="mt-4 divide-y divide-border overflow-hidden rounded-xl border border-border bg-background">
+      <ul className="mt-4 divide-y divide-border overflow-hidden rounded-surface border border-border bg-inlay">
         {Array.from({ length: 6 }).map((_, index) => (
           <li key={index} className="flex items-center gap-4 px-4 py-3">
-            <Skeleton className="size-5 shrink-0 rounded" />
+            <Skeleton className="size-5 shrink-0 rounded-detail" />
             <Skeleton className="h-4 w-28" />
             <Skeleton className="ml-auto h-5 w-20 rounded-full" />
           </li>
@@ -646,7 +646,7 @@ function ProductsSkeleton() {
 /** Tenant profile: header with an Edit button, then four label / value rows. */
 function ProfileSkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="rounded-surface border border-border bg-card p-5">
       <SkeletonCardHeader titleWidth="w-28" action />
       <div className="mt-4 divide-y divide-border">
         {Array.from({ length: 4 }).map((_, index) => (
@@ -666,7 +666,7 @@ function ProfileSkeleton() {
 /** Recent activity: header with a link, then four timeline entries. */
 function ActivitySkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
+    <div className="rounded-surface border border-border bg-card p-5">
       <SkeletonCardHeader titleWidth="w-28" action />
       <ol className="mt-4 space-y-5">
         {Array.from({ length: 4 }).map((_, index) => (

@@ -199,9 +199,9 @@ export function ReviewStep({
       </div>
 
       <aside className="lg:sticky lg:top-6 lg:self-start">
-        <div className="space-y-6 rounded-2xl border border-border bg-card p-6">
+        <div className="space-y-6 rounded-surface border border-border bg-card p-6">
           <div className="flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary">
               {canProvision ? (
                 <CheckCircle2 aria-hidden="true" className="size-5" />
               ) : (
@@ -315,10 +315,10 @@ function SummaryCard({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-card p-6">
+    <section className="rounded-surface border border-border bg-card p-6">
       <header className="mb-5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary">
             <Icon aria-hidden={true} className="size-5" />
           </span>
           <h3 className="type-section-title text-foreground">{title}</h3>
@@ -372,8 +372,8 @@ function SummaryTile({
   detail: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 p-3">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+    <div className="flex items-start gap-3 rounded-surface border border-border bg-inlay p-3">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary">
         <Icon aria-hidden={true} className="size-4" />
       </span>
       <div className="min-w-0">
@@ -407,7 +407,7 @@ function ProductChip({
   return (
     <div
       className={cn(
-        "rounded-xl border p-3",
+        "rounded-surface border p-3",
         included
           ? "border-primary/60 bg-primary/[0.06]"
           : enabled

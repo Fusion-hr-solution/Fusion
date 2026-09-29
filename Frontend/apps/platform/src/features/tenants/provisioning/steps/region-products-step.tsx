@@ -186,8 +186,8 @@ function IncludedModuleCard({ option }: { option: ProvisioningModuleOption }) {
   const Icon = option.icon;
 
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-primary/60 bg-primary/[0.06] p-4">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+    <div className="flex items-start gap-3 rounded-surface border border-primary/60 bg-primary/[0.06] p-4">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary">
         <Icon aria-hidden="true" className="size-5" />
       </span>
 
@@ -236,17 +236,17 @@ function ModuleToggleRow({
   return (
     <label
       className={cn(
-        "flex items-start gap-3 rounded-xl border p-4 transition-colors",
+        "flex items-start gap-3 rounded-surface border p-4 transition-colors",
         active
           ? "border-primary/60 bg-primary/[0.06]"
           : available
-            ? "cursor-pointer border-border bg-muted/30 hover:bg-muted/50"
+            ? "cursor-pointer border-border bg-inlay hover:bg-muted"
             : "cursor-not-allowed border-border opacity-60"
       )}
     >
       <span
         className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-lg",
+          "flex size-10 shrink-0 items-center justify-center rounded-control",
           active
             ? "bg-primary/10 text-primary"
             : "bg-muted text-muted-foreground"

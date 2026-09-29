@@ -68,7 +68,7 @@ function LifecycleBanner() {
     return (
       <section
         aria-label="Tenant lifecycle"
-        className="flex items-center gap-4 rounded-2xl border border-success/25 bg-gradient-to-r from-success-subtle to-transparent px-5 py-4 mb-3"
+        className="flex items-center gap-4 rounded-surface border border-success/25 bg-gradient-to-r from-success-subtle to-transparent px-5 py-4 mb-3"
       >
         <BannerIcon tone="success">
           <CircleCheck className="size-5" aria-hidden="true" />
@@ -88,7 +88,7 @@ function LifecycleBanner() {
   return (
     <section
       aria-label="Tenant lifecycle"
-      className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-destructive/25 bg-gradient-to-r from-destructive/10 to-transparent px-5 py-4"
+      className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-surface border border-destructive/25 bg-gradient-to-r from-destructive/10 to-transparent px-5 py-4"
     >
       <BannerIcon tone="destructive">
         <PowerOff className="size-5" aria-hidden="true" />

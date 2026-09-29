@@ -141,7 +141,7 @@ function SummaryCard({
       onClick={onSelect}
       aria-pressed={isSelected}
       className={cn(
-        "group flex h-full flex-col rounded-2xl border p-[22px] text-left",
+        "group flex h-full flex-col rounded-surface border p-[22px] text-left",
         "transition-[background-color,border-color,box-shadow] duration-150",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         isSelected
@@ -163,7 +163,7 @@ function SummaryCard({
         </span>
         <span
           className={cn(
-            "flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors",
+            "flex size-9 shrink-0 items-center justify-center rounded-control transition-colors",
             summary.tile
           )}
         >

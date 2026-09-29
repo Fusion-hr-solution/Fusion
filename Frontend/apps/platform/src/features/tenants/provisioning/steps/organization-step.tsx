@@ -148,10 +148,10 @@ export function OrganizationStep({
         </div>
       </StepPanel>
 
-      <div className="flex h-full flex-col gap-5 rounded-2xl border border-border bg-card p-6">
+      <div className="flex h-full flex-col gap-5 rounded-surface border border-border bg-card p-6">
         <div>
           <div className="flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary">
               <Building2 aria-hidden="true" className="size-5" />
             </span>
             <div className="min-w-0">

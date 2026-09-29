@@ -24,7 +24,7 @@ export function RecentActivity() {
   const activityHref = `${destinationHref(tenant.tenantId, "activity")}${query}`;
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <Clock aria-hidden="true" className="size-8 text-muted-foreground" />
@@ -35,7 +35,7 @@ export function RecentActivity() {
         {entries.length > 0 ? (
           <Link
             href={activityHref}
-            className="rounded-sm text-sm font-medium text-primary hover:text-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="rounded-control text-sm font-medium text-primary hover:text-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             View activity
           </Link>

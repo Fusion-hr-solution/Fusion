@@ -131,7 +131,7 @@ export function ModuleCatalogue({
     return (
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 6 }).map((_, index) => (
-          <Skeleton key={index} className="h-28 rounded-2xl" />
+          <Skeleton key={index} className="h-28 rounded-surface" />
         ))}
       </div>
     );
@@ -166,12 +166,12 @@ function ModuleCard({ entitlement }: { entitlement: ModuleEntitlement }) {
   return (
     <li
       className={cn(
-        "flex flex-col gap-3 rounded-2xl border p-4",
+        "flex flex-col gap-3 rounded-surface border p-4",
         isGranted
           ? "border-border bg-card"
           : isUnavailable
-            ? "border-dashed border-border bg-muted/25"
-            : "border-border bg-card/60"
+            ? "border-dashed border-border"
+            : "border-border bg-inlay"
       )}
     >
       <div className="flex items-start gap-3">
@@ -198,7 +198,7 @@ function ModuleCard({ entitlement }: { entitlement: ModuleEntitlement }) {
       <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1">
         <EntitlementState state={state} />
         {setupState ? (
-          <span className="rounded-md border border-border/70 bg-background/60 px-1.5 py-0.5 text-xs text-muted-foreground">
+          <span className="rounded-control border border-border/70 bg-inlay px-1.5 py-0.5 text-xs text-muted-foreground">
             {setupState}
           </span>
         ) : null}

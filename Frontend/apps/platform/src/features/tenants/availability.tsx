@@ -108,7 +108,7 @@ export function CapabilityList({
         {items.map((item) => (
           <li
             key={item}
-            className="rounded-md border border-border/70 bg-background/60 px-2 py-0.5 text-xs text-foreground"
+            className="rounded-control border border-border/70 bg-inlay px-2 py-0.5 text-xs text-foreground"
           >
             {item}
           </li>

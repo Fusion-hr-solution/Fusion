@@ -44,7 +44,7 @@ export function IconTile({
     <span
       aria-hidden="true"
       className={cn(
-        "flex shrink-0 items-center justify-center rounded-lg",
+        "flex shrink-0 items-center justify-center rounded-control",
         size === "sm" ? "size-7" : "size-9",
         TILE_TONE[tone],
         className
@@ -100,7 +100,7 @@ export function RecordSurface({
     <section
       aria-labelledby={id}
       className={cn(
-        "flex flex-col overflow-hidden rounded-2xl border bg-card",
+        "flex flex-col overflow-hidden rounded-surface border bg-card",
         emphasis
           ? isAttention
             ? "border-destructive/35 shadow-raised"
@@ -175,7 +175,7 @@ export function RecordSurface({
       {/* Actions belong to the state they resolve, banded so they read as the
           surface's conclusion rather than as another row inside it. */}
       {footer ? (
-        <div className="border-t border-border bg-muted/40 px-5 py-3">{footer}</div>
+        <div className="border-t border-border bg-inlay px-5 py-3">{footer}</div>
       ) : null}
     </section>
   );
@@ -208,7 +208,7 @@ export function SupportingSurface({
         // A light tint only: at 25% the panel darkened enough to drop muted
         // text below AA, and the dashed border plus absent shadow already
         // separate this level from a solid card.
-        "flex flex-col rounded-2xl border border-dashed border-border bg-muted/15 px-5 py-4"
+        "flex flex-col rounded-surface border border-dashed border-border px-5 py-4"
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
@@ -335,8 +335,8 @@ export function FactTile({
   as?: "div" | "li";
 }) {
   return (
-    <Wrapper className="flex items-center gap-3 rounded-lg border border-border/70 bg-muted/40 px-3.5 py-3">
-      <IconTile icon={icon} size="sm" className="bg-background" />
+    <Wrapper className="flex items-center gap-3 rounded-surface border border-border/70 bg-inlay px-3.5 py-3">
+      <IconTile icon={icon} size="sm" className="bg-muted" />
       <div className="min-w-0">
         <p className="text-xs text-muted-foreground">{label}</p>
         {/* Wraps rather than truncates: a clipped value cannot be checked. */}

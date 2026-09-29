@@ -30,7 +30,7 @@ export function TenantModulesCell({ modules }: { modules: TenantModule[] }) {
         <button
           type="button"
           aria-label={`Show the ${modules.length} enabled modules`}
-          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-sm text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex items-center gap-1 rounded-control px-1.5 py-0.5 text-sm text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <span className="tabular-nums">{modules.length}</span> enabled
           <ChevronDown aria-hidden="true" className="size-3.5 text-muted-foreground" />

@@ -142,7 +142,7 @@ export function TenantsWorkspace() {
         onSelect={(filter: OverviewFilter) => update({ filter })}
       />
 
-      <section className="overflow-hidden rounded-2xl border border-border bg-card">
+      <section className="overflow-hidden rounded-surface border border-border bg-card">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <h2 className="text-sm font-semibold text-foreground">Tenant directory</h2>
 
@@ -428,7 +428,7 @@ function TenantLink({
     <Link
       href={query ? `/tenants/${id}?from=${encodeURIComponent(query)}` : `/tenants/${id}`}
       title={name}
-      className="block truncate rounded-sm font-medium text-foreground no-underline visited:text-foreground hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      className="block truncate rounded-control font-medium text-foreground no-underline visited:text-foreground hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
     >
       {name}
     </Link>
@@ -468,7 +468,7 @@ function SortableHead({
         onClick={() => onSortChange(isAscending ? descending : ascending)}
         // A button resets text-transform, so the sortable headers would
         // otherwise render in sentence case beside the plain uppercase ones.
-        className="-mx-1 inline-flex items-center gap-1 rounded-sm px-1 py-0.5 uppercase tracking-wider hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="-mx-1 inline-flex items-center gap-1 rounded-control px-1 py-0.5 uppercase tracking-wider hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         {children}
         <Icon
@@ -600,7 +600,7 @@ function DirectorySkeleton() {
           key={index}
           className="flex items-center gap-3 border-b border-border px-4 py-3.5 last:border-b-0"
         >
-          <Skeleton className="size-9 shrink-0 rounded-lg" />
+          <Skeleton className="size-9 shrink-0 rounded-control" />
           <div className="min-w-0 flex-1 space-y-1.5">
             <Skeleton className="h-4 w-40 max-w-full" />
             <Skeleton className="h-3.5 w-52 max-w-full" />
@@ -611,7 +611,7 @@ function DirectorySkeleton() {
           </div>
           <Skeleton className="hidden h-4 w-20 lg:block" />
           <Skeleton className="hidden h-4 w-24 lg:block" />
-          <Skeleton className="size-8 shrink-0 rounded-md" />
+          <Skeleton className="size-8 shrink-0 rounded-control" />
         </div>
       ))}
     </div>

@@ -40,7 +40,7 @@ export function TenantProfile() {
   ];
 
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-surface border border-border bg-card p-5">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
           <FileText

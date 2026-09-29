@@ -93,7 +93,7 @@ export function TenantActivitySection() {
       ) : null}
 
       {!isLoading && !error && entries.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-surface border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
           No tenant activity has been recorded yet.
         </p>
       ) : null}
@@ -117,10 +117,10 @@ function ActivityCard({ entry }: { entry: TenantActivityEntry }) {
   const Icon = iconFor(entry);
 
   return (
-    <li className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5">
+    <li className="flex items-start gap-3 rounded-surface border border-border bg-card p-3.5">
       <span
         className={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-lg",
+          "flex size-8 shrink-0 items-center justify-center rounded-control",
           narrative.isFailure
             ? "bg-destructive/12 text-destructive"
             : "bg-muted text-muted-foreground"
@@ -173,9 +173,9 @@ function ActivitySkeleton() {
       {Array.from({ length: ACTIVITY_PREVIEW_LIMIT }).map((_, index) => (
         <li
           key={index}
-          className="flex items-start gap-3 rounded-xl border border-border bg-card p-3.5"
+          className="flex items-start gap-3 rounded-surface border border-border bg-card p-3.5"
         >
-          <Skeleton className="size-8 shrink-0 rounded-lg" />
+          <Skeleton className="size-8 shrink-0 rounded-control" />
           <div className="min-w-0 flex-1 space-y-1.5">
             <Skeleton className="h-4 w-32 max-w-full" />
             <Skeleton className="h-4 w-52 max-w-full" />
@@ -198,7 +198,7 @@ function ActivityFailure({
   const kind = failureKind(error);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-surface border border-border bg-card px-4 py-3">
       <p className="text-sm text-muted-foreground">
         {kind === "permission"
           ? "Your Platform administration access has changed."
