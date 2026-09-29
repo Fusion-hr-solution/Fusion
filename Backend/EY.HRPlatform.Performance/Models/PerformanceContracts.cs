@@ -384,7 +384,8 @@ public sealed record MyPlanStateDto(
 /// <summary>The reviewer and scope an employee will plan against, resolved from their participant baseline before a plan exists.</summary>
 public sealed record PlanPreviewDto(
     PersonRefDto? Reviewer,
-    string? OrgUnitName);
+    string? OrgUnitName,
+    bool StandaloneAllowed);
 
 /// <summary>One alignable upstream objective an employee objective may connect to (published strategic or approved organizational).</summary>
 public sealed record AlignmentTargetDto(

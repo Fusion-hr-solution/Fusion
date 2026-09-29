@@ -107,7 +107,7 @@ public sealed class GetMyPlanHandler(PerformanceDbContext db, ICoreWorkforceClie
             var reviewer = participant.ManagerEmployeeId is null
                 ? null
                 : new PersonRefDto(participant.ManagerEmployeeId.Value, participant.ManagerDisplayName ?? string.Empty);
-            var preview = new PlanPreviewDto(reviewer, participant.OrgUnitName);
+            var preview = new PlanPreviewDto(reviewer, participant.OrgUnitName, await StandaloneAllowedAsync(cancellationToken));
             return Result.Success(new MyPlanStateDto(true, false, null, preview));
         }
 

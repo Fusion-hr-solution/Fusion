@@ -396,6 +396,7 @@ export interface EmployeePlanDto {
 export interface PlanPreviewDto {
   reviewer: PersonRefDto | null;
   orgUnitName: string | null;
+  standaloneAllowed: boolean;
 }
 
 export interface MyPlanStateDto {
