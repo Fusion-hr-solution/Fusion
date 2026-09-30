@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Building2, Search, SlidersHorizontal, Target, X } from "lucide-react";
+import { Building2, Search, SlidersHorizontal, Target, X } from "@/lib/icons";
 import type { GoalNodeDto, GoalsOverviewDto, ObjectiveLifecycleState } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { Button } from "@repo/ds/components/ui/button";

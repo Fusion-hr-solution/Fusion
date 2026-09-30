@@ -9,7 +9,7 @@ import {
   Layers,
   Lock,
   Trash2,
-} from "lucide-react";
+} from "@/lib/icons";
 import { toast } from "sonner";
 import type { GoalDetailDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";

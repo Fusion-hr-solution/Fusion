@@ -10,7 +10,7 @@ import {
   TriangleAlert,
   UserRound,
   UserX,
-} from "lucide-react";
+} from "@/lib/icons";
 import type { PopulationDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import { Progress } from "@repo/ds/components/ui/progress";

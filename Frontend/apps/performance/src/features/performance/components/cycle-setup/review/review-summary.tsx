@@ -16,7 +16,7 @@ import {
   Target,
   Unlink,
   Users,
-} from "lucide-react";
+} from "@/lib/icons";
 import type { CycleDetailDto, CycleSettingsDto, PopulationDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";

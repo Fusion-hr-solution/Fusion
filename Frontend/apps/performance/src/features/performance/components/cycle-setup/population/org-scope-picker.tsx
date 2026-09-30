@@ -11,7 +11,7 @@ import {
   Search,
   Users2,
   X,
-} from "lucide-react";
+} from "@/lib/icons";
 import type {
   OrganizationHierarchyNodeDto,
   OrgUnitSelectionInput,

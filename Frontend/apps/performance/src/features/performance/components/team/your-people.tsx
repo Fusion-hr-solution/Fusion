@@ -13,7 +13,7 @@ import {
   RotateCcw,
   Search,
   Users,
-} from "lucide-react";
+} from "@/lib/icons";
 import type {
   RosterActivityKind,
   RosterPlanStatus,

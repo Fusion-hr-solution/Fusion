@@ -16,7 +16,7 @@ import {
   UserMinus,
   Users,
   X,
-} from "lucide-react";
+} from "@/lib/icons";
 import type { PopulationCandidateDto } from "@repo/api";
 import { Input } from "@repo/ds/components/ui/input";
 import { Button } from "@repo/ds/components/ui/button";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Building2, Gauge, Info, Sigma, Target, UserRound, Waypoints } from "lucide-react";
+import { Building2, Gauge, Info, Sigma, Target, UserRound, Waypoints } from "@/lib/icons";
 import { toast } from "sonner";
 import type {
   CreateOrganizationalObjectiveRequest,

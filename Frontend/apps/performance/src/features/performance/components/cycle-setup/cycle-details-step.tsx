@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CalendarDays, ChevronRight, Clock, FileText, Flag, Users } from "lucide-react";
+import { ArrowRight, CalendarDays, ChevronRight, Clock, FileText, Flag, Users } from "@/lib/icons";
 import { toast } from "sonner";
 import type { CycleDetailDto } from "@repo/api";
 import { Input } from "@repo/ds/components/ui/input";

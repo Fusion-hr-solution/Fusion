@@ -7,7 +7,7 @@ import {
   Users2,
   UsersRound,
   X,
-} from "lucide-react";
+} from "@/lib/icons";
 import type {
   OrgUnitSelectionInput,
   PopulationCandidateDto,

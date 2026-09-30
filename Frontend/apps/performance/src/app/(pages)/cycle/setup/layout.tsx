@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Save } from "lucide-react";
+import { Save } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
 import { SetupShellSkeleton } from "@/features/performance/components/cycle-setup/setup-skeletons";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarRange, Gauge, MoreHorizontal, Pencil, Plus, Send, Trash2, UserRound } from "lucide-react";
+import { CalendarRange, Gauge, MoreHorizontal, Pencil, Plus, Send, Trash2, UserRound } from "@/lib/icons";
 import { toast } from "sonner";
 import type { CycleSummaryDto, StrategicObjectiveDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";

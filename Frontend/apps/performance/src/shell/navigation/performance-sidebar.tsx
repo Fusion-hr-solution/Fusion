@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Home, BarChart3, User } from "lucide-react";
+import { Home, BarChart3, User } from "@/lib/icons";
 import { useAuth } from "@repo/auth";
 import {
   FUSION_MODULES,

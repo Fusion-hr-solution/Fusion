@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleUserRound } from "lucide-react";
+import { CircleUserRound } from "@/lib/icons";
 import type { PopulationCandidateDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { cn } from "@repo/ds/lib/utils";

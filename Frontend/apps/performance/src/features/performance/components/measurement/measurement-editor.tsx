@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Flag, Info, LineChart, Percent, TrendingDown, TrendingUp } from "lucide-react";
+import { Flag, Info, LineChart, Percent, TrendingDown, TrendingUp } from "@/lib/icons";
 import type { ImprovementDirection, MeasurementMethod } from "@repo/api";
 import { Input } from "@repo/ds/components/ui/input";
 import { Label } from "@repo/ds/components/ui/label";

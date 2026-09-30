@@ -17,8 +17,8 @@ import {
   Target,
   Trash2,
   UsersRound,
-  type LucideIcon,
-} from "lucide-react";
+  type Icon as LucideIcon,
+} from "@/lib/icons";
 import type { GoalNodeDto, GoalsOverviewDto } from "@repo/api";
 import { ScopeMark } from "../scope-mark";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";

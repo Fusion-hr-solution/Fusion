@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Plus, Search, TriangleAlert, UserPlus, X } from "lucide-react";
+import { Check, Plus, Search, TriangleAlert, UserPlus, X } from "@/lib/icons";
 import type { WorkforceEmployeeSummaryDto } from "@repo/api";
 import { useEmployeePicker } from "@repo/workforce-ui";
 import {

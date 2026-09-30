@@ -12,7 +12,7 @@ import {
   Target,
   Users2,
   X,
-} from "lucide-react";
+} from "@/lib/icons";
 import type { CycleDetailDto, PopulationDto } from "@repo/api";
 import { cn } from "@repo/ds/lib/utils";
 import { formatDate } from "../../../lib";

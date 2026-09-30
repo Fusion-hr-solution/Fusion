@@ -17,7 +17,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, Trash2 } from "lucide-react";
+import { GripVertical, Plus, Trash2 } from "@/lib/icons";
 import type { MeasurementDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import {

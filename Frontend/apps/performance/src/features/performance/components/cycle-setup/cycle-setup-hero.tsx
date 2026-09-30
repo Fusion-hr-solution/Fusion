@@ -1,4 +1,4 @@
-import { Target, Users, BarChart3 } from "lucide-react";
+import { Target, Users, BarChart3 } from "@/lib/icons";
 
 const VALUES = [
   { icon: Target, label: "Align people and goals" },

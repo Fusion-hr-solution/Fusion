@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { FileText, Link2, Loader2, Paperclip, Plus, Type, X } from "lucide-react";
+import { FileText, Link2, Loader2, Paperclip, Plus, Type, X } from "@/lib/icons";
 import { toast } from "sonner";
 import type { EvidenceInput } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";

@@ -49,7 +49,7 @@ import {
   UserRound,
   Users,
   Waypoints,
-} from "lucide-react";
+} from "@/lib/icons";
 import { toast } from "sonner";
 import {
   useGoal,

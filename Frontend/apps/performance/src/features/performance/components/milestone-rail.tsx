@@ -1,6 +1,6 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check } from "@/lib/icons";
 import type { MilestoneStateDto } from "@repo/api";
 import { cn } from "@repo/ds/lib/utils";
 import { MILESTONE_LABELS } from "../lib";

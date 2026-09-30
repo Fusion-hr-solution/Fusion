@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   TriangleAlert,
   Users2,
-} from "lucide-react";
+} from "@/lib/icons";
 import type { CycleDetailDto } from "@repo/api";
 import { AsyncButton } from "@repo/ds/shell";
 import { Button } from "@repo/ds/components/ui/button";

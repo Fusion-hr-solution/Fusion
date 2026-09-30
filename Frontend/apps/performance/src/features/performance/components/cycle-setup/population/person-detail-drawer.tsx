@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Check, ExternalLink, X } from "lucide-react";
+import { Check, ExternalLink, X } from "@/lib/icons";
 import type { PopulationCandidateDto, ReadinessIssueCode } from "@repo/api";
 import {
   Sheet,

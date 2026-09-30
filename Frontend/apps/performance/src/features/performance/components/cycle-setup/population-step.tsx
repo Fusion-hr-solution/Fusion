@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CircleCheck } from "lucide-react";
+import { ArrowRight, CircleCheck } from "@/lib/icons";
 import { toast } from "sonner";
 import type {
   OrgUnitSelectionInput,

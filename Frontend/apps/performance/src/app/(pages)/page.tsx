@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, CalendarPlus } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarPlus } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
 import type { CycleDetailDto } from "@repo/api";

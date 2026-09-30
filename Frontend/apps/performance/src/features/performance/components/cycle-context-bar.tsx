@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarRange } from "lucide-react";
+import { CalendarRange } from "@/lib/icons";
 import type { CycleSummaryDto } from "@repo/api";
 import { StatusBadge, type StatusTone } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";

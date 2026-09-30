@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { UserRound } from "lucide-react";
+import { UserRound } from "@/lib/icons";
 import { toast } from "sonner";
 import type {
   CycleSummaryDto,

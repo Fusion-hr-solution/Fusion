@@ -1,4 +1,4 @@
-import { GitBranch, LayoutDashboard, ListChecks, Settings, UserRoundCheck, Users } from "lucide-react";
+import { GitBranch, LayoutDashboard, ListChecks, Settings, UserRoundCheck, Users } from "@/lib/icons";
 import type { ShellNavSection } from "@repo/ds/shell";
 
 /**
