@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ExternalLink, History, MoreHorizontal, UserPen } from "lucide-react";
+import { ExternalLink, History, MoreHorizontal, UserPen } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import {
   DropdownMenu,
@@ -18,7 +18,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@repo/ds/components/ui/tooltip";
-import type { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "@/lib/icons";
 import type { RecoveryAction, TenantOverviewRow } from "../api";
 import { recoveryLabel } from "../language";
 import { useInvitationRecovery } from "../queries";

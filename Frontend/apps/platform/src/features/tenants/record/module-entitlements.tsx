@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Check, Minus } from "lucide-react";
+import { Check, Minus } from "@/lib/icons";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
 import type { TenantDetail } from "../api";

@@ -9,8 +9,8 @@ import {
   ShieldCheck,
   TriangleAlert,
   Wrench,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+} from "@/lib/icons";
+import type { LucideIcon } from "@/lib/icons";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
 import type { OverviewFilter, TenantOverviewCounts } from "../api";

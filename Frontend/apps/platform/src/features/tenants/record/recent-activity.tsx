@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Clock } from "lucide-react";
+import { Clock } from "@/lib/icons";
 import { cn } from "@repo/ds/lib/utils";
 import type { TenantHistoryEntry } from "../api";
 import { eventTitle, isFailureOutcome, relativeFromNow } from "../language";

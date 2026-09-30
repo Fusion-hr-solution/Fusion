@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldAlert, ShieldCheck } from "lucide-react";
+import { ShieldAlert, ShieldCheck } from "@/lib/icons";
 import { Button } from "@repo/ds";
 import { StatusBadge } from "@repo/ds/shell";
 import { SupportingSurface } from "./record-ui";

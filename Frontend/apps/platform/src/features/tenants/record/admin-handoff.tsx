@@ -11,7 +11,7 @@ import {
   TriangleAlert,
   UsersRound,
   type LucideIcon,
-} from "lucide-react";
+} from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";
 import {

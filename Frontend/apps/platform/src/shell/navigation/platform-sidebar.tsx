@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Shield } from "lucide-react";
+import { Shield } from "@/lib/icons";
 import { canAccessPlatform, useAuth } from "@repo/auth";
 import { ModuleSidebar, ShellUserPanel } from "@repo/ds/shell";
 import { PLATFORM_NAV } from "@/data/sidebar-nav";

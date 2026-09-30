@@ -9,7 +9,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Ban, Check, Copy, MoreHorizontal, RotateCcw, SearchX } from "lucide-react";
+import { Ban, Check, Copy, MoreHorizontal, RotateCcw, SearchX } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import {
   DropdownMenu,
@@ -230,7 +230,7 @@ function TenantLifecycleMenu({ tenant }: { tenant: TenantDetail }) {
             <MoreHorizontal aria-hidden="true" className="size-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuContent align="end">
           <DropdownMenuItem
             onSelect={() => {
               void navigator.clipboard.writeText(tenant.tenantId).catch(() => {

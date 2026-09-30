@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw, ScrollText } from "lucide-react";
+import { RefreshCw, ScrollText } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import { AsyncButton } from "@repo/ds/shell";
 import { RecordEmpty, RecordSurface } from "./record-ui";

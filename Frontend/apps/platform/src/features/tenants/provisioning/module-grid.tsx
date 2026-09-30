@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock } from "lucide-react";
+import { Lock } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import { Checkbox } from "@repo/ds/components/ui/checkbox";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";

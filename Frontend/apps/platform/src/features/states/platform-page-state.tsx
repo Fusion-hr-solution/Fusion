@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { SearchX } from "lucide-react";
+import { SearchX } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import {
   PageContainer,

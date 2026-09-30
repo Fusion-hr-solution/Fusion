@@ -1,4 +1,4 @@
-import { AlertTriangle, Ban, Check } from "lucide-react";
+import { AlertTriangle, Ban, Check } from "@/lib/icons";
 import { cn } from "@repo/ds/lib/utils";
 
 /**

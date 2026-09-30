@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Info, Lock } from "lucide-react";
+import { Info, Lock } from "@/lib/icons";
 import { Switch } from "@repo/ds/components/ui/switch";
 import {
   Tooltip,

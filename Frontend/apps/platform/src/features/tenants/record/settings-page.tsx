@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Fingerprint, Globe, Languages, Pencil } from "lucide-react";
+import { Clock, Fingerprint, Globe, Languages, Pencil } from "@/lib/icons";
 import {
   FactTile,
   RecordSurface,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Ban, RefreshCw, Send, UserPen, type LucideIcon } from "lucide-react";
+import { Ban, RefreshCw, Send, UserPen, type LucideIcon } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import {
   Dialog,

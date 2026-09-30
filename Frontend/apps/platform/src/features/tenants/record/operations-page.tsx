@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, Gauge } from "lucide-react";
+import { Boxes, Gauge } from "@/lib/icons";
 import {
   RecordSurface,
   StatusBlock,

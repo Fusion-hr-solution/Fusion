@@ -12,7 +12,7 @@ import {
   UserCheck,
   UserPen,
   type LucideIcon,
-} from "lucide-react";
+} from "@/lib/icons";
 import { cn } from "@repo/ds/lib/utils";
 import type { TenantHistoryEntry } from "../api";
 import { eventActor, eventTitle, formatDateTime, isFailureOutcome } from "../language";

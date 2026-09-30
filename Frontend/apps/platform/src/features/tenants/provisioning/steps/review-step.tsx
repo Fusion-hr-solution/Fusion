@@ -12,7 +12,7 @@ import {
   LayoutGrid,
   Pencil,
   User,
-} from "lucide-react";
+} from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import { AsyncButton } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import {
   Command,

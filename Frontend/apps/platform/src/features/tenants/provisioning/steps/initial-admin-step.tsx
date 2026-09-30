@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { CheckCircle2, Mail, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Mail, ShieldCheck } from "@/lib/icons";
 import { Input } from "@repo/ds/components/ui/input";
 import { Switch } from "@repo/ds/components/ui/switch";
 import { Field, describedBy } from "../field";

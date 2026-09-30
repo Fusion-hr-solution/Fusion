@@ -10,7 +10,7 @@ import {
   ShieldCheck,
   TriangleAlert,
   type LucideIcon,
-} from "lucide-react";
+} from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import type { BootstrapInvitationSummary, TenantDetail } from "../api";
 import {

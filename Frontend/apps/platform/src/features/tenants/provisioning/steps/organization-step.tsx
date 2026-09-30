@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { Building2, Lightbulb } from "lucide-react";
+import { Building2, Lightbulb } from "@/lib/icons";
 import { Input } from "@repo/ds/components/ui/input";
 import { Textarea } from "@repo/ds/components/ui/textarea";
 import { Field, describedBy } from "../field";

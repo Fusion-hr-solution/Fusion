@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, History, SlidersHorizontal } from "lucide-react";
+import { Boxes, History, SlidersHorizontal } from "@/lib/icons";
 import { eventActor, formatDateTime } from "../language";
 import { ModuleCatalogue, useTenantEntitlements } from "./module-entitlements";
 import {

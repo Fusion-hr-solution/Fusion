@@ -1,6 +1,6 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
+import type { LucideIcon } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import {
   Tooltip,
