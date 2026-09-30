@@ -1,11 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
+import { Button } from "@repo/ds/components/ui/button";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { TeamDirection, TeamDirectionSkeleton } from "@/features/performance/components/team/team-direction";
-import { AddPeopleCallout, RosterSkeleton, YourPeople } from "@/features/performance/components/team/your-people";
+import {
+  AddPeopleCallout,
+  RosterSkeleton,
+  YourPeople,
+  type RosterFilter,
+} from "@/features/performance/components/team/your-people";
 import { usePerformanceAccess, useCurrentCycle, useTeamRoster } from "@/features/performance/api/use-performance";
 
 export default function TeamPerformancePage() {
@@ -22,6 +29,7 @@ export default function TeamPerformancePage() {
   const detail = useCurrentCycle(canEnter);
   const cycle = detail.data?.cycle ?? null;
   const roster = useTeamRoster(cycle?.id ?? null, canReview);
+  const [rosterFilter, setRosterFilter] = useState<RosterFilter>("all");
 
   if (access.isLoading) return <TeamPageSkeleton />;
   if (!canReview) {
@@ -49,17 +57,25 @@ export default function TeamPerformancePage() {
       <PerformancePageHeading
         title="Team Performance"
         size="display"
-        description={
-          roster.isLoading || !roster.data
-            ? undefined
-            : count === 0
-              ? "No plans are waiting on you right now."
-              : `${count} plan${count === 1 ? "" : "s"} need${count === 1 ? "s" : ""} your decision.`
+        actions={
+          // Deciding on plans is the manager's most frequent job here, so it is the page's primary action.
+          count > 0 ? (
+            <Button
+              onClick={() => {
+                setRosterFilter("needsReview");
+                document.getElementById("your-people")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }}
+            >
+              Review {count} plan{count === 1 ? "" : "s"}
+            </Button>
+          ) : null
         }
       />
-      <TeamDirection cycle={cycle} canViewOrgGoals={canViewOrgGoals} />
-      <YourPeople roster={roster} />
-      <AddPeopleCallout />
+      <div className="mt-8 space-y-12">
+        <TeamDirection cycle={cycle} canViewOrgGoals={canViewOrgGoals} />
+        <YourPeople roster={roster} filter={rosterFilter} onFilterChange={setRosterFilter} />
+        <AddPeopleCallout />
+      </div>
     </PageContainer>
   );
 }
@@ -72,12 +88,13 @@ function TeamPageSkeleton() {
   return (
     <PageContainer width="wide">
       <div role="status" aria-label="Loading Team Performance">
-        <div className="mb-4 space-y-2.5">
+        <div className="mb-4">
           <Skeleton className="h-9 w-72 max-w-full" />
-          <Skeleton className="h-4 w-56" />
         </div>
-        <TeamDirectionSkeleton />
-        <RosterSkeleton />
+        <div className="mt-8 space-y-12">
+          <TeamDirectionSkeleton />
+          <RosterSkeleton />
+        </div>
       </div>
     </PageContainer>
   );

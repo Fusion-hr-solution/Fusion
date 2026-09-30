@@ -28,10 +28,11 @@ import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import {
+  ArrowUpRight,
+  BarChart3,
   CalendarDays,
   ArrowRight,
   ChartColumn,
-  Compass,
   ChevronRight,
   CornerLeftUp,
   Eye,
@@ -39,7 +40,7 @@ import {
   Info,
   Layers,
   ExternalLink,
-  Gauge,
+  Link2,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -67,6 +68,7 @@ import {
 } from "../goals/org-composer-host";
 import { initials, STATE_LABEL, STATE_TONE } from "../goals/goals-lib";
 import type { UnitContext } from "../goals/working-context-lib";
+import { ScopeMark } from "../scope-mark";
 import { TeamObjectiveRecordDrawer } from "./team-objective-record-drawer";
 import {
   initialDirectionForTargets,
@@ -138,12 +140,12 @@ export function TeamDirection({
   if (!ownUnit) return null;
   if (workspace.error || !workspace.data) {
     return (
-      <section className="rounded-surface border border-border bg-section p-6">
+      <section>
         <h2 className="type-section-title text-foreground">
           Upstream direction
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Team objectives could not be loaded.
+          {workspace.error?.message || "Team objectives could not be loaded."}
         </p>
         <Button
           variant="outline"
@@ -165,7 +167,7 @@ export function TeamDirection({
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-12">
         <StrategicDirection
           cycle={cycle}
           targets={targets}
@@ -274,22 +276,14 @@ function StrategicDirection({
       ? "__standalone__"
       : null;
   return (
-    <section
-      aria-labelledby="strategic-direction-heading"
-      className="rounded-surface border border-border bg-section p-5 sm:p-6"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2
-            id="strategic-direction-heading"
-            className="type-section-title text-foreground"
-          >
-            Upstream direction
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Company objectives and objectives from teams above yours.
-          </p>
-        </div>
+    <section aria-labelledby="strategic-direction-heading">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2
+          id="strategic-direction-heading"
+          className="type-section-title text-foreground"
+        >
+          Upstream direction
+        </h2>
         {canViewOrgGoals ? (
           <Button variant="outline" asChild>
             <a href={goalsHref}>
@@ -303,7 +297,7 @@ function StrategicDirection({
           </Button>
         ) : null}
       </div>
-      <div className="relative mt-5 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+      <div className="relative mt-4 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <CardLink />
         {detailLoading && aligned ? (
           <DirectionCardSkeleton />
@@ -332,7 +326,7 @@ function StrategicDirection({
             </span>
             <p className="type-eyebrow text-primary">Next team objective</p>
           </div>
-          <div className="mt-3">
+          <div className="mt-2.5">
             <h3 className="text-lg font-semibold tracking-tight text-foreground">
               Create a team objective
             </h3>
@@ -340,7 +334,7 @@ function StrategicDirection({
               Choose what it supports before defining its result and measure.
             </p>
           </div>
-          <div className="mt-4 space-y-1.5">
+          <div className="mt-3 space-y-1.5">
             <label className="type-label text-foreground">Align to</label>
             <AlignmentTargetPicker
               targets={targets}
@@ -354,7 +348,7 @@ function StrategicDirection({
               onStandalone={() => onDirectionChange({ mode: "standalone" })}
             />
           </div>
-          <div className="mt-auto pt-4">
+          <div className="mt-auto pt-3">
             <Button onClick={onCreate} disabled={!direction || !canCreate}>
               <Plus className="size-4" data-icon="inline-start" aria-hidden />
               Create team objective
@@ -362,10 +356,6 @@ function StrategicDirection({
             {noEligibleOwners ? (
               <p className="mt-2 text-xs text-destructive">
                 No active team member can own an objective in this cycle.
-              </p>
-            ) : !direction ? (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Choose an upstream objective or No alignment first.
               </p>
             ) : cycle.state === "Closed" ? (
               <p className="mt-2 text-xs text-muted-foreground">
@@ -580,7 +570,7 @@ function CardLink() {
   return (
     <span
       aria-hidden
-      className="pointer-events-none absolute top-1/2 z-10 hidden size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-primary/40 bg-section shadow-[0_0_8px_-4px_var(--primary)] lg:flex"
+      className="pointer-events-none absolute top-1/2 z-10 hidden size-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-primary/40 bg-background shadow-[0_0_8px_-4px_var(--primary)] lg:flex"
       style={{ left: "calc((100% - 1rem) * 5 / 9 + 0.5rem)" }}
     >
       <span className="size-3 rounded-full bg-primary shadow-[0_0_4px_-1px_var(--primary)]" />
@@ -601,7 +591,7 @@ function DirectionChip({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-2 whitespace-nowrap rounded-control border border-border bg-inlay px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary/45 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-3.5 [&_svg]:text-primary"
+      className="inline-flex h-10 items-center gap-2.5 whitespace-nowrap rounded-control border border-border bg-inlay px-4 text-sm font-medium text-foreground transition-colors hover:border-primary/45 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-4 [&_svg]:text-primary"
     >
       {icon}
       {children}
@@ -621,24 +611,28 @@ function EmptyDirectionCard({
 }) {
   const hasTargets = targetCount > 0;
   return (
-    <div className="flex flex-col rounded-surface border border-border bg-card p-4 sm:p-5">
-      {/* The card stretches to its neighbour's height; the body takes the slack so the note stays on the bottom edge. */}
-      <div className="flex flex-1 items-center gap-4">
-        <div className="min-w-0 flex-1">
-          <p className="type-eyebrow text-muted-foreground">
-            Upstream direction
-          </p>
-          <h3 className="mt-3 text-xl font-semibold tracking-tight text-foreground">
+    <div className="relative isolate flex flex-col overflow-hidden rounded-surface border border-border bg-card p-4 sm:p-5">
+      {/* The illustration is part of the card's background: anchored right, faded out toward the text by
+          a left-to-right scrim, so the text runs full width over it and stays clear. */}
+      <DirectionIllustration />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 hidden bg-linear-to-r from-card from-45% to-transparent xl:block"
+      />
+      <div className="relative flex flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <h3 className="text-xl font-semibold tracking-tight text-foreground">
             {hasTargets
               ? "No direction selected"
               : "No published direction yet"}
           </h3>
-          <p className="mt-2.5 max-w-md text-sm leading-6 text-muted-foreground">
+          <p className="mt-3 max-w-xs text-sm leading-6 text-muted-foreground">
             {hasTargets
               ? "Choose one of the eligible objectives for this team, or continue without alignment for a standalone team objective."
               : "Nothing above your team is published yet. You can still create a standalone team objective."}
           </p>
-          <div className="mt-6 flex flex-wrap gap-2">
+          {/* The chips settle at the bottom edge as the card's height allows. */}
+          <div className="mt-auto flex gap-2 pt-4">
             {hasTargets ? (
               <DirectionChip icon={<Target aria-hidden />} onClick={onChoose}>
                 {targetCount} eligible objective{targetCount === 1 ? "" : "s"}
@@ -652,11 +646,6 @@ function EmptyDirectionCard({
             </DirectionChip>
           </div>
         </div>
-        <DirectionIllustration />
-      </div>
-      <div className="mt-4 flex items-center gap-2.5 border-t border-border/60 pt-4 text-sm text-muted-foreground">
-        <Info className="size-4 shrink-0" aria-hidden />
-        Your selection sets the upstream direction for the next team objective.
       </div>
     </div>
   );
@@ -713,7 +702,10 @@ function IllustrationNode({
 
 function DirectionIllustration() {
   return (
-    <div className="relative hidden w-60 shrink-0 xl:block" aria-hidden>
+    <div
+      className="pointer-events-none absolute right-5 top-1/2 hidden w-96 -translate-y-1/2 xl:block"
+      aria-hidden
+    >
       <svg viewBox="0 0 256 170" className="h-auto w-full overflow-visible">
         <IllustrationNode y={4} />
         <IllustrationNode y={64} />
@@ -738,7 +730,12 @@ function DirectionIllustration() {
         <circle cx="118" cy="25" r="3" className="fill-primary" />
         <circle cx="118" cy="85" r="3" className="fill-primary" />
       </svg>
-      <div className="absolute right-0 top-1/2 flex w-[68px] -translate-y-1/2 flex-col items-center gap-1.5 rounded-control border border-primary/60 bg-primary/[0.06] px-2 py-2.5 shadow-[0_0_22px_-6px_var(--primary)]">
+      {/* Positioned in the SVG's own units (viewBox 256 wide) so it scales with the drawing: its left
+          edge sits exactly where the three links converge (x = 172). */}
+      <div
+        className="absolute top-1/2 flex -translate-y-1/2 flex-col items-center gap-1.5 rounded-control border border-primary/60 bg-primary/[0.06] px-2 py-2.5 shadow-[0_0_22px_-6px_var(--primary)]"
+        style={{ left: `${(172 / 256) * 100}%`, width: `${(76 / 256) * 100}%` }}
+      >
         <span className="flex size-7 items-center justify-center rounded-control-sm bg-primary/15 text-primary">
           <Users className="size-4" />
         </span>
@@ -748,6 +745,9 @@ function DirectionIllustration() {
     </div>
   );
 }
+
+/** Above this many objectives the state / alignment / sort controls earn their place. */
+const FILTER_THRESHOLD = 5;
 
 function TeamObjectives({
   items,
@@ -778,82 +778,66 @@ function TeamObjectives({
     [items, lifecycle, alignment, sort]
   );
   return (
-    <section
-      aria-labelledby="team-objectives-heading"
-      className="rounded-surface border border-border bg-section p-5 sm:p-6"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h2
-              id="team-objectives-heading"
-              className="type-section-title text-foreground"
+    <section aria-labelledby="team-objectives-heading">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <h2
+          id="team-objectives-heading"
+          className="flex items-baseline gap-2 type-section-title text-foreground"
+        >
+          Team objectives
+          <span className="type-meta tabular-nums text-muted-foreground">
+            {items.length}
+          </span>
+        </h2>
+        {items.length > FILTER_THRESHOLD ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              value={lifecycle}
+              onValueChange={(value) => setLifecycle(value as LifecycleFilter)}
             >
-              Team Objectives
-            </h2>
-            <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">
-              {items.length}
-            </span>
+              <SelectTrigger aria-label="Filter by lifecycle">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All states</SelectItem>
+                <SelectItem value="Draft">Draft</SelectItem>
+                <SelectItem value="Published">Published</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={alignment}
+              onValueChange={(value) => setAlignment(value as AlignmentFilter)}
+            >
+              <SelectTrigger aria-label="Filter by alignment">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All alignment</SelectItem>
+                <SelectItem value="aligned">Aligned</SelectItem>
+                <SelectItem value="standalone">Standalone</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={sort}
+              onValueChange={(value) => setSort(value as ObjectiveSort)}
+            >
+              <SelectTrigger aria-label="Sort objectives">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="default">Priority order</SelectItem>
+                <SelectItem value="due">Due date</SelectItem>
+                <SelectItem value="recent">Recently edited</SelectItem>
+                <SelectItem value="title">Title</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            The objectives this team owns in the current cycle.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={lifecycle}
-            onValueChange={(value) => setLifecycle(value as LifecycleFilter)}
-          >
-            <SelectTrigger aria-label="Filter by lifecycle">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All states</SelectItem>
-              <SelectItem value="Draft">Draft</SelectItem>
-              <SelectItem value="Published">Published</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={alignment}
-            onValueChange={(value) => setAlignment(value as AlignmentFilter)}
-          >
-            <SelectTrigger aria-label="Filter by alignment">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All alignment</SelectItem>
-              <SelectItem value="aligned">Aligned</SelectItem>
-              <SelectItem value="standalone">Standalone</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select
-            value={sort}
-            onValueChange={(value) => setSort(value as ObjectiveSort)}
-          >
-            <SelectTrigger aria-label="Sort objectives">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="default">Priority order</SelectItem>
-              <SelectItem value="due">Due date</SelectItem>
-              <SelectItem value="recent">Recently edited</SelectItem>
-              <SelectItem value="title">Title</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            onClick={onCreate}
-            disabled={!canCreate}
-            className="bg-foreground text-background hover:bg-foreground/90"
-          >
-            <Plus className="size-4" data-icon="inline-start" aria-hidden />{" "}
-            Create your team objective
-          </Button>
-        </div>
+        ) : null}
       </div>
       {items.length === 0 ? (
         <TeamObjectivesEmpty canCreate={canCreate} onCreate={onCreate} />
       ) : visible.length === 0 ? (
-        <div className="mt-5 rounded-surface border border-dashed border-border px-6 py-8 text-center">
+        <div className="mt-4 rounded-surface border border-dashed border-border px-6 py-8 text-center">
           <p className="text-sm font-medium text-foreground">
             No objectives match these filters.
           </p>
@@ -869,7 +853,7 @@ function TeamObjectives({
           </Button>
         </div>
       ) : (
-        <div className="mt-5 space-y-2.5">
+        <div className="mt-4 space-y-2.5">
           {visible.map((item) => (
             <TeamObjectiveRow
               key={item.node.id}
@@ -888,7 +872,7 @@ function TeamObjectives({
   );
 }
 
-/** First-objective invitation: an orbiting target emblem, the CTA, and the three steps it starts. */
+/** First-objective invitation: an orbiting target emblem and the one CTA, on a dashed placeholder. */
 function TeamObjectivesEmpty({
   canCreate,
   onCreate,
@@ -896,13 +880,8 @@ function TeamObjectivesEmpty({
   canCreate: boolean;
   onCreate: () => void;
 }) {
-  const steps = [
-    { icon: <Compass aria-hidden />, label: "Set direction" },
-    { icon: <Waypoints aria-hidden />, label: "Choose alignment" },
-    { icon: <ChartColumn aria-hidden />, label: "Track progress" },
-  ];
   return (
-    <div className="relative mt-5 overflow-hidden rounded-surface border border-border bg-card px-6 pb-8 pt-10 text-center">
+    <div className="relative mt-4 overflow-hidden rounded-surface border border-dashed border-border px-6 pb-10 pt-10 text-center">
       {/* Horizon glow behind the emblem. */}
       <div
         aria-hidden
@@ -934,24 +913,6 @@ function TeamObjectivesEmpty({
         Create your team objective
         <ArrowRight className="size-4" data-icon="inline-end" aria-hidden />
       </Button>
-      <ol className="relative mt-7 flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
-        {steps.map((step, i) => (
-          <li key={step.label} className="flex items-center gap-3">
-            {i > 0 ? (
-              <span
-                aria-hidden
-                className="hidden h-4 w-px bg-border sm:block"
-              />
-            ) : null}
-            <span className="inline-flex items-center gap-2.5 rounded-control border border-border bg-inlay py-1.5 pl-1.5 pr-3.5 text-sm text-foreground">
-              <span className="flex size-7 items-center justify-center rounded-control-sm bg-primary/10 text-primary [&_svg]:size-4">
-                {step.icon}
-              </span>
-              {step.label}
-            </span>
-          </li>
-        ))}
-      </ol>
     </div>
   );
 }
@@ -1001,6 +962,7 @@ function TeamObjectiveRow({
 }) {
   const { node } = item;
   const isDraft = node.state === "Draft";
+  const aligned = Boolean(item.parent);
   const canRecord =
     !isDraft &&
     node.progressSource === "Direct" &&
@@ -1008,184 +970,208 @@ function TeamObjectiveRow({
   const progress = Math.round(node.hasProgress ? node.derivedProgress : 0);
   return (
     <article className="rounded-surface border border-border bg-card px-4 py-4 sm:px-5">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,2.6fr)_minmax(7.5rem,.7fr)_minmax(7.5rem,.7fr)_minmax(6.5rem,.55fr)_auto] lg:items-center">
-        <div className="flex min-w-0 items-center gap-4">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onInspect(node.id)}
-                className="min-w-0 truncate text-left text-sm font-semibold text-foreground hover:underline"
-              >
-                {node.title}
-              </button>
-              <StatusBadge tone={STATE_TONE[node.state]} dot>
-                {STATE_LABEL[node.state]}
-              </StatusBadge>
+      <div className="flex gap-4">
+        <span
+          className={cn(
+            "flex size-11 shrink-0 items-center justify-center rounded-control ring-1",
+            aligned
+              ? "bg-primary/10 text-primary ring-primary/20"
+              : "bg-info/10 text-info ring-info/20"
+          )}
+        >
+          {aligned ? (
+            <ScopeMark className="size-6" />
+          ) : (
+            <Waypoints className="size-5" aria-hidden />
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          {/* Full-width title line: the title truncates, the badge never wraps under it. */}
+          <div className="flex min-w-0 items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => onInspect(node.id)}
+              className="min-w-0 truncate text-left text-base font-semibold tracking-tight text-foreground hover:underline"
+            >
+              {node.title}
+            </button>
+            <StatusBadge className="shrink-0" tone={STATE_TONE[node.state]} dot>
+              {STATE_LABEL[node.state]}
+            </StatusBadge>
+          </div>
+          {/* Middle band: what it sets out to do beside its facts; title and alignment span above and below. */}
+          <div className="mt-1.5 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div className="min-w-0">
+              {item.description ? (
+                <p className="line-clamp-2 max-w-xl text-sm text-muted-foreground">
+                  {item.description}
+                </p>
+              ) : null}
             </div>
-            {item.description ? (
-              <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
-                {item.description}
-              </p>
-            ) : null}
-            <div className="mt-2 flex min-w-0 items-center text-xs">
-              {item.parent ? (
-                <button
-                  type="button"
+            {/* Facts, divided: who answers for it, how it is read, how far it is, when it is due. */}
+            <div className="flex flex-wrap items-center gap-y-4 lg:flex-nowrap lg:border-l lg:border-border lg:pl-2">
+              <RowFact label="Accountable owner">
+                <span className="inline-flex items-center gap-2.5">
+                  <OwnerAvatar
+                    id={node.accountablePersonId}
+                    name={node.accountablePersonName}
+                  />
+                  <span className="max-w-32 truncate">
+                    {node.accountablePersonName ?? "No owner"}
+                  </span>
+                </span>
+              </RowFact>
+              <RowFact label="Measurement">
+                <span className="inline-flex items-center gap-2">
+                  <BarChart3
+                    className="size-4 text-muted-foreground"
+                    aria-hidden
+                  />
+                  {node.measurementSummary || "Not set"}
+                </span>
+              </RowFact>
+              <RowFact label="Progress">
+                <span className="flex items-center gap-2.5">
+                  <span className="tabular-nums">{progress}%</span>
+                  <span className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+                    <span
+                      className={cn(
+                        "block h-full rounded-full",
+                        progress >= 100
+                          ? "bg-success"
+                          : aligned
+                            ? "bg-primary"
+                            : "bg-info"
+                      )}
+                      style={{
+                        width: `${Math.max(0, Math.min(100, progress))}%`,
+                      }}
+                    />
+                  </span>
+                </span>
+              </RowFact>
+              <RowFact label="Due date">
+                <span className="inline-flex items-center gap-2">
+                  <CalendarDays
+                    className="size-4 text-muted-foreground"
+                    aria-hidden
+                  />
+                  {formatDate(node.endDate)}
+                </span>
+              </RowFact>
+              <div className="flex items-center pl-4 lg:border-l lg:border-border">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label={`Actions for ${node.title}`}
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onSelect={() => onInspect(node.id)}>
+                      <Eye className="size-3.5" data-icon="inline-start" /> View
+                      details
+                    </DropdownMenuItem>
+                    {canRecord ? (
+                      <DropdownMenuItem onSelect={() => onRecord(item)}>
+                        <TrendingUp
+                          className="size-3.5"
+                          data-icon="inline-start"
+                        />{" "}
+                        Update progress
+                      </DropdownMenuItem>
+                    ) : null}
+                    {isDraft ? (
+                      <>
+                        <DropdownMenuItem onSelect={() => onEdit(item)}>
+                          <Pencil
+                            className="size-3.5"
+                            data-icon="inline-start"
+                          />{" "}
+                          Edit objective
+                        </DropdownMenuItem>
+                        {node.childCount === 0 ? (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onSelect={() => void onDelete(item)}
+                            >
+                              <Trash2
+                                className="size-3.5"
+                                data-icon="inline-start"
+                              />{" "}
+                              Delete draft
+                            </DropdownMenuItem>
+                          </>
+                        ) : null}
+                      </>
+                    ) : item.parent ? (
+                      <DropdownMenuItem onSelect={() => onViewDirection(item)}>
+                        <CornerLeftUp
+                          className="size-3.5"
+                          data-icon="inline-start"
+                        />{" "}
+                        View direction
+                      </DropdownMenuItem>
+                    ) : null}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </div>
+          <div className="mt-3 flex min-w-0 items-center gap-2 text-sm">
+            {item.parent ? (
+              <>
+                <Link2 className="size-4 shrink-0 text-primary" aria-hidden />
+                <span className="shrink-0 text-muted-foreground">
+                  Aligned to
+                </span>
+                <span className="truncate font-medium text-primary">
+                  {item.parent.title}
+                </span>
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  className="ml-1 shrink-0"
                   onClick={() => onViewDirection(item)}
                   aria-label={`View direction: ${item.parent.title}`}
-                  className="inline-flex min-w-0 items-center gap-1.5 rounded-control font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                 >
-                  <Target className="size-3.5 shrink-0" aria-hidden />
-                  <span className="truncate">
-                    Aligned to {item.parent.title}
-                  </span>
-                </button>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 font-medium text-info">
-                  <Waypoints className="size-3.5 shrink-0" aria-hidden />{" "}
-                  Standalone
-                </span>
-              )}
-            </div>
+                  <ArrowUpRight className="size-3.5" aria-hidden />
+                </Button>
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-2 font-medium text-info">
+                <Waypoints className="size-4 shrink-0" aria-hidden />
+                Standalone team objective
+              </span>
+            )}
           </div>
-          <div className="flex shrink-0 items-center gap-2.5">
-            <OwnerAvatar
-              id={node.accountablePersonId}
-              name={node.accountablePersonName}
-            />
-            <div className="min-w-0">
-              <p className="type-eyebrow text-muted-foreground">Accountable</p>
-              <p className="max-w-36 truncate text-sm font-medium text-foreground">
-                {node.accountablePersonName ?? "No owner"}
-              </p>
-            </div>
-          </div>
-        </div>
-        <RowFact label="Measurement">
-          <span className="inline-flex items-center gap-1.5">
-            <Gauge className="size-3.5 text-muted-foreground" aria-hidden />
-            {node.measurementSummary || "Not set"}
-          </span>
-        </RowFact>
-        <RowFact label="Progress">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold tabular-nums">{progress}%</span>
-            <span className="h-2 min-w-16 flex-1 overflow-hidden rounded-full bg-muted">
-              <span
-                className={cn(
-                  "block h-full rounded-full",
-                  progress >= 100
-                    ? "bg-success"
-                    : item.parent
-                      ? "bg-primary"
-                      : "bg-info"
-                )}
-                style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
-              />
-            </span>
-          </div>
-        </RowFact>
-        <RowFact label="Due date">
-          <span className="inline-flex items-center gap-1.5">
-            <CalendarDays
-              className="size-3.5 text-muted-foreground"
-              aria-hidden
-            />
-            {formatDate(node.endDate)}
-          </span>
-        </RowFact>
-        <div className="flex items-center justify-end">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Actions for ${node.title}`}
-              >
-                <MoreHorizontal className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onSelect={() => onInspect(node.id)}>
-                <Eye className="size-3.5" data-icon="inline-start" /> View
-                details
-              </DropdownMenuItem>
-              {canRecord ? (
-                <DropdownMenuItem onSelect={() => onRecord(item)}>
-                  <TrendingUp className="size-3.5" data-icon="inline-start" />{" "}
-                  Update progress
-                </DropdownMenuItem>
-              ) : null}
-              {isDraft ? (
-                <>
-                  <DropdownMenuItem onSelect={() => onEdit(item)}>
-                    <Pencil className="size-3.5" data-icon="inline-start" />{" "}
-                    Edit objective
-                  </DropdownMenuItem>
-                  {node.childCount === 0 ? (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onSelect={() => void onDelete(item)}
-                      >
-                        <Trash2 className="size-3.5" data-icon="inline-start" />{" "}
-                        Delete draft
-                      </DropdownMenuItem>
-                    </>
-                  ) : null}
-                </>
-              ) : item.parent ? (
-                <DropdownMenuItem onSelect={() => onViewDirection(item)}>
-                  <CornerLeftUp className="size-3.5" data-icon="inline-start" />{" "}
-                  View direction
-                </DropdownMenuItem>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
     </article>
   );
 }
 
+/** One divided fact column: a quiet sentence-case label over its value. */
 function RowFact({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="min-w-0 border-t border-border/60 pt-3 lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
-      <p className="type-eyebrow text-muted-foreground">{label}</p>
-      <div className="mt-1 min-w-0 truncate text-sm font-medium text-foreground">
+    <div className="min-w-0 px-4 lg:border-l lg:border-border lg:first:border-l-0">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="mt-1.5 flex min-h-8 min-w-0 items-center text-sm font-medium text-foreground">
         {children}
       </div>
     </div>
   );
 }
 
-// Identity hues for person avatars (the DS chart ramp is single-hue amber, so it can't tell people apart).
-const OWNER_TONES = [
-  "bg-violet-500/20 text-violet-300 ring-violet-400/60",
-  "bg-sky-500/20 text-sky-300 ring-sky-400/60",
-  "bg-emerald-500/20 text-emerald-300 ring-emerald-400/60",
-  "bg-rose-500/20 text-rose-300 ring-rose-400/60",
-  "bg-amber-500/20 text-amber-300 ring-amber-400/60",
-  "bg-teal-500/20 text-teal-300 ring-teal-400/60",
-] as const;
-
-/** Stable per-person tone so the same owner always reads the same across rows. */
-function ownerTone(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
-  return OWNER_TONES[Math.abs(hash) % OWNER_TONES.length] ?? OWNER_TONES[0];
-}
-
-function OwnerAvatar({ id, name }: { id: string; name: string | null }) {
+/** The accountable owner's avatar, in the Fusion amber accent. */
+function OwnerAvatar({ name }: { id: string; name: string | null }) {
   return (
-    <Avatar
-      className={cn(
-        "size-8 ring-2 ring-offset-2 ring-offset-background",
-        ownerTone(id)
-      )}
-    >
+    <Avatar className="size-8 bg-primary/15 text-primary ring-2 ring-primary/40 ring-offset-2 ring-offset-card">
       <AvatarFallback className="bg-transparent text-xs font-semibold text-inherit">
         {initials(name)}
       </AvatarFallback>
@@ -1288,8 +1274,8 @@ function ObjectiveRowSkeleton() {
 
 export function TeamDirectionSkeleton() {
   return (
-    <div aria-hidden className="space-y-4">
-      <section className="rounded-surface border border-border bg-section p-5 sm:p-6">
+    <div aria-hidden className="space-y-12">
+      <section>
         <div className="flex justify-between gap-4">
           <div className="space-y-2">
             <Skeleton className="h-6 w-44" />
@@ -1297,28 +1283,17 @@ export function TeamDirectionSkeleton() {
           </div>
           <Skeleton className="h-9 w-52" />
         </div>
-        <div className="mt-5 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <div className="mt-4 grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
           <DirectionCardSkeleton />
           <NextObjectiveCardSkeleton />
         </div>
       </section>
-      <section className="rounded-surface border border-border bg-section p-5 sm:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2.5">
-              <Skeleton className="h-6 w-40" />
-              <Skeleton className="h-5 w-7 rounded-full" />
-            </div>
-            <Skeleton className="h-4 w-72" />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Skeleton className="h-9 w-28" />
-            <Skeleton className="h-9 w-32" />
-            <Skeleton className="h-9 w-32" />
-            <Skeleton className="h-9 w-52" />
-          </div>
+      <section>
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-4 w-4" />
         </div>
-        <div className="mt-5 space-y-2.5">
+        <div className="mt-4 space-y-2.5">
           {Array.from({ length: 3 }, (_, i) => (
             <ObjectiveRowSkeleton key={i} />
           ))}
