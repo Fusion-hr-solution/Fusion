@@ -5,9 +5,11 @@ import { cn } from "../lib/utils";
  * - neutral: ordinary/default states            - info: in-flight/active
  * - success: completed/healthy                  - warning: attention/pending (yellow)
  * - danger: destructive/error/seriously overdue - muted: inactive/archived
+ * - inverse: filled in the opposite of the theme (foreground on background), for a state that is
+ *   the user's own and in hand — e.g. a Draft — rather than a semantic signal
  * Red is reserved for danger; yellow means attention/pending.
  */
-export type StatusTone = "neutral" | "info" | "success" | "warning" | "danger" | "muted";
+export type StatusTone = "neutral" | "info" | "success" | "warning" | "danger" | "muted" | "inverse";
 
 const TONE_CLASSES: Record<StatusTone, string> = {
   neutral: "border-border bg-muted text-foreground/80",
@@ -16,6 +18,7 @@ const TONE_CLASSES: Record<StatusTone, string> = {
   warning: "border-transparent bg-warning-subtle text-warning",
   danger: "border-transparent bg-destructive/12 text-destructive",
   muted: "border-border bg-transparent text-muted-foreground",
+  inverse: "border-transparent bg-foreground text-background",
 };
 
 export interface StatusBadgeProps {
