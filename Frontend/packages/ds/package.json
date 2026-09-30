@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./shell": "./src/shell/index.ts",
+    "./data-table": "./src/data-table/index.ts",
     "./components/ui/*": "./src/components/ui/*.tsx",
     "./components/ui/use-toast": "./src/components/ui/use-toast.ts",
     "./lib/utils": "./src/lib/utils.ts",
@@ -20,6 +21,9 @@
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
     "@fontsource-variable/lora": "^5.3.0",
+    "@hugeicons/core-free-icons": "^4.3.5",
+    "@hugeicons/react": "^1.1.10",
+    "@tanstack/react-table": "9.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
