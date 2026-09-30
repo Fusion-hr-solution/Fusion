@@ -452,7 +452,7 @@ export default function PeopleWorkspace() {
         <DropdownMenuTrigger asChild>
           <Button><Plus className="size-4" /> Add employee <ChevronDown className="size-4" /></Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-56">
+        <DropdownMenuContent align="end">
           <DropdownMenuItem asChild><Link href="/people/hire">Hire employee</Link></DropdownMenuItem>
           <DropdownMenuItem asChild><Link href="/people/add-existing">Add existing employee</Link></DropdownMenuItem>
         </DropdownMenuContent>

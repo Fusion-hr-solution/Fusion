@@ -441,7 +441,7 @@ export function PeopleInScope({
                             <MoreHorizontal className="size-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-52">
+                        <DropdownMenuContent align="end">
                           <DropdownMenuItem
                             onSelect={() => onInspect(candidate)}
                           >

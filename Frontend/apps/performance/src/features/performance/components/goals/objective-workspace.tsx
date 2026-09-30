@@ -493,7 +493,7 @@ function SubjectMenu({
           <MoreHorizontal className="size-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
+      <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => actions.onInspect(node.id)}>
           <Eye className="size-3.5" data-icon="inline-start" /> View details
         </DropdownMenuItem>
@@ -878,7 +878,7 @@ function RowMenu({
           <MoreHorizontal className="size-4" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52">
+      <DropdownMenuContent align="end">
         <DropdownMenuItem onSelect={() => tree.onInspect(node.id)}>
           <Eye className="size-3.5" data-icon="inline-start" /> View details
         </DropdownMenuItem>

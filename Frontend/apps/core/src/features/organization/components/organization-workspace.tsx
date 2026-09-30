@@ -394,7 +394,7 @@ function InspectorContent({
                           More
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-52">
+                      <DropdownMenuContent align="end">
                         <DropdownMenuItem onSelect={() => onCorrect(unit, asOf)}>
                           <Wrench className="h-4 w-4" />
                           Correct recorded data
