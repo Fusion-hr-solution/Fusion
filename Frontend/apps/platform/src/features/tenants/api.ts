@@ -86,13 +86,14 @@ export type TenantOverviewSort =
 export interface TenantOverviewQuery {
   filter: OverviewFilter;
   search: string;
-  invitationStates: InvitationStateValue[];
-  deliveryOutcomes: DeliveryOutcomeValue[];
-  modules: TenantModule[];
+  /** Module identifiers, including ones this build's catalogue does not grant yet. */
+  modules: string[];
   createdFrom: string | null;
   createdTo: string | null;
   sort: TenantOverviewSort;
   page: number;
+  /** Rows per page; one of `TENANT_PAGE_SIZES`. */
+  pageSize: number;
 }
 
 interface DeliveryAttemptSummary {
@@ -162,8 +163,9 @@ export interface ProvisionTenantResult {
   completedAt: string;
 }
 
-/** The page size the workspace shows. Zero asks for every matching row. */
+/** The default page size and the choices the directory offers. Zero asks for every matching row. */
 export const TENANT_PAGE_SIZE = 10;
+export const TENANT_PAGE_SIZES = [10, 25, 50];
 
 /**
  * The shared client serialises params as scalars, and the multi-select filters
@@ -183,9 +185,7 @@ function overviewSearchParams(
   const search = query.search.trim();
   if (search) params.set("search", search);
 
-  for (const state of query.invitationStates) params.append("invitationState", state);
-  for (const outcome of query.deliveryOutcomes) params.append("delivery", outcome);
-  for (const moduleId of query.modules) params.append("module", moduleId);
+  for (const moduleId of grantableModules(query.modules)) params.append("module", moduleId);
 
   if (query.createdFrom) params.set("createdFrom", query.createdFrom);
   if (query.createdTo) params.set("createdTo", query.createdTo);
@@ -193,11 +193,37 @@ function overviewSearchParams(
   return params;
 }
 
+/**
+ * The directory can filter by any Fusion module, but the service only knows the ones it grants and
+ * rejects the rest. No tenant can hold a module that is never granted, so those are answered here:
+ * they drop out of an "any of" selection, and a selection of only those matches nothing.
+ */
+const GRANTABLE_MODULES = new Set<string>(["CoreHR", "Performance"] satisfies TenantModule[]);
+
+function grantableModules(modules: string[]): string[] {
+  return modules.filter((id) => GRANTABLE_MODULES.has(id));
+}
+
+function matchesNothing(query: TenantOverviewQuery): boolean {
+  return query.modules.length > 0 && grantableModules(query.modules).length === 0;
+}
+
+function emptyPage(query: TenantOverviewQuery): TenantOverviewPage {
+  return {
+    rows: [],
+    totalCount: 0,
+    page: 1,
+    pageSize: query.pageSize,
+    counts: { all: 0, awaitingActivation: 0, active: 0, needsAttention: 0 },
+  };
+}
+
 export function listTenants(
   query: TenantOverviewQuery,
   signal?: AbortSignal
 ): Promise<TenantOverviewPage> {
-  const params = overviewSearchParams(query, TENANT_PAGE_SIZE);
+  if (matchesNothing(query)) return Promise.resolve(emptyPage(query));
+  const params = overviewSearchParams(query, query.pageSize);
   return client.get<TenantOverviewPage>(`${BASE}?${params}`, { signal });
 }
 
@@ -210,6 +236,7 @@ export function listAllMatchingTenants(
   query: TenantOverviewQuery,
   signal?: AbortSignal
 ): Promise<TenantOverviewPage> {
+  if (matchesNothing(query)) return Promise.resolve(emptyPage(query));
   const params = overviewSearchParams({ ...query, page: 1 }, 0);
   return client.get<TenantOverviewPage>(`${BASE}?${params}`, { signal });
 }

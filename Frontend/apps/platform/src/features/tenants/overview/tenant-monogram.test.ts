@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { monogramFor } from "./tenant-monogram";
-import { pageNumbers } from "./tenant-pagination";
+import { getPageWindow } from "@repo/ds/data-table";
 
 describe("monogramFor", () => {
   it("takes the first and last words of a multi-word name", () => {
@@ -31,33 +31,35 @@ describe("monogramFor", () => {
   });
 });
 
-describe("pageNumbers", () => {
+// The directory's pager comes from the shared data table; these hold its page window to the
+// promises the directory relies on. Pages are 0-based there.
+describe("getPageWindow", () => {
+  const isPage = (slot: number | string): slot is number => typeof slot === "number";
+
   it("lists every page while they still fit", () => {
-    expect(pageNumbers(1, 5)).toEqual([1, 2, 3, 4, 5]);
+    expect(getPageWindow(0, 5)).toEqual([0, 1, 2, 3, 4]);
   });
 
   it("keeps the first and last page reachable from the middle", () => {
-    const pages = pageNumbers(10, 20);
+    const pages = getPageWindow(9, 20);
 
-    expect(pages[0]).toBe(1);
-    expect(pages[pages.length - 1]).toBe(20);
-    expect(pages).toContain(10);
-    expect(pages).toContain("gap");
+    expect(pages[0]).toBe(0);
+    expect(pages[pages.length - 1]).toBe(19);
+    expect(pages).toContain(9);
+    expect(pages.some((slot) => !isPage(slot))).toBe(true);
   });
 
   it("holds a stable width at both ends", () => {
     // The control must not visibly shrink as the operator reaches page 1 or the
     // last page.
-    expect(pageNumbers(1, 20).length).toBe(pageNumbers(20, 20).length);
+    expect(getPageWindow(0, 20).length).toBe(getPageWindow(19, 20).length);
   });
 
   it("never offers a page outside the result", () => {
-    for (const page of [1, 2, 10, 19, 20]) {
-      for (const entry of pageNumbers(page, 20)) {
-        if (entry !== "gap") {
-          expect(entry).toBeGreaterThanOrEqual(1);
-          expect(entry).toBeLessThanOrEqual(20);
-        }
+    for (const page of [0, 1, 9, 18, 19]) {
+      for (const slot of getPageWindow(page, 20).filter(isPage)) {
+        expect(slot).toBeGreaterThanOrEqual(0);
+        expect(slot).toBeLessThanOrEqual(19);
       }
     }
   });

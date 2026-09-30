@@ -22,19 +22,18 @@ describe("parseQuery", () => {
 
   it("restores every dimension of a shared link", () => {
     const query = parse(
-      "filter=NeedsAttention&q=atlas&invitation=Pending&invitation=Expired&delivery=Failed&module=Performance&from=2026-01-01&to=2026-06-30&sort=NameAscending&page=3"
+      "filter=NeedsAttention&q=atlas&invitation=Pending&invitation=Expired&delivery=Failed&module=Performance&from=2026-01-01&to=2026-06-30&sort=NameAscending&page=3&size=25"
     );
 
     expect(query).toEqual({
       filter: "NeedsAttention",
       search: "atlas",
-      invitationStates: ["Pending", "Expired"],
-      deliveryOutcomes: ["Failed"],
       modules: ["Performance"],
       createdFrom: "2026-01-01",
       createdTo: "2026-06-30",
       sort: "NameAscending",
       page: 3,
+      pageSize: 25,
     });
   });
 
@@ -42,16 +41,17 @@ describe("parseQuery", () => {
     // A hand-edited or stale link must degrade to something real rather than
     // sending an unknown value on to the service.
     const query = parse(
-      "filter=Nonsense&invitation=Nonsense&delivery=Maybe&module=Payroll&sort=Random&from=01-01-2026&page=-4"
+      "filter=Nonsense&invitation=Nonsense&delivery=Maybe&module=Payroll&sort=Random&from=01-01-2026&page=-4&size=7"
     );
 
     expect(query.filter).toBe("All");
-    expect(query.invitationStates).toEqual([]);
-    expect(query.deliveryOutcomes).toEqual([]);
+    // Invitation and delivery filters were retired; old links carrying them still open cleanly.
+    expect(query).not.toHaveProperty("invitationStates");
     expect(query.modules).toEqual([]);
     expect(query.sort).toBe("CreatedDescending");
     expect(query.createdFrom).toBeNull();
     expect(query.page).toBe(1);
+    expect(query.pageSize).toBe(10);
   });
 });
 
@@ -65,8 +65,6 @@ describe("serializeQuery", () => {
       ...DEFAULT_QUERY,
       filter: "Active" as const,
       search: "atlas",
-      invitationStates: ["Pending" as const],
-      deliveryOutcomes: ["Failed" as const],
       modules: ["Performance" as const],
       createdFrom: "2026-01-01",
       createdTo: "2026-06-30",
@@ -100,13 +98,11 @@ describe("activeFilterCount", () => {
   it("counts each selected value across dimensions", () => {
     expect(
       activeFilterCount({
-        invitationStates: ["Pending", "Expired"],
-        deliveryOutcomes: ["Failed"],
-        modules: ["Performance"],
-        createdFrom: null,
+        modules: ["CoreHR", "Performance"],
+        createdFrom: "2026-01-01",
         createdTo: null,
       })
-    ).toBe(4);
+    ).toBe(3);
   });
 });
 

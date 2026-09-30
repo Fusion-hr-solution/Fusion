@@ -1,11 +1,9 @@
 import type {
-  DeliveryOutcomeValue,
-  InvitationStateValue,
   OverviewFilter,
-  TenantModule,
   TenantOverviewQuery,
   TenantOverviewSort,
 } from "../api";
+import { TENANT_PAGE_SIZE, TENANT_PAGE_SIZES } from "../api";
 
 /**
  * The workspace query lives in the URL.
@@ -20,13 +18,12 @@ import type {
 export const DEFAULT_QUERY: TenantOverviewQuery = {
   filter: "All",
   search: "",
-  invitationStates: [],
-  deliveryOutcomes: [],
   modules: [],
   createdFrom: null,
   createdTo: null,
   sort: "CreatedDescending",
   page: 1,
+  pageSize: TENANT_PAGE_SIZE,
 };
 
 const FILTERS: OverviewFilter[] = [
@@ -35,16 +32,6 @@ const FILTERS: OverviewFilter[] = [
   "Active",
   "NeedsAttention",
 ];
-
-const INVITATION_STATES: InvitationStateValue[] = [
-  "Pending",
-  "Accepted",
-  "Expired",
-  "Revoked",
-  "Superseded",
-];
-
-const DELIVERY_OUTCOMES: DeliveryOutcomeValue[] = ["Sent", "Failed"];
 
 const SORTS: TenantOverviewSort[] = [
   "CreatedDescending",
@@ -67,20 +54,20 @@ function pickAll<T extends string>(
 
 export function parseQuery(
   params: URLSearchParams,
-  moduleCatalogue: readonly TenantModule[]
+  moduleCatalogue: readonly string[]
 ): TenantOverviewQuery {
   const page = Number.parseInt(params.get("page") ?? "", 10);
+  const size = Number.parseInt(params.get("size") ?? "", 10);
 
   return {
     filter: FILTERS.find((value) => value === params.get("filter")) ?? "All",
     search: params.get("q") ?? "",
-    invitationStates: pickAll(params.getAll("invitation"), INVITATION_STATES),
-    deliveryOutcomes: pickAll(params.getAll("delivery"), DELIVERY_OUTCOMES),
     modules: pickAll(params.getAll("module"), moduleCatalogue),
     createdFrom: readDate(params.get("from")),
     createdTo: readDate(params.get("to")),
     sort: SORTS.find((value) => value === params.get("sort")) ?? "CreatedDescending",
     page: Number.isFinite(page) && page > 0 ? page : 1,
+    pageSize: TENANT_PAGE_SIZES.includes(size) ? size : TENANT_PAGE_SIZE,
   };
 }
 
@@ -97,26 +84,23 @@ export function serializeQuery(query: TenantOverviewQuery): string {
 
   if (query.filter !== "All") params.set("filter", query.filter);
   if (query.search.trim()) params.set("q", query.search.trim());
-  for (const state of query.invitationStates) params.append("invitation", state);
-  for (const outcome of query.deliveryOutcomes) params.append("delivery", outcome);
   for (const moduleId of query.modules) params.append("module", moduleId);
   if (query.createdFrom) params.set("from", query.createdFrom);
   if (query.createdTo) params.set("to", query.createdTo);
   if (query.sort !== "CreatedDescending") params.set("sort", query.sort);
   if (query.page > 1) params.set("page", String(query.page));
+  if (query.pageSize !== TENANT_PAGE_SIZE) params.set("size", String(query.pageSize));
 
   return params.toString();
 }
 
-/** The advanced filters only, which is what the Filter control reports on. */
-export type AdvancedFilters = Pick<
-  TenantOverviewQuery,
-  "invitationStates" | "deliveryOutcomes" | "modules" | "createdFrom" | "createdTo"
->;
+/**
+ * The filters beyond lifecycle. The summary cards own lifecycle (awaiting, active, needs attention), so
+ * only what they cannot answer is here: which modules a tenant has, and when it was created.
+ */
+export type AdvancedFilters = Pick<TenantOverviewQuery, "modules" | "createdFrom" | "createdTo">;
 
 export const NO_ADVANCED_FILTERS: AdvancedFilters = {
-  invitationStates: [],
-  deliveryOutcomes: [],
   modules: [],
   createdFrom: null,
   createdTo: null,
@@ -128,8 +112,6 @@ export const NO_ADVANCED_FILTERS: AdvancedFilters = {
  */
 export function activeFilterCount(filters: AdvancedFilters): number {
   return (
-    filters.invitationStates.length +
-    filters.deliveryOutcomes.length +
     filters.modules.length +
     (filters.createdFrom || filters.createdTo ? 1 : 0)
   );
