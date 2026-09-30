@@ -1,6 +1,6 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { Info } from "@/lib/icons";
 import type { EmployeePlanDto } from "@repo/api";
 import { StatusBadge } from "@repo/ds/shell";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
@@ -8,15 +8,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@repo/
 import { initials } from "./plan-lib";
 
 /**
- * The plan's lifecycle state as a chip beside the page title. Draft is a quiet accent outline — the
- * plan is yours to shape, not a warning — while a submitted or approved plan takes the semantic tone.
+ * The plan's lifecycle state as a chip beside the page title. Draft is filled in the theme's opposite —
+ * the plan is yours to shape, not a warning — while a submitted or approved plan takes the semantic tone.
  */
 export function PlanStateBadge({ plan }: { plan: EmployeePlanDto }) {
   if (plan.state === "Draft") {
     return (
-      <span className="inline-flex items-center rounded-full border border-primary/50 px-2.5 py-0.5 text-xs font-semibold text-primary">
+      <StatusBadge tone="inverse" dot>
         Draft
-      </span>
+      </StatusBadge>
     );
   }
   return (

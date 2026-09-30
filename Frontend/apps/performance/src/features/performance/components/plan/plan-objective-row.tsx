@@ -1,17 +1,19 @@
 "use client";
 
 import {
-  ArrowRight,
   CalendarRange,
-  Flag,
-  Gauge,
   LineChart,
   MoreHorizontal,
   SquarePen,
   Target,
   Trash2,
   Unlink,
-} from "lucide-react";
+  Measurement,
+  Milestones,
+  NumericGoal,
+  PercentMeasure,
+} from "@/lib/icons";
+import { TargetRange } from "./target-range";
 import type { PlanObjectiveDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import {
@@ -78,16 +80,34 @@ export function PlanObjectiveRow({
 
   return (
     <div
+      // The objective's type accent for everything inside that marks it: amber aligned, blue standalone.
+      style={
+        {
+          "--type-accent": objective.isAligned
+            ? "var(--primary)"
+            : "var(--info)",
+        } as React.CSSProperties
+      }
       className={cn(
         "rounded-surface border p-5 transition-colors",
-        active
-          ? "border-primary/60 bg-primary/[0.05] ring-1 ring-primary/25"
-          : "border-border bg-inlay"
+        !active
+          ? "border-border bg-card"
+          : objective.isAligned
+            ? "border-primary/60 bg-card ring-1 ring-primary/25"
+            : "border-info/60 bg-card ring-1 ring-info/25"
       )}
     >
       {/* Top line: identity + weight + actions. */}
       <div className="flex items-start gap-4">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-control border border-primary/25 bg-primary/[0.06] text-base font-semibold tabular-nums text-primary">
+        {/* The number takes the objective's type colour: amber when aligned, blue when standalone. */}
+        <span
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-control border text-base font-semibold tabular-nums",
+            objective.isAligned
+              ? "border-primary/25 bg-primary/[0.06] text-primary"
+              : "border-info/25 bg-info/[0.06] text-info"
+          )}
+        >
           {String(index + 1).padStart(2, "0")}
         </span>
 
@@ -102,33 +122,41 @@ export function PlanObjectiveRow({
               {objective.title}
             </button>
           ) : (
-            <p className="font-medium tracking-tight text-foreground">{objective.title}</p>
+            <p className="font-medium tracking-tight text-foreground">
+              {objective.title}
+            </p>
           )}
           <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
             {objective.isAligned ? (
               <>
-                <Target className="size-3 shrink-0 text-primary/70" aria-hidden />
+                <Target className="size-4 shrink-0 text-primary" aria-hidden />
                 <span>
                   Aligned to{" "}
                   {onViewAlignment && objective.parentObjectiveId ? (
                     <button
                       type="button"
-                      onClick={() => onViewAlignment(objective.parentObjectiveId!)}
+                      onClick={() =>
+                        onViewAlignment(objective.parentObjectiveId!)
+                      }
                       className="rounded-control font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {parentObjective ?? "direction"}
                     </button>
                   ) : (
-                    <span className="font-medium text-primary">{parentObjective ?? "direction"}</span>
+                    <span className="font-medium text-primary">
+                      {parentObjective ?? "direction"}
+                    </span>
                   )}
                 </span>
                 {alignmentScope ? (
-                  <span className="text-muted-foreground/70">· {alignmentScope}</span>
+                  <span className="text-muted-foreground/70">
+                    · {alignmentScope}
+                  </span>
                 ) : null}
               </>
             ) : (
               <span className="inline-flex items-center gap-1.5 text-info">
-                <Unlink className="size-3 shrink-0" aria-hidden />
+                <Unlink className="size-4 shrink-0" aria-hidden />
                 Standalone role objective
               </span>
             )}
@@ -139,7 +167,11 @@ export function PlanObjectiveRow({
           {canAuthor ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${objective.title}`}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Actions for ${objective.title}`}
+                >
                   <MoreHorizontal className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -156,61 +188,68 @@ export function PlanObjectiveRow({
                 ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : null}
+          ) : (
+            // Visual parity with the authoring row; read-only rows have no actions behind it.
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              tabIndex={-1}
+              aria-hidden
+              className="pointer-events-none"
+            >
+              <MoreHorizontal className="size-4" />
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Metadata line: measurement, its target, duration — separated cells, only ones that carry meaning.
           The inspect affordance closes the row on the reading/authoring states. */}
       <div className="mt-4 flex items-end gap-3 pl-14">
-      <dl className="flex min-w-0 flex-1 flex-col gap-3 text-sm sm:flex-row sm:gap-0 sm:divide-x sm:divide-border">
-        <MetaCell icon={Gauge} label="Measurement">
-          {measurement ? MEASUREMENT_METHOD_LABEL[measurement.method] : "—"}
-        </MetaCell>
-
-        {measurement?.method === "NumericTarget" ? (
-          <MetaCell icon={Target} label="Target">
-            <span className="inline-flex items-center gap-1.5 tabular-nums">
-              {formatMeasureValue(measurement.baseline, measurement.unit)}
-              <ArrowRight className="size-3 text-muted-foreground" aria-hidden />
-              {formatMeasureValue(measurement.target, measurement.unit)}
-              {measurement.direction ? (
-                <span className="text-muted-foreground">
-                  · {measurement.direction === "Decrease" ? "Decrease" : "Increase"}
-                </span>
-              ) : null}
-            </span>
+        <dl className="flex min-w-0 flex-1 flex-col gap-3 text-sm sm:flex-row sm:gap-0 sm:divide-x sm:divide-border">
+          <MetaCell icon={Measurement} label="Measurement">
+            {measurement ? MEASUREMENT_METHOD_LABEL[measurement.method] : "—"}
           </MetaCell>
-        ) : measurement?.method === "WeightedMilestones" ? (
-          <MetaCell icon={Flag} label="Milestones">
-            <span className="tabular-nums">
-              {measurement.milestones.length} milestone{measurement.milestones.length === 1 ? "" : "s"}
-              <span className="text-muted-foreground">
-                {" "}
-                · Total {measurement.milestones.reduce((sum, m) => sum + m.weight, 0)}%
+
+          {measurement?.method === "NumericTarget" ? (
+            <MetaCell icon={NumericGoal} label="Target">
+              <span className="inline-flex items-center gap-1.5 tabular-nums">
+                <TargetRange
+                  baseline={measurement.baseline}
+                  target={measurement.target}
+                  unit={measurement.unit}
+                  direction={measurement.direction}
+                />
               </span>
-            </span>
-          </MetaCell>
-        ) : (
-          <MetaCell icon={Target} label="Measure">
-            Single percentage
-          </MetaCell>
-        )}
+            </MetaCell>
+          ) : measurement?.method === "WeightedMilestones" ? (
+            <MetaCell icon={Milestones} label="Milestones">
+              <MilestoneStrip milestones={measurement.milestones} />
+            </MetaCell>
+          ) : (
+            <MetaCell icon={PercentMeasure} label="Measure">
+              Single percentage
+            </MetaCell>
+          )}
 
-        <MetaCell icon={CalendarRange} label="Duration">
-          {formatDateRange(objective.startDate, objective.endDate)}
-        </MetaCell>
-      </dl>
+          <MetaCell icon={CalendarRange} label="Duration">
+            {formatDateRange(objective.startDate, objective.endDate)}
+          </MetaCell>
+        </dl>
         <div className="shrink-0 text-right">
+          <p className="type-eyebrow text-muted-foreground/70">Weight</p>
           <p
             className={cn(
-              "text-lg font-semibold tabular-nums leading-none",
-              weight > 0 ? "text-primary" : "text-muted-foreground/50"
+              "mt-1 text-lg font-semibold tabular-nums leading-none",
+              weight <= 0
+                ? "text-muted-foreground/50"
+                : objective.isAligned
+                  ? "text-primary"
+                  : "text-info"
             )}
           >
             {pct(weight)}%
           </p>
-          <p className="mt-1 type-eyebrow text-muted-foreground/70">Weight</p>
         </div>
       </div>
 
@@ -224,7 +263,8 @@ export function PlanObjectiveRow({
             {onOpenProgress ? (
               objective.canUpdateProgress ? (
                 <Button variant="outline" size="sm" onClick={onOpenProgress}>
-                  <LineChart className="size-3.5" data-icon="inline-start" /> Update progress
+                  <LineChart className="size-3.5" data-icon="inline-start" />{" "}
+                  Update progress
                 </Button>
               ) : (
                 <Button variant="ghost" size="sm" onClick={onOpenProgress}>
@@ -236,6 +276,30 @@ export function PlanObjectiveRow({
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * The milestones' structure: one segment each, sized by its weight, beside a plain count. Structure only —
+ * it reads the same in every plan state; completion belongs to the execution band, which segments its
+ * progress bar the same way. Milestone weights always total 100%, so the total is never stated.
+ */
+function MilestoneStrip({ milestones }: { milestones: { weight: number }[] }) {
+  return (
+    <span className="inline-flex items-center gap-2.5">
+      <span className="flex h-1.5 w-20 gap-0.5" aria-hidden>
+        {milestones.map((m, i) => (
+          <span
+            key={i}
+            className="h-full rounded-full bg-[var(--type-accent,var(--primary))] opacity-40"
+            style={{ flexGrow: Math.max(m.weight, 1) }}
+          />
+        ))}
+      </span>
+      <span className="tabular-nums">
+        {milestones.length} milestone{milestones.length === 1 ? "" : "s"}
+      </span>
+    </span>
   );
 }
 
@@ -257,23 +321,34 @@ function ExecutionState({
   const measurement = objective.measurement;
   const method = measurement?.method;
   const has = objective.hasProgress;
-  const updated = objective.lastProgressAt ? formatDate(objective.lastProgressAt.slice(0, 10)) : null;
+  const updated = objective.lastProgressAt
+    ? formatDate(objective.lastProgressAt.slice(0, 10))
+    : null;
 
   let label: string;
   let value: React.ReactNode;
   if (method === "WeightedMilestones") {
     const total = measurement?.milestones.length ?? 0;
-    const done = measurement?.milestones.filter((m) => m.isCompleted).length ?? 0;
+    const done =
+      measurement?.milestones.filter((m) => m.isCompleted).length ?? 0;
     label = "Milestone progress";
     value = (
-      <span className={cn("tabular-nums", has ? PROGRESS_TONE_TEXT[tone] : "text-muted-foreground/60")}>
-        {done} of {total} milestone{total === 1 ? "" : "s"} {has ? "completed" : "updated"}
+      <span
+        className={cn(
+          "tabular-nums",
+          has ? PROGRESS_TONE_TEXT[tone] : "text-muted-foreground/60"
+        )}
+      >
+        {done} of {total} milestone{total === 1 ? "" : "s"}{" "}
+        {has ? "completed" : "updated"}
       </span>
     );
   } else if (method === "ManualPercentage") {
     label = "Current progress";
     value = has ? (
-      <span className={cn("tabular-nums", PROGRESS_TONE_TEXT[tone])}>{pct(objective.currentPercentage ?? 0)}%</span>
+      <span className={cn("tabular-nums", PROGRESS_TONE_TEXT[tone])}>
+        {pct(objective.currentPercentage ?? 0)}%
+      </span>
     ) : (
       <span className="text-muted-foreground/50">—</span>
     );
@@ -291,18 +366,41 @@ function ExecutionState({
   return (
     <div className="min-w-0 flex-1">
       <p className="type-eyebrow text-muted-foreground/70">{label}</p>
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-        {has ? (
-          <span
-            className={cn("block h-full rounded-full", PROGRESS_TONE_BG[tone])}
-            style={{ width: `${capped}%` }}
-          />
-        ) : null}
-      </div>
+      {method === "WeightedMilestones" && measurement ? (
+        // Same segments as the Milestones fact above (sized by weight); completed ones fill.
+        <div className="mt-2 flex h-1.5 w-full gap-1" aria-hidden>
+          {measurement.milestones.map((m, i) => (
+            <span
+              key={i}
+              className={cn(
+                "h-full rounded-full",
+                m.isCompleted ? PROGRESS_TONE_BG[tone] : "bg-muted"
+              )}
+              style={{ flexGrow: Math.max(m.weight, 1) }}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          {has ? (
+            <span
+              className={cn(
+                "block h-full rounded-full",
+                PROGRESS_TONE_BG[tone]
+              )}
+              style={{ width: `${capped}%` }}
+            />
+          ) : null}
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         <span className="text-sm font-semibold">{value}</span>
         <span className="text-xs text-muted-foreground">
-          {has ? (updated ? `Updated ${updated}` : null) : "Progress not reported yet"}
+          {has
+            ? updated
+              ? `Updated ${updated}`
+              : null
+            : "Progress not reported yet"}
         </span>
       </div>
     </div>
@@ -321,7 +419,7 @@ function MetaCell({
   return (
     <div className="min-w-0 sm:px-5 sm:first:pl-0">
       <dt className="flex items-center gap-1.5 type-eyebrow text-muted-foreground/70">
-        <Icon className="size-3" aria-hidden />
+        <Icon className="size-4" aria-hidden />
         {label}
       </dt>
       <dd className="mt-1 whitespace-nowrap text-foreground">{children}</dd>

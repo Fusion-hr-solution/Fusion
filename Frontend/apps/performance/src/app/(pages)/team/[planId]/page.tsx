@@ -1,7 +1,8 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
+import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
+import { PlanPageSkeleton } from "@/features/performance/components/plan/plan-skeleton";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { PlanReview } from "@/features/performance/components/plan/plan-review";
 import { usePerformanceAccess, useCurrentCycle } from "@/features/performance/api/use-performance";
@@ -22,7 +23,7 @@ export default function PlanReviewPage() {
   const detail = useCurrentCycle(canEnter);
   const cycle = detail.data?.cycle ?? null;
 
-  if (access.isLoading) return <PageSkeleton rows={5} label="Loading Performance" />;
+  if (access.isLoading) return <PlanPageSkeleton />;
   if (!canEnter) {
     return (
       <PagePermissionNotice
@@ -31,7 +32,7 @@ export default function PlanReviewPage() {
       />
     );
   }
-  if (detail.isLoading) return <PageSkeleton rows={5} label="Loading Cycle" />;
+  if (detail.isLoading) return <PlanPageSkeleton />;
   if (detail.error) return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject="The Cycle" />;
   if (!cycle) {
     return (
@@ -42,7 +43,7 @@ export default function PlanReviewPage() {
   }
 
   return (
-    <PageContainer>
+    <PageContainer className="max-w-7xl">
       <PlanReview cycle={cycle} planId={planId} />
     </PageContainer>
   );

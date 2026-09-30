@@ -1,11 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Check, Lock } from "lucide-react";
+import { Check, Lock } from "@/lib/icons";
 import type { EmployeePlanDto } from "@repo/api";
 import { cn } from "@repo/ds/lib/utils";
 import { formatDate } from "../../lib";
 import { pct } from "./plan-lib";
+import { SidebarSection } from "./plan-layout";
 
 type StepTone = "done" | "current" | "returned" | "upcoming";
 
@@ -93,8 +94,7 @@ export function PlanSubmissionStatus({ plan }: { plan: EmployeePlanDto }) {
   ];
 
   return (
-    <section className="rounded-surface border border-border bg-card p-5">
-      <p className="type-eyebrow text-muted-foreground">Submission status</p>
+    <SidebarSection label="Submission status">
       <ol className="mt-4">
         {steps.map((step, index) => (
           <Step key={step.key} step={step} last={index === steps.length - 1} />
@@ -114,7 +114,7 @@ export function PlanSubmissionStatus({ plan }: { plan: EmployeePlanDto }) {
           </div>
         </div>
       ) : null}
-    </section>
+    </SidebarSection>
   );
 }
 

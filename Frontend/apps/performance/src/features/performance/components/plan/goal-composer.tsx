@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Minus, Plus, Target, UserRound } from "lucide-react";
+import { Minus, Plus, Target, UserRound } from "@/lib/icons";
 import { toast } from "sonner";
 import type {
   AddPlanObjectiveRequest,

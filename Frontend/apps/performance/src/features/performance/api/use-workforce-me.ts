@@ -9,9 +9,9 @@ import { useAuth } from "@repo/auth";
  * The current user's own workforce context over the shared CoreHR self-service endpoint
  * (`/corehr/workforce/me`). It is keyed by the caller's own employee id and permissioned for
  * own-profile scope, so it resolves for an ordinary organizational leader without any roster or
- * org-read grant. Performance uses it for one thing: the actor's current organizational unit, so
- * Organization Goals can center on the scope the leader is responsible for — real workforce
- * context, never a fabricated default. Only the fields this module reads are typed.
+ * org-read grant. Performance reads the actor's current organizational unit (so Organization Goals
+ * can center on the scope the leader is responsible for) and their manager (so My Plan can name the
+ * reviewer's relationship and contact) — real workforce context, never a fabricated default. Only the fields this module reads are typed.
  */
 export interface WorkforceMeOrgAssignment {
   orgUnitId: string;
@@ -21,12 +21,20 @@ export interface WorkforceMeOrgAssignment {
   parentStableOrgUnitKey: string | null;
 }
 
+export interface WorkforceMeManager {
+  employeeId: string;
+  displayName: string;
+  email: string | null;
+  isActive: boolean;
+}
+
 export interface WorkforceMeEmployee {
   employeeId: string;
   displayName: string;
   fullName: string;
   jobTitle: string | null;
   orgUnit: WorkforceMeOrgAssignment | null;
+  manager: WorkforceMeManager | null;
   directReportCount: number;
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Check, Clock, Landmark, LineChart, RotateCcw } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { Check, Clock, Landmark, LineChart, RotateCcw } from "@/lib/icons";
 import { toast } from "sonner";
 import type { AlignmentTargetDto, CycleSummaryDto, EmployeePlanDto, PlanObjectiveDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
@@ -16,9 +16,17 @@ import {
   AlertDialogTrigger,
 } from "@repo/ds/components/ui/alert-dialog";
 import { Button } from "@repo/ds/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@repo/ds/components/ui/dialog";
 import { Textarea } from "@repo/ds/components/ui/textarea";
-import { AsyncButton, PageError, PageSkeleton, StatusBadge } from "@repo/ds/shell";
-import { cn } from "@repo/ds/lib/utils";
+import { AsyncButton, PageError, StatusBadge } from "@repo/ds/shell";
 import {
   useAlignmentTargets,
   usePerformanceAccess,
@@ -30,27 +38,28 @@ import { PerformanceBreadcrumbLabel } from "@/shell/performance-breadcrumb";
 import { OrgObjectiveDetailDrawer } from "../goals/org-objective-detail-drawer";
 import { ObjectiveDetailDrawer } from "./objective-detail-drawer";
 import { PlanBannerMark } from "./plan-banner";
-import { PlanDirection } from "./plan-direction";
+import { PlanDirectionSection } from "./plan-direction";
+import { PlanDocument, PlanSection, PlanWeightStrip, SidebarSection } from "./plan-layout";
 import { PlanObjectiveRow } from "./plan-objective-row";
 import { PlanProgressCard } from "./plan-progress-card";
 import { PlanApprovedStatus } from "./plan-approved-status";
-import { initials, pct } from "./plan-lib";
+import { PlanSurfaceSkeleton } from "./plan-skeleton";
+import { initials } from "./plan-lib";
 
 /**
  * The reviewer's view of a submitted Plan — the same Plan resource an employee authors, opened by its
- * assigned reviewer to make one plan-level decision. It leads with whose Plan this is and why the
- * reviewer is here, carries the review context (submitted, count, allocation) once, and reuses the
- * employee Plan's own grammar for direction and the objective ledger so it reads as the same Plan,
- * curated for a different responsibility. The Plan is read-only; the only actions are the two
- * decisions, and they appear only for the legitimate assigned reviewer (server-authorized via
- * `canDecide`). Approving or returning transitions the real Plan and refreshes this resource in place.
+ * assigned reviewer to make one plan-level decision. It uses the employee Plan's own document + sidebar
+ * layout so it reads as the same Plan, curated for a different responsibility: whose plan and the
+ * decision in the header, the objectives as the document, the review context in the sidebar. The Plan
+ * is read-only; the only actions are the two decisions, shown only to the legitimate assigned reviewer
+ * (server-authorized via `canDecide`). Deciding transitions the real Plan and refreshes it in place.
  */
 export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: string }) {
   const detail = usePlanDetail(cycle.id, planId);
   const targetsQuery = useAlignmentTargets(cycle.id);
   const access = usePerformanceAccess();
 
-  if (detail.isLoading) return <PageSkeleton rows={5} label="Loading plan" />;
+  if (detail.isLoading) return <PlanSurfaceSkeleton />;
   if (detail.error || !detail.data) {
     return <PageError title="Plan unavailable" description={detail.error?.message} onRetry={detail.refetch} />;
   }
@@ -70,34 +79,37 @@ export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: 
   const firstName = plan.employee.name?.trim().split(/\s+/)[0] ?? "the employee";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       {/* Replace the raw plan-id segment in the shell breadcrumb with the employee's name. */}
       <PerformanceBreadcrumbLabel segment={planId} label={plan.employee.name ?? undefined} />
 
-      <ReviewHeading plan={plan} />
-
-      <PlanDirection
-        objectives={plan.objectives}
-        targets={targets}
-        reviewerName={plan.responsibleManager?.name ?? null}
-        canViewOrgGoals={canViewOrgGoals}
+      <ReviewHeading
+        plan={plan}
+        actions={
+          plan.canDecide ? (
+            <ReviewDecision plan={plan} cycleId={cycle.id} planId={planId} firstName={firstName} />
+          ) : null
+        }
       />
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_23rem]">
-        <ObjectiveLedgerReadOnly plan={plan} targets={targets} cycleId={cycle.id} />
-
-        <aside className="space-y-4 lg:sticky lg:top-6">
-          {/* Approved reads as the same settled agreement the owner sees — one shared status card; the
-              open states keep the review-context lead that frames the pending decision. */}
-          {plan.isLocked ? (
-            <PlanApprovedStatus plan={plan} perspective="reviewer" subjectFirstName={firstName} />
+      <PlanDocument
+        main={<ObjectiveLedgerReadOnly plan={plan} targets={targets} cycleId={cycle.id} />}
+        sidebar={
+          plan.isLocked ? (
+            // Approved reads as the same settled agreement the owner sees.
+            <>
+              <PlanDirectionSection objectives={plan.objectives} targets={targets} canViewOrgGoals={canViewOrgGoals} />
+              <PlanApprovedStatus plan={plan} perspective="reviewer" subjectFirstName={firstName} />
+              <PlanProgressCard plan={plan} />
+            </>
           ) : (
-            <ReviewContextCard plan={plan} firstName={firstName} />
-          )}
-          {plan.isLocked ? <PlanProgressCard plan={plan} /> : null}
-          <ReviewDecision plan={plan} cycleId={cycle.id} planId={planId} firstName={firstName} />
-        </aside>
-      </div>
+            <>
+              <PlanDirectionSection objectives={plan.objectives} targets={targets} canViewOrgGoals={canViewOrgGoals} />
+              <ReviewContext plan={plan} firstName={firstName} />
+            </>
+          )
+        }
+      />
     </div>
   );
 }
@@ -128,12 +140,13 @@ function ReviewStateBadge({ plan }: { plan: EmployeePlanDto }) {
 
 /**
  * Whose plan and why: the employee's avatar anchors the name (with the plan's state) and, directly
- * beneath it, the org unit and the reason the reviewer is here — one identity block, no cycle subtitle.
+ * beneath it, the org unit and the reason the reviewer is here. The decision sits opposite, as the
+ * page's primary actions.
  */
-function ReviewHeading({ plan }: { plan: EmployeePlanDto }) {
+function ReviewHeading({ plan, actions }: { plan: EmployeePlanDto; actions?: ReactNode }) {
   return (
-    <div className="mb-4">
-      <div className="flex items-center gap-3.5">
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="flex min-w-0 items-center gap-3.5">
         <Avatar className="size-12">
           <AvatarFallback>{initials(plan.employee.name)}</AvatarFallback>
         </Avatar>
@@ -168,21 +181,22 @@ function ReviewHeading({ plan }: { plan: EmployeePlanDto }) {
           </p>
         </div>
       </div>
+      {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );
 }
 
 /**
- * The review context, stated once: what stage the decision is at, and the three facts that frame it —
- * when it was submitted, how many objectives, how much of the plan is allocated. The lead adapts to the
- * plan's state so a resolved plan reads as resolved rather than still-awaiting.
+ * The review context in the sidebar: what stage the decision is at, then the facts the objective list
+ * does not already carry — when it was submitted and how the plan splits between direction-aligned and
+ * standalone objectives. Count and weight total live on the list heading. The lead adapts to the plan's
+ * state so a returned plan reads as returned rather than still-awaiting.
  */
-function ReviewContextCard({ plan, firstName }: { plan: EmployeePlanDto; firstName: string }) {
+function ReviewContext({ plan, firstName }: { plan: EmployeePlanDto; firstName: string }) {
   const submittedOn = plan.submittedAt ? formatDate(plan.submittedAt.slice(0, 10)) : null;
-  const count = plan.objectives.length;
-  const total = plan.readiness.weightTotal;
+  const aligned = plan.objectives.filter((o) => o.isAligned).length;
+  const standalone = plan.objectives.length - aligned;
 
-  // Approved plans render the shared PlanApprovedStatus instead, so this card frames only the open states.
   const returned = plan.state === "Draft" && plan.history.some((h) => h.kind === "Returned");
 
   const lead = returned
@@ -197,7 +211,7 @@ function ReviewContextCard({ plan, firstName }: { plan: EmployeePlanDto; firstNa
           icon: Clock,
           tint: "text-primary bg-primary/12 ring-primary/20",
           title: "Awaiting your review",
-          detail: `Review ${firstName}'s submitted commitments and make a plan-level decision.`,
+          detail: `Review ${firstName}'s objectives, then approve or request changes.`,
         }
       : {
           icon: Clock,
@@ -210,37 +224,54 @@ function ReviewContextCard({ plan, firstName }: { plan: EmployeePlanDto; firstNa
   const Icon = lead.icon;
 
   return (
-    <section className="rounded-surface border border-border bg-card p-5">
-      <div className="flex items-start gap-3.5">
-        <PlanBannerMark className={lead.tint}>
-          <Icon className="size-5" aria-hidden />
-        </PlanBannerMark>
-        <div className="min-w-0">
-          <p className="font-semibold tracking-tight text-foreground">{lead.title}</p>
-          <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{lead.detail}</p>
+    <>
+      <SidebarSection>
+        <div className="flex items-start gap-3.5">
+          <PlanBannerMark className={lead.tint}>
+            <Icon className="size-5" aria-hidden />
+          </PlanBannerMark>
+          <div className="min-w-0">
+            <p className="font-semibold tracking-tight text-foreground">{lead.title}</p>
+            <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{lead.detail}</p>
+          </div>
         </div>
-      </div>
+      </SidebarSection>
 
-      <dl className="mt-5 grid grid-cols-3 gap-3 border-t border-border pt-4">
-        <ContextFact label="Submitted" value={submittedOn ?? "—"} />
-        <ContextFact label="Objectives" value={String(count)} />
-        <ContextFact label="Allocated" value={`${pct(total)}%`} valueClass={total === 100 ? "text-success" : undefined} />
-      </dl>
-    </section>
+      <SidebarSection>
+        <dl className="space-y-4">
+          <ContextFact label="Submitted" value={submittedOn ?? "—"} />
+          <ContextFact
+            label="Alignment"
+            value={
+              <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-primary" aria-hidden />
+                  {aligned} aligned
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="size-1.5 rounded-full bg-info" aria-hidden />
+                  {standalone} standalone
+                </span>
+              </span>
+            }
+          />
+        </dl>
+      </SidebarSection>
+    </>
   );
 }
 
-function ContextFact({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
+function ContextFact({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="min-w-0">
       <dt className="type-eyebrow text-muted-foreground">{label}</dt>
-      <dd className={cn("mt-1 text-sm font-semibold tabular-nums text-foreground", valueClass)}>{value}</dd>
+      <dd className="mt-1 text-sm font-semibold tabular-nums text-foreground">{value}</dd>
     </div>
   );
 }
 
 /**
- * The complete ledger, read for the manager's responsibility — the same objective rows as My Plan, no
+ * The complete ledger, read for the manager's responsibility — the same objective cards as My Plan, no
  * authoring or recording actions. While the plan is submitted it reads as the baseline under review; once
  * approved and locked it grows the same execution band and progress-bearing detail drawer the employee
  * sees, so the manager tracks the identical execution truth — minus the controls that are the owner's.
@@ -274,12 +305,12 @@ function ObjectiveLedgerReadOnly({
     objective.isAligned ? scopeByTitle.get(objective.directionPath.at(-1) ?? "") : undefined;
 
   return (
-    <section className="rounded-surface border border-border bg-card">
-      <div className="flex items-center gap-2 border-b border-border px-5 py-3">
-        <span className="type-eyebrow text-muted-foreground">{plan.isLocked ? "Objectives" : "Submitted objectives"}</span>
-        <span className="text-xs tabular-nums text-muted-foreground">{plan.objectives.length}</span>
-      </div>
-      <div className="space-y-3 p-4">
+    <PlanSection
+      label="Objectives"
+      count={plan.objectives.length}
+      summary={<PlanWeightStrip segments={plan.objectives.map((o) => ({ weight: o.planWeight ?? 0, aligned: o.isAligned }))} />}
+    >
+      <div className="space-y-3">
         {plan.objectives.map((objective, index) => (
           // On an approved plan the row grows its execution band (current value + progress) — read-only,
           // with no Update progress: recording is the owner's, gated away here.
@@ -316,15 +347,15 @@ function ObjectiveLedgerReadOnly({
           if (!open) setAlignedId(null);
         }}
       />
-    </section>
+    </PlanSection>
   );
 }
 
 /**
- * The plan-level decision. Only the assigned reviewer (server-authorized `canDecide`) sees the controls:
- * approve the whole plan, which locks it as the agreed baseline, or return the whole plan with required
- * feedback for revision. Once decided, the controls give way to the finalized state — the outcome the
- * review context card already leads with, restated here only as the lock/return record.
+ * The plan-level decision, as the page's primary actions. Only the assigned reviewer (server-authorized
+ * `canDecide`) gets it: approve the whole plan, which locks it as the agreed baseline, or return it with
+ * required feedback. Both are consequential, so each confirms in a dialog; returning asks for the
+ * feedback there, and its primary stays disabled until the feedback is real.
  */
 function ReviewDecision({
   plan,
@@ -338,130 +369,104 @@ function ReviewDecision({
   firstName: string;
 }) {
   const mutations = usePlanReviewMutations(cycleId, planId);
-  const [returning, setReturning] = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [approveOpen, setApproveOpen] = useState(false);
   const approving = mutations.approve.isLoading;
+  const returning = mutations.returnForRevision.isLoading;
+  const canReturn = feedback.trim().length > 0;
 
-  if (plan.canDecide) {
-    // Requesting changes is a focused state, not a textarea that appears: the card retitles to the task,
-    // states what the feedback is for and the consequence (the whole Plan reopens), and hides Approve so
-    // there is one decision to make. Feedback is required — the primary stays disabled until it is real.
-    if (returning) {
-      const canReturn = feedback.trim().length > 0;
-      return (
-        <section className="rounded-surface border border-border bg-card p-5">
-          <p className="type-eyebrow text-muted-foreground">Request changes</p>
-          <p className="mt-2 text-sm text-foreground">
-            Tell {firstName} what needs to change before you can approve this Plan.
-          </p>
+  return (
+    <>
+      <Dialog
+        open={returnOpen}
+        onOpenChange={(o) => {
+          if (returning) return;
+          setReturnOpen(o);
+          if (!o) setFeedback("");
+        }}
+      >
+        <DialogTrigger asChild>
+          <Button variant="outline">
+            <RotateCcw className="size-4" data-icon="inline-start" /> Request changes
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request changes</DialogTitle>
+            <DialogDescription>
+              The whole plan reopens for {firstName} to revise and resubmit.
+            </DialogDescription>
+          </DialogHeader>
           <Textarea
+            aria-label={`What should ${firstName} change?`}
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
-            rows={4}
-            className="mt-3"
-            placeholder={`Describe the changes ${firstName} should make…`}
+            rows={5}
+            className="min-h-32"
+            placeholder={`What should ${firstName} change?`}
             autoFocus
           />
-          <div className="mt-4 flex items-center justify-end gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setReturning(false);
-                setFeedback("");
-              }}
-              disabled={mutations.returnForRevision.isLoading}
-            >
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReturnOpen(false)} disabled={returning}>
               Cancel
             </Button>
             <AsyncButton
-              size="sm"
-              pending={mutations.returnForRevision.isLoading}
+              pending={returning}
               disabled={!canReturn}
               onClick={async () => {
                 try {
                   await mutations.returnForRevision.mutateAsync({ feedback: feedback.trim() });
                   toast.success(`Plan returned to ${firstName} for changes.`);
-                  setReturning(false);
+                  setReturnOpen(false);
                   setFeedback("");
                 } catch (error) {
                   toast.error(error instanceof Error ? error.message : "Could not return the plan.");
                 }
               }}
             >
-              <RotateCcw className="size-4" data-icon="inline-start" /> Request changes
+              <RotateCcw className="size-4" data-icon="inline-start" /> Return plan
             </AsyncButton>
-          </div>
-        </section>
-      );
-    }
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-    return (
-      <section className="rounded-surface border border-border bg-card p-5">
-        <p className="type-eyebrow text-muted-foreground">Review decision</p>
-        <div className="mt-4 grid grid-cols-2 gap-2.5">
-          <Button variant="outline" onClick={() => setReturning(true)}>
-            <RotateCcw className="size-4" data-icon="inline-start" /> Request changes
+      <AlertDialog open={approveOpen} onOpenChange={(o) => { if (!approving) setApproveOpen(o); }}>
+        <AlertDialogTrigger asChild>
+          <Button>
+            <Check className="size-4" data-icon="inline-start" /> Approve plan
           </Button>
-          <AlertDialog open={approveOpen} onOpenChange={(o) => { if (!approving) setApproveOpen(o); }}>
-            <AlertDialogTrigger asChild>
-              <Button>
-                <Check className="size-4" data-icon="inline-start" /> Approve plan
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Approve this plan?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Approving <span className="font-medium text-foreground">locks {firstName}&apos;s plan</span> as
-                  the agreed baseline for{" "}
-                  <span className="font-medium text-foreground">{plan.cycleName}</span>. It{" "}
-                  <span className="font-medium text-foreground">can&apos;t be edited afterward</span> without an
-                  administrator.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={approving}>Cancel</AlertDialogCancel>
-                <AsyncButton
-                  pending={approving}
-                  onClick={async () => {
-                    try {
-                      await mutations.approve.mutateAsync();
-                      toast.success("Plan approved and locked.");
-                      setApproveOpen(false);
-                    } catch (error) {
-                      toast.error(error instanceof Error ? error.message : "Could not approve the plan.");
-                    }
-                  }}
-                >
-                  <Check className="size-4" data-icon="inline-start" /> Approve plan
-                </AsyncButton>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </section>
-    );
-  }
-
-  // Resolved. An approved plan needs no decision block — the review context card already leads with the
-  // approval; only a returned plan restates its outcome here.
-  if (plan.state === "Approved") return null;
-
-  const returned = plan.state === "Draft" && plan.history.some((h) => h.kind === "Returned");
-  if (returned) {
-    return (
-      <section className="rounded-surface border border-warning/30 bg-warning/[0.06] p-5">
-        <p className="flex items-center gap-2 text-sm font-medium text-warning">
-          <RotateCcw className="size-4" aria-hidden /> Changes requested
-        </p>
-        <p className="mt-1.5 text-xs text-muted-foreground">
-          Returned to {firstName} to revise and resubmit.
-        </p>
-      </section>
-    );
-  }
-
-  return null;
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve this plan?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Approving <span className="font-medium text-foreground">locks {firstName}&apos;s plan</span> as
+              the agreed baseline for{" "}
+              <span className="font-medium text-foreground">{plan.cycleName}</span>. It{" "}
+              <span className="font-medium text-foreground">can&apos;t be edited afterward</span> without an
+              administrator.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={approving}>Cancel</AlertDialogCancel>
+            <AsyncButton
+              pending={approving}
+              onClick={async () => {
+                try {
+                  await mutations.approve.mutateAsync();
+                  toast.success("Plan approved and locked.");
+                  setApproveOpen(false);
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Could not approve the plan.");
+                }
+              }}
+            >
+              <Check className="size-4" data-icon="inline-start" /> Approve plan
+            </AsyncButton>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
 }

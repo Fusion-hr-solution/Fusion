@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Check, ChevronDown, X } from "lucide-react";
+import { Check, ChevronDown, X } from "@/lib/icons";
 import type { PlanReadinessDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";
+import { SidebarSection } from "./plan-layout";
 import { planChecks } from "./plan-lib";
 
 /**
  * Why the plan can or cannot be submitted, drawn from the same readiness facts as the Submit gate.
- * When every condition is met the card stays quiet and collapsed — a single "N checks passed" line
+ * When every condition is met the section stays quiet and collapsed — a single "N checks passed" line
  * over a reveal — because a wall of green ticks is noise. When conditions fail the card leads with
  * them, actionably, and the passing ones recede. It never hard-codes the valid state.
  */
@@ -22,8 +23,7 @@ export function PlanSubmissionChecks({ readiness }: { readiness: PlanReadinessDt
   const [open, setOpen] = useState(true);
 
   return (
-    <section className="rounded-surface border border-border bg-card p-5">
-      <p className="type-eyebrow text-muted-foreground">Submission checks</p>
+    <SidebarSection label="Submission checks">
 
       {allPassed ? (
         <>
@@ -80,7 +80,7 @@ export function PlanSubmissionChecks({ readiness }: { readiness: PlanReadinessDt
           ) : null}
         </>
       )}
-    </section>
+    </SidebarSection>
   );
 }
 

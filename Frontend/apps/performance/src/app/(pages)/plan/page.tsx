@@ -21,7 +21,7 @@ export default function PlanPage() {
   const planState = useMyPlan(cycle?.id ?? null, canParticipate);
   const plan = planState.data?.plan ?? null;
 
-  if (access.isLoading) return <PlanPageSkeleton />;
+  if (access.isLoading) return <PlanPageSkeleton empty />;
   if (!canParticipate) {
     return (
       <PagePermissionNotice
@@ -30,7 +30,7 @@ export default function PlanPage() {
       />
     );
   }
-  if (detail.isLoading) return <PlanPageSkeleton />;
+  if (detail.isLoading) return <PlanPageSkeleton empty />;
   if (detail.error) return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject="The Cycle" />;
   if (!cycle) {
     return (
@@ -49,20 +49,26 @@ export default function PlanPage() {
 
   return (
     <PageContainer className="max-w-7xl">
-      <PerformancePageHeading
-        title={
-          <span className="inline-flex flex-wrap items-center gap-2.5">
-            My Plan
-            {plan && plan.objectives.length > 0 ? (
-              <PlanStateBadge plan={plan} />
-            ) : planState.data ? (
-              <NotStartedBadge />
-            ) : null}
-          </span>
-        }
-        description={executing ? "Execution & progress" : "Planning & Agreement"}
+      <MyPlan
+        cycle={cycle}
+        heading={(actions) => (
+          <PerformancePageHeading
+            className="mb-6"
+            title={
+              <span className="inline-flex flex-wrap items-center gap-2.5">
+                My Plan
+                {plan && plan.objectives.length > 0 ? (
+                  <PlanStateBadge plan={plan} />
+                ) : planState.data ? (
+                  <NotStartedBadge />
+                ) : null}
+              </span>
+            }
+            description={executing ? "Execution & progress" : "Planning & Agreement"}
+            actions={actions}
+          />
+        )}
       />
-      <MyPlan cycle={cycle} />
     </PageContainer>
   );
 }

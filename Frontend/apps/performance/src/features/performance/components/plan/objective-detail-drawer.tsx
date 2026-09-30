@@ -2,11 +2,9 @@
 
 import {
   ArrowLeft,
-  ArrowRight,
   BarChart3,
   CalendarDays,
   FileText,
-  Flag,
   LineChart,
   Minus,
   Percent,
@@ -15,7 +13,9 @@ import {
   TrendingUp,
   Unlink,
   Users,
-} from "lucide-react";
+  Milestones,
+} from "@/lib/icons";
+import { TargetRange } from "./target-range";
 import { useEffect, useState, type ReactNode } from "react";
 import type { MeasurementDto, PlanObjectiveDto, ProgressUpdateDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
@@ -31,7 +31,6 @@ import { ProgressHistoryTimeline } from "../progress/progress-history-timeline";
 import {
   MEASUREMENT_METHOD_LABEL,
   PROGRESS_TONE_TEXT,
-  formatMeasureValue,
   objectiveProgressTone,
   pct,
 } from "./plan-lib";
@@ -90,7 +89,17 @@ export function ObjectiveDetailDrawer({
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto p-0 data-[side=right]:sm:max-w-[540px]">
+      <SheetContent
+        className="flex w-full flex-col gap-0 overflow-y-auto p-0 data-[side=right]:sm:max-w-[540px]"
+        // The objective's type accent, inherited by every accent inside: amber when aligned (or an
+        // organizational objective), blue when standalone — the same colour its card carries.
+        style={
+          {
+            "--type-accent":
+              variant === "organizational" || (objective?.isAligned ?? true) ? "var(--primary)" : "var(--info)",
+          } as React.CSSProperties
+        }
+      >
         {objective ? (
           <ObjectiveDetailBody
             objective={objective}
@@ -250,7 +259,7 @@ function ObjectiveDetailBody({
         {/* Measurement — a card leading with how progress is read, then the type and measure as facts. */}
         <Card
           icon={<BarChart3 className="size-5" aria-hidden />}
-          iconTint="bg-primary/10 text-primary ring-primary/20"
+          iconTint="bg-(--type-accent)/10 text-(--type-accent) ring-(--type-accent)/20"
           title="Measurement"
           subtitle={measurementSubtitle(measurement)}
         >
@@ -273,7 +282,7 @@ function ObjectiveDetailBody({
             <ul className="mt-3 space-y-2 rounded-surface border border-border px-3.5 py-3">
               {measurement.milestones.map((m) => (
                 <li key={m.id} className="flex items-center gap-2.5 text-sm">
-                  <Flag className="size-3.5 shrink-0 text-muted-foreground/70" aria-hidden />
+                  <Milestones className="size-3.5 shrink-0 text-muted-foreground/70" aria-hidden />
                   <span className="min-w-0 flex-1 truncate text-foreground">{m.title}</span>
                   <span className="shrink-0 tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
                 </li>
@@ -346,7 +355,7 @@ function DrawerHeader({
   return (
     <div className="border-b border-border px-5 pb-4 pt-5 pr-12">
       <div className="flex items-start gap-3.5">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-control border border-primary/25 bg-primary/[0.06] text-base font-semibold tabular-nums text-primary">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-control border border-(--type-accent)/25 bg-(--type-accent)/[0.06] text-base font-semibold tabular-nums text-(--type-accent)">
           {String(index + 1).padStart(2, "0")}
         </span>
         <div className="min-w-0">
@@ -464,7 +473,7 @@ function RecordMeasurementCard({ measurement }: { measurement: MeasurementDto | 
   return (
     <Card
       icon={<BarChart3 className="size-5" aria-hidden />}
-      iconTint="bg-primary/10 text-primary ring-primary/20"
+      iconTint="bg-(--type-accent)/10 text-(--type-accent) ring-(--type-accent)/20"
       title="Measurement"
       subtitle={measurementSubtitle(measurement)}
     >
@@ -506,12 +515,7 @@ function NumericTargetStrip({ measurement }: { measurement: MeasurementDto }) {
     <div className="mt-3 rounded-surface border border-border px-3.5 py-3">
       <p className="type-eyebrow text-muted-foreground">Target</p>
       <p className="mt-1 inline-flex items-center gap-1.5 text-sm tabular-nums text-foreground">
-        {formatMeasureValue(measurement.baseline, measurement.unit)}
-        <ArrowRight className="size-3 text-muted-foreground" aria-hidden />
-        {formatMeasureValue(measurement.target, measurement.unit)}
-        {measurement.direction ? (
-          <span className="text-muted-foreground">· {measurement.direction === "Decrease" ? "Decrease" : "Increase"}</span>
-        ) : null}
+        <TargetRange baseline={measurement.baseline} target={measurement.target} unit={measurement.unit} direction={measurement.direction} />
       </p>
     </div>
   );
@@ -685,7 +689,7 @@ function TimelinePoint({ label, value, connector }: { label: string; value: stri
   return (
     <li className={cn("flex gap-3", connector && "min-h-0 flex-1")}>
       <div className="flex flex-col items-center pt-1">
-        <span className="size-2.5 shrink-0 rounded-full bg-primary ring-2 ring-primary/20" />
+        <span className="size-2.5 shrink-0 rounded-full bg-(--type-accent) ring-2 ring-(--type-accent)/20" />
         {connector ? <span className="mt-1 w-px flex-1 border-l border-dashed border-border" /> : null}
       </div>
       <div className={cn("min-w-0", connector && "pb-4")}>
@@ -724,7 +728,7 @@ function WeightDonut({ value }: { value: number }) {
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={`${dash} ${c - dash}`}
-          className={clamped > 0 ? "stroke-primary" : "stroke-transparent"}
+          className={clamped > 0 ? "stroke-(--type-accent)" : "stroke-transparent"}
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">

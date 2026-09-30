@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Check, ChevronDown, ChevronUp } from "@/lib/icons";
 import { toast } from "sonner";
 import type { EvidenceInput, ObjectiveProgressDto, SubmitProgressRequest } from "@repo/api";
 import { Label } from "@repo/ds/components/ui/label";
@@ -461,7 +461,7 @@ export function DerivedCard({
           {Math.round(derived)}%
         </span>
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-          <span className={cn("block h-full rounded-full", complete ? "bg-success" : "bg-primary")} style={{ width: `${clamped}%` }} />
+          <span className={cn("block h-full rounded-full", complete ? "bg-success" : "bg-[var(--type-accent,var(--primary))]")} style={{ width: `${clamped}%` }} />
         </div>
         {from != null ? <span className="shrink-0 text-xs text-muted-foreground tabular-nums">from {Math.round(from)}%</span> : null}
       </div>

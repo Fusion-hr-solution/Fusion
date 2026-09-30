@@ -2,12 +2,14 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Landmark, Users } from "lucide-react";
-import type { AlignmentTargetDto, PlanObjectiveDto } from "@repo/api";
+import { ArrowUpRight, Landmark } from "@/lib/icons";
+import type { AlignmentTargetDto, PlanDecisionDto, PlanObjectiveDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { ScopeMark } from "../scope-mark";
-import { PlanBanner, PlanBannerMark } from "./plan-banner";
+import { SidebarSection } from "./plan-layout";
 import { initials } from "./plan-lib";
+import { formatDate } from "../../lib";
+import { useWorkforceMe } from "../../api/use-workforce-me";
 
 export interface DirectionLevel {
   key: string;
@@ -16,134 +18,121 @@ export interface DirectionLevel {
 }
 
 /**
- * The plan's context strip: the organizational direction it supports and the reviewer who holds its
- * agreement, resolved into one row. The employee's leading objective carries the emphasis (accent goal
- * mark, title) with its immediate parent objective named beneath it; the org-unit scopes it sits in
- * (its own focus area, and the objective it supports) read as quiet labelled facts, and the reviewer
- * closes the row. It is read-only context — one hop to Organization Goals for the full tree. With no
- * aligned objective there is no direction yet, so only the reviewer half renders.
+ * The plan's direction as a sidebar property: the objective the plan serves, linked down a quiet
+ * connector to the objective it supports, each with its scope. Same resolution as the banner; read-only,
+ * with one hop to Organization Goals for the full tree. Renders nothing when there is no direction yet.
  */
-export function PlanDirection({
+export function PlanDirectionSection({
   objectives,
   targets,
   directionLevels,
-  reviewerName,
-  reviewerRole,
   canViewOrgGoals,
 }: {
   objectives: PlanObjectiveDto[];
   targets: AlignmentTargetDto[];
-  /** Explicit direction chain, deepest-first, overriding the objective-derived one (used before a
-   *  plan exists, when direction is resolved from the employee's scoped alignment targets). */
   directionLevels?: DirectionLevel[];
-  reviewerName?: string | null;
-  reviewerRole?: string | null;
   canViewOrgGoals: boolean;
 }) {
-  const derived = useMemo(
-    () => resolveDirection(objectives, targets),
-    [objectives, targets]
-  );
-  const levels = directionLevels ?? derived;
-  const leading = levels[0];
-  const parent = levels[1];
-  if (!leading && !reviewerName) return null;
-
-  const reviewer = reviewerName ? (
-    <div className="flex min-w-0 items-center gap-3 lg:border-l lg:border-border/60 lg:pl-6">
-      <Avatar className="size-9">
-        <AvatarFallback className="text-xs">
-          {initials(reviewerName)}
-        </AvatarFallback>
-      </Avatar>
-      <div className="min-w-0">
-        <p className="type-eyebrow whitespace-nowrap text-muted-foreground">
-          Reviewer
-        </p>
-        <p className="truncate text-sm font-semibold text-foreground">
-          {reviewerName}
-        </p>
-        {reviewerRole ? (
-          <p className="truncate text-xs text-muted-foreground">
-            {reviewerRole}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  ) : null;
-
-  const goalsLink = canViewOrgGoals ? (
-    <Link
-      href="/goals"
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-control border border-border bg-transparent dark:bg-input/30 px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background lg:ml-auto"
-    >
-      View in Goals
-      <ArrowUpRight className="size-3.5" aria-hidden />
-    </Link>
-  ) : null;
-
-  // No aligned direction yet (e.g. before a plan exists): only the reviewer half. Same shell (surface,
-  // radius, padding) as the full banner so heights stay in the same family, without a direction mark.
-  if (!leading) {
-    return (
-      <section className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-surface border border-border bg-card px-4 py-3">
-        {reviewer}
-        {goalsLink}
-      </section>
-    );
-  }
+  const derived = useMemo(() => resolveDirection(objectives, targets), [objectives, targets]);
+  const levels = (directionLevels ?? derived).slice(0, 2);
+  if (levels.length === 0) return null;
 
   return (
-    <PlanBanner
-      mark={
-        <PlanBannerMark className="bg-primary/10 text-primary ring-primary/20">
-          <ScopeMark className="size-7" />
-        </PlanBannerMark>
-      }
-      title={leading.title}
-      detail={parent?.title}
-    >
-      {/* Scopes: the objective's own focus area, and the objective it supports upward. */}
-      <div className="flex items-center gap-x-6 lg:border-l lg:border-border/60 lg:pl-6">
-        <ScopeFact
-          icon={<Users className="size-5" aria-hidden />}
-          label="Focus area"
-          value={leading.scope}
-        />
-        {parent ? (
-          <ScopeFact
-            icon={<Landmark className="size-5" aria-hidden />}
-            label="Supports"
-            value={parent.scope}
-          />
-        ) : null}
-      </div>
-      {reviewer}
-      {goalsLink}
-    </PlanBanner>
+    <SidebarSection label="Direction">
+      <ol className="mt-4">
+        {levels.map((level, index) => {
+          const leading = index === 0;
+          return (
+            <li key={level.key} className="relative flex gap-3 pb-5 last:pb-0">
+              {index < levels.length - 1 ? (
+                <span className="absolute bottom-0 left-4 top-9 w-px -translate-x-1/2 bg-border" aria-hidden />
+              ) : null}
+              <span
+                className={
+                  leading
+                    ? "flex size-8 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary ring-1 ring-primary/20"
+                    : "flex size-8 shrink-0 items-center justify-center rounded-control border border-border text-muted-foreground"
+                }
+              >
+                {leading ? <ScopeMark className="size-5" /> : <Landmark className="size-4" aria-hidden />}
+              </span>
+              <div className="min-w-0 pt-0.5">
+                <p className={leading ? "text-sm font-semibold leading-snug text-foreground" : "text-sm leading-snug text-foreground/85"}>
+                  {level.title}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{level.scope}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+      {canViewOrgGoals ? (
+        <Link
+          href="/goals"
+          className="mt-4 inline-flex items-center gap-1 rounded-detail text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          View in Organization Goals
+          <ArrowUpRight className="size-3.5" aria-hidden />
+        </Link>
+      ) : null}
+    </SidebarSection>
   );
 }
 
-/** A quiet labelled scope: an outline icon beside an eyebrow and its single value. */
-function ScopeFact({
-  icon,
-  label,
-  value,
+const DECISION_LABEL: Partial<Record<PlanDecisionDto["kind"], string>> = {
+  Returned: "Returned your plan",
+  Approved: "Approved your plan",
+  ApprovedExceptionally: "Approved your plan",
+};
+
+/**
+ * Who holds the plan's agreement: the reviewer's identity, how they relate to the employee (their own
+ * manager, when the workforce record says so), a direct line to reach them, and — once they have acted
+ * on this plan — their latest decision. Only facts; nothing the rest of the page already states.
+ */
+export function PlanReviewerSection({
+  reviewerId,
+  reviewerName,
+  history = [],
 }: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
+  reviewerId?: string | null;
+  reviewerName: string | null;
+  history?: PlanDecisionDto[];
 }) {
+  const me = useWorkforceMe(Boolean(reviewerName));
+  if (!reviewerName) return null;
+
+  const manager = me.data?.employee?.manager ?? null;
+  const isManager = Boolean(manager && reviewerId && manager.employeeId === reviewerId);
+  const email = isManager ? manager?.email ?? null : null;
+  const lastDecision = [...history].reverse().find((h) => DECISION_LABEL[h.kind] && (!reviewerId || h.actorEmployeeId === reviewerId));
+
   return (
-    <div className="flex min-w-0 items-center gap-2.5">
-      <span className="shrink-0 text-muted-foreground/70">{icon}</span>
-      <div className="min-w-0">
-        <p className="type-eyebrow whitespace-nowrap text-muted-foreground">
-          {label}
-        </p>
-        <p className="truncate text-sm text-foreground">{value}</p>
+    <SidebarSection label="Reviewer">
+      <div className="mt-4 flex items-center gap-3">
+        <Avatar className="size-10">
+          <AvatarFallback className="text-xs">{initials(reviewerName)}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground">{reviewerName}</p>
+          {email ? (
+            <a
+              href={`mailto:${email}`}
+              className="block truncate rounded-detail text-xs text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {email}
+            </a>
+          ) : null}
+        </div>
       </div>
-    </div>
+
+      {lastDecision ? (
+        <dl className="mt-4 flex items-baseline justify-between gap-3 text-sm">
+          <dt className="text-muted-foreground">{DECISION_LABEL[lastDecision.kind]}</dt>
+          <dd className="shrink-0 tabular-nums text-foreground/85">{formatDate(lastDecision.decidedAt.slice(0, 10))}</dd>
+        </dl>
+      ) : null}
+    </SidebarSection>
   );
 }
 

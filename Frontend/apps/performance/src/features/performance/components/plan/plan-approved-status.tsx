@@ -1,15 +1,16 @@
 "use client";
 
-import { Check } from "lucide-react";
+import { Check } from "@/lib/icons";
 import type { EmployeePlanDto } from "@repo/api";
 import { formatDate } from "../../lib";
 import { PlanBannerMark } from "./plan-banner";
+import { SidebarSection } from "./plan-layout";
 
 /**
- * The approved, locked plan stated once — the same card whether the plan's owner or its reviewer reads
+ * The approved, locked plan stated once — the same sidebar section whether the plan's owner or its reviewer reads
  * it, since both are looking at the same settled agreement. It leads with the outcome and keeps only the
- * facts that still matter once execution is underway: who approved it and when, and how many objectives it
- * holds. Allocation is deliberately absent — a plan cannot be approved unless it is fully allocated, so
+ * facts that still matter once execution is underway: who approved it and when. The objective count
+ * lives on the list heading beside it. Allocation is deliberately absent — a plan cannot be approved unless it is fully allocated, so
  * restating "100%" here would carry no information. The owner and reviewer differ only in the one sentence
  * that names the perspective; the structure is identical.
  */
@@ -29,7 +30,6 @@ export function PlanApprovedStatus({
     .find((h) => h.kind === "Approved" || h.kind === "ApprovedExceptionally");
   const approver = approval?.actorName ?? plan.responsibleManager?.name ?? null;
   const approvedOn = plan.approvedAt ? formatDate(plan.approvedAt.slice(0, 10)) : null;
-  const count = plan.objectives.length;
 
   const detail =
     perspective === "reviewer"
@@ -39,7 +39,7 @@ export function PlanApprovedStatus({
         : "This is now your locked baseline.";
 
   return (
-    <section className="rounded-surface border border-border bg-card p-5">
+    <SidebarSection>
       <div className="flex items-start gap-3.5">
         <PlanBannerMark className="text-success bg-success/12 ring-success/20">
           <Check className="size-5" aria-hidden />
@@ -50,11 +50,10 @@ export function PlanApprovedStatus({
         </div>
       </div>
 
-      <dl className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4">
+      <dl className="mt-5 border-t border-border pt-4">
         <Fact label="Approved" value={approvedOn ?? "—"} />
-        <Fact label="Objectives" value={String(count)} />
       </dl>
-    </section>
+    </SidebarSection>
   );
 }
 

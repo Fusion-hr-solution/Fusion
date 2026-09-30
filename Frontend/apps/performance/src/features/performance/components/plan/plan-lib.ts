@@ -42,7 +42,9 @@ export function pct(value: number): string {
 /** A raw measurement value with its optional unit suffix ("45%", "12 days"); an em dash when unset. */
 export function formatMeasureValue(value: number | null, unit: string | null): string {
   if (value === null) return "—";
-  return unit ? `${value}${unit}` : String(value);
+  if (!unit) return String(value);
+  // Symbols hug the number (45%, 3x); word units read as words (5 business days).
+  return /^\p{L}/u.test(unit) && unit.length > 1 ? `${value} ${unit}` : `${value}${unit}`;
 }
 
 /**
