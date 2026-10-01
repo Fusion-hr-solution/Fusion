@@ -412,7 +412,7 @@ function SubjectCard({
           className={cn(
             "hidden size-12 shrink-0 items-center justify-center rounded-control border sm:flex",
             own || isCompany
-              ? "border-primary/25 bg-primary/10 text-primary"
+              ? "border-primary-ring bg-primary-tint text-primary-ink"
               : "border-border bg-inlay text-foreground/70"
           )}
         >
@@ -751,7 +751,7 @@ function ObjectiveRow({
             nested ? "size-8 rounded-control" : "size-10 rounded-control",
             isDraft
               ? "border-border bg-inlay text-muted-foreground"
-              : "border-primary/25 bg-primary/10 text-primary"
+              : "border-primary-ring bg-primary-tint text-primary-ink"
           )}
         >
           <ScopeMark className={nested ? "size-5" : "size-6"} muted={isDraft} />
@@ -1013,7 +1013,7 @@ function ContextHeader({
     <section className="flex items-center gap-4 rounded-surface border border-border bg-section p-4 sm:px-5">
       <span
         aria-hidden
-        className="flex size-11 shrink-0 items-center justify-center rounded-control border border-primary/30 bg-primary/10 text-sm font-semibold text-primary"
+        className="flex size-11 shrink-0 items-center justify-center rounded-control border border-primary-ring bg-primary-tint text-sm font-semibold text-primary-ink"
       >
         {initials(title)}
       </span>
@@ -1266,7 +1266,7 @@ function NoPublishedDirection({
         <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.9fr)] gap-6 px-6 py-8 sm:gap-8 sm:px-8 lg:gap-10 lg:px-10 lg:py-10">
           <div className="flex items-center gap-6 sm:gap-8">
             <div className="relative grid size-24 shrink-0 place-items-center rounded-full border border-primary/30 bg-primary/[0.05] before:absolute before:inset-3 before:rounded-full before:border before:border-primary/40 sm:size-28">
-              <ScopeMark className="relative size-14 text-primary sm:size-16" />
+              <ScopeMark className="relative size-14 text-primary-ink sm:size-16" />
             </div>
 
             <div className="min-w-0">

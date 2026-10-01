@@ -145,7 +145,7 @@ export function InitialAdminStep({
       <div className="flex h-full flex-col gap-6 rounded-surface border border-border bg-card p-6">
         <div>
           <div className="flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink">
               <Mail aria-hidden="true" className="size-5" />
             </span>
             <div className="min-w-0">
@@ -183,7 +183,7 @@ export function InitialAdminStep({
             Role summary
           </p>
           <div className="flex items-start gap-3 rounded-surface border border-border bg-inlay p-4">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink">
               <ShieldCheck aria-hidden="true" className="size-5" />
             </span>
             <div className="min-w-0">

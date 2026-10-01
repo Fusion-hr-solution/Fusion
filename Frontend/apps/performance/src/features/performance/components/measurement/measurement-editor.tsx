@@ -361,7 +361,7 @@ function DirectionOption({
       className={cn(
         "flex h-8 items-center justify-center gap-1.5 rounded-control px-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active
-          ? "bg-primary/10 text-primary"
+          ? "bg-primary-tint text-primary-ink"
           : "text-muted-foreground hover:text-foreground"
       )}
     >

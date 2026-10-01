@@ -216,7 +216,7 @@ function EvidenceRow({
       <span
         className={cn(
           "flex size-8 shrink-0 items-center justify-center rounded-control",
-          isFile ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary"
+          isFile ? "bg-destructive/10 text-destructive" : "bg-primary-tint text-primary-ink"
         )}
       >
         {isFile ? <FileText className="size-4" aria-hidden /> : <Link2 className="size-4" aria-hidden />}

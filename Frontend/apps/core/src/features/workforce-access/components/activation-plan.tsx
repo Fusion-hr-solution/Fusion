@@ -360,7 +360,7 @@ function ActivationPlanLoading({
             </span>
           </li>
           <li aria-current="step" className="flex items-start gap-2.5">
-            <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-primary/50 bg-primary/10 text-primary">
+            <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full border border-primary-ring bg-primary-tint text-primary-ink">
               <Spinner className="size-3.5" />
             </span>
             <span>

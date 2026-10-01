@@ -151,7 +151,7 @@ export function OrganizationStep({
       <div className="flex h-full flex-col gap-5 rounded-surface border border-border bg-card p-6">
         <div>
           <div className="flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink">
               <Building2 aria-hidden="true" className="size-5" />
             </span>
             <div className="min-w-0">

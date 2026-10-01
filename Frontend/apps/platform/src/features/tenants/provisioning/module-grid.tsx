@@ -128,9 +128,9 @@ function ModuleCard({
         className={cn(
           "flex size-9 shrink-0 items-center justify-center rounded-control",
           option.availability === "included"
-            ? "bg-primary/15 text-primary"
+            ? "bg-primary-tint text-primary-ink"
             : isSelected
-              ? "bg-primary/15 text-primary"
+              ? "bg-primary-tint text-primary-ink"
               : "bg-muted text-muted-foreground",
           isUnavailable && "opacity-60"
         )}

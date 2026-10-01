@@ -595,7 +595,7 @@ function RecommendationPanel({ entry }: { entry: ComposedCapability }) {
       />
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 gap-5">
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-control bg-primary/15 text-primary ring-1 ring-inset ring-primary/30">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink ring-1 ring-inset ring-primary-ring">
             <Icon className="size-6" aria-hidden />
           </span>
           <div className="min-w-0 space-y-2">

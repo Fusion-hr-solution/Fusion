@@ -159,7 +159,7 @@ export function AddInclusionSheet({
           <div className="border-t border-border px-6 py-3">
             <div className="flex items-center justify-between">
               <p className="type-label text-foreground">Selected employees</p>
-              <span className="flex size-5 items-center justify-center rounded-full bg-primary/15 type-meta font-semibold tabular-nums text-primary">
+              <span className="flex size-5 items-center justify-center rounded-full bg-primary-tint type-meta font-semibold tabular-nums text-primary-ink">
                 {tray.length}
               </span>
             </div>

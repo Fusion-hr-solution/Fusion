@@ -230,7 +230,7 @@ export function OrgScopePicker({
               aria-hidden
               className={cn(
                 "ml-3 hidden size-9 shrink-0 place-items-center rounded-full sm:mr-3 sm:grid",
-                covered ? "bg-primary/15 text-primary" : "bg-muted text-foreground/80"
+                covered ? "bg-primary-tint text-primary-ink" : "bg-muted text-foreground/80"
               )}
             >
               <OrgTypeIcon typeName={node.unit.typeName} />
@@ -329,7 +329,7 @@ export function OrgScopePicker({
             {hiddenSelections.map((selection) => (
               <li
                 key={selection.orgUnitId}
-                className="flex items-center gap-1 rounded-control bg-primary/12 py-0.5 pl-2 pr-0.5 type-meta font-medium text-primary"
+                className="flex items-center gap-1 rounded-control bg-primary-tint py-0.5 pl-2 pr-0.5 type-meta font-medium text-primary-ink"
               >
                 {names.get(selection.orgUnitId)}
                 <button

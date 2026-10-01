@@ -178,7 +178,7 @@ function ModuleCard({ entitlement }: { entitlement: ModuleEntitlement }) {
         <IconTile
           icon={Icon}
           size="sm"
-          className={isGranted ? "bg-primary/12 text-primary" : "bg-muted"}
+          className={isGranted ? "bg-primary-tint text-primary-ink" : "bg-muted"}
         />
         <div className="min-w-0 flex-1">
           <p

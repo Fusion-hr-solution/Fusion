@@ -187,7 +187,7 @@ function IncludedModuleCard({ option }: { option: ProvisioningModuleOption }) {
 
   return (
     <div className="flex items-start gap-3 rounded-surface border border-primary/60 bg-primary/[0.06] p-4">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink">
         <Icon aria-hidden="true" className="size-5" />
       </span>
 
@@ -196,7 +196,7 @@ function IncludedModuleCard({ option }: { option: ProvisioningModuleOption }) {
           <h3 className="type-subsection-title text-foreground">
             {option.label}
           </h3>
-          <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+          <span className="rounded-full bg-primary-tint px-2 py-0.5 text-xs font-medium text-primary-ink">
             Required
           </span>
         </div>
@@ -248,7 +248,7 @@ function ModuleToggleRow({
         className={cn(
           "flex size-10 shrink-0 items-center justify-center rounded-control",
           active
-            ? "bg-primary/10 text-primary"
+            ? "bg-primary-tint text-primary-ink"
             : "bg-muted text-muted-foreground"
         )}
       >

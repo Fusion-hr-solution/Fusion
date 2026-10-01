@@ -1006,7 +1006,7 @@ function SourceCard({
         className={cn(
           "flex size-10 shrink-0 items-center justify-center rounded-control transition-colors",
           active
-            ? "bg-primary/15 text-primary"
+            ? "bg-primary-tint text-primary-ink"
             : "bg-muted text-muted-foreground group-hover:text-foreground"
         )}
       >

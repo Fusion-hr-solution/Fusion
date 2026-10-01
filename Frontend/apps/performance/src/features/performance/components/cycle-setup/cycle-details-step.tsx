@@ -337,7 +337,7 @@ function CardTitle({
     <div className="flex items-center gap-4">
       <span
         className={cn(
-          "flex shrink-0 items-center justify-center rounded-control bg-primary/12 text-primary ring-1 ring-inset ring-primary/20",
+          "flex shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink ring-1 ring-inset ring-primary-ring",
           compact ? "size-11" : "size-12",
         )}
       >

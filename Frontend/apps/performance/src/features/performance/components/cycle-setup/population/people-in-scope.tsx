@@ -246,7 +246,7 @@ export function PeopleInScope({
     <section className="overflow-hidden rounded-surface border border-border bg-card">
       <div className="space-y-4 p-5">
         <div className="flex items-start gap-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary/12 text-primary">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink">
             <Users className="size-5" aria-hidden />
           </span>
           <div className="min-w-0 flex-1">

@@ -363,7 +363,7 @@ function WorkforceDashboard({
                             className={
                               iss.blocker
                                 ? "rounded-detail bg-destructive/10 px-1.5 py-0.5 text-[11px] font-medium text-destructive"
-                                : "rounded-detail bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary"
+                                : "rounded-detail bg-primary-tint px-1.5 py-0.5 text-[11px] font-medium text-primary-ink"
                             }
                           >
                             {iss.label}
@@ -584,7 +584,7 @@ function ManagerDashboard({ me }: { me: WorkforceMeContext }) {
                           </span>
                         </span>
                         {attn ? (
-                          <span className="shrink-0 rounded-detail bg-primary/15 px-1.5 py-0.5 text-[11px] font-medium text-primary">
+                          <span className="shrink-0 rounded-detail bg-primary-tint px-1.5 py-0.5 text-[11px] font-medium text-primary-ink">
                             Needs attention
                           </span>
                         ) : (

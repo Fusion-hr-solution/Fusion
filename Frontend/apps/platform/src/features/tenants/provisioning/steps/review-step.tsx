@@ -201,7 +201,7 @@ export function ReviewStep({
       <aside className="lg:sticky lg:top-6 lg:self-start">
         <div className="space-y-6 rounded-surface border border-border bg-card p-6">
           <div className="flex items-start gap-3">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink">
               {canProvision ? (
                 <CheckCircle2 aria-hidden="true" className="size-5" />
               ) : (
@@ -318,7 +318,7 @@ function SummaryCard({
     <section className="rounded-surface border border-border bg-card p-6">
       <header className="mb-5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink">
             <Icon aria-hidden={true} className="size-5" />
           </span>
           <h3 className="type-section-title text-foreground">{title}</h3>
@@ -373,7 +373,7 @@ function SummaryTile({
 }) {
   return (
     <div className="flex items-start gap-3 rounded-surface border border-border bg-inlay p-3">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink">
         <Icon aria-hidden={true} className="size-4" />
       </span>
       <div className="min-w-0">
@@ -432,7 +432,7 @@ function ProductChip({
           {option.label}
         </span>
         {included ? (
-          <span className=" inline-block rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+          <span className=" inline-block rounded-full bg-primary-tint px-2 py-0.5 text-xs font-medium text-primary-ink">
             Required
           </span>
         ) : enabled ? (

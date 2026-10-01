@@ -48,7 +48,7 @@ const SUMMARIES: Summary[] = [
     icon: Building2,
     meaningIcon: Layers,
     // The platform's own accent: this is the whole estate, not a condition.
-    tile: "bg-primary/15 text-primary",
+    tile: "bg-primary-tint text-primary-ink",
   },
   {
     filter: "AwaitingActivation",

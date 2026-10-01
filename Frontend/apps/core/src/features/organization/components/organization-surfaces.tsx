@@ -386,7 +386,7 @@ export function RootEstablishment({
           href="/organization/import"
           className="group flex items-center gap-4 rounded-surface border bg-card p-4 pr-5 transition-colors hover:border-primary/40 hover:bg-primary/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control bg-primary/10 text-primary">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-control bg-primary-tint text-primary-ink">
             <UploadCloud className="h-5 w-5" />
           </span>
           <span className="min-w-0 flex-1 font-semibold">

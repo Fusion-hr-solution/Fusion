@@ -321,7 +321,7 @@ function StrategicDirection({
         )}
         <div className="flex flex-col rounded-surface border border-primary/45 bg-card p-4 sm:p-5">
           <div className="flex items-center gap-2.5">
-            <span className="flex size-8 items-center justify-center rounded-control border border-primary/35 bg-primary/[0.1] text-primary">
+            <span className="flex size-8 items-center justify-center rounded-control border border-primary-ring bg-primary-tint text-primary-ink">
               <Target className="size-4" aria-hidden />
             </span>
             <p className="type-eyebrow text-primary">Next team objective</p>
@@ -414,7 +414,7 @@ function DirectionCard({
     <div className="flex flex-col rounded-surface border border-border bg-card p-4 sm:p-5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-control border border-primary/35 bg-primary/[0.1] text-primary">
+          <span className="flex size-8 items-center justify-center rounded-control border border-primary-ring bg-primary-tint text-primary-ink">
             <Target className="size-4" aria-hidden />
           </span>
           <p className="type-eyebrow text-primary">Selected direction</p>
@@ -736,7 +736,7 @@ function DirectionIllustration() {
         className="absolute top-1/2 flex -translate-y-1/2 flex-col items-center gap-1.5 rounded-control border border-primary/60 bg-primary/[0.06] px-2 py-2.5 shadow-[0_0_22px_-6px_var(--primary)]"
         style={{ left: `${(172 / 256) * 100}%`, width: `${(76 / 256) * 100}%` }}
       >
-        <span className="flex size-7 items-center justify-center rounded-control-sm bg-primary/15 text-primary">
+        <span className="flex size-7 items-center justify-center rounded-control-sm bg-primary-tint text-primary-ink">
           <Users className="size-4" />
         </span>
         <span className="h-1.5 w-9 rounded-full bg-muted-foreground/30" />
@@ -975,7 +975,7 @@ function TeamObjectiveRow({
           className={cn(
             "flex size-11 shrink-0 items-center justify-center rounded-control ring-1",
             aligned
-              ? "bg-primary/10 text-primary ring-primary/20"
+              ? "bg-primary-tint text-primary-ink ring-primary-ring"
               : "bg-info/10 text-info ring-info/20"
           )}
         >
@@ -1171,7 +1171,7 @@ function RowFact({ label, children }: { label: string; children: ReactNode }) {
 /** The accountable owner's avatar, in the Fusion amber accent. */
 function OwnerAvatar({ name }: { id: string; name: string | null }) {
   return (
-    <Avatar className="size-8 bg-primary/15 text-primary ring-2 ring-primary/40 ring-offset-2 ring-offset-card">
+    <Avatar className="size-8 bg-primary-tint text-primary-ink ring-2 ring-primary-ring ring-offset-2 ring-offset-card">
       <AvatarFallback className="bg-transparent text-xs font-semibold text-inherit">
         {initials(name)}
       </AvatarFallback>

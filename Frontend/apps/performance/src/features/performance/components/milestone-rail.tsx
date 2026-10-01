@@ -27,7 +27,7 @@ export function MilestoneRail({ milestones }: { milestones: MilestoneStateDto[] 
                   milestone.reached
                     ? "border-primary bg-primary text-primary-foreground"
                     : isCurrent
-                      ? "border-primary bg-primary/10 text-primary"
+                      ? "border-primary bg-primary-tint text-primary-ink"
                       : "border-border bg-inlay text-muted-foreground"
                 )}
               >

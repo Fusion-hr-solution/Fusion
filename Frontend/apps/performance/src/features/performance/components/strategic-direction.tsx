@@ -180,7 +180,7 @@ function ObjectiveCard({
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="type-panel-title text-foreground">{objective.title}</h3>
             {isDraft ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-dotted border-primary/50 bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
+              <span className="inline-flex items-center gap-1 rounded-full border border-dotted border-primary/50 bg-primary-tint px-2 py-0.5 text-xs font-semibold text-primary-ink">
                 Draft
               </span>
             ) : (

@@ -497,7 +497,7 @@ function ProfileCard({
     <section className="overflow-hidden rounded-surface border bg-card">
       <header className="flex items-center justify-between gap-4 border-b px-6 py-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-control bg-primary/10 text-primary ring-1 ring-inset ring-primary/15">
+          <span className="grid size-9 shrink-0 place-items-center rounded-control bg-primary-tint text-primary-ink ring-1 ring-inset ring-primary-ring">
             <Icon className="size-[1.05rem]" aria-hidden />
           </span>
           <h2 className="type-panel-title text-foreground">{title}</h2>
@@ -620,7 +620,7 @@ function UpcomingCard({
     <li className="group flex flex-col justify-between gap-3 rounded-surface border bg-card p-4 transition-colors hover:border-primary/30 motion-reduce:transition-none">
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center rounded-control bg-primary/10 px-1.5 py-0.5 type-meta font-medium tabular-nums text-primary">
+          <span className="inline-flex items-center rounded-control bg-primary-tint px-1.5 py-0.5 type-meta font-medium tabular-nums text-primary-ink">
             {formatWorkforceDate(item.effectiveDate)}
           </span>
           <span className="type-label">{kindLabel}</span>

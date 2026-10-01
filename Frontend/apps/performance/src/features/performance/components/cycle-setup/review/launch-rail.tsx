@@ -193,7 +193,7 @@ export function LaunchConsequences() {
       <ul className="mt-5 space-y-4">
         {CONSEQUENCES.map((item) => (
           <li key={item.label} className="flex items-start gap-3.5">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary/12 text-primary ring-1 ring-inset ring-primary/20">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink ring-1 ring-inset ring-primary-ring">
               <item.icon className="size-[1.125rem]" aria-hidden />
             </span>
             <span className="min-w-0 pt-0.5">

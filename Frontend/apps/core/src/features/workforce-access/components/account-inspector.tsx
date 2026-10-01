@@ -228,7 +228,7 @@ function InspectorContent({
         </div>
         <div className="mt-5 flex items-center gap-4">
           <Avatar size="lg" className="size-14">
-            <AvatarFallback className="bg-primary/12 text-primary type-title">
+            <AvatarFallback className="bg-primary-tint text-primary-ink type-title">
               {initialsOf(data.displayName)}
             </AvatarFallback>
           </Avatar>

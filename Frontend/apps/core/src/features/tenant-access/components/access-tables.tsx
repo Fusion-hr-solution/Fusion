@@ -76,7 +76,7 @@ function PersonCell({
             {name}
           </span>
           {self ? (
-            <span className="type-meta shrink-0 rounded-detail bg-primary/15 px-1.5 py-0.5 font-medium text-primary">
+            <span className="type-meta shrink-0 rounded-detail bg-primary-tint px-1.5 py-0.5 font-medium text-primary-ink">
               You
             </span>
           ) : null}

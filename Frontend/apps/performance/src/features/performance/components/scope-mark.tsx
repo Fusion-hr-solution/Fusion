@@ -8,7 +8,7 @@ export function ScopeMark({ className, muted }: { className?: string; muted?: bo
     <svg viewBox="0 0 48 48" fill="none" className={className} aria-hidden role="img">
       <circle cx="24" cy="24" r="17" stroke="currentColor" strokeWidth="1.5" opacity="0.35" />
       <circle cx="24" cy="24" r="11" stroke="currentColor" strokeWidth="1.5" opacity="0.6" />
-      <circle cx="24" cy="24" r="4.5" className={muted ? "fill-current" : "fill-primary"} />
+      <circle cx="24" cy="24" r="4.5" className={muted ? "fill-current" : "fill-primary-ink"} />
       <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5">
         <path d="M24 3.5v6" />
         <path d="M24 38.5v6" />
