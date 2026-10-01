@@ -31,6 +31,10 @@
     --inlay: oklch(0.975 0.001 286.375);
     --primary: oklch(0.852 0.199 91.936);
     --primary-foreground: oklch(0.421 0.095 57.708);
+    /* Amber icon tiles: light amber is pale on white, so its tint, ring and ink sit a step firmer. */
+    --primary-tint: color-mix(in oklab, var(--primary) 22%, transparent);
+    --primary-ring: color-mix(in oklab, var(--primary) 42%, transparent);
+    --primary-ink: color-mix(in oklab, var(--primary) 65%, var(--primary-foreground));
     --secondary: oklch(0.967 0.001 286.375);
     --secondary-foreground: oklch(0.21 0.006 285.885);
     --muted: oklch(0.967 0.001 286.375);
@@ -95,6 +99,9 @@
     --popover-foreground: oklch(0.985 0 0);
     --primary: oklch(0.795 0.184 86.047);
     --primary-foreground: oklch(0.421 0.095 57.708);
+    --primary-tint: color-mix(in oklab, var(--primary) 10%, transparent);
+    --primary-ring: color-mix(in oklab, var(--primary) 20%, transparent);
+    --primary-ink: var(--primary);
     --secondary: oklch(0.274 0.006 286.033);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.274 0.006 286.033);
@@ -163,6 +170,9 @@
     --color-secondary: var(--secondary);
     --color-primary-foreground: var(--primary-foreground);
     --color-primary: var(--primary);
+    --color-primary-tint: var(--primary-tint);
+    --color-primary-ring: var(--primary-ring);
+    --color-primary-ink: var(--primary-ink);
     --color-popover-foreground: var(--popover-foreground);
     --color-popover: var(--popover);
     --color-card-foreground: var(--card-foreground);

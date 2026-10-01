@@ -15,7 +15,7 @@ const TONE_CLASSES: Record<StatusTone, string> = {
   neutral: "border-border bg-muted text-foreground/80",
   info: "border-transparent bg-info-subtle text-info",
   success: "border-transparent bg-success-subtle text-success",
-  warning: "border-transparent bg-warning-subtle text-warning",
+  warning: "border-transparent bg-primary-tint text-primary-ink",
   danger: "border-transparent bg-destructive/12 text-destructive",
   muted: "border-border bg-transparent text-muted-foreground",
   inverse: "border-transparent bg-foreground text-background",

@@ -43,7 +43,7 @@ export function getPageWindow(current: number, count: number): PageSlot[] {
   ];
 }
 
-const DEFAULT_PAGE_SIZES = [10, 25, 50];
+const DEFAULT_PAGE_SIZES = [5, 10, 25, 50];
 
 /**
  * The table footer. Its anatomy is fixed so every Fusion table ends the same way: the range on the left,
@@ -140,7 +140,7 @@ export function DataTablePagination<TData extends RowData>({
                 className={cn(
                   "hidden tabular-nums sm:inline-flex",
                   slot === pageIndex &&
-                    "bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary"
+                    "bg-primary-tint font-semibold text-primary-ink hover:bg-primary-tint hover:text-primary-ink"
                 )}
               >
                 {slot + 1}
