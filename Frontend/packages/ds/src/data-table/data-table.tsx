@@ -403,7 +403,7 @@ export function DataTableColumnHeader<TData extends RowData>({
       className={cn(
         "size-3.5 shrink-0 transition-opacity",
         sorted
-          ? "text-primary opacity-100"
+          ? "text-primary-ink opacity-100"
           : "opacity-0 group-hover/sort:opacity-60 group-focus-visible/sort:opacity-60"
       )}
     />

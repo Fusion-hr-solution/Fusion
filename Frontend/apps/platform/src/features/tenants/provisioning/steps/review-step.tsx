@@ -422,7 +422,7 @@ function ProductChip({
           className={cn(
             "size-4 shrink-0",
             included
-              ? "text-primary"
+              ? "text-primary-ink"
               : enabled
                 ? "text-success"
                 : "text-muted-foreground"

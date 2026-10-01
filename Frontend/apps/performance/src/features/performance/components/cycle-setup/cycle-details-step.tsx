@@ -411,7 +411,7 @@ function Metric({
   return (
     <div className="min-w-0 rounded-surface border border-border bg-inlay px-4 py-3.5">
       <p className="flex items-baseline gap-1.5 whitespace-nowrap">
-        <span className="type-display tabular-nums text-primary">{value}</span>
+        <span className="type-display tabular-nums text-primary-ink">{value}</span>
         {unit ? <span className="type-body-secondary text-foreground/80">{unit}</span> : null}
       </p>
       <p className="type-meta mt-2 flex items-center gap-1.5 text-muted-foreground">

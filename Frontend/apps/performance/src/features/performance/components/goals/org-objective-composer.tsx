@@ -800,7 +800,7 @@ export function AlignmentTargetPicker({
       value={target.id}
       className="items-start rounded-inset py-2"
     >
-      <Target className="mt-0.5 size-4 text-primary" aria-hidden />
+      <Target className="mt-0.5 size-4 text-primary-ink" aria-hidden />
       <span className="min-w-0">
         <span className="block truncate font-medium text-foreground">
           {target.title}

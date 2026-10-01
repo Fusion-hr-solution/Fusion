@@ -62,7 +62,7 @@ export function PlanReviewQueue({ plans }: { plans: PlanReviewSummaryDto[] }) {
                 })}
               </span>
             ) : null}
-            <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary">
+            <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary-ink">
               Review
               <ChevronRight
                 className="size-4 transition-transform group-hover:translate-x-0.5"

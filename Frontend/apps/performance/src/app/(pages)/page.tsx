@@ -322,7 +322,7 @@ function DirectionSummary({ cycleId }: { cycleId: string }) {
         <h2 className="type-section-title text-foreground">Direction</h2>
         <Link
           href="/goals"
-          className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+          className="inline-flex items-center gap-1 text-sm font-medium text-primary-ink hover:underline"
         >
           Goals
           <ArrowRight className="size-3.5" aria-hidden />

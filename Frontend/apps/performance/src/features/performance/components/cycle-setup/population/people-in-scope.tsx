@@ -583,7 +583,7 @@ function SortableHead({
       >
         {label}
         <Icon
-          className={cn("size-3.5", active ? "text-primary" : "opacity-60")}
+          className={cn("size-3.5", active ? "text-primary-ink" : "opacity-60")}
           aria-hidden
         />
       </button>

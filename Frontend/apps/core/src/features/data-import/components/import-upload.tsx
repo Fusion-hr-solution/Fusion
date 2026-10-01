@@ -546,7 +546,7 @@ export function ActionButton(props: React.ComponentProps<typeof Button>) {
       variant="ghost"
       {...props}
       className={cn(
-        "h-9 gap-1.5 px-3 font-semibold text-primary-foreground hover:bg-primary/10 hover:text-primary-foreground dark:text-primary dark:hover:text-primary",
+        "h-9 gap-1.5 px-3 font-semibold text-primary-foreground hover:bg-primary/10 hover:text-primary-foreground dark:text-primary dark:hover:text-primary-ink",
         props.className
       )}
     />

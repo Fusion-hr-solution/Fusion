@@ -170,7 +170,7 @@ export function OrganizationStep({
 
         <div>
           <div className="mb-3 flex items-center gap-2">
-            <Lightbulb aria-hidden="true" className="size-6 text-primary" />
+            <Lightbulb aria-hidden="true" className="size-6 text-primary-ink" />
             <h3 className="type-subsection-title text-foreground">
               Naming guidance
             </h3>

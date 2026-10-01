@@ -209,7 +209,7 @@ function EvidenceRow({
   const linkHref = !isFile ? item.url : null;
 
   const openClasses =
-    "inline-flex shrink-0 items-center gap-1 rounded-control px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60";
+    "inline-flex shrink-0 items-center gap-1 rounded-control px-2 py-1 text-xs font-medium text-primary-ink transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60";
 
   return (
     <li className="flex items-center gap-3 px-3 py-2.5">

@@ -320,7 +320,7 @@ export function LaunchpadView({
     <PageContainer className="mx-auto max-w-5xl space-y-9 pb-14">
       <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-2xl space-y-2.5">
-          <span className="type-eyebrow text-primary">Tenant setup</span>
+          <span className="type-eyebrow text-primary-ink">Tenant setup</span>
           {isFresh ? (
             <h1 className="type-display text-balance text-4xl leading-[1.05] sm:text-5xl">
               <span className="text-[0.55em] font-medium text-foreground/70">
@@ -463,7 +463,7 @@ function ContinuityCard({
       </div>
       <Link
         href="/access"
-        className="type-label group/action inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-control text-foreground underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="type-label group/action inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-control text-foreground underline-offset-4 transition-colors hover:text-primary-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         Manage access
         <ArrowRight
@@ -503,7 +503,7 @@ function AdministrationCard({ entry }: { entry: ComposedCapability }) {
       {isActionable && capability.route ? (
         <Link
           href={capability.route}
-          className="type-label group/action inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-control text-foreground underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="type-label group/action inline-flex min-h-8 shrink-0 items-center gap-1.5 rounded-control text-foreground underline-offset-4 transition-colors hover:text-primary-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {action}
           <ArrowRight
@@ -599,7 +599,7 @@ function RecommendationPanel({ entry }: { entry: ComposedCapability }) {
             <Icon className="size-6" aria-hidden />
           </span>
           <div className="min-w-0 space-y-2">
-            <span className="type-eyebrow flex items-center gap-2 text-primary">
+            <span className="type-eyebrow flex items-center gap-2 text-primary-ink">
               <span className="size-1.5 rounded-full bg-primary" aria-hidden />
               Recommended next step
             </span>
@@ -726,7 +726,7 @@ function LadderNode({
             {isActionable && capability.route ? (
               <Link
                 href={capability.route}
-                className="type-label group/action inline-flex min-h-8 items-center gap-1.5 rounded-control text-foreground underline-offset-4 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="type-label group/action inline-flex min-h-8 items-center gap-1.5 rounded-control text-foreground underline-offset-4 transition-colors hover:text-primary-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 {action}
                 <ArrowRight

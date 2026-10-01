@@ -26,7 +26,7 @@ export function EffectiveDateField({
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-surface border bg-card px-4 py-3">
       <label className="inline-flex items-center gap-2.5">
-        <CalendarClock className={cn("size-4", isFuture ? "text-primary" : "text-muted-foreground")} aria-hidden />
+        <CalendarClock className={cn("size-4", isFuture ? "text-primary-ink" : "text-muted-foreground")} aria-hidden />
         <span className="type-label">{label}</span>
         <input
           type="date"
@@ -66,7 +66,7 @@ export function ConsequencePanel({
   /** True before the user has changed anything — the after block reads as a preview, not a promise. */
   pending?: boolean;
 }) {
-  const accent = afterTone === "destructive" ? "text-destructive" : "text-primary";
+  const accent = afterTone === "destructive" ? "text-destructive" : "text-primary-ink";
   const ring =
     afterTone === "destructive"
       ? "ring-destructive/20 bg-destructive/[0.03]"

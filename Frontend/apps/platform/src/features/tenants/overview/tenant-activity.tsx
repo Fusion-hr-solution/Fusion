@@ -145,7 +145,7 @@ function ActivityCard({ entry }: { entry: TenantActivityEntry }) {
           {narrative.before}
           <Link
             href={`/tenants/${entry.tenantId}`}
-            className="font-medium text-foreground no-underline visited:text-foreground hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="font-medium text-foreground no-underline visited:text-foreground hover:text-primary-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             {entry.tenantName}
           </Link>

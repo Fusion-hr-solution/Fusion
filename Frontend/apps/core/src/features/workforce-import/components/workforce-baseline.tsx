@@ -63,7 +63,7 @@ export function BaselineControl({
             >
               {isToday ? "Today · " : ""}
               {formatWorkforceDate(value)}
-              <span className="type-meta font-medium text-primary underline-offset-4 hover:underline">Change</span>
+              <span className="type-meta font-medium text-primary-ink underline-offset-4 hover:underline">Change</span>
             </button>
           )}
         </div>

@@ -46,7 +46,7 @@ export function WorkforceApplyState({
   const phase = PHASE_LABEL[status.phase] ?? "Completing import";
   return (
     <Centered>
-      <Spinner className="size-6 text-primary" />
+      <Spinner className="size-6 text-primary-ink" />
       <h2 className="mt-4 type-title font-semibold text-foreground">Completing import</h2>
       <p className="mt-1 type-body text-muted-foreground">{phase}</p>
       {status.total ? (

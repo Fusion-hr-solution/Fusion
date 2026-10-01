@@ -38,7 +38,7 @@ export function TeamObjectiveRecordDrawer({
       <SheetContent className="flex w-full flex-col gap-0 overflow-y-auto p-0 data-[side=right]:sm:max-w-[540px]">
         <div className="border-b border-border px-5 pb-4 pt-5 pr-12">
           <SheetTitle className="text-[0.95rem] leading-snug tracking-tight">{title}</SheetTitle>
-          <p className="mt-1 text-xs font-medium text-primary">Record progress</p>
+          <p className="mt-1 text-xs font-medium text-primary-ink">Record progress</p>
         </div>
         <SheetDescription className="sr-only">Record progress for the objective {title}.</SheetDescription>
 

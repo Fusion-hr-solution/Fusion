@@ -61,7 +61,7 @@ export function ProvisioningStepper({
               </StepperIndicator>
               {/* Only the active label survives on narrow screens, so the row
                   never overflows; the numbers still carry the sequence. */}
-              <StepperTitle className="hidden whitespace-nowrap data-[state=active]:inline data-[state=active]:text-primary data-[state=inactive]:text-muted-foreground md:inline">
+              <StepperTitle className="hidden whitespace-nowrap data-[state=active]:inline data-[state=active]:text-primary-ink data-[state=inactive]:text-muted-foreground md:inline">
                 {step.label}
               </StepperTitle>
             </StepperTrigger>

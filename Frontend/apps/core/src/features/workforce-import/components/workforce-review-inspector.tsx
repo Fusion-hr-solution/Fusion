@@ -304,7 +304,7 @@ function UnitButton({ unit, busy, onClick, suggested }: { unit: FlatUnit; busy: 
         suggested ? "bg-primary/[0.04] ring-1 ring-inset ring-primary/15 hover:bg-primary/[0.08]" : "hover:bg-muted/60"
       )}
     >
-      <Building2 className={cn("size-4 shrink-0", suggested ? "text-primary" : "text-muted-foreground")} aria-hidden />
+      <Building2 className={cn("size-4 shrink-0", suggested ? "text-primary-ink" : "text-muted-foreground")} aria-hidden />
       <span className="min-w-0">
         <span className="block truncate type-label font-medium text-foreground">{unit.name}</span>
         {unit.ancestry ? <span className="block truncate type-meta text-muted-foreground">{unit.ancestry}</span> : null}

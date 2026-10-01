@@ -183,7 +183,7 @@ function MethodTile({
       <Icon
         className={cn(
           "size-5 shrink-0",
-          active ? "text-primary" : "text-muted-foreground/50"
+          active ? "text-primary-ink" : "text-muted-foreground/50"
         )}
         aria-hidden
       />

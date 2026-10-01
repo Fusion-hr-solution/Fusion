@@ -371,7 +371,7 @@ export function RootEstablishment({
     <div className="mx-auto grid min-h-[520px] max-w-4xl grid-cols-[minmax(0,1fr)_minmax(320px,420px)] items-center gap-14 px-8 py-12 max-lg:grid-cols-1">
       <div className="space-y-8">
         <div>
-          <span className="text-sm font-medium text-primary">
+          <span className="text-sm font-medium text-primary-ink">
             Start your organization structure
           </span>
           <h2 className="mt-3 max-w-lg text-3xl font-semibold tracking-tight text-balance">

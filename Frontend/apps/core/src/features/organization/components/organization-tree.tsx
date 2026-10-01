@@ -243,7 +243,7 @@ function Row({
         onClick={onSelect}
         className="flex min-w-0 flex-1 items-center gap-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded-detail"
       >
-        <Building2 className={cn("size-4 shrink-0", selected ? "text-primary" : "text-muted-foreground")} aria-hidden />
+        <Building2 className={cn("size-4 shrink-0", selected ? "text-primary-ink" : "text-muted-foreground")} aria-hidden />
         <span className="min-w-0">
           <span className={cn("block truncate type-label", selected ? "font-semibold text-foreground" : "font-medium text-foreground")}>
             {name}
@@ -251,7 +251,7 @@ function Row({
           {ancestry ? <span className="block truncate type-meta text-muted-foreground">{ancestry}</span> : null}
         </span>
       </button>
-      {selected ? <Check className="size-4 shrink-0 text-primary" aria-hidden /> : null}
+      {selected ? <Check className="size-4 shrink-0 text-primary-ink" aria-hidden /> : null}
     </div>
   );
 }

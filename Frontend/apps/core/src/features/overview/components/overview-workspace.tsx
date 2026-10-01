@@ -273,7 +273,7 @@ function WorkforceDashboard({
             action={
               <Link
                 href={toHref("/organization")}
-                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary-ink hover:text-primary/80"
               >
                 Organization <ArrowRight className="size-3.5" />
               </Link>
@@ -327,7 +327,7 @@ function WorkforceDashboard({
             action={
               <Link
                 href={toHref("/people")}
-                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary-ink hover:text-primary/80"
               >
                 Review all <ArrowRight className="size-3.5" />
               </Link>
@@ -339,13 +339,13 @@ function WorkforceDashboard({
                   <li key={employee.id}>
                     <Link
                       href={toHref(`/people/${employee.stableEmployeeKey}`)}
-                      className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary"
+                      className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary-ink"
                     >
                       <span className="flex min-w-0 items-center gap-2.5">
                         {blocking ? (
                           <TriangleAlert className="size-4 shrink-0 text-destructive" />
                         ) : (
-                          <CircleAlert className="size-4 shrink-0 text-primary" />
+                          <CircleAlert className="size-4 shrink-0 text-primary-ink" />
                         )}
                         <span className="min-w-0">
                           <span className="block truncate font-medium text-foreground">
@@ -399,7 +399,7 @@ function WorkforceDashboard({
                     className="flex items-center justify-between gap-3 py-2.5 text-sm"
                   >
                     <span className="flex min-w-0 items-center gap-2.5">
-                      <PartyPopper className="size-4 shrink-0 text-primary" />
+                      <PartyPopper className="size-4 shrink-0 text-primary-ink" />
                       <span className="truncate font-medium text-foreground">
                         {employee.firstName} {employee.lastName}
                       </span>
@@ -427,7 +427,7 @@ function WorkforceDashboard({
             action={
               <Link
                 href={toHref("/people")}
-                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary-ink hover:text-primary/80"
               >
                 All employees <ArrowRight className="size-3.5" />
               </Link>
@@ -439,7 +439,7 @@ function WorkforceDashboard({
                   <li key={employee.id}>
                     <Link
                       href={toHref(`/people/${employee.stableEmployeeKey}`)}
-                      className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary"
+                      className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary-ink"
                     >
                       <span className="min-w-0">
                         <span className="block truncate font-medium text-foreground">
@@ -548,7 +548,7 @@ function ManagerDashboard({ me }: { me: WorkforceMeContext }) {
             action={
               <Link
                 href="/team"
-                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary-ink hover:text-primary/80"
               >
                 Open team <ArrowRight className="size-3.5" />
               </Link>
@@ -568,7 +568,7 @@ function ManagerDashboard({ me }: { me: WorkforceMeContext }) {
                     <li key={member.employeeId}>
                       <Link
                         href={`/people/${member.stableEmployeeKey}`}
-                        className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary"
+                        className="flex items-center justify-between gap-3 py-2.5 text-sm transition-colors hover:text-primary-ink"
                       >
                         <span className="flex min-w-0 items-center gap-2.5">
                           <span
@@ -683,7 +683,7 @@ function EmployeeDashboard({ me }: { me: WorkforceMeContext }) {
             action={
               <Link
                 href="/profile"
-                className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
+                className="inline-flex items-center gap-1 text-sm font-medium text-primary-ink hover:text-primary/80"
               >
                 Open profile <ArrowRight className="size-3.5" />
               </Link>

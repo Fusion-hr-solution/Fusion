@@ -60,7 +60,7 @@ export default function TeamWorkspace() {
           action={
             <Link
               href={exitHref}
-              className="text-sm font-medium text-primary hover:underline"
+              className="text-sm font-medium text-primary-ink hover:underline"
             >
               {exitLabel}
             </Link>

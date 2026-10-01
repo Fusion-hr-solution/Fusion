@@ -103,7 +103,7 @@ function PanelBody({
             onClick={() => onFocus(parent.id)}
             className="mt-1 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
-            <ArrowUpRight className="size-3.5 text-primary" aria-hidden /> Supports {parent.title}
+            <ArrowUpRight className="size-3.5 text-primary-ink" aria-hidden /> Supports {parent.title}
           </button>
         ) : null}
       </SheetHeader>
@@ -121,7 +121,7 @@ function PanelBody({
           <Field label="Period">{formatDateRange(node.startDate, node.endDate)}</Field>
           <Field label="Progress source" className="col-span-2">
             <span className="flex items-center gap-1.5">
-              {node.progressSource === "Calculated" ? <Layers className="size-3.5 text-primary" aria-hidden /> : <Gauge className="size-3.5 text-primary" aria-hidden />}
+              {node.progressSource === "Calculated" ? <Layers className="size-3.5 text-primary-ink" aria-hidden /> : <Gauge className="size-3.5 text-primary-ink" aria-hidden />}
               {detail.measurement ? measurementSummary(detail.measurement) : node.measurementSummary}
             </span>
           </Field>

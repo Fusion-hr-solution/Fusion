@@ -200,7 +200,7 @@ export default function PeopleProfileWorkspace({
       ? view.workEmail ? (
           <Link
             href="/workforce-access"
-            className="inline-block type-meta text-primary underline-offset-4 hover:underline"
+            className="inline-block type-meta text-primary-ink underline-offset-4 hover:underline"
           >
             {access.data.state === "NoAccess"
               ? "Set up workforce access"
@@ -209,7 +209,7 @@ export default function PeopleProfileWorkspace({
         ) : canManage ? (
           <Button
             variant="link"
-            className="h-auto p-0 type-meta text-primary"
+            className="h-auto p-0 type-meta text-primary-ink"
             onClick={() => setWorkEmailEditorOpen(true)}
           >
             Add work email
@@ -309,7 +309,7 @@ export default function PeopleProfileWorkspace({
           canManageWorkEmail ? (
             <Button
               variant="link"
-              className="h-auto p-0 type-meta text-primary"
+              className="h-auto p-0 type-meta text-primary-ink"
               onClick={() => setWorkEmailEditorOpen(true)}
             >
               {view.workEmail ? "Edit work email" : "Add work email"}

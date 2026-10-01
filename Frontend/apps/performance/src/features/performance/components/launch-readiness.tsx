@@ -81,7 +81,7 @@ export function LaunchReadiness({
                   </span>
                 </span>
                 {interactive ? (
-                  <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary">
+                  <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary-ink">
                     Set up
                     <ArrowRight className="size-3.5" aria-hidden />
                   </span>

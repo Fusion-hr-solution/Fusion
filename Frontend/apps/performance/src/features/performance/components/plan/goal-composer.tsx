@@ -312,7 +312,7 @@ export function PlanGoalComposer({
           </div>
           <div className="flex items-center gap-3 rounded-surface border border-border px-3.5 py-2">
             <div className="flex items-baseline gap-1.5">
-              <span className="text-lg font-semibold tabular-nums leading-none text-primary">
+              <span className="text-lg font-semibold tabular-nums leading-none text-primary-ink">
                 {pct(existing)}%
               </span>
               <span className="type-eyebrow text-muted-foreground">
@@ -612,7 +612,7 @@ const TILE_TONES = {
     hover: "hover:border-primary/40",
     radio: "border-primary",
     dot: "bg-primary",
-    icon: "text-primary",
+    icon: "text-primary-ink",
   },
   info: {
     active: "border-info bg-info/[0.06] ring-1 ring-info/30",

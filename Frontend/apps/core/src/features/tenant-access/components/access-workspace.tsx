@@ -148,7 +148,7 @@ export default function AccessWorkspace() {
   return (
     <PageContainer width="wide" className="space-y-8">
       <PageHeader
-        eyebrow={<span className="type-eyebrow text-primary">Tenant administration</span>}
+        eyebrow={<span className="type-eyebrow text-primary-ink">Tenant administration</span>}
         title="Administrators"
         description="Manage who can administer this tenant. Invite, suspend, or remove administrator access."
         actions={
@@ -338,7 +338,7 @@ function ViewTab({
       className={cn(
         "-mb-px flex items-center gap-1.5 border-b-2 pb-3 text-sm font-medium transition-colors",
         active
-          ? "border-primary text-primary"
+          ? "border-primary text-primary-ink"
           : "border-transparent text-muted-foreground hover:text-foreground"
       )}
     >

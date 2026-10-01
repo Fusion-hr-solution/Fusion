@@ -438,7 +438,7 @@ function RosterSection({
 export function AddPeopleCallout() {
   return (
     <div className="flex flex-wrap items-center gap-4 rounded-surface border border-border bg-section px-5 py-4">
-      <Lightbulb className="size-5 shrink-0 text-primary" aria-hidden />
+      <Lightbulb className="size-5 shrink-0 text-primary-ink" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-foreground">
           Need to add someone to your team?

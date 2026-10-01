@@ -354,7 +354,7 @@ function FilterChip({
   return (
     <div className="inline-flex h-8 max-w-full items-stretch overflow-hidden rounded-control border border-border bg-inlay text-sm">
       <span className="flex items-center gap-1.5 pl-2.5 pr-1.5 text-muted-foreground">
-        {FieldIcon ? <FieldIcon className="size-3.5 text-primary" /> : null}
+        {FieldIcon ? <FieldIcon className="size-3.5 text-primary-ink" /> : null}
         {field.label}
         <span className="hidden text-muted-foreground/70 sm:inline">
           {operator}

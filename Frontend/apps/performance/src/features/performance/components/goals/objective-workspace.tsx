@@ -424,7 +424,7 @@ function SubjectCard({
             <p
               className={cn(
                 "type-eyebrow",
-                own ? "text-primary" : "text-muted-foreground"
+                own ? "text-primary-ink" : "text-muted-foreground"
               )}
             >
               {eyebrow}
@@ -918,7 +918,7 @@ function AddAligned({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-control px-2.5 py-1.5 text-sm font-medium text-primary transition-colors hover:bg-primary/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="inline-flex items-center gap-1.5 rounded-control px-2.5 py-1.5 text-sm font-medium text-primary-ink transition-colors hover:bg-primary/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <Plus className="size-4" aria-hidden /> Add aligned objective
     </button>

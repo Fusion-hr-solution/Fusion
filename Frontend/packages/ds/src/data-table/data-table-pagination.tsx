@@ -125,7 +125,7 @@ export function DataTablePagination<TData extends RowData>({
           </Button>
           {/* Narrow screens keep only the position; the numbered window returns from sm up. */}
           <span className="px-2 text-sm tabular-nums text-muted-foreground sm:hidden">
-            <span className="font-medium text-primary">{pageIndex + 1}</span> /{" "}
+            <span className="font-medium text-primary-ink">{pageIndex + 1}</span> /{" "}
             {pageCount}
           </span>
           {getPageWindow(pageIndex, pageCount).map((slot) =>

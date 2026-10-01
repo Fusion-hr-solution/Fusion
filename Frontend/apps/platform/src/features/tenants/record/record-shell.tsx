@@ -366,7 +366,7 @@ function TenantKey({ slug }: { slug: string }) {
             ) : (
               <Copy
                 aria-hidden="true"
-                className="size-3.5 text-muted-foreground/70 transition-colors group-hover:text-primary motion-reduce:transition-none"
+                className="size-3.5 text-muted-foreground/70 transition-colors group-hover:text-primary-ink motion-reduce:transition-none"
               />
             )}
           </button>
@@ -472,7 +472,7 @@ export function TenantIdentifier({
               type="button"
               onClick={copy}
               aria-label={copied ? "Tenant ID copied" : `Copy tenant ID ${tenantId}`}
-              className="inline-flex min-h-7 min-w-7 items-center gap-1.5 rounded-control px-1 font-mono text-xs text-foreground transition-colors hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
+              className="inline-flex min-h-7 min-w-7 items-center gap-1.5 rounded-control px-1 font-mono text-xs text-foreground transition-colors hover:text-primary-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
             >
               {shortened}
               {copied ? (

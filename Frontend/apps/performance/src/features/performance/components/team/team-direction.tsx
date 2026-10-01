@@ -324,7 +324,7 @@ function StrategicDirection({
             <span className="flex size-8 items-center justify-center rounded-control border border-primary-ring bg-primary-tint text-primary-ink">
               <Target className="size-4" aria-hidden />
             </span>
-            <p className="type-eyebrow text-primary">Next team objective</p>
+            <p className="type-eyebrow text-primary-ink">Next team objective</p>
           </div>
           <div className="mt-2.5">
             <h3 className="text-lg font-semibold tracking-tight text-foreground">
@@ -417,7 +417,7 @@ function DirectionCard({
           <span className="flex size-8 items-center justify-center rounded-control border border-primary-ring bg-primary-tint text-primary-ink">
             <Target className="size-4" aria-hidden />
           </span>
-          <p className="type-eyebrow text-primary">Selected direction</p>
+          <p className="type-eyebrow text-primary-ink">Selected direction</p>
         </div>
         <StatusBadge tone={STATE_TONE[node.state]} dot>
           {STATE_LABEL[node.state]}
@@ -890,12 +890,12 @@ function TeamObjectivesEmpty({
       <EmptyOrbit />
       <div className="relative mx-auto flex size-[72px] items-center justify-center rounded-full border border-primary/40 bg-primary/10 shadow-[0_0_32px_-8px_var(--primary)]">
         <Target
-          className="size-9 text-primary"
+          className="size-9 text-primary-ink"
           strokeWidth={1.75}
           aria-hidden
         />
         <Flag
-          className="absolute -right-2 -top-3 size-6 rotate-12 fill-primary/80 text-primary"
+          className="absolute -right-2 -top-3 size-6 rotate-12 fill-primary/80 text-primary-ink"
           aria-hidden
         />
       </div>
@@ -1126,11 +1126,11 @@ function TeamObjectiveRow({
           <div className="mt-3 flex min-w-0 items-center gap-2 text-sm">
             {item.parent ? (
               <>
-                <Link2 className="size-4 shrink-0 text-primary" aria-hidden />
+                <Link2 className="size-4 shrink-0 text-primary-ink" aria-hidden />
                 <span className="shrink-0 text-muted-foreground">
                   Aligned to
                 </span>
-                <span className="truncate font-medium text-primary">
+                <span className="truncate font-medium text-primary-ink">
                   {item.parent.title}
                 </span>
                 <Button

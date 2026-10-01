@@ -239,7 +239,7 @@ function ScopeOption({
         </span>
       ) : null}
       {active ? (
-        <Check className="size-3.5 shrink-0 text-primary" aria-hidden />
+        <Check className="size-3.5 shrink-0 text-primary-ink" aria-hidden />
       ) : null}
     </button>
   );

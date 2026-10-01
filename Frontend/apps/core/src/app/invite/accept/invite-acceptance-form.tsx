@@ -628,7 +628,7 @@ function AcceptanceForm({
             Already have a Fusion account?{" "}
             <a
               href="/auth/signin"
-              className="font-medium text-primary hover:underline"
+              className="font-medium text-primary-ink hover:underline"
             >
               Sign in
             </a>{" "}

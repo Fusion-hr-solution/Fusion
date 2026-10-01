@@ -191,7 +191,7 @@ function ModuleState({
 }) {
   if (option.availability === "included") {
     return (
-      <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium text-primary">
+      <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-medium text-primary-ink">
         <Lock aria-hidden="true" className="size-3" />
         Included
       </span>
@@ -229,7 +229,7 @@ function ModuleState({
       <span
         className={cn(
           "whitespace-nowrap text-xs",
-          isSelected ? "font-medium text-primary" : "text-muted-foreground"
+          isSelected ? "font-medium text-primary-ink" : "text-muted-foreground"
         )}
       >
         {isSelected ? "Enabled" : "Not enabled"}

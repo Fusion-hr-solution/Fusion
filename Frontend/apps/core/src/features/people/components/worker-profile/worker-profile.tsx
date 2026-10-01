@@ -667,7 +667,7 @@ function ProfileTimeline({ events }: { events: PeopleTimelineEventDto[] }) {
           <span
             className={cn(
               "w-[5.5rem] shrink-0 pt-0.5 text-right type-meta tabular-nums",
-              event.isFuture ? "text-primary" : "text-muted-foreground"
+              event.isFuture ? "text-primary-ink" : "text-muted-foreground"
             )}
           >
             {formatWorkforceDate(event.effectiveDate)}

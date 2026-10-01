@@ -145,7 +145,7 @@ export function RegionProductsStep({
               <TooltipTrigger
                 type="button"
                 aria-label="About product entitlements"
-                className="flex size-7 items-center justify-center rounded-full text-primary transition-colors hover:text-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                className="flex size-7 items-center justify-center rounded-full text-primary-ink transition-colors hover:text-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
                 <Info aria-hidden="true" className="size-4" />
               </TooltipTrigger>

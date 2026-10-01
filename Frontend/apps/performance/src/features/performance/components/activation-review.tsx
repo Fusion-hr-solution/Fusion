@@ -38,7 +38,7 @@ export function ActivationReview({
       label: "Population",
       value: (
         <>
-          <span className="font-semibold tabular-nums text-primary">
+          <span className="font-semibold tabular-nums text-primary-ink">
             {detail.confirmedParticipantCount}
           </span>{" "}
           people, frozen as the roster

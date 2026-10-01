@@ -261,7 +261,7 @@ export function OrgScopePicker({
                 className={cn(
                   "hidden type-meta sm:inline",
                   state.includeDescendants
-                    ? "text-primary"
+                    ? "text-primary-ink"
                     : "text-muted-foreground"
                 )}
               >
@@ -297,7 +297,7 @@ export function OrgScopePicker({
           </div>
           <div className="flex w-full items-center divide-x divide-border rounded-surface border border-border py-2 type-body-secondary tabular-nums text-muted-foreground sm:w-auto">
             <span className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-2.5 sm:flex-none sm:px-3.5">
-              <Network className="size-4 text-primary" aria-hidden />
+              <Network className="size-4 text-primary-ink" aria-hidden />
               <span className="font-semibold text-foreground">{selectedList.length}</span>
               {selectedList.length === 1 ? "unit" : "units"}
               <span className="-ml-1 hidden sm:inline">selected</span>
@@ -417,7 +417,7 @@ function EmptyTree({ asOf, startsOn }: { asOf: string; startsOn: string | null }
           </p>
           <Link
             href="/cycle/setup/details"
-            className="type-label mt-1 text-primary underline-offset-4 hover:underline"
+            className="type-label mt-1 text-primary-ink underline-offset-4 hover:underline"
           >
             Change cycle dates
           </Link>
@@ -441,7 +441,7 @@ function TreeError({ onRetry }: { onRetry: () => void }) {
       <button
         type="button"
         onClick={onRetry}
-        className="type-label text-primary underline-offset-4 hover:underline"
+        className="type-label text-primary-ink underline-offset-4 hover:underline"
       >
         Try again
       </button>

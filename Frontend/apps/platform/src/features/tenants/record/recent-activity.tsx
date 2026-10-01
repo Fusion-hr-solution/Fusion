@@ -35,7 +35,7 @@ export function RecentActivity() {
         {entries.length > 0 ? (
           <Link
             href={activityHref}
-            className="rounded-control text-sm font-medium text-primary hover:text-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="rounded-control text-sm font-medium text-primary-ink hover:text-primary/80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             View activity
           </Link>
