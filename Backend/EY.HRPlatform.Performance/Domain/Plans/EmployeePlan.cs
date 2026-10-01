@@ -108,6 +108,9 @@ public sealed class EmployeePlan : PerformanceAggregate
         MarkUpdated();
     }
 
+    /// <summary>Marks the plan as edited — its objectives or weights changed — so "last saved" tracks authoring, not only lifecycle.</summary>
+    public void RecordEdit() => MarkUpdated();
+
     /// <summary>Returns a Submitted plan to Draft with required feedback, performed by the responsible manager.</summary>
     public void Return(Guid actorEmployeeId, string feedback)
     {

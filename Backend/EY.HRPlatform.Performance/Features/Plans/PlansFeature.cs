@@ -313,6 +313,7 @@ public sealed class AddPlanObjectiveHandler(PerformanceDbContext db, ICoreWorkfo
                 cycle.EndDate);
 
             Db.Objectives.Add(objective);
+            plan.RecordEdit();
             await Db.SaveChangesAsync(cancellationToken);
             return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
         }
@@ -376,6 +377,7 @@ public sealed class UpdatePlanObjectiveHandler(PerformanceDbContext db, ICoreWor
                 cycle.StartDate,
                 cycle.EndDate);
 
+            plan.RecordEdit();
             await Db.SaveChangesAsync(cancellationToken);
             return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
         }
@@ -418,6 +420,7 @@ public sealed class RemovePlanObjectiveHandler(PerformanceDbContext db, ICoreWor
         if (objective is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Objective", command.ObjectiveId));
 
         Db.Objectives.Remove(objective);
+        plan.RecordEdit();
         await Db.SaveChangesAsync(cancellationToken);
         return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
     }
@@ -449,6 +452,7 @@ public sealed class SetPlanWeightsHandler(PerformanceDbContext db, ICoreWorkforc
                 objective.SetPlanWeight(weight.Weight);
             }
 
+            plan.RecordEdit();
             await Db.SaveChangesAsync(cancellationToken);
             return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
         }
