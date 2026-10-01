@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Check,
+  ChevronDown,
+  RotateCcw,
   BarChart3,
   Plus,
   Send,
@@ -173,40 +175,52 @@ export function MyPlan({
 
   const latestReturn = [...plan.history].reverse().find((h) => h.kind === "Returned");
   const returned = plan.state === "Draft" && Boolean(latestReturn);
+  // Edited after the reviewer sent it back (the return itself stamps the plan, so allow it a moment).
+  const revisedSinceReturn =
+    returned && Date.parse(plan.lastSavedAt) - Date.parse(latestReturn?.decidedAt ?? plan.lastSavedAt) > 2000;
   const isAuthor = plan.canAuthor;
 
   // The sidebar leads with the plan's phase and carries only what the objective list does not: while
   // authoring, the reviewer's returned feedback, the submission checks and who will review; once handed
   // over, the review status; once approved, the settled agreement and overall progress. The reviewer and phase lead;
   // the direction the plan serves follows. Per-objective facts are the list's, so the sidebar never restates them.
-  const phase = isAuthor ? (
+  const phase = isAuthor && plan.state === "Draft" ? (
     <>
       {returned ? (
         <ReviewerFeedback
           reviewer={latestReturn?.actorName ?? plan.responsibleManager?.name ?? "Your reviewer"}
           feedback={latestReturn?.feedback ?? null}
           at={latestReturn?.decidedAt ?? null}
+          revisedAt={revisedSinceReturn ? plan.lastSavedAt : null}
         />
       ) : null}
-      <PlanSubmissionChecks readiness={plan.readiness} />
     </>
   ) : plan.state === "Submitted" ? (
     <PlanSubmissionStatus plan={plan} />
   ) : plan.isLocked ? (
     <>
       <PlanApprovedStatus plan={plan} perspective="owner" />
-      <PlanProgressCard plan={plan} emptyDescription="Plan progress begins once you update your objectives." />
     </>
   ) : null;
   const sidebar = (
     <>
-      <PlanReviewerSection
-        reviewerId={plan.responsibleManager?.id ?? null}
-        reviewerName={reviewerName}
-        history={plan.history}
-      />
+      {/* In execution, where the plan stands leads the column. */}
+      {plan.isLocked ? (
+        <PlanProgressCard plan={plan} emptyDescription="Plan progress begins once you update your objectives." />
+      ) : null}
+      {/* A returned plan's feedback already names the reviewer and when they acted; once approved, the
+          Approved & locked section names who approved it. */}
+      {(returned && isAuthor) || plan.isLocked ? null : (
+        <PlanReviewerSection
+          reviewerId={plan.responsibleManager?.id ?? null}
+          reviewerName={reviewerName}
+          history={plan.history}
+        />
+      )}
       {phase}
       <PlanDirectionSection cycleId={plan.cycleId} objectives={plan.objectives} targets={targets} />
+      {/* What stands between the draft and submission closes the column. */}
+      {isAuthor && plan.state === "Draft" ? <PlanSubmissionChecks readiness={plan.readiness} /> : null}
     </>
   );
 
@@ -298,7 +312,8 @@ function ObjectiveLedger({
     <PlanSection
       label="Objectives"
       count={plan.objectives.length}
-      summary={<PlanWeightStrip segments={plan.objectives.map((o) => ({ weight: o.planWeight ?? 0, aligned: o.isAligned }))} />}
+      // Weights are settled at 100% once the plan is locked; the strip only guides drafting.
+      summary={plan.isLocked ? undefined : <PlanWeightStrip segments={plan.objectives.map((o) => ({ weight: o.planWeight ?? 0, aligned: o.isAligned }))} />}
       action={
         plan.canAuthor ? (
           <Button
@@ -435,33 +450,134 @@ function ReviewerFeedback({
   reviewer,
   feedback,
   at,
+  revisedAt,
 }: {
   reviewer: string;
   feedback: string | null;
   at: string | null;
+  /** When the author last edited the plan after the return; null while untouched. */
+  revisedAt: string | null;
 }) {
+  const revised = Boolean(revisedAt);
   return (
     <SidebarSection label="Reviewer feedback">
-      <p className="mt-3 text-base font-semibold tracking-tight text-warning">Changes requested</p>
-
-      <div className="mt-3 flex items-center gap-2.5">
-        <Avatar className="size-6">
-          <AvatarFallback className="text-[0.625rem]">{initials(reviewer)}</AvatarFallback>
-        </Avatar>
-        <span className="min-w-0 truncate text-sm font-medium text-foreground">{reviewer}</span>
-        {at ? (
-          <span className="ml-auto shrink-0 text-xs text-muted-foreground">{formatDateTime(at)}</span>
-        ) : null}
+      {/* Who sent it back, as one identity: the reviewer's avatar carries the live beacon, the status
+          leads beside it, and the name and time sit quietly under the status. */}
+      <div className="mt-4 flex items-center gap-3">
+        <span className="relative shrink-0">
+          <Avatar className="size-10">
+            <AvatarFallback className="text-xs">{initials(reviewer)}</AvatarFallback>
+          </Avatar>
+          <span className="absolute -right-0.5 -top-0.5 flex size-3 items-center justify-center" aria-hidden>
+            {/* Pulses while the plan waits on its owner; settles once they have revised it. */}
+            {revised ? null : (
+              <span className="absolute inline-flex size-full scale-150 rounded-full bg-primary opacity-90 animate-ping" />
+            )}
+            <span
+              className={cn(
+                "relative inline-flex size-3 rounded-full ring-2 ring-background",
+                revised ? "bg-info" : "bg-primary-ink"
+              )}
+            />
+          </span>
+        </span>
+        <div className="min-w-0">
+          <p className={cn("text-base font-semibold leading-tight tracking-tight", revised ? "text-info" : "text-primary-ink")}>
+            {revised ? "Changes made" : "Changes requested"}
+          </p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">
+            <span className="font-medium text-foreground/85">{reviewer}</span>
+            {at ? (
+              <>
+                <span aria-hidden> · </span>
+                <time dateTime={at} className="tabular-nums">
+                  {formatDateTime(at)}
+                </time>
+              </>
+            ) : null}
+          </p>
+        </div>
       </div>
 
       {feedback ? (
-        <blockquote className="mt-4 border-l-2 border-warning/60 pl-4">
-          <p className="text-sm leading-relaxed text-foreground/85">{feedback}</p>
+        // The note as the reviewer's speech: a bubble whose tail points back up to their avatar.
+        <blockquote className="relative mt-4 rounded-control border border-border bg-inlay px-4 py-3.5 shadow-raised">
+          <span
+            className="absolute -top-[7px] left-[14px] size-3 rotate-45 rounded-tl-detail border-l border-t border-border bg-inlay"
+            aria-hidden
+          />
+          <ClampedText text={feedback} />
         </blockquote>
       ) : null}
 
-      <p className="mt-4 text-sm text-muted-foreground">Revise your plan and resubmit when ready.</p>
+      {revised && revisedAt ? (
+        <p className="mt-3 flex items-center gap-2 rounded-control-sm bg-info/10 px-2.5 py-1.5 text-xs font-medium text-info ring-1 ring-inset ring-info/25">
+          <Check className="size-3.5 shrink-0" aria-hidden />
+          <span className="min-w-0">
+            Revised <time dateTime={revisedAt} className="tabular-nums">{formatDateTime(revisedAt)}</time> · resubmit
+            when ready
+          </span>
+        </p>
+      ) : (
+        <p className="mt-3 flex items-center gap-2 rounded-control-sm bg-primary-tint px-2.5 py-1.5 text-xs font-medium text-primary-ink ring-1 ring-inset ring-primary-ring">
+          <RotateCcw className="size-3.5 shrink-0" aria-hidden />
+          Revise your plan and resubmit when ready.
+        </p>
+      )}
     </SidebarSection>
+  );
+}
+
+/**
+ * Long text held to a short preview that fades out, with a toggle only when it actually overflows.
+ * Blank lines become paragraphs.
+ */
+function ClampedText({ text }: { text: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || expanded) return;
+    const measure = () => setOverflows(el.scrollHeight > el.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [text, expanded]);
+
+  const clipped = overflows && !expanded;
+
+  return (
+    <div>
+      <div
+        ref={ref}
+        className={cn(
+          "space-y-2.5 text-sm leading-relaxed text-foreground/85",
+          !expanded && "max-h-[7.25rem] overflow-hidden",
+          clipped && "[mask-image:linear-gradient(to_bottom,black_55%,transparent)]"
+        )}
+      >
+        {paragraphs.map((p, i) => (
+          <p key={i} className="whitespace-pre-line break-words">
+            {p}
+          </p>
+        ))}
+      </div>
+      {overflows || expanded ? (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          aria-expanded={expanded}
+          className="mt-0.5 inline-flex items-center gap-1 rounded-detail text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {expanded ? "Show less" : "Read more"}
+          <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} aria-hidden />
+        </button>
+      ) : null}
+    </div>
   );
 }
 

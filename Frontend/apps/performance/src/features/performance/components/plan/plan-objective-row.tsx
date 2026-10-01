@@ -130,7 +130,7 @@ export function PlanObjectiveRow({
           <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-muted-foreground">
             {objective.isAligned ? (
               <>
-                <Target className="size-4 shrink-0 text-primary" aria-hidden />
+                <Target className="size-4 shrink-0 text-primary-ink" aria-hidden />
                 <span>
                   Aligned to{" "}
                   {onViewAlignment && objective.parentObjectiveId ? (
@@ -139,12 +139,12 @@ export function PlanObjectiveRow({
                       onClick={() =>
                         onViewAlignment(objective.parentObjectiveId!)
                       }
-                      className="rounded-control font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="rounded-control font-medium text-primary-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {parentObjective ?? "direction"}
                     </button>
                   ) : (
-                    <span className="font-medium text-primary">
+                    <span className="font-medium text-primary-ink">
                       {parentObjective ?? "direction"}
                     </span>
                   )}
@@ -244,7 +244,7 @@ export function PlanObjectiveRow({
               weight <= 0
                 ? "text-muted-foreground/50"
                 : objective.isAligned
-                  ? "text-primary"
+                  ? "text-primary-ink"
                   : "text-info"
             )}
           >
@@ -284,20 +284,25 @@ export function PlanObjectiveRow({
  * it reads the same in every plan state; completion belongs to the execution band, which segments its
  * progress bar the same way. Milestone weights always total 100%, so the total is never stated.
  */
-function MilestoneStrip({ milestones }: { milestones: { weight: number }[] }) {
+function MilestoneStrip({ milestones }: { milestones: { weight: number; isCompleted: boolean }[] }) {
+  // Completed milestones fill in the objective's colour; open ones stay as track.
+  const done = milestones.filter((m) => m.isCompleted).length;
   return (
     <span className="inline-flex items-center gap-2.5">
       <span className="flex h-1.5 w-20 gap-0.5" aria-hidden>
         {milestones.map((m, i) => (
           <span
             key={i}
-            className="h-full rounded-full bg-[var(--type-accent,var(--primary))] opacity-40"
+            className={cn(
+              "h-full rounded-full",
+              m.isCompleted ? "bg-[var(--type-accent,var(--primary))]" : "bg-muted-foreground/20"
+            )}
             style={{ flexGrow: Math.max(m.weight, 1) }}
           />
         ))}
       </span>
       <span className="tabular-nums">
-        {milestones.length} milestone{milestones.length === 1 ? "" : "s"}
+        {done > 0 ? `${done} of ${milestones.length} done` : `${milestones.length} milestone${milestones.length === 1 ? "" : "s"}`}
       </span>
     </span>
   );
@@ -368,20 +373,20 @@ function ExecutionState({
       <p className="type-eyebrow text-muted-foreground/70">{label}</p>
       {method === "WeightedMilestones" && measurement ? (
         // Same segments as the Milestones fact above (sized by weight); completed ones fill.
-        <div className="mt-2 flex h-1.5 w-full gap-1" aria-hidden>
+        <div className="mt-2 flex h-2.5 w-full gap-1" aria-hidden>
           {measurement.milestones.map((m, i) => (
             <span
               key={i}
               className={cn(
                 "h-full rounded-full",
-                m.isCompleted ? PROGRESS_TONE_BG[tone] : "bg-muted"
+                m.isCompleted ? PROGRESS_TONE_BG[tone] : "bg-muted-foreground/15"
               )}
               style={{ flexGrow: Math.max(m.weight, 1) }}
             />
           ))}
         </div>
       ) : (
-        <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-muted-foreground/15">
           {has ? (
             <span
               className={cn(
@@ -393,16 +398,12 @@ function ExecutionState({
           ) : null}
         </div>
       )}
-      <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-        <span className="text-sm font-semibold">{value}</span>
-        <span className="text-xs text-muted-foreground">
-          {has
-            ? updated
-              ? `Updated ${updated}`
-              : null
-            : "Progress not reported yet"}
-        </span>
-      </div>
+      {has ? (
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="text-sm font-semibold">{value}</span>
+          {updated ? <span className="text-xs text-muted-foreground">Updated {updated}</span> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

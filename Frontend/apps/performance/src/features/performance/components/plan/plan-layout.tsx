@@ -57,7 +57,7 @@ export function PlanSection({
  */
 export function PlanWeightStrip({ segments }: { segments: { weight: number; aligned: boolean }[] }) {
   const total = segments.reduce((sum, s) => sum + s.weight, 0);
-  const tone = total === 100 ? "text-foreground" : total > 100 ? "text-destructive" : "text-warning";
+  const tone = total === 100 ? "text-foreground" : "text-destructive";
   return (
     <div className="flex items-center gap-2.5">
       <span className="type-meta text-muted-foreground">Weight</span>

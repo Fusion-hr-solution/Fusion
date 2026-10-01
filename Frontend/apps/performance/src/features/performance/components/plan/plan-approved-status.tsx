@@ -45,23 +45,17 @@ export function PlanApprovedStatus({
           <Check className="size-5" aria-hidden />
         </PlanBannerMark>
         <div className="min-w-0">
-          <p className="font-semibold tracking-tight text-foreground">Approved &amp; locked</p>
+          <p className="flex flex-wrap items-baseline gap-x-2 font-semibold tracking-tight text-foreground">
+            Approved &amp; locked
+            {approvedOn && plan.approvedAt ? (
+              <time dateTime={plan.approvedAt} className="text-xs font-normal tabular-nums text-muted-foreground">
+                {approvedOn}
+              </time>
+            ) : null}
+          </p>
           <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{detail}</p>
         </div>
       </div>
-
-      <dl className="mt-5 border-t border-border pt-4">
-        <Fact label="Approved" value={approvedOn ?? "—"} />
-      </dl>
     </SidebarSection>
-  );
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="type-eyebrow text-muted-foreground">{label}</dt>
-      <dd className="mt-1 text-sm font-semibold tabular-nums text-foreground">{value}</dd>
-    </div>
   );
 }

@@ -92,9 +92,8 @@ export function PlanDirectionSection({
 }
 
 const DECISION_LABEL: Partial<Record<PlanDecisionDto["kind"], string>> = {
+  // Approval is stated (with its date) by the Approved & locked section, so it is not repeated here.
   Returned: "Returned your plan",
-  Approved: "Approved your plan",
-  ApprovedExceptionally: "Approved your plan",
 };
 
 /**

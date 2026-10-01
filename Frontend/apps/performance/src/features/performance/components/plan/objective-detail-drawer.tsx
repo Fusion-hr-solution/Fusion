@@ -266,32 +266,7 @@ function ObjectiveDetailBody({
           title="Measurement"
           subtitle={measurementSubtitle(measurement)}
         >
-          <div className="grid grid-cols-2 gap-3">
-            <MiniFact
-              icon={<FileText className="size-4" aria-hidden />}
-              label="Type"
-              value={measurement ? MEASUREMENT_METHOD_LABEL[measurement.method] : "—"}
-            />
-            <MiniFact
-              icon={<Percent className="size-4" aria-hidden />}
-              label="Measure"
-              value={measureLabel(measurement)}
-            />
-          </div>
-
-          {measurement?.method === "NumericTarget" ? <NumericTargetStrip measurement={measurement} /> : null}
-
-          {measurement?.method === "WeightedMilestones" && measurement.milestones.length > 0 ? (
-            <ul className="mt-3 space-y-2 rounded-surface border border-border px-3.5 py-3 bg-inlay dark:bg-popover">
-              {measurement.milestones.map((m) => (
-                <li key={m.id} className="flex items-center gap-2.5 text-sm">
-                  <Milestones className="size-3.5 shrink-0 text-muted-foreground/70" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate text-foreground">{m.title}</span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          <MeasurementFacts measurement={measurement} showMilestones />
         </Card>
 
         {/* Timeline, and (plan objectives only) the plan-weight gauge. An organizational objective has no
@@ -486,35 +461,52 @@ function RecordMeasurementCard({ measurement }: { measurement: MeasurementDto | 
       title="Measurement"
       subtitle={measurementSubtitle(measurement)}
     >
-      {measurement?.method === "WeightedMilestones" ? (
-        <div className="grid grid-cols-3 gap-3">
-          <MiniFact dense icon={null} label="Type" value={MEASUREMENT_METHOD_LABEL[measurement.method]} />
+      <MeasurementFacts measurement={measurement} />
+    </Card>
+  );
+}
+
+/**
+ * The measurement's facts, one system for every drawer: the type, then what is counted (the measure, or
+ * the milestones), then — by method — the numeric target or the weighted milestone list.
+ */
+function MeasurementFacts({ measurement, showMilestones }: { measurement: MeasurementDto | null; showMilestones?: boolean }) {
+  const milestones = measurement?.method === "WeightedMilestones" ? measurement.milestones : null;
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        <MiniFact
+          icon={<FileText className="size-4" aria-hidden />}
+          label="Type"
+          value={measurement ? MEASUREMENT_METHOD_LABEL[measurement.method] : "—"}
+        />
+        {milestones ? (
           <MiniFact
-            dense
-            icon={null}
+            icon={<Milestones className="size-4" aria-hidden />}
             label="Milestones"
-            value={`${measurement.milestones.length} milestone${measurement.milestones.length === 1 ? "" : "s"}`}
+            value={`${milestones.length} milestone${milestones.length === 1 ? "" : "s"}`}
           />
-          <MiniFact
-            dense
-            icon={null}
-            label="Total weight"
-            value={`${pct(measurement.milestones.reduce((sum, m) => sum + m.weight, 0))}%`}
-          />
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          <MiniFact
-            icon={<FileText className="size-4" aria-hidden />}
-            label="Type"
-            value={measurement ? MEASUREMENT_METHOD_LABEL[measurement.method] : "—"}
-          />
+        ) : (
           <MiniFact icon={<Percent className="size-4" aria-hidden />} label="Measure" value={measureLabel(measurement)} />
-        </div>
-      )}
+        )}
+      </div>
 
       {measurement?.method === "NumericTarget" ? <NumericTargetStrip measurement={measurement} /> : null}
-    </Card>
+
+      {showMilestones && milestones && milestones.length > 0 ? (
+        <ul className="mt-3 divide-y divide-border rounded-surface border border-border bg-inlay dark:bg-popover">
+          {milestones.map((m) => (
+            <li key={m.id} className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-popover text-muted-foreground dark:bg-card">
+                <Milestones className="size-3.5" aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1 truncate font-medium text-foreground">{m.title}</span>
+              <span className="shrink-0 tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
   );
 }
 
@@ -674,20 +666,8 @@ function Card({
   );
 }
 
-/**
- * A fact inside a card: an icon disc beside a labelled value, values allowed to wrap within the tile.
- * `dense` drops the disc and stacks the label over the value — used when three facts share a row and the
- * disc would crowd the text.
- */
-function MiniFact({ icon, label, value, dense }: { icon: ReactNode; label: string; value: ReactNode; dense?: boolean }) {
-  if (dense) {
-    return (
-      <div className="rounded-surface border border-border p-3 bg-inlay dark:bg-popover">
-        <p className="type-eyebrow text-muted-foreground">{label}</p>
-        <p className="mt-1.5 text-sm font-medium leading-snug text-foreground">{value}</p>
-      </div>
-    );
-  }
+/** A fact inside a card: an icon disc beside a labelled value, values allowed to wrap within the tile. */
+function MiniFact({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
   return (
     <div className="rounded-surface border border-border p-3.5 bg-inlay dark:bg-popover">
       <div className="flex items-start gap-2.5">
@@ -784,7 +764,7 @@ function measureLabel(measurement: MeasurementDto | null): string {
   if (!measurement) return "—";
   if (measurement.method === "NumericTarget") {
     if (measurement.unit === "%") return "Percentage";
-    return measurement.unit ? `Value in ${measurement.unit}` : "Numeric value";
+    return measurement.unit ? `In ${measurement.unit}` : "Numeric value";
   }
   if (measurement.method === "WeightedMilestones") {
     return `${measurement.milestones.length} milestone${measurement.milestones.length === 1 ? "" : "s"}`;

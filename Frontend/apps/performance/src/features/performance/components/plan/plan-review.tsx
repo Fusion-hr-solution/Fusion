@@ -87,9 +87,9 @@ export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: 
           plan.isLocked ? (
             // Approved reads as the same settled agreement the owner sees.
             <>
+              <PlanProgressCard plan={plan} />
               <PlanApprovedStatus plan={plan} perspective="reviewer" subjectFirstName={firstName} />
               <PlanDirectionSection cycleId={cycle.id} objectives={plan.objectives} targets={targets} />
-              <PlanProgressCard plan={plan} />
             </>
           ) : (
             <>
@@ -292,7 +292,8 @@ function ObjectiveLedgerReadOnly({
     <PlanSection
       label="Objectives"
       count={plan.objectives.length}
-      summary={<PlanWeightStrip segments={plan.objectives.map((o) => ({ weight: o.planWeight ?? 0, aligned: o.isAligned }))} />}
+      // Weights are settled at 100% once the plan is locked; the strip only guides drafting.
+      summary={plan.isLocked ? undefined : <PlanWeightStrip segments={plan.objectives.map((o) => ({ weight: o.planWeight ?? 0, aligned: o.isAligned }))} />}
     >
       <div className="space-y-3">
         {plan.objectives.map((objective, index) => (
@@ -386,8 +387,8 @@ function ReviewDecision({
             aria-label={`What should ${firstName} change?`}
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
-            rows={5}
-            className="min-h-32"
+            rows={3}
+            className="min-h-20"
             placeholder={`What should ${firstName} change?`}
             autoFocus
           />
