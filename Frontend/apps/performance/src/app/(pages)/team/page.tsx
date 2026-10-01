@@ -71,10 +71,12 @@ export default function TeamPerformancePage() {
           ) : null
         }
       />
-      <div className="mt-8 space-y-12">
+      <div className="mt-8 space-y-9">
         <TeamDirection cycle={cycle} canViewOrgGoals={canViewOrgGoals} />
-        <YourPeople roster={roster} filter={rosterFilter} onFilterChange={setRosterFilter} />
-        <AddPeopleCallout />
+        <div className="space-y-4">
+          <YourPeople roster={roster} filter={rosterFilter} onFilterChange={setRosterFilter} />
+          <AddPeopleCallout />
+        </div>
       </div>
     </PageContainer>
   );
@@ -91,7 +93,7 @@ function TeamPageSkeleton() {
         <div className="mb-4">
           <Skeleton className="h-9 w-72 max-w-full" />
         </div>
-        <div className="mt-8 space-y-12">
+        <div className="mt-8 space-y-9">
           <TeamDirectionSkeleton />
           <RosterSkeleton />
         </div>

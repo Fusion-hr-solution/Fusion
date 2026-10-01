@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
-import Link from "next/link";
-import { ArrowUpRight, Landmark } from "@/lib/icons";
+import { useMemo, useState } from "react";
+import { Landmark, SquareArrowEnter } from "@/lib/icons";
 import type { AlignmentTargetDto, PlanDecisionDto, PlanObjectiveDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { ScopeMark } from "../scope-mark";
+import { OrgObjectiveDetailDrawer } from "../goals/org-objective-detail-drawer";
 import { SidebarSection } from "./plan-layout";
 import { initials } from "./plan-lib";
 import { formatDate } from "../../lib";
@@ -20,21 +20,23 @@ export interface DirectionLevel {
 /**
  * The plan's direction as a sidebar property: the objective the plan serves, linked down a quiet
  * connector to the objective it supports, each with its scope. Same resolution as the banner; read-only,
- * with one hop to Organization Goals for the full tree. Renders nothing when there is no direction yet.
+ * each level opens its objective in the detail drawer. Renders nothing when there is no direction yet.
  */
 export function PlanDirectionSection({
+  cycleId,
   objectives,
   targets,
   directionLevels,
-  canViewOrgGoals,
 }: {
+  cycleId: string;
   objectives: PlanObjectiveDto[];
   targets: AlignmentTargetDto[];
   directionLevels?: DirectionLevel[];
-  canViewOrgGoals: boolean;
 }) {
   const derived = useMemo(() => resolveDirection(objectives, targets), [objectives, targets]);
   const levels = (directionLevels ?? derived).slice(0, 2);
+  const idByTitle = useMemo(() => new Map(targets.map((t) => [t.title, t.id])), [targets]);
+  const [openId, setOpenId] = useState<string | null>(null);
   if (levels.length === 0) return null;
 
   return (
@@ -42,6 +44,7 @@ export function PlanDirectionSection({
       <ol className="mt-4">
         {levels.map((level, index) => {
           const leading = index === 0;
+          const objectiveId = idByTitle.get(level.title);
           return (
             <li key={level.key} className="relative flex gap-3 pb-5 last:pb-0">
               {index < levels.length - 1 ? (
@@ -50,31 +53,40 @@ export function PlanDirectionSection({
               <span
                 className={
                   leading
-                    ? "flex size-8 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary ring-1 ring-primary/20"
+                    ? "flex size-8 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink ring-1 ring-primary-ring"
                     : "flex size-8 shrink-0 items-center justify-center rounded-control border border-border text-muted-foreground"
                 }
               >
                 {leading ? <ScopeMark className="size-5" /> : <Landmark className="size-4" aria-hidden />}
               </span>
-              <div className="min-w-0 pt-0.5">
+              <div className="min-w-0 flex-1 pt-0.5">
                 <p className={leading ? "text-sm font-semibold leading-snug text-foreground" : "text-sm leading-snug text-foreground/85"}>
                   {level.title}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{level.scope}</p>
               </div>
+              {objectiveId ? (
+                <button
+                  type="button"
+                  onClick={() => setOpenId(objectiveId)}
+                  aria-label={`Open ${level.title}`}
+                  className="flex size-7 shrink-0 items-center justify-center rounded-detail text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <SquareArrowEnter className="size-4 -scale-x-100" aria-hidden />
+                </button>
+              ) : null}
             </li>
           );
         })}
       </ol>
-      {canViewOrgGoals ? (
-        <Link
-          href="/goals"
-          className="mt-4 inline-flex items-center gap-1 rounded-detail text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          View in Organization Goals
-          <ArrowUpRight className="size-3.5" aria-hidden />
-        </Link>
-      ) : null}
+      <OrgObjectiveDetailDrawer
+        cycleId={cycleId}
+        objectiveId={openId}
+        open={openId !== null}
+        onOpenChange={(open) => {
+          if (!open) setOpenId(null);
+        }}
+      />
     </SidebarSection>
   );
 }

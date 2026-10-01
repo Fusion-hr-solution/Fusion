@@ -38,7 +38,6 @@ import { cn } from "@repo/ds/lib/utils";
 import {
   useAlignmentTargets,
   useMyPlan,
-  usePerformanceAccess,
   usePlanMutations,
 } from "../../api/use-performance";
 import { formatDateTime } from "../../lib";
@@ -66,23 +65,11 @@ export function MyPlan({
   heading: (actions?: ReactNode) => ReactNode;
 }) {
   const cycleId = cycle.id;
-  const access = usePerformanceAccess();
   const state = useMyPlan(cycleId);
   const targetsQuery = useAlignmentTargets(cycleId, state.data?.participatesInCycle ?? false);
   const mutations = usePlanMutations(cycleId);
 
   const [composer, setComposer] = useState<{ objective?: PlanObjectiveDto } | null>(null);
-
-  // Organization Goals is an organization-direction surface, not a universal employee destination:
-  // the same gate the sidebar uses. "View in Organization Goals" stays hidden for self-only actors.
-  const a = access.data;
-  const canViewOrgGoals =
-    (a?.canAdminister ?? false) ||
-    a?.aggregateViewScope === "DirectReports" ||
-    a?.aggregateViewScope === "OrgUnit" ||
-    a?.aggregateViewScope === "Tenant" ||
-    (a?.canPublishStrategy ?? false) ||
-    (a?.canManageOrgObjectives ?? false);
 
   if (state.isLoading) {
     return (
@@ -165,13 +152,13 @@ export function MyPlan({
           main={<PlanNotStarted cycleName={cycle.name} onStart={() => setComposer({})} />}
           sidebar={
             <>
+              <PlanReviewerSection reviewerId={preview?.reviewer?.id ?? null} reviewerName={reviewerName} />
               <PlanDirectionSection
+                cycleId={cycleId}
                 objectives={[]}
                 targets={targets}
                 directionLevels={directionLevels}
-                canViewOrgGoals={canViewOrgGoals}
               />
-              <PlanReviewerSection reviewerId={preview?.reviewer?.id ?? null} reviewerName={reviewerName} />
               <PlanNextSteps reviewerName={reviewerName} />
             </>
           }
@@ -190,8 +177,8 @@ export function MyPlan({
 
   // The sidebar leads with the plan's phase and carries only what the objective list does not: while
   // authoring, the reviewer's returned feedback, the submission checks and who will review; once handed
-  // over, the review status; once approved, the settled agreement and overall progress. The direction the
-  // plan serves leads every phase. Per-objective facts are the list's, so the sidebar never restates them.
+  // over, the review status; once approved, the settled agreement and overall progress. The reviewer and phase lead;
+  // the direction the plan serves follows. Per-objective facts are the list's, so the sidebar never restates them.
   const phase = isAuthor ? (
     <>
       {returned ? (
@@ -213,13 +200,13 @@ export function MyPlan({
   ) : null;
   const sidebar = (
     <>
-      <PlanDirectionSection objectives={plan.objectives} targets={targets} canViewOrgGoals={canViewOrgGoals} />
       <PlanReviewerSection
         reviewerId={plan.responsibleManager?.id ?? null}
         reviewerName={reviewerName}
         history={plan.history}
       />
       {phase}
+      <PlanDirectionSection cycleId={plan.cycleId} objectives={plan.objectives} targets={targets} />
     </>
   );
 
@@ -539,7 +526,7 @@ function PlanIllustration() {
       <span className="absolute left-[98px] top-[60px] size-2 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
       <span className="absolute left-[184px] top-[84px] size-2 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
       <div className="absolute left-1/2 top-2 flex h-32 w-28 -translate-x-1/2 flex-col gap-2 rounded-surface border border-border bg-card p-3 shadow-lg">
-        <span className="flex size-9 items-center justify-center rounded-full bg-primary/15 text-primary">
+        <span className="flex size-9 items-center justify-center rounded-full bg-primary-tint text-primary-ink">
           <Target className="size-5" />
         </span>
         <span className="mt-2 h-1.5 w-3/4 rounded-full bg-muted" />

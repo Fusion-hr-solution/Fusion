@@ -55,6 +55,7 @@ import {
   Layers01Icon,
   Link02Icon,
   LinkSquare02Icon,
+  SquareArrowRightEnterIcon,
   Loading03Icon,
   Mail01Icon,
   Message01Icon,
@@ -145,6 +146,7 @@ export const ChevronsUpDown = icon(UnfoldMoreIcon, "ChevronsUpDown");
 export const ArrowRight = icon(ArrowRight02Icon, "ArrowRight");
 export const ArrowLeft = icon(ArrowLeft02Icon, "ArrowLeft");
 export const ArrowUpRight = icon(ArrowUpRight01Icon, "ArrowUpRight");
+export const SquareArrowEnter = icon(SquareArrowRightEnterIcon, "SquareArrowEnter");
 export const ExternalLink = icon(LinkSquare02Icon, "ExternalLink");
 export const CornerLeftUp = icon(CornerLeftUpIcon, "CornerLeftUp");
 export const Home = icon(Home01Icon, "Home");

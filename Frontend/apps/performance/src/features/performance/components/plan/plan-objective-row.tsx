@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  SquareArrowEnter,
   CalendarRange,
   LineChart,
   MoreHorizontal,
@@ -104,7 +105,7 @@ export function PlanObjectiveRow({
           className={cn(
             "flex size-10 shrink-0 items-center justify-center rounded-control border text-base font-semibold tabular-nums",
             objective.isAligned
-              ? "border-primary/25 bg-primary/[0.06] text-primary"
+              ? "border-primary-ring bg-primary-tint text-primary-ink"
               : "border-info/25 bg-info/[0.06] text-info"
           )}
         >
@@ -188,18 +189,17 @@ export function PlanObjectiveRow({
                 ) : null}
               </DropdownMenuContent>
             </DropdownMenu>
-          ) : (
-            // Visual parity with the authoring row; read-only rows have no actions behind it.
+          ) : onViewDetails ? (
             <Button
               variant="ghost"
               size="icon-sm"
-              tabIndex={-1}
-              aria-hidden
-              className="pointer-events-none"
+              onClick={onViewDetails}
+              aria-label={`View ${objective.title}`}
+              className="text-muted-foreground hover:text-foreground"
             >
-              <MoreHorizontal className="size-4" />
+              <SquareArrowEnter className="size-4 -scale-x-100" />
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
 

@@ -29,7 +29,6 @@ import { Textarea } from "@repo/ds/components/ui/textarea";
 import { AsyncButton, PageError, StatusBadge } from "@repo/ds/shell";
 import {
   useAlignmentTargets,
-  usePerformanceAccess,
   usePlanDetail,
   usePlanReviewMutations,
 } from "../../api/use-performance";
@@ -57,7 +56,6 @@ import { initials } from "./plan-lib";
 export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: string }) {
   const detail = usePlanDetail(cycle.id, planId);
   const targetsQuery = useAlignmentTargets(cycle.id);
-  const access = usePerformanceAccess();
 
   if (detail.isLoading) return <PlanSurfaceSkeleton />;
   if (detail.error || !detail.data) {
@@ -66,15 +64,6 @@ export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: 
 
   const plan = detail.data;
   const targets = targetsQuery.data ?? [];
-
-  const a = access.data;
-  const canViewOrgGoals =
-    (a?.canAdminister ?? false) ||
-    a?.aggregateViewScope === "DirectReports" ||
-    a?.aggregateViewScope === "OrgUnit" ||
-    a?.aggregateViewScope === "Tenant" ||
-    (a?.canPublishStrategy ?? false) ||
-    (a?.canManageOrgObjectives ?? false);
 
   const firstName = plan.employee.name?.trim().split(/\s+/)[0] ?? "the employee";
 
@@ -98,14 +87,14 @@ export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: 
           plan.isLocked ? (
             // Approved reads as the same settled agreement the owner sees.
             <>
-              <PlanDirectionSection objectives={plan.objectives} targets={targets} canViewOrgGoals={canViewOrgGoals} />
               <PlanApprovedStatus plan={plan} perspective="reviewer" subjectFirstName={firstName} />
+              <PlanDirectionSection cycleId={cycle.id} objectives={plan.objectives} targets={targets} />
               <PlanProgressCard plan={plan} />
             </>
           ) : (
             <>
-              <PlanDirectionSection objectives={plan.objectives} targets={targets} canViewOrgGoals={canViewOrgGoals} />
               <ReviewContext plan={plan} firstName={firstName} />
+              <PlanDirectionSection cycleId={cycle.id} objectives={plan.objectives} targets={targets} />
             </>
           )
         }
@@ -157,27 +146,22 @@ function ReviewHeading({ plan, actions }: { plan: EmployeePlanDto; actions?: Rea
           </h1>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-muted-foreground">
             {plan.orgUnitName ? (
-              <>
-                <span className="inline-flex items-center gap-1.5">
-                  <Landmark className="size-3.5" aria-hidden />
-                  {plan.orgUnitName}
-                </span>
-                <span aria-hidden className="text-border">
-                  ·
-                </span>
-              </>
+              <span className="inline-flex items-center gap-1.5">
+                <Landmark className="size-3.5" aria-hidden />
+                {plan.orgUnitName}
+              </span>
+            ) : null}
+            {plan.orgUnitName && plan.state === "Approved" ? (
+              <span aria-hidden className="text-border">
+                ·
+              </span>
             ) : null}
             {plan.state === "Approved" ? (
               <span className="inline-flex items-center gap-1.5">
                 <LineChart className="size-3.5" aria-hidden />
                 Tracking execution
               </span>
-            ) : (
-              <span className="inline-flex items-center gap-1.5">
-                <Clock className="size-3.5" aria-hidden />
-                Submitted for your review
-              </span>
-            )}
+            ) : null}
           </p>
         </div>
       </div>
@@ -209,7 +193,7 @@ function ReviewContext({ plan, firstName }: { plan: EmployeePlanDto; firstName: 
     : plan.canDecide
       ? {
           icon: Clock,
-          tint: "text-primary bg-primary/12 ring-primary/20",
+          tint: "text-primary-ink bg-primary-tint ring-primary-ring",
           title: "Awaiting your review",
           detail: `Review ${firstName}'s objectives, then approve or request changes.`,
         }

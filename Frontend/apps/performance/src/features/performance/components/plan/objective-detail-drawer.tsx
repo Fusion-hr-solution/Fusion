@@ -57,6 +57,12 @@ type DrawerMode = "details" | "record";
  */
 export type ObjectiveDetailVariant = "plan" | "organizational";
 
+// Icon tiles take the accent through these; amber reads the DS primary tile tokens.
+const AMBER_TINT =
+  "[--type-tint:var(--primary-tint)] [--type-ring:var(--primary-ring)] [--type-ink:var(--primary-ink)]";
+const INFO_TINT =
+  "[--type-tint:color-mix(in_oklab,var(--info)_10%,transparent)] [--type-ring:color-mix(in_oklab,var(--info)_20%,transparent)] [--type-ink:var(--info)]";
+
 export function ObjectiveDetailDrawer({
   objective,
   index,
@@ -90,7 +96,10 @@ export function ObjectiveDetailDrawer({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        className="flex w-full flex-col gap-0 overflow-y-auto p-0 data-[side=right]:sm:max-w-[540px]"
+        className={cn(
+          "flex w-full flex-col gap-0 overflow-y-auto bg-inlay p-0 dark:bg-popover data-[side=right]:sm:max-w-[540px]",
+          variant === "organizational" || (objective?.isAligned ?? true) ? AMBER_TINT : INFO_TINT
+        )}
         // The objective's type accent, inherited by every accent inside: amber when aligned (or an
         // organizational objective), blue when standalone — the same colour its card carries.
         style={
@@ -138,7 +147,7 @@ function DrawerUnavailable({ onRetry }: { onRetry: () => void }) {
 function DrawerLoading() {
   return (
     <>
-      <div className="border-b border-border px-5 pb-4 pt-5 pr-12">
+      <div className="border-b border-border p-5 pr-12">
         <SheetTitle className="sr-only">Objective details</SheetTitle>
         <SheetDescription className="sr-only">Loading objective details.</SheetDescription>
         <div className="flex items-start gap-3.5">
@@ -149,7 +158,7 @@ function DrawerLoading() {
           </div>
         </div>
       </div>
-      <div className="space-y-4 px-5 py-5">
+      <div className="space-y-4 p-5">
         <Skeleton className="h-16 w-full rounded-surface" />
         <Skeleton className="h-32 w-full rounded-surface" />
         <Skeleton className="h-28 w-full rounded-surface" />
@@ -220,18 +229,18 @@ function ObjectiveDetailBody({
         Full details for the objective {objective.title}.
       </SheetDescription>
 
-      <div className="min-h-0 flex-1 space-y-4 px-5 py-5">
+      <div className="flex-1 space-y-4 p-5">
         {objective.description ? (
           <Section label="Description">
-            <p className="text-sm leading-relaxed text-foreground">{objective.description}</p>
+            <p className="rounded-surface border border-border p-4 bg-popover dark:bg-card text-sm leading-relaxed text-foreground">{objective.description}</p>
           </Section>
         ) : null}
 
-        <Section label="Alignment">
-          {objective.isAligned && parentTitle ? (
-            <div className="rounded-surface border border-border p-4">
+        {objective.isAligned && parentTitle ? (
+          <Section label="Alignment">
+            <div className="rounded-surface border border-border p-4 bg-popover dark:bg-card">
               <div className="flex items-start gap-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-primary/10 text-primary ring-1 ring-primary/20">
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-(--type-tint) text-(--type-ink) ring-1 ring-(--type-ring)">
                   <ScopeMark className="size-6" />
                 </span>
                 <div className="min-w-0">
@@ -246,27 +255,20 @@ function ObjectiveDetailBody({
                 </div>
               ) : null}
             </div>
-          ) : (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Unlink className="size-3.5 shrink-0" aria-hidden />
-              {isOrg
-                ? "A top-level strategic objective — the apex of this direction."
-                : "Not aligned to organizational direction — a standalone role objective."}
-            </p>
-          )}
-        </Section>
+          </Section>
+        ) : null}
 
         {/* Measurement — a card leading with how progress is read, then the type and measure as facts. */}
         <Card
           icon={<BarChart3 className="size-5" aria-hidden />}
-          iconTint="bg-(--type-accent)/10 text-(--type-accent) ring-(--type-accent)/20"
+          iconTint="text-muted-foreground ring-border"
           title="Measurement"
           subtitle={measurementSubtitle(measurement)}
         >
           <div className="grid grid-cols-2 gap-3">
             <MiniFact
               icon={<FileText className="size-4" aria-hidden />}
-              label="Measurement type"
+              label="Type"
               value={measurement ? MEASUREMENT_METHOD_LABEL[measurement.method] : "—"}
             />
             <MiniFact
@@ -279,7 +281,7 @@ function ObjectiveDetailBody({
           {measurement?.method === "NumericTarget" ? <NumericTargetStrip measurement={measurement} /> : null}
 
           {measurement?.method === "WeightedMilestones" && measurement.milestones.length > 0 ? (
-            <ul className="mt-3 space-y-2 rounded-surface border border-border px-3.5 py-3">
+            <ul className="mt-3 space-y-2 rounded-surface border border-border px-3.5 py-3 bg-inlay dark:bg-popover">
               {measurement.milestones.map((m) => (
                 <li key={m.id} className="flex items-center gap-2.5 text-sm">
                   <Milestones className="size-3.5 shrink-0 text-muted-foreground/70" aria-hidden />
@@ -297,13 +299,13 @@ function ObjectiveDetailBody({
           {/* Timeline — the objective's window read as a start→end sequence. */}
           <Card
             icon={<CalendarDays className="size-5" aria-hidden />}
-            iconTint="bg-muted text-muted-foreground ring-border"
+            iconTint="text-muted-foreground ring-border"
             title="Timeline"
             subtitle="Cycle duration"
           >
             <ol className={cn("flex flex-col", isOrg ? "min-h-0 flex-row gap-8" : "h-full min-h-[7.5rem]")}>
-              <TimelinePoint label="Start date" value={formatDate(objective.startDate)} connector={!isOrg} />
-              <TimelinePoint label="End date" value={formatDate(objective.endDate)} />
+              <TimelinePoint label="Start" value={formatDate(objective.startDate)} connector={!isOrg} />
+              <TimelinePoint label="End" value={formatDate(objective.endDate)} />
             </ol>
           </Card>
 
@@ -311,7 +313,7 @@ function ObjectiveDetailBody({
           {isOrg ? null : (
             <Card
               icon={<PieChart className="size-5" aria-hidden />}
-              iconTint="bg-muted text-muted-foreground ring-border"
+              iconTint="text-muted-foreground ring-border"
               title="Plan weight"
               subtitle="Share of overall plan"
             >
@@ -353,26 +355,26 @@ function DrawerHeader({
   kindLabel?: string;
 }) {
   return (
-    <div className="border-b border-border px-5 pb-4 pt-5 pr-12">
+    <div className="border-b border-border p-5 pr-12">
       <div className="flex items-start gap-3.5">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-control border border-(--type-accent)/25 bg-(--type-accent)/[0.06] text-base font-semibold tabular-nums text-(--type-accent)">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-control border border-(--type-ring) bg-(--type-tint) text-base font-semibold tabular-nums text-(--type-ink)">
           {String(index + 1).padStart(2, "0")}
         </span>
         <div className="min-w-0">
           <SheetTitle className="text-[0.95rem] leading-snug tracking-tight">{objective.title}</SheetTitle>
           <p className="mt-1.5 inline-flex items-center gap-1.5 text-xs">
             {variant === "organizational" ? (
-              <span className="inline-flex items-center gap-1.5 font-medium text-primary">
+              <span className="inline-flex items-center gap-1.5 font-medium text-(--type-ink)">
                 <Target className="size-3 shrink-0" aria-hidden />
                 {kindLabel ?? "Organizational objective"}
               </span>
             ) : objective.isAligned ? (
-              <span className="inline-flex items-center gap-1.5 font-medium text-primary">
+              <span className="inline-flex items-center gap-1.5 font-medium text-(--type-ink)">
                 <Target className="size-3 shrink-0" aria-hidden />
                 Aligned objective
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 font-medium text-info">
+              <span className="inline-flex items-center gap-1.5 font-medium text-(--type-ink)">
                 <Unlink className="size-3 shrink-0" aria-hidden />
                 Standalone role objective
               </span>
@@ -415,7 +417,7 @@ function RecordProgressBody({
       <SheetDescription className="sr-only">Record progress for the objective {objective.title}.</SheetDescription>
 
       {/* Only the content scrolls; the footer stays pinned to the drawer's base regardless of content height. */}
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 pb-5 pt-5">
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
         <button
           type="button"
           onClick={onBack}
@@ -452,7 +454,7 @@ function RecordProgressBody({
       </div>
 
       {/* Pinned footer — the two terminal actions sit at the drawer's base, not at the end of the content. */}
-      <div className="flex items-center justify-between gap-3 border-t border-border bg-popover px-5 py-3.5">
+      <div className="flex items-center justify-between gap-3 border-t border-border bg-inlay p-5 dark:bg-popover">
         <Button type="button" variant="outline" onClick={onBack}>
           Cancel
         </Button>
@@ -473,13 +475,13 @@ function RecordMeasurementCard({ measurement }: { measurement: MeasurementDto | 
   return (
     <Card
       icon={<BarChart3 className="size-5" aria-hidden />}
-      iconTint="bg-(--type-accent)/10 text-(--type-accent) ring-(--type-accent)/20"
+      iconTint="text-muted-foreground ring-border"
       title="Measurement"
       subtitle={measurementSubtitle(measurement)}
     >
       {measurement?.method === "WeightedMilestones" ? (
         <div className="grid grid-cols-3 gap-3">
-          <MiniFact dense icon={null} label="Measurement type" value={MEASUREMENT_METHOD_LABEL[measurement.method]} />
+          <MiniFact dense icon={null} label="Type" value={MEASUREMENT_METHOD_LABEL[measurement.method]} />
           <MiniFact
             dense
             icon={null}
@@ -497,7 +499,7 @@ function RecordMeasurementCard({ measurement }: { measurement: MeasurementDto | 
         <div className="grid grid-cols-2 gap-3">
           <MiniFact
             icon={<FileText className="size-4" aria-hidden />}
-            label="Measurement type"
+            label="Type"
             value={measurement ? MEASUREMENT_METHOD_LABEL[measurement.method] : "—"}
           />
           <MiniFact icon={<Percent className="size-4" aria-hidden />} label="Measure" value={measureLabel(measurement)} />
@@ -512,7 +514,7 @@ function RecordMeasurementCard({ measurement }: { measurement: MeasurementDto | 
 /** The read-only numeric target line — baseline → target with the improvement direction, shared by both measurement cards. */
 function NumericTargetStrip({ measurement }: { measurement: MeasurementDto }) {
   return (
-    <div className="mt-3 rounded-surface border border-border px-3.5 py-3">
+    <div className="mt-3 rounded-surface border border-border px-3.5 py-3 bg-inlay dark:bg-popover">
       <p className="type-eyebrow text-muted-foreground">Target</p>
       <p className="mt-1 inline-flex items-center gap-1.5 text-sm tabular-nums text-foreground">
         <TargetRange baseline={measurement.baseline} target={measurement.target} unit={measurement.unit} direction={measurement.direction} />
@@ -566,7 +568,7 @@ function ProgressSections({
     <>
       {/* Current progress — the same derived-progress card the recorder uses, so the read and the update
           speak one visual language. Missing reads as missing, never a fabricated 0%. */}
-      <section className="border-t border-border pt-5">
+      <section>
         <div className="flex items-center justify-between gap-2">
           <p className="type-eyebrow text-muted-foreground">Current progress</p>
           {canRecord ? (
@@ -579,8 +581,8 @@ function ProgressSections({
           {has ? (
             <DerivedCard derived={objective.derivedProgress} subtitle={subtitle} />
           ) : (
-            <div className="flex items-center gap-3.5 rounded-surface border border-border p-4">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground/60">
+            <div className="flex items-center gap-3.5 rounded-surface border border-border p-4 bg-popover dark:bg-card">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground/60">
                 <Minus className="size-5" aria-hidden />
               </span>
               <div className="min-w-0">
@@ -594,12 +596,14 @@ function ProgressSections({
         </div>
       </section>
 
-      {/* Progress history — the recorded updates, newest first, closing on the first update. */}
-      <section className="border-t border-border py-5">
+      {/* Progress history — the recorded updates, newest first. Omitted while nothing is reported: the
+          current-progress empty state already says so. */}
+      {has || history.length > 0 ? (
+      <section>
         <p className="type-eyebrow text-muted-foreground">Progress history</p>
         {history.length === 0 ? (
-          <div className="mt-3 flex items-center gap-4">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground/70">
+          <div className="mt-3 flex items-center gap-3.5 rounded-surface border border-border p-4 bg-popover dark:bg-card">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground/60">
               <TrendingUp className="size-5" aria-hidden />
             </span>
             <div className="min-w-0">
@@ -610,17 +614,20 @@ function ProgressSections({
             </div>
           </div>
         ) : (
-          <ProgressHistoryTimeline
-            history={history}
-            toneClass={PROGRESS_TONE_TEXT[tone]}
-            hasMore={hasMore}
-            loadingMore={loadingMore}
-            onLoadMore={onLoadMore}
-            onOpenFile={onOpenFile}
-            openingFileId={openingFileId}
-          />
+          <div className="mt-3 rounded-surface border border-border p-4 bg-popover dark:bg-card [&>ol]:mt-0">
+            <ProgressHistoryTimeline
+              history={history}
+              toneClass={PROGRESS_TONE_TEXT[tone]}
+              hasMore={hasMore}
+              loadingMore={loadingMore}
+              onLoadMore={onLoadMore}
+              onOpenFile={onOpenFile}
+              openingFileId={openingFileId}
+            />
+          </div>
         )}
       </section>
+      ) : null}
     </>
   );
 }
@@ -640,7 +647,7 @@ function Card({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col rounded-surface border border-border bg-card p-4">
+    <section className="flex flex-col rounded-surface border border-border bg-popover p-4 dark:bg-card">
       <div className="flex items-start gap-3">
         <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-control ring-1", iconTint)}>
           {icon}
@@ -663,16 +670,16 @@ function Card({
 function MiniFact({ icon, label, value, dense }: { icon: ReactNode; label: string; value: string; dense?: boolean }) {
   if (dense) {
     return (
-      <div className="rounded-surface border border-border p-3">
+      <div className="rounded-surface border border-border p-3 bg-inlay dark:bg-popover">
         <p className="type-eyebrow text-muted-foreground">{label}</p>
         <p className="mt-1.5 text-sm font-medium leading-snug text-foreground">{value}</p>
       </div>
     );
   }
   return (
-    <div className="rounded-surface border border-border p-3.5">
+    <div className="rounded-surface border border-border p-3.5 bg-inlay dark:bg-popover">
       <div className="flex items-start gap-2.5">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground">
           {icon}
         </span>
         <div className="min-w-0">
@@ -689,7 +696,7 @@ function TimelinePoint({ label, value, connector }: { label: string; value: stri
   return (
     <li className={cn("flex gap-3", connector && "min-h-0 flex-1")}>
       <div className="flex flex-col items-center pt-1">
-        <span className="size-2.5 shrink-0 rounded-full bg-(--type-accent) ring-2 ring-(--type-accent)/20" />
+        <span className="size-2.5 shrink-0 rounded-full bg-(--type-accent) ring-2 ring-(--type-ring)" />
         {connector ? <span className="mt-1 w-px flex-1 border-l border-dashed border-border" /> : null}
       </div>
       <div className={cn("min-w-0", connector && "pb-4")}>
@@ -743,7 +750,7 @@ function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
     <section>
       <p className="type-eyebrow text-muted-foreground">{label}</p>
-      <div className="mt-2.5">{children}</div>
+      <div className="mt-3">{children}</div>
     </section>
   );
 }
