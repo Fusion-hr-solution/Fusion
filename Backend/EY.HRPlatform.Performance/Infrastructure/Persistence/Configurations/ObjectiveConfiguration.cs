@@ -40,6 +40,9 @@ public sealed class ObjectiveConfiguration : IEntityTypeConfiguration<Objective>
             {
                 milestone.ToTable("ObjectiveMilestones");
                 milestone.HasKey(item => item.Id);
+                // Ids are assigned in the domain. Without this, a rebuilt measurement's new milestones look
+                // like existing rows (key already set) and save as UPDATEs that hit nothing.
+                milestone.Property(item => item.Id).ValueGeneratedNever();
                 milestone.WithOwner().HasForeignKey(nameof(ObjectiveMilestone.ObjectiveId));
                 milestone.Property(item => item.Title).IsRequired().HasMaxLength(300);
                 milestone.Property(item => item.Weight).HasColumnType("numeric(6,2)").IsRequired();
