@@ -28,6 +28,7 @@ import { formatDate } from "../../lib";
 import { useEvidenceOpener, useObjectiveProgress, useProgressHistoryPager, useProgressMutations } from "../../api/use-performance";
 import { DerivedCard, ProgressUpdateComposer } from "../progress/progress-update-composer";
 import { ProgressHistoryTimeline } from "../progress/progress-history-timeline";
+import { CycleTimeline } from "../cycle-setup/cycle-timeline";
 import {
   MEASUREMENT_METHOD_LABEL,
   PROGRESS_TONE_TEXT,
@@ -261,7 +262,7 @@ function ObjectiveDetailBody({
         {/* Measurement — a card leading with how progress is read, then the type and measure as facts. */}
         <Card
           icon={<BarChart3 className="size-5" aria-hidden />}
-          iconTint="text-muted-foreground ring-border"
+          iconTint="bg-inlay text-muted-foreground ring-border dark:bg-popover"
           title="Measurement"
           subtitle={measurementSubtitle(measurement)}
         >
@@ -299,21 +300,27 @@ function ObjectiveDetailBody({
           {/* Timeline — the objective's window read as a start→end sequence. */}
           <Card
             icon={<CalendarDays className="size-5" aria-hidden />}
-            iconTint="text-muted-foreground ring-border"
+            iconTint="bg-inlay text-muted-foreground ring-border dark:bg-popover"
             title="Timeline"
-            subtitle="Cycle duration"
+            subtitle={windowLength(objective.startDate, objective.endDate)}
           >
-            <ol className={cn("flex flex-col", isOrg ? "min-h-0 flex-row gap-8" : "h-full min-h-[7.5rem]")}>
-              <TimelinePoint label="Start" value={formatDate(objective.startDate)} connector={!isOrg} />
-              <TimelinePoint label="End" value={formatDate(objective.endDate)} />
-            </ol>
+            <CycleTimeline
+              startDate={objective.startDate}
+              endDate={objective.endDate}
+              startLabel="Starts"
+              endLabel="Ends"
+              marker={todayMarker(objective.startDate, objective.endDate)}
+              compact
+              orientation={isOrg ? "horizontal" : "vertical"}
+              accent="var(--type-accent)"
+            />
           </Card>
 
           {/* Plan weight — the share this objective holds, read as a single gauge (plan objectives only). */}
           {isOrg ? null : (
             <Card
               icon={<PieChart className="size-5" aria-hidden />}
-              iconTint="text-muted-foreground ring-border"
+              iconTint="bg-inlay text-muted-foreground ring-border dark:bg-popover"
               title="Plan weight"
               subtitle="Share of overall plan"
             >
@@ -475,7 +482,7 @@ function RecordMeasurementCard({ measurement }: { measurement: MeasurementDto | 
   return (
     <Card
       icon={<BarChart3 className="size-5" aria-hidden />}
-      iconTint="text-muted-foreground ring-border"
+      iconTint="bg-inlay text-muted-foreground ring-border dark:bg-popover"
       title="Measurement"
       subtitle={measurementSubtitle(measurement)}
     >
@@ -514,11 +521,16 @@ function RecordMeasurementCard({ measurement }: { measurement: MeasurementDto | 
 /** The read-only numeric target line — baseline → target with the improvement direction, shared by both measurement cards. */
 function NumericTargetStrip({ measurement }: { measurement: MeasurementDto }) {
   return (
-    <div className="mt-3 rounded-surface border border-border px-3.5 py-3 bg-inlay dark:bg-popover">
-      <p className="type-eyebrow text-muted-foreground">Target</p>
-      <p className="mt-1 inline-flex items-center gap-1.5 text-sm tabular-nums text-foreground">
-        <TargetRange baseline={measurement.baseline} target={measurement.target} unit={measurement.unit} direction={measurement.direction} />
-      </p>
+    <div className="mt-3">
+      <MiniFact
+        icon={<Target className="size-4" aria-hidden />}
+        label="Target"
+        value={
+          <span className="inline-flex items-center gap-1.5 tabular-nums">
+            <TargetRange baseline={measurement.baseline} target={measurement.target} unit={measurement.unit} direction={measurement.direction} />
+          </span>
+        }
+      />
     </div>
   );
 }
@@ -667,7 +679,7 @@ function Card({
  * `dense` drops the disc and stacks the label over the value — used when three facts share a row and the
  * disc would crowd the text.
  */
-function MiniFact({ icon, label, value, dense }: { icon: ReactNode; label: string; value: string; dense?: boolean }) {
+function MiniFact({ icon, label, value, dense }: { icon: ReactNode; label: string; value: ReactNode; dense?: boolean }) {
   if (dense) {
     return (
       <div className="rounded-surface border border-border p-3 bg-inlay dark:bg-popover">
@@ -679,7 +691,7 @@ function MiniFact({ icon, label, value, dense }: { icon: ReactNode; label: strin
   return (
     <div className="rounded-surface border border-border p-3.5 bg-inlay dark:bg-popover">
       <div className="flex items-start gap-2.5">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border text-muted-foreground">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-popover text-muted-foreground dark:bg-card">
           {icon}
         </span>
         <div className="min-w-0">
@@ -688,22 +700,6 @@ function MiniFact({ icon, label, value, dense }: { icon: ReactNode; label: strin
         </div>
       </div>
     </div>
-  );
-}
-
-/** One point on the timeline: an accent node (with an optional descending connector) beside its date. */
-function TimelinePoint({ label, value, connector }: { label: string; value: string; connector?: boolean }) {
-  return (
-    <li className={cn("flex gap-3", connector && "min-h-0 flex-1")}>
-      <div className="flex flex-col items-center pt-1">
-        <span className="size-2.5 shrink-0 rounded-full bg-(--type-accent) ring-2 ring-(--type-ring)" />
-        {connector ? <span className="mt-1 w-px flex-1 border-l border-dashed border-border" /> : null}
-      </div>
-      <div className={cn("min-w-0", connector && "pb-4")}>
-        <p className="type-eyebrow text-muted-foreground">{label}</p>
-        <p className="mt-0.5 text-sm text-foreground">{value}</p>
-      </div>
-    </li>
   );
 }
 
@@ -753,6 +749,21 @@ function Section({ label, children }: { label: string; children: ReactNode }) {
       <div className="mt-3">{children}</div>
     </section>
   );
+}
+
+/** Today on the objective's window, only while the window is running. */
+function todayMarker(start: string, end: string): { date: string; label: string } | null {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return today >= start.slice(0, 10) && today <= end.slice(0, 10) ? { date: today, label: "Today" } : null;
+}
+
+/** The window's length in plain units: days under two months, months otherwise. */
+function windowLength(start: string, end: string): string {
+  const days = Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) + 1;
+  if (!Number.isFinite(days) || days <= 0) return "Objective window";
+  if (days < 60) return `${days} days`;
+  return `${Math.round(days / 30.44)} months`;
 }
 
 /** How this objective's progress is read, stated from its measurement method. */

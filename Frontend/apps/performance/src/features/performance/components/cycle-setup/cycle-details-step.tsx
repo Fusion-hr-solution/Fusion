@@ -298,7 +298,11 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
           <div className="mt-6 border-t border-border/70 pt-5">
             <h3 className="type-panel-title text-foreground">Timeline</h3>
             <div className="mt-2">
-              <CycleTimeline startDate={startDate} endDate={endDate} planningDeadline={planningDeadline} />
+              <CycleTimeline
+                startDate={startDate}
+                endDate={endDate}
+                marker={{ date: planningDeadline, label: "Planning deadline" }}
+              />
             </div>
           </div>
 
