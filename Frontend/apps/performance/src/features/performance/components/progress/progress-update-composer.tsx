@@ -8,7 +8,9 @@ import { Label } from "@repo/ds/components/ui/label";
 import { Textarea } from "@repo/ds/components/ui/textarea";
 import { cn } from "@repo/ds/lib/utils";
 import { EvidenceUploader } from "./evidence-uploader";
-import { markerFraction, num, numericProgress, pct } from "./progress-lib";
+import { num, numericProgress, pct } from "./progress-lib";
+import { ValueDial } from "./value-dial";
+import { numericDomain, percentDomain } from "./value-dial-lib";
 
 type UploadFn = (file: File) => Promise<{ storageKey: string; fileName: string; contentType: string; sizeBytes: number }>;
 
@@ -71,12 +73,27 @@ function ValueForm({
   onRecorded: () => void;
 }) {
   const isNumeric = progress.method === "NumericTarget";
+  // Plain entry stays only as the fallback for a numeric target with no usable scale (missing or equal
+  // baseline/target); everything else is set on the dial.
+  const domain = useMemo(
+    () =>
+      isNumeric
+        ? progress.baseline != null && progress.target != null
+          ? numericDomain(progress.baseline, progress.target, progress.unit, progress.currentActual)
+          : null
+        : percentDomain(),
+    [isNumeric, progress.baseline, progress.target, progress.unit, progress.currentActual]
+  );
+  const reported = isNumeric ? progress.currentActual : progress.currentPercentage;
+  const [dialValue, setDialValue] = useState<number | null>(null);
   const [value, setValue] = useState("");
   const [note, setNote] = useState("");
   const [evidence, setEvidence] = useState<EvidenceInput[]>([]);
 
-  const entered = value === "" ? null : Number(value);
-  const validNumber = entered != null && Number.isFinite(entered);
+  const typed = value === "" ? null : Number(value);
+  const entered = domain ? dialValue : typed;
+  // Re-recording the figure already on record is not an update.
+  const validNumber = entered != null && Number.isFinite(entered) && entered !== reported;
 
   // A value that moves backward from the last reported figure is a correction — note required.
   const decreased =
@@ -104,21 +121,7 @@ function ValueForm({
 
   const unit = isNumeric ? progress.unit ?? "" : "%";
 
-  // The preview is always visible: before a value is entered it reflects the current reported state, and
-  // updates live as the value changes.
-  const effectiveActual = validNumber
-    ? (entered as number)
-    : isNumeric
-      ? progress.currentActual ?? progress.baseline ?? 0
-      : progress.currentPercentage ?? 0;
-  const previewDerived =
-    isNumeric && progress.baseline != null && progress.target != null
-      ? numericProgress(progress.baseline, progress.target, effectiveActual)
-      : Math.max(0, Math.min(100, effectiveActual));
-  const frac =
-    isNumeric && progress.baseline != null && progress.target != null
-      ? markerFraction(progress.baseline, progress.target, effectiveActual)
-      : Math.min(1, previewDerived / 100);
+  const unitSuffix = (v: number) => (isNumeric ? `${num(v)}${progress.unit ? (progress.unit === "%" ? "%" : ` ${progress.unit}`) : ""}` : `${v}%`);
 
   return (
     <form
@@ -129,45 +132,34 @@ function ValueForm({
         if (canSubmit && !submitting) void save();
       }}
     >
-      <div className="space-y-2">
-        <Label htmlFor="pv-value">{isNumeric ? `Current value${unit ? ` (${unit})` : ""}` : "Current progress (%)"}</Label>
-        <NumberField
-          id="pv-value"
-          value={value}
-          onChange={setValue}
-          suffix={unit}
-          placeholder={isNumeric && progress.currentActual != null ? num(progress.currentActual) : isNumeric ? "" : "0–100"}
-          min={0}
-          max={isNumeric ? (progress.unit === "%" ? 100 : undefined) : 100}
-          base={isNumeric ? progress.currentActual ?? progress.baseline ?? 0 : progress.currentPercentage ?? 0}
-          integer={!isNumeric}
+      {domain ? (
+        <ValueDial
+          label={isNumeric ? "New value" : "Completion"}
+          domain={domain}
+          value={dialValue}
+          reported={reported}
+          onChange={setDialValue}
+          format={unitSuffix}
+          startLabel={isNumeric ? "Baseline" : ""}
+          targetLabel={isNumeric ? "Target" : undefined}
+          progressOf={(v) =>
+            isNumeric && progress.baseline != null && progress.target != null
+              ? numericProgress(progress.baseline, progress.target, v)
+              : v
+          }
         />
-      </div>
-
-      {/* Live preview — always visible, reflecting the current state until a new value is entered. Manual
-          fills a simple bar; numeric plots the actual on the baseline→target rail and states the derived
-          objective progress it produces. */}
-      {isNumeric && progress.baseline != null && progress.target != null ? (
-        <div className="space-y-4">
-          <TargetRail
-            baseline={progress.baseline}
-            target={progress.target}
-            current={effectiveActual}
-            unit={progress.unit}
-            frac={frac}
-          />
-          <DerivedCard
-            label="Progress toward target"
-            derived={previewDerived}
-            from={validNumber && progress.hasProgress ? progress.derivedProgress : null}
+      ) : (
+        <div className="space-y-2">
+          <Label htmlFor="pv-value">{`Current value${unit ? ` (${unit})` : ""}`}</Label>
+          <NumberField
+            id="pv-value"
+            value={value}
+            onChange={setValue}
+            suffix={unit}
+            placeholder={progress.currentActual != null ? num(progress.currentActual) : ""}
+            base={progress.currentActual ?? progress.baseline ?? 0}
           />
         </div>
-      ) : (
-        <DerivedCard
-          label="Current progress"
-          derived={previewDerived}
-          from={validNumber && progress.hasProgress ? progress.derivedProgress : null}
-        />
       )}
 
       <NoteField value={note} onChange={setNote} required={noteRequired} hint={decreased ? "This lowers the last reported value — add a short note." : undefined} />
@@ -386,51 +378,6 @@ function NumberField({
         >
           <ChevronDown className="size-3.5" aria-hidden />
         </button>
-      </div>
-    </div>
-  );
-}
-
-/** Numeric target rail — the entered actual plotted between baseline and target, all three labelled. */
-function TargetRail({
-  baseline,
-  target,
-  current,
-  unit,
-  frac,
-}: {
-  baseline: number;
-  target: number;
-  current: number;
-  unit: string | null;
-  frac: number;
-}) {
-  const u = unit ? ` ${unit}` : "";
-  const left = `${Math.max(0, Math.min(100, frac * 100))}%`;
-  return (
-    <div>
-      <div className="relative h-1.5 rounded-full bg-muted">
-        <span className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: left }} />
-        <span className="absolute top-1/2 size-2 -translate-y-1/2 rounded-full bg-muted-foreground/40" style={{ left: 0 }} />
-        <span className="absolute top-1/2 right-0 size-2 -translate-y-1/2 rounded-full bg-muted-foreground/40" />
-        <span
-          className="absolute top-1/2 size-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-primary shadow"
-          style={{ left }}
-        />
-      </div>
-      <div className="relative mt-2 h-9 text-xs tabular-nums">
-        <div className="absolute left-0 top-0">
-          <p className="font-medium text-foreground">{num(baseline)}{u}</p>
-          <p className="text-muted-foreground">Baseline</p>
-        </div>
-        <div className="absolute top-0 -translate-x-1/2 text-center" style={{ left }}>
-          <p className="font-semibold text-primary">{num(current)}{u}</p>
-          <p className="text-muted-foreground">Current</p>
-        </div>
-        <div className="absolute right-0 top-0 text-right">
-          <p className="font-medium text-foreground">{num(target)}{u}</p>
-          <p className="text-muted-foreground">Target</p>
-        </div>
       </div>
     </div>
   );
