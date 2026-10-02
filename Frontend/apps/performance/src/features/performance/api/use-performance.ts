@@ -239,6 +239,16 @@ export function useTeamRoster(cycleId: string | null, enabled = true) {
   );
 }
 
+/** Administration's cycle-wide plan standing — counts only. */
+export function useCyclePlanSummary(cycleId: string | null, enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.cyclePlanSummary(cycleId ?? "none"),
+    (signal) => performance.getCyclePlanSummary(cycleId as string, signal),
+    { enabled: Boolean(cycleId) && enabled }
+  );
+}
+
 export function usePlanDetail(cycleId: string | null, planId: string | null) {
   const { performance } = useApis();
   return useApiQuery(

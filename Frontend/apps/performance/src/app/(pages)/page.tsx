@@ -1,37 +1,45 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { AlertTriangle, ArrowRight, CalendarPlus } from "@/lib/icons";
-import { Button } from "@repo/ds/components/ui/button";
+import { Fragment, useMemo } from "react";
 import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
-import type { CycleDetailDto } from "@repo/api";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import {
-  useCurrentCycle,
-  useMyPlan,
-  usePerformanceAccess,
-  usePlanReviews,
-  useStrategy,
-} from "@/features/performance/api/use-performance";
-import { formatDate, measurementSummary } from "@/features/performance/lib";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
-import { LaunchReadiness } from "@/features/performance/components/launch-readiness";
-import { MilestoneRail } from "@/features/performance/components/milestone-rail";
+import { useCycles, usePerformanceAccess } from "@/features/performance/api/use-performance";
+import { formatDate } from "@/features/performance/lib";
 import {
-  deriveSetupState,
-  earliestIncompleteStep,
-  setupStepHref,
-} from "@/features/performance/components/cycle-setup/setup-readiness";
+  cyclePhase,
+  localToday,
+  resolveOverview,
+  selectOverviewCycles,
+  type OverviewSectionId,
+} from "@/features/performance/components/overview/overview-model";
+import {
+  MyPlanSection,
+  TeamAttentionSection,
+  TeamObjectiveSection,
+} from "@/features/performance/components/overview/personal-sections";
+import {
+  ClosedCycleSection,
+  CycleStatusSection,
+  NoCycleSection,
+  OrgDirectionSection,
+  PlanningOperationSection,
+  SetupSection,
+} from "@/features/performance/components/overview/organization-sections";
 
-const LIFECYCLE = ["Direction", "Population", "Planning", "Progress"] as const;
-
+/**
+ * Overview: what state Performance is in, what needs this person, and where to go next. The sections
+ * are composed from the person's capabilities and the tenant's cycles — never from a persona — and
+ * each one ends in a workspace or an objective record.
+ */
 export default function OverviewPage() {
   const access = usePerformanceAccess();
-  const canEnter = access.data?.canEnter ?? false;
-  const detail = useCurrentCycle(canEnter);
+  const a = access.data;
+  const canEnter = a?.canEnter ?? false;
+  const cycles = useCycles(canEnter);
+  const overviewCycles = useMemo(() => selectOverviewCycles(cycles.data ?? []), [cycles.data]);
 
-  if (access.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
+  if (access.isLoading || !a) return <PageSkeleton rows={4} label="Loading Performance" />;
   if (!canEnter) {
     return (
       <PagePermissionNotice
@@ -40,321 +48,66 @@ export default function OverviewPage() {
       />
     );
   }
-
-  const canAdminister = access.data?.canAdminister ?? false;
-  const canParticipate = access.data?.canParticipate ?? false;
-  const canReview = access.data?.canLeadTeam ?? false;
-
-  if (detail.isLoading) return <PageSkeleton rows={4} label="Loading Cycle" />;
-  if (detail.error) {
-    return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject="The Cycle" />;
+  if (cycles.isLoading) return <PageSkeleton rows={4} label="Loading Overview" />;
+  if (cycles.error) {
+    return <ContentUnavailable error={cycles.error} onRetry={cycles.refetch} subject="Overview" />;
   }
 
-  if (!detail.data) {
-    return <NoCycleEntry canAdminister={canAdminister} />;
-  }
+  const sections = resolveOverview({
+    cycles: overviewCycles,
+    canParticipate: a.canParticipate,
+    canLeadTeam: a.canLeadTeam,
+    canManageTeamObjectives: a.canManageOrgObjectives || a.canAdminister,
+    canViewOrgDirection: a.canViewOrgDirection,
+    canAdminister: a.canAdminister,
+  });
+  const { active, draft, latestClosed } = overviewCycles;
+  const phase = active ? cyclePhase(active, localToday()) : null;
 
-  return (
-    <CycleOverview
-      detail={detail.data}
-      canAdminister={canAdminister}
-      canParticipate={canParticipate}
-      canReview={canReview}
-    />
-  );
-}
-
-/** First entry, before any Cycle exists — compact, no decorative illustration. */
-function NoCycleEntry({ canAdminister }: { canAdminister: boolean }) {
-  const router = useRouter();
-
-  return (
-    <PageContainer>
-      <PerformancePageHeading
-        title="Performance"
-        description="Set direction, align people, agree plans, and track progress through one Performance Cycle."
-      />
-      <div className="max-w-xl">
-        <ol className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-sm">
-          {LIFECYCLE.map((step, index) => (
-            <li key={step} className="flex items-center gap-2.5">
-              <span className="text-foreground">{step}</span>
-              {index < LIFECYCLE.length - 1 ? (
-                <ArrowRight className="size-3.5 text-muted-foreground/40" aria-hidden />
-              ) : null}
-            </li>
-          ))}
-        </ol>
-
-        {canAdminister ? (
-          <div className="mt-7">
-            <Button size="lg" onClick={() => router.push("/cycle/setup/details")}>
-              <CalendarPlus className="size-4" data-icon="inline-start" />
-              Create cycle
-            </Button>
-          </div>
-        ) : (
-          <p className="mt-6 text-sm text-muted-foreground">
-            No Cycle is running yet. Your administrator opens the next one.
-          </p>
-        )}
-      </div>
-    </PageContainer>
-  );
-}
-
-function CycleOverview({
-  detail,
-  canAdminister,
-  canParticipate,
-  canReview,
-}: {
-  detail: CycleDetailDto;
-  canAdminister: boolean;
-  canParticipate: boolean;
-  canReview: boolean;
-}) {
-  const router = useRouter();
-  const cycleId = detail.cycle.id;
-  const isDraft = detail.cycle.state === "Draft";
-  const draftStep = earliestIncompleteStep(deriveSetupState(detail));
+  const render = (id: OverviewSectionId) => {
+    switch (id) {
+      case "my-plan":
+        return active ? <MyPlanSection cycle={active} /> : null;
+      case "team-attention":
+        return active ? <TeamAttentionSection cycle={active} /> : null;
+      case "team-objective":
+        return active ? <TeamObjectiveSection cycle={active} /> : null;
+      case "planning-operation":
+        return active ? <PlanningOperationSection cycle={active} /> : null;
+      case "org-direction":
+        return active ? <OrgDirectionSection cycle={active} /> : null;
+      case "setup":
+        return draft ? <SetupSection cycle={draft} /> : null;
+      case "closed-cycle":
+        return latestClosed ? (
+          <ClosedCycleSection
+            cycle={latestClosed}
+            canAdminister={a.canAdminister}
+            canParticipate={a.canParticipate}
+            canCreateNext={a.canAdminister && !draft}
+          />
+        ) : null;
+      case "no-cycle":
+        return <NoCycleSection canAdminister={a.canAdminister} />;
+      case "cycle-status":
+        return active ? <CycleStatusSection cycle={active} /> : <NoCycleSection canAdminister={false} />;
+    }
+  };
 
   return (
     <PageContainer>
       <PerformancePageHeading
         title="Overview"
-        actions={
-          canAdminister && isDraft ? (
-            <Button onClick={() => router.push(setupStepHref(draftStep))}>
-              Continue cycle setup
-              <ArrowRight className="size-4" data-icon="inline-end" />
-            </Button>
-          ) : undefined
-        }
+        size="display"
+        // The cycle bar above names the cycle and its planning deadline; once planning has closed it
+        // goes quiet, so the phase is stated here instead of repeated.
+        description={active && phase && !phase.planningOpen ? `Execution until ${formatDate(active.endDate)}` : undefined}
       />
-
-      <div className="space-y-8">
-        {/* Responsibility first: what needs this person now. */}
-        {canReview ? <ReviewsCallout cycleId={cycleId} /> : null}
-        {canParticipate ? (
-          <MyPlanCallout cycleId={cycleId} planningDeadline={detail.cycle.planningDeadline} />
-        ) : null}
-
-        {/* Cycle command, for administrators. */}
-        {canAdminister ? (
-          <div className="space-y-6">
-            <MilestoneRail milestones={detail.milestones} />
-            {isDraft ? (
-              <AdminDraftCommand detail={detail} />
-            ) : (
-              <AdminActiveCommand detail={detail} />
-            )}
-          </div>
-        ) : null}
+      <div className="mt-8 max-w-4xl space-y-8">
+        {sections.map((id) => (
+          <Fragment key={id}>{render(id)}</Fragment>
+        ))}
       </div>
     </PageContainer>
-  );
-}
-
-function ReviewsCallout({ cycleId }: { cycleId: string }) {
-  const reviews = usePlanReviews(cycleId, true);
-  const count = reviews.data?.awaitingDecisionCount ?? 0;
-  if (count === 0) return null;
-  const top = reviews.data?.plans[0];
-
-  return (
-    <section className="rounded-surface border border-border bg-card p-5">
-      <div className="flex flex-wrap items-center gap-4">
-        <span className="type-metric text-foreground">{count}</span>
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">
-            plan{count === 1 ? "" : "s"} awaiting your decision
-          </p>
-          {top ? (
-            <p className="truncate text-sm text-muted-foreground">
-              {top.employee.name ?? "A team member"}
-              {top.orgUnitName ? ` · ${top.orgUnitName}` : ""}
-              {count > 1 ? ` and ${count - 1} more` : ""}
-            </p>
-          ) : null}
-        </div>
-        <Button asChild className="ml-auto">
-          <Link href="/team">
-            Review
-            <ArrowRight className="size-4" data-icon="inline-end" />
-          </Link>
-        </Button>
-      </div>
-    </section>
-  );
-}
-
-function MyPlanCallout({
-  cycleId,
-  planningDeadline,
-}: {
-  cycleId: string;
-  planningDeadline: string;
-}) {
-  const my = useMyPlan(cycleId, true);
-  if (!my.data?.participatesInCycle) return null;
-
-  const plan = my.data.plan;
-  const latest = plan?.history.at(-1);
-  const returned = plan?.state === "Draft" && latest?.kind === "Returned";
-  const reviewer = plan?.responsibleManager?.name ?? "your manager";
-
-  let headline: string;
-  let sub: string | undefined;
-  let cta: string;
-  if (!plan) {
-    headline = "Start your plan";
-    sub = `Planning is open until ${formatDate(planningDeadline)}. Reviewer: ${reviewer}.`;
-    cta = "Start planning";
-  } else if (returned) {
-    headline = "Returned for changes";
-    sub = latest?.feedback
-      ? `${latest.actorName ?? reviewer}: “${latest.feedback}”`
-      : `${latest?.actorName ?? reviewer} asked for changes.`;
-    cta = "Revise plan";
-  } else if (plan.state === "Draft") {
-    headline = "Continue your plan";
-    sub = `${plan.readiness.weightTotal}% of 100% allocated · ${plan.objectives.length} objective${plan.objectives.length === 1 ? "" : "s"}`;
-    cta = plan.objectives.length === 0 ? "Start planning" : "Continue";
-  } else if (plan.state === "Submitted") {
-    headline = `Awaiting ${reviewer}'s review`;
-    sub = `Submitted ${formatDate((plan.submittedAt ?? "").slice(0, 10))}`;
-    cta = "View plan";
-  } else {
-    headline = "Plan approved";
-    sub = `${Math.round(plan.planProgress)}% progress · keep it up to date`;
-    cta = "Update progress";
-  }
-
-  return (
-    <section className="rounded-surface border border-border bg-card p-5">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="min-w-0">
-          <p className="type-eyebrow text-muted-foreground">My plan</p>
-          <p className="mt-1 text-base font-semibold text-foreground">{headline}</p>
-          {sub ? <p className="mt-0.5 truncate text-sm text-muted-foreground">{sub}</p> : null}
-        </div>
-        <Button asChild variant={returned ? "default" : "outline"}>
-          <Link href="/plan">
-            {cta}
-            <ArrowRight className="size-4" data-icon="inline-end" />
-          </Link>
-        </Button>
-      </div>
-    </section>
-  );
-}
-
-/**
- * Overview observes; it does not launch. For a Draft it shows a read-only readiness summary —
- * the single canonical launch path lives in the cycle-setup Review step, reached via the
- * "Continue cycle setup" action above.
- */
-function AdminDraftCommand({ detail }: { detail: CycleDetailDto }) {
-  return <LaunchReadiness readiness={detail.launchReadiness} />;
-}
-
-function AdminActiveCommand({ detail }: { detail: CycleDetailDto }) {
-  return (
-    <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
-      <DirectionSummary cycleId={detail.cycle.id} />
-
-      <aside className="space-y-6 lg:border-l lg:border-border/60 lg:pl-8">
-        <div className="flex gap-10">
-          <div>
-            <p className="type-metric text-foreground">{detail.confirmedParticipantCount}</p>
-            <p className="mt-1 text-sm text-muted-foreground">Participants</p>
-          </div>
-          <div>
-            <p className="type-metric text-foreground">{detail.publishedStrategyCount}</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Published
-              {detail.draftStrategyCount > 0 ? (
-                <span className="text-muted-foreground/70"> · {detail.draftStrategyCount} draft</span>
-              ) : null}
-            </p>
-          </div>
-        </div>
-
-        {detail.launchReadiness.blockers.length > 0 ? (
-          <div className="rounded-surface border border-warning/30 bg-warning-subtle p-3.5">
-            <p className="flex items-center gap-1.5 text-sm font-medium text-warning">
-              <AlertTriangle className="size-3.5" aria-hidden />
-              Needs attention
-            </p>
-            <ul className="mt-1.5 space-y-1 pl-5 text-sm text-muted-foreground">
-              {detail.launchReadiness.blockers.map((blocker) => (
-                <li key={blocker} className="list-disc marker:text-warning/60">
-                  {blocker}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        <div className="flex flex-col items-start gap-1">
-          <Button variant="ghost" asChild className="px-2">
-            <Link href="/cycle">Manage cycle</Link>
-          </Button>
-          <Button variant="ghost" asChild className="px-2">
-            <Link href="/settings">Settings</Link>
-          </Button>
-        </div>
-      </aside>
-    </div>
-  );
-}
-
-function DirectionSummary({ cycleId }: { cycleId: string }) {
-  const strategy = useStrategy(cycleId);
-  const published = (strategy.data ?? []).filter((item) => item.state === "Published");
-
-  return (
-    <section>
-      <div className="mb-3 flex items-baseline justify-between gap-4">
-        <h2 className="type-section-title text-foreground">Direction</h2>
-        <Link
-          href="/goals"
-          className="inline-flex items-center gap-1 text-sm font-medium text-primary-ink hover:underline"
-        >
-          Goals
-          <ArrowRight className="size-3.5" aria-hidden />
-        </Link>
-      </div>
-
-      {strategy.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading direction…</p>
-      ) : published.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No strategic direction is published for this Cycle yet.
-        </p>
-      ) : (
-        <ul className="divide-y divide-border/70 border-t border-border/70">
-          {published.map((objective) => (
-            <li
-              key={objective.id}
-              className="flex items-baseline justify-between gap-4 py-3"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {objective.title}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {objective.accountablePersonName ?? "Unassigned"}
-                </p>
-              </div>
-              <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                {measurementSummary(objective.measurement)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
   );
 }
