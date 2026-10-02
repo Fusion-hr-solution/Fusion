@@ -1,5 +1,6 @@
 "use client";
 
+import { MilestoneDue } from "../measurement/milestone-due";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp } from "@/lib/icons";
 import { toast } from "sonner";
@@ -257,7 +258,8 @@ function MilestoneForm({
                   {on ? <Check className="size-3.5" aria-hidden /> : null}
                 </button>
                 <span className="min-w-0 flex-1 text-sm text-foreground">{m.title}</span>
-                <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
+                <MilestoneDue milestone={m} />
+                <span className="w-9 shrink-0 text-right text-xs font-medium tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
               </li>
             );
           })}

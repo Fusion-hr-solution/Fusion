@@ -525,11 +525,21 @@ public sealed class Objective : PerformanceAggregate
             throw new ArgumentOutOfRangeException(nameof(planWeight), "A plan weight must be between 0 and 100.");
     }
 
+    /// <summary>
+    /// Binds the measurement's milestones to this objective once its dates are settled, so a milestone's
+    /// optional due date is checked against the window it belongs to — every create and update path
+    /// passes through here.
+    /// </summary>
     private void AttachMilestones()
     {
         if (Measurement is null) return;
         foreach (var milestone in Measurement.Milestones)
+        {
+            if (milestone.DueDate is { } due && (due < StartDate || due > EndDate))
+                throw new ArgumentException(
+                    $"Milestone \"{milestone.Title}\" is due outside the objective's dates.", nameof(Measurement));
             milestone.AttachTo(Id);
+        }
     }
 
     private void RequireOrganizational()

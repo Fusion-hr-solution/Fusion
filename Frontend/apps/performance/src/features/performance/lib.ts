@@ -82,6 +82,35 @@ export function formatDateTime(value: string | null | undefined): string {
   });
 }
 
+const DAY_MS = 86_400_000;
+
+/**
+ * A timestamp as recency for scanning: relative within 30 days ("Just now", "12m ago", "3h ago",
+ * "Yesterday", "4d ago"), then an absolute date ("30 Sep", with the year once it is not this year).
+ * Pair it with `formatDateTime` for the exact time.
+ */
+export function formatRelativeTime(value: string | null | undefined, now: Date = new Date()): string {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  const elapsed = Math.max(0, now.getTime() - date.getTime());
+  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOf(now) - startOf(date)) / DAY_MS);
+  if (days <= 0) {
+    const minutes = Math.floor(elapsed / 60_000);
+    if (minutes < 1) return "Just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    return `${Math.floor(minutes / 60)}h ago`;
+  }
+  if (days === 1) return "Yesterday";
+  if (days < 30) return `${days}d ago`;
+  return date.toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "short",
+    ...(date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
+  });
+}
+
 /**
  * Parses a user-typed measurement value, distinguishing empty (nothing entered yet) from
  * non-numeric (e.g. "48M"). Non-numeric input is reported as invalid so the composer can show

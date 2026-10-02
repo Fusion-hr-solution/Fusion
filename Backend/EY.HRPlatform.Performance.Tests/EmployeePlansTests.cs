@@ -341,6 +341,116 @@ public sealed class EmployeePlansTests
         Assert.Contains("Closed", add.Error.Code, StringComparison.OrdinalIgnoreCase);
     }
 
+    // ── Team roster ───────────────────────────────────────────────────────
+
+    private static async Task<TeamRosterMemberDto> RosterRowAsync(Fixture f, Guid managerId)
+    {
+        await using var db = f.Store.NewContext();
+        var result = await new GetTeamRosterHandler(db, f.Workforce, f.Store.Tenant)
+            .Handle(new GetTeamRosterQuery(f.CycleId, Manager(managerId)), default);
+        Assert.True(result.IsSuccess, result.IsFailure ? result.Error.Message : null);
+        return Assert.Single(result.Value.Members);
+    }
+
+    private static async Task DecideAsync(Fixture f, bool approve)
+    {
+        var planId = await LoadPlanIdAsync(f);
+        await using var db = f.Store.NewContext();
+        var result = approve
+            ? await new ApprovePlanHandler(db, f.Workforce, f.Store.Tenant)
+                .Handle(new ApprovePlanCommand(f.CycleId, planId, Manager(f.ManagerId)), default)
+            : await new ReturnPlanHandler(db, f.Workforce, f.Store.Tenant)
+                .Handle(new ReturnPlanCommand(f.CycleId, planId, new ReturnPlanRequest("Sharpen it."), Manager(f.ManagerId)), default);
+        Assert.True(result.IsSuccess, result.IsFailure ? result.Error.Message : null);
+    }
+
+    [Fact]
+    public async Task Roster_activity_distinguishes_a_resubmission_and_an_approval_without_progress()
+    {
+        var f = await ArrangeAsync();
+        await SubmitReadyPlanAsync(f);
+        Assert.Equal(RosterActivityKind.Submitted, (await RosterRowAsync(f, f.ManagerId)).ActivityKind);
+
+        await DecideAsync(f, approve: false);
+        Assert.Equal(RosterActivityKind.Returned, (await RosterRowAsync(f, f.ManagerId)).ActivityKind);
+
+        Assert.True((await SubmitAsync(f, Employee(f.EmployeeId))).IsSuccess);
+        var resubmitted = await RosterRowAsync(f, f.ManagerId);
+        Assert.Equal(RosterActivityKind.Resubmitted, resubmitted.ActivityKind);
+        Assert.True(resubmitted.CanReview);
+
+        // An approved plan not yet reporting still has a latest event: the approval itself.
+        await DecideAsync(f, approve: true);
+        var approved = await RosterRowAsync(f, f.ManagerId);
+        Assert.Equal(RosterPlanStatus.Approved, approved.Status);
+        Assert.Equal(RosterActivityKind.Approved, approved.ActivityKind);
+        Assert.NotNull(approved.ActivityAt);
+    }
+
+    [Fact]
+    public async Task Roster_counts_open_milestones_past_their_due_date_once_approved()
+    {
+        var f = await ArrangeAsync();
+        await CreatePlanAsync(f, Employee(f.EmployeeId));
+        var milestones = new MeasurementInput(MeasurementMethod.WeightedMilestones, null, null, null, null,
+            [new MilestoneInput("Draft the playbook", 50m, CycleStart.AddDays(10)), new MilestoneInput("Roll it out", 50m, null)]);
+        var add = await AddObjectiveAsync(f, new AddPlanObjectiveRequest("Ship the playbook", null, f.StrategicId, null, null, milestones, 100m),
+            Employee(f.EmployeeId));
+        Assert.True(add.IsSuccess, add.IsFailure ? add.Error.Message : null);
+        Assert.True((await SubmitAsync(f, Employee(f.EmployeeId))).IsSuccess);
+
+        // Overdue is an execution fact — a submitted plan carries none.
+        Assert.Equal(0, (await RosterRowAsync(f, f.ManagerId)).OverdueMilestoneCount);
+
+        Assert.Empty((await RosterRowAsync(f, f.ManagerId)).ObjectiveProgress);
+
+        await DecideAsync(f, approve: true);
+        var approved = await RosterRowAsync(f, f.ManagerId);
+        Assert.Equal(1, approved.OverdueMilestoneCount);
+        // Execution exposes each objective's slice of the plan, unreported until progress is recorded.
+        var slice = Assert.Single(approved.ObjectiveProgress);
+        Assert.Equal(100m, slice.Weight);
+        Assert.False(slice.HasProgress);
+    }
+
+    [Fact]
+    public async Task Milestone_due_dates_must_fall_inside_the_objective_window()
+    {
+        var f = await ArrangeAsync();
+        await CreatePlanAsync(f, Employee(f.EmployeeId));
+
+        AddPlanObjectiveRequest WithDue(DateOnly due) => new("Ship the playbook", null, f.StrategicId, null, null,
+            new MeasurementInput(MeasurementMethod.WeightedMilestones, null, null, null, null,
+                [new MilestoneInput("Draft", 40m, due), new MilestoneInput("Roll out", 60m, null)]), 100m);
+
+        var outside = await AddObjectiveAsync(f, WithDue(CycleEnd.AddDays(1)), Employee(f.EmployeeId));
+        Assert.True(outside.IsFailure);
+
+        var inside = await AddObjectiveAsync(f, WithDue(CycleStart.AddDays(45)), Employee(f.EmployeeId));
+        Assert.True(inside.IsSuccess, inside.IsFailure ? inside.Error.Message : null);
+        var milestone = Assert.Single(inside.Value.Objectives).Measurement!.Milestones[0];
+        Assert.Equal(CycleStart.AddDays(45), milestone.DueDate);
+    }
+
+    [Fact]
+    public async Task Roster_keeps_a_person_whose_plan_the_caller_reviews_after_a_reorg()
+    {
+        var f = await ArrangeAsync();
+        await SubmitReadyPlanAsync(f);
+
+        // The employee moves to another manager after submitting; the responsible reviewer still owns the decision.
+        await using (var db = f.Store.NewContext())
+        {
+            var participant = await db.Participants.FirstAsync(p => p.Id == f.ParticipantId);
+            db.Entry(participant).Property(p => p.ManagerEmployeeId).CurrentValue = Guid.NewGuid();
+            await db.SaveChangesAsync();
+        }
+
+        var row = await RosterRowAsync(f, f.ManagerId);
+        Assert.Equal(f.EmployeeId, row.EmployeeId);
+        Assert.True(row.CanReview);
+    }
+
     private static async Task<Guid> LoadPlanIdAsync(Fixture f)
     {
         await using var db = f.Store.NewContext();

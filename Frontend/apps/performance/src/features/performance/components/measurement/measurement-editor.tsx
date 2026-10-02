@@ -55,6 +55,8 @@ export function MeasurementEditor({
   milestoneWeightSum,
   onMilestonesChange,
   milestoneReadyLabel,
+  minDate,
+  maxDate,
 }: {
   method: MeasurementMethod | null;
   onMethodChange: (method: MeasurementMethod) => void;
@@ -75,6 +77,9 @@ export function MeasurementEditor({
   ) => void;
   /** Overrides the milestone editor's "ready" label — e.g. "Ready to publish" in the org composer. */
   milestoneReadyLabel?: string;
+  /** The objective's window as `YYYY-MM-DD`, bounding milestone due dates. */
+  minDate: string;
+  maxDate: string;
 }) {
   return (
     <div className="space-y-4">
@@ -130,6 +135,8 @@ export function MeasurementEditor({
           weightSum={milestoneWeightSum}
           onChange={onMilestonesChange}
           readyLabel={milestoneReadyLabel}
+          minDate={minDate}
+          maxDate={maxDate}
         />
       ) : null}
     </div>

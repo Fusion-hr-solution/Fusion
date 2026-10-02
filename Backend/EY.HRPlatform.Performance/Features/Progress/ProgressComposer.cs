@@ -39,7 +39,7 @@ public static class ProgressComposer
             measurement?.Target,
             measurement?.Unit,
             measurement?.Direction,
-            milestones.Select(m => new ProgressMilestoneDto(m.Id, m.Title, m.Weight, m.IsCompleted)).ToList(),
+            milestones.Select(m => new ProgressMilestoneDto(m.Id, m.Title, m.Weight, m.DueDate, m.IsCompleted)).ToList(),
             CanUpdate(objective, plan, actor),
             items,
             nextCursor);

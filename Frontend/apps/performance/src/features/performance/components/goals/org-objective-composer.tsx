@@ -49,7 +49,9 @@ import { useTeamObjectiveWorkspace } from "../../api/use-performance";
 import { formatDate, parseNumeric } from "../../lib";
 import { MeasurementEditor } from "../measurement/measurement-editor";
 import {
+  milestoneDatesWithin,
   milestonesFromMeasurement,
+  toMilestoneInputs,
   type MilestoneRow,
 } from "../measurement/milestone-editor";
 import { initials } from "./goals-lib";
@@ -256,6 +258,8 @@ export function OrgObjectiveComposer({
     );
     if (namedMilestones.length === 0 || !everyRowValid)
       missing.push("named milestones with weights");
+    if (!milestoneDatesWithin(milestones, startDate, endDate))
+      missing.push("milestone due dates inside the objective's dates");
   }
   const canSaveDraft = missing.length === 0;
 
@@ -283,10 +287,7 @@ export function OrgObjectiveComposer({
     if (method === "WeightedMilestones")
       return {
         method,
-        milestones: namedMilestones.map((row) => ({
-          title: row.title.trim(),
-          weight: Number(row.weight),
-        })),
+        milestones: toMilestoneInputs(milestones),
       };
     return { method: "ManualPercentage" };
   }
@@ -581,6 +582,8 @@ export function OrgObjectiveComposer({
                   milestoneWeightSum={weightSum}
                   onMilestonesChange={setMilestones}
                   milestoneReadyLabel="Ready to publish"
+                  minDate={startDate}
+                  maxDate={endDate}
                 />
               ) : (
                 <div className="flex items-center gap-2.5 rounded-surface border border-info/25 bg-info-subtle px-4 py-3 text-sm text-info">

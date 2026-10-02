@@ -1,6 +1,11 @@
 "use client";
 
 import {
+  formatMilestoneDue,
+  isMilestoneOverdue,
+  milestoneSchedule,
+} from "../measurement/milestone-due";
+import {
   SquareArrowEnter,
   CalendarRange,
   LineChart,
@@ -336,16 +341,27 @@ function ExecutionState({
     const total = measurement?.milestones.length ?? 0;
     const done =
       measurement?.milestones.filter((m) => m.isCompleted).length ?? 0;
+    const schedule = milestoneSchedule(measurement?.milestones ?? []);
     label = "Milestone progress";
     value = (
-      <span
-        className={cn(
-          "tabular-nums",
-          has ? PROGRESS_TONE_TEXT[tone] : "text-muted-foreground/60"
-        )}
-      >
-        {done} of {total} milestone{total === 1 ? "" : "s"}{" "}
-        {has ? "completed" : "updated"}
+      <span className="tabular-nums">
+        <span
+          className={has ? PROGRESS_TONE_TEXT[tone] : "text-muted-foreground/60"}
+        >
+          {done} of {total} milestone{total === 1 ? "" : "s"}{" "}
+          {has ? "completed" : "updated"}
+        </span>
+        {schedule.overdue > 0 ? (
+          <span className="font-medium text-destructive">
+            {" "}
+            · {schedule.overdue} overdue
+          </span>
+        ) : schedule.nextDue ? (
+          <span className="text-muted-foreground">
+            {" "}
+            · next due {formatMilestoneDue(schedule.nextDue)}
+          </span>
+        ) : null}
       </span>
     );
   } else if (method === "ManualPercentage") {
@@ -379,7 +395,11 @@ function ExecutionState({
               key={i}
               className={cn(
                 "h-full rounded-full",
-                m.isCompleted ? PROGRESS_TONE_BG[tone] : "bg-muted-foreground/15"
+                m.isCompleted
+                  ? PROGRESS_TONE_BG[tone]
+                  : isMilestoneOverdue(m)
+                    ? "bg-destructive"
+                    : "bg-muted-foreground/15"
               )}
               style={{ flexGrow: Math.max(m.weight, 1) }}
             />

@@ -1,5 +1,6 @@
 "use client";
 
+import { MilestoneDue } from "../measurement/milestone-due";
 import {
   ArrowLeft,
   BarChart3,
@@ -501,7 +502,8 @@ function MeasurementFacts({ measurement, showMilestones }: { measurement: Measur
                 <Milestones className="size-3.5" aria-hidden />
               </span>
               <span className="min-w-0 flex-1 truncate font-medium text-foreground">{m.title}</span>
-              <span className="shrink-0 tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
+              <MilestoneDue milestone={m} />
+              <span className="w-10 shrink-0 text-right tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
             </li>
           ))}
         </ul>

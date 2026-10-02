@@ -37,8 +37,10 @@ import { cn } from "@repo/ds/lib/utils";
 import { parseNumeric } from "../../lib";
 import { pct } from "./plan-lib";
 import {
+  milestoneDatesWithin,
   milestoneWeightSum,
   milestonesFromMeasurement,
+  toMilestoneInputs,
   type MilestoneRow,
 } from "../measurement/milestone-editor";
 import {
@@ -160,6 +162,16 @@ export function PlanGoalComposer({
     return { company, organizational };
   }, [targets]);
 
+  // The inherited window — the aligned parent's when aligned, otherwise the cycle's. It's the default
+  // the objective takes until the author picks their own range, and the bounds every range stays within.
+  const inheritedStart =
+    (mode === "aligned" && selectedTarget?.startDate) || cycle.startDate;
+  const inheritedEnd =
+    (mode === "aligned" && selectedTarget?.endDate) || cycle.endDate;
+  // The window shown and committed: the author's override when set, else the inherited window.
+  const dateStart = dateOverride?.from ?? inheritedStart;
+  const dateEnd = dateOverride?.to ?? inheritedEnd;
+
   const weightNum = Math.round(Number(weight) || 0);
   const alignValid = mode === "standalone" || parentId !== "";
   // A weighted-milestone measure is only complete once every named row carries a weight and the
@@ -172,6 +184,10 @@ export function PlanGoalComposer({
         Number(row.weight) > 0 &&
         Number(row.weight) <= 100
     ) && milestoneSum === 100;
+  // Dated milestones must sit inside the objective's window — it moves with alignment and range.
+  const milestoneDatesValid =
+    method !== "WeightedMilestones" ||
+    milestoneDatesWithin(milestones, dateStart, dateEnd);
 
   // A numeric measure needs a well-formed baseline and target that differ, plus a unit.
   const base = parseNumeric(baseline);
@@ -199,7 +215,8 @@ export function PlanGoalComposer({
     alignValid &&
     weightNum > 0 &&
     weightNum <= 100 &&
-    measurementValid;
+    measurementValid &&
+    milestoneDatesValid;
 
   const disabledReason = !valid
     ? title.trim() === ""
@@ -212,6 +229,8 @@ export function PlanGoalComposer({
             : method === "WeightedMilestones"
               ? "Give each milestone a weight totalling 100%"
               : "Set a baseline, target, and unit for the measure"
+          : !milestoneDatesValid
+            ? "Move milestone due dates inside the objective's dates"
           : weightNum <= 0
             ? "Give this objective a plan weight"
             : "Plan weight can be at most 100%"
@@ -228,27 +247,12 @@ export function PlanGoalComposer({
         ? "text-destructive"
         : "text-muted-foreground";
 
-  // The inherited window — the aligned parent's when aligned, otherwise the cycle's. It's the default
-  // the objective takes until the author picks their own range, and the bounds every range stays within.
-  const inheritedStart =
-    (mode === "aligned" && selectedTarget?.startDate) || cycle.startDate;
-  const inheritedEnd =
-    (mode === "aligned" && selectedTarget?.endDate) || cycle.endDate;
-  // The window shown and committed: the author's override when set, else the inherited window.
-  const dateStart = dateOverride?.from ?? inheritedStart;
-  const dateEnd = dateOverride?.to ?? inheritedEnd;
-
   // The measurement sent with the objective, authored from the section's controls.
   function buildMeasurement(): MeasurementInput {
     if (method === "WeightedMilestones")
       return {
         method: "WeightedMilestones",
-        milestones: milestones
-          .filter((row) => row.title.trim() !== "")
-          .map((row) => ({
-            title: row.title.trim(),
-            weight: Number(row.weight),
-          })),
+        milestones: toMilestoneInputs(milestones),
       };
     if (method === "NumericTarget")
       return {
@@ -480,6 +484,8 @@ export function PlanGoalComposer({
                 milestones={milestones}
                 milestoneWeightSum={milestoneSum}
                 onMilestonesChange={setMilestones}
+                minDate={dateStart}
+                maxDate={dateEnd}
               />
             </ObjectiveComposerSection>
 

@@ -30,7 +30,9 @@ export type RosterActivityKind =
   | "DraftUpdated"
   | "Returned"
   | "Submitted"
-  | "ProgressUpdated";
+  | "ProgressUpdated"
+  | "Approved"
+  | "Resubmitted";
 export type ProgressEventKind =
   | "PercentageSet"
   | "NumericActual"
@@ -437,6 +439,25 @@ export interface PlanReviewListDto {
   plans: PlanReviewSummaryDto[];
 }
 
+/** One objective's slice of an approved plan: its plan weight and reported progress (capped at 100). */
+export interface RosterObjectiveProgressDto {
+  weight: number;
+  progress: number;
+  hasProgress: boolean;
+  /** Aligned to upstream direction (accent) rather than standalone (info) — the objective's colour identity. */
+  isAligned: boolean;
+  /** A milestone objective's milestones, in order; empty for other measurement methods. */
+  milestones: RosterMilestoneSliceDto[];
+}
+
+/** One milestone inside a roster objective slice: its share of the objective and whether it is done. */
+export interface RosterMilestoneSliceDto {
+  weight: number;
+  isCompleted: boolean;
+  /** Open and past its due date. */
+  isOverdue: boolean;
+}
+
 export interface TeamRosterMemberDto {
   employeeId: string;
   employeeName: string | null;
@@ -444,12 +465,12 @@ export interface TeamRosterMemberDto {
   orgUnitName: string | null;
   planId: string | null;
   status: RosterPlanStatus;
-  objectiveCount: number;
-  weightTotal: number;
-  /** Objectives that have reported progress — meaningful once the plan is Approved. */
-  updatedCount: number;
   hasProgress: boolean;
   planProgress: number;
+  /** Each objective's slice of an Approved plan, in plan order; empty before approval. */
+  objectiveProgress: RosterObjectiveProgressDto[];
+  /** Open milestones past their due date on an Approved plan — a fact, never a rating. */
+  overdueMilestoneCount: number;
   activityKind: RosterActivityKind;
   activityAt: string | null;
   /** The strong "Review plan" action: a Submitted plan the caller may actually decide. */
@@ -460,12 +481,7 @@ export interface TeamRosterMemberDto {
 
 export interface TeamRosterDto {
   cycleId: string;
-  cycleName: string;
-  totalPeople: number;
   needsReviewCount: number;
-  planningCount: number;
-  approvedCount: number;
-  noProgressCount: number;
   members: TeamRosterMemberDto[];
 }
 
@@ -533,6 +549,7 @@ export interface ProgressMilestoneDto {
   id: string;
   title: string;
   weight: number;
+  dueDate: string | null;
   isCompleted: boolean;
 }
 

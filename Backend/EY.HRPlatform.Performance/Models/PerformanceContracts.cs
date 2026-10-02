@@ -437,7 +437,8 @@ public enum RosterPlanStatus
 /// <summary>
 /// The kind of the single most-recent meaningful event on a roster member's plan, so the manager reads
 /// a submission date and a progress-update date as the distinct concepts they are. <see cref="None"/>
-/// covers a member with no reportable activity (no plan, or an approved plan not yet reporting progress).
+/// covers a member with no plan. An approved plan not yet reporting reads as <see cref="Approved"/>, and a
+/// submission that follows a return reads as <see cref="Resubmitted"/>.
 /// </summary>
 public enum RosterActivityKind
 {
@@ -446,6 +447,8 @@ public enum RosterActivityKind
     Returned = 2,
     Submitted = 3,
     ProgressUpdated = 4,
+    Approved = 5,
+    Resubmitted = 6,
 }
 
 /// <summary>
@@ -461,12 +464,13 @@ public sealed record TeamRosterMemberDto(
     string? OrgUnitName,
     Guid? PlanId,
     RosterPlanStatus Status,
-    int ObjectiveCount,
-    decimal WeightTotal,
-    // Objectives that have reported progress — meaningful once the plan is Approved.
-    int UpdatedCount,
     bool HasProgress,
     decimal PlanProgress,
+    // Each objective's share of the plan and its reported progress, in plan order — populated once the
+    // plan is Approved, so the roster can show composition, coverage and weighted progress in one shape.
+    IReadOnlyList<RosterObjectiveProgressDto> ObjectiveProgress,
+    // Milestones past their due date and not completed on an Approved plan — a fact, never a rating.
+    int OverdueMilestoneCount,
     RosterActivityKind ActivityKind,
     DateTime? ActivityAt,
     // CanReview: the strong "Review plan" action — a Submitted plan the caller may actually decide.
@@ -475,18 +479,28 @@ public sealed record TeamRosterMemberDto(
     bool CanView);
 
 /// <summary>
-/// The manager's people roster with lifecycle summary counts. Counts are computed from real membership
-/// (never inferred health or roll-ups): people who need the caller's review, people still planning
-/// (not started / draft / returned), approved people, and approved people not yet reporting progress.
+/// One objective's slice of an approved plan: its plan weight, reported progress (capped at 100), and
+/// whether it is aligned to upstream direction — the identity its colour carries on every surface. A
+/// milestone objective also carries its milestones (weight + completion, in order) so its slice can be
+/// partitioned the way the plan partitions it; other methods carry none.
+/// </summary>
+public sealed record RosterObjectiveProgressDto(
+    decimal Weight,
+    decimal Progress,
+    bool HasProgress,
+    bool IsAligned,
+    IReadOnlyList<RosterMilestoneSliceDto> Milestones);
+
+/// <summary>One milestone inside a roster objective slice: its share of the objective and whether it is done.</summary>
+public sealed record RosterMilestoneSliceDto(decimal Weight, bool IsCompleted, bool IsOverdue);
+
+/// <summary>
+/// The manager's people roster. <see cref="NeedsReviewCount"/> is the plans the caller may decide now;
+/// every other breakdown is derived from <see cref="Members"/> by the client.
 /// </summary>
 public sealed record TeamRosterDto(
     Guid CycleId,
-    string CycleName,
-    int TotalPeople,
     int NeedsReviewCount,
-    int PlanningCount,
-    int ApprovedCount,
-    int NoProgressCount,
     IReadOnlyList<TeamRosterMemberDto> Members);
 
 public sealed record AddPlanObjectiveRequest(
@@ -547,7 +561,7 @@ public sealed record ProgressUpdateDto(
 /// <summary>One page of an objective's progress history, newest first, with the cursor for the next older page.</summary>
 public sealed record ProgressHistoryPageDto(IReadOnlyList<ProgressUpdateDto> Items, string? NextCursor);
 
-public sealed record ProgressMilestoneDto(Guid Id, string Title, decimal Weight, bool IsCompleted);
+public sealed record ProgressMilestoneDto(Guid Id, string Title, decimal Weight, DateOnly? DueDate, bool IsCompleted);
 
 /// <summary>The full progress surface for one objective — current state, measurement, and attributable history.</summary>
 public sealed record ObjectiveProgressDto(

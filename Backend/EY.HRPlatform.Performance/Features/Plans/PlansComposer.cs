@@ -183,18 +183,18 @@ public static class PlansComposer
     /// relationship, never the mere fact of roster membership.
     /// </summary>
     public static TeamRosterMemberDto ToRosterMember(
-        Participant participant, EmployeePlan? plan, GoalsComposer.Graph graph, PlanActorContext actor, bool cycleOpen)
+        Participant participant, EmployeePlan? plan, GoalsComposer.Graph graph, PlanActorContext actor, bool cycleOpen,
+        DateOnly today)
     {
         if (plan is null)
             return new TeamRosterMemberDto(
                 participant.EmployeeId, participant.DisplayName, participant.JobTitle, participant.OrgUnitName,
                 PlanId: null, RosterPlanStatus.NotStarted,
-                ObjectiveCount: 0, WeightTotal: 0m, UpdatedCount: 0, HasProgress: false, PlanProgress: 0m,
-                RosterActivityKind.None, ActivityAt: null, CanReview: false, CanView: false);
+                HasProgress: false, PlanProgress: 0m, ObjectiveProgress: [],
+                OverdueMilestoneCount: 0, RosterActivityKind.None, ActivityAt: null, CanReview: false, CanView: false);
 
         var objectives = graph.All.Where(o => o.EmployeePlanId == plan.Id).ToList();
-        var updatedCount = objectives.Count(o => o.HasProgress);
-        var hasProgress = updatedCount > 0;
+        var hasProgress = objectives.Any(o => o.HasProgress);
 
         // A returned plan is back in Draft; the most recent decision being a return tells the manager the
         // employee now owns the next step, which reads differently from a plan never yet submitted.
@@ -208,6 +208,32 @@ public static class PlansComposer
         };
 
         var (activityKind, activityAt) = ResolveRosterActivity(plan, objectives, status, hasProgress);
+
+        IReadOnlyList<RosterObjectiveProgressDto> objectiveProgress = status == RosterPlanStatus.Approved
+            ? objectives
+                // The plan's own reading order (aligned first, then by title), so segments line up with it.
+                .OrderBy(o => o.IsAligned ? 0 : 1)
+                .ThenBy(o => o.Title)
+                .Select(o => new RosterObjectiveProgressDto(
+                    o.PlanWeight ?? 0m,
+                    o.HasProgress ? Math.Min(o.DerivedProgress, 100m) : 0m,
+                    o.HasProgress,
+                    o.IsAligned,
+                    o.Measurement?.Method == MeasurementMethod.WeightedMilestones
+                        ? o.Measurement.Milestones
+                            .Select(m => new RosterMilestoneSliceDto(
+                                m.Weight, m.IsCompleted, !m.IsCompleted && m.DueDate is { } due && due < today))
+                            .ToList()
+                        : []))
+                .ToList()
+            : [];
+
+        // Overdue is only meaningful once the plan is being executed: an open milestone past its own due date.
+        var overdueMilestones = status == RosterPlanStatus.Approved
+            ? objectives
+                .SelectMany(o => o.Measurement?.Milestones ?? [])
+                .Count(m => !m.IsCompleted && m.DueDate is { } due && due < today)
+            : 0;
 
         var isResponsibleManager = actor.CanReviewReports
             && plan.ResponsibleManagerId is not null
@@ -223,22 +249,26 @@ public static class PlansComposer
         return new TeamRosterMemberDto(
             participant.EmployeeId, participant.DisplayName, participant.JobTitle, participant.OrgUnitName,
             plan.Id, status,
-            objectives.Count, objectives.Sum(o => o.PlanWeight ?? 0m), updatedCount, hasProgress,
-            ProgressCalc.PlanProgress(objectives),
+            hasProgress,
+            ProgressCalc.PlanProgress(objectives), objectiveProgress, overdueMilestones,
             activityKind, activityAt, canReview, canView);
     }
 
     /// <summary>
     /// The single most-recent meaningful event for the roster's "Latest activity" column, kept as the
     /// distinct concept it is (a submission date is not a progress-update date). An approved plan's
-    /// activity is its execution — approval itself is the baseline, so an approved plan not yet reporting
-    /// has no activity to show rather than a misleading approval timestamp.
+    /// activity is its execution; until progress is first reported, the approval itself is the latest
+    /// event. A submission after a return reads as a resubmission.
     /// </summary>
     private static (RosterActivityKind Kind, DateTime? At) ResolveRosterActivity(
         EmployeePlan plan, IReadOnlyList<Objective> objectives, RosterPlanStatus status, bool hasProgress)
         => status switch
         {
-            RosterPlanStatus.Submitted => (RosterActivityKind.Submitted, plan.SubmittedAt),
+            RosterPlanStatus.Submitted => (
+                plan.Decisions.Any(d => d.Kind == PlanDecisionKind.Returned)
+                    ? RosterActivityKind.Resubmitted
+                    : RosterActivityKind.Submitted,
+                plan.SubmittedAt),
             RosterPlanStatus.ReturnedForChanges => (RosterActivityKind.Returned, plan.Decisions
                 .Where(d => d.Kind == PlanDecisionKind.Returned)
                 .OrderBy(d => d.DecidedAt)
@@ -246,7 +276,10 @@ public static class PlansComposer
                 .LastOrDefault()),
             RosterPlanStatus.Approved => hasProgress
                 ? (RosterActivityKind.ProgressUpdated, objectives.Where(o => o.LastProgressAt is not null).Max(o => o.LastProgressAt))
-                : (RosterActivityKind.None, null),
+                : (RosterActivityKind.Approved, plan.Decisions
+                    .Where(d => d.Kind is PlanDecisionKind.Approved or PlanDecisionKind.ApprovedExceptionally)
+                    .Select(d => (DateTime?)d.DecidedAt)
+                    .Max()),
             _ => (RosterActivityKind.DraftUpdated, plan.UpdatedAt ?? plan.CreatedAt),
         };
 

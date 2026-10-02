@@ -138,10 +138,12 @@ public sealed class GetPlanReviewsHandler(PerformanceDbContext db, ICoreWorkforc
         var cycle = await Db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
         if (cycle is null) return Result.Failure<PlanReviewListDto>(Error.NotFound("Cycle", request.CycleId));
 
-        // The manager sees plans they are responsible for; an administrator sees the whole submitted queue.
-        var query = Db.EmployeePlans.AsNoTracking().Where(p => p.CycleId == cycle.Id && p.State == PlanLifecycleState.Submitted);
-        if (!request.Actor.IsAdmin)
-            query = query.Where(p => p.ResponsibleManagerId == request.Actor.CallerEmployeeId);
+        // The queue is the caller's own review work: plans they are the responsible manager for.
+        // Administration does not widen it — tenant-wide oversight is a separate surface.
+        var query = Db.EmployeePlans.AsNoTracking().Where(p =>
+            p.CycleId == cycle.Id
+            && p.State == PlanLifecycleState.Submitted
+            && p.ResponsibleManagerId == request.Actor.CallerEmployeeId);
 
         var plans = await query.ToListAsync(cancellationToken);
         var graph = await GoalsComposer.LoadGraphAsync(Db, Workforce, cycle, cancellationToken);
@@ -162,14 +164,6 @@ public sealed class GetTeamRosterHandler(PerformanceDbContext db, ICoreWorkforce
         var cycle = await Db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
         if (cycle is null) return Result.Failure<TeamRosterDto>(Error.NotFound("Cycle", request.CycleId));
 
-        // Roster membership: a manager sees the participants who report to them; an administrator sees the
-        // whole confirmed roster. This is the manager/report relationship only — decision authority is
-        // resolved per plan and is deliberately not implied by membership.
-        var participantsQuery = Db.Participants.AsNoTracking().Where(p => p.CycleId == cycle.Id);
-        if (!request.Actor.IsAdmin)
-            participantsQuery = participantsQuery.Where(p => p.ManagerEmployeeId == request.Actor.CallerEmployeeId);
-        var participants = await participantsQuery.ToListAsync(cancellationToken);
-
         var plans = await Db.EmployeePlans.AsNoTracking().Include(p => p.Decisions)
             .Where(p => p.CycleId == cycle.Id)
             .ToListAsync(cancellationToken);
@@ -177,23 +171,28 @@ public sealed class GetTeamRosterHandler(PerformanceDbContext db, ICoreWorkforce
             .GroupBy(p => p.EmployeeId)
             .ToDictionary(g => g.Key, g => g.First());
 
+        // Roster membership: a manager sees the participants who report to them, plus anyone whose plan
+        // they are the responsible reviewer for — a reorg after submission must not drop a review they
+        // own. Administration does not widen it — tenant-wide oversight is a separate surface. Decision
+        // authority is resolved per plan and is deliberately not implied by membership.
+        var caller = request.Actor.CallerEmployeeId;
+        var reviewedEmployees = plans.Where(p => p.ResponsibleManagerId == caller).Select(p => p.EmployeeId).ToList();
+        var participants = await Db.Participants.AsNoTracking()
+            .Where(p => p.CycleId == cycle.Id
+                && (p.ManagerEmployeeId == caller || reviewedEmployees.Contains(p.EmployeeId)))
+            .ToListAsync(cancellationToken);
+
         var graph = await GoalsComposer.LoadGraphAsync(Db, Workforce, cycle, cancellationToken);
         var cycleOpen = !cycle.IsClosed;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var members = participants
             .Select(p => PlansComposer.ToRosterMember(
-                p, planByEmployee.GetValueOrDefault(p.EmployeeId), graph, request.Actor, cycleOpen))
+                p, planByEmployee.GetValueOrDefault(p.EmployeeId), graph, request.Actor, cycleOpen, today))
             .OrderBy(m => m.EmployeeName, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var needsReview = members.Count(m => m.CanReview);
-        var planning = members.Count(m =>
-            m.Status is RosterPlanStatus.NotStarted or RosterPlanStatus.Draft or RosterPlanStatus.ReturnedForChanges);
-        var approved = members.Count(m => m.Status == RosterPlanStatus.Approved);
-        var noProgress = members.Count(m => m.Status == RosterPlanStatus.Approved && !m.HasProgress);
-
-        return Result.Success(new TeamRosterDto(
-            cycle.Id, cycle.Name, members.Count, needsReview, planning, approved, noProgress, members));
+        return Result.Success(new TeamRosterDto(cycle.Id, members.Count(m => m.CanReview), members));
     }
 }
 

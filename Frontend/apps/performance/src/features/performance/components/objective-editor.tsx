@@ -26,8 +26,10 @@ import { parseNumeric } from "../lib";
 import { ObjectiveComposerSection } from "./objective-composer-section";
 import { MeasurementEditor } from "./measurement/measurement-editor";
 import {
+  milestoneDatesWithin,
   milestoneWeightSum,
   milestonesFromMeasurement,
+  toMilestoneInputs,
   type MilestoneRow,
 } from "./measurement/milestone-editor";
 
@@ -136,6 +138,9 @@ export function ObjectiveEditor({
         Number(row.weight) > 0 &&
         Number(row.weight) <= 100
     ) && weightSum === 100;
+  const milestoneDatesValid =
+    method !== "WeightedMilestones" ||
+    milestoneDatesWithin(milestones, startDate, endDate);
   const measurementValid =
     method === "ManualPercentage"
       ? true
@@ -150,7 +155,8 @@ export function ObjectiveEditor({
     person !== null &&
     endDate > startDate &&
     withinCycle &&
-    measurementValid;
+    measurementValid &&
+    milestoneDatesValid;
 
   const disabledReason = valid
     ? undefined
@@ -162,6 +168,8 @@ export function ObjectiveEditor({
           ? "The end date must be after the start date"
           : !withinCycle
             ? "Keep the dates within the cycle period"
+            : !milestoneDatesValid
+            ? "Move milestone due dates inside the objective's dates"
             : method === "NumericTarget"
             ? "Set a baseline, target, and unit for the measure"
             : method === "WeightedMilestones"
@@ -193,9 +201,7 @@ export function ObjectiveEditor({
     if (method === "WeightedMilestones")
       return {
         method,
-        milestones: milestones
-          .filter((row) => row.title.trim() !== "")
-          .map((row) => ({ title: row.title.trim(), weight: Number(row.weight) })),
+        milestones: toMilestoneInputs(milestones),
       };
     return { method: "ManualPercentage" };
   }
@@ -328,6 +334,8 @@ export function ObjectiveEditor({
                 milestones={milestones}
                 milestoneWeightSum={weightSum}
                 onMilestonesChange={setMilestones}
+                minDate={startDate}
+                maxDate={endDate}
               />
               <div className="flex items-center justify-between gap-3 rounded-surface border border-border/70 px-3.5 py-2.5">
                 <span className="type-eyebrow text-muted-foreground">Outcome</span>
