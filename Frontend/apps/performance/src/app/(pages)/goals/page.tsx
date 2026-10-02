@@ -53,16 +53,9 @@ function GoalsWorkspace() {
   const access = usePerformanceAccess();
   const a = access.data;
   const scope = a?.aggregateViewScope ?? null;
-  const hasOrgRead =
-    scope === "DirectReports" || scope === "OrgUnit" || scope === "Tenant";
-  // Organization Goals is an organization-direction surface, not a universal employee destination:
-  // it opens for organizational/strategic/admin responsibility or organizational read authority.
-  // Ordinary Self-only participants reach direction through Overview, not here.
-  const canViewOrgGoals =
-    (a?.canAdminister ?? false) ||
-    (a?.canPublishStrategy ?? false) ||
-    (a?.canManageOrgObjectives ?? false) ||
-    hasOrgRead;
+  // Organization direction is a workspace for organizational responsibility, reached in context.
+  // Anyone else still reads the objectives their work aligns to — in the objective record.
+  const canViewOrgGoals = a?.canViewOrgDirection ?? false;
   // Authority (not placement) decides the default context. A tenant-wide actor (administration, or
   // tenant-breadth read) is responsible for the whole organization, so they land organization-wide;
   // everyone else is centered on the unit they actually belong to. Both drill the same hierarchy.
@@ -156,8 +149,8 @@ function GoalsWorkspace() {
   if (!canViewOrgGoals) {
     return (
       <PagePermissionNotice
-        title="No Organization Goals access"
-        description="Organization Goals is available to leadership and performance administration."
+        title="No access to organization direction"
+        description="Organization direction is available to leadership and performance administration."
       />
     );
   }
@@ -244,8 +237,8 @@ function GoalsWorkspace() {
   return (
     <PageContainer>
       <PerformancePageHeading
-        title="Organization Goals"
-        description="Explore and manage the organizational goals that drive performance."
+        title="Organization direction"
+        back={{ href: "/", label: "Overview" }}
         actions={actions}
       />
 
@@ -253,7 +246,7 @@ function GoalsWorkspace() {
         <PageSkeleton rows={4} label="Loading goals" />
       ) : goals.error || !overview ? (
         <PageError
-          title="Goals unavailable"
+          title="Organization direction unavailable"
           description={goals.error?.message}
           onRetry={goals.refetch}
         />

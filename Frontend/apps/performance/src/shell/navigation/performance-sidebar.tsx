@@ -23,17 +23,7 @@ export function PerformanceSidebar() {
   // would then disappear. Once the session resolves they appear per the derived
   // permission ("hide, don't deny"), matching backend enforcement.
   const access = resolvePerformanceAccess(user);
-  const hasOrgRead =
-    access.aggregateViewScope === "DirectReports" ||
-    access.aggregateViewScope === "OrgUnit" ||
-    access.aggregateViewScope === "Tenant";
-  // Organization Goals is an organization-direction surface, not a universal employee
-  // destination: organizational read or administration, plus strategic/org-objective responsibility.
-  // Absorbing Contribution here does not narrow who could already reach it.
-  const canViewOrgGoals =
-    access.canAdminister || hasOrgRead || access.canPublishStrategy || access.canManageOrgObjectives;
   const primaryItems = PRIMARY_NAV.items.filter((item) => {
-    if (item.href === "/goals") return canViewOrgGoals;
     if (item.href === "/plan") return access.canParticipate;
     if (item.href === "/team") return access.canLeadTeam;
     return true;

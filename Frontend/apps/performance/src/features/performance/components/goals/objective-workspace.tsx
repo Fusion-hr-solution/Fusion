@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   BarChart3,
   Building2,
@@ -1283,7 +1284,7 @@ function NoPublishedDirection({
                 </Button>
               ) : canReachSetup ? (
                 <Button variant="outline" className="mt-6" asChild>
-                  <a href="/cycle">Go to Cycle setup</a>
+                  <Link href="/cycle">Go to Cycle setup</Link>
                 </Button>
               ) : null}
             </div>
