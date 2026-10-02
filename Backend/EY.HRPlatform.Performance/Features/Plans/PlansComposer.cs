@@ -16,6 +16,9 @@ namespace EY.HRPlatform.Performance.Features.Plans;
 /// from the token. Self-identity gates authoring; the responsible-manager relationship gates review
 /// and approval; tenant administration gates the governed exceptional approval (design Decision 2).
 /// </summary>
+/// <summary>One participant's plan standing; see <see cref="PlansComposer.Classify"/>.</summary>
+public sealed record PlanStanding(RosterPlanStatus Status, bool HasProgress, int OverdueMilestoneCount);
+
 public sealed record PlanActorContext(Guid CallerEmployeeId, bool IsAdmin, bool CanReviewReports)
 {
     /// <summary>The same caller as objective and plan visibility decisions see them.</summary>
@@ -198,18 +201,9 @@ public static class PlansComposer
                 OverdueMilestoneCount: 0, RosterActivityKind.None, ActivityAt: null, CanReview: false, CanView: false);
 
         var objectives = graph.All.Where(o => o.EmployeePlanId == plan.Id).ToList();
-        var hasProgress = objectives.Any(o => o.HasProgress);
-
-        // A returned plan is back in Draft; the most recent decision being a return tells the manager the
-        // employee now owns the next step, which reads differently from a plan never yet submitted.
-        var isReturnedDraft = plan.State == PlanLifecycleState.Draft
-            && plan.Decisions.OrderBy(d => d.DecidedAt).LastOrDefault()?.Kind == PlanDecisionKind.Returned;
-        var status = plan.State switch
-        {
-            PlanLifecycleState.Approved => RosterPlanStatus.Approved,
-            PlanLifecycleState.Submitted => RosterPlanStatus.Submitted,
-            _ => isReturnedDraft ? RosterPlanStatus.ReturnedForChanges : RosterPlanStatus.Draft,
-        };
+        var standing = Classify(plan, objectives, today);
+        var status = standing.Status;
+        var hasProgress = standing.HasProgress;
 
         var (activityKind, activityAt) = ResolveRosterActivity(plan, objectives, status, hasProgress);
 
@@ -232,12 +226,7 @@ public static class PlansComposer
                 .ToList()
             : [];
 
-        // Overdue is only meaningful once the plan is being executed: an open milestone past its own due date.
-        var overdueMilestones = status == RosterPlanStatus.Approved
-            ? objectives
-                .SelectMany(o => o.Measurement?.Milestones ?? [])
-                .Count(m => !m.IsCompleted && m.DueDate is { } due && due < today)
-            : 0;
+        var overdueMilestones = standing.OverdueMilestoneCount;
 
         var isResponsibleManager = actor.CanReviewReports
             && plan.ResponsibleManagerId is not null
@@ -255,6 +244,33 @@ public static class PlansComposer
             hasProgress,
             ProgressCalc.PlanProgress(objectives), objectiveProgress, overdueMilestones,
             activityKind, activityAt, canReview, canView);
+    }
+
+    /// <summary>
+    /// Where one participant's plan stands: the single classification the manager roster and the cycle-wide
+    /// summary share, so a plan never counts differently on two surfaces. No plan is Not started (never a
+    /// fabricated Draft); a returned Draft is told apart by its most recent decision; overdue is only
+    /// meaningful once the plan is being executed (an open milestone past its own due date).
+    /// </summary>
+    public static PlanStanding Classify(EmployeePlan? plan, IReadOnlyList<Objective> objectives, DateOnly today)
+    {
+        if (plan is null)
+            return new PlanStanding(RosterPlanStatus.NotStarted, HasProgress: false, OverdueMilestoneCount: 0);
+
+        var isReturnedDraft = plan.State == PlanLifecycleState.Draft
+            && plan.Decisions.OrderBy(d => d.DecidedAt).LastOrDefault()?.Kind == PlanDecisionKind.Returned;
+        var status = plan.State switch
+        {
+            PlanLifecycleState.Approved => RosterPlanStatus.Approved,
+            PlanLifecycleState.Submitted => RosterPlanStatus.Submitted,
+            _ => isReturnedDraft ? RosterPlanStatus.ReturnedForChanges : RosterPlanStatus.Draft,
+        };
+        var overdue = status == RosterPlanStatus.Approved
+            ? objectives
+                .SelectMany(o => o.Measurement?.Milestones ?? [])
+                .Count(m => !m.IsCompleted && m.DueDate is { } due && due < today)
+            : 0;
+        return new PlanStanding(status, objectives.Any(o => o.HasProgress), overdue);
     }
 
     /// <summary>

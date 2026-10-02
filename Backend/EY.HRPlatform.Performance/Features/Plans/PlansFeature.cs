@@ -20,6 +20,7 @@ public sealed record GetMyPlanQuery(Guid CycleId, PlanActorContext Actor) : IQue
 public sealed record GetAlignmentTargetsQuery(Guid CycleId, PlanActorContext Actor) : IQuery<Result<IReadOnlyList<AlignmentTargetDto>>>;
 public sealed record GetPlanReviewsQuery(Guid CycleId, PlanActorContext Actor) : IQuery<Result<PlanReviewListDto>>;
 public sealed record GetTeamRosterQuery(Guid CycleId, PlanActorContext Actor) : IQuery<Result<TeamRosterDto>>;
+public sealed record GetCyclePlanSummaryQuery(Guid CycleId) : IQuery<Result<CyclePlanSummaryDto>>;
 public sealed record GetPlanForReviewQuery(Guid CycleId, Guid PlanId, PlanActorContext Actor) : IQuery<Result<EmployeePlanDto>>;
 
 // ── Commands ───────────────────────────────────────────────────────────────────
@@ -193,6 +194,55 @@ public sealed class GetTeamRosterHandler(PerformanceDbContext db, ICoreWorkforce
             .ToList();
 
         return Result.Success(new TeamRosterDto(cycle.Id, members.Count(m => m.CanReview), members));
+    }
+}
+
+/// <summary>
+/// Administration's cycle-wide view of planning and execution: every participant's plan classified the
+/// same way the manager roster classifies it, reduced to counts. Authorization is the controller's.
+/// </summary>
+public sealed class GetCyclePlanSummaryHandler(PerformanceDbContext db)
+    : IQueryHandler<GetCyclePlanSummaryQuery, Result<CyclePlanSummaryDto>>
+{
+    public async Task<Result<CyclePlanSummaryDto>> Handle(GetCyclePlanSummaryQuery request, CancellationToken cancellationToken)
+    {
+        var cycle = await db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
+        if (cycle is null) return Result.Failure<CyclePlanSummaryDto>(Error.NotFound("Cycle", request.CycleId));
+
+        var participants = await db.Participants.AsNoTracking()
+            .Where(p => p.CycleId == cycle.Id)
+            .Select(p => p.EmployeeId)
+            .ToListAsync(cancellationToken);
+        var plans = await db.EmployeePlans.AsNoTracking().Include(p => p.Decisions)
+            .Where(p => p.CycleId == cycle.Id)
+            .ToListAsync(cancellationToken);
+        var planByEmployee = plans.GroupBy(p => p.EmployeeId).ToDictionary(g => g.Key, g => g.First());
+        var objectivesByPlan = (await db.Objectives.AsNoTracking()
+                .Include(o => o.Measurement)
+                .Where(o => o.CycleId == cycle.Id && o.EmployeePlanId != null)
+                .ToListAsync(cancellationToken))
+            .ToLookup(o => o.EmployeePlanId!.Value);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var standings = participants
+            .Select(employeeId => planByEmployee.GetValueOrDefault(employeeId))
+            .Select(plan => PlansComposer.Classify(
+                plan, plan is null ? [] : objectivesByPlan[plan.Id].ToList(), today))
+            .ToList();
+        int Count(RosterPlanStatus status) => standings.Count(s => s.Status == status);
+        var approved = standings.Where(s => s.Status == RosterPlanStatus.Approved).ToList();
+
+        return Result.Success(new CyclePlanSummaryDto(
+            cycle.Id,
+            standings.Count,
+            Count(RosterPlanStatus.NotStarted),
+            Count(RosterPlanStatus.Draft),
+            Count(RosterPlanStatus.ReturnedForChanges),
+            Count(RosterPlanStatus.Submitted),
+            approved.Count,
+            approved.Count(s => s.HasProgress),
+            approved.Count(s => !s.HasProgress),
+            approved.Count(s => s.OverdueMilestoneCount > 0)));
     }
 }
 

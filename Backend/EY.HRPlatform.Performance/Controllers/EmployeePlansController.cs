@@ -97,6 +97,14 @@ public sealed class EmployeePlansController(IMediator mediator, IPerformanceAcce
         return MapResult(await mediator.Send(new GetPlanReviewsQuery(cycleId, Actor), cancellationToken));
     }
 
+    /// <summary>Cycle-wide plan standing for administration: counts only, never named detail.</summary>
+    [HttpGet("plans/summary")]
+    public async Task<ActionResult<ApiResponse<CyclePlanSummaryDto>>> Summary(Guid cycleId, CancellationToken cancellationToken)
+    {
+        if (!policy.CanAdministerCycles(User)) return Forbid();
+        return MapResult(await mediator.Send(new GetCyclePlanSummaryQuery(cycleId), cancellationToken));
+    }
+
     [HttpGet("plans/roster")]
     public async Task<ActionResult<ApiResponse<TeamRosterDto>>> Roster(Guid cycleId, CancellationToken cancellationToken)
     {

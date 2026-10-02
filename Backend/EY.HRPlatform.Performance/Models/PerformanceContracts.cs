@@ -519,6 +519,26 @@ public sealed record TeamRosterDto(
     int NeedsReviewCount,
     IReadOnlyList<TeamRosterMemberDto> Members);
 
+/// <summary>
+/// Cycle-wide planning and execution standing for administration: operational counts only. There is
+/// deliberately no averaged progress; plans are not comparable enough for an average to mean anything
+/// but a misleading organizational score.
+/// </summary>
+/// <param name="ApprovedReportingCount">Approved plans with at least one progress update.</param>
+/// <param name="ApprovedNotReportingCount">Approved plans still without any progress update.</param>
+/// <param name="ParticipantsWithOverdueMilestones">Approved plans with an open milestone past its due date.</param>
+public sealed record CyclePlanSummaryDto(
+    Guid CycleId,
+    int ParticipantCount,
+    int NotStartedCount,
+    int DraftCount,
+    int ReturnedForChangesCount,
+    int SubmittedCount,
+    int ApprovedCount,
+    int ApprovedReportingCount,
+    int ApprovedNotReportingCount,
+    int ParticipantsWithOverdueMilestones);
+
 public sealed record AddPlanObjectiveRequest(
     string Title,
     string? Description,
