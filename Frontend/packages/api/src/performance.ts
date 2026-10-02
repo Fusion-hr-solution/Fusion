@@ -269,6 +269,22 @@ export interface GoalDetailDto {
   canEdit: boolean;
   canPublish: boolean;
   canConfigureContribution: boolean;
+  /** The Cycle this objective belongs to: an objective is addressed by (cycle, objective), never by the current Cycle. */
+  cycleId: string;
+  /** Set for an Employee objective: the plan it belongs to and its weight within it. */
+  plan: GoalPlanFacetDto | null;
+  canDelete: boolean;
+  canUpdateProgress: boolean;
+  /** Named progress detail (history, evidence): stricter than reading the objective itself. */
+  canReadProgressHistory: boolean;
+}
+
+/** The plan an Employee objective belongs to, as seen from the objective. */
+export interface GoalPlanFacetDto {
+  planId: string;
+  planState: PlanLifecycleState;
+  planWeight: number | null;
+  owner: PersonRefDto;
 }
 
 export interface CreateOrganizationalObjectiveRequest {
@@ -483,6 +499,26 @@ export interface TeamRosterDto {
   cycleId: string;
   needsReviewCount: number;
   members: TeamRosterMemberDto[];
+}
+
+/**
+ * Cycle-wide planning and execution standing for administration: operational counts only. There is
+ * deliberately no averaged progress figure.
+ */
+export interface CyclePlanSummaryDto {
+  cycleId: string;
+  participantCount: number;
+  notStartedCount: number;
+  draftCount: number;
+  returnedForChangesCount: number;
+  submittedCount: number;
+  approvedCount: number;
+  /** Approved plans with at least one progress update. */
+  approvedReportingCount: number;
+  /** Approved plans still without any progress update. */
+  approvedNotReportingCount: number;
+  /** Approved plans with an open milestone past its due date. */
+  participantsWithOverdueMilestones: number;
 }
 
 export interface AddPlanObjectiveRequest {
@@ -707,6 +743,8 @@ export const performancePaths = {
     `/performance/cycles/${cycleId}/plans/reviews`,
   teamRoster: (cycleId: string) =>
     `/performance/cycles/${cycleId}/plans/roster`,
+  cyclePlanSummary: (cycleId: string) =>
+    `/performance/cycles/${cycleId}/plans/summary`,
   planDetail: (cycleId: string, planId: string) =>
     `/performance/cycles/${cycleId}/plans/${planId}`,
   returnPlan: (cycleId: string, planId: string) =>
@@ -756,6 +794,8 @@ export const performanceQueryKeys = {
     [...performanceQueryKeys.all(), "plan-reviews", cycleId] as const,
   teamRoster: (cycleId: string) =>
     [...performanceQueryKeys.all(), "team-roster", cycleId] as const,
+  cyclePlanSummary: (cycleId: string) =>
+    [...performanceQueryKeys.all(), "cycle-plan-summary", cycleId] as const,
   planDetail: (cycleId: string, planId: string) =>
     [...performanceQueryKeys.all(), "plan", cycleId, planId] as const,
   objectiveProgress: (cycleId: string, objectiveId: string) =>
@@ -932,6 +972,10 @@ export function createPerformanceApi(client: ApiClient) {
       }),
     getTeamRoster: (cycleId: string, signal?: AbortSignal) =>
       client.get<TeamRosterDto>(performancePaths.teamRoster(cycleId), {
+        signal,
+      }),
+    getCyclePlanSummary: (cycleId: string, signal?: AbortSignal) =>
+      client.get<CyclePlanSummaryDto>(performancePaths.cyclePlanSummary(cycleId), {
         signal,
       }),
     getPlanDetail: (cycleId: string, planId: string, signal?: AbortSignal) =>
