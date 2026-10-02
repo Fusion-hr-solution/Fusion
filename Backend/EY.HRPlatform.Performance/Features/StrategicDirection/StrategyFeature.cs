@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Objectives;
+using EY.HRPlatform.Performance.Features.Goals;
 using EY.HRPlatform.Performance.Infrastructure.Core;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Models;
@@ -9,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Performance.Features.StrategicDirection;
 
-public sealed record ListStrategyQuery(Guid CycleId) : IQuery<Result<IReadOnlyList<StrategicObjectiveDto>>>;
+public sealed record ListStrategyQuery(Guid CycleId, GoalActorContext Actor) : IQuery<Result<IReadOnlyList<StrategicObjectiveDto>>>;
 public sealed record CreateStrategicObjectiveCommand(Guid CycleId, CreateStrategicObjectiveRequest Request) : ICommand<Result<StrategicObjectiveDto>>;
 public sealed record UpdateStrategicObjectiveCommand(Guid CycleId, Guid ObjectiveId, UpdateStrategicObjectiveRequest Request) : ICommand<Result<StrategicObjectiveDto>>;
 public sealed record PublishStrategicObjectiveCommand(Guid CycleId, Guid ObjectiveId) : ICommand<Result<StrategicObjectiveDto>>;
@@ -32,6 +33,9 @@ public sealed class ListStrategyHandler(PerformanceDbContext db, ICoreWorkforceC
             .ThenBy(o => o.Title)
             .ToListAsync(cancellationToken);
 
+        // Company direction needs no team context, so the viewer resolves without a Core lookup.
+        var viewer = new ObjectiveViewer(request.Actor, null);
+        objectives = objectives.Where(o => ObjectiveAccess.CanRead(viewer, o, plan: null)).ToList();
         var names = await ResolveAccountableNamesAsync(objectives, cycle.StartDate, workforce, cancellationToken);
 
         var dtos = objectives

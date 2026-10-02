@@ -1,7 +1,9 @@
+using EY.HRPlatform.Performance.Features.Goals;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Features.StrategicDirection;
 using EY.HRPlatform.Performance.Models;
 using EY.HRPlatform.SharedKernel.Api;
+using EY.HRPlatform.SharedKernel.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,9 +19,15 @@ public sealed class StrategyController(IMediator mediator, IPerformanceAccessPol
     public async Task<ActionResult<ApiResponse<IReadOnlyList<StrategicObjectiveDto>>>> List(Guid cycleId, CancellationToken cancellationToken)
     {
         // Published strategy is direction anyone in the Cycle can read; drafts are visible to
-        // the strategy owner and administrators. The read model itself is not employee-detail.
+        // the strategy owner and administrators (ObjectiveAccess decides, in the handler).
         if (!policy.CanEnterPerformance(User)) return Forbid();
-        return MapResult(await mediator.Send(new ListStrategyQuery(cycleId), cancellationToken));
+        var actor = new GoalActorContext(
+            User.GetEmployeeId() ?? Guid.Empty,
+            policy.CanAdministerCycles(User),
+            policy.CanManageOrganizationalObjectives(User),
+            policy.CanReviewDirectReports(User),
+            policy.CanPublishStrategy(User));
+        return MapResult(await mediator.Send(new ListStrategyQuery(cycleId, actor), cancellationToken));
     }
 
     [HttpPost]

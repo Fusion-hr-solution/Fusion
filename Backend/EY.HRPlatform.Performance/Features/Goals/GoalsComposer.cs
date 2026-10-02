@@ -1,5 +1,6 @@
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
+using EY.HRPlatform.Performance.Domain.Plans;
 using EY.HRPlatform.Performance.Features.Progress;
 using EY.HRPlatform.Performance.Infrastructure.Core;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -60,14 +61,27 @@ public static class GoalsComposer
         };
     }
 
-    public static Result<GoalsOverviewDto> BuildOverview(PerformanceCycle cycle, Graph graph)
+    /// <summary>The plan an Employee objective belongs to (with its decision trail), or null for direction.</summary>
+    public static Task<EmployeePlan?> LoadOwningPlanAsync(
+        PerformanceDbContext db, Objective objective, CancellationToken cancellationToken)
+        => objective.EmployeePlanId is Guid planId
+            ? db.EmployeePlans.AsNoTracking()
+                .Include(plan => plan.Decisions)
+                .FirstOrDefaultAsync(plan => plan.Id == planId, cancellationToken)
+            : Task.FromResult<EmployeePlan?>(null);
+
+    /// <summary>
+    /// The organization's direction graph as this viewer may see it: strategic and organizational
+    /// objectives that connect up to company direction, filtered by <see cref="ObjectiveAccess.CanRead"/>
+    /// so another team's Draft never leaves the server. Counts describe the filtered graph.
+    /// </summary>
+    public static Result<GoalsOverviewDto> BuildOverview(PerformanceCycle cycle, Graph graph, ObjectiveViewer viewer)
     {
-        var connectedIds = graph.All
+        var visible = graph.All
             .Where(objective => objective.OwnershipScope != ObjectiveOwnershipScope.Employee
-                && ConnectsToCompany(objective, graph))
-            .Select(objective => objective.Id)
-            .ToHashSet();
-        var visible = graph.All.Where(objective => connectedIds.Contains(objective.Id)).ToList();
+                && ConnectsToCompany(objective, graph)
+                && ObjectiveAccess.CanRead(viewer, objective, plan: null))
+            .ToList();
         var nodes = visible
             .OrderBy(o => o.OwnershipScope)
             .ThenByDescending(o => o.State == ObjectiveLifecycleState.Published)
@@ -104,45 +118,73 @@ public static class GoalsComposer
         return false;
     }
 
-    public static Result<GoalDetailDto> BuildDetail(Objective objective, Graph graph, GoalActorContext actor, bool canGovernTeam = false)
+    /// <summary>
+    /// One objective's full record for this viewer. The caller has already established
+    /// <see cref="ObjectiveAccess.CanRead"/> for <paramref name="objective"/>; its traversal (parent,
+    /// children, contribution) is filtered by the same rule, and every capability comes from the same
+    /// policy family. <paramref name="plan"/> is the owning plan of an Employee objective.
+    /// </summary>
+    public static Result<GoalDetailDto> BuildDetail(
+        PerformanceCycle cycle,
+        Objective objective,
+        Graph graph,
+        ObjectiveViewer viewer,
+        EmployeePlan? plan = null)
     {
-        var parent = objective.ParentObjectiveId is not null ? graph.ById.GetValueOrDefault(objective.ParentObjectiveId.Value) : null;
-        var children = graph.ChildrenByParent[objective.Id].OrderBy(o => o.Title).ToList();
-
-        var contribution = objective.ContributionLinks
-            .Select(link =>
-            {
-                var child = graph.ById.GetValueOrDefault(link.ChildObjectiveId);
-                return new ContributionLinkDto(
-                    link.ChildObjectiveId,
-                    child?.Title ?? "Removed objective",
-                    child?.State ?? ObjectiveLifecycleState.Draft,
-                    link.Weight);
-            })
+        var parent = objective.ParentObjectiveId is Guid parentId
+            ? graph.ById.GetValueOrDefault(parentId)
+            : null;
+        if (parent is not null && !ObjectiveAccess.CanRead(viewer, parent, plan: null))
+            parent = null;
+        var children = graph.ChildrenByParent[objective.Id]
+            .Where(child => ObjectiveAccess.CanRead(viewer, child, plan: null))
+            .OrderBy(o => o.Title)
             .ToList();
 
-        var isOrg = objective.OwnershipScope == ObjectiveOwnershipScope.OrgUnit;
+        var open = !cycle.IsClosed;
         var isDraft = objective.State == ObjectiveLifecycleState.Draft;
-        // Publishing is a scope-governance act (organizational-management authority only). Editing and
-        // contribution also accept the objective's own accountable person as additional maintenance
-        // authority — but that never confers publish, so reassigning the accountable person cannot take
-        // publish away from the authorized scope manager.
-        var canManage = objective.OwnershipScope == ObjectiveOwnershipScope.OrgUnit
-            ? canGovernTeam
-            : CanManageOrganizational(actor);
-        var canMaintain = canManage || objective.AccountablePersonId == actor.CallerEmployeeId;
+        var isOrg = objective.OwnershipScope == ObjectiveOwnershipScope.OrgUnit;
+        var canMaintain = open && ObjectiveAccess.CanMaintain(viewer, objective);
+        var canConfigureContribution = canMaintain
+            && objective.IsCalculated
+            && !objective.IsContributionBaselineLocked;
+
+        // Whoever configures an objective's contribution chose its contributors, so they see every linked
+        // child; anyone else sees only the contributors they could read on their own.
+        var contribution = objective.ContributionLinks
+            .Select(link => (link, child: graph.ById.GetValueOrDefault(link.ChildObjectiveId)))
+            .Where(pair => canConfigureContribution
+                || (pair.child is not null && ObjectiveAccess.CanRead(viewer, pair.child, plan: null)))
+            .Select(pair => new ContributionLinkDto(
+                pair.link.ChildObjectiveId,
+                pair.child?.Title ?? "Removed objective",
+                pair.child?.State ?? ObjectiveLifecycleState.Draft,
+                pair.link.Weight))
+            .ToList();
+
+        // Removal needs no aligned objective of any kind — plan objectives included — beneath it.
+        var hasAnyChild = graph.All.Any(candidate => candidate.ParentObjectiveId == objective.Id);
+        var ownerName = graph.Names.GetValueOrDefault(objective.AccountablePersonId);
 
         return Result.Success(new GoalDetailDto(
             ToNode(objective, graph),
             objective.Description,
-            new PersonRefDto(objective.AccountablePersonId, graph.Names.GetValueOrDefault(objective.AccountablePersonId)),
+            new PersonRefDto(objective.AccountablePersonId, ownerName),
             parent is null ? null : ToNode(parent, graph),
             children.Select(c => ToNode(c, graph)).ToList(),
             PerformanceMappers.ToDtoOrNull(objective.Measurement),
             contribution,
-            CanEdit: canMaintain && isDraft && isOrg,
-            CanPublish: canManage && isDraft && isOrg,
-            CanConfigureContribution: canMaintain && objective.IsCalculated && !objective.IsContributionBaselineLocked));
+            // Company direction is edited through Strategy; team objectives here. Both only as Drafts.
+            CanEdit: canMaintain && isDraft,
+            CanPublish: open && isDraft && ObjectiveAccess.CanGovern(viewer, objective),
+            CanConfigureContribution: canConfigureContribution,
+            CycleId: cycle.Id,
+            Plan: objective.OwnershipScope == ObjectiveOwnershipScope.Employee && plan is not null
+                ? new GoalPlanFacetDto(plan.Id, plan.State, objective.PlanWeight, new PersonRefDto(plan.EmployeeId, ownerName))
+                : null,
+            CanDelete: canMaintain && isDraft && (isOrg || objective.OwnershipScope == ObjectiveOwnershipScope.Company) && !hasAnyChild,
+            CanUpdateProgress: open && ObjectiveAccess.CanUpdateProgress(viewer.Actor, objective, plan),
+            CanReadProgressHistory: ObjectiveAccess.CanReadProgressHistory(viewer, objective, plan)));
     }
 
     public static GoalNodeDto ToNode(Objective objective, Graph graph)
@@ -187,13 +229,6 @@ public static class GoalsComposer
     }
 
     // ── Authorization helpers ────────────────────────────────────────────────
-
-    /// <summary>
-    /// Coarse capability check used only for non-team projections. Team-owned objective actions must
-    /// also pass <see cref="TeamObjectivePolicy"/>, which resolves the caller's Cycle-start team.
-    /// </summary>
-    public static bool CanManageOrganizational(GoalActorContext actor)
-        => actor.IsAdmin || actor.HasOrgManageGrant;
 
     /// <summary>Would aligning <paramref name="objectiveId"/> under <paramref name="newParentId"/> create a cycle?</summary>
     public static async Task<bool> CreatesCycleAsync(PerformanceDbContext db, Guid cycleId, Guid objectiveId, Guid newParentId, CancellationToken cancellationToken)

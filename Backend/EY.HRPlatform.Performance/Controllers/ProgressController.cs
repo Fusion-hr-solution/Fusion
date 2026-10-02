@@ -26,7 +26,8 @@ public sealed class ProgressController(IMediator mediator, IPerformanceAccessPol
         User.GetEmployeeId() ?? Guid.Empty,
         policy.CanAdministerCycles(User),
         policy.CanReviewDirectReports(User),
-        policy.CanManageOrganizationalObjectives(User));
+        policy.CanManageOrganizationalObjectives(User),
+        policy.CanPublishStrategy(User));
 
     private const long MaxEvidenceBytes = 20 * 1024 * 1024;
 

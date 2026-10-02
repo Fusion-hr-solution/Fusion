@@ -208,11 +208,8 @@ public sealed class GetPlanForReviewHandler(PerformanceDbContext db, ICoreWorkfo
             .FirstOrDefaultAsync(p => p.Id == request.PlanId && p.CycleId == cycle.Id, cancellationToken);
         if (plan is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Plan", request.PlanId));
 
-        // Only the responsible manager, an administrator, or the plan's own employee may open the plan detail.
-        var isParticipantOrManager = plan.EmployeeId == request.Actor.CallerEmployeeId
-            || request.Actor.IsAdmin
-            || PlansComposer.CanDecide(plan, request.Actor);
-        if (!isParticipantOrManager)
+        // The plan's own employee and administration always; the responsible manager once it is put forward.
+        if (!ObjectiveAccess.CanViewPlan(request.Actor.ToGoalActor(), plan))
             return Result.Failure<EmployeePlanDto>(Error.Forbidden("Plan.ViewForbidden", "You are not authorized to view this plan."));
 
         var standaloneAllowed = await StandaloneAllowedAsync(cancellationToken);

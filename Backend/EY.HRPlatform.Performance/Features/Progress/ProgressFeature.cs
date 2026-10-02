@@ -22,7 +22,13 @@ public sealed record ProgressActorContext(
     Guid CallerEmployeeId,
     bool IsAdmin,
     bool CanReviewReports,
-    bool HasOrgManageGrant = false);
+    bool HasOrgManageGrant = false,
+    bool CanPublishStrategy = false)
+{
+    /// <summary>The same caller as objective access decisions see them.</summary>
+    public GoalActorContext ToGoalActor()
+        => new(CallerEmployeeId, IsAdmin, HasOrgManageGrant, CanReviewReports, CanPublishStrategy);
+}
 
 public sealed record GetObjectiveProgressQuery(Guid CycleId, Guid ObjectiveId, ProgressActorContext Actor) : IQuery<Result<ObjectiveProgressDto>>;
 public sealed record GetProgressHistoryPageQuery(Guid CycleId, Guid ObjectiveId, string? Cursor, int Limit, ProgressActorContext Actor) : IQuery<Result<ProgressHistoryPageDto>>;
@@ -34,6 +40,7 @@ public sealed record ResolveEvidenceFileQuery(Guid CycleId, Guid EvidenceId, Pro
 
 internal static class ProgressAuthorization
 {
+    /// <summary>Named progress detail (history, evidence), decided by <see cref="ObjectiveAccess"/>.</summary>
     public static async Task<bool> CanSeeNamedDetailAsync(
         PerformanceDbContext db,
         ICoreWorkforceClient workforce,
@@ -42,22 +49,18 @@ internal static class ProgressAuthorization
         ProgressActorContext actor,
         CancellationToken cancellationToken)
     {
-        if (ProgressComposer.CanSeeNamedDetail(objective, plan, actor))
+        var goalActor = actor.ToGoalActor();
+        // Ownership, responsibility and administration need no Core lookup; only team governance does.
+        if (ObjectiveAccess.CanReadProgressHistory(new ObjectiveViewer(goalActor, null), objective, plan))
             return true;
-        if (!actor.HasOrgManageGrant
-            || objective.OwnershipScope != ObjectiveOwnershipScope.OrgUnit
-            || objective.OrgUnitId is not Guid orgUnitId)
+        if (!actor.HasOrgManageGrant || objective.OwnershipScope != ObjectiveOwnershipScope.OrgUnit)
             return false;
 
         var cycle = await db.Cycles.AsNoTracking()
             .FirstOrDefaultAsync(candidate => candidate.Id == objective.CycleId, cancellationToken);
-        return cycle is not null
-            && await TeamObjectivePolicy.CanGovernAsync(
-                workforce,
-                cycle,
-                new GoalActorContext(actor.CallerEmployeeId, actor.IsAdmin, actor.HasOrgManageGrant),
-                orgUnitId,
-                cancellationToken);
+        if (cycle is null) return false;
+        var viewer = await ObjectiveViewer.ResolveAsync(workforce, cycle, goalActor, cancellationToken);
+        return ObjectiveAccess.CanReadProgressHistory(viewer, objective, plan);
     }
 }
 

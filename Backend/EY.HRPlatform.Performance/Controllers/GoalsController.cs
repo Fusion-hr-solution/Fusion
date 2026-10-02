@@ -25,7 +25,9 @@ public sealed class GoalsController(IMediator mediator, IPerformanceAccessPolicy
     private GoalActorContext Actor => new(
         User.GetEmployeeId() ?? Guid.Empty,
         policy.CanAdministerCycles(User),
-        policy.CanManageOrganizationalObjectives(User));
+        policy.CanManageOrganizationalObjectives(User),
+        policy.CanReviewDirectReports(User),
+        policy.CanPublishStrategy(User));
 
     [HttpGet]
     public async Task<ActionResult<ApiResponse<GoalsOverviewDto>>> Overview(Guid cycleId, CancellationToken cancellationToken)

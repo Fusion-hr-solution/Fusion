@@ -16,7 +16,11 @@ namespace EY.HRPlatform.Performance.Features.Plans;
 /// from the token. Self-identity gates authoring; the responsible-manager relationship gates review
 /// and approval; tenant administration gates the governed exceptional approval (design Decision 2).
 /// </summary>
-public sealed record PlanActorContext(Guid CallerEmployeeId, bool IsAdmin, bool CanReviewReports);
+public sealed record PlanActorContext(Guid CallerEmployeeId, bool IsAdmin, bool CanReviewReports)
+{
+    /// <summary>The same caller as objective and plan visibility decisions see them.</summary>
+    public GoalActorContext ToGoalActor() => new(CallerEmployeeId, IsAdmin, HasOrgManageGrant: false, CanReviewReports);
+}
 
 /// <summary>
 /// Builds the employee-plan surfaces from the cycle's objective graph and the plan aggregate, and
@@ -243,8 +247,7 @@ public static class PlansComposer
         // for changes (a Draft that carries decision history). A never-submitted Draft is the employee's
         // private workspace: there is nothing for the manager to review yet, and the canonical review
         // surface only speaks the submitted/returned/approved states, so exposing it there would mislabel it.
-        var hasBeenPutForward = plan.State != PlanLifecycleState.Draft || plan.Decisions.Count > 0;
-        var canView = hasBeenPutForward && (actor.IsAdmin || isResponsibleManager || plan.EmployeeId == actor.CallerEmployeeId);
+        var canView = ObjectiveAccess.HasBeenPutForward(plan) && ObjectiveAccess.CanViewPlan(actor.ToGoalActor(), plan);
 
         return new TeamRosterMemberDto(
             participant.EmployeeId, participant.DisplayName, participant.JobTitle, participant.OrgUnitName,

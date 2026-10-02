@@ -250,7 +250,23 @@ public sealed record GoalDetailDto(
     // What the current caller may do on this objective, resolved server-side (hide, don't deny).
     bool CanEdit,
     bool CanPublish,
-    bool CanConfigureContribution);
+    bool CanConfigureContribution,
+    // The Cycle this objective belongs to — an objective is addressed by (cycle, objective), never by
+    // whichever Cycle happens to be current.
+    Guid CycleId,
+    // Set for an Employee objective: the plan it belongs to and its weight within it.
+    GoalPlanFacetDto? Plan,
+    bool CanDelete,
+    bool CanUpdateProgress,
+    // Named progress detail (history, evidence) — stricter than reading the objective itself.
+    bool CanReadProgressHistory);
+
+/// <summary>The plan an Employee objective belongs to, as seen from the objective.</summary>
+public sealed record GoalPlanFacetDto(
+    Guid PlanId,
+    PlanLifecycleState PlanState,
+    decimal? PlanWeight,
+    PersonRefDto Owner);
 
 public sealed record CreateOrganizationalObjectiveRequest(
     Guid? OrgUnitId,

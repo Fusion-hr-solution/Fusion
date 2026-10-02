@@ -1,6 +1,7 @@
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
 using EY.HRPlatform.Performance.Domain.Progress;
+using EY.HRPlatform.Performance.Features.Goals;
 using EY.HRPlatform.Performance.Infrastructure.Core;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Models;
@@ -182,26 +183,14 @@ public static class ProgressComposer
 
     // ── Authorization ────────────────────────────────────────────────────────
 
-    /// <summary>Only the accountable owner records progress, and only once the objective's baseline is set.</summary>
+    /// <summary>Only the accountable owner records progress, once the objective's baseline is set.</summary>
     public static bool CanUpdate(Objective objective, EmployeePlan? plan, ProgressActorContext actor)
-    {
-        if (objective.AccountablePersonId != actor.CallerEmployeeId) return false;
-        return objective.OwnershipScope switch
-        {
-            ObjectiveOwnershipScope.Employee => plan is not null && plan.State == PlanLifecycleState.Approved,
-            ObjectiveOwnershipScope.OrgUnit => objective.State == ObjectiveLifecycleState.Published,
-            ObjectiveOwnershipScope.Company => objective.State == ObjectiveLifecycleState.Published,
-            _ => false,
-        };
-    }
+        => ObjectiveAccess.CanUpdateProgress(actor.ToGoalActor(), objective, plan);
 
-    /// <summary>Named detail (evidence, individual history) requires ownership, responsibility, or administration.</summary>
+    /// <summary>
+    /// Named detail (evidence, individual history) from ownership, responsibility, or administration —
+    /// the lookup-free part of <see cref="ObjectiveAccess.CanReadProgressHistory"/>.
+    /// </summary>
     public static bool CanSeeNamedDetail(Objective objective, EmployeePlan? plan, ProgressActorContext actor)
-    {
-        if (actor.IsAdmin) return true;
-        if (objective.AccountablePersonId == actor.CallerEmployeeId) return true;
-        // The responsible manager of an employee objective's plan may see named detail.
-        if (plan is not null && actor.CanReviewReports && plan.ResponsibleManagerId == actor.CallerEmployeeId) return true;
-        return false;
-    }
+        => ObjectiveAccess.CanReadProgressHistory(new ObjectiveViewer(actor.ToGoalActor(), null), objective, plan);
 }

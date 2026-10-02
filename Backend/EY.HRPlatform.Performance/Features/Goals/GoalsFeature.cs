@@ -19,7 +19,14 @@ namespace EY.HRPlatform.Performance.Features.Goals;
 /// any active team; managers are resolved to their own Cycle-start team by the server. This
 /// authority is deliberately separate from a particular objective's accountable person.
 /// </summary>
-public sealed record GoalActorContext(Guid CallerEmployeeId, bool IsAdmin, bool HasOrgManageGrant);
+/// <paramref name="CanReviewReports"/> (view @DirectReports or wider) and <paramref name="CanPublishStrategy"/>
+/// complete the inputs <see cref="ObjectiveAccess"/> needs to decide visibility across every scope.
+public sealed record GoalActorContext(
+    Guid CallerEmployeeId,
+    bool IsAdmin,
+    bool HasOrgManageGrant,
+    bool CanReviewReports = false,
+    bool CanPublishStrategy = false);
 
 public sealed record GetGoalsOverviewQuery(Guid CycleId, GoalActorContext Actor) : IQuery<Result<GoalsOverviewDto>>;
 public sealed record GetGoalDetailQuery(Guid CycleId, Guid ObjectiveId, GoalActorContext Actor) : IQuery<Result<GoalDetailDto>>;
@@ -44,7 +51,8 @@ public sealed class GetGoalsOverviewHandler(PerformanceDbContext db, ICoreWorkfo
             return Result.Failure<GoalsOverviewDto>(Error.NotFound("Cycle", request.CycleId));
 
         var graph = await GoalsComposer.LoadGraphAsync(db, workforce, cycle, cancellationToken);
-        return GoalsComposer.BuildOverview(cycle, graph);
+        var viewer = await ObjectiveViewer.ResolveAsync(workforce, cycle, request.Actor, cancellationToken);
+        return GoalsComposer.BuildOverview(cycle, graph, viewer);
     }
 }
 
@@ -62,18 +70,13 @@ public sealed class GetGoalDetailHandler(PerformanceDbContext db, ICoreWorkforce
         if (target is null)
             return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", request.ObjectiveId));
 
-        var canGovern = target.OrgUnitId is Guid unitId
-            && await TeamObjectivePolicy.CanGovernAsync(workforce, cycle, request.Actor, unitId, cancellationToken);
-        // Published team objectives are already offered to every plan author as alignment targets, so
-        // their detail is readable too; a Draft stays with its team's governors and accountable person.
-        if (target.OwnershipScope == ObjectiveOwnershipScope.OrgUnit
-            && target.State != ObjectiveLifecycleState.Published
-            && !canGovern
-            && target.AccountablePersonId != request.Actor.CallerEmployeeId)
+        var viewer = await ObjectiveViewer.ResolveAsync(workforce, cycle, request.Actor, cancellationToken);
+        var plan = await GoalsComposer.LoadOwningPlanAsync(db, target, cancellationToken);
+        if (!ObjectiveAccess.CanRead(viewer, target, plan))
             return Result.Failure<GoalDetailDto>(Error.Forbidden(
                 "Objective.ViewForbidden",
-                "You are not authorized to view this team's objective detail."));
-        return GoalsComposer.BuildDetail(target, graph, request.Actor, canGovern);
+                "You are not authorized to view this objective."));
+        return GoalsComposer.BuildDetail(cycle, target, graph, viewer, plan);
     }
 }
 
@@ -158,9 +161,9 @@ public abstract class GoalCommandHandlerBase(PerformanceDbContext db, ICoreWorkf
         var node = graph.ById.GetValueOrDefault(objectiveId);
         if (node is null)
             return Result.Failure<GoalDetailDto>(Error.NotFound("Objective", objectiveId));
-        var canGovern = node.OrgUnitId is Guid unitId
-            && await TeamObjectivePolicy.CanGovernAsync(workforce, cycle, actor, unitId, cancellationToken);
-        return GoalsComposer.BuildDetail(node, graph, actor, canGovern);
+        var viewer = await ObjectiveViewer.ResolveAsync(workforce, cycle, actor, cancellationToken);
+        var plan = await GoalsComposer.LoadOwningPlanAsync(db, node, cancellationToken);
+        return GoalsComposer.BuildDetail(cycle, node, graph, viewer, plan);
     }
 
     protected async Task<bool> CanMaintainTeamObjectiveAsync(
