@@ -18,17 +18,9 @@ import { usePerformanceAccess, useCurrentCycle, useTeamRoster } from "@/features
 export default function TeamPerformancePage() {
   const access = usePerformanceAccess();
   const canEnter = access.data?.canEnter ?? false;
-  const scope = access.data?.aggregateViewScope ?? null;
   const canReview = access.data?.canLeadTeam ?? false;
-  // Organization Goals gate, mirrored from that surface, so the section-level link is offered only to
-  // actors who can legitimately open it.
-  const canViewOrgGoals =
-    (access.data?.canAdminister ?? false) ||
-    scope === "DirectReports" ||
-    scope === "OrgUnit" ||
-    scope === "Tenant" ||
-    (access.data?.canPublishStrategy ?? false) ||
-    (access.data?.canManageOrgObjectives ?? false);
+  // The organization-direction link is offered only to actors who can enter that workspace.
+  const canViewOrgDirection = access.data?.canViewOrgDirection ?? false;
 
   const detail = useCurrentCycle(canEnter);
   const cycle = detail.data?.cycle ?? null;
@@ -76,7 +68,7 @@ export default function TeamPerformancePage() {
         }
       />
       <div className="mt-8 space-y-9">
-        <TeamDirection cycle={cycle} canViewOrgGoals={canViewOrgGoals} />
+        <TeamDirection cycle={cycle} canViewOrgDirection={canViewOrgDirection} />
         <div className="space-y-4">
           <YourPeople roster={roster} filter={rosterFilter} onFilterChange={setRosterFilter} />
           <AddPeopleCallout />

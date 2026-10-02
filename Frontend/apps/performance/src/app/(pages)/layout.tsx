@@ -5,12 +5,14 @@ import { Toaster } from "@repo/ds/components/ui/sonner";
 import { PerformancePagesShell } from "@/shell/performance-pages-shell";
 import { PerformanceWorkspaceAccessBoundary } from "@/shell/performance-workspace-access-boundary";
 import { BreadcrumbOverridesProvider } from "@/shell/breadcrumb-overrides";
+import { ObjectiveRecordHost } from "@/features/performance/components/objective-record/objective-record-host";
 
 // The module frame (sidebar, top bar) renders unconditionally and stays present
 // while the session restores. Auth/access resolution and route data loading are
 // confined to the content region: the access boundary gates only `children`, and
 // its pending/forbidden states render inside the persistent frame rather than
-// replacing the whole workspace with a skeleton.
+// replacing the whole workspace with a skeleton. The objective record is mounted
+// once here, inside the boundary, so every page opens the same record by URL.
 export default function PagesLayout({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
@@ -19,6 +21,7 @@ export default function PagesLayout({ children }: { children: ReactNode }) {
           <Suspense fallback={<PageSkeleton rows={4} label="Loading Performance" />}>
             <PerformanceWorkspaceAccessBoundary>
               {children}
+              <ObjectiveRecordHost />
             </PerformanceWorkspaceAccessBoundary>
           </Suspense>
         </PerformancePagesShell>

@@ -29,6 +29,13 @@ export type PerformanceAccess = PerformanceAccessDto & {
    * account is a permission profile, not someone with a team.
    */
   canLeadTeam: boolean;
+  /**
+   * Can enter the Organization direction workspace — organizational responsibility (administration,
+   * strategy, organizational objectives) or organizational read breadth. A navigation decision only: it
+   * is *not* whether an objective is readable. Anyone may open a published objective their work aligns
+   * to in the objective record; the server decides readability per objective.
+   */
+  canViewOrgDirection: boolean;
 };
 
 export function resolvePerformanceAccess(
@@ -38,32 +45,28 @@ export function resolvePerformanceAccess(
     hasCorePermission(user, PERFORMANCE_PERMISSION.cycleView) ||
     hasCorePermission(user, PERFORMANCE_PERMISSION.objectiveSelfManage);
 
+  const aggregateViewScope = resolveAggregateViewScope(user);
+  const canAdminister = hasCorePermission(user, PERFORMANCE_PERMISSION.cycleManage, "Tenant");
+  const canPublishStrategy = hasCorePermission(user, PERFORMANCE_PERMISSION.strategyPublish, "Tenant");
+  const canManageOrgObjectives = hasCorePermission(user, PERFORMANCE_PERMISSION.objectiveOrgManage, "Tenant");
+  const hasOrgRead =
+    aggregateViewScope === "DirectReports" || aggregateViewScope === "OrgUnit" || aggregateViewScope === "Tenant";
+
   return {
+    canViewOrgDirection: canAdminister || canPublishStrategy || canManageOrgObjectives || hasOrgRead,
     canLeadTeam:
       Boolean(user?.employeeId) &&
       hasCorePermission(user, PERFORMANCE_PERMISSION.cycleView, "DirectReports"),
     canEnter,
-    canAdminister: hasCorePermission(
-      user,
-      PERFORMANCE_PERMISSION.cycleManage,
-      "Tenant",
-    ),
-    canPublishStrategy: hasCorePermission(
-      user,
-      PERFORMANCE_PERMISSION.strategyPublish,
-      "Tenant",
-    ),
+    canAdminister,
+    canPublishStrategy,
     canParticipate: hasCorePermission(
       user,
       PERFORMANCE_PERMISSION.objectiveSelfManage,
       "Self",
     ),
-    canManageOrgObjectives: hasCorePermission(
-      user,
-      PERFORMANCE_PERMISSION.objectiveOrgManage,
-      "Tenant",
-    ),
-    aggregateViewScope: resolveAggregateViewScope(user),
+    canManageOrgObjectives,
+    aggregateViewScope,
   };
 }
 

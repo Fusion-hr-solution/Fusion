@@ -14,7 +14,7 @@ import {
 } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
-import { ObjectiveContextPanel } from "@/features/performance/components/goals/objective-context-panel";
+import { useObjectiveRecord } from "@/features/performance/components/objective-record/use-objective-record";
 import { ObjectiveWorkspace } from "@/features/performance/components/goals/objective-workspace";
 import {
   OrgComposerHost,
@@ -90,7 +90,7 @@ function GoalsWorkspace() {
 
   // The branch to reveal after a mutation — the parent of a just-created/edited objective.
   const [revealId, setRevealId] = useState<string | null>(null);
-  const [panelId, setPanelId] = useState<string | null>(null);
+  const record = useObjectiveRecord();
   const [composer, setComposer] = useState<ComposerState | null>(null);
   const [companyComposer, setCompanyComposer] =
     useState<CompanyComposerState | null>(null);
@@ -269,7 +269,7 @@ function GoalsWorkspace() {
           canManageCompany={canManageCompany}
           canReachSetup={canReachSetup}
           onFocus={(id) => replaceContext({ focusId: id })}
-          onInspect={setPanelId}
+          onInspect={(objectiveId) => record.open({ cycleId: cycle.id, objectiveId })}
           onCreate={(parentId, orgUnitId) =>
             setComposer({
               mode: "create",
@@ -286,24 +286,6 @@ function GoalsWorkspace() {
           onPublishCompany={handlePublishCompany}
         />
       )}
-
-      {/* Inspection + decision */}
-      <ObjectiveContextPanel
-        cycleId={cycle.id}
-        objectiveId={panelId}
-        open={panelId !== null}
-        onOpenChange={(open) => {
-          if (!open) setPanelId(null);
-        }}
-        onFocus={(id) => {
-          replaceContext({ focusId: id });
-          setPanelId(null);
-        }}
-        onEdit={(d) => {
-          setPanelId(null);
-          setComposer({ mode: "edit", objectiveId: d.node.id });
-        }}
-      />
 
       {composer ? (
         <OrgComposerHost

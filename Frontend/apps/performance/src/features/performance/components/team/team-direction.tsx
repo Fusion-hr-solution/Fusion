@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useAuth } from "@repo/auth";
 import type {
   AlignmentTargetDto,
@@ -39,7 +40,6 @@ import {
   Flag,
   Info,
   Layers,
-  ExternalLink,
   Link2,
   MoreHorizontal,
   Pencil,
@@ -60,7 +60,6 @@ import {
 import { useWorkforceMe } from "../../api/use-workforce-me";
 import { formatDate } from "../../lib";
 import { AlignmentTargetPicker } from "../goals/org-objective-composer";
-import { OrgObjectiveDetailDrawer } from "../goals/org-objective-detail-drawer";
 import {
   OrgComposerHost,
   type ComposerAlignmentContext,
@@ -69,7 +68,7 @@ import {
 import { initials, STATE_LABEL, STATE_TONE } from "../goals/goals-lib";
 import type { UnitContext } from "../goals/working-context-lib";
 import { ScopeMark } from "../scope-mark";
-import { TeamObjectiveRecordDrawer } from "./team-objective-record-drawer";
+import { useObjectiveRecord } from "../objective-record/use-objective-record";
 import {
   initialDirectionForTargets,
   visibleTeamObjectives,
@@ -80,10 +79,10 @@ import {
 
 export function TeamDirection({
   cycle,
-  canViewOrgGoals,
+  canViewOrgDirection,
 }: {
   cycle: CycleSummaryDto;
-  canViewOrgGoals: boolean;
+  canViewOrgDirection: boolean;
 }) {
   const { user } = useAuth();
   const me = useWorkforceMe(true);
@@ -131,9 +130,10 @@ export function TeamDirection({
     direction?.mode === "aligned" ? direction.parentId : null;
   const selectedDirection = useGoal(cycle.id, selectedParentId);
   const [composer, setComposer] = useState<ComposerState | null>(null);
-  const [panelId, setPanelId] = useState<string | null>(null);
-  const [recording, setRecording] =
-    useState<TeamObjectiveWorkspaceItemDto | null>(null);
+  // Every objective here — the upstream direction, the team's own — opens in the one objective record,
+  // addressed in this Cycle; recording progress is that record's task mode, not a separate drawer.
+  const record = useObjectiveRecord();
+  const inspect = (objectiveId: string) => record.open({ cycleId: cycle.id, objectiveId });
   const mutations = useGoalMutations(cycle.id);
 
   if (me.isLoading || workspace.isLoading) return <TeamDirectionSkeleton />;
@@ -161,9 +161,7 @@ export function TeamDirection({
   const data = workspace.data;
   const openCreate = (alignment: ComposerAlignmentContext) =>
     setComposer({ mode: "create", alignment, orgUnitId: data.orgUnitId });
-  const goalsHref = selectedParentId
-    ? `/performance/goals?focus=${selectedParentId}`
-    : "/performance/goals";
+  const goalsHref = selectedParentId ? `/goals?focus=${selectedParentId}` : "/goals";
 
   return (
     <>
@@ -178,16 +176,16 @@ export function TeamDirection({
           detailLoading={selectedDirection.isLoading}
           canCreate={data.canCreate && data.eligibleOwners.length > 0}
           noEligibleOwners={data.eligibleOwners.length === 0}
-          canViewOrgGoals={canViewOrgGoals}
+          canViewOrgDirection={canViewOrgDirection}
           goalsHref={goalsHref}
           onCreate={() => openCreate(direction)}
-          onInspect={setPanelId}
+          onInspect={inspect}
         />
         <TeamObjectives
           items={data.objectives}
           canCreate={data.canCreate && data.eligibleOwners.length > 0}
           onCreate={() => openCreate(direction)}
-          onInspect={setPanelId}
+          onInspect={inspect}
           onEdit={(item) =>
             setComposer({ mode: "edit", objectiveId: item.node.id })
           }
@@ -203,36 +201,17 @@ export function TeamDirection({
               );
             }
           }}
-          onViewDirection={(item) => item.parent && setPanelId(item.parent.id)}
-          onRecord={setRecording}
+          onViewDirection={(item) => item.parent && inspect(item.parent.id)}
+          onRecord={(item) => record.open({ cycleId: cycle.id, objectiveId: item.node.id }, { mode: "record" })}
           currentEmployeeId={user?.employeeId ?? null}
         />
       </div>
-      <OrgObjectiveDetailDrawer
-        cycleId={cycle.id}
-        objectiveId={panelId}
-        open={panelId !== null}
-        onOpenChange={(open) => {
-          if (!open) setPanelId(null);
-        }}
-      />
       {composer ? (
         <OrgComposerHost
           cycle={cycle}
           state={composer}
           ownUnit={ownUnit}
           onClose={() => setComposer(null)}
-        />
-      ) : null}
-      {recording ? (
-        <TeamObjectiveRecordDrawer
-          cycleId={cycle.id}
-          objectiveId={recording.node.id}
-          title={recording.node.title}
-          open
-          onOpenChange={(open) => {
-            if (!open) setRecording(null);
-          }}
         />
       ) : null}
     </>
@@ -249,7 +228,7 @@ function StrategicDirection({
   detailLoading,
   canCreate,
   noEligibleOwners,
-  canViewOrgGoals,
+  canViewOrgDirection,
   goalsHref,
   onCreate,
   onInspect,
@@ -263,7 +242,7 @@ function StrategicDirection({
   detailLoading: boolean;
   canCreate: boolean;
   noEligibleOwners: boolean;
-  canViewOrgGoals: boolean;
+  canViewOrgDirection: boolean;
   goalsHref: string;
   onCreate: () => void;
   onInspect: (id: string) => void;
@@ -284,16 +263,12 @@ function StrategicDirection({
         >
           Upstream direction
         </h2>
-        {canViewOrgGoals ? (
+        {canViewOrgDirection ? (
           <Button variant="outline" asChild>
-            <a href={goalsHref}>
-              View in Organization Goals
-              <ExternalLink
-                className="size-4"
-                data-icon="inline-end"
-                aria-hidden
-              />
-            </a>
+            <Link href={goalsHref}>
+              Open organization direction
+              <ArrowRight className="size-4" data-icon="inline-end" aria-hidden />
+            </Link>
           </Button>
         ) : null}
       </div>

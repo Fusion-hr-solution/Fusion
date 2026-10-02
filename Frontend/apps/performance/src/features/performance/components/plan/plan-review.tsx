@@ -34,8 +34,7 @@ import {
 } from "../../api/use-performance";
 import { formatDate } from "../../lib";
 import { PerformanceBreadcrumbLabel } from "@/shell/performance-breadcrumb";
-import { OrgObjectiveDetailDrawer } from "../goals/org-objective-detail-drawer";
-import { ObjectiveDetailDrawer } from "./objective-detail-drawer";
+import { useObjectiveRecord } from "../objective-record/use-objective-record";
 import { PlanBannerMark } from "./plan-banner";
 import { PlanDirectionSection } from "./plan-direction";
 import { PlanDocument, PlanSection, PlanWeightStrip, SidebarSection } from "./plan-layout";
@@ -269,8 +268,10 @@ function ObjectiveLedgerReadOnly({
   targets: AlignmentTargetDto[];
   cycleId: string;
 }) {
-  const [detailId, setDetailId] = useState<string | null>(null);
-  const [alignedId, setAlignedId] = useState<string | null>(null);
+  // The reviewer opens the same objective record the employee does; what it offers (progress history,
+  // never recording) is decided by the server for this viewer.
+  const record = useObjectiveRecord();
+  const refFor = (objectiveId: string) => ({ cycleId, objectiveId });
 
   const scopeByTitle = useMemo(() => {
     const map = new Map<string, string>();
@@ -283,8 +284,6 @@ function ObjectiveLedgerReadOnly({
     return map;
   }, [targets]);
 
-  const detailIndex = plan.objectives.findIndex((o) => o.id === detailId);
-  const detail = detailIndex >= 0 ? plan.objectives[detailIndex] ?? null : null;
   const scopeFor = (objective: PlanObjectiveDto) =>
     objective.isAligned ? scopeByTitle.get(objective.directionPath.at(-1) ?? "") : undefined;
 
@@ -305,33 +304,13 @@ function ObjectiveLedgerReadOnly({
             objective={objective}
             alignmentScope={scopeFor(objective)}
             showProgress={plan.isLocked}
-            active={detailId === objective.id}
-            onViewDetails={() => setDetailId(objective.id)}
-            onViewAlignment={setAlignedId}
+            active={record.isOpen(refFor(objective.id))}
+            onViewDetails={() => record.open(refFor(objective.id))}
+            onViewAlignment={(parentId) => record.open(refFor(parentId))}
           />
         ))}
       </div>
 
-      <ObjectiveDetailDrawer
-        objective={detail}
-        index={detailIndex}
-        alignmentScope={detail ? scopeFor(detail) : undefined}
-        open={detailId !== null}
-        onOpenChange={(open) => {
-          if (!open) setDetailId(null);
-        }}
-        // On a locked plan the drawer carries current progress + history; record mode stays hidden because
-        // the objective is not the manager's to update (`canUpdateProgress` is false server-side).
-        cycleId={plan.isLocked ? cycleId : undefined}
-      />
-      <OrgObjectiveDetailDrawer
-        cycleId={cycleId}
-        objectiveId={alignedId}
-        open={alignedId !== null}
-        onOpenChange={(open) => {
-          if (!open) setAlignedId(null);
-        }}
-      />
     </PlanSection>
   );
 }

@@ -1,0 +1,146 @@
+import { describe, expect, it } from "vitest";
+import type { GoalDetailDto, GoalNodeDto } from "@repo/api";
+import { resolveSections, toObjectiveRecord, todayMarker, windowLength } from "./objective-record-model";
+import { parseObjectiveMode, parseObjectiveRef, withObjectiveRef } from "./objective-ref";
+
+function node(overrides: Partial<GoalNodeDto> = {}): GoalNodeDto {
+  return {
+    id: "obj-1",
+    ownershipScope: "OrgUnit",
+    title: "Grow talent",
+    state: "Published",
+    parentObjectiveId: "parent-1",
+    orgUnitId: "unit-1",
+    orgUnitName: "Talent Pod",
+    accountablePersonId: "p-1",
+    accountablePersonName: "Nour",
+    startDate: "2026-01-01",
+    endDate: "2026-12-31",
+    progressSource: "Direct",
+    measurementSummary: "Manual percentage",
+    isAlignmentBaseline: true,
+    isContributionBaselineLocked: false,
+    contributionWeightTotal: 0,
+    childCount: 0,
+    contributorCount: 0,
+    contributionToParent: null,
+    hasProgress: false,
+    derivedProgress: 0,
+    progressCoverage: null,
+    publishedAt: null,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: null,
+    ...overrides,
+  };
+}
+
+function detail(overrides: Partial<GoalDetailDto> = {}, nodeOverrides: Partial<GoalNodeDto> = {}): GoalDetailDto {
+  return {
+    node: node(nodeOverrides),
+    description: null,
+    accountable: { id: "p-1", name: "Nour" },
+    parent: node({ id: "parent-1", ownershipScope: "Company", title: "Grow the company", orgUnitName: null, parentObjectiveId: null }),
+    children: [],
+    measurement: null,
+    contribution: [],
+    canEdit: false,
+    canPublish: false,
+    canConfigureContribution: false,
+    cycleId: "cycle-2026",
+    plan: null,
+    canDelete: false,
+    canUpdateProgress: false,
+    canReadProgressHistory: false,
+    ...overrides,
+  };
+}
+
+describe("objective reference", () => {
+  it("addresses an objective by its cycle and id, never by the current cycle", () => {
+    const params = new URLSearchParams("cycle=c-2026&objective=o-1&mode=record");
+    expect(parseObjectiveRef(params)).toEqual({ cycleId: "c-2026", objectiveId: "o-1" });
+    expect(parseObjectiveMode(params)).toBe("record");
+    expect(parseObjectiveRef(new URLSearchParams("objective=o-1"))).toBeNull();
+  });
+
+  it("changes only its own parameters", () => {
+    const current = new URLSearchParams("focus=branch-9&scope=unit-2&mode=record");
+    expect(withObjectiveRef(current, { cycleId: "c", objectiveId: "o" })).toBe("?focus=branch-9&scope=unit-2&cycle=c&objective=o");
+    expect(withObjectiveRef(new URLSearchParams("focus=b&cycle=c&objective=o"), null)).toBe("?focus=b");
+    expect(withObjectiveRef(new URLSearchParams(), null)).toBe("");
+  });
+});
+
+describe("toObjectiveRecord", () => {
+  it("keeps the objective's own cycle on itself and its parent", () => {
+    const record = toObjectiveRecord(detail());
+    expect(record.ref).toEqual({ cycleId: "cycle-2026", objectiveId: "obj-1" });
+    expect(record.parent).toEqual({
+      ref: { cycleId: "cycle-2026", objectiveId: "parent-1" },
+      title: "Grow the company",
+      scopeLabel: "Company strategy",
+    });
+    expect(record.kindLabel).toBe("Talent Pod objective");
+  });
+
+  it("reads a plan objective by its plan's state and weight", () => {
+    const record = toObjectiveRecord(
+      detail(
+        { plan: { planId: "plan-1", planState: "Approved", planWeight: 60, owner: { id: "p-2", name: "Sami" } } },
+        { ownershipScope: "Employee", parentObjectiveId: null, orgUnitName: null }
+      )
+    );
+    expect(record.kind).toBe("plan");
+    expect(record.kindLabel).toBe("Standalone role objective");
+    expect(record.accent).toBe("info");
+    expect(record.planWeight).toBe(60);
+    expect(record.isExecuting).toBe(true);
+    expect(record.status.label).toBe("Approved");
+  });
+});
+
+describe("resolveSections", () => {
+  it("shows only what has something true to say", () => {
+    expect(resolveSections(toObjectiveRecord(detail({ parent: null }, { state: "Draft", parentObjectiveId: null })))).toEqual([
+      "measurement",
+      "timeline",
+    ]);
+  });
+
+  it("composes a published, calculated direction objective in reading order", () => {
+    const record = toObjectiveRecord(
+      detail({ description: "Why it matters", children: [node({ id: "child-1" })] }, { progressSource: "Calculated" })
+    );
+    expect(resolveSections(record)).toEqual([
+      "description",
+      "alignment",
+      "measurement",
+      "timeline",
+      "progress",
+      "aligned-children",
+      "contribution",
+    ]);
+  });
+
+  it("pairs the timeline with plan weight and holds progress until the plan is approved", () => {
+    const record = toObjectiveRecord(
+      detail(
+        { plan: { planId: "plan-1", planState: "Submitted", planWeight: 40, owner: { id: "p-2", name: "Sami" } } },
+        { ownershipScope: "Employee" }
+      )
+    );
+    expect(resolveSections(record)).toEqual(["alignment", "measurement", ["timeline", "plan-weight"]]);
+  });
+});
+
+describe("window helpers", () => {
+  it("marks today only inside the window", () => {
+    expect(todayMarker("2026-01-01", "2026-12-31", new Date(2026, 5, 1))).toEqual({ date: "2026-06-01", label: "Today" });
+    expect(todayMarker("2026-01-01", "2026-12-31", new Date(2027, 0, 2))).toBeNull();
+  });
+
+  it("states the window in plain units", () => {
+    expect(windowLength("2026-01-01", "2026-01-30")).toBe("30 days");
+    expect(windowLength("2026-01-01", "2026-12-31")).toBe("12 months");
+  });
+});

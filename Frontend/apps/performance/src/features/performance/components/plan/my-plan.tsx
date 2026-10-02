@@ -35,7 +35,6 @@ import {
 import { Button } from "@repo/ds/components/ui/button";
 import { AsyncButton, PageError } from "@repo/ds/shell";
 import { PlanEmptySkeleton } from "./plan-skeleton";
-import { OrgObjectiveDetailDrawer } from "../goals/org-objective-detail-drawer";
 import { cn } from "@repo/ds/lib/utils";
 import {
   useAlignmentTargets,
@@ -45,7 +44,7 @@ import {
 import { formatDateTime } from "../../lib";
 import { PlanDirectionSection, PlanReviewerSection, directionFromTargets } from "./plan-direction";
 import { PlanGoalComposer } from "./goal-composer";
-import { ObjectiveDetailDrawer } from "./objective-detail-drawer";
+import { useObjectiveRecord } from "../objective-record/use-objective-record";
 import { PlanObjectiveRow } from "./plan-objective-row";
 import { PlanSubmissionChecks } from "./plan-submission-checks";
 import { PlanSubmissionStatus } from "./plan-submission-status";
@@ -289,10 +288,10 @@ function ObjectiveLedger({
   onEdit: (objective: PlanObjectiveDto) => void;
   onRemove: (objectiveId: string) => void;
 }) {
-  // One drawer, two modes: the eye opens details; Update progress opens the same drawer in record mode.
-  const [drawer, setDrawer] = useState<{ id: string; mode: "details" | "record" } | null>(null);
-  const detailId = drawer?.id ?? null;
-  const [alignedId, setAlignedId] = useState<string | null>(null);
+  // The objective record: the eye opens it, Update progress opens it in its record task, and an
+  // objective's alignment opens the direction it supports — all addressed in this plan's own Cycle.
+  const record = useObjectiveRecord();
+  const refFor = (objectiveId: string) => ({ cycleId: plan.cycleId, objectiveId });
 
   // Resolve each aligned objective's parent scope label (e.g. "Talent Pod") once from the targets.
   const scopeByTitle = useMemo(() => {
@@ -305,8 +304,6 @@ function ObjectiveLedger({
 
   const scopeFor = (objective: PlanObjectiveDto) =>
     objective.isAligned ? scopeByTitle.get(objective.directionPath.at(-1) ?? "") : undefined;
-  const detailIndex = plan.objectives.findIndex((o) => o.id === detailId);
-  const detail = detailIndex >= 0 ? plan.objectives[detailIndex] ?? null : null;
 
   return (
     <PlanSection
@@ -342,36 +339,17 @@ function ObjectiveLedger({
               objective={objective}
               alignmentScope={scopeFor(objective)}
               showProgress={plan.isLocked}
-              active={detailId === objective.id}
+              active={record.isOpen(refFor(objective.id))}
               onEdit={plan.canAuthor ? () => onEdit(objective) : undefined}
               onRemove={plan.canAuthor ? () => onRemove(objective.id) : undefined}
-              onOpenProgress={plan.isLocked ? () => setDrawer({ id: objective.id, mode: "record" }) : undefined}
-              onViewDetails={() => setDrawer({ id: objective.id, mode: "details" })}
-              onViewAlignment={setAlignedId}
+              onOpenProgress={plan.isLocked ? () => record.open(refFor(objective.id), { mode: "record" }) : undefined}
+              onViewDetails={() => record.open(refFor(objective.id))}
+              onViewAlignment={(parentId) => record.open(refFor(parentId))}
             />
           ))}
         </div>
       )}
 
-      <ObjectiveDetailDrawer
-        objective={detail}
-        index={detailIndex}
-        alignmentScope={detail ? scopeFor(detail) : undefined}
-        open={drawer !== null}
-        onOpenChange={(open) => {
-          if (!open) setDrawer(null);
-        }}
-        cycleId={plan.isLocked ? plan.cycleId : undefined}
-        initialMode={drawer?.mode ?? "details"}
-      />
-      <OrgObjectiveDetailDrawer
-        cycleId={plan.cycleId}
-        objectiveId={alignedId}
-        open={alignedId !== null}
-        onOpenChange={(open) => {
-          if (!open) setAlignedId(null);
-        }}
-      />
     </PlanSection>
   );
 }

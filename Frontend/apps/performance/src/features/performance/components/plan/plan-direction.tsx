@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Landmark, SquareArrowEnter } from "@/lib/icons";
 import type { AlignmentTargetDto, PlanDecisionDto, PlanObjectiveDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { ScopeMark } from "../scope-mark";
-import { OrgObjectiveDetailDrawer } from "../goals/org-objective-detail-drawer";
+import { useObjectiveRecord } from "../objective-record/use-objective-record";
 import { SidebarSection } from "./plan-layout";
 import { initials } from "./plan-lib";
 import { formatDate } from "../../lib";
@@ -20,7 +20,7 @@ export interface DirectionLevel {
 /**
  * The plan's direction as a sidebar property: the objective the plan serves, linked down a quiet
  * connector to the objective it supports, each with its scope. Same resolution as the banner; read-only,
- * each level opens its objective in the detail drawer. Renders nothing when there is no direction yet.
+ * each level opens its objective in the objective record. Renders nothing when there is no direction yet.
  */
 export function PlanDirectionSection({
   cycleId,
@@ -36,7 +36,7 @@ export function PlanDirectionSection({
   const derived = useMemo(() => resolveDirection(objectives, targets), [objectives, targets]);
   const levels = (directionLevels ?? derived).slice(0, 2);
   const idByTitle = useMemo(() => new Map(targets.map((t) => [t.title, t.id])), [targets]);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const record = useObjectiveRecord();
   if (levels.length === 0) return null;
 
   return (
@@ -68,7 +68,7 @@ export function PlanDirectionSection({
               {objectiveId ? (
                 <button
                   type="button"
-                  onClick={() => setOpenId(objectiveId)}
+                  onClick={() => record.open({ cycleId, objectiveId })}
                   aria-label={`Open ${level.title}`}
                   className="flex size-7 shrink-0 items-center justify-center rounded-detail text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
@@ -79,14 +79,6 @@ export function PlanDirectionSection({
           );
         })}
       </ol>
-      <OrgObjectiveDetailDrawer
-        cycleId={cycleId}
-        objectiveId={openId}
-        open={openId !== null}
-        onOpenChange={(open) => {
-          if (!open) setOpenId(null);
-        }}
-      />
     </SidebarSection>
   );
 }

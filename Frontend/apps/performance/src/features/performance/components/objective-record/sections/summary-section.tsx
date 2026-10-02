@@ -1,0 +1,42 @@
+import type { ElementType, ReactNode } from "react";
+import { Unlink } from "@/lib/icons";
+import { StatusBadge } from "@repo/ds/shell";
+import { ScopeMark } from "../../scope-mark";
+import type { ObjectiveRecord } from "../objective-record-model";
+
+/**
+ * Who and what an objective is at a glance: its mark, title, kind, state and accountable person. The
+ * record's header — and the block any other surface (a review, a result) shows when it cites an
+ * objective without opening the whole record.
+ */
+export function ObjectiveSummary({
+  record,
+  titleAs: Title = "h3",
+  trailing,
+}: {
+  record: ObjectiveRecord;
+  /** The element the title renders as — the record passes its accessible sheet title. */
+  titleAs?: ElementType<{ className?: string; children?: ReactNode }>;
+  trailing?: ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3.5">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-control border border-(--type-ring) bg-(--type-tint) text-(--type-ink)">
+        {record.accent === "info" ? <Unlink className="size-5" aria-hidden /> : <ScopeMark className="size-7" />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <Title className="text-[0.95rem] font-semibold leading-snug tracking-tight text-foreground">{record.title}</Title>
+        <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+          <span className="font-medium text-(--type-ink)">{record.kindLabel}</span>
+          <StatusBadge tone={record.status.tone} dot>
+            {record.status.label}
+          </StatusBadge>
+        </p>
+        <p className="mt-1.5 truncate text-xs text-muted-foreground">
+          Accountable · <span className="text-foreground">{record.accountable.name ?? "Unassigned"}</span>
+        </p>
+      </div>
+      {trailing}
+    </div>
+  );
+}
