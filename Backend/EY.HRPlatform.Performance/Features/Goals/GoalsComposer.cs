@@ -164,7 +164,11 @@ public static class GoalsComposer
 
         // Removal needs no aligned objective of any kind — plan objectives included — beneath it.
         var hasAnyChild = graph.All.Any(candidate => candidate.ParentObjectiveId == objective.Id);
-        var ownerName = graph.Names.GetValueOrDefault(objective.AccountablePersonId);
+        // A plan objective's owner is the plan's employee; the plan keeps their name from Cycle start.
+        var ownerName = graph.Names.GetValueOrDefault(objective.AccountablePersonId)
+            ?? (plan is not null && plan.EmployeeId == objective.AccountablePersonId && plan.EmployeeDisplayName.Length > 0
+                ? plan.EmployeeDisplayName
+                : null);
 
         return Result.Success(new GoalDetailDto(
             ToNode(objective, graph),
