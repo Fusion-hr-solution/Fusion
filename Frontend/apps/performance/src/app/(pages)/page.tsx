@@ -43,9 +43,7 @@ export default function OverviewPage() {
 
   const canAdminister = access.data?.canAdminister ?? false;
   const canParticipate = access.data?.canParticipate ?? false;
-  const canReview =
-    canAdminister ||
-    ["DirectReports", "OrgUnit", "Tenant"].includes(access.data?.aggregateViewScope ?? "");
+  const canReview = access.data?.canLeadTeam ?? false;
 
   if (detail.isLoading) return <PageSkeleton rows={4} label="Loading Cycle" />;
   if (detail.error) {

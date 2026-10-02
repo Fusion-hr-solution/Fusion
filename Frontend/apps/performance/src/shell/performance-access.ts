@@ -22,14 +22,26 @@ const PERFORMANCE_PERMISSION = {
  * round-trip. The backend still enforces authorization on every action; this only
  * governs "hide, don't deny" rendering.
  */
+export type PerformanceAccess = PerformanceAccessDto & {
+  /**
+   * Team Performance is a people-leader surface: a workforce member who can see
+   * their reports. Tenant administration alone never qualifies — an admin
+   * account is a permission profile, not someone with a team.
+   */
+  canLeadTeam: boolean;
+};
+
 export function resolvePerformanceAccess(
   user: AuthUser | null,
-): PerformanceAccessDto {
+): PerformanceAccess {
   const canEnter =
     hasCorePermission(user, PERFORMANCE_PERMISSION.cycleView) ||
     hasCorePermission(user, PERFORMANCE_PERMISSION.objectiveSelfManage);
 
   return {
+    canLeadTeam:
+      Boolean(user?.employeeId) &&
+      hasCorePermission(user, PERFORMANCE_PERMISSION.cycleView, "DirectReports"),
     canEnter,
     canAdminister: hasCorePermission(
       user,

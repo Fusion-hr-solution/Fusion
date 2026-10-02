@@ -14,7 +14,6 @@ import {
   type CreateStrategicObjectiveRequest,
   type CycleSettingsDto,
   type ExceptionalApprovePlanRequest,
-  type PerformanceAccessDto,
   type PopulationDto,
   type ReturnPlanRequest,
   type SetPlanWeightsRequest,
@@ -27,7 +26,7 @@ import {
   type UpdateStrategicObjectiveRequest,
 } from "@repo/api";
 import { useApiMutation, useApiQuery, useApiQueryClient } from "@repo/api/query";
-import { resolvePerformanceAccess } from "@/shell/performance-access";
+import { resolvePerformanceAccess, type PerformanceAccess } from "@/shell/performance-access";
 
 function useApis() {
   const client = useMemo(() => createPlatformApiClient(), []);
@@ -53,7 +52,7 @@ function useApis() {
  * exposing an access-dependent surface before the session is known.
  */
 export function usePerformanceAccess(): {
-  data: PerformanceAccessDto | undefined;
+  data: PerformanceAccess | undefined;
   isLoading: boolean;
   error: Error | null;
   refetch: () => void;

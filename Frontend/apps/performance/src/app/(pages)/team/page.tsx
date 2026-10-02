@@ -19,12 +19,16 @@ export default function TeamPerformancePage() {
   const access = usePerformanceAccess();
   const canEnter = access.data?.canEnter ?? false;
   const scope = access.data?.aggregateViewScope ?? null;
-  const canReview =
-    (access.data?.canAdminister ?? false) || scope === "DirectReports" || scope === "OrgUnit" || scope === "Tenant";
+  const canReview = access.data?.canLeadTeam ?? false;
   // Organization Goals gate, mirrored from that surface, so the section-level link is offered only to
   // actors who can legitimately open it.
   const canViewOrgGoals =
-    canReview || (access.data?.canPublishStrategy ?? false) || (access.data?.canManageOrgObjectives ?? false);
+    (access.data?.canAdminister ?? false) ||
+    scope === "DirectReports" ||
+    scope === "OrgUnit" ||
+    scope === "Tenant" ||
+    (access.data?.canPublishStrategy ?? false) ||
+    (access.data?.canManageOrgObjectives ?? false);
 
   const detail = useCurrentCycle(canEnter);
   const cycle = detail.data?.cycle ?? null;
