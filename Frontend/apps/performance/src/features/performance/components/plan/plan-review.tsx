@@ -81,7 +81,7 @@ export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: 
       />
 
       <PlanDocument
-        main={<ObjectiveLedgerReadOnly plan={plan} targets={targets} cycleId={cycle.id} />}
+        main={<ObjectiveLedgerReadOnly plan={plan} targets={targets} cycleId={cycle.id} cycle={cycle} />}
         sidebar={
           plan.isLocked ? (
             // Approved reads as the same settled agreement the owner sees.
@@ -263,10 +263,12 @@ function ObjectiveLedgerReadOnly({
   plan,
   targets,
   cycleId,
+  cycle,
 }: {
   plan: EmployeePlanDto;
   targets: AlignmentTargetDto[];
   cycleId: string;
+  cycle: CycleSummaryDto;
 }) {
   // The reviewer opens the same objective record the employee does; what it offers (progress history,
   // never recording) is decided by the server for this viewer.
@@ -302,6 +304,7 @@ function ObjectiveLedgerReadOnly({
             key={objective.id}
             index={index}
             objective={objective}
+            cycle={cycle}
             alignmentScope={scopeFor(objective)}
             showProgress={plan.isLocked}
             active={record.isOpen(refFor(objective.id))}

@@ -57,6 +57,7 @@ export function PlanObjectiveRow({
   onOpenProgress,
   onViewDetails,
   onViewAlignment,
+  cycle,
 }: {
   index: number;
   objective: PlanObjectiveDto;
@@ -72,7 +73,10 @@ export function PlanObjectiveRow({
   onViewDetails?: () => void;
   /** Opens the aligned parent objective's details. */
   onViewAlignment?: (parentId: string) => void;
+  /** The plan's cycle window: the year is left to the cycle when the objective sits inside it. */
+  cycle?: { startDate: string; endDate: string };
 }) {
+  const duration = formatObjectiveDuration(objective.startDate, objective.endDate, cycle);
   const weight = objective.planWeight ?? 0;
   const progress = objective.derivedProgress;
   const capped = Math.min(progress, 100);
@@ -238,7 +242,11 @@ export function PlanObjectiveRow({
           )}
 
           <MetaCell icon={CalendarRange} label="Duration">
-            {formatDateRange(objective.startDate, objective.endDate)}
+            {cycle ? (
+              <CycleWindow start={objective.startDate} end={objective.endDate} cycle={cycle} />
+            ) : (
+              duration
+            )}
           </MetaCell>
         </dl>
         <div className="shrink-0 text-right">
@@ -440,10 +448,80 @@ function MetaCell({
   return (
     <div className="min-w-0 sm:px-5 sm:first:pl-0">
       <dt className="flex items-center gap-1.5 type-eyebrow text-muted-foreground/70">
-        <Icon className="size-4" aria-hidden />
+        <Icon className="size-4 shrink-0" aria-hidden />
         {label}
       </dt>
       <dd className="mt-1 whitespace-nowrap text-foreground">{children}</dd>
     </div>
+  );
+}
+
+function formatObjectiveDuration(
+  start: string,
+  end: string,
+  cycle: { startDate: string; endDate: string } | undefined
+): string {
+  if (!cycle) return formatDateRange(start, end);
+  const year = cycle.startDate.slice(0, 4);
+  const sameYear = cycle.endDate.slice(0, 4) === year && start.startsWith(year) && end.startsWith(year);
+  return formatDateRange(start, end, { omitYear: sameYear });
+}
+
+const shortDay = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" });
+
+/**
+ * The objective's window drawn on its cycle: the track is the cycle, the fill is when this objective
+ * runs (darker for the time already spent), and a tick marks today. A full-cycle objective reads as a full bar; a shorter one shows where it
+ * sits at a glance. Exact dates frame the bar and the full range is the accessible label.
+ */
+function CycleWindow({
+  start,
+  end,
+  cycle,
+}: {
+  start: string;
+  end: string;
+  cycle: { startDate: string; endDate: string };
+}) {
+  const day = (value: string) => new Date(`${value.slice(0, 10)}T00:00:00`).getTime();
+  const from = day(cycle.startDate);
+  const span = Math.max(day(cycle.endDate) - from, 1);
+  const at = (t: number) => Math.min(Math.max(((t - from) / span) * 100, 0), 100);
+  const left = at(day(start));
+  const right = at(day(end));
+  const today = at(Date.now());
+  const inCycle = Date.now() >= from && Date.now() <= from + span;
+  const elapsed = Math.min(today, right);
+  const label = formatObjectiveDuration(start, end, cycle);
+
+  return (
+    <span className="flex items-center gap-2 tabular-nums" title={label}>
+      <span className="sr-only">{label}</span>
+      <span className="text-xs text-muted-foreground" aria-hidden>
+        {shortDay.format(day(start))}
+      </span>
+      <span className="relative h-1.5 w-20 shrink-0 rounded-full bg-muted-foreground/10" aria-hidden>
+        {/* The window, neutral so it never reads as progress: time already spent is solid, the rest faint. */}
+        <span
+          className="absolute inset-y-0 rounded-full bg-foreground/20"
+          style={{ left: `${left}%`, width: `${Math.max(right - left, 3)}%` }}
+        />
+        {elapsed > left ? (
+          <span
+            className="absolute inset-y-0 rounded-full bg-foreground/55"
+            style={{ left: `${left}%`, width: `${elapsed - left}%` }}
+          />
+        ) : null}
+        {inCycle ? (
+          <span
+            className="absolute top-1/2 h-3 w-[3px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary ring-2 ring-card"
+            style={{ left: `${today}%` }}
+          />
+        ) : null}
+      </span>
+      <span className="text-xs text-muted-foreground" aria-hidden>
+        {shortDay.format(day(end))}
+      </span>
+    </span>
   );
 }

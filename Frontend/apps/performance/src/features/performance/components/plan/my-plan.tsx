@@ -251,6 +251,7 @@ export function MyPlan({
           main={
             <ObjectiveLedger
               plan={plan}
+              cycle={cycle}
               targets={targets}
               onAdd={() => setComposer({})}
               onEdit={(objective) => setComposer({ objective })}
@@ -277,12 +278,14 @@ export function MyPlan({
  */
 function ObjectiveLedger({
   plan,
+  cycle,
   targets,
   onAdd,
   onEdit,
   onRemove,
 }: {
   plan: EmployeePlanDto;
+  cycle: CycleSummaryDto;
   targets: AlignmentTargetDto[];
   onAdd: () => void;
   onEdit: (objective: PlanObjectiveDto) => void;
@@ -337,6 +340,7 @@ function ObjectiveLedger({
               key={objective.id}
               index={index}
               objective={objective}
+              cycle={cycle}
               alignmentScope={scopeFor(objective)}
               showProgress={plan.isLocked}
               active={record.isOpen(refFor(objective.id))}
