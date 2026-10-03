@@ -39,12 +39,28 @@ export function pct(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, "");
 }
 
+const plainNumber = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+const compactNumber = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
+
+/** A measurement number on its own: grouped, float noise trimmed, compact from a million ("1.2M"). */
+export function formatMeasureNumber(value: number): string {
+  return Math.abs(value) >= 1_000_000 ? compactNumber.format(value) : plainNumber.format(value);
+}
+
+/** Symbol units hug the number (45%, $3, 2x, 5kg); anything wordier is a label read once, apart from it. */
+export function isSymbolUnit(unit: string): boolean {
+  const trimmed = unit.trim();
+  return !/^\p{L}/u.test(trimmed) || trimmed.length <= 2;
+}
+
 /** A raw measurement value with its optional unit suffix ("45%", "12 days"); an em dash when unset. */
 export function formatMeasureValue(value: number | null, unit: string | null): string {
   if (value === null) return "—";
-  if (!unit) return String(value);
-  // Symbols hug the number (45%, 3x); word units read as words (5 business days).
-  return /^\p{L}/u.test(unit) && unit.length > 1 ? `${value} ${unit}` : `${value}${unit}`;
+  const number = formatMeasureNumber(value);
+  const label = unit?.trim();
+  if (!label) return number;
+  if (label === "$" || label === "€" || label === "£") return `${label}${number}`;
+  return !/^\p{L}/u.test(label) || label.length === 1 ? `${number}${label}` : `${number} ${label}`;
 }
 
 /**

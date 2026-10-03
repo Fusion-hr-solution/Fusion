@@ -64,8 +64,19 @@ export function formatDate(value: string | null | undefined): string {
   return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function formatDateRange(start: string, end: string): string {
-  return `${formatDate(start)} – ${formatDate(end)}`;
+/**
+ * A date range with shared parts said once ("Mar 3 – 28, 2026", "Jan 1 – Dec 31, 2026"). Pass
+ * `omitYear` where a surrounding context (the cycle) already establishes the year.
+ */
+export function formatDateRange(start: string, end: string, options?: { omitYear?: boolean }): string {
+  const from = new Date(`${start}T00:00:00`);
+  const to = new Date(`${end}T00:00:00`);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return `${formatDate(start)} – ${formatDate(end)}`;
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric",
+    month: "short",
+    year: options?.omitYear ? undefined : "numeric",
+  }).formatRange(from, to);
 }
 
 /** A full ISO timestamp as a readable date and time, e.g. "5 Sep 2026, 3:24 PM". */
