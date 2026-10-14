@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Reflection;
 using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Domain.Enums;
 
@@ -15,9 +16,9 @@ namespace EY.HRPlatform.Identity.Tests.Features.TenantAdministration;
 /// </summary>
 public sealed class LegacyPathContainmentTests
 {
-    private static readonly string IdentityRoot =
-        Path.GetFullPath(Path.Combine(
-            AppContext.BaseDirectory, "..", "..", "..", "..", "EY.HRPlatform.Identity"));
+    private static readonly string IdentityRoot = Path.GetFullPath(
+        typeof(LegacyPathContainmentTests).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Single(attribute => attribute.Key == "IdentitySourceRoot").Value!);
 
     // ── Purpose separation ───────────────────────────────
 
@@ -66,7 +67,7 @@ public sealed class LegacyPathContainmentTests
     [Fact]
     public void No_endpoint_sets_membership_status_outside_the_continuity_boundary()
     {
-        var offenders = SourceFilesWith(@"\.Suspend\(|\.Reactivate\(")
+        var offenders = SourceFilesWith(@"(?<!\btenant)\.(?:Suspend|Reactivate)\(")
             .Where(file => !IsContinuityOwned(file))
 
             // A file elsewhere may still change membership status if it provably runs

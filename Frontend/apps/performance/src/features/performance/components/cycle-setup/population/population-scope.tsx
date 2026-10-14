@@ -27,6 +27,7 @@ import { initials } from "./population-model";
  * here — it follows the cycle's start date.
  */
 export function PopulationScope({
+  cycleId,
   mode,
   eligibilityDate,
   orgSelections,
@@ -39,6 +40,7 @@ export function PopulationScope({
   onInspectInclusion,
   onOpenInclusionSheet,
 }: {
+  cycleId: string;
   mode: PopulationMode;
   eligibilityDate: string;
   orgSelections: OrgUnitSelectionInput[];
@@ -103,6 +105,7 @@ export function PopulationScope({
 
       {byScope ? (
         <OrgScopePicker
+          cycleId={cycleId}
           asOf={eligibilityDate}
           selections={orgSelections}
           matchedCount={matchedCount}

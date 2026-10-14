@@ -74,7 +74,7 @@ describe("shell /api proxy — successful parity", () => {
       vi.fn(() => Promise.resolve(new Response(null, { status: 204 }))),
     );
 
-    const response = await GET(req("/api/performance/access"));
+    const response = await GET(req("/api/performance/context"));
     expect(response.status).toBe(204);
   });
 
@@ -88,7 +88,7 @@ describe("shell /api proxy — successful parity", () => {
       }),
     );
 
-    await GET(req("/api/performance/cycles"));
+    await GET(req("/api/performance/context"));
     expect(captured.init?.body).toBeUndefined();
   });
 });
@@ -100,7 +100,7 @@ describe("shell /api proxy — upstream attribution", () => {
       vi.fn(() => Promise.reject(new TypeError("fetch failed"))),
     );
 
-    const response = await GET(req("/api/performance/cycles"));
+    const response = await GET(req("/api/performance/context"));
     expect(response.status).toBe(503);
     const body = (await response.json()) as { code?: string; isSuccess?: boolean };
     expect(body.code).toBe("upstream_unavailable");
@@ -113,7 +113,7 @@ describe("shell /api proxy — upstream attribution", () => {
       vi.fn(() => Promise.reject(new DOMException("aborted", "AbortError"))),
     );
 
-    await expect(GET(req("/api/performance/cycles"))).rejects.toBeInstanceOf(
+    await expect(GET(req("/api/performance/context"))).rejects.toBeInstanceOf(
       DOMException,
     );
   });

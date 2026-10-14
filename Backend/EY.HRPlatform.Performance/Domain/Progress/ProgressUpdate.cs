@@ -34,7 +34,7 @@ public sealed class ProgressUpdate : PerformanceAggregate
 
     public static ProgressUpdate RecordPercentage(Guid tenantId, Guid cycleId, Guid objectiveId, Guid author, decimal value, string? context, bool isCorrection, bool decreased)
     {
-        if (value < 0m) throw new ArgumentOutOfRangeException(nameof(value), "A percentage cannot be negative.");
+        if (value is < 0m or > 100m) throw new ArgumentOutOfRangeException(nameof(value), "Enter a percentage between 0 and 100.");
         RequireContextIf(decreased || isCorrection, context);
         return Create(tenantId, cycleId, objectiveId, author, ProgressEventKind.PercentageSet, value, null, context, isCorrection);
     }

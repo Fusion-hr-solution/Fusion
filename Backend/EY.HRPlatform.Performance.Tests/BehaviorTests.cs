@@ -107,7 +107,7 @@ public sealed class BehaviorTests
         var (store, _, cycleId) = await ArrangeAsync();
 
         await using var db = store.NewContext();
-        var result = await new ActivateCycleHandler(db).Handle(new ActivateCycleCommand(cycleId), default);
+        var result = await new ActivateCycleHandler(db, new TestPerformanceAudit(db)).Handle(new ActivateCycleCommand(cycleId), default);
 
         Assert.True(result.IsFailure);
         // Strategy is no longer a launch prerequisite; the population gate is what blocks here.
@@ -135,9 +135,10 @@ public sealed class BehaviorTests
 
         await using (var db = store.NewContext())
         {
-            var activate = await new ActivateCycleHandler(db).Handle(new ActivateCycleCommand(cycleId), default);
+            var activate = await new ActivateCycleHandler(db, new TestPerformanceAudit(db)).Handle(new ActivateCycleCommand(cycleId), default);
             Assert.True(activate.IsSuccess, activate.IsFailure ? activate.Error.Message : null);
             Assert.Equal(CycleLifecycleState.Active, activate.Value.Cycle.State);
+            await AuditAssertions.RecordedAsync(db, "Cycle.Activated", cycleId, cycleId);
         }
     }
 
@@ -148,7 +149,7 @@ public sealed class BehaviorTests
         await using (var db = store.NewContext())
         {
             var settings = CycleSettings.CreateDefault(store.TenantId);
-            settings.Update(MeasurementMethod.NumericTarget, 3, 6, planningDeadlineOffsetDays: 45, allowStandaloneObjectives: true);
+            settings.Update(MeasurementMethod.NumericTarget, 3, 6, planningDeadlineOffsetDays: 45, planAlignmentPolicy: PlanAlignmentPolicy.AtLeastOneConnected);
             db.CycleSettings.Add(settings);
             await db.SaveChangesAsync();
         }
@@ -396,7 +397,9 @@ public sealed class BehaviorTests
     {
         var (store, workforce, cycleId) = await ArrangeAsync();
         var resolver = new PopulationResolutionService(workforce);
-        workforce.Add("Amina", orgUnitId: Guid.NewGuid(), managerId: Guid.NewGuid());
+        var aminaUnit = Guid.NewGuid();
+        var aminaManager = Guid.NewGuid();
+        workforce.Add("Amina", orgUnitId: aminaUnit, managerId: aminaManager);
 
         // Settings + published strategy.
         await using (var db = store.NewContext())
@@ -421,13 +424,23 @@ public sealed class BehaviorTests
             Assert.True(confirm.IsSuccess);
         }
 
+        // Confirmation records who reviews each participant, why, and as of when.
+        await using (var db = store.NewContext())
+        {
+            var participant = await db.Participants.AsNoTracking().SingleAsync(p => p.CycleId == cycleId);
+            Assert.Equal(aminaManager, participant.ManagerEmployeeId);
+            Assert.Equal(ReviewerBasis.CoreManagerAtCycleStart, participant.ReviewerBasis);
+            Assert.Equal(Start, participant.ReviewerAsOf);
+        }
+
         // Activate.
         string frozenSettings;
         await using (var db = store.NewContext())
         {
-            var activate = await new ActivateCycleHandler(db).Handle(new ActivateCycleCommand(cycleId), default);
+            var activate = await new ActivateCycleHandler(db, new TestPerformanceAudit(db)).Handle(new ActivateCycleCommand(cycleId), default);
             Assert.True(activate.IsSuccess, activate.IsFailure ? activate.Error.Message : null);
             Assert.Equal(CycleLifecycleState.Active, activate.Value.Cycle.State);
+            await AuditAssertions.RecordedAsync(db, "Cycle.Activated", cycleId, cycleId);
         }
 
         await using (var db = store.NewContext())
@@ -436,13 +449,21 @@ public sealed class BehaviorTests
             Assert.NotNull(activated.ActivationSnapshot);
             Assert.Equal(1, activated.ActivationSnapshot!.ConfirmedParticipantCount);
             frozenSettings = activated.ActivationSnapshot.SettingsJson;
+
+            // The frozen roster carries identities and reviewer responsibility, not names only.
+            using var roster = System.Text.Json.JsonDocument.Parse(activated.ActivationSnapshot.RosterJson);
+            var entry = roster.RootElement.EnumerateArray().Single();
+            Assert.Equal(aminaUnit, entry.GetProperty("OrgUnitId").GetGuid());
+            Assert.Equal(aminaManager, entry.GetProperty("ReviewerEmployeeId").GetGuid());
+            Assert.Equal("CoreManagerAtCycleStart", entry.GetProperty("ReviewerBasis").GetString());
+            Assert.True(entry.TryGetProperty("EmployeeId", out _));
         }
 
         // Later settings change must not alter the frozen snapshot.
         await using (var db = store.NewContext())
         {
             var settings = await db.CycleSettings.FirstAsync();
-            settings.Update(MeasurementMethod.ManualPercentage, 1, 2, 15, false);
+            settings.Update(MeasurementMethod.ManualPercentage, 1, 2, 15, PlanAlignmentPolicy.EveryObjectiveConnected);
             await db.SaveChangesAsync();
         }
 
@@ -475,6 +496,33 @@ public sealed class BehaviorTests
         await using (var db = store.NewContext(TestTenantContext.Unresolved()))
         {
             Assert.Empty(await db.Cycles.ToListAsync());
+        }
+    }
+    [Fact]
+    public async Task Activation_retry_preserves_its_single_snapshot_even_with_an_old_version()
+    {
+        var (store, _, cycleId) = await ArrangeAsync();
+        await using (var db = store.NewContext())
+        {
+            var cycle = await db.Cycles.FindAsync(cycleId);
+            var snapshot = ActivationSnapshot.Capture(store.TenantId, cycleId, "FY2026", Start, End, Start.AddDays(30), Start, 1, "{}", "{}", "[]", "[]");
+            cycle!.Activate(snapshot);
+            db.Entry(snapshot).State = EntityState.Added;
+            await db.SaveChangesAsync();
+        }
+        CycleDetailDto first;
+        await using (var db = store.NewContext())
+        {
+            var result = await new ActivateCycleHandler(db, new TestPerformanceAudit(db)).Handle(new(cycleId), default);
+            Assert.True(result.IsSuccess);
+            first = result.Value;
+        }
+        await using (var db = store.NewContext())
+        {
+            var result = await new ActivateCycleHandler(db, new TestPerformanceAudit(db)).Handle(new(cycleId, 1), default);
+            Assert.True(result.IsSuccess);
+            Assert.Equal(System.Text.Json.JsonSerializer.Serialize(first), System.Text.Json.JsonSerializer.Serialize(result.Value));
+            Assert.Single(await db.Set<ActivationSnapshot>().ToListAsync());
         }
     }
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { performanceFailure } from "../../api/performance-failure";
 import { classifyApiError } from "@repo/api";
 import { SheetTitle } from "@repo/ds/components/ui/sheet";
-import { useCurrentCycle, useCycle, useGoal, usePerformanceAccess } from "../../api/use-performance";
+import { useCurrentCycle, useCycle, useGoal } from "../../api/use-performance";
+import { useWorkspaceContext } from "../../api/use-workspace";
 import { CompanyComposerHost } from "../goals/company-composer-host";
 import { OrgComposerHost } from "../goals/org-composer-host";
 import type { ObjectiveRef } from "./objective-ref";
@@ -20,15 +22,17 @@ import { ProgressSection } from "./sections/progress-section";
 import { ObjectiveSummary } from "./sections/summary-section";
 import { PlanWeightSection, TimelineSection } from "./sections/window-sections";
 import { useObjectiveRecord } from "./use-objective-record";
+import { RecordUpdateRequests } from "../update-requests/update-requests";
 
 /**
- * The one objective record, mounted once for the whole Performance workspace. Any surface opens it by
- * putting an objective reference in the URL; the host reads that reference — cycle and objective — and
- * fetches the canonical detail for exactly that Cycle, never "the current" one. It owns the record's
- * task mode and the composers its Edit action opens, so no surface carries its own detail experience.
+ * The one objective record. Its canonical cycle-and-objective address renders
+ * it as a page; opening it from a workspace intercepts the same address and renders it as a sheet over
+ * that workspace. Either way the host fetches the detail for exactly the addressed Cycle, never "the
+ * current" one, and owns the record's task mode and the composers its Edit action opens.
  */
-export function ObjectiveRecordHost() {
-  const { openRef, mode, open, close } = useObjectiveRecord();
+export function ObjectiveRecordHost({ reference, presentation = "sheet" }: { reference: ObjectiveRef; presentation?: "sheet" | "page" }) {
+  const { mode, open, close } = useObjectiveRecord();
+  const openRef: ObjectiveRef | null = reference;
 
   // Keep the last reference while the sheet animates closed, so content doesn't flash to loading.
   const [shownRef, setShownRef] = useState<ObjectiveRef | null>(openRef);
@@ -39,7 +43,7 @@ export function ObjectiveRecordHost() {
   const detail = useGoal(shownRef?.cycleId ?? null, shownRef?.objectiveId ?? null);
   const cycle = useCycle(shownRef?.cycleId ?? null);
   const current = useCurrentCycle();
-  const access = usePerformanceAccess();
+  const context = useWorkspaceContext();
   const [editing, setEditing] = useState<{ kind: ObjectiveRecord["kind"]; objectiveId: string } | null>(null);
 
   // Only trust data that belongs to the reference being shown — a query keeping its previous result while
@@ -47,7 +51,9 @@ export function ObjectiveRecordHost() {
   const matches = detail.data?.node.id === shownRef?.objectiveId && detail.data?.cycleId === shownRef?.cycleId;
   const record = useMemo(() => (matches && detail.data ? toObjectiveRecord(detail.data) : null), [matches, detail.data]);
 
-  const state: RecordSheetState = record
+  const state: RecordSheetState = performanceFailure(detail.error).unavailable
+    ? { status: "denied" }
+    : record
     ? { status: "ready", record }
     : detail.error
       ? ["auth", "validation"].includes(classifyApiError(detail.error))
@@ -57,25 +63,50 @@ export function ObjectiveRecordHost() {
 
   // Organization direction is a workspace for the current Cycle; a record from another Cycle reads in place.
   const canOpenDirection =
-    (access.data?.canViewOrgDirection ?? false) && shownRef?.cycleId === current.data?.cycle.id;
+    (context.data?.capabilities.canViewOrgDirection ?? false) && shownRef?.cycleId === current.data?.cycle.id;
   const recording = mode === "record" && record?.can.updateProgress;
 
   return (
     <>
       <ObjectiveRecordSheet
+        presentation={presentation}
+        cycleName={cycle.data?.cycle.name}
         open={openRef !== null}
         onOpenChange={(next) => {
           if (!next) close();
         }}
         state={state}
-        header={(r) => <ObjectiveSummary record={r} titleAs={SheetTitle} />}
-        renderSection={(id, r, options) => renderSection(id, r, options, open, () => open(r.ref, { mode: "record" }))}
+        header={(r) => (
+          <>
+            <ObjectiveSummary record={r} titleAs={presentation === "sheet" ? SheetTitle : "h1"} />
+            {r.kind === "plan" && r.source.plan && r.isExecuting ? (
+              <RecordUpdateRequests
+                cycleId={r.ref.cycleId}
+                planId={r.source.plan.planId}
+                objective={{ id: r.ref.objectiveId, title: r.title }}
+                ownerName={r.source.plan.owner.name ?? "this person"}
+                isOwner={r.can.updateProgress}
+                canRequest={r.source.plan.canRequestUpdate}
+              />
+            ) : null}
+          </>
+        )}
+        renderSection={(id, r, options) =>
+          renderSection(
+            id,
+            r,
+            options,
+            (ref) => open(ref, { replace: presentation === "sheet" }),
+            () => open(r.ref, { mode: "record" })
+          )
+        }
         actions={(r) => (
           <RecordActions
             record={r}
             canOpenDirection={canOpenDirection}
             onEdit={() => setEditing({ kind: r.kind, objectiveId: r.ref.objectiveId })}
             onRemoved={close}
+            presentation={presentation}
           />
         )}
         task={recording && record ? <RecordProgressMode record={record} onDone={() => open(record.ref)} /> : undefined}

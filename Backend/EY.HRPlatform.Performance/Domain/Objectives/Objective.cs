@@ -56,6 +56,7 @@ public sealed class Objective : PerformanceAggregate
 
     public ObjectiveLifecycleState State { get; private set; }
     public DateTime? PublishedAt { get; private set; }
+    public DateTime? ArchivedAt { get; private set; }
 
     // ── Progress (Chunk D) — denormalized current state; the append-only ProgressUpdate list is the trail ──
 
@@ -169,6 +170,18 @@ public sealed class Objective : PerformanceAggregate
 
         State = ObjectiveLifecycleState.Published;
         PublishedAt = DateTime.UtcNow;
+        MarkUpdated();
+    }
+
+    public void Archive()
+    {
+        if (OwnershipScope == ObjectiveOwnershipScope.Employee)
+            throw new InvalidOperationException("Employee objectives are governed through their plan.");
+        if (State == ObjectiveLifecycleState.Archived) return;
+        if (State != ObjectiveLifecycleState.Published)
+            throw new InvalidOperationException("Only a Published objective can be archived.");
+        State = ObjectiveLifecycleState.Archived;
+        ArchivedAt = DateTime.UtcNow;
         MarkUpdated();
     }
 
@@ -478,7 +491,7 @@ public sealed class Objective : PerformanceAggregate
     public void ApplyManualPercentage(decimal value)
     {
         RequireDirectMethod(MeasurementMethod.ManualPercentage);
-        if (value < 0m) throw new ArgumentOutOfRangeException(nameof(value), "A percentage cannot be negative.");
+        if (value is < 0m or > 100m) throw new ArgumentOutOfRangeException(nameof(value), "Enter a percentage between 0 and 100.");
         CurrentPercentage = value;
         LastProgressAt = DateTime.UtcNow;
         MarkUpdated();

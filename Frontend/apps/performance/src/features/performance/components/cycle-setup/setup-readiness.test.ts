@@ -4,6 +4,7 @@ import {
   canAccessStep,
   deriveSetupState,
   earliestIncompleteStep,
+  setupStepHref,
 } from "./setup-readiness";
 
 type Area = { key: string; complete: boolean };
@@ -15,7 +16,7 @@ function detail(opts: {
 }): CycleDetailDto {
   return {
     cycle: {
-      id: "c1",
+      version: 0, id: "c1",
       name: "FY2026",
       description: null,
       startDate: "2026-01-01",
@@ -112,5 +113,12 @@ describe("canAccessStep", () => {
   it("allows review only once population is confirmed", () => {
     expect(canAccessStep("review", draftOnly)).toBe(false);
     expect(canAccessStep("review", confirmed)).toBe(true);
+  });
+});
+
+describe("setupStepHref", () => {
+  it("keeps the selected Cycle through setup navigation", () => {
+    expect(setupStepHref("review", "cycle/one")).toBe("/cycle/setup/review?cycle=cycle%2Fone");
+    expect(setupStepHref("details", null)).toBe("/cycle/setup/details");
   });
 });

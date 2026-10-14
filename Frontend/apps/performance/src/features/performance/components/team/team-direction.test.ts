@@ -30,6 +30,7 @@ function node(
   endDate: string
 ): GoalNodeDto {
   return {
+    version: 0,
     id,
     ownershipScope: "OrgUnit",
     title,

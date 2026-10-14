@@ -31,21 +31,21 @@ public sealed class EmployeePlansController(IMediator mediator, IPerformanceAcce
     [HttpGet("plan")]
     public async Task<ActionResult<ApiResponse<MyPlanStateDto>>> MyPlan(Guid cycleId, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new GetMyPlanQuery(cycleId, Actor), cancellationToken));
     }
 
     [HttpPost("plan")]
-    public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> CreateMyPlan(Guid cycleId, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> CreateMyPlan(Guid cycleId, [FromBody] ExpectedVersionRequest version, CancellationToken cancellationToken)
     {
-        if (!policy.CanManageOwnParticipation(User)) return Forbid();
-        return MapResult(await mediator.Send(new CreateMyPlanCommand(cycleId, Actor), cancellationToken));
+        if (!policy.CanManageOwnParticipation(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new CreateMyPlanCommand(cycleId, Actor, version.ExpectedVersion), cancellationToken));
     }
 
     [HttpGet("plan/alignment-targets")]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<AlignmentTargetDto>>>> AlignmentTargets(Guid cycleId, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new GetAlignmentTargetsQuery(cycleId, Actor), cancellationToken));
     }
 
@@ -53,7 +53,7 @@ public sealed class EmployeePlansController(IMediator mediator, IPerformanceAcce
     public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> AddObjective(
         Guid cycleId, [FromBody] AddPlanObjectiveRequest request, CancellationToken cancellationToken)
     {
-        if (!policy.CanManageOwnParticipation(User)) return Forbid();
+        if (!policy.CanManageOwnParticipation(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new AddPlanObjectiveCommand(cycleId, request, Actor), cancellationToken));
     }
 
@@ -61,61 +61,54 @@ public sealed class EmployeePlansController(IMediator mediator, IPerformanceAcce
     public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> UpdateObjective(
         Guid cycleId, Guid objectiveId, [FromBody] UpdatePlanObjectiveRequest request, CancellationToken cancellationToken)
     {
-        if (!policy.CanManageOwnParticipation(User)) return Forbid();
+        if (!policy.CanManageOwnParticipation(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new UpdatePlanObjectiveCommand(cycleId, objectiveId, request, Actor), cancellationToken));
     }
 
     [HttpDelete("plan/objectives/{objectiveId:guid}")]
     public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> RemoveObjective(
-        Guid cycleId, Guid objectiveId, CancellationToken cancellationToken)
+        Guid cycleId, Guid objectiveId, [FromBody] ExpectedVersionRequest version, CancellationToken cancellationToken)
     {
-        if (!policy.CanManageOwnParticipation(User)) return Forbid();
-        return MapResult(await mediator.Send(new RemovePlanObjectiveCommand(cycleId, objectiveId, Actor), cancellationToken));
+        if (!policy.CanManageOwnParticipation(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new RemovePlanObjectiveCommand(cycleId, objectiveId, Actor, version.ExpectedVersion), cancellationToken));
     }
 
     [HttpPut("plan/weights")]
     public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> SetWeights(
         Guid cycleId, [FromBody] SetPlanWeightsRequest request, CancellationToken cancellationToken)
     {
-        if (!policy.CanManageOwnParticipation(User)) return Forbid();
+        if (!policy.CanManageOwnParticipation(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new SetPlanWeightsCommand(cycleId, request, Actor), cancellationToken));
     }
 
     [HttpPost("plan/submit")]
-    public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> Submit(Guid cycleId, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> Submit(Guid cycleId, [FromBody] ExpectedVersionRequest version, CancellationToken cancellationToken)
     {
-        if (!policy.CanManageOwnParticipation(User)) return Forbid();
-        return MapResult(await mediator.Send(new SubmitMyPlanCommand(cycleId, Actor), cancellationToken));
+        if (!policy.CanManageOwnParticipation(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new SubmitMyPlanCommand(cycleId, Actor, version.ExpectedVersion), cancellationToken));
     }
 
-    // ── Manager / administrator review ─────────────────────────────────────────
+    // ── Team review work ────────────────────────────────────────────────────────
 
-    [HttpGet("plans/reviews")]
-    public async Task<ActionResult<ApiResponse<PlanReviewListDto>>> Reviews(Guid cycleId, CancellationToken cancellationToken)
+    /// <summary>Your People: the caller's recorded responsibility, action required first, filtered and paged by the server.</summary>
+    [HttpGet("team/people")]
+    public async Task<ActionResult<ApiResponse<YourPeoplePageDto>>> YourPeople(
+        Guid cycleId,
+        [FromQuery] YourPeopleFilter filter = YourPeopleFilter.All,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = Features.Plans.YourPeople.DefaultPageSize,
+        CancellationToken cancellationToken = default)
     {
-        if (!policy.CanReviewDirectReports(User) && !policy.CanAdministerCycles(User)) return Forbid();
-        return MapResult(await mediator.Send(new GetPlanReviewsQuery(cycleId, Actor), cancellationToken));
-    }
-
-    /// <summary>Cycle-wide plan standing for administration: counts only, never named detail.</summary>
-    [HttpGet("plans/summary")]
-    public async Task<ActionResult<ApiResponse<CyclePlanSummaryDto>>> Summary(Guid cycleId, CancellationToken cancellationToken)
-    {
-        if (!policy.CanAdministerCycles(User)) return Forbid();
-        return MapResult(await mediator.Send(new GetCyclePlanSummaryQuery(cycleId), cancellationToken));
-    }
-
-    [HttpGet("plans/roster")]
-    public async Task<ActionResult<ApiResponse<TeamRosterDto>>> Roster(Guid cycleId, CancellationToken cancellationToken)
-    {
-        if (!policy.CanReviewDirectReports(User) && !policy.CanAdministerCycles(User)) return Forbid();
-        return MapResult(await mediator.Send(new GetTeamRosterQuery(cycleId, Actor), cancellationToken));
+        if (!policy.CanReviewDirectReports(User) && !policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(
+            new GetYourPeopleQuery(cycleId, Actor, filter, search, page, pageSize), cancellationToken));
     }
 
     [HttpGet("plans/{planId:guid}")]
     public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> PlanDetail(Guid cycleId, Guid planId, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new GetPlanForReviewQuery(cycleId, planId, Actor), cancellationToken));
     }
 
@@ -123,22 +116,46 @@ public sealed class EmployeePlansController(IMediator mediator, IPerformanceAcce
     public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> ReturnPlan(
         Guid cycleId, Guid planId, [FromBody] ReturnPlanRequest request, CancellationToken cancellationToken)
     {
-        if (!policy.CanReviewDirectReports(User)) return Forbid();
+        if (!policy.CanReviewDirectReports(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new ReturnPlanCommand(cycleId, planId, request, Actor), cancellationToken));
     }
 
     [HttpPost("plans/{planId:guid}/approve")]
-    public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> ApprovePlan(Guid cycleId, Guid planId, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> ApprovePlan(Guid cycleId, Guid planId, [FromBody] ExpectedVersionRequest version, CancellationToken cancellationToken)
     {
-        if (!policy.CanReviewDirectReports(User)) return Forbid();
-        return MapResult(await mediator.Send(new ApprovePlanCommand(cycleId, planId, Actor), cancellationToken));
+        if (!policy.CanReviewDirectReports(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new ApprovePlanCommand(cycleId, planId, Actor, version.ExpectedVersion), cancellationToken));
     }
 
     [HttpPost("plans/{planId:guid}/exceptional-approve")]
     public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> ExceptionalApprove(
         Guid cycleId, Guid planId, [FromBody] ExceptionalApprovePlanRequest request, CancellationToken cancellationToken)
     {
-        if (!policy.CanAdministerCycles(User)) return Forbid();
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new ExceptionalApprovePlanCommand(cycleId, planId, request, Actor), cancellationToken));
+    }
+
+    // ── Update requests ──────────────────────────────────────────────────────
+
+    [HttpPost("plans/{planId:guid}/update-requests")]
+    public async Task<ActionResult<ApiResponse<UpdateRequestDto>>> RequestUpdate(Guid cycleId, Guid planId,
+        [FromBody] CreateUpdateRequestRequest request, CancellationToken cancellationToken)
+    {
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new CreateUpdateRequestCommand(cycleId, planId, request.ObjectiveId, request.Note, Actor, User.GetFullName()), cancellationToken));
+    }
+
+    [HttpGet("plans/{planId:guid}/update-requests")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<UpdateRequestDto>>>> UpdateRequests(Guid cycleId, Guid planId, CancellationToken cancellationToken)
+    {
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new ListUpdateRequestsQuery(cycleId, planId, Actor), cancellationToken));
+    }
+
+    [HttpPost("~/api/performance/update-requests/{requestId:guid}/withdraw")]
+    public async Task<ActionResult<ApiResponse<UpdateRequestDto>>> WithdrawUpdateRequest(Guid requestId, [FromBody] ExpectedVersionRequest request, CancellationToken cancellationToken)
+    {
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new WithdrawUpdateRequestCommand(requestId, request.ExpectedVersion, Actor), cancellationToken));
     }
 }

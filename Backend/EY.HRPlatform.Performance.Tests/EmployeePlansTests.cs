@@ -31,7 +31,7 @@ public sealed class EmployeePlansTests
         Guid ManagerId,
         Guid ParticipantId);
 
-    private static async Task<Fixture> ArrangeAsync(bool standaloneAllowed = true)
+    private static async Task<Fixture> ArrangeAsync(bool standaloneAllowed = true, bool active = true, PlanAlignmentPolicy? alignmentPolicy = null)
     {
         var store = TestStore.ForNewTenant();
         var workforce = new FakeCoreWorkforceClient();
@@ -45,18 +45,22 @@ public sealed class EmployeePlansTests
         strategic.Publish();
 
         var participant = Participant.Create(store.TenantId, cycle.Id, employee.EmployeeId, "Emma Employee", "Engineer",
-            Guid.NewGuid(), "Engineering", manager.EmployeeId, "Mo Manager", byExplicitInclusion: false);
+            Guid.NewGuid(), "Engineering", manager.EmployeeId, "Mo Manager", byExplicitInclusion: false, reviewerAsOf: cycle.StartDate);
 
         await using (var db = store.NewContext())
         {
             db.Cycles.Add(cycle);
             db.Objectives.Add(strategic);
             db.Participants.Add(participant);
-            db.CycleSettings.Add(SettingsWith(store.TenantId, standaloneAllowed));
+            var settings = SettingsWith(store.TenantId, standaloneAllowed);
+            if (alignmentPolicy is { } policy) settings.Update(settings.DefaultMeasurementMethod, 3, 6, 30, policy);
+            db.CycleSettings.Add(settings);
             await db.SaveChangesAsync();
+            if (!active)
+                return new Fixture(store, workforce, cycle.Id, strategic.Id, employee.EmployeeId, manager.EmployeeId, participant.Id);
 
             var tracked = await db.Cycles.FirstAsync();
-            var snapshot = ActivationSnapshot.Capture(store.TenantId, cycle.Id, "FY2026", CycleStart, CycleEnd, CycleStart.AddDays(30), CycleStart, 1, "{}", "{}", "[]", "[]");
+            var snapshot = ActivationSnapshot.Capture(store.TenantId, cycle.Id, "FY2026", CycleStart, CycleEnd, CycleStart.AddDays(30), CycleStart, 1, System.Text.Json.JsonSerializer.Serialize(settings.ToSnapshot()), "{}", "[]", "[]");
             tracked.Activate(snapshot);
             db.Entry(snapshot).State = EntityState.Added;
             await db.SaveChangesAsync();
@@ -69,7 +73,7 @@ public sealed class EmployeePlansTests
     {
         var settings = CycleSettings.CreateDefault(tenantId);
         if (!standaloneAllowed)
-            settings.Update(settings.DefaultMeasurementMethod, settings.SuggestedObjectiveCountMin, settings.SuggestedObjectiveCountMax, settings.PlanningDeadlineOffsetDays, allowStandaloneObjectives: false);
+            settings.Update(settings.DefaultMeasurementMethod, settings.SuggestedObjectiveCountMin, settings.SuggestedObjectiveCountMax, settings.PlanningDeadlineOffsetDays, planAlignmentPolicy: PlanAlignmentPolicy.EveryObjectiveConnected);
         return settings;
     }
 
@@ -104,7 +108,149 @@ public sealed class EmployeePlansTests
     private static async Task<Result<EmployeePlanDto>> SubmitAsync(Fixture f, PlanActorContext actor)
     {
         await using var db = f.Store.NewContext();
-        return await new SubmitMyPlanHandler(db, f.Workforce, f.Store.Tenant).Handle(new SubmitMyPlanCommand(f.CycleId, actor), default);
+        var result = await new SubmitMyPlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db)).Handle(new SubmitMyPlanCommand(f.CycleId, actor), default);
+        if (result.IsSuccess) await AuditAssertions.RecordedAsync(db, "Plan.Submitted", result.Value.Id, f.CycleId);
+        return result;
+    }
+
+    [Fact]
+    public async Task Plan_projection_marks_owner_from_server_resolved_caller_identity()
+    {
+        var f = await ArrangeAsync();
+        var ownerPlan = await CreatePlanAsync(f, Employee(f.EmployeeId));
+        Assert.True(ownerPlan.IsOwner);
+
+        await using var db = f.Store.NewContext();
+        var reviewerView = await new GetPlanForReviewHandler(db, f.Workforce, f.Store.Tenant)
+            .Handle(new GetPlanForReviewQuery(f.CycleId, ownerPlan.Id, Admin(Guid.NewGuid())), default);
+
+        Assert.True(reviewerView.IsSuccess);
+        Assert.False(reviewerView.Value.IsOwner);
+    }
+
+    [Theory]
+    [InlineData(PlanAlignmentPolicy.Optional, true)]
+    [InlineData(PlanAlignmentPolicy.AtLeastOneConnected, false)]
+    [InlineData(PlanAlignmentPolicy.EveryObjectiveConnected, false)]
+    public async Task Standalone_only_submission_uses_the_captured_policy(PlanAlignmentPolicy policy, bool allowed)
+    {
+        var f = await ArrangeAsync(alignmentPolicy: policy);
+        await CreatePlanAsync(f, Employee(f.EmployeeId));
+        Assert.True((await AddObjectiveAsync(f, Standalone(100m), Employee(f.EmployeeId))).IsSuccess);
+        await using (var db = f.Store.NewContext())
+        {
+            var settings = await db.CycleSettings.SingleAsync();
+            settings.Update(settings.DefaultMeasurementMethod, 3, 6, 30,
+                policy == PlanAlignmentPolicy.Optional ? PlanAlignmentPolicy.EveryObjectiveConnected : PlanAlignmentPolicy.Optional);
+            await db.SaveChangesAsync();
+        }
+        Assert.Equal(allowed, (await SubmitAsync(f, Employee(f.EmployeeId))).IsSuccess);
+    }
+
+    [Theory]
+    [InlineData(PlanAlignmentPolicy.Optional, true)]
+    [InlineData(PlanAlignmentPolicy.AtLeastOneConnected, true)]
+    [InlineData(PlanAlignmentPolicy.EveryObjectiveConnected, false)]
+    public async Task Mixed_plan_submission_requires_every_connection_only_under_every_objective_policy(PlanAlignmentPolicy policy, bool allowed)
+    {
+        var f = await ArrangeAsync(alignmentPolicy: policy);
+        await CreatePlanAsync(f, Employee(f.EmployeeId));
+        Assert.True((await AddObjectiveAsync(f, AlignedNumeric(f.StrategicId, 60m), Employee(f.EmployeeId))).IsSuccess);
+        Assert.True((await AddObjectiveAsync(f, Standalone(40m), Employee(f.EmployeeId))).IsSuccess);
+        Assert.Equal(allowed, (await SubmitAsync(f, Employee(f.EmployeeId))).IsSuccess);
+    }
+
+    [Theory]
+    [InlineData(PlanAlignmentPolicy.EveryObjectiveConnected)]
+    [InlineData(PlanAlignmentPolicy.AtLeastOneConnected)]
+    [InlineData(PlanAlignmentPolicy.Optional)]
+    public async Task Fully_connected_plan_can_submit_under_each_policy(PlanAlignmentPolicy policy)
+    {
+        var f = await ArrangeAsync(alignmentPolicy: policy);
+        await CreatePlanAsync(f, Employee(f.EmployeeId));
+        Assert.True((await AddObjectiveAsync(f, AlignedNumeric(f.StrategicId, 100m), Employee(f.EmployeeId))).IsSuccess);
+        Assert.True((await SubmitAsync(f, Employee(f.EmployeeId))).IsSuccess);
+    }
+
+    [Fact]
+    public async Task Organizational_parent_without_a_strategic_ancestor_does_not_satisfy_every_objective_policy()
+    {
+        var f = await ArrangeAsync(alignmentPolicy: PlanAlignmentPolicy.EveryObjectiveConnected);
+        await CreatePlanAsync(f, Employee(f.EmployeeId));
+        var org = Objective.CreateOrganizational(f.Store.TenantId, f.CycleId, Guid.NewGuid(), "Engineering", "Local direction", null,
+            f.ManagerId, null, CycleStart, CycleEnd, ObjectiveProgressSource.Direct, ObjectiveMeasurement.ManualPercentage(), null, null, CycleStart, CycleEnd);
+        org.Publish();
+        await using (var db = f.Store.NewContext()) { db.Objectives.Add(org); await db.SaveChangesAsync(); }
+        Assert.True((await AddObjectiveAsync(f, AlignedNumeric(org.Id, 100m), Employee(f.EmployeeId))).IsSuccess);
+        Assert.False((await SubmitAsync(f, Employee(f.EmployeeId))).IsSuccess);
+    }
+
+    [Theory]
+    [InlineData("{\"AllowStandaloneObjectives\":true}", PlanAlignmentPolicy.AtLeastOneConnected)]
+    [InlineData("{\"AllowStandaloneObjectives\":false}", PlanAlignmentPolicy.EveryObjectiveConnected)]
+    [InlineData("{\"PlanAlignmentPolicy\":\"Optional\"}", PlanAlignmentPolicy.Optional)]
+    [InlineData("{\"PlanAlignmentPolicy\":0}", PlanAlignmentPolicy.EveryObjectiveConnected)]
+    public void Historical_activation_settings_preserve_their_alignment_policy(string json, PlanAlignmentPolicy expected)
+        => Assert.Equal(expected, PlanAlignmentSnapshots.Read(json));
+
+    // ── Planning opens at activation ──────────────────────────────────────
+
+    [Fact]
+    public async Task A_confirmed_participant_cannot_create_a_plan_while_the_cycle_is_draft()
+    {
+        var f = await ArrangeAsync(active: false);
+        await using var db = f.Store.NewContext();
+        var result = await new CreateMyPlanHandler(db, f.Workforce, f.Store.Tenant)
+            .Handle(new CreateMyPlanCommand(f.CycleId, Employee(f.EmployeeId)), default);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Cycle.NotActive", result.Error.Code);
+        Assert.Empty(db.EmployeePlans);
+    }
+
+    [Fact]
+    public async Task Draft_roster_changes_cannot_orphan_a_plan_because_planning_has_not_opened()
+    {
+        var f = await ArrangeAsync(active: false);
+        await using (var db = f.Store.NewContext())
+        {
+            var create = await new CreateMyPlanHandler(db, f.Workforce, f.Store.Tenant).Handle(new(f.CycleId, Employee(f.EmployeeId)), default);
+            Assert.Equal("Cycle.NotActive", create.Error.Code);
+        }
+        await using (var db = f.Store.NewContext())
+        {
+            var changed = await new EY.HRPlatform.Performance.Features.Population.SetPopulationHandler(db, f.Store.Tenant, new(f.Workforce)).Handle(new(f.CycleId, new(PopulationMode.AllActive, [], [], [new(f.EmployeeId, "Outside this cycle")]) { ExpectedVersion = 0 }), default);
+            Assert.True(changed.IsSuccess);
+        }
+        await using var verify = f.Store.NewContext();
+        Assert.Empty(await verify.Participants.Where(p => p.CycleId == f.CycleId).ToListAsync());
+        Assert.Empty(await verify.EmployeePlans.Where(p => p.CycleId == f.CycleId).ToListAsync());
+    }
+
+    [Fact]
+    public async Task A_plan_left_in_a_draft_cycle_cannot_be_authored_submitted_or_decided()
+    {
+        var f = await ArrangeAsync(active: false);
+        Guid planId;
+        await using (var db = f.Store.NewContext())
+        {
+            var plan = EmployeePlan.Create(f.Store.TenantId, f.CycleId, f.ParticipantId, f.EmployeeId, "Emma Employee", "Engineering", f.ManagerId, "Mo Manager");
+            db.EmployeePlans.Add(plan);
+            await db.SaveChangesAsync();
+            planId = plan.Id;
+        }
+
+        var add = await AddObjectiveAsync(f, AlignedNumeric(f.StrategicId, 100m), Employee(f.EmployeeId));
+        var submit = await SubmitAsync(f, Employee(f.EmployeeId));
+        Result<EmployeePlanDto> approve;
+        await using (var db = f.Store.NewContext())
+            approve = await new ApprovePlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db))
+                .Handle(new ApprovePlanCommand(f.CycleId, planId, Manager(f.ManagerId)), default);
+
+        Assert.All([add, submit, approve], r => Assert.Equal("Cycle.NotActive", r.Error.Code));
+        await using var unchanged = f.Store.NewContext();
+        Assert.Empty(unchanged.Objectives.Where(o => o.EmployeePlanId == planId));
+        Assert.Equal(PlanLifecycleState.Draft, (await unchanged.EmployeePlans.FindAsync(planId))!.State);
     }
 
     // ── Authoring ownership & uniqueness ──────────────────────────────────
@@ -186,7 +332,7 @@ public sealed class EmployeePlansTests
 
         var submit = await SubmitAsync(f, Employee(f.EmployeeId));
         Assert.True(submit.IsFailure);
-        Assert.Contains("standalone", submit.Error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Every objective", submit.Error.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     // ── Manager decision & lock ───────────────────────────────────────────
@@ -209,7 +355,7 @@ public sealed class EmployeePlansTests
         // A different manager cannot approve.
         await using (var db = f.Store.NewContext())
         {
-            var stranger = await new ApprovePlanHandler(db, f.Workforce, f.Store.Tenant)
+            var stranger = await new ApprovePlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db))
                 .Handle(new ApprovePlanCommand(f.CycleId, planId, Manager(Guid.NewGuid())), default);
             Assert.True(stranger.IsFailure);
         }
@@ -217,12 +363,13 @@ public sealed class EmployeePlansTests
         // The responsible manager approves, locking the plan.
         await using (var db = f.Store.NewContext())
         {
-            var approved = await new ApprovePlanHandler(db, f.Workforce, f.Store.Tenant)
+            var approved = await new ApprovePlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db))
                 .Handle(new ApprovePlanCommand(f.CycleId, planId, Manager(f.ManagerId)), default);
             Assert.True(approved.IsSuccess, approved.IsFailure ? approved.Error.Message : null);
             Assert.Equal(PlanLifecycleState.Approved, approved.Value.State);
             Assert.True(approved.Value.IsLocked);
             Assert.Equal(PlanApprovalKind.Normal, approved.Value.ApprovalKind);
+            await AuditAssertions.RecordedAsync(db, "Plan.Approved", planId, f.CycleId);
         }
     }
 
@@ -234,7 +381,7 @@ public sealed class EmployeePlansTests
         var planId = await LoadPlanIdAsync(f);
 
         await using var db = f.Store.NewContext();
-        var result = await new ApprovePlanHandler(db, f.Workforce, f.Store.Tenant)
+        var result = await new ApprovePlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db))
             .Handle(new ApprovePlanCommand(f.CycleId, planId, Manager(f.ManagerId)), default);
         Assert.True(result.IsFailure);
     }
@@ -248,17 +395,18 @@ public sealed class EmployeePlansTests
 
         await using (var db = f.Store.NewContext())
         {
-            var empty = await new ReturnPlanHandler(db, f.Workforce, f.Store.Tenant)
+            var empty = await new ReturnPlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db))
                 .Handle(new ReturnPlanCommand(f.CycleId, planId, new ReturnPlanRequest("  "), Manager(f.ManagerId)), default);
             Assert.True(empty.IsFailure);
         }
 
         await using (var db = f.Store.NewContext())
         {
-            var returned = await new ReturnPlanHandler(db, f.Workforce, f.Store.Tenant)
+            var returned = await new ReturnPlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db))
                 .Handle(new ReturnPlanCommand(f.CycleId, planId, new ReturnPlanRequest("Sharpen the second objective."), Manager(f.ManagerId)), default);
             Assert.True(returned.IsSuccess, returned.IsFailure ? returned.Error.Message : null);
             Assert.Equal(PlanLifecycleState.Draft, returned.Value.State);
+            await AuditAssertions.RecordedAsync(db, "Plan.Returned", planId, f.CycleId);
             Assert.Contains(returned.Value.History, h => h.Kind == PlanDecisionKind.Returned && h.Feedback == "Sharpen the second objective.");
         }
     }
@@ -270,7 +418,7 @@ public sealed class EmployeePlansTests
         await SubmitReadyPlanAsync(f);
         var planId = await LoadPlanIdAsync(f);
         await using (var db = f.Store.NewContext())
-            await new ApprovePlanHandler(db, f.Workforce, f.Store.Tenant).Handle(new ApprovePlanCommand(f.CycleId, planId, Manager(f.ManagerId)), default);
+            await new ApprovePlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db)).Handle(new ApprovePlanCommand(f.CycleId, planId, Manager(f.ManagerId)), default);
 
         // Adding another objective after lock is refused (authoring is Draft-only).
         var add = await AddObjectiveAsync(f, Standalone(10m), Employee(f.EmployeeId));
@@ -290,17 +438,18 @@ public sealed class EmployeePlansTests
 
         await using (var db = f.Store.NewContext())
         {
-            var noReason = await new ExceptionalApprovePlanHandler(db, f.Workforce, f.Store.Tenant)
+            var noReason = await new ExceptionalApprovePlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db))
                 .Handle(new ExceptionalApprovePlanCommand(f.CycleId, planId, new ExceptionalApprovePlanRequest("  "), Admin(adminId)), default);
             Assert.True(noReason.IsFailure);
         }
 
         await using (var db = f.Store.NewContext())
         {
-            var approved = await new ExceptionalApprovePlanHandler(db, f.Workforce, f.Store.Tenant)
+            var approved = await new ExceptionalApprovePlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db))
                 .Handle(new ExceptionalApprovePlanCommand(f.CycleId, planId, new ExceptionalApprovePlanRequest("Manager on extended leave."), Admin(adminId)), default);
             Assert.True(approved.IsSuccess, approved.IsFailure ? approved.Error.Message : null);
             Assert.Equal(PlanApprovalKind.Exceptional, approved.Value.ApprovalKind);
+            await AuditAssertions.RecordedAsync(db, "Plan.ExceptionallyApproved", planId, f.CycleId);
             // The responsible manager identity is preserved separately; the administrator is the approver.
             Assert.Equal(f.ManagerId, approved.Value.ResponsibleManager!.Id);
             Assert.Contains(approved.Value.History, h => h.Kind == PlanDecisionKind.ApprovedExceptionally && h.Feedback == "Manager on extended leave.");
@@ -317,7 +466,7 @@ public sealed class EmployeePlansTests
         var planId = await LoadPlanIdAsync(f);
 
         await using var db = f.Store.NewContext();
-        var result = await new ExceptionalApprovePlanHandler(db, f.Workforce, f.Store.Tenant)
+        var result = await new ExceptionalApprovePlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db))
             .Handle(new ExceptionalApprovePlanCommand(f.CycleId, planId, new ExceptionalApprovePlanRequest("Blocked"), Admin(Guid.NewGuid())), default);
         Assert.True(result.IsFailure);
     }
@@ -346,10 +495,10 @@ public sealed class EmployeePlansTests
     private static async Task<TeamRosterMemberDto> RosterRowAsync(Fixture f, Guid managerId)
     {
         await using var db = f.Store.NewContext();
-        var result = await new GetTeamRosterHandler(db, f.Workforce, f.Store.Tenant)
-            .Handle(new GetTeamRosterQuery(f.CycleId, Manager(managerId)), default);
+        var result = await new GetYourPeopleHandler(db, f.Workforce, f.Store.Tenant)
+            .Handle(new GetYourPeopleQuery(f.CycleId, Manager(managerId), YourPeopleFilter.All, null, 1, YourPeople.MaxPageSize), default);
         Assert.True(result.IsSuccess, result.IsFailure ? result.Error.Message : null);
-        return Assert.Single(result.Value.Members);
+        return Assert.Single(result.Value.Items);
     }
 
     private static async Task DecideAsync(Fixture f, bool approve)
@@ -357,9 +506,9 @@ public sealed class EmployeePlansTests
         var planId = await LoadPlanIdAsync(f);
         await using var db = f.Store.NewContext();
         var result = approve
-            ? await new ApprovePlanHandler(db, f.Workforce, f.Store.Tenant)
+            ? await new ApprovePlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db))
                 .Handle(new ApprovePlanCommand(f.CycleId, planId, Manager(f.ManagerId)), default)
-            : await new ReturnPlanHandler(db, f.Workforce, f.Store.Tenant)
+            : await new ReturnPlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db))
                 .Handle(new ReturnPlanCommand(f.CycleId, planId, new ReturnPlanRequest("Sharpen it."), Manager(f.ManagerId)), default);
         Assert.True(result.IsSuccess, result.IsFailure ? result.Error.Message : null);
     }
@@ -388,7 +537,7 @@ public sealed class EmployeePlansTests
     }
 
     [Fact]
-    public async Task Roster_counts_open_milestones_past_their_due_date_once_approved()
+    public async Task Roster_counts_overdue_objectives_once_approved()
     {
         var f = await ArrangeAsync();
         await CreatePlanAsync(f, Employee(f.EmployeeId));
@@ -400,13 +549,13 @@ public sealed class EmployeePlansTests
         Assert.True((await SubmitAsync(f, Employee(f.EmployeeId))).IsSuccess);
 
         // Overdue is an execution fact — a submitted plan carries none.
-        Assert.Equal(0, (await RosterRowAsync(f, f.ManagerId)).OverdueMilestoneCount);
+        Assert.Equal(0, (await RosterRowAsync(f, f.ManagerId)).OverdueObjectiveCount);
 
         Assert.Empty((await RosterRowAsync(f, f.ManagerId)).ObjectiveProgress);
 
         await DecideAsync(f, approve: true);
         var approved = await RosterRowAsync(f, f.ManagerId);
-        Assert.Equal(1, approved.OverdueMilestoneCount);
+        Assert.Equal(1, approved.OverdueObjectiveCount);
         // Execution exposes each objective's slice of the plan, unreported until progress is recorded.
         var slice = Assert.Single(approved.ObjectiveProgress);
         Assert.Equal(100m, slice.Weight);
@@ -456,5 +605,68 @@ public sealed class EmployeePlansTests
         await using var db = f.Store.NewContext();
         var plan = await db.EmployeePlans.AsNoTracking().FirstAsync(p => p.CycleId == f.CycleId && p.EmployeeId == f.EmployeeId);
         return plan.Id;
+    }
+    [Theory]
+    [InlineData("submit")]
+    [InlineData("return")]
+    [InlineData("approve")]
+    [InlineData("exceptional")]
+    public async Task Transition_retry_precedes_version_check_and_preserves_representation(string transition)
+    {
+        var f = await ArrangeAsync();
+        await CreatePlanAsync(f, Employee(f.EmployeeId));
+        Assert.True((await AddObjectiveAsync(f, AlignedNumeric(f.StrategicId, 100m), Employee(f.EmployeeId))).IsSuccess);
+        if (transition != "submit") Assert.True((await SubmitAsync(f, Employee(f.EmployeeId))).IsSuccess);
+        var planId = await LoadPlanIdAsync(f);
+        var admin = Admin(Guid.NewGuid());
+        async Task<Result<EmployeePlanDto>> Apply(uint expected)
+        {
+            await using var db = f.Store.NewContext();
+            return transition switch
+            {
+                "submit" => await new SubmitMyPlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db)).Handle(new(f.CycleId, Employee(f.EmployeeId), expected), default),
+                "return" => await new ReturnPlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db)).Handle(new(f.CycleId, planId,
+                    new("Sharpen the outcome.") { ExpectedVersion = expected }, Manager(f.ManagerId)), default),
+                "approve" => await new ApprovePlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db)).Handle(new(f.CycleId, planId, Manager(f.ManagerId), expected), default),
+                _ => await new ExceptionalApprovePlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db)).Handle(new(f.CycleId, planId,
+                    new("Manager unavailable.") { ExpectedVersion = expected }, admin), default),
+            };
+        }
+        var first = await Apply(0);
+        Assert.True(first.IsSuccess);
+        var repeated = await Apply(1);
+        Assert.True(repeated.IsSuccess, repeated.IsFailure ? repeated.Error.Message : null);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(first.Value), System.Text.Json.JsonSerializer.Serialize(repeated.Value));
+        await using var check = f.Store.NewContext();
+        var kind = transition switch { "submit" => PlanDecisionKind.Submitted, "return" => PlanDecisionKind.Returned,
+            "approve" => PlanDecisionKind.Approved, _ => PlanDecisionKind.ApprovedExceptionally };
+        Assert.Single(check.PlanDecisions.Where(d => d.PlanId == planId && d.Kind == kind));
+        var auditAction = transition switch { "submit" => "Plan.Submitted", "return" => "Plan.Returned",
+            "approve" => "Plan.Approved", _ => "Plan.ExceptionallyApproved" };
+        Assert.Single(check.AuditEntries.Where(e => e.ResourceId == planId && e.Action == auditAction));
+        var notificationKind = transition switch { "submit" => EY.HRPlatform.Performance.Domain.Notifications.PerformanceNotificationKind.PlanSubmitted,
+            "return" => EY.HRPlatform.Performance.Domain.Notifications.PerformanceNotificationKind.PlanReturned,
+            _ => EY.HRPlatform.Performance.Domain.Notifications.PerformanceNotificationKind.PlanApproved };
+        var message = Assert.Single(check.OutboxMessages.Where(m => m.ResourceId == planId && m.Kind == notificationKind));
+        Assert.Equal(transition == "submit" ? f.ManagerId : f.EmployeeId, message.RecipientEmployeeId);
+        Assert.Null(message.DispatchedAt);
+    }
+
+    [Fact]
+    public async Task A_changed_return_payload_is_not_a_successful_retry()
+    {
+        var f = await ArrangeAsync();
+        await SubmitReadyPlanAsync(f);
+        var planId = await LoadPlanIdAsync(f);
+        await using (var db = f.Store.NewContext())
+        {
+            Assert.True((await new ReturnPlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db)).Handle(new(f.CycleId, planId,
+                new("Sharpen the outcome."), Manager(f.ManagerId)), default)).IsSuccess);
+        }
+        await using var retryDb = f.Store.NewContext();
+        var changed = await new ReturnPlanHandler(retryDb, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(retryDb), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(retryDb)).Handle(new(f.CycleId, planId,
+            new("Different feedback") { ExpectedVersion = 1 }, Manager(f.ManagerId)), default);
+        Assert.Equal("Performance.Stale", changed.Error.Code);
+        Assert.Single(retryDb.PlanDecisions.Where(d => d.Kind == PlanDecisionKind.Returned));
     }
 }

@@ -991,7 +991,7 @@ function Receipt({
         <p className="type-eyebrow text-muted-foreground">
           Operational receipt
         </p>
-        <h2 className="mt-2 type-title text-foreground">
+        <h2 className="mt-2 type-section-title text-foreground">
           Workforce access processed
         </h2>
         <p className="mt-2 type-body text-muted-foreground">

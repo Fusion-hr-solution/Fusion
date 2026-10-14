@@ -1,11 +1,7 @@
 "use client";
 
-import { Info } from "@/lib/icons";
 import type { EmployeePlanDto } from "@repo/api";
 import { StatusBadge } from "@repo/ds/shell";
-import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@repo/ds/components/ui/tooltip";
-import { initials } from "./plan-lib";
 
 /**
  * The plan's lifecycle state as a chip beside the page title. Draft is filled in the theme's opposite —
@@ -33,39 +29,5 @@ export function NotStartedBadge() {
       <span className="size-1.5 rounded-full bg-muted-foreground/50" aria-hidden />
       Not started
     </span>
-  );
-}
-
-/**
- * The reviewer who holds this plan's agreement, as plan metadata sitting with the page title. The
- * reviewer is fixed from the cycle participant baseline — shown, never re-resolved here — so the info
- * affordance states that provenance rather than implying it tracks current manager data.
- */
-export function PlanReviewerCard({ plan }: { plan: EmployeePlanDto }) {
-  const reviewer = plan.responsibleManager?.name ?? "your manager";
-  return (
-    <div className="flex items-center gap-3 rounded-surface border border-border bg-card px-3.5 py-2.5">
-      <Avatar className="size-9">
-        <AvatarFallback className="text-xs">{initials(reviewer)}</AvatarFallback>
-      </Avatar>
-      <div className="min-w-0">
-        <p className="type-eyebrow text-muted-foreground">Reviewer</p>
-        <p className="truncate text-sm font-semibold text-foreground">{reviewer}</p>
-      </div>
-      <TooltipProvider delayDuration={150}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              className="ml-1 shrink-0 rounded-full text-muted-foreground/50 transition-colors hover:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              aria-label="About your reviewer"
-            >
-              <Info className="size-4" aria-hidden />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Set from your cycle participant record.</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
   );
 }

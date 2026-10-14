@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Settings;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -34,7 +35,7 @@ public sealed class ObjectiveAccessTests
         Guid SamiId,
         Guid DeliveryOwnerId);
 
-    private static async Task<Fixture> ArrangeAsync(bool submitPlan = false)
+    private static async Task<Fixture> ArrangeAsync(bool submitPlan = false, bool active = false, bool approvePlan = false)
     {
         var store = TestStore.ForNewTenant();
         var tenant = store.TenantId;
@@ -69,7 +70,15 @@ public sealed class ObjectiveAccessTests
             "Run two workshops", null, talentObjective.Id, Start, End, ObjectiveMeasurement.ManualPercentage(),
             100m, Start, End, Start, End);
         if (submitPlan)
-            plan.Submit(sami.EmployeeId, new PlanSubmissionFacts(1, true, 100m, true, false, true));
+            plan.Submit(sami.EmployeeId, new PlanSubmissionFacts(1, true, 100m, true, false, PlanAlignmentPolicy.AtLeastOneConnected));
+        if (approvePlan)
+        {
+            plan.Approve(nour.EmployeeId);
+            employeeObjective.ApplyManualPercentage(62m);
+        }
+
+        if (active)
+            cycle.Activated();
 
         await using (var db = store.NewContext())
         {
@@ -201,6 +210,36 @@ public sealed class ObjectiveAccessTests
     }
 
     [Fact]
+    public async Task Team_objective_detail_shows_only_readable_aligned_plan_objectives_and_approved_progress()
+    {
+        var privatePlan = await ArrangeAsync();
+        await using (var db = privatePlan.Store.NewContext())
+        {
+            var privateDetail = await new GetGoalDetailHandler(db, privatePlan.Workforce).Handle(
+                new GetGoalDetailQuery(privatePlan.CycleId, privatePlan.TalentPodObjectiveId, Manager(privatePlan.NourId)), default);
+            Assert.True(privateDetail.IsSuccess);
+            Assert.Empty(privateDetail.Value.AlignedPlanObjectives);
+        }
+
+        var f = await ArrangeAsync(submitPlan: true, approvePlan: true);
+        await using var context = f.Store.NewContext();
+        var detail = await new GetGoalDetailHandler(context, f.Workforce).Handle(
+            new GetGoalDetailQuery(f.CycleId, f.TalentPodObjectiveId, Manager(f.NourId)), default);
+        Assert.True(detail.IsSuccess);
+        var aligned = Assert.Single(detail.Value.AlignedPlanObjectives);
+        Assert.Equal(f.EmployeeObjectiveId, aligned.ObjectiveId);
+        Assert.Equal("Run two workshops", aligned.Title);
+        Assert.Equal("Sami Member", aligned.OwnerName);
+        Assert.Equal(PlanLifecycleState.Approved, aligned.PlanState);
+        Assert.Equal(62m, aligned.Progress);
+
+        var otherManager = await new GetGoalDetailHandler(context, f.Workforce).Handle(
+            new GetGoalDetailQuery(f.CycleId, f.TalentPodObjectiveId, Manager(f.DeliveryOwnerId)), default);
+        Assert.True(otherManager.IsSuccess);
+        Assert.Empty(otherManager.Value.AlignedPlanObjectives);
+    }
+
+    [Fact]
     public async Task Detail_carries_the_cycle_the_plan_facet_and_capabilities_from_one_policy()
     {
         var f = await ArrangeAsync();
@@ -237,5 +276,111 @@ public sealed class ObjectiveAccessTests
         // A published objective with an aligned plan objective beneath it cannot.
         var published = await handler.Handle(new GetGoalDetailQuery(f.CycleId, f.TalentPodObjectiveId, Admin(f.CooId)), default);
         Assert.False(published.Value.CanDelete);
+    }
+    [Fact]
+    public async Task Responsible_reviewer_retains_access_after_Core_manager_changes()
+    {
+        var f = await ArrangeAsync(submitPlan: true);
+        f.Workforce.ById.Clear();
+        Assert.True(await CanOpenAsync(f, f.EmployeeObjectiveId, Manager(f.NourId)));
+        Assert.False(await CanOpenAsync(f, f.EmployeeObjectiveId, Manager(f.DeliveryOwnerId)));
+    }
+
+    [Fact]
+    public async Task Filtered_graph_excludes_private_rows_and_matches_detail_visibility()
+    {
+        var f = await ArrangeAsync();
+        await using var db = f.Store.NewContext();
+        var cycle = await db.Cycles.FindAsync(f.CycleId);
+        var actor = Employee(f.NourId);
+        var graph = await GoalsComposer.LoadGraphAsync(db, f.Workforce, cycle!, default,
+            new EY.HRPlatform.Performance.Features.Security.CycleViewer(actor, null));
+        Assert.DoesNotContain(graph.All, o => o.Id == f.EmployeeObjectiveId || o.Id == f.DraftStrategyId || o.Id == f.DeliveryDraftId);
+        foreach (var objective in graph.All)
+            Assert.True(await CanOpenAsync(f, objective.Id, actor));
+        var overview = GoalsComposer.BuildOverview(cycle!, graph,
+            new EY.HRPlatform.Performance.Features.Security.CycleViewer(actor, null));
+        Assert.Equal(1, overview.Value.Nodes.Single(n => n.Id == f.PublishedStrategyId).ChildCount);
+    }
+    [Fact]
+    public async Task Reviewer_cannot_read_progress_detail_on_a_never_submitted_private_plan()
+    {
+        var f = await ArrangeAsync();
+        await using var db = f.Store.NewContext();
+        var actor = new EY.HRPlatform.Performance.Features.Progress.ProgressActorContext(f.NourId, false, true);
+        var result = await new EY.HRPlatform.Performance.Features.Progress.GetObjectiveProgressHandler(db, f.Workforce)
+            .Handle(new(f.CycleId, f.EmployeeObjectiveId, actor), default);
+        Assert.Equal("Progress.ViewForbidden", result.Error.Code);
+        var history = await new EY.HRPlatform.Performance.Features.Progress.GetProgressHistoryPageHandler(db, f.Workforce)
+            .Handle(new(f.CycleId, f.EmployeeObjectiveId, null, 10, actor), default);
+        Assert.Equal("Progress.ViewForbidden", history.Error.Code);
+    }
+    [Theory]
+    [InlineData("cycle")]
+    [InlineData("strategy")]
+    [InlineData("goals")]
+    [InlineData("plan")]
+    [InlineData("population")]
+    [InlineData("settings")]
+    public async Task Stale_commands_cannot_change_any_existing_family(string family)
+    {
+        var f = await ArrangeAsync(active: family == "plan");
+        await using var db = f.Store.NewContext();
+        var measurement = new EY.HRPlatform.Performance.Models.MeasurementInput(MeasurementMethod.ManualPercentage, null, null, null, null, null);
+        EY.HRPlatform.SharedKernel.Results.Error error;
+        switch (family)
+        {
+            case "cycle":
+                error = (await new EY.HRPlatform.Performance.Features.Cycles.UpdateCycleHandler(db).Handle(new(f.CycleId,
+                    new("Changed", Start, End, Start.AddDays(30)) { ExpectedVersion = 1 }), default)).Error;
+                break;
+            case "strategy":
+                error = (await new UpdateStrategicObjectiveHandler(db, f.Store.Tenant, new TestPerformanceAudit(db)).Handle(new(f.CycleId, f.DraftStrategyId,
+                    new("Changed", null, f.CooId, Start, End, measurement) { ExpectedVersion = 1 }), default)).Error;
+                break;
+            case "goals":
+                error = (await new PublishObjectiveHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db)).Handle(new(f.CycleId, f.DeliveryDraftId, Admin(f.CooId), 1), default)).Error;
+                break;
+            case "plan":
+                error = (await new EY.HRPlatform.Performance.Features.Plans.SubmitMyPlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db)).Handle(new(f.CycleId,
+                    new(f.SamiId, false, false), 1), default)).Error;
+                break;
+            case "population":
+                error = (await new EY.HRPlatform.Performance.Features.Population.SetPopulationHandler(db, f.Store.Tenant,
+                    new(f.Workforce)).Handle(new(f.CycleId, new(EY.HRPlatform.Performance.Domain.Population.PopulationMode.AllActive, [], [], [])
+                    { ExpectedVersion = 1 }), default)).Error;
+                break;
+            default:
+                error = (await new EY.HRPlatform.Performance.Features.Settings.UpdateCycleSettingsHandler(db, f.Store.Tenant, new TestPerformanceAudit(db)).Handle(new(
+                    new(MeasurementMethod.ManualPercentage, 1, 5, 30, PlanAlignmentPolicy.AtLeastOneConnected) { ExpectedVersion = 1 }), default)).Error;
+                break;
+        }
+        Assert.Equal("Performance.Stale", error.Code);
+        Assert.Equal(EY.HRPlatform.Performance.Features.Failures.FailureKind.Stale,
+            ((EY.HRPlatform.Performance.Features.Failures.FailureInfo)error.Details!).Kind);
+        await using var unchanged = f.Store.NewContext();
+        Assert.Equal("FY2026", (await unchanged.Cycles.FindAsync(f.CycleId))!.Name);
+        Assert.Equal(ObjectiveLifecycleState.Draft, (await unchanged.Objectives.FindAsync(f.DeliveryDraftId))!.State);
+        Assert.Equal(PlanLifecycleState.Draft, (await unchanged.EmployeePlans.FindAsync(f.PlanId))!.State);
+        Assert.Empty(unchanged.PlanDecisions);
+    }
+
+    [Fact]
+    public async Task Stale_progress_does_not_append_an_update()
+    {
+        var f = await ArrangeAsync(submitPlan: true, active: true);
+        await using (var db = f.Store.NewContext())
+        {
+            var approval = await new EY.HRPlatform.Performance.Features.Plans.ApprovePlanHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new EY.HRPlatform.Performance.Infrastructure.Notifications.PerformanceNotifications(db))
+                .Handle(new(f.CycleId, f.PlanId, new(f.NourId, false, true)), default);
+            Assert.True(approval.IsSuccess);
+        }
+        await using var context = f.Store.NewContext();
+        var result = await new EY.HRPlatform.Performance.Features.Progress.SubmitProgressHandler(context, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(context), new TestEvidenceStore(Guid.NewGuid()))
+            .Handle(new(f.CycleId, f.EmployeeObjectiveId, new(40m, null, null, null, null, false, []) { ExpectedVersion = 1 },
+                new(f.SamiId, false, false)), default);
+        Assert.Equal("Performance.Stale", result.Error.Code);
+        Assert.Empty(context.ProgressUpdates);
+        Assert.False((await context.Objectives.FindAsync(f.EmployeeObjectiveId))!.HasProgress);
     }
 }

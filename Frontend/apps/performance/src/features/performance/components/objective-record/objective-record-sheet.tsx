@@ -1,6 +1,8 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
+import Link from "next/link";
+import { PageContainer } from "@repo/ds/shell";
 import { Button } from "@repo/ds/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@repo/ds/components/ui/sheet";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
@@ -42,6 +44,8 @@ export function ObjectiveRecordSheet({
   renderSection,
   actions,
   task,
+  presentation = "sheet",
+  cycleName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -50,8 +54,53 @@ export function ObjectiveRecordSheet({
   renderSection: (id: RecordSectionId, record: ObjectiveRecord, options: { paired: boolean }) => ReactNode;
   actions: (record: ObjectiveRecord) => ReactNode;
   task?: ReactNode;
+  presentation?: "sheet" | "page";
+  cycleName?: string;
 }) {
   const accent = ACCENT[state.status === "ready" ? state.record.accent : "primary"];
+
+  if (presentation === "page") {
+    return (
+      <PageContainer>
+        <article className={cn("space-y-6", accent.className)} style={accent.style}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Link href="/" className="type-meta text-muted-foreground hover:text-foreground">Overview</Link>
+            <span className="type-meta text-muted-foreground">{cycleName}</span>
+          </div>
+          {state.status === "ready" ? (
+            <>
+              <header className="border-b border-border pb-6">{header(state.record)}</header>
+              {task ?? (
+                <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+                  <div className="min-w-0 space-y-5">
+                    {resolveSections(state.record).map((row) => (
+                      <div key={typeof row === "string" ? row : row.join("+")} className={typeof row === "string" ? undefined : "grid gap-5 sm:grid-cols-2"}>
+                        {(typeof row === "string" ? [row] : row).map((id) => (
+                          <div key={id}>{renderSection(id, state.record, { paired: false })}</div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                  <aside className="min-w-0 lg:sticky lg:top-6">{actions(state.record)}</aside>
+                </div>
+              )}
+            </>
+          ) : state.status === "loading" ? (
+            <div className="max-w-3xl space-y-5" aria-label="Loading objective">
+              <Skeleton className="h-12 w-3/4" />
+              <Skeleton className="h-32 w-full rounded-surface" />
+              <Skeleton className="h-48 w-full rounded-surface" />
+            </div>
+          ) : (
+            <div className="space-y-4 py-12">
+              <h1 className="type-page-title">{state.status === "denied" ? "This objective isn't available to you" : "This objective could not be loaded"}</h1>
+              {state.status === "error" ? <Button variant="outline" onClick={state.onRetry}>Try again</Button> : null}
+            </div>
+          )}
+        </article>
+      </PageContainer>
+    );
+  }
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

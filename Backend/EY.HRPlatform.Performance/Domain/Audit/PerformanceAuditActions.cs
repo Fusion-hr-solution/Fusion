@@ -1,0 +1,46 @@
+namespace EY.HRPlatform.Performance.Domain.Audit;
+
+public static class PerformanceAuditActions
+{
+    public const string CycleActivated = "Cycle.Activated";
+    public const string CycleClosed = "Cycle.Closed";
+    public const string CycleDraftDeleted = "Cycle.DraftDeleted";
+    public const string ClosureExceptionRecorded = "Participant.ClosureExceptionRecorded";
+    public const string PlanSubmitted = "Plan.Submitted";
+    public const string PlanReturned = "Plan.Returned";
+    public const string PlanApproved = "Plan.Approved";
+    public const string PlanExceptionallyApproved = "Plan.ExceptionallyApproved";
+    public const string ObjectivePublished = "Objective.Published";
+    public const string ObjectiveRealigned = "Objective.Realigned";
+    public const string ObjectiveArchived = "Objective.Archived";
+    public const string ContributionLocked = "Contribution.BaselineLocked";
+    public const string ProgressCorrected = "Progress.Corrected";
+    public const string MilestoneReopened = "Progress.MilestoneReopened";
+    public const string SettingsChanged = "Settings.Changed";
+    public const string RatingScaleChanged = "RatingScale.Changed";
+    public const string CompetencyCreated = "Competency.Created";
+    public const string CompetencyChanged = "Competency.Changed";
+    public const string CompetencyArchived = "Competency.Archived";
+    public const string CompetencyDeleted = "Competency.Deleted";
+    public const string ReviewRoundCreated = "ReviewRound.Created";
+    public const string ReviewRoundChanged = "ReviewRound.Changed";
+    public const string ReviewRoundSubjectExcluded = "ReviewRound.SubjectExcluded";
+    public const string ReviewRoundReviewerAssigned = "ReviewRound.ReviewerAssigned";
+    public const string ReviewRoundLaunched = "ReviewRound.Launched";
+    public const string ReviewSelfAssessmentSaved = "Review.SelfAssessmentSaved";
+    public const string ReviewSelfAssessmentSubmitted = "Review.SelfAssessmentSubmitted";
+    public const string ReviewManagerAssessmentSaved = "Review.ManagerAssessmentSaved";
+    public const string ReviewManagerAssessmentSubmitted = "Review.ManagerAssessmentSubmitted";
+    public const string ReviewFinalized = "Review.Finalized";
+    public const string ReviewAdministrativelyClosed = "Review.AdministrativelyClosed";
+    public const string ReviewRoundFinalized = "ReviewRound.Finalized";
+    public const string ReviewRoundClosed = "ReviewRound.Closed";
+    public const string UpdateRequested = "UpdateRequest.Created";
+    public const string UpdateRequestWithdrawn = "UpdateRequest.Withdrawn";
+    public const string UpdateRequestSatisfied = "UpdateRequest.Satisfied";
+    public const string UpdateRequestUnresolved = "UpdateRequest.Unresolved";
+    public const string CalibrationOpened = "Calibration.Opened";
+    public const string CalibrationFacilitatorsChanged = "Calibration.FacilitatorsChanged";
+    public const string CalibrationSubjectChanged = "Calibration.SubjectChanged";
+    public const string CalibrationFinalized = "Calibration.Finalized";
+}

@@ -29,7 +29,7 @@ export function WorkforceApplyState({
     return (
       <Centered>
         <AlertTriangle className="size-6 text-[var(--color-warning)]" aria-hidden />
-        <h2 className="mt-3 type-title font-semibold text-foreground">Import wasn&apos;t completed</h2>
+        <h2 className="mt-3 type-section-title text-foreground">Import wasn&apos;t completed</h2>
         <p className="mt-1 type-body text-muted-foreground">No employees were added from this attempt.</p>
         <div className="mt-5 flex items-center gap-3">
           <Button onClick={onRetry}>
@@ -47,7 +47,7 @@ export function WorkforceApplyState({
   return (
     <Centered>
       <Spinner className="size-6 text-primary-ink" />
-      <h2 className="mt-4 type-title font-semibold text-foreground">Completing import</h2>
+      <h2 className="mt-4 type-section-title text-foreground">Completing import</h2>
       <p className="mt-1 type-body text-muted-foreground">{phase}</p>
       {status.total ? (
         <p className="mt-2 type-meta text-muted-foreground tabular-nums">

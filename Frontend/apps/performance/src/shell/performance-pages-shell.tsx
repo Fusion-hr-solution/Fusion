@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { AppShell, TopBar } from "@repo/ds/shell";
 import { PerformanceSidebar } from "@/shell/navigation/performance-sidebar";
 import { PerformanceCycleContext } from "@/shell/performance-cycle-context";
+import { RecordCycleScopeProvider } from "@/features/performance/api/use-workspace";
 
 export function PerformancePagesShell({ children }: { children: ReactNode }) {
   // The light-mode white working surface is applied via a `--background` token
@@ -11,8 +12,10 @@ export function PerformancePagesShell({ children }: { children: ReactNode }) {
   // The top bar carries the Cycle context; the breadcrumb (performance-breadcrumb.tsx)
   // is parked until the breadcrumb architecture is revisited.
   return (
-    <AppShell sidebar={<PerformanceSidebar />} header={<TopBar left={<PerformanceCycleContext />} />}>
-      {children}
-    </AppShell>
+    <RecordCycleScopeProvider>
+      <AppShell sidebar={<PerformanceSidebar />} header={<TopBar left={<PerformanceCycleContext />} />}>
+        {children}
+      </AppShell>
+    </RecordCycleScopeProvider>
   );
 }

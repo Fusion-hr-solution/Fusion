@@ -10,9 +10,11 @@ public sealed class PerformanceCycleConfiguration : IEntityTypeConfiguration<Per
     {
         builder.ToTable("PerformanceCycles");
         builder.HasKey(cycle => cycle.Id);
+        builder.Property(cycle => cycle.Version).IsRowVersion();
 
         builder.Property(cycle => cycle.Name).IsRequired().HasMaxLength(200);
         builder.Property(cycle => cycle.Description).HasMaxLength(1000);
+        builder.Property(cycle => cycle.EarlyCloseReason).HasMaxLength(1000);
         builder.Property(cycle => cycle.State).HasConversion<string>().HasMaxLength(20).IsRequired();
 
         builder.HasIndex(cycle => cycle.TenantId);

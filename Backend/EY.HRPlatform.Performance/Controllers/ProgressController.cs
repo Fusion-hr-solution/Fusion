@@ -13,7 +13,7 @@ namespace EY.HRPlatform.Performance.Controllers;
 /// <summary>
 /// Progress recording and evidence under a Cycle: the accountable owner submits measurement-specific,
 /// append-only updates with optional evidence; evidence files stage through an upload and download
-/// only where named-detail authorization holds. The controller Forbid()s the obvious case first; the
+/// only where named-detail authorization holds. The controller checks the obvious capability first; the
 /// handlers enforce owner-only recording and named-detail evidence exposure.
 /// </summary>
 [ApiController]
@@ -34,7 +34,7 @@ public sealed class ProgressController(IMediator mediator, IPerformanceAccessPol
     [HttpGet("objectives/{objectiveId:guid}/progress")]
     public async Task<ActionResult<ApiResponse<ObjectiveProgressDto>>> Get(Guid cycleId, Guid objectiveId, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new GetObjectiveProgressQuery(cycleId, objectiveId, Actor), cancellationToken));
     }
 
@@ -42,7 +42,7 @@ public sealed class ProgressController(IMediator mediator, IPerformanceAccessPol
     public async Task<ActionResult<ApiResponse<ProgressHistoryPageDto>>> History(
         Guid cycleId, Guid objectiveId, [FromQuery] string? cursor, [FromQuery] int? limit, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new GetProgressHistoryPageQuery(cycleId, objectiveId, cursor, limit ?? 0, Actor), cancellationToken));
     }
 
@@ -50,36 +50,27 @@ public sealed class ProgressController(IMediator mediator, IPerformanceAccessPol
     public async Task<ActionResult<ApiResponse<ObjectiveProgressDto>>> Submit(
         Guid cycleId, Guid objectiveId, [FromBody] SubmitProgressRequest request, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new SubmitProgressCommand(cycleId, objectiveId, request, Actor), cancellationToken));
     }
 
-    [HttpPost("evidence/upload")]
+    [HttpPost("objectives/{objectiveId:guid}/evidence/uploads")]
     [RequestSizeLimit(MaxEvidenceBytes + 4096)]
-    public async Task<ActionResult<ApiResponse<EvidenceDescriptorDto>>> UploadEvidence(Guid cycleId, IFormFile file, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<EvidenceDescriptorDto>>> UploadEvidence(Guid cycleId, Guid objectiveId,
+        IFormFile file, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
-        if (file is null || file.Length == 0)
-            return BadRequest(ApiResponse<EvidenceDescriptorDto>.Failure("A file is required."));
-        if (file.Length > MaxEvidenceBytes)
-            return BadRequest(ApiResponse<EvidenceDescriptorDto>.Failure("The file exceeds the 20 MB limit."));
-
-        await using var stream = file.OpenReadStream();
-        var storageKey = await evidence.SaveAsync(stream, file.FileName, cancellationToken);
-        var descriptor = new EvidenceDescriptorDto(storageKey, file.FileName, file.ContentType ?? "application/octet-stream", file.Length);
-        return Ok(ApiResponse<EvidenceDescriptorDto>.Success(descriptor));
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new UploadEvidenceCommand(cycleId, objectiveId, file, Actor), cancellationToken));
     }
 
     [HttpGet("evidence/{evidenceId:guid}")]
     public async Task<IActionResult> DownloadEvidence(Guid cycleId, Guid evidenceId, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         var result = await mediator.Send(new ResolveEvidenceFileQuery(cycleId, evidenceId, Actor), cancellationToken);
         if (result.IsFailure)
         {
-            return result.Error.Code.Contains("Forbidden", StringComparison.OrdinalIgnoreCase)
-                ? StatusCode(StatusCodes.Status403Forbidden)
-                : NotFound();
+            return StatusCode(StatusFor(result.Error), ApiResponse.Failure(result.Error.Message, EY.HRPlatform.Performance.Features.Failures.PerformanceErrors.Details(result.Error)));
         }
 
         var stream = await evidence.OpenAsync(result.Value.StorageKey, cancellationToken);

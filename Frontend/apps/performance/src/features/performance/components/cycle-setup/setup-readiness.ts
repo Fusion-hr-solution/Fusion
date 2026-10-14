@@ -1,4 +1,5 @@
 import type { CycleDetailDto } from "@repo/api";
+import { withCycle } from "@/lib/performance-routes";
 
 /**
  * The cycle-setup journey as domain-derived state — never a persisted wizard flag.
@@ -55,6 +56,6 @@ export function canAccessStep(step: SetupStep, state: SetupState): boolean {
   return state.hasDraft && state.populationComplete;
 }
 
-export function setupStepHref(step: SetupStep): string {
-  return `/cycle/setup/${step}`;
+export function setupStepHref(step: SetupStep, cycleId?: string | null): string {
+  return withCycle(`/cycle/setup/${step}`, cycleId);
 }

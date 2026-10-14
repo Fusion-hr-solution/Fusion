@@ -179,7 +179,7 @@ function ExpandedDetail({
       {evidence.length > 0 ? (
         <div className={cn(note && "border-t border-border/70 pt-3")}>
           <p className="type-eyebrow text-muted-foreground">Evidence ({evidence.length})</p>
-          <ul className="mt-2 divide-y divide-border/70 overflow-hidden rounded-surface border border-border bg-card">
+          <ul className="mt-1 divide-y divide-border/70">
             {evidence.map((item) => (
               <EvidenceRow key={item.id} item={item} onOpenFile={onOpenFile} opening={openingFileId === item.id} />
             ))}
@@ -202,10 +202,10 @@ function EvidenceRow({
 }) {
   const isFile = item.kind === "File";
   const host = !isFile && item.url ? hostname(item.url) : null;
-  const meta = isFile ? formatBytes(item.sizeBytes) : linkPath(item.url);
-  const primary = isFile ? item.fileName ?? "Attachment" : host || item.url || "Link";
+  const meta = isFile ? (item.isRemovedUnderRetention ? null : formatBytes(item.sizeBytes)) : linkPath(item.url);
+  const primary = item.isRemovedUnderRetention ? "Attachment removed under retention policy" : isFile ? item.fileName ?? "Attachment" : host || item.url || "Link";
   // A file downloads only where the server exposed the action (named-detail authorization); a link is its URL.
-  const canOpenFile = isFile && Boolean(item.downloadPath);
+  const canOpenFile = isFile && !item.isRemovedUnderRetention && Boolean(item.downloadPath);
   const linkHref = !isFile ? item.url : null;
 
   const openClasses =

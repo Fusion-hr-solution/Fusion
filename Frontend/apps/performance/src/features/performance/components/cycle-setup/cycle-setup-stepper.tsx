@@ -18,9 +18,11 @@ interface StepView {
 export function CycleSetupStepper({
   current,
   state,
+  cycleId,
 }: {
   current: SetupStep;
   state: Record<SetupStep, StepView>;
+  cycleId: string | null;
 }) {
   return (
     <ol className="mx-auto flex max-w-5xl items-start">
@@ -50,7 +52,7 @@ export function CycleSetupStepper({
             <div className="relative z-10 flex items-center">
               {navigable ? (
                 <Link
-                  href={setupStepHref(step.key)}
+                  href={setupStepHref(step.key, cycleId)}
                   aria-label={step.label}
                   className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >

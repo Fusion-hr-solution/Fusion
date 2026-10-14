@@ -1,3 +1,6 @@
+using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Infrastructure.Audit;
+using EY.HRPlatform.Performance.Features.Failures;
 using EY.HRPlatform.Performance.Domain.Settings;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Models;
@@ -29,7 +32,7 @@ public sealed class GetCycleSettingsHandler(PerformanceDbContext db, ITenantCont
     }
 }
 
-public sealed class UpdateCycleSettingsHandler(PerformanceDbContext db, ITenantContext tenant)
+public sealed class UpdateCycleSettingsHandler(PerformanceDbContext db, ITenantContext tenant, IPerformanceAudit audit)
     : ICommandHandler<UpdateCycleSettingsCommand, Result<CycleSettingsDto>>
 {
     public async Task<Result<CycleSettingsDto>> Handle(UpdateCycleSettingsCommand command, CancellationToken cancellationToken)
@@ -42,6 +45,21 @@ public sealed class UpdateCycleSettingsHandler(PerformanceDbContext db, ITenantC
             db.CycleSettings.Add(settings);
         }
 
+        if (VersionGuard.Check(settings, command.Request.ExpectedVersion) is { } stale)
+            return Result.Failure<CycleSettingsDto>(stale);
+
+        var before = new
+        {
+            settings.DefaultMeasurementMethod,
+            settings.SuggestedObjectiveCountMin,
+            settings.SuggestedObjectiveCountMax,
+            settings.PlanningDeadlineOffsetDays,
+            settings.PlanAlignmentPolicy,
+            settings.DefaultSelfAssessmentEnabled,
+            settings.DefaultObjectiveRatingsEnabled,
+            settings.DefaultCalibrationEnabled,
+            settings.EvidenceRetentionMonths,
+        };
         var request = command.Request;
         try
         {
@@ -50,13 +68,31 @@ public sealed class UpdateCycleSettingsHandler(PerformanceDbContext db, ITenantC
                 request.SuggestedObjectiveCountMin,
                 request.SuggestedObjectiveCountMax,
                 request.PlanningDeadlineOffsetDays,
-                request.AllowStandaloneObjectives);
+                request.PlanAlignmentPolicy,
+                request.EvidenceRetentionMonths,
+                request.DefaultSelfAssessmentEnabled,
+                request.DefaultObjectiveRatingsEnabled,
+                request.DefaultCalibrationEnabled);
         }
         catch (ArgumentException ex)
         {
-            return Result.Failure<CycleSettingsDto>(Error.Validation("Settings.Invalid", ex.Message));
+            return Result.Failure<CycleSettingsDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.SettingsInvalid, ex.Message));
         }
 
+        var after = new
+        {
+            settings.DefaultMeasurementMethod,
+            settings.SuggestedObjectiveCountMin,
+            settings.SuggestedObjectiveCountMax,
+            settings.PlanningDeadlineOffsetDays,
+            settings.PlanAlignmentPolicy,
+            settings.DefaultSelfAssessmentEnabled,
+            settings.DefaultObjectiveRatingsEnabled,
+            settings.DefaultCalibrationEnabled,
+            settings.EvidenceRetentionMonths,
+        };
+        if (!Equals(before, after))
+            audit.Record(settings.TenantId, "CycleSettings", settings.Id, null, PerformanceAuditActions.SettingsChanged, new { before, after });
         await db.SaveChangesAsync(cancellationToken);
         return PerformanceMappers.ToDto(settings);
     }

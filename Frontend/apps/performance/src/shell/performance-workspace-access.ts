@@ -1,4 +1,5 @@
 import {
+  CUSTOMER_MODULES,
   resolveCustomerWorkspaceAccessState,
   type AuthUser,
   type CustomerWorkspaceAccessState,
@@ -23,5 +24,5 @@ export function resolvePerformanceWorkspaceAccessState(input: {
   isLoading: boolean;
   user: AuthUser | null;
 }): PerformanceWorkspaceAccessState {
-  return resolveCustomerWorkspaceAccessState(input);
+  return resolveCustomerWorkspaceAccessState({ ...input, module: CUSTOMER_MODULES.performance });
 }

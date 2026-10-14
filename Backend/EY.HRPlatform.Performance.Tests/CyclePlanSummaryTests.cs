@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Settings;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -16,7 +17,7 @@ public sealed class CyclePlanSummaryTests
 {
     private static readonly DateOnly Start = new(2026, 1, 1);
     private static readonly DateOnly End = new(2026, 12, 31);
-    private static readonly PlanSubmissionFacts Ready = new(1, true, 100m, true, false, true);
+    private static readonly PlanSubmissionFacts Ready = new(1, true, 100m, true, false, PlanAlignmentPolicy.AtLeastOneConnected);
 
     [Fact]
     public async Task Counts_each_participant_by_plan_standing()
@@ -33,7 +34,7 @@ public sealed class CyclePlanSummaryTests
         EmployeePlan PlanFor(string name, bool withProgress = false)
         {
             var employee = Guid.NewGuid();
-            participants.Add(Participant.Create(tenant, cycle.Id, employee, name, null, null, null, manager, "Manager", false));
+            participants.Add(Participant.Create(tenant, cycle.Id, employee, name, null, null, null, manager, "Manager", false, Start));
             var plan = EmployeePlan.Create(tenant, cycle.Id, Guid.NewGuid(), employee, name, null, manager, "Manager");
             var objective = Objective.CreateEmployee(tenant, cycle.Id, plan.Id, employee, $"{name} objective", null, null,
                 Start, End, ObjectiveMeasurement.ManualPercentage(), 100m, null, null, Start, End);
@@ -43,7 +44,7 @@ public sealed class CyclePlanSummaryTests
             return plan;
         }
 
-        participants.Add(Participant.Create(tenant, cycle.Id, Guid.NewGuid(), "Not started", null, null, null, manager, "Manager", false));
+        participants.Add(Participant.Create(tenant, cycle.Id, Guid.NewGuid(), "Not started", null, null, null, manager, "Manager", false, Start));
         PlanFor("Drafting");
         var returned = PlanFor("Returned");
         returned.Submit(returned.EmployeeId, Ready);
@@ -79,6 +80,6 @@ public sealed class CyclePlanSummaryTests
         Assert.Equal(2, summary.ApprovedCount);
         Assert.Equal(1, summary.ApprovedReportingCount);
         Assert.Equal(1, summary.ApprovedNotReportingCount);
-        Assert.Equal(0, summary.ParticipantsWithOverdueMilestones);
+        Assert.Equal(0, summary.ParticipantsWithOverdueObjectives);
     }
 }

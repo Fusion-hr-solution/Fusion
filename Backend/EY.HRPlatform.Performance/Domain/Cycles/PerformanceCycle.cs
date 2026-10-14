@@ -99,6 +99,28 @@ public sealed class PerformanceCycle : PerformanceAggregate
         MarkUpdated();
     }
 
+    /// <summary>Why the Cycle was closed before its end date, when it was.</summary>
+    public string? EarlyCloseReason { get; private set; }
+
+    /// <summary>
+    /// Closes an Active Cycle deliberately. Reaching the end date never closes a Cycle on its own;
+    /// closing before it requires a stated reason. Participant-level closure exceptions are the
+    /// caller's responsibility because they live on the roster.
+    /// </summary>
+    public void CloseDeliberately(DateOnly today, string? earlyCloseReason)
+    {
+        if (State != CycleLifecycleState.Active)
+            throw new InvalidOperationException("Only an Active Cycle can be closed.");
+        var reason = string.IsNullOrWhiteSpace(earlyCloseReason) ? null : earlyCloseReason.Trim();
+        if (today < EndDate && reason is null)
+            throw new ArgumentException("Closing before the Cycle's end date requires a reason.", nameof(earlyCloseReason));
+        if (reason is { Length: > 1000 })
+            throw new ArgumentException("The early-close reason must be 1000 characters or fewer.", nameof(earlyCloseReason));
+
+        EarlyCloseReason = today < EndDate ? reason : null;
+        Close();
+    }
+
     public void Close()
     {
         if (State != CycleLifecycleState.Active)

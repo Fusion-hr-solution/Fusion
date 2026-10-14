@@ -8,11 +8,13 @@ export type MeasurementMethod =
   | "WeightedMilestones";
 export type ImprovementDirection = "Increase" | "Decrease";
 export type CycleLifecycleState = "Draft" | "Active" | "Closed";
-export type ObjectiveLifecycleState = "Draft" | "Published";
+export type ObjectiveLifecycleState = "Draft" | "Published" | "Archived";
 export type PopulationMode = "AllActive" | "ByScope";
 export type ObjectiveOwnershipScope = "Company" | "OrgUnit" | "Employee";
 export type ObjectiveProgressSource = "Direct" | "Calculated";
 export type PlanLifecycleState = "Draft" | "Submitted" | "Approved";
+export type ReviewRoundState = "Draft" | "Active" | "Closed";
+export type PerformanceReviewState = "SelfAssessment" | "ManagerAssessment" | "Calibration" | "ReadyToFinalize" | "Finalized" | "Closed";
 export type PlanApprovalKind = "Normal" | "Exceptional";
 export type PlanDecisionKind =
   | "Submitted"
@@ -54,27 +56,31 @@ export type OperationalMilestone =
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
 
-export interface PerformanceAccessDto {
-  canEnter: boolean;
-  canAdminister: boolean;
-  canPublishStrategy: boolean;
-  canParticipate: boolean;
-  /** Holds the organizational-objective management grant (`objective.org.manage @Tenant`). In the
-   *  direct MVP this is coarse tenant-wide authority; it governs whether to offer the "establish
-   *  objective" affordance. The server still enforces the capability on every action. */
-  canManageOrgObjectives: boolean;
-  aggregateViewScope: string | null;
-}
+export type PlanAlignmentPolicy = "EveryObjectiveConnected" | "AtLeastOneConnected" | "Optional";
 
 export interface CycleSettingsDto {
+  version: number;
   defaultMeasurementMethod: MeasurementMethod;
   suggestedObjectiveCountMin: number;
   suggestedObjectiveCountMax: number;
   planningDeadlineOffsetDays: number;
-  allowStandaloneObjectives: boolean;
+  planAlignmentPolicy: PlanAlignmentPolicy;
+  defaultSelfAssessmentEnabled: boolean;
+  defaultObjectiveRatingsEnabled: boolean;
+  defaultCalibrationEnabled: boolean;
+  evidenceRetentionMonths: number;
 }
 
+export interface RatingScaleLevelDto { value: number; label: string; description: string | null }
+export interface RatingScaleDto { version: number; scaleVersion: number; levels: RatingScaleLevelDto[] }
+export interface UpdateRatingScaleRequest { expectedVersion: number; levels: RatingScaleLevelDto[] }
+export interface CompetencyDto { id: string; name: string; description: string; behaviors: string[]; state: "Active" | "Archived"; firstUsedAt: string | null; version: number }
+export interface CreateCompetencyRequest { name: string; description: string; behaviors: string[] }
+export interface UpdateCompetencyRequest extends CreateCompetencyRequest { expectedVersion: number }
+export interface CompetencyVersionRequest { expectedVersion: number }
+
 export interface CycleSummaryDto {
+  version: number;
   id: string;
   name: string;
   description: string | null;
@@ -112,6 +118,510 @@ export interface CycleDetailDto {
   populationConfirmed: boolean;
   confirmedParticipantCount: number;
   otherActiveCycleExists: boolean;
+  /** The Active Cycle's derived operational phase; null unless Active. */
+  phase?: CyclePhase | null;
+}
+
+/** Where an Active Cycle is operationally — derived, never a lifecycle state. */
+export type CyclePhase = "Planning" | "Execution" | "Review";
+
+/** A participant without an approved plan, as closing the Cycle would record them. */
+export interface ClosureParticipantDto {
+  employeeId: string;
+  displayName: string;
+  orgUnitName: string | null;
+  standing: RosterPlanStatus;
+  exceptionReason: string | null;
+}
+
+/** What closing a Cycle involves. */
+export interface CycleClosureDto {
+  cycleId: string;
+  version: number;
+  state: CycleLifecycleState;
+  endDate: string;
+  endReached: boolean;
+  participantCount: number;
+  approvedCount: number;
+  unresolved: ClosureParticipantDto[];
+  earlyCloseReason: string | null;
+  recordedExceptionCount: number;
+}
+
+/** What the caller can do in the selected Cycle, from capabilities plus recorded responsibility. */
+export interface WorkspaceCapabilitiesDto {
+  participates: boolean;
+  isResponsibleReviewer: boolean;
+  hasReviewWork: boolean;
+  administers: boolean;
+  publishesStrategy: boolean;
+  managesOrgObjectives: boolean;
+  canCalibrate: boolean;
+  canViewOrgDirection: boolean;
+  canChooseOrganizationScope: boolean;
+}
+
+/** Which primary destinations the workspace offers in the selected Cycle. */
+export interface WorkspaceDestinationsDto {
+  overview: boolean;
+  myPlan: boolean;
+  team: boolean;
+  reviews: boolean;
+  cycleAdmin: boolean;
+  settings: boolean;
+}
+
+/** Where an Overview section resumes; the client turns it into a route for the Cycle. */
+export type OverviewWorkspace =
+  | "MyPlan"
+  | "Team"
+  | "TeamNeedsReview"
+  | "CycleAdmin"
+  | "CycleSetup"
+  | "CycleCreate"
+  | "OrganizationDirection"
+  | "Plan"
+  | "Objective"
+  | "Reviews"
+  | "ReviewRound"
+  | "Calibration";
+
+export interface OverviewDestinationDto {
+  workspace: OverviewWorkspace;
+  cycleId: string | null;
+  planId?: string | null;
+  objectiveId?: string | null;
+  reviewRoundId?: string | null;
+}
+
+export interface PlanExecutionFactsDto {
+  planProgress: number;
+  objectiveCount: number;
+  reportingCount: number;
+  overdueObjectiveCount: number;
+  withoutRecentUpdateCount: number;
+}
+
+/** The Overview sections of one projection, discriminated by `kind`. Facts only — never averages. */
+export type OverviewSectionDto =
+  | { kind: "cycleStatus"; cycle: CycleSummaryDto; phase: CyclePhase | null }
+  | { kind: "setupReadiness"; detail: CycleDetailDto; next: OverviewDestinationDto }
+  | {
+      kind: "myPlan";
+      standing: RosterPlanStatus;
+      objectiveCount: number;
+      weightTotal: number;
+      reviewerName: string | null;
+      submittedAt: string | null;
+      returnFeedback: string | null;
+      returnedBy: string | null;
+      planningDeadline: string;
+      planningOpen: boolean;
+      /** Present only once the plan is Approved: before that no progress figure exists. */
+      execution: PlanExecutionFactsDto | null;
+      destination: OverviewDestinationDto;
+    }
+  | {
+      kind: "teamPlanning";
+      people: number;
+      awaitingDecision: number;
+      notStarted: number;
+      draft: number;
+      returned: number;
+      submitted: number;
+      approved: number;
+      destination: OverviewDestinationDto;
+    }
+  | {
+      kind: "teamExecution";
+      approved: number;
+      approvedReporting: number;
+      peopleWithOverdue: number;
+      peopleWithoutRecentUpdate: number;
+      destination: OverviewDestinationDto;
+    }
+  | {
+      kind: "teamDirection";
+      orgUnitName: string | null;
+      total: number;
+      objectives: GoalNodeDto[];
+      destination: OverviewDestinationDto;
+    }
+  | {
+      kind: "cycleOperation";
+      summary: CyclePlanSummaryDto;
+      milestones: MilestoneStateDto[];
+      destination: OverviewDestinationDto;
+    }
+  | { kind: "direction"; publishedCount: number; objectives: GoalNodeDto[]; destination: OverviewDestinationDto }
+  | {
+      kind: "closedCycle";
+      cycle: CycleSummaryDto;
+      participantCount: number;
+      approvedCount: number;
+      exceptionCount: number;
+      finalizedReviewCount: number;
+      myPlanProgress: number | null;
+      view: OverviewDestinationDto;
+      next: OverviewDestinationDto | null;
+      reviews: OverviewDestinationDto | null;
+    }
+  | { kind: "noCycle"; create: OverviewDestinationDto | null }
+  | { kind: "myReview"; openReviewId: string | null; openState: PerformanceReviewState | null; dueDate: string | null; resultReviewId: string | null; finalizedReviewCount: number; destination: OverviewDestinationDto }
+  | { kind: "teamReviews"; assessmentsReady: number; assessmentsSubmitted: number; assessmentsTotal: number; destination: OverviewDestinationDto }
+  | { kind: "myRequests"; requests: MyUpdateRequestDto[] }
+  | { kind: "reviewOperation"; reviewRoundId: string; reviewRoundName: string; state: ReviewRoundState; stageCounts: { state: PerformanceReviewState; count: number }[]; readyToFinalize: number; destination: OverviewDestinationDto; selfAssessments: ReviewCompletionDto | null; managerAssessments: ReviewCompletionDto | null }
+  | { kind: "calibration"; subjects: number; discussed: number; remaining: number; outstanding: number; sessionState: "Open" | "Finalized" | null; destination: OverviewDestinationDto };
+
+export type OverviewSectionKind = OverviewSectionDto["kind"];
+
+/** Overview as one server projection for the selected Cycle. */
+export interface OverviewDto {
+  cycle: CycleSummaryDto | null;
+  phase: CyclePhase | null;
+  sections: OverviewSectionDto[];
+  destinations: WorkspaceDestinationsDto;
+}
+
+/** The selected Cycle, the Cycles the caller may switch to, and the workspace composition for them. */
+export interface WorkspaceContextDto {
+  cycles: CycleSummaryDto[];
+  selected: CycleSummaryDto | null;
+  phase: CyclePhase | null;
+  capabilities: WorkspaceCapabilitiesDto;
+  destinations: WorkspaceDestinationsDto;
+}
+
+export interface ReviewRoundSummaryDto {
+  id: string;
+  cycleId: string;
+  name: string;
+  periodStart: string;
+  periodEnd: string;
+  state: ReviewRoundState;
+  subjectCount: number;
+  excludedCount: number;
+  version: number;
+}
+
+export type ReviewReadinessIssueCode = "InactiveSubject" | "MissingReviewer" | "InactiveReviewer" | "SelfReview";
+
+export interface ReviewReadinessIssueDto {
+  code: ReviewReadinessIssueCode;
+  subjectEmployeeId: string;
+  reviewerEmployeeId: string | null;
+}
+
+export interface ReviewRoundSubjectDto {
+  participantId: string;
+  subjectEmployeeId: string;
+  subjectDisplayName: string;
+  reviewerEmployeeId: string | null;
+  reviewerDisplayName: string | null;
+  reviewerBasis: string;
+  isExcluded: boolean;
+  exclusionReason: string | null;
+  readinessIssues: ReviewReadinessIssueDto[];
+}
+
+export interface ReviewRoundDto {
+  id: string;
+  cycleId: string;
+  name: string;
+  periodStart: string;
+  periodEnd: string;
+  selfAssessmentEnabled: boolean;
+  objectiveRatingsEnabled: boolean;
+  calibrationEnabled: boolean;
+  selfAssessmentDueDate: string | null;
+  managerAssessmentDueDate: string | null;
+  competencyIds: string[];
+  state: ReviewRoundState;
+  version: number;
+  subjects: ReviewRoundSubjectDto[];
+}
+export interface EligibleReviewerDto { employeeId: string; displayName: string; jobTitle: string | null; orgUnitName: string | null }
+
+export interface CreateReviewRoundRequest { name: string; periodStart: string; periodEnd: string }
+export interface UpdateReviewRoundRequest {
+  expectedVersion: number;
+  name: string;
+  periodStart: string;
+  periodEnd: string;
+  selfAssessmentEnabled: boolean;
+  objectiveRatingsEnabled: boolean;
+  calibrationEnabled: boolean;
+  selfAssessmentDueDate: string | null;
+  managerAssessmentDueDate: string | null;
+  competencyIds: string[];
+}
+export interface UpdateReviewRoundPopulationRequest {
+  expectedVersion: number;
+  subjects: { participantId: string; isExcluded: boolean; exclusionReason: string | null; reviewerEmployeeId: string | null }[];
+}
+export interface ReviewRoundLaunchDto { reviewRoundId: string; state: ReviewRoundState; reviewCount: number; reviewIds: string[] }
+export interface ReviewRoundStatusDto {
+  reviewRoundId: string;
+  state: ReviewRoundState;
+  stageCounts: { state: PerformanceReviewState; count: number }[];
+  overdueSelfAssessments: number;
+  overdueManagerAssessments: number;
+  readyToFinalizeCount: number;
+  selfAssessments: ReviewCompletionDto;
+  managerAssessments: ReviewCompletionDto;
+  /** Round administrators only. The final rating where set, otherwise the submitted manager rating. */
+  ratingDistribution: ReviewRatingCountDto[];
+}
+
+/** Submitted out of the reviews that need this assessment. */
+export interface ReviewCompletionDto {
+  submitted: number;
+  required: number;
+}
+
+export interface ReviewRatingCountDto {
+  value: number;
+  label: string;
+  count: number;
+  /** The drill-through: reviews at this level, each one the administrator may open. */
+  reviews: { reviewId: string; subjectDisplayName: string }[];
+}
+
+export interface ReviewWorkItemDto {
+  reviewId: string;
+  reviewRoundId: string;
+  cycleId: string;
+  reviewRoundName: string;
+  subjectDisplayName: string;
+  reviewerDisplayName: string;
+  state: PerformanceReviewState;
+  dueDate: string | null;
+  isSubject: boolean;
+  isReviewer: boolean;
+  isAssignedToCaller: boolean;
+}
+
+export interface ReviewHistoryItemDto {
+  reviewId: string;
+  reviewRoundId: string;
+  cycleId: string;
+  cycleName: string;
+  reviewRoundName: string;
+  subjectDisplayName: string;
+  reviewerDisplayName: string;
+  finalRating: number | null;
+  finalRatingLabel: string | null;
+  finalizedAt: string | null;
+}
+
+export interface ReviewAssessmentDto {
+  summary: string;
+  overallRating: number | null;
+  savedAt: string | null;
+  submittedAt: string | null;
+}
+
+export interface ReviewFinalizationDto {
+  reviewId: string;
+  state: PerformanceReviewState;
+  finalRating: number;
+  /** Null when the caller finalized their own review: the source is calibration detail. */
+  finalRatingSource: string | null;
+  finalizedAt: string;
+}
+export interface ReviewRoundFinalizationDto {
+  reviewRoundId: string;
+  finalized: ReviewFinalizationDto[];
+  skipped: { reviewId: string; reason: string }[];
+  state: ReviewRoundState;
+}
+export interface FinalizeReviewRoundRequest { expectedVersion: number; reviewIds?: string[] | null }
+export interface ExpectedVersionRequest { expectedVersion: number }
+
+export type ReviewItemKind = "Objective" | "Competency";
+export interface ReviewEvidenceRefDto {
+  evidenceId: string | null;
+  kind: EvidenceKind | null;
+  label: string;
+  recordedAt: string | null;
+}
+
+export interface ReviewItemAssessmentDto {
+  kind: ReviewItemKind;
+  itemId: string;
+  title: string;
+  description: string | null;
+  behaviors: string[];
+  measurement: MeasurementDto | null;
+  hasProgress: boolean;
+  progress: number | null;
+  evidenceCount: number;
+  evidenceSummary: ReviewEvidenceRefDto[];
+  selfReflection: string | null;
+  selfRating: number | null;
+  selfComment: string | null;
+  managerAssessment: string | null;
+  managerRating: number | null;
+  /** Present only when reading a finalized snapshot written before structured measurements. */
+  legacyMeasurementSummary?: string | null;
+}
+
+export interface PerformanceReviewDto {
+  id: string;
+  reviewRoundId: string;
+  cycleId: string;
+  reviewRoundName: string;
+  periodStart: string;
+  periodEnd: string;
+  subjectDisplayName: string;
+  reviewerDisplayName: string;
+  state: PerformanceReviewState;
+  dueDate: string | null;
+  selfAssessmentEnabled: boolean;
+  calibrationEnabled: boolean;
+  canEditSelfAssessment: boolean;
+  canEditManagerAssessment: boolean;
+  version: number;
+  ratingScaleVersionId: string;
+  ratingScaleVersion: number;
+  ratingScale: RatingScaleLevelDto[];
+  selfAssessment: ReviewAssessmentDto | null;
+  managerAssessment: ReviewAssessmentDto | null;
+  hasApprovedPlan: boolean;
+  objectiveRatingsEnabled: boolean;
+  items: ReviewItemAssessmentDto[];
+  finalRating: number | null;
+  finalRatingSource: string | null;
+  finalizedAt: string | null;
+  /** Present only for facilitators during calibration and for the reviewer and round administrators after it; never for the subject. */
+  calibration: ReviewCalibrationDto | null;
+}
+
+export interface ReviewCalibrationDto {
+  sessionFinalized: boolean;
+  originalRating: number;
+  calibratedRating: number | null;
+  rationale: string | null;
+}
+
+export type CalibrationSessionState = "Open" | "Finalized";
+export type CalibrationDiscussionState = "NotDiscussed" | "Discussed";
+
+export interface CalibrationFacilitatorDto {
+  userId: string;
+  displayName: string;
+  namedAt: string;
+}
+
+export interface FacilitatorCandidateDto {
+  userId: string;
+  displayName: string;
+}
+
+export interface CalibrationCountsDto {
+  subjects: number;
+  discussed: number;
+  adjusted: number;
+  remaining: number;
+  outstanding: number;
+}
+
+export interface CalibrationDistributionDto {
+  value: number;
+  label: string;
+  original: number;
+  current: number;
+}
+
+export interface CalibrationAdjustmentDto {
+  id: string;
+  actorDisplayName: string;
+  at: string;
+  previousRating: number;
+  newRating: number;
+  rationale: string | null;
+}
+
+export interface CalibrationSubjectDto {
+  reviewId: string;
+  subjectDisplayName: string;
+  reviewerDisplayName: string;
+  orgUnitName: string | null;
+  jobTitle: string | null;
+  reviewState: PerformanceReviewState;
+  originalRating: number;
+  calibratedRating: number | null;
+  currentRating: number;
+  adjusted: boolean;
+  rationale: string | null;
+  discussionState: CalibrationDiscussionState;
+  version: number;
+  history: CalibrationAdjustmentDto[];
+}
+
+export interface CalibrationOutstandingReviewDto {
+  reviewId: string;
+  subjectDisplayName: string;
+  reviewerDisplayName: string;
+  state: PerformanceReviewState;
+}
+
+export interface CalibrationSessionDto {
+  id: string;
+  reviewRoundId: string;
+  cycleId: string;
+  reviewRoundName: string;
+  state: CalibrationSessionState;
+  version: number;
+  openedAt: string;
+  finalizedAt: string | null;
+  facilitators: CalibrationFacilitatorDto[];
+  counts: CalibrationCountsDto;
+  ratingScale: RatingScaleLevelDto[];
+  distribution: CalibrationDistributionDto[];
+  subjects: CalibrationSubjectDto[];
+  outstanding: CalibrationOutstandingReviewDto[];
+}
+
+export interface CalibrationRoundDto {
+  reviewRoundId: string;
+  cycleId: string;
+  reviewRoundName: string;
+  roundState: ReviewRoundState;
+  sessionState: CalibrationSessionState | null;
+  isFacilitator: boolean;
+  subjects: number | null;
+  discussed: number | null;
+}
+
+export interface AdjustCalibrationSubjectRequest {
+  rating: number;
+  rationale: string | null;
+  discussionState: CalibrationDiscussionState;
+  expectedVersion: number;
+}
+
+export interface PerformanceReviewMutationDto {
+  id: string;
+  state: PerformanceReviewState;
+  dueDate: string | null;
+  version: number;
+}
+
+export interface ReviewItemResponseInput {
+  kind: ReviewItemKind;
+  itemId: string;
+  reflection?: string | null;
+  rating?: number | null;
+  comment?: string | null;
+  assessment?: string | null;
+}
+export interface SaveSelfAssessmentRequest { expectedVersion: number; summary: string; items?: ReviewItemResponseInput[] }
+export interface SaveManagerAssessmentRequest { expectedVersion: number; summary: string; overallRating: number | null; items?: ReviewItemResponseInput[] }
+
+export interface CloseCycleRequest {
+  earlyCloseReason?: string | null;
+  exceptionReason?: string | null;
 }
 
 export interface MilestoneDto {
@@ -132,6 +642,7 @@ export interface MeasurementDto {
 }
 
 export interface StrategicObjectiveDto {
+  version: number;
   id: string;
   title: string;
   description: string | null;
@@ -180,6 +691,7 @@ export interface ExclusionInput {
 }
 
 export interface PopulationSelectionDto {
+  version: number;
   mode: PopulationMode;
   eligibilityDate: string;
   isConfirmed: boolean;
@@ -206,6 +718,7 @@ export interface PersonRefDto {
 }
 
 export interface GoalNodeDto {
+  version: number;
   id: string;
   ownershipScope: ObjectiveOwnershipScope;
   title: string;
@@ -258,12 +771,21 @@ export interface ContributionLinkDto {
   weight: number;
 }
 
+export interface AlignedPlanObjectiveDto {
+  objectiveId: string;
+  title: string;
+  ownerName: string | null;
+  planState: PlanLifecycleState;
+  progress: number | null;
+}
+
 export interface GoalDetailDto {
   node: GoalNodeDto;
   description: string | null;
   accountable: PersonRefDto;
   parent: GoalNodeDto | null;
   children: GoalNodeDto[];
+  alignedPlanObjectives: AlignedPlanObjectiveDto[];
   measurement: MeasurementDto | null;
   contribution: ContributionLinkDto[];
   canEdit: boolean;
@@ -277,6 +799,8 @@ export interface GoalDetailDto {
   canUpdateProgress: boolean;
   /** Named progress detail (history, evidence): stricter than reading the objective itself. */
   canReadProgressHistory: boolean;
+  canArchive: boolean;
+  archivedAt: string | null;
 }
 
 /** The plan an Employee objective belongs to, as seen from the objective. */
@@ -285,9 +809,12 @@ export interface GoalPlanFacetDto {
   planState: PlanLifecycleState;
   planWeight: number | null;
   owner: PersonRefDto;
+  /** The viewer is the Approved plan's responsible reviewer in an open Cycle. */
+  canRequestUpdate: boolean;
 }
 
 export interface CreateOrganizationalObjectiveRequest {
+  expectedVersion: number;
   /** Omitted by managers; administrators provide the team they are acting for. */
   orgUnitId?: string | null;
   orgUnitName?: string | null;
@@ -302,6 +829,7 @@ export interface CreateOrganizationalObjectiveRequest {
 }
 
 export interface UpdateOrganizationalObjectiveRequest {
+  expectedVersion: number;
   title: string;
   description?: string | null;
   accountablePersonId: string;
@@ -313,6 +841,7 @@ export interface UpdateOrganizationalObjectiveRequest {
 }
 
 export interface AlignObjectiveRequest {
+  expectedVersion: number;
   parentObjectiveId: string | null;
 }
 
@@ -338,12 +867,14 @@ export interface ContributionInput {
 }
 
 export interface ConfigureContributionRequest {
+  expectedVersion: number;
   contributors: ContributionInput[];
 }
 
 // ── Employee plans (Chunk C) ────────────────────────────────────────────────────
 
 export interface PlanObjectiveDto {
+  version: number;
   id: string;
   title: string;
   description: string | null;
@@ -367,6 +898,8 @@ export interface PlanObjectiveDto {
 }
 
 export interface PlanReadinessDto {
+  alignmentPolicy: PlanAlignmentPolicy;
+  everyObjectiveConnectsToStrategicDirection: boolean;
   objectiveCount: number;
   weightTotal: number;
   /** Positive = still to assign, negative = over by that much, 0 = exactly 100%. */
@@ -387,14 +920,22 @@ export interface PlanDecisionDto {
   decidedAt: string;
 }
 
+/** Why a participant's responsible reviewer holds that responsibility. */
+export type ReviewerBasis = "CoreManagerAtCycleStart" | "AdministrativeAssignment";
+
 export interface EmployeePlanDto {
+  version: number;
   id: string;
   cycleId: string;
   cycleName: string;
   cycleState: CycleLifecycleState;
   employee: PersonRefDto;
+  isOwner: boolean;
   orgUnitName: string | null;
   responsibleManager: PersonRefDto | null;
+  /** Why the responsible reviewer holds that responsibility, captured by Performance (not live Core). */
+  responsibleReviewerBasis?: ReviewerBasis | null;
+  responsibleReviewerAsOf?: string | null;
   state: PlanLifecycleState;
   submittedAt: string | null;
   lastSavedAt: string;
@@ -415,6 +956,8 @@ export interface PlanPreviewDto {
   reviewer: PersonRefDto | null;
   orgUnitName: string | null;
   standaloneAllowed: boolean;
+  reviewerBasis?: ReviewerBasis | null;
+  reviewerAsOf?: string | null;
 }
 
 export interface MyPlanStateDto {
@@ -434,25 +977,6 @@ export interface AlignmentTargetDto {
   startDate: string;
   endDate: string;
   directionPath: string[];
-}
-
-export interface PlanReviewSummaryDto {
-  id: string;
-  employee: PersonRefDto;
-  orgUnitName: string | null;
-  state: PlanLifecycleState;
-  objectiveCount: number;
-  weightTotal: number;
-  alignedCount: number;
-  standaloneCount: number;
-  submittedAt: string | null;
-}
-
-export interface PlanReviewListDto {
-  cycleId: string;
-  cycleName: string;
-  awaitingDecisionCount: number;
-  plans: PlanReviewSummaryDto[];
 }
 
 /** One objective's slice of an approved plan: its plan weight and reported progress (capped at 100). */
@@ -485,21 +1009,114 @@ export interface TeamRosterMemberDto {
   planProgress: number;
   /** Each objective's slice of an Approved plan, in plan order; empty before approval. */
   objectiveProgress: RosterObjectiveProgressDto[];
-  /** Open milestones past their due date on an Approved plan — a fact, never a rating. */
-  overdueMilestoneCount: number;
+  /** Objectives on an Approved plan that are incomplete past their end date or an open milestone's due date, counted once each — a fact, never a rating. */
+  overdueObjectiveCount: number;
   activityKind: RosterActivityKind;
   activityAt: string | null;
   /** The strong "Review plan" action: a Submitted plan the caller may actually decide. */
   canReview: boolean;
   /** The quiet inspection action: an existing plan the caller may open. */
   canView: boolean;
+  /** Planning only (Draft, Returned, Submitted): share of plan weight allocated so far; null once Approved. */
+  allocatedWeight?: number | null;
+  /** Approved only: incomplete objectives with no update in the last 30 days. */
+  objectivesWithoutRecentUpdate?: number;
+  /** The caller's latest update request on this plan, open or resolved. */
+  updateRequest?: RosterUpdateRequestDto | null;
+  /** The caller is this Approved plan's responsible reviewer in an Active Cycle. */
+  canRequestUpdate?: boolean;
+  /** The review assigned to the caller during this Cycle's Active round, if any. */
+  review?: RosterReviewDto | null;
 }
 
-export interface TeamRosterDto {
-  cycleId: string;
-  needsReviewCount: number;
-  members: TeamRosterMemberDto[];
+export interface RosterReviewDto {
+  reviewId: string;
+  state: PerformanceReviewState;
+  dueDate: string | null;
 }
+
+export type UpdateRequestState = "Open" | "Satisfied" | "Withdrawn" | "Unresolved";
+
+export interface RosterUpdateRequestDto {
+  id: string;
+  state: UpdateRequestState;
+  objectiveTitle: string | null;
+  requestedAt: string;
+  satisfiedAt: string | null;
+  version: number;
+}
+
+export interface UpdateRequestDto {
+  id: string;
+  cycleId: string;
+  planId: string;
+  objectiveId: string | null;
+  objectiveTitle: string | null;
+  requestedByName: string;
+  requestedAt: string;
+  note: string | null;
+  state: UpdateRequestState;
+  satisfiedAt: string | null;
+  closedAt: string | null;
+  version: number;
+}
+
+export interface MyUpdateRequestDto {
+  requestId: string;
+  requestedByName: string;
+  requestedAt: string;
+  note: string | null;
+  objectiveTitle: string | null;
+  destination: OverviewDestinationDto;
+}
+
+/** The server-owned views of Your People. */
+export type YourPeopleFilter = "All" | "NeedsReview" | "Planning" | "Approved" | "NoProgress";
+
+export interface YourPeopleQuery {
+  filter: YourPeopleFilter;
+  search: string;
+  page: number;
+  pageSize: number;
+}
+
+export interface YourPeopleCountsDto {
+  needsReview: number;
+  planning: number;
+  approved: number;
+  noProgress: number;
+}
+
+/** One server page of Your People, action required first. */
+export interface YourPeoplePageDto {
+  cycleId: string;
+  hasActiveReviewRound: boolean;
+  items: TeamRosterMemberDto[];
+  page: number;
+  pageSize: number;
+  /** What the current view and search match. */
+  matchCount: number;
+  /** Everyone before search and view: what "empty" means. */
+  totalCount: number;
+  counts: YourPeopleCountsDto;
+  /** The caller's whole responsibility, unaffected by search or view. */
+  standing: TeamStandingDto;
+}
+
+/** Plan states as a distribution, then execution attention as counts of people. No averages. */
+export interface TeamStandingDto {
+  people: number;
+  notStarted: number;
+  draft: number;
+  returned: number;
+  submitted: number;
+  approved: number;
+  approvedReporting: number;
+  peopleWithOverdue: number;
+  peopleWithoutRecentUpdate: number;
+  activeLastSevenDays: number;
+}
+
 
 /**
  * Cycle-wide planning and execution standing for administration: operational counts only. There is
@@ -518,10 +1135,11 @@ export interface CyclePlanSummaryDto {
   /** Approved plans still without any progress update. */
   approvedNotReportingCount: number;
   /** Approved plans with an open milestone past its due date. */
-  participantsWithOverdueMilestones: number;
+  participantsWithOverdueObjectives: number;
 }
 
 export interface AddPlanObjectiveRequest {
+  expectedVersion: number;
   title: string;
   description?: string | null;
   parentObjectiveId?: string | null;
@@ -534,14 +1152,17 @@ export interface AddPlanObjectiveRequest {
 export type UpdatePlanObjectiveRequest = AddPlanObjectiveRequest;
 
 export interface SetPlanWeightsRequest {
+  expectedVersion: number;
   weights: Array<{ objectiveId: string; weight: number }>;
 }
 
 export interface ReturnPlanRequest {
+  expectedVersion: number;
   feedback: string;
 }
 
 export interface ExceptionalApprovePlanRequest {
+  expectedVersion: number;
   reason: string;
 }
 
@@ -557,6 +1178,7 @@ export interface EvidenceDto {
   referenceText: string | null;
   /** Present only for a File the caller may open; null hides the action when unauthorized. */
   downloadPath: string | null;
+  isRemovedUnderRetention: boolean;
 }
 
 export interface ProgressUpdateDto {
@@ -590,6 +1212,7 @@ export interface ProgressMilestoneDto {
 }
 
 export interface ObjectiveProgressDto {
+  version: number;
   objectiveId: string;
   title: string;
   ownershipScope: ObjectiveOwnershipScope;
@@ -610,7 +1233,7 @@ export interface ObjectiveProgressDto {
 }
 
 export interface EvidenceDescriptorDto {
-  storageKey: string;
+  uploadId: string;
   fileName: string;
   contentType: string;
   sizeBytes: number;
@@ -618,7 +1241,7 @@ export interface EvidenceDescriptorDto {
 
 export interface EvidenceInput {
   kind: EvidenceKind;
-  storageKey?: string | null;
+  uploadId?: string | null;
   fileName?: string | null;
   contentType?: string | null;
   sizeBytes?: number | null;
@@ -628,6 +1251,7 @@ export interface EvidenceInput {
 }
 
 export interface SubmitProgressRequest {
+  expectedVersion: number;
   percentage?: number | null;
   numericActual?: number | null;
   milestoneId?: string | null;
@@ -648,6 +1272,7 @@ export interface CreateCycleRequest {
 }
 
 export interface UpdateCycleRequest {
+  expectedVersion: number;
   name: string;
   startDate: string;
   endDate: string;
@@ -669,6 +1294,7 @@ export interface MeasurementInput {
 }
 
 export interface CreateStrategicObjectiveRequest {
+  expectedVersion: number;
   title: string;
   description?: string | null;
   accountablePersonId: string;
@@ -679,6 +1305,7 @@ export interface CreateStrategicObjectiveRequest {
 }
 
 export interface UpdateStrategicObjectiveRequest {
+  expectedVersion: number;
   title: string;
   description?: string | null;
   accountablePersonId: string;
@@ -689,6 +1316,7 @@ export interface UpdateStrategicObjectiveRequest {
 }
 
 export interface SetPopulationRequest {
+  expectedVersion: number;
   mode: PopulationMode;
   orgUnitSelections?: OrgUnitSelectionInput[];
   inclusions?: string[];
@@ -698,15 +1326,24 @@ export interface SetPopulationRequest {
 // ── Paths & query keys ─────────────────────────────────────────────────────────
 
 export const performancePaths = {
-  access: () => "/performance/access",
   settings: () => "/performance/settings",
-  cycles: () => "/performance/cycles",
-  currentCycle: () => "/performance/cycles/current",
+  ratingScale: () => "/performance/settings/rating-scale",
+  competencies: () => "/performance/settings/competencies",
+  competency: (id: string) => `/performance/settings/competencies/${id}`,
+  archiveCompetency: (id: string) => `/performance/settings/competencies/${id}/archive`,
+  createCycle: () => "/performance/cycles",
   cycle: (id: string) => `/performance/cycles/${id}`,
+  overview: (cycleId?: string | null) =>
+    cycleId ? `/performance/overview?cycleId=${encodeURIComponent(cycleId)}` : "/performance/overview",
+  context: (cycleId?: string | null) =>
+    cycleId ? `/performance/context?cycleId=${encodeURIComponent(cycleId)}` : "/performance/context",
   activate: (id: string) => `/performance/cycles/${id}/activate`,
+  closure: (id: string) => `/performance/cycles/${id}/closure`,
+  close: (id: string) => `/performance/cycles/${id}/close`,
   strategy: (cycleId: string) => `/performance/cycles/${cycleId}/strategy`,
   strategyItem: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/strategy/${objectiveId}`,
+  archiveStrategy: (cycleId: string, objectiveId: string) => `/performance/cycles/${cycleId}/strategy/${objectiveId}/archive`,
   publishStrategy: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/strategy/${objectiveId}/publish`,
   population: (cycleId: string) => `/performance/cycles/${cycleId}/population`,
@@ -723,6 +1360,7 @@ export const performancePaths = {
     `/performance/cycles/${cycleId}/goals/${objectiveId}`,
   alignGoal: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/goals/${objectiveId}/align`,
+  archiveGoal: (cycleId: string, objectiveId: string) => `/performance/cycles/${cycleId}/goals/${objectiveId}/archive`,
   publishGoal: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/goals/${objectiveId}/publish`,
   goalContribution: (cycleId: string, objectiveId: string) =>
@@ -739,14 +1377,13 @@ export const performancePaths = {
   planWeights: (cycleId: string) =>
     `/performance/cycles/${cycleId}/plan/weights`,
   submitPlan: (cycleId: string) => `/performance/cycles/${cycleId}/plan/submit`,
-  planReviews: (cycleId: string) =>
-    `/performance/cycles/${cycleId}/plans/reviews`,
-  teamRoster: (cycleId: string) =>
-    `/performance/cycles/${cycleId}/plans/roster`,
-  cyclePlanSummary: (cycleId: string) =>
-    `/performance/cycles/${cycleId}/plans/summary`,
+  yourPeople: (cycleId: string) =>
+    `/performance/cycles/${cycleId}/team/people`,
   planDetail: (cycleId: string, planId: string) =>
     `/performance/cycles/${cycleId}/plans/${planId}`,
+  updateRequests: (cycleId: string, planId: string) =>
+    `/performance/cycles/${cycleId}/plans/${planId}/update-requests`,
+  withdrawUpdateRequest: (requestId: string) => `/performance/update-requests/${requestId}/withdraw`,
   returnPlan: (cycleId: string, planId: string) =>
     `/performance/cycles/${cycleId}/plans/${planId}/return`,
   approvePlan: (cycleId: string, planId: string) =>
@@ -757,20 +1394,46 @@ export const performancePaths = {
     `/performance/cycles/${cycleId}/objectives/${objectiveId}/progress`,
   objectiveProgressHistory: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/objectives/${objectiveId}/progress/history`,
-  evidenceUpload: (cycleId: string) =>
-    `/performance/cycles/${cycleId}/evidence/upload`,
+  evidenceUpload: (cycleId: string, objectiveId: string) =>
+    `/performance/cycles/${cycleId}/objectives/${objectiveId}/evidence/uploads`,
   evidenceDownload: (cycleId: string, evidenceId: string) =>
     `/performance/cycles/${cycleId}/evidence/${evidenceId}`,
+  reviewRounds: (cycleId: string) => `/performance/cycles/${cycleId}/review-rounds`,
+  reviewRound: (roundId: string) => `/performance/review-rounds/${roundId}`,
+  reviewRoundPopulation: (roundId: string) => `/performance/review-rounds/${roundId}/population`,
+  reviewRoundEligibleReviewers: (roundId: string) => `/performance/review-rounds/${roundId}/eligible-reviewers`,
+  reviewRoundLaunch: (roundId: string) => `/performance/review-rounds/${roundId}/launch`,
+  reviewRoundStatus: (roundId: string) => `/performance/review-rounds/${roundId}/status`,
+  reviewRoundFinalize: (roundId: string) => `/performance/review-rounds/${roundId}/finalize`,
+  reviewRoundClose: (roundId: string) => `/performance/review-rounds/${roundId}/close`,
+  reviewWork: () => "/performance/reviews/work",
+  reviewHistory: () => "/performance/reviews/history",
+  review: (reviewId: string) => `/performance/reviews/${reviewId}`,
+  selfAssessment: (reviewId: string) => `/performance/reviews/${reviewId}/self-assessment`,
+  managerAssessment: (reviewId: string) => `/performance/reviews/${reviewId}/manager-assessment`,
+  reviewFinalize: (reviewId: string) => `/performance/reviews/${reviewId}/finalize`,
+  reviewClose: (reviewId: string) => `/performance/reviews/${reviewId}/close`,
+  calibrationRounds: (cycleId: string) => `/performance/cycles/${cycleId}/calibration`,
+  calibration: (roundId: string) => `/performance/review-rounds/${roundId}/calibration`,
+  calibrationCandidates: (roundId: string) => `/performance/review-rounds/${roundId}/calibration/facilitator-candidates`,
+  calibrationFacilitators: (roundId: string) => `/performance/review-rounds/${roundId}/calibration/facilitators`,
+  calibrationSubject: (roundId: string, reviewId: string) =>
+    `/performance/review-rounds/${roundId}/calibration/subjects/${reviewId}`,
+  calibrationFinalize: (roundId: string) => `/performance/review-rounds/${roundId}/calibration/finalize`,
 } as const;
 
 export const performanceQueryKeys = {
   all: () => ["performance"] as const,
-  access: () => [...performanceQueryKeys.all(), "access"] as const,
   settings: () => [...performanceQueryKeys.all(), "settings"] as const,
-  cycles: () => [...performanceQueryKeys.all(), "cycles"] as const,
-  currentCycle: () =>
-    [...performanceQueryKeys.all(), "cycle", "current"] as const,
+  ratingScale: () => [...performanceQueryKeys.all(), "rating-scale"] as const,
+  competencies: () => [...performanceQueryKeys.all(), "competencies"] as const,
   cycle: (id: string) => [...performanceQueryKeys.all(), "cycle", id] as const,
+  cycleClosure: (id: string) => [...performanceQueryKeys.all(), "cycle-closure", id] as const,
+  workspaceContext: (cycleId?: string | null) =>
+    [...performanceQueryKeys.all(), "workspace-context", cycleId ?? "current"] as const,
+  overviews: () => [...performanceQueryKeys.all(), "overview"] as const,
+  overview: (cycleId?: string | null) =>
+    [...performanceQueryKeys.overviews(), cycleId ?? "current"] as const,
   strategy: (cycleId: string) =>
     [...performanceQueryKeys.all(), "strategy", cycleId] as const,
   population: (cycleId: string) =>
@@ -790,44 +1453,116 @@ export const performanceQueryKeys = {
     [...performanceQueryKeys.all(), "my-plan", cycleId] as const,
   alignmentTargets: (cycleId: string) =>
     [...performanceQueryKeys.all(), "alignment-targets", cycleId] as const,
-  planReviews: (cycleId: string) =>
-    [...performanceQueryKeys.all(), "plan-reviews", cycleId] as const,
-  teamRoster: (cycleId: string) =>
-    [...performanceQueryKeys.all(), "team-roster", cycleId] as const,
-  cyclePlanSummary: (cycleId: string) =>
-    [...performanceQueryKeys.all(), "cycle-plan-summary", cycleId] as const,
+  yourPeople: (cycleId: string, query?: YourPeopleQuery) =>
+    query
+      ? ([...performanceQueryKeys.all(), "your-people", cycleId, query] as const)
+      : ([...performanceQueryKeys.all(), "your-people", cycleId] as const),
   planDetail: (cycleId: string, planId: string) =>
     [...performanceQueryKeys.all(), "plan", cycleId, planId] as const,
+  updateRequests: (cycleId: string, planId: string) =>
+    [...performanceQueryKeys.all(), "update-requests", cycleId, planId] as const,
   objectiveProgress: (cycleId: string, objectiveId: string) =>
     [...performanceQueryKeys.all(), "progress", cycleId, objectiveId] as const,
+  reviewWork: (cycleId: string) => [...performanceQueryKeys.all(), "review-work", cycleId] as const,
+  reviewHistory: (cycleId: string) => [...performanceQueryKeys.all(), "review-history", cycleId] as const,
+  reviewRounds: (cycleId: string) => [...performanceQueryKeys.all(), "review-rounds", cycleId] as const,
+  reviewRound: (roundId: string) => [...performanceQueryKeys.all(), "review-round", roundId] as const,
+  reviewRoundStatus: (roundId: string) => [...performanceQueryKeys.all(), "review-round-status", roundId] as const,
+  reviewRoundEligibleReviewers: (roundId: string) => [...performanceQueryKeys.all(), "review-round-reviewers", roundId] as const,
+  review: (reviewId: string) => [...performanceQueryKeys.all(), "review", reviewId] as const,
+  calibrationRounds: (cycleId: string) => [...performanceQueryKeys.all(), "calibration-rounds", cycleId] as const,
+  calibration: (roundId: string) => [...performanceQueryKeys.all(), "calibration", roundId] as const,
+  calibrationCandidates: (roundId: string) => [...performanceQueryKeys.all(), "calibration-candidates", roundId] as const,
 } as const;
 
 /** Performance Cycle & Goals transport. UI state and cache behavior remain feature-owned. */
 export function createPerformanceApi(client: ApiClient) {
   return {
-    access: (signal?: AbortSignal) =>
-      client.get<PerformanceAccessDto>(performancePaths.access(), { signal }),
-
     getSettings: (signal?: AbortSignal) =>
       client.get<CycleSettingsDto>(performancePaths.settings(), { signal }),
-    updateSettings: (request: CycleSettingsDto) =>
+    updateSettings: (request: CycleSettingsDto & { expectedVersion: number }) =>
       client.put<CycleSettingsDto>(performancePaths.settings(), request),
+    ratingScale: (signal?: AbortSignal) => client.get<RatingScaleDto>(performancePaths.ratingScale(), { signal }),
+    updateRatingScale: (request: UpdateRatingScaleRequest) =>
+      client.put<RatingScaleDto>(performancePaths.ratingScale(), request),
+    getCompetencies: (signal?: AbortSignal) => client.get<CompetencyDto[]>(performancePaths.competencies(), { signal }),
+    createCompetency: (request: CreateCompetencyRequest) => client.post<CompetencyDto>(performancePaths.competencies(), request),
+    updateCompetency: (id: string, request: UpdateCompetencyRequest) => client.put<CompetencyDto>(performancePaths.competency(id), request),
+    archiveCompetency: (id: string, request: CompetencyVersionRequest) => client.post<CompetencyDto>(performancePaths.archiveCompetency(id), request),
+    deleteCompetency: (id: string, request: CompetencyVersionRequest) => client.delete<boolean>(performancePaths.competency(id), { body: request }),
 
-    listCycles: (signal?: AbortSignal) =>
-      client.get<CycleSummaryDto[]>(performancePaths.cycles(), { signal }),
-    /** The primary/current Cycle's composed detail, or null when none exists. */
-    getCurrentCycle: (signal?: AbortSignal) =>
-      client.get<CycleDetailDto | null>(performancePaths.currentCycle(), {
-        signal,
-      }),
+    /** The detail of one authorized Cycle. */
     getCycle: (id: string, signal?: AbortSignal) =>
       client.get<CycleDetailDto>(performancePaths.cycle(id), { signal }),
+    getOverview: (cycleId?: string | null, signal?: AbortSignal) =>
+      client.get<OverviewDto>(performancePaths.overview(cycleId), { signal }),
+    getWorkspaceContext: (cycleId?: string | null, signal?: AbortSignal) =>
+      client.get<WorkspaceContextDto>(performancePaths.context(cycleId), { signal }),
+    getReviewRounds: (cycleId: string, signal?: AbortSignal) =>
+      client.get<ReviewRoundSummaryDto[]>(performancePaths.reviewRounds(cycleId), { signal }),
+    createReviewRound: (cycleId: string, request: CreateReviewRoundRequest) =>
+      client.post<ReviewRoundDto>(performancePaths.reviewRounds(cycleId), request),
+    getReviewRound: (roundId: string, signal?: AbortSignal) =>
+      client.get<ReviewRoundDto>(performancePaths.reviewRound(roundId), { signal }),
+    getEligibleReviewers: (roundId: string, signal?: AbortSignal) =>
+      client.get<EligibleReviewerDto[]>(performancePaths.reviewRoundEligibleReviewers(roundId), { signal }),
+    updateReviewRound: (roundId: string, request: UpdateReviewRoundRequest) =>
+      client.put<ReviewRoundDto>(performancePaths.reviewRound(roundId), request),
+    getReviewRoundPopulation: (roundId: string, signal?: AbortSignal) =>
+      client.get<ReviewRoundSubjectDto[]>(performancePaths.reviewRoundPopulation(roundId), { signal }),
+    updateReviewRoundPopulation: (roundId: string, request: UpdateReviewRoundPopulationRequest) =>
+      client.put<ReviewRoundSubjectDto[]>(performancePaths.reviewRoundPopulation(roundId), request),
+    launchReviewRound: (roundId: string, expectedVersion: number) =>
+      client.post<ReviewRoundLaunchDto>(performancePaths.reviewRoundLaunch(roundId), { expectedVersion }),
+    getReviewRoundStatus: (roundId: string, signal?: AbortSignal) =>
+      client.get<ReviewRoundStatusDto>(performancePaths.reviewRoundStatus(roundId), { signal }),
+    finalizeReviewRound: (roundId: string, expectedVersion: number, reviewIds?: string[]) =>
+      client.post<ReviewRoundFinalizationDto>(performancePaths.reviewRoundFinalize(roundId), { expectedVersion, reviewIds: reviewIds ?? null }),
+    closeReviewRound: (roundId: string, expectedVersion: number) =>
+      client.post<ReviewRoundFinalizationDto>(performancePaths.reviewRoundClose(roundId), { expectedVersion }),
+    getReviewWork: (cycleId: string, signal?: AbortSignal) =>
+      client.get<ReviewWorkItemDto[]>(performancePaths.reviewWork(), { signal, params: { cycleId } }),
+    getReviewHistory: (cycleId?: string | null, signal?: AbortSignal) =>
+      client.get<ReviewHistoryItemDto[]>(performancePaths.reviewHistory(), { signal, params: cycleId ? { cycleId } : undefined }),
+    getReview: (reviewId: string, signal?: AbortSignal) =>
+      client.get<PerformanceReviewDto>(performancePaths.review(reviewId), { signal }),
+    saveSelfAssessment: (reviewId: string, request: SaveSelfAssessmentRequest) =>
+      client.put<PerformanceReviewMutationDto>(performancePaths.selfAssessment(reviewId), request),
+    submitSelfAssessment: (reviewId: string, request: SaveSelfAssessmentRequest) =>
+      client.post<PerformanceReviewMutationDto>(performancePaths.selfAssessment(reviewId), request),
+    saveManagerAssessment: (reviewId: string, request: SaveManagerAssessmentRequest) =>
+      client.put<PerformanceReviewMutationDto>(performancePaths.managerAssessment(reviewId), request),
+    submitManagerAssessment: (reviewId: string, request: SaveManagerAssessmentRequest) =>
+      client.post<PerformanceReviewMutationDto>(performancePaths.managerAssessment(reviewId), request),
+    finalizeReview: (reviewId: string, expectedVersion: number) =>
+      client.post<ReviewFinalizationDto>(performancePaths.reviewFinalize(reviewId), { expectedVersion }),
+    closeReview: (reviewId: string, expectedVersion: number, reason: string) =>
+      client.post<PerformanceReviewMutationDto>(performancePaths.reviewClose(reviewId), { expectedVersion, reason }),
+    getCalibrationRounds: (cycleId: string, signal?: AbortSignal) =>
+      client.get<CalibrationRoundDto[]>(performancePaths.calibrationRounds(cycleId), { signal }),
+    getCalibration: (roundId: string, signal?: AbortSignal) =>
+      client.get<CalibrationSessionDto>(performancePaths.calibration(roundId), { signal }),
+    openCalibration: (roundId: string) =>
+      client.post<CalibrationSessionDto>(performancePaths.calibration(roundId), {}),
+    getCalibrationCandidates: (roundId: string, signal?: AbortSignal) =>
+      client.get<FacilitatorCandidateDto[]>(performancePaths.calibrationCandidates(roundId), { signal }),
+    setCalibrationFacilitators: (roundId: string, userIds: string[], expectedVersion: number) =>
+      client.put<CalibrationSessionDto>(performancePaths.calibrationFacilitators(roundId), { userIds, expectedVersion }),
+    adjustCalibrationSubject: (roundId: string, reviewId: string, request: AdjustCalibrationSubjectRequest) =>
+      client.put<CalibrationSubjectDto>(performancePaths.calibrationSubject(roundId, reviewId), request),
+    finalizeCalibration: (roundId: string, expectedVersion: number) =>
+      client.post<CalibrationSessionDto>(performancePaths.calibrationFinalize(roundId), { expectedVersion }),
     createCycle: (request: CreateCycleRequest) =>
-      client.post<CycleSummaryDto>(performancePaths.cycles(), request),
+      client.post<CycleSummaryDto>(performancePaths.createCycle(), request),
     updateCycle: (id: string, request: UpdateCycleRequest) =>
       client.put<CycleSummaryDto>(performancePaths.cycle(id), request),
-    activateCycle: (id: string) =>
-      client.post<CycleDetailDto>(performancePaths.activate(id), {}),
+    activateCycle: (id: string, expectedVersion: number) =>
+      client.post<CycleDetailDto>(performancePaths.activate(id), { expectedVersion }),
+    cycleClosure: (id: string) => client.get<CycleClosureDto>(performancePaths.closure(id)),
+    closeCycle: (id: string, request: CloseCycleRequest, expectedVersion: number) =>
+      client.post<CycleDetailDto>(performancePaths.close(id), { ...request, expectedVersion }),
+    deleteDraftCycle: (id: string, expectedVersion: number) =>
+      client.delete<boolean>(performancePaths.cycle(id), { body: { expectedVersion } }),
 
     listStrategy: (cycleId: string, signal?: AbortSignal) =>
       client.get<StrategicObjectiveDto[]>(performancePaths.strategy(cycleId), {
@@ -850,14 +1585,15 @@ export function createPerformanceApi(client: ApiClient) {
         performancePaths.strategyItem(cycleId, objectiveId),
         request
       ),
-    publishStrategy: (cycleId: string, objectiveId: string) =>
+    publishStrategy: (cycleId: string, objectiveId: string, expectedVersion: number) =>
       client.post<StrategicObjectiveDto>(
         performancePaths.publishStrategy(cycleId, objectiveId),
-        {}
+        { expectedVersion }
       ),
-    deleteStrategy: (cycleId: string, objectiveId: string) =>
+    archiveStrategy: (cycleId: string, objectiveId: string, expectedVersion: number) => client.post<StrategicObjectiveDto>(performancePaths.archiveStrategy(cycleId, objectiveId), { expectedVersion }),
+    deleteStrategy: (cycleId: string, objectiveId: string, expectedVersion: number) =>
       client.delete<boolean>(
-        performancePaths.strategyItem(cycleId, objectiveId)
+        performancePaths.strategyItem(cycleId, objectiveId), { body: { expectedVersion } }
       ),
 
     getPopulation: (cycleId: string, signal?: AbortSignal) =>
@@ -866,10 +1602,10 @@ export function createPerformanceApi(client: ApiClient) {
       }),
     setPopulation: (cycleId: string, request: SetPopulationRequest) =>
       client.put<PopulationDto>(performancePaths.population(cycleId), request),
-    confirmPopulation: (cycleId: string) =>
+    confirmPopulation: (cycleId: string, expectedVersion: number) =>
       client.post<PopulationDto>(
         performancePaths.confirmPopulation(cycleId),
-        {}
+        { expectedVersion }
       ),
 
     getGoals: (cycleId: string, signal?: AbortSignal) =>
@@ -909,10 +1645,10 @@ export function createPerformanceApi(client: ApiClient) {
         performancePaths.alignGoal(cycleId, objectiveId),
         request
       ),
-    publishGoal: (cycleId: string, objectiveId: string) =>
+    publishGoal: (cycleId: string, objectiveId: string, expectedVersion: number) =>
       client.post<GoalDetailDto>(
         performancePaths.publishGoal(cycleId, objectiveId),
-        {}
+        { expectedVersion }
       ),
     configureGoalContribution: (
       cycleId: string,
@@ -923,13 +1659,14 @@ export function createPerformanceApi(client: ApiClient) {
         performancePaths.goalContribution(cycleId, objectiveId),
         request
       ),
-    lockGoalContribution: (cycleId: string, objectiveId: string) =>
+    lockGoalContribution: (cycleId: string, objectiveId: string, expectedVersion: number) =>
       client.post<GoalDetailDto>(
         performancePaths.lockGoalContribution(cycleId, objectiveId),
-        {}
+        { expectedVersion }
       ),
-    deleteGoal: (cycleId: string, objectiveId: string) =>
-      client.delete<boolean>(performancePaths.goal(cycleId, objectiveId)),
+    archiveGoal: (cycleId: string, objectiveId: string, expectedVersion: number) => client.post<GoalDetailDto>(performancePaths.archiveGoal(cycleId, objectiveId), { expectedVersion }),
+    deleteGoal: (cycleId: string, objectiveId: string, expectedVersion: number) =>
+      client.delete<boolean>(performancePaths.goal(cycleId, objectiveId), { body: { expectedVersion } }),
 
     // Employee plans (Chunk C)
     getMyPlan: (cycleId: string, signal?: AbortSignal) =>
@@ -939,8 +1676,8 @@ export function createPerformanceApi(client: ApiClient) {
         performancePaths.alignmentTargets(cycleId),
         { signal }
       ),
-    createMyPlan: (cycleId: string) =>
-      client.post<EmployeePlanDto>(performancePaths.myPlan(cycleId), {}),
+    createMyPlan: (cycleId: string, expectedVersion: number) =>
+      client.post<EmployeePlanDto>(performancePaths.myPlan(cycleId), { expectedVersion }),
     addPlanObjective: (cycleId: string, request: AddPlanObjectiveRequest) =>
       client.post<EmployeePlanDto>(
         performancePaths.planObjectives(cycleId),
@@ -955,29 +1692,28 @@ export function createPerformanceApi(client: ApiClient) {
         performancePaths.planObjective(cycleId, objectiveId),
         request
       ),
-    removePlanObjective: (cycleId: string, objectiveId: string) =>
+    removePlanObjective: (cycleId: string, objectiveId: string, expectedVersion: number) =>
       client.delete<EmployeePlanDto>(
-        performancePaths.planObjective(cycleId, objectiveId)
+        performancePaths.planObjective(cycleId, objectiveId), { body: { expectedVersion } }
       ),
     setPlanWeights: (cycleId: string, request: SetPlanWeightsRequest) =>
       client.put<EmployeePlanDto>(
         performancePaths.planWeights(cycleId),
         request
       ),
-    submitPlan: (cycleId: string) =>
-      client.post<EmployeePlanDto>(performancePaths.submitPlan(cycleId), {}),
-    getPlanReviews: (cycleId: string, signal?: AbortSignal) =>
-      client.get<PlanReviewListDto>(performancePaths.planReviews(cycleId), {
+    submitPlan: (cycleId: string, expectedVersion: number) =>
+      client.post<EmployeePlanDto>(performancePaths.submitPlan(cycleId), { expectedVersion }),
+    getYourPeople: (cycleId: string, query: YourPeopleQuery, signal?: AbortSignal) =>
+      client.get<YourPeoplePageDto>(performancePaths.yourPeople(cycleId), {
         signal,
+        params: { ...query },
       }),
-    getTeamRoster: (cycleId: string, signal?: AbortSignal) =>
-      client.get<TeamRosterDto>(performancePaths.teamRoster(cycleId), {
-        signal,
-      }),
-    getCyclePlanSummary: (cycleId: string, signal?: AbortSignal) =>
-      client.get<CyclePlanSummaryDto>(performancePaths.cyclePlanSummary(cycleId), {
-        signal,
-      }),
+    getUpdateRequests: (cycleId: string, planId: string, signal?: AbortSignal) =>
+      client.get<UpdateRequestDto[]>(performancePaths.updateRequests(cycleId, planId), { signal }),
+    requestUpdate: (cycleId: string, planId: string, request: { objectiveId: string | null; note: string | null }) =>
+      client.post<UpdateRequestDto>(performancePaths.updateRequests(cycleId, planId), request),
+    withdrawUpdateRequest: (requestId: string, expectedVersion: number) =>
+      client.post<UpdateRequestDto>(performancePaths.withdrawUpdateRequest(requestId), { expectedVersion }),
     getPlanDetail: (cycleId: string, planId: string, signal?: AbortSignal) =>
       client.get<EmployeePlanDto>(
         performancePaths.planDetail(cycleId, planId),
@@ -988,10 +1724,10 @@ export function createPerformanceApi(client: ApiClient) {
         performancePaths.returnPlan(cycleId, planId),
         request
       ),
-    approvePlan: (cycleId: string, planId: string) =>
+    approvePlan: (cycleId: string, planId: string, expectedVersion: number) =>
       client.post<EmployeePlanDto>(
         performancePaths.approvePlan(cycleId, planId),
-        {}
+        { expectedVersion }
       ),
     exceptionalApprovePlan: (
       cycleId: string,
@@ -1041,11 +1777,11 @@ export function createPerformanceApi(client: ApiClient) {
         performancePaths.objectiveProgress(cycleId, objectiveId),
         request
       ),
-    uploadEvidence: (cycleId: string, file: File) => {
+    uploadEvidence: (cycleId: string, objectiveId: string, file: File) => {
       const form = new FormData();
       form.append("file", file);
       return client.post<EvidenceDescriptorDto>(
-        performancePaths.evidenceUpload(cycleId),
+        performancePaths.evidenceUpload(cycleId, objectiveId),
         form
       );
     },

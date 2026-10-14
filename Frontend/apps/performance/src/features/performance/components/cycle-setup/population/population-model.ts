@@ -59,7 +59,7 @@ export function initials(name: string): string {
 /** Rebuilds the wholesale selection request from the current selection (the server replaces it). */
 export function selectionToRequest(
   selection: PopulationSelectionDto
-): SetPopulationRequest {
+): Omit<SetPopulationRequest, "expectedVersion"> {
   return {
     mode: selection.mode,
     orgUnitSelections: selection.orgUnitSelections,

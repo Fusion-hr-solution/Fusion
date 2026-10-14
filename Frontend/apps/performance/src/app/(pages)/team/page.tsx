@@ -1,33 +1,41 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
 import { Button } from "@repo/ds/components/ui/button";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { TeamDirection, TeamDirectionSkeleton } from "@/features/performance/components/team/team-direction";
+import type { YourPeopleQuery } from "@repo/api";
 import {
   AddPeopleCallout,
+  DEFAULT_PEOPLE_QUERY,
   RosterSkeleton,
   YourPeople,
-  type RosterFilter,
 } from "@/features/performance/components/team/your-people";
-import { usePerformanceAccess, useCurrentCycle, useTeamRoster } from "@/features/performance/api/use-performance";
+import { useCurrentCycle, useYourPeople } from "@/features/performance/api/use-performance";
+import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
 
 export default function TeamPerformancePage() {
-  const access = usePerformanceAccess();
-  const canEnter = access.data?.canEnter ?? false;
-  const canReview = access.data?.canLeadTeam ?? false;
+  // Team Performance belongs to people Performance records as responsible reviewers in this Cycle.
+  const context = useWorkspaceContext();
+  const canReview = context.data?.destinations.team ?? false;
   // The organization-direction link is offered only to actors who can enter that workspace.
-  const canViewOrgDirection = access.data?.canViewOrgDirection ?? false;
+  const canViewOrgDirection = context.data?.capabilities.canViewOrgDirection ?? false;
 
-  const detail = useCurrentCycle(canEnter);
+  const detail = useCurrentCycle(Boolean(context.data));
   const cycle = detail.data?.cycle ?? null;
-  const roster = useTeamRoster(cycle?.id ?? null, canReview);
-  const [rosterFilter, setRosterFilter] = useState<RosterFilter>("all");
+  // Overview's "Review plans" lands here already on the view that needs the manager.
+  const opensOnReview = useSearchParams().get("view") === "needs-review";
+  const [peopleQuery, setPeopleQuery] = useState<YourPeopleQuery>(() =>
+    opensOnReview ? { ...DEFAULT_PEOPLE_QUERY, filter: "NeedsReview" } : DEFAULT_PEOPLE_QUERY
+  );
+  const people = useYourPeople(cycle?.id ?? null, peopleQuery, canReview);
 
-  if (access.isLoading) return <TeamPageSkeleton />;
+  if (context.isLoading) return <TeamPageSkeleton />;
+  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
   if (!canReview) {
     return (
       <PagePermissionNotice
@@ -46,7 +54,7 @@ export default function TeamPerformancePage() {
     );
   }
 
-  const count = roster.data?.needsReviewCount ?? 0;
+  const count = people.data?.counts.needsReview ?? 0;
 
   return (
     <PageContainer width="wide">
@@ -58,7 +66,7 @@ export default function TeamPerformancePage() {
           count > 0 ? (
             <Button
               onClick={() => {
-                setRosterFilter("needsReview");
+                setPeopleQuery({ ...DEFAULT_PEOPLE_QUERY, filter: "NeedsReview" });
                 document.getElementById("your-people")?.scrollIntoView({ behavior: "smooth", block: "start" });
               }}
             >
@@ -70,7 +78,7 @@ export default function TeamPerformancePage() {
       <div className="mt-8 space-y-9">
         <TeamDirection cycle={cycle} canViewOrgDirection={canViewOrgDirection} />
         <div className="space-y-4">
-          <YourPeople roster={roster} filter={rosterFilter} onFilterChange={setRosterFilter} />
+          <YourPeople cycleId={cycle.id} people={people} query={peopleQuery} onQueryChange={setPeopleQuery} />
           <AddPeopleCallout />
         </div>
       </div>

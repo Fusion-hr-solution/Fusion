@@ -47,7 +47,7 @@ export function RecordProgressMode({ record, onDone }: { record: ObjectiveRecord
                 progress={progress}
                 submitting={mutations.submit.isLoading}
                 formId={formId}
-                onSubmit={(request) => mutations.submit.mutateAsync(request).then(() => undefined)}
+                onSubmit={(request) => mutations.submit.mutateAsync({ ...request, expectedVersion: progress.version }).then(() => undefined)}
                 upload={(file) => mutations.uploadEvidence.mutateAsync(file)}
                 onValidityChange={setCanSubmit}
                 onRecorded={onDone}

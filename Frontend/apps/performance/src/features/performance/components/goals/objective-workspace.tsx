@@ -480,7 +480,7 @@ function SubjectMenu({
   const isDraft = node.state === "Draft";
   const canManage = isCompany ? actions.canManageCompany : actions.canAuthor;
   // With no owner actions available, the whole card is still openable by its title — skip the menu.
-  if (!canManage && node.state === "Published") return null;
+  if (!canManage && !isDraft) return null;
 
   return (
     <DropdownMenu>
@@ -499,7 +499,7 @@ function SubjectMenu({
           <Eye className="size-3.5" data-icon="inline-start" /> View details
         </DropdownMenuItem>
         {isCompany ? (
-          canManage ? (
+          canManage && isDraft ? (
             <>
               <DropdownMenuItem onSelect={() => actions.onEditCompany(node.id)}>
                 <Pencil className="size-3.5" data-icon="inline-start" /> Edit

@@ -1,5 +1,7 @@
 "use client";
 
+import { performanceFailure, reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Check,
@@ -33,7 +35,7 @@ import {
   AlertDialogTrigger,
 } from "@repo/ds/components/ui/alert-dialog";
 import { Button } from "@repo/ds/components/ui/button";
-import { AsyncButton, PageError } from "@repo/ds/shell";
+import { AsyncButton, PagePermissionNotice, PageError } from "@repo/ds/shell";
 import { PlanEmptySkeleton } from "./plan-skeleton";
 import { cn } from "@repo/ds/lib/utils";
 import {
@@ -51,6 +53,7 @@ import { PlanSubmissionStatus } from "./plan-submission-status";
 import { initials } from "./plan-lib";
 import { PlanProgressCard } from "./plan-progress-card";
 import { PlanApprovedStatus } from "./plan-approved-status";
+import { PlanUpdateRequests } from "../update-requests/update-requests";
 import { PlanDocument, PlanSection, PlanWeightStrip, SidebarSection } from "./plan-layout";
 
 /**
@@ -80,6 +83,10 @@ export function MyPlan({
       </>
     );
   }
+  if (performanceFailure(state.error).unavailable) {
+    return <PagePermissionNotice title="Plan unavailable" />;
+  }
+
   if (state.error || !state.data) {
     return (
       <>
@@ -126,16 +133,16 @@ export function MyPlan({
       teamName={plan?.orgUnitName ?? preview?.orgUnitName}
       objective={composer.objective}
       otherWeightTotal={(plan?.readiness.weightTotal ?? 0) - (composer.objective?.planWeight ?? 0)}
-      onCreate={async (request: AddPlanObjectiveRequest) => {
+      onCreate={async (request: Omit<AddPlanObjectiveRequest, "expectedVersion">) => {
         // First objective materializes the plan; the two calls are sequential so the plan exists
         // server-side before the objective is added.
-        if (!plan) await mutations.create.mutateAsync();
-        await mutations.addObjective.mutateAsync(request);
+        const currentPlan = plan ?? await mutations.create.mutateAsync(cycle.version);
+        await mutations.addObjective.mutateAsync({ request, expectedVersion: currentPlan.version });
         toast.success("Objective added.");
       }}
-      onUpdate={async (request: AddPlanObjectiveRequest) => {
+      onUpdate={async (request: Omit<AddPlanObjectiveRequest, "expectedVersion">) => {
         if (!composer.objective) return;
-        await mutations.updateObjective.mutateAsync({ objectiveId: composer.objective.id, request });
+        await mutations.updateObjective.mutateAsync({ objectiveId: composer.objective.id, request, expectedVersion: plan!.version });
         toast.success("Objective updated.");
       }}
     />
@@ -197,9 +204,7 @@ export function MyPlan({
   ) : plan.state === "Submitted" ? (
     <PlanSubmissionStatus plan={plan} />
   ) : plan.isLocked ? (
-    <>
-      <PlanApprovedStatus plan={plan} perspective="owner" />
-    </>
+    <PlanApprovedStatus plan={plan} perspective="owner" />
   ) : null;
   const sidebar = (
     <>
@@ -233,11 +238,11 @@ export function MyPlan({
       lastSavedAt={plan.lastSavedAt}
       onSubmit={async () => {
         try {
-          await mutations.submit.mutateAsync();
+          await mutations.submit.mutateAsync(plan.version);
           toast.success(returned ? "Plan resubmitted for review." : "Plan submitted for review.");
           return true;
         } catch (error) {
-          toast.error(error instanceof Error ? error.message : "Could not submit your plan.");
+          reportPerformanceFailure(error, "Could not submit your plan.");
           return false;
         }
       }}
@@ -249,20 +254,25 @@ export function MyPlan({
       {heading(actions)}
       <PlanDocument
           main={
-            <ObjectiveLedger
-              plan={plan}
-              cycle={cycle}
-              targets={targets}
-              onAdd={() => setComposer({})}
-              onEdit={(objective) => setComposer({ objective })}
-              onRemove={async (id) => {
-                try {
-                  await mutations.removeObjective.mutateAsync(id);
-                } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Could not remove the objective.");
-                }
-              }}
-            />
+            <>
+              {plan.isLocked ? <PlanUpdateRequests cycleId={plan.cycleId} planId={plan.id} /> : null}
+              <div id="plan-objectives" className="scroll-mt-6">
+                <ObjectiveLedger
+                  plan={plan}
+                  cycle={cycle}
+                  targets={targets}
+                  onAdd={() => setComposer({})}
+                  onEdit={(objective) => setComposer({ objective })}
+                  onRemove={async (id) => {
+                    try {
+                      await mutations.removeObjective.mutateAsync({ objectiveId: id, expectedVersion: plan.version });
+                    } catch (error) {
+                      reportPerformanceFailure(error, "Could not remove the objective.");
+                    }
+                  }}
+                />
+              </div>
+            </>
           }
           sidebar={sidebar}
         />

@@ -1,20 +1,12 @@
+using EY.HRPlatform.Performance.Domain.Settings;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
 using EY.HRPlatform.Performance.Domain.Population;
 using EY.HRPlatform.Performance.Domain.Progress;
+using EY.HRPlatform.Performance.Domain.Reviews;
 
 namespace EY.HRPlatform.Performance.Models;
-
-// ----- Access / capabilities (hide, don't deny) -----
-
-public sealed record PerformanceAccessDto(
-    bool CanEnter,
-    bool CanAdminister,
-    bool CanPublishStrategy,
-    bool CanParticipate,
-    bool CanManageOrgObjectives,
-    string? AggregateViewScope);
 
 // ----- Settings -----
 
@@ -23,14 +15,48 @@ public sealed record CycleSettingsDto(
     int SuggestedObjectiveCountMin,
     int SuggestedObjectiveCountMax,
     int PlanningDeadlineOffsetDays,
-    bool AllowStandaloneObjectives);
+    PlanAlignmentPolicy PlanAlignmentPolicy,
+    bool DefaultSelfAssessmentEnabled,
+    bool DefaultObjectiveRatingsEnabled,
+    bool DefaultCalibrationEnabled,
+    int EvidenceRetentionMonths)
+{
+    public uint Version { get; init; }
+}
 
 public sealed record UpdateCycleSettingsRequest(
     MeasurementMethod DefaultMeasurementMethod,
     int SuggestedObjectiveCountMin,
     int SuggestedObjectiveCountMax,
     int PlanningDeadlineOffsetDays,
-    bool AllowStandaloneObjectives);
+    PlanAlignmentPolicy PlanAlignmentPolicy)
+{
+    public int EvidenceRetentionMonths { get; init; } = 36;
+    public bool? DefaultSelfAssessmentEnabled { get; init; }
+    public bool? DefaultObjectiveRatingsEnabled { get; init; }
+    public bool? DefaultCalibrationEnabled { get; init; }
+
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
+
+public sealed record RatingScaleLevelDto(int Value, string Label, string? Description);
+public sealed record RatingScaleDto(int ScaleVersion, IReadOnlyList<RatingScaleLevelDto> Levels)
+{
+    public uint Version { get; init; }
+}
+public sealed record UpdateRatingScaleRequest(IReadOnlyList<RatingScaleLevelDto>? Levels)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
+
+public sealed record CompetencyDto(Guid Id, string Name, string Description, IReadOnlyList<string> Behaviors,
+    string State, DateTime? FirstUsedAt, uint Version);
+public sealed record CreateCompetencyRequest(string Name, string Description, IReadOnlyList<string>? Behaviors);
+public sealed record UpdateCompetencyRequest([property: System.Text.Json.Serialization.JsonRequired] uint ExpectedVersion,
+    string Name, string Description, IReadOnlyList<string>? Behaviors);
+public sealed record CompetencyVersionRequest([property: System.Text.Json.Serialization.JsonRequired] uint ExpectedVersion);
 
 // ----- Cycles -----
 
@@ -42,7 +68,10 @@ public sealed record CycleSummaryDto(
     DateOnly EndDate,
     DateOnly PlanningDeadline,
     CycleLifecycleState State,
-    DateTime? ActivatedAt);
+    DateTime? ActivatedAt)
+{
+    public uint Version { get; init; }
+}
 
 public sealed record CreateCycleRequest(
     string Name,
@@ -56,7 +85,11 @@ public sealed record UpdateCycleRequest(
     DateOnly StartDate,
     DateOnly EndDate,
     DateOnly PlanningDeadline,
-    string? Description = null);
+    string? Description = null)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
 public sealed record MilestoneStateDto(OperationalMilestone Milestone, bool Reached);
 
@@ -75,7 +108,38 @@ public sealed record CycleDetailDto(
     int DraftStrategyCount,
     bool PopulationConfirmed,
     int ConfirmedParticipantCount,
-    bool OtherActiveCycleExists);
+    bool OtherActiveCycleExists)
+{
+    /// <summary>The Active Cycle's derived operational phase; null unless Active.</summary>
+    public CyclePhase? Phase { get; init; }
+}
+
+/// <summary>What closing the Cycle would involve: whether the end is reached and who lacks an approved plan.</summary>
+public sealed record CycleClosureDto(
+    Guid CycleId,
+    uint Version,
+    CycleLifecycleState State,
+    DateOnly EndDate,
+    bool EndReached,
+    int ParticipantCount,
+    int ApprovedCount,
+    IReadOnlyList<ClosureParticipantDto> Unresolved,
+    string? EarlyCloseReason,
+    int RecordedExceptionCount);
+
+/// <summary>A participant without an approved plan, as closure would record them.</summary>
+public sealed record ClosureParticipantDto(
+    Guid EmployeeId,
+    string DisplayName,
+    string? OrgUnitName,
+    RosterPlanStatus Standing,
+    string? ExceptionReason);
+
+/// <summary>Closes an Active Cycle; reasons are required only when the end is not reached or plans are unresolved.</summary>
+public sealed record CloseCycleRequest(
+    [property: System.Text.Json.Serialization.JsonRequired] uint ExpectedVersion,
+    string? EarlyCloseReason,
+    string? ExceptionReason);
 
 // ----- Strategic direction -----
 
@@ -109,7 +173,10 @@ public sealed record StrategicObjectiveDto(
     DateOnly EndDate,
     ObjectiveLifecycleState State,
     DateTime? PublishedAt,
-    MeasurementDto Measurement);
+    MeasurementDto Measurement)
+{
+    public uint Version { get; init; }
+}
 
 public sealed record CreateStrategicObjectiveRequest(
     string Title,
@@ -118,7 +185,11 @@ public sealed record CreateStrategicObjectiveRequest(
     DateOnly? StartDate,
     DateOnly? EndDate,
     MeasurementInput Measurement,
-    bool Publish = false);
+    bool Publish = false)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
 public sealed record UpdateStrategicObjectiveRequest(
     string Title,
@@ -127,7 +198,11 @@ public sealed record UpdateStrategicObjectiveRequest(
     DateOnly StartDate,
     DateOnly EndDate,
     MeasurementInput Measurement,
-    bool Publish = false);
+    bool Publish = false)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
 // ----- Population -----
 
@@ -139,7 +214,11 @@ public sealed record SetPopulationRequest(
     PopulationMode Mode,
     IReadOnlyList<OrgUnitSelectionInput>? OrgUnitSelections,
     IReadOnlyList<Guid>? Inclusions,
-    IReadOnlyList<ExclusionInput>? Exclusions);
+    IReadOnlyList<ExclusionInput>? Exclusions)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
 public sealed record ReadinessIssueDto(ReadinessIssueCode Code, string Label, bool IsHard);
 
@@ -167,7 +246,10 @@ public sealed record PopulationSelectionDto(
     bool IsConfirmed,
     IReadOnlyList<OrgUnitSelectionInput> OrgUnitSelections,
     IReadOnlyList<Guid> Inclusions,
-    IReadOnlyList<ExclusionInput> Exclusions);
+    IReadOnlyList<ExclusionInput> Exclusions)
+{
+    public uint Version { get; init; }
+}
 
 public sealed record PopulationDto(
     PopulationSelectionDto Selection,
@@ -217,7 +299,10 @@ public sealed record GoalNodeDto(
     DateTime? PublishedAt,
     // Creation and last-edit timestamps — used to show a Draft's "saved" date.
     DateTime CreatedAt,
-    DateTime? UpdatedAt);
+    DateTime? UpdatedAt)
+{
+    public uint Version { get; init; }
+}
 
 /// <summary>The whole cycle's objective graph plus operational counts for the Goals area.</summary>
 public sealed record GoalsOverviewDto(
@@ -237,6 +322,13 @@ public sealed record ContributionLinkDto(
     string ChildTitle,
     ObjectiveLifecycleState ChildState,
     decimal Weight);
+
+public sealed record AlignedPlanObjectiveDto(
+    Guid ObjectiveId,
+    string Title,
+    string? OwnerName,
+    PlanLifecycleState PlanState,
+    decimal? Progress);
 
 /// <summary>The full context surface for one objective — summary, alignment, contribution.</summary>
 public sealed record GoalDetailDto(
@@ -259,14 +351,21 @@ public sealed record GoalDetailDto(
     bool CanDelete,
     bool CanUpdateProgress,
     // Named progress detail (history, evidence) — stricter than reading the objective itself.
-    bool CanReadProgressHistory);
+    bool CanReadProgressHistory)
+{
+    public bool CanArchive { get; init; }
+    public DateTime? ArchivedAt { get; init; }
+    public IReadOnlyList<AlignedPlanObjectiveDto> AlignedPlanObjectives { get; init; } = [];
+}
 
 /// <summary>The plan an Employee objective belongs to, as seen from the objective.</summary>
 public sealed record GoalPlanFacetDto(
     Guid PlanId,
     PlanLifecycleState PlanState,
     decimal? PlanWeight,
-    PersonRefDto Owner);
+    PersonRefDto Owner,
+    // The viewer is this Approved plan's responsible reviewer in an open Cycle, so may ask for an update.
+    bool CanRequestUpdate = false);
 
 public sealed record CreateOrganizationalObjectiveRequest(
     Guid? OrgUnitId,
@@ -278,7 +377,11 @@ public sealed record CreateOrganizationalObjectiveRequest(
     DateOnly? StartDate,
     DateOnly? EndDate,
     ObjectiveProgressSource ProgressSource,
-    MeasurementInput? Measurement);
+    MeasurementInput? Measurement)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
 public sealed record UpdateOrganizationalObjectiveRequest(
     string Title,
@@ -288,9 +391,17 @@ public sealed record UpdateOrganizationalObjectiveRequest(
     DateOnly StartDate,
     DateOnly EndDate,
     ObjectiveProgressSource ProgressSource,
-    MeasurementInput? Measurement);
+    MeasurementInput? Measurement)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
-public sealed record AlignObjectiveRequest(Guid? ParentObjectiveId);
+public sealed record AlignObjectiveRequest(Guid? ParentObjectiveId)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
 public sealed record TeamObjectiveWorkspaceItemDto(
     GoalNodeDto Node,
@@ -308,7 +419,11 @@ public sealed record TeamObjectiveWorkspaceDto(
 
 public sealed record ContributionInput(Guid ChildObjectiveId, decimal Weight);
 
-public sealed record ConfigureContributionRequest(IReadOnlyList<ContributionInput> Contributors);
+public sealed record ConfigureContributionRequest(IReadOnlyList<ContributionInput> Contributors)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
 // ----- Employee plans (Chunk C) -----
 
@@ -340,7 +455,10 @@ public sealed record PlanObjectiveDto(
     decimal? CurrentPercentage,
     decimal? CurrentActual,
     DateTime? LastProgressAt,
-    bool CanUpdateProgress);
+    bool CanUpdateProgress)
+{
+    public uint Version { get; init; }
+}
 
 /// <summary>Live readiness of a plan for submission — the whole-plan invariants, computed continuously.</summary>
 public sealed record PlanReadinessDto(
@@ -353,7 +471,11 @@ public sealed record PlanReadinessDto(
     bool HasStandaloneObjective,
     bool StandaloneAllowed,
     bool CanSubmit,
-    IReadOnlyList<string> Blockers);
+    IReadOnlyList<string> Blockers)
+{
+    public PlanAlignmentPolicy AlignmentPolicy { get; init; } = PlanAlignmentPolicy.AtLeastOneConnected;
+    public bool EveryObjectiveConnectsToStrategicDirection { get; init; }
+}
 
 public sealed record PlanDecisionDto(
     PlanDecisionKind Kind,
@@ -386,7 +508,15 @@ public sealed record EmployeePlanDto(
     bool CanAuthor,
     bool CanSubmit,
     bool CanDecide,
-    bool CanApproveExceptionally);
+    bool CanApproveExceptionally)
+{
+    public uint Version { get; init; }
+    public bool IsOwner { get; init; }
+
+    /// <summary>Why the responsible reviewer holds that responsibility, and as of when.</summary>
+    public ReviewerBasis? ResponsibleReviewerBasis { get; init; }
+    public DateOnly? ResponsibleReviewerAsOf { get; init; }
+}
 
 /// <summary>Whether the caller has a plan in this Cycle yet, and the plan if so. When the caller
 /// participates but has not started a plan, <see cref="Preview"/> carries the reviewer and scope
@@ -401,7 +531,11 @@ public sealed record MyPlanStateDto(
 public sealed record PlanPreviewDto(
     PersonRefDto? Reviewer,
     string? OrgUnitName,
-    bool StandaloneAllowed);
+    bool StandaloneAllowed)
+{
+    public ReviewerBasis? ReviewerBasis { get; init; }
+    public DateOnly? ReviewerAsOf { get; init; }
+}
 
 /// <summary>One alignable upstream objective an employee objective may connect to (published strategic or approved organizational).</summary>
 public sealed record AlignmentTargetDto(
@@ -415,24 +549,6 @@ public sealed record AlignmentTargetDto(
     DateOnly EndDate,
     // Readable direction path down to and including this objective.
     IReadOnlyList<string> DirectionPath);
-
-/// <summary>A manager's or administrator's review-queue row for a submitted plan awaiting decision.</summary>
-public sealed record PlanReviewSummaryDto(
-    Guid Id,
-    PersonRefDto Employee,
-    string? OrgUnitName,
-    PlanLifecycleState State,
-    int ObjectiveCount,
-    decimal WeightTotal,
-    int AlignedCount,
-    int StandaloneCount,
-    DateTime? SubmittedAt);
-
-public sealed record PlanReviewListDto(
-    Guid CycleId,
-    string CycleName,
-    int AwaitingDecisionCount,
-    IReadOnlyList<PlanReviewSummaryDto> Plans);
 
 /// <summary>
 /// The lifecycle position of a roster member's plan as the manager reads it. Combines the plan
@@ -485,14 +601,30 @@ public sealed record TeamRosterMemberDto(
     // Each objective's share of the plan and its reported progress, in plan order — populated once the
     // plan is Approved, so the roster can show composition, coverage and weighted progress in one shape.
     IReadOnlyList<RosterObjectiveProgressDto> ObjectiveProgress,
-    // Milestones past their due date and not completed on an Approved plan — a fact, never a rating.
-    int OverdueMilestoneCount,
+    // Objectives on an Approved plan that are incomplete past their end date or an open milestone's due
+    // date, counted once per objective (ExecutionFacts) — a fact, never a rating.
+    int OverdueObjectiveCount,
     RosterActivityKind ActivityKind,
     DateTime? ActivityAt,
     // CanReview: the strong "Review plan" action — a Submitted plan the caller may actually decide.
     bool CanReview,
     // CanView: the quiet inspection action — an existing plan the caller may open.
-    bool CanView);
+    bool CanView,
+    // Planning only (Draft, Returned, Submitted): the share of plan weight allocated so far — a scalar,
+    // so a private Draft's standing is told without exposing its objectives. Null once Approved.
+    decimal? AllocatedWeight = null,
+    // Approved only: incomplete objectives with no progress update in the last 30 days of execution (ExecutionFacts).
+    int ObjectivesWithoutRecentUpdate = 0,
+    // The caller's latest update request on this plan, open or resolved, so the row shows its state.
+    RosterUpdateRequestDto? UpdateRequest = null,
+    // The caller is this Approved plan's responsible reviewer in an Active Cycle.
+    bool CanRequestUpdate = false,
+    RosterReviewDto? Review = null);
+
+public sealed record RosterReviewDto(Guid ReviewId, PerformanceReviewState State, DateOnly? DueDate);
+
+public sealed record RosterUpdateRequestDto(Guid Id, Domain.Plans.UpdateRequestState State, string? ObjectiveTitle,
+    DateTime RequestedAt, DateTime? SatisfiedAt, uint Version);
 
 /// <summary>
 /// One objective's slice of an approved plan: its plan weight, reported progress (capped at 100), and
@@ -510,14 +642,42 @@ public sealed record RosterObjectiveProgressDto(
 /// <summary>One milestone inside a roster objective slice: its share of the objective and whether it is done.</summary>
 public sealed record RosterMilestoneSliceDto(decimal Weight, bool IsCompleted, bool IsOverdue);
 
+/// <summary>The views of Your People; the server filters, orders and pages.</summary>
+public enum YourPeopleFilter
+{
+    All = 0,
+    NeedsReview = 1,
+    Planning = 2,
+    Approved = 3,
+    NoProgress = 4,
+}
+
 /// <summary>
-/// The manager's people roster. <see cref="NeedsReviewCount"/> is the plans the caller may decide now;
-/// every other breakdown is derived from <see cref="Members"/> by the client.
+/// One page of Your People: the people the caller is the recorded responsible reviewer of, action required
+/// first. <see cref="TotalCount"/> is everyone before search and filter (what "empty" means);
+/// <see cref="MatchCount"/> is what the current view and search match; <see cref="Counts"/> sizes each view.
 /// </summary>
-public sealed record TeamRosterDto(
+public sealed record YourPeoplePageDto(
     Guid CycleId,
-    int NeedsReviewCount,
-    IReadOnlyList<TeamRosterMemberDto> Members);
+    bool HasActiveReviewRound,
+    IReadOnlyList<TeamRosterMemberDto> Items,
+    int Page,
+    int PageSize,
+    int MatchCount,
+    int TotalCount,
+    YourPeopleCountsDto Counts,
+    TeamStandingDto Standing);
+
+/// <summary>
+/// The caller's whole responsibility in this Cycle, unaffected by search or view: plan states as a distribution,
+/// then execution attention as counts of people. Facts only; no averaged progress and no health labels.
+/// </summary>
+public sealed record TeamStandingDto(
+    int People, int NotStarted, int Draft, int Returned, int Submitted, int Approved,
+    int ApprovedReporting, int PeopleWithOverdue, int PeopleWithoutRecentUpdate, int ActiveLastSevenDays);
+
+public sealed record YourPeopleCountsDto(int NeedsReview, int Planning, int Approved, int NoProgress);
+
 
 /// <summary>
 /// Cycle-wide planning and execution standing for administration: operational counts only. There is
@@ -526,7 +686,7 @@ public sealed record TeamRosterDto(
 /// </summary>
 /// <param name="ApprovedReportingCount">Approved plans with at least one progress update.</param>
 /// <param name="ApprovedNotReportingCount">Approved plans still without any progress update.</param>
-/// <param name="ParticipantsWithOverdueMilestones">Approved plans with an open milestone past its due date.</param>
+/// <param name="ParticipantsWithOverdueObjectives">Approved plans with at least one overdue objective (ExecutionFacts).</param>
 public sealed record CyclePlanSummaryDto(
     Guid CycleId,
     int ParticipantCount,
@@ -537,7 +697,7 @@ public sealed record CyclePlanSummaryDto(
     int ApprovedCount,
     int ApprovedReportingCount,
     int ApprovedNotReportingCount,
-    int ParticipantsWithOverdueMilestones);
+    int ParticipantsWithOverdueObjectives);
 
 public sealed record AddPlanObjectiveRequest(
     string Title,
@@ -546,7 +706,11 @@ public sealed record AddPlanObjectiveRequest(
     DateOnly? StartDate,
     DateOnly? EndDate,
     MeasurementInput Measurement,
-    decimal PlanWeight);
+    decimal PlanWeight)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
 public sealed record UpdatePlanObjectiveRequest(
     string Title,
@@ -555,15 +719,31 @@ public sealed record UpdatePlanObjectiveRequest(
     DateOnly? StartDate,
     DateOnly? EndDate,
     MeasurementInput Measurement,
-    decimal PlanWeight);
+    decimal PlanWeight)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
 public sealed record PlanWeightInput(Guid ObjectiveId, decimal Weight);
 
-public sealed record SetPlanWeightsRequest(IReadOnlyList<PlanWeightInput> Weights);
+public sealed record SetPlanWeightsRequest(IReadOnlyList<PlanWeightInput> Weights)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
-public sealed record ReturnPlanRequest(string Feedback);
+public sealed record ReturnPlanRequest(string Feedback)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
-public sealed record ExceptionalApprovePlanRequest(string Reason);
+public sealed record ExceptionalApprovePlanRequest(string Reason)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
 // ----- Progress & contribution (Chunk D) -----
 
@@ -576,7 +756,10 @@ public sealed record EvidenceDto(
     string? Url,
     string? ReferenceText,
     // Present only for a File the caller may open; null hides the action when authorization fails.
-    string? DownloadPath);
+    string? DownloadPath)
+{
+    public bool IsRemovedUnderRetention { get; init; }
+}
 
 public sealed record ProgressUpdateDto(
     Guid Id,
@@ -617,14 +800,17 @@ public sealed record ObjectiveProgressDto(
     bool CanUpdate,
     IReadOnlyList<ProgressUpdateDto> History,
     // Cursor for the next older page of History; null when the first page already holds all of it.
-    string? HistoryNextCursor);
+    string? HistoryNextCursor)
+{
+    public uint Version { get; init; }
+}
 
 /// <summary>Staged file descriptor returned by the evidence upload, folded into the progress submit.</summary>
-public sealed record EvidenceDescriptorDto(string StorageKey, string FileName, string ContentType, long SizeBytes);
+public sealed record EvidenceDescriptorDto(Guid UploadId, string FileName, string ContentType, long SizeBytes);
 
 public sealed record EvidenceInput(
     EvidenceKind Kind,
-    string? StorageKey,
+    Guid? UploadId,
     string? FileName,
     string? ContentType,
     long? SizeBytes,
@@ -639,4 +825,41 @@ public sealed record SubmitProgressRequest(
     bool? MilestoneCompleted,
     string? ContextNote,
     bool IsCorrection,
-    IReadOnlyList<EvidenceInput>? Evidence);
+    IReadOnlyList<EvidenceInput>? Evidence)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
+
+public sealed record ExpectedVersionRequest([property: System.Text.Json.Serialization.JsonRequired] uint ExpectedVersion);
+
+// ----- Workspace context -----
+
+/// <summary>What the caller can do in the selected Cycle, from capabilities plus recorded responsibility.</summary>
+public sealed record WorkspaceCapabilitiesDto(
+    bool Participates,
+    bool IsResponsibleReviewer,
+    bool HasReviewWork,
+    bool Administers,
+    bool PublishesStrategy,
+    bool ManagesOrgObjectives,
+    bool CanCalibrate,
+    bool CanViewOrgDirection,
+    bool CanChooseOrganizationScope);
+
+/// <summary>Which primary destinations the workspace offers the caller in the selected Cycle.</summary>
+public sealed record WorkspaceDestinationsDto(
+    bool Overview,
+    bool MyPlan,
+    bool Team,
+    bool Reviews,
+    bool CycleAdmin,
+    bool Settings);
+
+/// <summary>The selected Cycle, the Cycles the caller may switch to, and the workspace composition for them.</summary>
+public sealed record WorkspaceContextDto(
+    IReadOnlyList<CycleSummaryDto> Cycles,
+    CycleSummaryDto? Selected,
+    CyclePhase? Phase,
+    WorkspaceCapabilitiesDto Capabilities,
+    WorkspaceDestinationsDto Destinations);

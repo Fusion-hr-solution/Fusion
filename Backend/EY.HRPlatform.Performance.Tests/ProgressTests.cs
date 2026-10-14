@@ -127,10 +127,42 @@ public sealed class ProgressTests
     private static ProgressActorContext Owner(Guid id) => new(id, IsAdmin: false, CanReviewReports: false);
 
     private static Task<Result<ObjectiveProgressDto>> Submit(Fx f, PerformanceDbContext db, Guid objectiveId, SubmitProgressRequest req, ProgressActorContext actor)
-        => new SubmitProgressHandler(db, f.Workforce, f.Store.Tenant).Handle(new SubmitProgressCommand(f.CycleId, objectiveId, req, actor), default);
+        => new SubmitProgressHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new TestEvidenceStore(Guid.NewGuid())).Handle(new SubmitProgressCommand(f.CycleId, objectiveId, req, actor), default);
 
     private static SubmitProgressRequest Manual(decimal pct, string? context = null, bool correction = false)
         => new(pct, null, null, null, context, correction, null);
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(100.01)]
+    [InlineData(150)]
+    public async Task Invalid_manual_percentage_cannot_change_progress_or_append_history(decimal percentage)
+    {
+        var f = await ArrangeStrategicAsync();
+        await using (var db = f.Store.NewContext()) Assert.True((await Submit(f, db, f.StrategicId, Manual(30m), Owner(f.OwnerId))).IsSuccess);
+        await using (var db = f.Store.NewContext()) Assert.True((await Submit(f, db, f.StrategicId, Manual(percentage), Owner(f.OwnerId))).IsFailure);
+        await using var verify = f.Store.NewContext();
+        Assert.Equal(30m, (await verify.Objectives.SingleAsync(o => o.Id == f.StrategicId)).CurrentPercentage);
+        Assert.Single(await verify.ProgressUpdates.ToListAsync());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(100)]
+    public async Task Manual_percentage_accepts_both_inclusive_boundaries(decimal percentage)
+    {
+        var f = await ArrangeStrategicAsync();
+        await using var db = f.Store.NewContext();
+        Assert.True((await Submit(f, db, f.StrategicId, Manual(percentage), Owner(f.OwnerId))).IsSuccess);
+    }
+
+    [Fact]
+    public void Direct_objective_progress_rejects_manual_overachievement()
+    {
+        var objective = Objective.CreateStrategic(Guid.NewGuid(), Guid.NewGuid(), "Direction", null, Guid.NewGuid(), Start, End, ObjectiveMeasurement.ManualPercentage(), Start, End);
+        Assert.Throws<ArgumentOutOfRangeException>(() => objective.ApplyManualPercentage(100.01m));
+        Assert.Null(objective.CurrentPercentage);
+    }
 
     [Fact]
     public async Task Only_the_accountable_owner_records_progress()

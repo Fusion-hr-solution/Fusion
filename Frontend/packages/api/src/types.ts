@@ -18,6 +18,7 @@ export interface ApiClient {
 // Thrown on any failed API response. Network/abort errors are NOT wrapped here
 // — they propagate as TypeError and DOMException respectively.
 export class ApiError extends Error {
+  public readonly failureKind: string | null;
   constructor(
     public readonly status: number, // e.g. 401, 404, 500
     public readonly statusText: string, // e.g. "Unauthorized"
@@ -25,14 +26,16 @@ export class ApiError extends Error {
     public readonly correlationId: string | null, // For tracing — include in bug reports
     public readonly details: unknown = null, // Structured error payload (e.g. incomplete-submission blockers)
     /**
-     * Machine-readable failure code from an RFC 7807 problem response, when the endpoint sends one.
-     * Null for endpoints still on the older envelope — branch on `status` in that case rather than
-     * on message text.
+     * Machine-readable failure code from an RFC 7807 response or envelope details.
+     * Null when the endpoint provides neither; never branch on message text.
      */
     public readonly code: string | null = null
   ) {
     super(errors[0] ?? `HTTP ${status} ${statusText}`);
     this.name = "ApiError";
+    const payload = details !== null && typeof details === "object" ? details as Record<string, unknown> : null;
+    this.code = code ?? (typeof payload?.code === "string" ? payload.code : null);
+    this.failureKind = typeof payload?.kind === "string" ? payload.kind : null;
     // Needed for instanceof to work correctly across monorepo packages.
     Object.setPrototypeOf(this, ApiError.prototype);
   }
@@ -48,6 +51,8 @@ export interface ApiResponse<T> {
 
 // Per-request overrides, passed as the last argument to any client method.
 export interface RequestOptions {
+  /** Optional JSON body for DELETE commands. */
+  body?: unknown;
   headers?: Record<string, string>; // Merged over defaultHeaders for this request.
   credentials?: RequestCredentials; // Default: "same-origin".
   signal?: AbortSignal; // For cancellation via AbortController.

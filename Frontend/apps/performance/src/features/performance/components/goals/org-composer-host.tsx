@@ -13,8 +13,8 @@ import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import {
   useGoal,
   useGoalMutations,
-  usePerformanceAccess,
 } from "../../api/use-performance";
+import { useWorkspaceContext } from "../../api/use-workspace";
 import { OrgObjectiveComposer } from "./org-objective-composer";
 import { type UnitContext } from "./working-context-lib";
 
@@ -56,7 +56,7 @@ export function OrgComposerHost({
   onFocusParent?: (parentId: string) => void;
 }) {
   const { user } = useAuth();
-  const access = usePerformanceAccess();
+  const context = useWorkspaceContext();
   const mutations = useGoalMutations(cycle.id);
   const isCreate = state.mode === "create";
 
@@ -87,7 +87,7 @@ export function OrgComposerHost({
     ? { id: user.employeeId, name: user.fullName ?? "You" }
     : null;
   // Only the actor's own unit can be named without a roster grant; any other scope stays unset.
-  const canChooseTeam = access.data?.canAdminister ?? false;
+  const canChooseTeam = context.data?.capabilities.administers ?? false;
   const requestedOrgUnitId = isCreate
     ? state.orgUnitId
     : objective?.node.orgUnitId;
@@ -105,7 +105,7 @@ export function OrgComposerHost({
           : null;
 
   if (
-    access.isLoading ||
+    context.isLoading ||
     (!isCreate && (objectiveQuery.isLoading || !objective))
   ) {
     return <ComposerSkeleton isCreate={isCreate} onClose={onClose} />;
@@ -128,18 +128,18 @@ export function OrgComposerHost({
       defaultOrgUnit={defaultOrgUnit}
       teamLocked={!canChooseTeam || !isCreate}
       onCreate={async (request) => {
-        const created = await mutations.create.mutateAsync(request);
+        const created = await mutations.create.mutateAsync({ request, expectedVersion: cycle.version });
         if (request.parentObjectiveId)
           onFocusParent?.(request.parentObjectiveId);
         return created;
       }}
       onUpdate={async (objectiveId, request) => {
-        await mutations.update.mutateAsync({ objectiveId, request });
+        await mutations.update.mutateAsync({ objectiveId, request, expectedVersion: objective!.node.version });
         if (request.parentObjectiveId)
           onFocusParent?.(request.parentObjectiveId);
       }}
       onPublish={async (objectiveId) => {
-        await mutations.publish.mutateAsync(objectiveId);
+        await mutations.publish.mutateAsync({ objectiveId, expectedVersion: objective!.node.version });
         const parentId = isCreate
           ? state.alignment?.mode === "aligned"
             ? state.alignment.parentId

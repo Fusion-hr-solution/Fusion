@@ -82,7 +82,7 @@ function InspectorHeader({ row }: { row: WorkforceReviewRowDto }) {
     <div className="flex items-center gap-3 border-b border-border py-4 pl-5 pr-12">
       <Monogram name={row.employee.displayName} size="lg" accent={row.classification === "Create"} />
       <div className="min-w-0">
-        <p className="truncate type-title font-semibold text-foreground">{row.employee.displayName}</p>
+        <p className="truncate type-panel-title text-foreground">{row.employee.displayName}</p>
         <p className="type-code text-xs text-muted-foreground">
           {row.employee.numberGenerated ? "Number generated" : row.employee.employeeNumber ?? "—"}
         </p>

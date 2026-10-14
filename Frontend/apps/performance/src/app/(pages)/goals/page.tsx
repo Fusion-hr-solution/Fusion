@@ -30,13 +30,13 @@ import {
 } from "@/features/performance/components/goals/working-scope-selector";
 import { type UnitContext } from "@/features/performance/components/goals/working-context-lib";
 import {
-  usePerformanceAccess,
   useCurrentCycle,
   useGoals,
   useGoalMutations,
   useSaveStrategy,
 } from "@/features/performance/api/use-performance";
 import { useWorkforceMe } from "@/features/performance/api/use-workforce-me";
+import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
 
 export default function GoalsPage() {
   return (
@@ -50,18 +50,16 @@ function GoalsWorkspace() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
-  const access = usePerformanceAccess();
-  const a = access.data;
-  const scope = a?.aggregateViewScope ?? null;
+  const context = useWorkspaceContext();
+  const capabilities = context.data?.capabilities;
   // Organization direction is a workspace for organizational responsibility, reached in context.
   // Anyone else still reads the objectives their work aligns to — in the objective record.
-  const canViewOrgGoals = a?.canViewOrgDirection ?? false;
+  const canViewOrgGoals = capabilities?.canViewOrgDirection ?? false;
   // Authority (not placement) decides the default context. A tenant-wide actor (administration, or
   // tenant-breadth read) is responsible for the whole organization, so they land organization-wide;
   // everyone else is centered on the unit they actually belong to. Both drill the same hierarchy.
-  const broad = (a?.canAdminister ?? false) || scope === "Tenant";
-  const canReachSetup =
-    (a?.canAdminister ?? false) || (a?.canPublishStrategy ?? false);
+  const broad = capabilities?.canChooseOrganizationScope ?? false;
+  const canReachSetup = capabilities?.administers || capabilities?.publishesStrategy || false;
   const requestedScopeId = searchParams.get("scope");
   const focusId = searchParams.get("focus");
 
@@ -144,8 +142,10 @@ function GoalsWorkspace() {
     });
   };
 
-  if (access.isLoading)
+  if (context.isLoading)
     return <PageSkeleton rows={4} label="Loading Performance" />;
+  if (context.error)
+    return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
   if (!canViewOrgGoals) {
     return (
       <PagePermissionNotice
@@ -178,14 +178,16 @@ function GoalsWorkspace() {
   // (governed admin, or the org-manage grant). The precise per-org-unit check is enforced
   // server-side when the unit is chosen, so this only decides whether to offer the affordance.
   const canAuthorOrgObjectives =
-    (a?.canAdminister ?? false) || (a?.canManageOrgObjectives ?? false);
+    (capabilities?.administers ?? false) || (capabilities?.managesOrgObjectives ?? false);
   // Company (strategic) direction — create / edit / publish — is the strategy-publish authority.
   const canManageCompany =
-    (a?.canAdminister ?? false) || (a?.canPublishStrategy ?? false);
+    (capabilities?.administers ?? false) || (capabilities?.publishesStrategy ?? false);
 
   async function handleDeleteOrg(objectiveId: string) {
     try {
-      await goalMutations.remove.mutateAsync(objectiveId);
+      const version = goals.data?.nodes.find((node) => node.id === objectiveId)?.version;
+      if (version === undefined) throw new Error("Refresh this objective before making changes.");
+      await goalMutations.remove.mutateAsync({ objectiveId, expectedVersion: version });
       toast.success("Draft objective removed.");
     } catch (error) {
       toast.error(
@@ -198,7 +200,9 @@ function GoalsWorkspace() {
 
   async function handlePublishCompany(objectiveId: string) {
     try {
-      await strategyMutations.publish.mutateAsync(objectiveId);
+      const version = goals.data?.nodes.find((node) => node.id === objectiveId)?.version;
+      if (version === undefined) throw new Error("Refresh this objective before making changes.");
+      await strategyMutations.publish.mutateAsync({ objectiveId, expectedVersion: version });
       toast.success("Published as company direction.");
     } catch (error) {
       toast.error(

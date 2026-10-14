@@ -39,21 +39,23 @@ function MeasurementFacts({ measurement, showMilestones }: { measurement: Measur
   const milestones = measurement?.method === "WeightedMilestones" ? measurement.milestones : null;
   return (
     <>
-      <div className="grid grid-cols-2 gap-3">
-        <MiniFact
-          icon={<FileText className="size-4" aria-hidden />}
-          label="Type"
-          value={measurement ? MEASUREMENT_METHOD_LABEL[measurement.method] : "—"}
-        />
-        {milestones ? (
+      <div className="@container">
+        <div className="grid gap-3 @xs:grid-cols-2">
           <MiniFact
-            icon={<Milestones className="size-4" aria-hidden />}
-            label="Milestones"
-            value={`${milestones.length} milestone${milestones.length === 1 ? "" : "s"}`}
+            icon={<FileText className="size-4" aria-hidden />}
+            label="Type"
+            value={measurement ? MEASUREMENT_METHOD_LABEL[measurement.method] : "—"}
           />
-        ) : (
-          <MiniFact icon={<Percent className="size-4" aria-hidden />} label="Measure" value={measureLabel(measurement)} />
-        )}
+          {milestones ? (
+            <MiniFact
+              icon={<Milestones className="size-4" aria-hidden />}
+              label="Milestones"
+              value={`${milestones.length} milestone${milestones.length === 1 ? "" : "s"}`}
+            />
+          ) : (
+            <MiniFact icon={<Percent className="size-4" aria-hidden />} label="Measure" value={measureLabel(measurement)} />
+          )}
+        </div>
       </div>
 
       {measurement?.method === "NumericTarget" ? (
@@ -78,11 +80,11 @@ function MeasurementFacts({ measurement, showMilestones }: { measurement: Measur
       {showMilestones && milestones && milestones.length > 0 ? (
         <ul className="mt-3 divide-y divide-border rounded-surface border border-border bg-inlay dark:bg-popover">
           {milestones.map((m) => (
-            <li key={m.id} className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm">
+            <li key={m.id} className="flex flex-wrap items-center gap-x-2.5 gap-y-1 px-3.5 py-2.5 text-sm">
               <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border bg-popover text-muted-foreground dark:bg-card">
                 <Milestones className="size-3.5" aria-hidden />
               </span>
-              <span className="min-w-0 flex-1 truncate font-medium text-foreground">{m.title}</span>
+              <span className="min-w-[8rem] flex-1 font-medium break-words text-foreground">{m.title}</span>
               <MilestoneDue milestone={m} />
               <span className="w-10 shrink-0 text-right tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
             </li>

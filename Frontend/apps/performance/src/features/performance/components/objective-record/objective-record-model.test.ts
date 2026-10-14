@@ -5,7 +5,7 @@ import { parseObjectiveMode, parseObjectiveRef, withObjectiveRef } from "./objec
 
 function node(overrides: Partial<GoalNodeDto> = {}): GoalNodeDto {
   return {
-    id: "obj-1",
+    version: 0, id: "obj-1",
     ownershipScope: "OrgUnit",
     title: "Grow talent",
     state: "Published",
@@ -41,6 +41,7 @@ function detail(overrides: Partial<GoalDetailDto> = {}, nodeOverrides: Partial<G
     accountable: { id: "p-1", name: "Nour" },
     parent: node({ id: "parent-1", ownershipScope: "Company", title: "Grow the company", orgUnitName: null, parentObjectiveId: null }),
     children: [],
+    alignedPlanObjectives: [],
     measurement: null,
     contribution: [],
     canEdit: false,
@@ -51,6 +52,8 @@ function detail(overrides: Partial<GoalDetailDto> = {}, nodeOverrides: Partial<G
     canDelete: false,
     canUpdateProgress: false,
     canReadProgressHistory: false,
+    canArchive: false,
+    archivedAt: null,
     ...overrides,
   };
 }
@@ -78,7 +81,7 @@ describe("toObjectiveRecord", () => {
     expect(record.parent).toEqual({
       ref: { cycleId: "cycle-2026", objectiveId: "parent-1" },
       title: "Grow the company",
-      scopeLabel: "Company strategy",
+      scopeLabel: "Company strategy", archived: false,
     });
     expect(record.kindLabel).toBe("Talent Pod objective");
   });
@@ -86,7 +89,7 @@ describe("toObjectiveRecord", () => {
   it("reads a plan objective by its plan's state and weight", () => {
     const record = toObjectiveRecord(
       detail(
-        { plan: { planId: "plan-1", planState: "Approved", planWeight: 60, owner: { id: "p-2", name: "Sami" } } },
+        { plan: { planId: "plan-1", planState: "Approved", planWeight: 60, owner: { id: "p-2", name: "Sami" }, canRequestUpdate: false } },
         { ownershipScope: "Employee", parentObjectiveId: null, orgUnitName: null }
       )
     );
@@ -122,10 +125,17 @@ describe("resolveSections", () => {
     ]);
   });
 
+  it("includes the aligned plan objective group in a direction record", () => {
+    const record = toObjectiveRecord(detail({
+      alignedPlanObjectives: [{ objectiveId: "plan-objective-1", title: "Run two workshops", ownerName: "Sami", planState: "Approved", progress: 62 }],
+    }));
+    expect(resolveSections(record)).toContain("aligned-children");
+  });
+
   it("pairs the timeline with plan weight and holds progress until the plan is approved", () => {
     const record = toObjectiveRecord(
       detail(
-        { plan: { planId: "plan-1", planState: "Submitted", planWeight: 40, owner: { id: "p-2", name: "Sami" } } },
+        { plan: { planId: "plan-1", planState: "Submitted", planWeight: 40, owner: { id: "p-2", name: "Sami" }, canRequestUpdate: false } },
         { ownershipScope: "Employee" }
       )
     );
@@ -142,5 +152,21 @@ describe("window helpers", () => {
   it("states the window in plain units", () => {
     expect(windowLength("2026-01-01", "2026-01-30")).toBe("30 days");
     expect(windowLength("2026-01-01", "2026-12-31")).toBe("12 months");
+  });
+});
+
+describe("archived direction", () => {
+  it("retains the parent's identity and marks the retired alignment", () => {
+    const record = toObjectiveRecord(detail({ parent: node({ id: "retired", state: "Archived", isAlignmentBaseline: false }) }));
+    expect(record.parent?.ref.objectiveId).toBe("retired");
+    expect(record.parent?.archived).toBe(true);
+    expect(record.isAligned).toBe(true);
+  });
+  it("keeps archived progress visible while omitting actions the server disallows", () => {
+    const record = toObjectiveRecord(detail({}, { state: "Archived", hasProgress: true, derivedProgress: 65 }));
+    expect(record.status.label).toBe("Archived");
+    expect(record.isExecuting).toBe(true);
+    expect(record.progress.derived).toBe(65);
+    expect(record.can.archive).toBe(false);
   });
 });

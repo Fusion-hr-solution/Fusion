@@ -2,26 +2,31 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, type ComponentType } from "react";
+import { useMemo, useState, type ComponentType } from "react";
 import {
   CheckCircle2,
   CircleDashed,
   Clock,
   Eye,
   Lightbulb,
+  MessageSquare,
+  MoreHorizontal,
   PencilLine,
   RotateCcw,
   Users,
 } from "@/lib/icons";
 import type {
-  RosterActivityKind,
   RosterObjectiveProgressDto,
   RosterPlanStatus,
-  TeamRosterDto,
+  PerformanceReviewState,
   TeamRosterMemberDto,
+  YourPeopleFilter,
+  YourPeoplePageDto,
+  YourPeopleQuery,
 } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { Button } from "@repo/ds/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@repo/ds/components/ui/dropdown-menu";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import {
   DataTable,
@@ -33,15 +38,20 @@ import {
   type DataTableFilterField,
   type DataTableFilterState,
   type DataTableModel,
-  type SortingState,
 } from "@repo/ds/data-table";
 import { PageError, StatusBadge, type StatusTone } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { PROGRESS_TONE_BG, initials } from "../plan/plan-lib";
-import { formatDateTime, formatRelativeTime } from "../../lib";
+import { formatDate, formatDateTime, formatRelativeTime } from "../../lib";
+import { planHref as canonicalPlanHref, reviewHref, withCycle } from "@/lib/performance-routes";
+import { reviewStageLabel } from "./review-stage";
+import { RequestUpdateDialog } from "../update-requests/update-requests";
+import { latestRosterActivity } from "./roster-activity";
 
 /**
- * Your People — the manager's operational roster for the current Cycle. It is the attention/index layer,
+ * Your People — the manager's operational roster for the current Cycle, served a page at a time: the
+ * server owns responsibility, standing, execution facts, ordering (action required first), the views and
+ * paging, so this table only renders and reports what the manager asked for. It is the attention/index layer,
  * not another plan workspace: each person shows where their canonical Plan sits in the lifecycle and how
  * execution is progressing, and the row opens the canonical Plan surface.
  *
@@ -64,58 +74,24 @@ const STATUS_META: Record<
   Approved: { label: "Approved", tone: "success", icon: CheckCircle2 },
 };
 
-// Sorting the Plan column ascending puts what needs the manager first, then the plans in execution,
-// then everyone still planning.
-const STATUS_RANK: Record<RosterPlanStatus, number> = {
-  Submitted: 0,
-  Approved: 1,
-  ReturnedForChanges: 2,
-  Draft: 3,
-  NotStarted: 4,
+const REVIEW_STAGE_TONE: Record<PerformanceReviewState, StatusTone> = {
+  SelfAssessment: "info",
+  ManagerAssessment: "warning",
+  Calibration: "info",
+  ReadyToFinalize: "warning",
+  Finalized: "success",
+  Closed: "muted",
 };
 
-const ACTIVITY_LABEL: Record<RosterActivityKind, string | null> = {
-  None: null,
-  DraftUpdated: "Draft updated",
-  Returned: "Returned for changes",
-  Submitted: "Plan submitted",
-  Resubmitted: "Resubmitted",
-  Approved: "Plan approved",
-  ProgressUpdated: "Progress updated",
+const VIEW_LABEL: Record<Exclude<YourPeopleFilter, "All">, string> = {
+  NeedsReview: "Needs review",
+  Planning: "Planning",
+  Approved: "Approved",
+  NoProgress: "No updates",
 };
 
-export type RosterFilter =
-  | "all"
-  | "needsReview"
-  | "planning"
-  | "approved"
-  | "noProgress";
-
-const PLANNING_STATUSES: RosterPlanStatus[] = [
-  "NotStarted",
-  "Draft",
-  "ReturnedForChanges",
-];
-
-function matchesFilter(
-  member: TeamRosterMemberDto,
-  filter: RosterFilter
-): boolean {
-  switch (filter) {
-    case "needsReview":
-      return member.canReview;
-    case "planning":
-      return PLANNING_STATUSES.includes(member.status);
-    case "approved":
-      return member.status === "Approved";
-    case "noProgress":
-      return member.status === "Approved" && !member.hasProgress;
-    default:
-      return true;
-  }
-}
-
-// The roster's primary question, as its one pinned filter: always shown, resets to "All".
+// The roster's primary question, as its one pinned filter: always shown, resets to "All". The server
+// decides membership of each view and sizes it.
 const ROSTER_FILTERS: DataTableFilterField<TeamRosterMemberDto>[] = [
   {
     id: "show",
@@ -124,29 +100,16 @@ const ROSTER_FILTERS: DataTableFilterField<TeamRosterMemberDto>[] = [
     type: "options",
     single: true,
     pinned: true,
-    options: (
-      ["needsReview", "planning", "approved", "noProgress"] as const
-    ).map((id) => ({
+    options: (Object.keys(VIEW_LABEL) as (keyof typeof VIEW_LABEL)[]).map((id) => ({
       value: id,
-      label: {
-        needsReview: "Needs review",
-        planning: "Planning",
-        approved: "Approved",
-        noProgress: "No updates",
-      }[id],
-      match: (m: TeamRosterMemberDto) => matchesFilter(m, id),
+      label: VIEW_LABEL[id],
     })),
   },
 ];
 
-function toRosterState(
-  filter: RosterFilter | undefined
-): DataTableFilterState | undefined {
-  if (filter === undefined) return undefined;
-  return { show: filter === "all" ? undefined : [filter] };
+function toRosterState(filter: YourPeopleFilter): DataTableFilterState {
+  return { show: filter === "All" ? undefined : [filter] };
 }
-
-const DEFAULT_SORT: SortingState = [{ id: "plan", desc: false }];
 
 function displayName(member: TeamRosterMemberDto): string {
   return member.employeeName ?? "Employee";
@@ -154,10 +117,12 @@ function displayName(member: TeamRosterMemberDto): string {
 
 // Only open the plan when the caller may actually see it — a never-submitted Draft is the employee's
 // private workspace and has no reviewable surface.
-function planHref(member: TeamRosterMemberDto): string | null {
-  return member.planId && (member.canReview || member.canView)
-    ? `/team/${member.planId}`
-    : null;
+function canOpen(member: TeamRosterMemberDto): boolean {
+  return Boolean(member.planId && (member.canReview || member.canView));
+}
+
+function planHref(cycleId: string, member: TeamRosterMemberDto): string | null {
+  return canOpen(member) ? canonicalPlanHref({ cycleId, planId: member.planId! }) : null;
 }
 
 const column = createDataTableColumnHelper<TeamRosterMemberDto>();
@@ -181,11 +146,19 @@ function PlanStateCell({ member }: { member: TeamRosterMemberDto }) {
  * where milestones are done.
  */
 function ProgressCell({ member }: { member: TeamRosterMemberDto }) {
-  if (member.status !== "Approved") return <DataTableCellEmpty />;
+  // Progress does not apply before approval; a plan in progress shows how much of it is laid out instead.
+  if (member.status !== "Approved") {
+    if (member.allocatedWeight == null || member.status === "NotStarted") return <DataTableCellEmpty />;
+    return (
+      <span className="text-sm tabular-nums text-muted-foreground">
+        {Math.round(member.allocatedWeight)}% allocated
+      </span>
+    );
+  }
   const slices = member.objectiveProgress;
   const reporting = slices.filter((o) => o.hasProgress).length;
   const value = Math.round(member.planProgress);
-  const overdue = member.overdueMilestoneCount;
+  const overdue = member.overdueObjectiveCount;
   const summary = `${value}% weighted progress · ${reporting} of ${slices.length} objectives reporting`;
   return (
     <div className="min-w-0">
@@ -211,7 +184,7 @@ function ProgressCell({ member }: { member: TeamRosterMemberDto }) {
       </div>
       {overdue > 0 ? (
         <div className="mt-1 truncate text-xs font-medium text-destructive">
-          {overdue} milestone{overdue === 1 ? "" : "s"} overdue
+          {overdue} objective{overdue === 1 ? "" : "s"} overdue
         </div>
       ) : null}
     </div>
@@ -264,49 +237,61 @@ function ObjectiveSlice({ slice }: { slice: RosterObjectiveProgressDto }) {
   );
 }
 
-/**
- * Recency only: what happened is already said by the Plan and Progress cells beside it, so the event
- * rides along for assistive tech and the exact-time tooltip rather than being printed a second time.
- */
+/** One event and time, selected from the plan/progress activity and the latest update request. */
 function ActivityCell({ member }: { member: TeamRosterMemberDto }) {
-  const label = ACTIVITY_LABEL[member.activityKind];
-  if (!label || !member.activityAt) return <DataTableCellEmpty />;
+  const activity = latestRosterActivity(member);
+  if (!activity) return <DataTableCellEmpty />;
   return (
-    <span className="text-sm tabular-nums text-muted-foreground">
-      <span className="sr-only">{label}, </span>
-      <time
-        dateTime={member.activityAt}
-        title={`${label} · ${formatDateTime(member.activityAt)}`}
-      >
-        {formatRelativeTime(member.activityAt)}
+    <span className="block min-w-0 truncate text-sm text-foreground" title={`${activity.label} · ${formatDateTime(activity.at)}${activity.objectiveTitle ? ` · ${activity.objectiveTitle}` : ""}`}>
+      {activity.label}{" "}
+      <time className="tabular-nums text-muted-foreground" dateTime={activity.at}>
+        {formatRelativeTime(activity.at)}
       </time>
     </span>
   );
 }
 
-function rosterColumns(showOrgUnit: boolean) {
+function ReviewStageCell({ member, cycleId }: { member: TeamRosterMemberDto; cycleId: string }) {
+  const review = member.review;
+  if (!review) return <DataTableCellEmpty />;
+  return (
+    <Link href={withCycle(reviewHref(review.reviewId), cycleId)} className="inline-flex flex-col items-start gap-1 rounded-control focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <StatusBadge tone={REVIEW_STAGE_TONE[review.state]}>{reviewStageLabel(review.state)}</StatusBadge>
+      {review.dueDate ? <span className="text-xs text-muted-foreground">Due {formatDate(review.dueDate)}</span> : null}
+    </Link>
+  );
+}
+
+function rosterColumns(showOrgUnit: boolean, cycleId: string, showReviewStage: boolean, onRequestUpdate?: (member: TeamRosterMemberDto) => void) {
   return [
     column.accessor((m) => displayName(m), {
       id: "person",
       header: "Person",
-      sortFn: "text",
+      enableSorting: false,
       cell: ({ row }) => {
         const m = row.original;
         const context = [m.jobTitle, showOrgUnit ? m.orgUnitName : null]
           .filter(Boolean)
           .join(" · ");
         return (
-          <DataTableCellStack
-            leading={
-              <Avatar className="size-8">
-                <AvatarFallback className="text-xs">
-                  {initials(m.employeeName)}
-                </AvatarFallback>
-              </Avatar>
-            }
-            primary={displayName(m)}
-            secondary={context || undefined}
-          />
+          <>
+            <DataTableCellStack
+              leading={
+                <Avatar className="size-8">
+                  <AvatarFallback className="text-xs">
+                    {initials(m.employeeName)}
+                  </AvatarFallback>
+                </Avatar>
+              }
+              primary={displayName(m)}
+              secondary={context || undefined}
+            />
+            {/* On a phone the Plan column folds in under the person; the row itself opens the plan. */}
+            <div className="mt-2 pl-11 sm:hidden">
+              <PlanStateCell member={m} />
+            </div>
+            {showReviewStage ? <div className="mt-2 pl-11 md:hidden"><ReviewStageCell member={m} cycleId={cycleId} /></div> : null}
+          </>
         );
       },
       meta: {
@@ -325,44 +310,43 @@ function rosterColumns(showOrgUnit: boolean) {
     column.accessor("status", {
       id: "plan",
       header: "Plan",
-      sortFn: (a, b) =>
-        STATUS_RANK[a.original.status] - STATUS_RANK[b.original.status] ||
-        displayName(a.original).localeCompare(
-          displayName(b.original),
-          undefined,
-          { sensitivity: "base" }
-        ),
+      enableSorting: false,
       cell: ({ row }) => <PlanStateCell member={row.original} />,
       meta: {
         width: "18%",
+        hideBelow: "sm",
         skeleton: <Skeleton className="h-5 w-24 rounded-full" />,
       },
     }),
+    ...(showReviewStage ? [column.accessor((m) => m.review?.state, {
+      id: "reviewStage",
+      header: "Review stage",
+      enableSorting: false,
+      cell: ({ row }) => <ReviewStageCell member={row.original} cycleId={cycleId} />,
+      meta: { width: "18%", hideBelow: "md", skeleton: <Skeleton className="h-5 w-32 rounded-full" /> },
+    })] : []),
     column.accessor(
       (m) => (m.status === "Approved" ? m.planProgress : undefined),
       {
         id: "progress",
         header: "Progress",
-        sortFn: "basic",
-        sortUndefined: "last",
+        enableSorting: false,
         cell: ({ row }) => <ProgressCell member={row.original} />,
         meta: {
           width: "28%",
+          hideBelow: "md",
           skeleton: <Skeleton className="h-2 w-full rounded-full" />,
         },
       }
     ),
     column.accessor(
-      (m) => (ACTIVITY_LABEL[m.activityKind] && m.activityAt) || undefined,
+      (m) => latestRosterActivity(m)?.at,
       {
         id: "activity",
         header: "Last activity",
-        // ISO timestamps order correctly as strings; most recent first.
-        sortFn: "basic",
-        sortDescFirst: true,
-        sortUndefined: "last",
+        enableSorting: false,
         cell: ({ row }) => <ActivityCell member={row.original} />,
-        meta: { skeleton: <Skeleton className="h-3.5 w-14" /> },
+        meta: { hideBelow: "lg", skeleton: <Skeleton className="h-3.5 w-14" /> },
       }
     ),
     column.display({
@@ -370,92 +354,142 @@ function rosterColumns(showOrgUnit: boolean) {
       header: () => <span className="sr-only">Open</span>,
       cell: ({ row }) => {
         const m = row.original;
-        const href = planHref(m);
+        const href = planHref(cycleId, m);
         if (!href) return null;
         // Deciding is the one action worth a button; every other openable row is the row itself.
-        return m.canReview ? (
-          <Button size="sm" asChild>
-            <Link href={href}>Review plan</Link>
-          </Button>
-        ) : (
-          <DataTableRowChevron />
-        );
+        if (m.canReview) {
+          return (
+            <Button size="sm" asChild>
+              <Link href={href}>Review plan</Link>
+            </Button>
+          );
+        }
+        // An Approved plan the caller reviews gains a row menu; a row never shows both a menu and a chevron.
+        if (m.canRequestUpdate && onRequestUpdate) {
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-8" aria-label={`Actions for ${displayName(m)}`} onClick={(event) => event.stopPropagation()}>
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(event) => event.stopPropagation()}>
+                <DropdownMenuItem asChild>
+                  <Link href={href}>
+                    <Eye className="size-3.5" data-icon="inline-start" /> Open plan
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onRequestUpdate(m)}>
+                  <MessageSquare className="size-3.5" data-icon="inline-start" /> Request update
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        }
+        return <DataTableRowChevron />;
       },
       meta: {
         align: "end",
         width: "8rem",
+        hideBelow: "sm",
         skeleton: <Skeleton className="h-7 w-24" />,
       },
     }),
   ];
 }
 
-const SKELETON_COLUMNS = rosterColumns(false);
+const SKELETON_COLUMNS = rosterColumns(false, "", false);
 
-const rosterSearchText = (m: TeamRosterMemberDto) =>
-  `${m.employeeName ?? ""} ${m.jobTitle ?? ""}`;
 const rosterRowId = (m: TeamRosterMemberDto) => m.employeeId;
-const canOpenPlan = (m: TeamRosterMemberDto) => planHref(m) !== null;
+const canOpenPlan = canOpen;
+
+export const DEFAULT_PEOPLE_QUERY: YourPeopleQuery = { filter: "All", search: "", page: 1, pageSize: 25 };
 
 export function YourPeople({
-  roster,
-  filter,
-  onFilterChange,
+  cycleId,
+  people,
+  query,
+  onQueryChange,
 }: {
-  roster: {
-    data: TeamRosterDto | undefined;
+  cycleId: string;
+  people: {
+    data: YourPeoplePageDto | undefined;
     isLoading: boolean;
     error: Error | null;
     refetch: () => void;
   };
-  /** Controlled view, so the page header can open the roster on "Needs review". */
-  filter?: RosterFilter;
-  onFilterChange?: (filter: RosterFilter) => void;
+  /** Controlled, so the page header can open the roster on "Needs review". */
+  query: YourPeopleQuery;
+  onQueryChange: (query: YourPeopleQuery) => void;
 }) {
   const router = useRouter();
-  const members = roster.data?.members;
-  // The org unit only tells people apart when the roster spans more than one; otherwise it repeats.
+  const data = people.data;
+  const members = data?.items;
+  // The org unit only tells people apart when the page spans more than one; otherwise it repeats.
   const showOrgUnit = useMemo(
     () => new Set(members?.map((m) => m.orgUnitName).filter(Boolean)).size > 1,
     [members]
   );
-  const columns = useMemo(() => rosterColumns(showOrgUnit), [showOrgUnit]);
+  const [requesting, setRequesting] = useState<TeamRosterMemberDto | null>(null);
+  const columns = useMemo(
+    () => rosterColumns(showOrgUnit, cycleId, data?.hasActiveReviewRound ?? false, setRequesting),
+    [showOrgUnit, cycleId, data?.hasActiveReviewRound],
+  );
+  // Any change of view or search starts again from the first page.
+  const change = (next: Partial<YourPeopleQuery>) => onQueryChange({ ...query, page: 1, ...next });
   const model = useDataTable({
     data: members,
     columns,
     getRowId: rosterRowId,
-    search: rosterSearchText,
     filters: ROSTER_FILTERS,
-    filterState: toRosterState(filter),
-    onFilterStateChange: onFilterChange
-      ? (state) =>
-          onFilterChange(
-            (state.show as RosterFilter[] | undefined)?.[0] ?? "all"
-          )
+    manual: { rowCount: data?.matchCount ?? 0 },
+    filterState: toRosterState(query.filter),
+    onFilterStateChange: (state) =>
+      change({ filter: (state.show as YourPeopleFilter[] | undefined)?.[0] ?? "All" }),
+    filterCounts: data
+      ? {
+          show: {
+            NeedsReview: data.counts.needsReview,
+            Planning: data.counts.planning,
+            Approved: data.counts.approved,
+            NoProgress: data.counts.noProgress,
+          },
+        }
       : undefined,
-    initialSorting: DEFAULT_SORT,
+    searchQuery: query.search,
+    onSearchQueryChange: (search) => change({ search }),
+    pagination: { pageIndex: query.page - 1, pageSize: query.pageSize },
+    onPaginationChange: (next) =>
+      next.pageSize !== query.pageSize
+        ? change({ pageSize: next.pageSize })
+        : onQueryChange({ ...query, page: next.pageIndex + 1 }),
   });
 
-  if (!roster.isLoading && (roster.error || !roster.data)) {
+  if (!people.isLoading && (people.error || !data)) {
     return (
       <PageError
         title="Your people are unavailable"
-        description={roster.error?.message}
-        onRetry={roster.refetch}
+        description={people.error?.message}
+        onRetry={people.refetch}
       />
     );
   }
 
   return (
-    <RosterSection
-      model={model}
-      isLoading={roster.isLoading}
-      count={members?.length}
-      onOpen={(m) => {
-        const href = planHref(m);
-        if (href) router.push(href);
-      }}
-    />
+    <>
+      <RosterSection
+        model={model}
+        isLoading={people.isLoading}
+        count={data?.totalCount}
+        onOpen={(m) => {
+          const href = planHref(cycleId, m);
+          if (href) router.push(href);
+        }}
+      />
+      {requesting?.planId ? (
+        <RequestUpdateDialog cycleId={cycleId} planId={requesting.planId} personName={displayName(requesting)} onClose={() => setRequesting(null)} />
+      ) : null}
+    </>
   );
 }
 
@@ -465,8 +499,9 @@ export function RosterSkeleton() {
     data: undefined,
     columns: SKELETON_COLUMNS,
     getRowId: rosterRowId,
-    search: rosterSearchText,
     filters: ROSTER_FILTERS,
+    manual: { rowCount: 0 },
+    onSearchQueryChange: () => {},
   });
   return <RosterSection model={model} isLoading />;
 }
@@ -508,7 +543,6 @@ function RosterSection({
         emptyState={<EmptyRoster />}
         onRowClick={onOpen}
         canClickRow={canOpenPlan}
-        minWidth="880px"
       />
     </section>
   );
@@ -533,6 +567,8 @@ export function AddPeopleCallout() {
         </p>
       </div>
       <Button variant="outline" size="sm" asChild className="shrink-0">
+        {/* Core is another app: a full document navigation, not a Performance route (the catch-all route makes the lint rule think otherwise). */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a href="/core/org-chart">Go to Organization</a>
       </Button>
     </div>

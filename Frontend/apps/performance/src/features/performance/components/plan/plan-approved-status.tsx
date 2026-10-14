@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@repo/auth";
 import { Check } from "@/lib/icons";
 import type { EmployeePlanDto } from "@repo/api";
 import { formatDate } from "../../lib";
@@ -28,14 +29,27 @@ export function PlanApprovedStatus({
   const approval = [...plan.history]
     .reverse()
     .find((h) => h.kind === "Approved" || h.kind === "ApprovedExceptionally");
-  const approver = approval?.actorName ?? plan.responsibleManager?.name ?? null;
+  const { user } = useAuth();
+  const administrative = approval?.kind === "ApprovedExceptionally";
+  // Only a normal approval can fall back to the reviewer's name: an administrative approval must never
+  // read as the reviewer's (an administrator may have no employee record, so no resolved name).
+  const approver = approval?.actorName ?? (administrative ? null : plan.responsibleManager?.name) ?? null;
   const approvedOn = plan.approvedAt ? formatDate(plan.approvedAt.slice(0, 10)) : null;
+  const approvedByViewer = Boolean(user?.employeeId && approval?.actorEmployeeId === user.employeeId);
+  const whose = subjectFirstName ? `${subjectFirstName}'s` : "this";
+  const by = administrative
+    ? approver ? `${approver} approved it as administrator` : "Approved by administration"
+    : `Approved by ${approver}`;
 
   const detail =
     perspective === "reviewer"
-      ? `You approved ${subjectFirstName ? `${subjectFirstName}'s` : "this"} plan. It is now the locked baseline.`
-      : approver
-        ? `Approved by ${approver}. This is now your locked baseline.`
+      ? approvedByViewer
+        ? `You approved ${whose} plan${administrative ? " as administrator" : ""}. It is now the locked baseline.`
+        : approver || administrative
+          ? `${by}. It is now the locked baseline.`
+          : "It is now the locked baseline."
+      : approver || administrative
+        ? `${by}. This is now your locked baseline.`
         : "This is now your locked baseline.";
 
   return (

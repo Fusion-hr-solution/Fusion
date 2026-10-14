@@ -25,7 +25,7 @@ export type ObjectiveRecord = {
   isAligned: boolean;
   status: { label: string; tone: "neutral" | "info" | "success" | "warning" | "muted" };
   accountable: PersonRefDto;
-  parent: { ref: ObjectiveRef; title: string; scopeLabel: string } | null;
+  parent: { ref: ObjectiveRef; title: string; scopeLabel: string; archived: boolean } | null;
   children: GoalNodeDto[];
   measurement: MeasurementDto | null;
   progressSource: ObjectiveProgressSource;
@@ -40,6 +40,7 @@ export type ObjectiveRecord = {
   can: {
     edit: boolean;
     publish: boolean;
+    archive: boolean;
     remove: boolean;
     updateProgress: boolean;
     readProgressHistory: boolean;
@@ -79,13 +80,14 @@ export function toObjectiveRecord(detail: GoalDetailDto): ObjectiveRecord {
             : { label: "Draft plan", tone: "muted" }
         : node.state === "Published"
           ? { label: "Published", tone: "success" }
-          : { label: "Draft", tone: "muted" },
+          : node.state === "Archived" ? { label: "Archived", tone: "muted" } : { label: "Draft", tone: "muted" },
     accountable: detail.accountable,
     parent: detail.parent
       ? {
           ref: { cycleId: detail.cycleId, objectiveId: detail.parent.id },
           title: detail.parent.title,
           scopeLabel: directionScopeLabel(detail.parent),
+          archived: detail.parent.state === "Archived",
         }
       : null,
     children: detail.children,
@@ -94,12 +96,13 @@ export function toObjectiveRecord(detail: GoalDetailDto): ObjectiveRecord {
     startDate: node.startDate,
     endDate: node.endDate,
     planWeight: kind === "plan" ? (detail.plan?.planWeight ?? null) : null,
-    isExecuting: kind === "plan" ? planState === "Approved" : node.state === "Published",
+    isExecuting: kind === "plan" ? planState === "Approved" : node.state !== "Draft",
     progress: { has: node.hasProgress, derived: node.derivedProgress, coverage: node.progressCoverage },
     contribution: { links: detail.contribution, locked: node.isContributionBaselineLocked },
     can: {
       edit: detail.canEdit,
       publish: detail.canPublish,
+      archive: detail.canArchive,
       remove: detail.canDelete,
       updateProgress: detail.canUpdateProgress,
       readProgressHistory: detail.canReadProgressHistory,
@@ -139,7 +142,7 @@ export function resolveSections(record: ObjectiveRecord): RecordSectionRow[] {
   rows.push("measurement");
   rows.push(record.planWeight != null ? (["timeline", "plan-weight"] as const) : "timeline");
   if (record.isExecuting) rows.push("progress");
-  if (record.kind !== "plan" && record.children.length > 0) rows.push("aligned-children");
+  if (record.kind !== "plan" && (record.children.length > 0 || record.source.alignedPlanObjectives.length > 0)) rows.push("aligned-children");
   if (record.progressSource === "Calculated") rows.push("contribution");
   return rows;
 }

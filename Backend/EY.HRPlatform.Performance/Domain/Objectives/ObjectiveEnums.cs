@@ -12,7 +12,7 @@ public enum ObjectiveOwnershipScope
 }
 
 /// <summary>
-/// Lifecycle of an objective. Strategic and organizational objectives both use Draft → Published:
+/// Lifecycle of an objective. Strategic and organizational objectives both use Draft → Published → Archived:
 /// an authorized scope owner establishes the objective and publishes it as official direction —
 /// there is no routine parent-approval step. Employee objectives live inside the plan lifecycle
 /// (Draft → Submitted → Approved and Locked), which is the genuine employee/manager agreement.
@@ -21,6 +21,7 @@ public enum ObjectiveLifecycleState
 {
     Draft = 0,
     Published = 1,
+    Archived = 2,
 }
 
 /// <summary>The three direct measurement methods (performance-objective-measurement).</summary>

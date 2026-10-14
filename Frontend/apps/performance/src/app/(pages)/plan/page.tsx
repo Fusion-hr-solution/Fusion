@@ -2,26 +2,23 @@
 
 import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { PlanPageSkeleton } from "@/features/performance/components/plan/plan-skeleton";
-import { MyPlan } from "@/features/performance/components/plan/my-plan";
-import { NotStartedBadge, PlanStateBadge } from "@/features/performance/components/plan/plan-header";
-import { usePerformanceAccess, useCurrentCycle, useMyPlan } from "@/features/performance/api/use-performance";
+import { MyPlanWorkspace } from "@/features/performance/components/plan/my-plan-workspace";
+import { useCurrentCycle } from "@/features/performance/api/use-performance";
+import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
+import { performanceFailure } from "@/features/performance/api/performance-failure";
 
 export default function PlanPage() {
-  const access = usePerformanceAccess();
-  const canParticipate = access.data?.canParticipate ?? false;
-  const canEnter = access.data?.canEnter ?? false;
+  const context = useWorkspaceContext();
+  // My Plan belongs to participants of the selected Cycle, as Performance recorded them.
+  const canParticipate = context.data?.destinations.myPlan ?? false;
 
-  const detail = useCurrentCycle(canEnter);
+  const detail = useCurrentCycle(canParticipate);
   const cycle = detail.data?.cycle ?? null;
 
-  // Read the plan here too (same query key as MyPlan — deduped) so the agreement state can sit with
-  // the page title as heading metadata rather than as a separate row below it.
-  const planState = useMyPlan(cycle?.id ?? null, canParticipate);
-  const plan = planState.data?.plan ?? null;
-
-  if (access.isLoading) return <PlanPageSkeleton empty />;
+  if (context.isLoading) return <PlanPageSkeleton empty />;
+  if (context.error && !performanceFailure(context.error).unavailable) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
+  if (context.error) return <PagePermissionNotice title="No plan for your account" description="A performance plan is available to employees included in an active cycle." />;
   if (!canParticipate) {
     return (
       <PagePermissionNotice
@@ -32,7 +29,8 @@ export default function PlanPage() {
   }
   if (detail.isLoading) return <PlanPageSkeleton empty />;
   if (detail.error) return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject="The Cycle" />;
-  if (!cycle) {
+  // Planning opens at activation: a Cycle still in setup has no plan to author yet.
+  if (!cycle || cycle.state === "Draft") {
     return (
       <PageContainer>
         <PagePermissionNotice
@@ -43,32 +41,5 @@ export default function PlanPage() {
     );
   }
 
-  // Once the plan is approved and locked, the surface has moved from planning to execution, and the page
-  // subtitle follows.
-  const executing = plan?.isLocked ?? false;
-
-  return (
-    <PageContainer className="max-w-7xl">
-      <MyPlan
-        cycle={cycle}
-        heading={(actions) => (
-          <PerformancePageHeading
-            className="mb-6"
-            title={
-              <span className="inline-flex flex-wrap items-center gap-2.5">
-                My Plan
-                {plan && plan.objectives.length > 0 ? (
-                  <PlanStateBadge plan={plan} />
-                ) : planState.data ? (
-                  <NotStartedBadge />
-                ) : null}
-              </span>
-            }
-            description={executing ? "Execution & progress" : "Planning & Agreement"}
-            actions={actions}
-          />
-        )}
-      />
-    </PageContainer>
-  );
+  return <MyPlanWorkspace cycle={cycle} enabled={canParticipate} />;
 }

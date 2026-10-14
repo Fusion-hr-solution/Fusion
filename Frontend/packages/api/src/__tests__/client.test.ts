@@ -988,3 +988,27 @@ describe("createApiClient", () => {
     });
   });
 });
+
+
+describe("Performance command failures", () => {
+  it("preserves typed envelope details without changing RFC error precedence", async () => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ isSuccess: false, data: null, errors: ["Changed"],
+      details: { code: "Performance.Stale", kind: "Stale", extra: null } }, { status: 409 }));
+    const error = await createApiClient().post("/performance/command").catch(error => error);
+    expect(error).toBeInstanceOf(ApiError);
+    if (!(error instanceof ApiError)) throw error;
+    expect(error.code).toBe("Performance.Stale");
+    expect(error.failureKind).toBe("Stale");
+    expect(new ApiError(403, "Forbidden", [], null, { code: "Legacy", kind: "Forbidden" }, "RFC.Code").code).toBe("RFC.Code");
+    expect(new ApiError(400, "Bad Request", ["Legacy"], null).failureKind).toBeNull();
+  });
+
+  it("sends an expected version in DELETE without changing ordinary DELETE calls", async () => {
+    fetchSpy.mockResolvedValue(emptyResponse());
+    const api = createApiClient();
+    await api.delete("/performance/objectives/one", { body: { expectedVersion: 27 } });
+    await api.delete("/ordinary/resource");
+    expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({ method: "DELETE", body: '{"expectedVersion":27}' });
+    expect(fetchSpy.mock.calls[1]?.[1].body).toBeUndefined();
+  });
+});

@@ -131,12 +131,16 @@ public sealed class AuthorityStateContractTests : IAsyncLifetime
             FirstName = "Platform", LastName = "Administrator", IsActive = true, EmailConfirmed = true,
         };
         Assert.True((await users.CreateAsync(platformAdministrator, "Platform@123456")).Succeeded);
-        world.Db.Roles.Add(new IdentityRole<Guid>
+        // The schema may already seed the platform role; add it only where it is missing.
+        if (!await world.Db.Roles.AnyAsync(role => role.NormalizedName == PlatformRole.PlatformAdmin.ToUpperInvariant()))
         {
-            Name = PlatformRole.PlatformAdmin,
-            NormalizedName = PlatformRole.PlatformAdmin.ToUpperInvariant(),
-        });
-        await world.Db.SaveChangesAsync();
+            world.Db.Roles.Add(new IdentityRole<Guid>
+            {
+                Name = PlatformRole.PlatformAdmin,
+                NormalizedName = PlatformRole.PlatformAdmin.ToUpperInvariant(),
+            });
+            await world.Db.SaveChangesAsync();
+        }
         Assert.True((await users.AddToRoleAsync(platformAdministrator, PlatformRole.PlatformAdmin)).Succeeded);
 
         Assert.DoesNotContain(await accessProfiles.GetEffectivePermissionsAsync(manager),
@@ -365,6 +369,51 @@ public sealed class AuthorityStateContractTests : IAsyncLifetime
             ["Jwt:ExpirationInMinutes"] = "30",
             ["Jwt:RefreshTokenExpirationInDays"] = "7",
         }).Build();
+
+    [SkippableFact]
+    public async Task Permission_holders_are_the_tenant_accounts_whose_effective_grants_carry_the_permission()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        var world = await ArrangeAsync(secondAdministrator: true);
+        var users = RelationalTestDatabase.CreateUserManager(world.Db);
+        var accessProfiles = new AccessProfileService(world.Db, users);
+        world.Db.TenantModuleEntitlements.Add(TenantModuleEntitlement.Create(world.TenantId, TenantModule.Performance));
+        await world.Db.SaveChangesAsync();
+        await accessProfiles.EnsureTenantAccessProfilesAsync(world.TenantId);
+
+        // A seeded HR profile without an employee binding confers nothing; neither does Manager.
+        await AddProfiledMemberAsync(world, users, "hr@atlas.example", "hr-admin");
+        await AddProfiledMemberAsync(world, users, "manager@atlas.example", "manager");
+        var suspended = await world.Db.TenantMemberships.IgnoreQueryFilters().SingleAsync(item => item.Id == world.SecondMembershipId);
+        suspended.Suspend(world.FirstAccountId, "Left the company");
+        await world.Db.SaveChangesAsync();
+
+        var holders = await accessProfiles.GetPermissionHoldersAsync(
+            world.TenantId, PerformancePermissions.ReviewCalibrate, PermissionScopes.Tenant);
+
+        var holder = Assert.Single(holders);
+        Assert.Equal(world.FirstAccountId, holder.UserId);
+        Assert.Null(holder.EmployeeId);
+        Assert.Empty(await accessProfiles.GetPermissionHoldersAsync(
+            Guid.NewGuid(), PerformancePermissions.ReviewCalibrate, PermissionScopes.Tenant));
+    }
+
+    [SkippableFact]
+    public async Task Permission_holder_lookup_refuses_unsigned_callers_and_unknown_permissions()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        var world = await ArrangeAsync();
+        var users = RelationalTestDatabase.CreateUserManager(world.Db);
+        var request = new PermissionHoldersRequest(world.TenantId, PerformancePermissions.ReviewCalibrate, PermissionScopes.Tenant);
+
+        var unsigned = new InternalPermissionHoldersController(new StubAuthorizer(false), new AccessProfileService(world.Db, users))
+        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+        Assert.IsType<UnauthorizedResult>((await unsigned.PermissionHolders(request, default)).Result);
+
+        var signed = new InternalPermissionHoldersController(new StubAuthorizer(true), new AccessProfileService(world.Db, users))
+        { ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() } };
+        Assert.IsType<BadRequestResult>((await signed.PermissionHolders(request with { PermissionKey = "made.up" }, default)).Result);
+    }
 
     private static async Task<ApplicationUser> AddProfiledMemberAsync(
         World world, UserManager<ApplicationUser> users, string email, string profileKey)

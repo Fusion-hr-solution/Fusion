@@ -1,7 +1,8 @@
 "use client";
 
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -69,7 +70,7 @@ export function ExcludeDialog({
       await onExclude(trimmed);
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not exclude this employee.");
+      reportPerformanceFailure(error, "Could not exclude this employee.");
       setPending(false);
     }
   }

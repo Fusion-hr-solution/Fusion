@@ -21,6 +21,7 @@ import type { CycleDetailDto, CycleSettingsDto, PopulationDto } from "@repo/api"
 import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";
 import { formatDate, MEASUREMENT_LABELS } from "../../../lib";
+import { setupStepHref } from "../setup-readiness";
 
 /**
  * The three settled decisions of the Cycle — details, population, policy — gathered into one
@@ -114,7 +115,7 @@ export function CycleDetailsBlock({ detail }: { detail: CycleDetailDto }) {
       icon={FileText}
       title="Cycle details"
       caption="Basic information and timeline for this cycle."
-      editHref="/cycle/setup/details"
+      editHref={setupStepHref("details", c.id)}
     >
       <Facts className={ROW_3}>
         <Fact icon={FileText} label="Cycle name">
@@ -185,7 +186,7 @@ export function PopulationBlock({
       icon={Users}
       title="Population"
       caption="Who will be included in this cycle."
-      editHref="/cycle/setup/population"
+      editHref={setupStepHref("population", detail.cycle.id)}
     >
       <Facts className={ROW_2}>
         <Fact icon={Network} label="Scope">
@@ -262,8 +263,8 @@ export function PolicyBlock({ settings }: { settings: CycleSettingsDto }) {
         <Fact icon={Layers} label="Objectives per plan">
           <span className="tabular-nums">{count} suggested</span>
         </Fact>
-        <Fact icon={Unlink} label="Standalone objectives">
-          {settings.allowStandaloneObjectives ? "Allowed" : "Must align to direction"}
+        <Fact icon={Unlink} label="Alignment to strategic direction">
+          {settings.planAlignmentPolicy === "EveryObjectiveConnected" ? "Every objective" : settings.planAlignmentPolicy === "Optional" ? "Optional" : "At least one objective"}
         </Fact>
         <Fact icon={CalendarClock} label="Planning window">
           <span className="tabular-nums">{settings.planningDeadlineOffsetDays} days</span> from start

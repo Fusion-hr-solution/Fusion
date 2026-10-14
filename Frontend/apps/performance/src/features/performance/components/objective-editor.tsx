@@ -1,8 +1,9 @@
 "use client";
 
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { useEffect, useMemo, useState } from "react";
 import { UserRound } from "@/lib/icons";
-import { toast } from "sonner";
 import type {
   CycleSummaryDto,
   ImprovementDirection,
@@ -219,9 +220,7 @@ export function ObjectiveEditor({
       }, intent);
       onOpenChange(false);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Could not save the objective."
-      );
+      reportPerformanceFailure(error, "Could not save the objective.");
     } finally {
       setSubmittingIntent(null);
     }

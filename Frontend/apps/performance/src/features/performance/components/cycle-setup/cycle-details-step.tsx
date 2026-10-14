@@ -1,5 +1,7 @@
 "use client";
 
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CalendarDays, ChevronRight, Clock, FileText, Flag, Users } from "@/lib/icons";
@@ -18,6 +20,7 @@ import { formatDate } from "@/features/performance/lib";
 import { SetupStepFooter } from "./setup-step-footer";
 import { CycleTimeline } from "./cycle-timeline";
 import { useSetupShell } from "./setup-shell-context";
+import { setupStepHref } from "./setup-readiness";
 
 const DESCRIPTION_MAX = 500;
 const DAY = 86_400_000;
@@ -74,6 +77,7 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
   const [planningDeadline, setPlanningDeadline] = useState("");
   const [deadlineTouched, setDeadlineTouched] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [draftVersion, setDraftVersion] = useState<number | null>(draft?.version ?? null);
 
   const offsetDays = useSettings().data?.planningDeadlineOffsetDays ?? 30;
 
@@ -87,6 +91,7 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
     setEndDate(draft?.endDate ?? defaults?.endDate ?? "");
     setPlanningDeadline(draft?.planningDeadline ?? "");
     setDeadlineTouched(Boolean(draft?.planningDeadline));
+    setDraftVersion(draft?.version ?? null);
   }, [draft?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // For a new cycle, keep the planning deadline defaulted to start + the tenant's offset until the
@@ -107,25 +112,28 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
         endDate,
         planningDeadline,
         description: description.trim() || null,
+        expectedVersion: draftVersion ?? draft.version,
       });
+      return draft.id;
     } else {
-      await createCycle.mutateAsync({
+      const created = await createCycle.mutateAsync({
         name: name.trim(),
         startDate,
         endDate,
         planningDeadline: planningDeadline || null,
         description: description.trim() || null,
       });
+      return created.id;
     }
-  }, [draft, updateCycle, createCycle, name, startDate, endDate, planningDeadline, description]);
+  }, [draft, draftVersion, updateCycle, createCycle, name, startDate, endDate, planningDeadline, description]);
 
   async function submit() {
     setSubmitting(true);
     try {
-      await persist();
-      router.push("/cycle/setup/population");
+      const cycleId = await persist();
+      router.push(setupStepHref("population", cycleId));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save the Cycle.");
+      reportPerformanceFailure(error, "Could not save the Cycle.");
       setSubmitting(false);
     }
   }
@@ -138,10 +146,10 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
         toast.success("Cycle setup saved.");
       }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not save the Cycle.");
+      reportPerformanceFailure(error, "Could not save the Cycle.");
       return;
     }
-    router.push("/performance");
+    router.push("/");
   }, [valid, persist, router]);
 
   useEffect(() => {
@@ -316,7 +324,7 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
         </aside>
       </div>
 
-      <SetupStepFooter cancelHref="/performance">
+      <SetupStepFooter cancelHref="/">
         <AsyncButton pending={submitting} disabled={!valid} onClick={submit}>
           Next
           <ArrowRight className="size-4" data-icon="inline-end" />

@@ -1,4 +1,4 @@
-import { GitBranch, LayoutDashboard, ListChecks, Settings, UserRoundCheck, Users } from "@/lib/icons";
+import { CalendarRange, FileCheck2, GitBranch, LayoutDashboard, Settings, UserRoundCheck, Users } from "@/lib/icons";
 import type { ShellNavSection } from "@repo/ds/shell";
 
 /**
@@ -13,6 +13,7 @@ export const PRIMARY_NAV: ShellNavSection = {
     { label: "Overview", href: "/", icon: LayoutDashboard, exact: true },
     { label: "My Plan", href: "/plan", icon: UserRoundCheck },
     { label: "Team Performance", href: "/team", icon: Users },
+    { label: "Reviews", href: "/reviews", icon: FileCheck2 },
   ],
 };
 
@@ -23,7 +24,7 @@ export const CONTEXTUAL_ROUTES = [{ label: "Organization direction", href: "/goa
 export const ADMIN_NAV: ShellNavSection = {
   title: "Administration",
   items: [
-    { label: "Cycle", href: "/cycle", icon: ListChecks },
+    { label: "Cycle", href: "/cycle", icon: CalendarRange },
     { label: "Settings", href: "/settings", icon: Settings },
   ],
 };

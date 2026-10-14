@@ -27,6 +27,7 @@ public interface IAccessProfileService
     Task<CurrentUserAccessDto> GetCurrentUserAccessAsync(ApplicationUser user, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AccessProfileAssignmentSummaryDto>> GetAssignedProfilesAsync(ApplicationUser user, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<EffectivePermissionGrant>> GetEffectivePermissionsAsync(ApplicationUser user, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<PermissionHolder>> GetPermissionHoldersAsync(Guid tenantId, string permissionKey, string scope, CancellationToken cancellationToken = default);
     Task SetInviteAccessProfilesAsync(Guid tenantId, Guid inviteId, IReadOnlyCollection<Guid> accessProfileIds, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<AccessProfileAssignmentSummaryDto>> GetInviteAccessProfilesAsync(Guid inviteId, CancellationToken cancellationToken = default);
     Task ApplyInviteProfilesAsync(InviteToken invite, ApplicationUser user, CancellationToken cancellationToken = default);
@@ -494,6 +495,56 @@ public sealed class AccessProfileService(
 
         return AggregateEffectivePermissions(grants.Select(grant =>
             new EffectivePermissionGrant(grant.PermissionKey, grant.Scope)));
+    }
+
+    /// <summary>
+    /// Active accounts of the tenant whose effective permissions include the key at or
+    /// above the scope. Candidates come from the grants that could confer it; each is then
+    /// confirmed through <see cref="GetEffectivePermissionsAsync"/> so this answer can
+    /// never disagree with what the account's own token carries.
+    /// </summary>
+    public async Task<IReadOnlyList<PermissionHolder>> GetPermissionHoldersAsync(
+        Guid tenantId, string permissionKey, string scope, CancellationToken cancellationToken = default)
+    {
+        var grantingProfileIds = dbContext.AccessProfileGrants
+            .IgnoreQueryFilters()
+            .Where(grant => grant.TenantId == tenantId && grant.PermissionKey == permissionKey)
+            .Select(grant => grant.AccessProfileId);
+        var administratorCanGrant = await dbContext.AccessProfiles
+            .IgnoreQueryFilters()
+            .AnyAsync(profile => profile.TenantId == tenantId
+                && profile.InternalKey == TenantAdministratorAuthority.InternalKey
+                && grantingProfileIds.Contains(profile.Id), cancellationToken);
+
+        var candidates = await dbContext.TenantMemberships
+            .IgnoreQueryFilters()
+            .Where(membership => membership.TenantId == tenantId
+                && membership.Status == TenantMembershipStatus.Active
+                && membership.User!.IsActive
+                && (dbContext.UserAccessProfiles.IgnoreQueryFilters().Any(assignment => assignment.TenantId == tenantId
+                        && assignment.UserId == membership.UserId && grantingProfileIds.Contains(assignment.AccessProfileId))
+                    || (administratorCanGrant && dbContext.TenantAdministratorAssignments.IgnoreQueryFilters().Any(assignment =>
+                        assignment.TenantId == tenantId && assignment.UserId == membership.UserId && assignment.RevokedAt == null))))
+            .Select(membership => membership.User!)
+            .ToListAsync(cancellationToken);
+
+        var requiredRank = PermissionScopes.GetRank(scope);
+        var holders = new List<PermissionHolder>();
+        foreach (var user in candidates)
+        {
+            // Effective permissions are read for the account's single active tenant.
+            if (await FindActiveTenantIdAsync(user.Id, cancellationToken) != tenantId) continue;
+            var grants = await GetEffectivePermissionsAsync(user, cancellationToken);
+            if (!grants.Any(grant => grant.PermissionKey == permissionKey && PermissionScopes.GetRank(grant.Scope) >= requiredRank))
+                continue;
+            var employeeId = await dbContext.TenantMemberships.IgnoreQueryFilters()
+                .Where(membership => membership.TenantId == tenantId && membership.UserId == user.Id)
+                .Select(membership => membership.EmployeeId)
+                .FirstOrDefaultAsync(cancellationToken);
+            holders.Add(new PermissionHolder(user.Id, employeeId, user.FullName.Trim(), user.Email ?? string.Empty));
+        }
+
+        return holders.OrderBy(holder => holder.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     /// <summary>

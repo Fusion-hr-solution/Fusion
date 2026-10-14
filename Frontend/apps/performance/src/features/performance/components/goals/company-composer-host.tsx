@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { toast } from "sonner";
 import type { CycleSummaryDto } from "@repo/api";
 import { Dialog, DialogContent, DialogTitle } from "@repo/ds/components/ui/dialog";
@@ -36,6 +37,13 @@ export function CompanyComposerHost({
   // seed the editor, which the flat goals node does not carry.
   const strategy = useStrategy(isEdit ? cycle.id : null);
   const objective = isEdit ? strategy.data?.find((o) => o.id === state.objectiveId) : undefined;
+  const vanished = isEdit && !strategy.isLoading && !objective;
+
+  useEffect(() => {
+    if (!vanished) return;
+    toast.error("This objective can’t be edited.");
+    onClose();
+  }, [vanished, onClose]);
 
   // Editing waits for the objective to resolve so the editor seeds from real values rather than
   // flashing empty; a vanished draft closes with a brief notice.
@@ -53,11 +61,7 @@ export function CompanyComposerHost({
       </Dialog>
     );
   }
-  if (isEdit && !objective) {
-    toast.error("This objective can’t be edited.");
-    onClose();
-    return null;
-  }
+  if (vanished) return null;
 
   return (
     <ObjectiveEditor
@@ -71,6 +75,7 @@ export function CompanyComposerHost({
         if (isEdit) {
           await mutations.update.mutateAsync({
             objectiveId: state.objectiveId,
+            expectedVersion: objective!.version,
             request: {
               title: draft.title,
               description: draft.description || null,
@@ -84,6 +89,7 @@ export function CompanyComposerHost({
           toast.success(publish ? "Company direction published." : "Objective updated.");
         } else {
           await mutations.create.mutateAsync({
+            expectedVersion: cycle.version,
             title: draft.title,
             description: draft.description || null,
             accountablePersonId: draft.accountablePersonId,

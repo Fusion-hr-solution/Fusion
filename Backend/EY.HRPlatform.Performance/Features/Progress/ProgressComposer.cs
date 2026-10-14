@@ -1,3 +1,5 @@
+using EY.HRPlatform.Performance.Features.Security;
+using EY.HRPlatform.Performance.Features.Security.Policies;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
 using EY.HRPlatform.Performance.Domain.Progress;
@@ -43,7 +45,7 @@ public static class ProgressComposer
             milestones.Select(m => new ProgressMilestoneDto(m.Id, m.Title, m.Weight, m.DueDate, m.IsCompleted)).ToList(),
             CanUpdate(objective, plan, actor),
             items,
-            nextCursor);
+            nextCursor) { Version = objective.Version };
     }
 
     /// <summary>
@@ -156,12 +158,7 @@ public static class ProgressComposer
     public static EvidenceItem ToEvidence(EvidenceInput input, Guid tenantId)
         => input.Kind switch
         {
-            EvidenceKind.File => EvidenceItem.File(
-                tenantId,
-                input.FileName ?? "attachment",
-                input.ContentType ?? "application/octet-stream",
-                input.SizeBytes ?? 0,
-                input.StorageKey ?? throw new ArgumentException("A file evidence item requires a storage key.")),
+            EvidenceKind.File => throw new ArgumentException("File evidence must be claimed from a staged upload."),
             EvidenceKind.Link => EvidenceItem.Link(tenantId, input.Url ?? throw new ArgumentException("A link evidence item requires a URL."), input.Label),
             EvidenceKind.Reference => EvidenceItem.Reference(tenantId, input.ReferenceText ?? throw new ArgumentException("A reference evidence item requires text.")),
             _ => throw new ArgumentOutOfRangeException(nameof(input)),
@@ -177,20 +174,23 @@ public static class ProgressComposer
             item.Url,
             item.ReferenceText,
             // A file's download action is exposed only where named-detail authorization holds.
-            item.Kind == EvidenceKind.File && canSeeNamedDetail
+            item.Kind == EvidenceKind.File && !item.IsRemovedUnderRetention && canSeeNamedDetail
                 ? $"/performance/cycles/{cycleId}/evidence/{item.Id}"
-                : null);
+                : null)
+        {
+            IsRemovedUnderRetention = item.IsRemovedUnderRetention,
+        };
 
     // ── Authorization ────────────────────────────────────────────────────────
 
     /// <summary>Only the accountable owner records progress, once the objective's baseline is set.</summary>
     public static bool CanUpdate(Objective objective, EmployeePlan? plan, ProgressActorContext actor)
-        => ObjectiveAccess.CanUpdateProgress(actor.ToGoalActor(), objective, plan);
+        => ObjectivePolicy.CanUpdateProgress(actor.ToGoalActor(), objective, plan);
 
     /// <summary>
     /// Named detail (evidence, individual history) from ownership, responsibility, or administration —
-    /// the lookup-free part of <see cref="ObjectiveAccess.CanReadProgressHistory"/>.
+    /// the lookup-free part of <see cref="ObjectivePolicy.CanReadProgressHistory"/>.
     /// </summary>
     public static bool CanSeeNamedDetail(Objective objective, EmployeePlan? plan, ProgressActorContext actor)
-        => ObjectiveAccess.CanReadProgressHistory(new ObjectiveViewer(actor.ToGoalActor(), null), objective, plan);
+        => ObjectivePolicy.CanReadProgressHistory(new CycleViewer(actor.ToGoalActor(), null), objective, plan);
 }

@@ -1,4 +1,5 @@
 import type { ElementType, ReactNode } from "react";
+import { cn } from "@repo/ds/lib/utils";
 import { Unlink } from "@/lib/icons";
 import { StatusBadge } from "@repo/ds/shell";
 import { ScopeMark } from "../../scope-mark";
@@ -25,7 +26,7 @@ export function ObjectiveSummary({
         {record.accent === "info" ? <Unlink className="size-5" aria-hidden /> : <ScopeMark className="size-7" />}
       </span>
       <div className="min-w-0 flex-1">
-        <Title className="text-[0.95rem] font-semibold leading-snug tracking-tight text-foreground">{record.title}</Title>
+        <Title className={cn(Title === "h1" ? "type-page-title" : "type-section-title", "text-foreground")}>{record.title}</Title>
         <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           <span className="font-medium text-(--type-ink)">{record.kindLabel}</span>
           <StatusBadge tone={record.status.tone} dot>

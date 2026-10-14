@@ -51,3 +51,16 @@ public static class ReadinessIssue
     public static bool IsReviewerIssue(ReadinessIssueCode code)
         => code is ReadinessIssueCode.MissingManager or ReadinessIssueCode.InactiveManager;
 }
+
+/// <summary>
+/// Why a person is a participant's responsible reviewer. Performance records responsibility
+/// with its basis so historical review authority never depends on today's Core manager.
+/// </summary>
+public enum ReviewerBasis
+{
+    /// <summary>The participant's Core manager as of the Cycle start, captured at population confirmation.</summary>
+    CoreManagerAtCycleStart = 0,
+
+    /// <summary>Assigned explicitly by Performance administration.</summary>
+    AdministrativeAssignment = 1,
+}

@@ -1,211 +1,217 @@
 "use client";
 
-import type { CycleSummaryDto } from "@repo/api";
+import type { GoalNodeDto, OverviewSectionDto } from "@repo/api";
 import { ChevronRight } from "@/lib/icons";
-import { useMyPlan, useTeamObjectiveWorkspace, useTeamRoster } from "../../api/use-performance";
-import { useWorkforceMe } from "../../api/use-workforce-me";
 import { formatDate } from "../../lib";
+import { objectiveHref } from "@/lib/performance-routes";
 import { useObjectiveRecord } from "../objective-record/use-objective-record";
-import { cyclePhase, localToday, planExecution, teamAttention } from "./overview-model";
-import { Facts, Headline, OverviewSection, ProgressLine, SectionAction, SectionSkeleton } from "./overview-primitives";
+import { overviewHref, plural } from "./overview-model";
+import { Facts, Headline, OverviewSection, ProgressLine, SectionAction } from "./overview-primitives";
 
-const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
+type Section<K extends OverviewSectionDto["kind"]> = Extract<OverviewSectionDto, { kind: K }>;
 
 /** Where one's own plan stands, and the one thing to do next with it. */
-export function MyPlanSection({ cycle }: { cycle: CycleSummaryDto }) {
-  const my = useMyPlan(cycle.id);
-  if (my.isLoading || !my.data) {
-    return (
-      <OverviewSection label="My plan">
-        <SectionSkeleton />
-      </OverviewSection>
-    );
-  }
-  if (!my.data.participatesInCycle) {
-    return (
-      <OverviewSection label="My plan">
-        <p className="text-sm text-muted-foreground">You are not part of this cycle.</p>
-      </OverviewSection>
-    );
-  }
-
-  const plan = my.data.plan;
-  const reviewer = plan?.responsibleManager?.name ?? my.data.preview?.reviewer?.name ?? null;
-  const latest = plan?.history.at(-1);
-  const { planningOpen } = cyclePhase(cycle, localToday());
+export function MyPlanSection({ section }: { section: Section<"myPlan"> }) {
+  const href = overviewHref(section.destination);
+  const reviewer = section.reviewerName;
   // The deadline matters while a plan is still being written: open, or already past and owed.
-  const deadline = planningOpen
-    ? { label: `Planning open until ${formatDate(cycle.planningDeadline)}` }
-    : { label: `Planning closed ${formatDate(cycle.planningDeadline)}`, tone: "critical" as const };
+  const deadline = section.planningOpen
+    ? { label: `Planning open until ${formatDate(section.planningDeadline)}` }
+    : { label: `Planning closed ${formatDate(section.planningDeadline)}`, tone: "critical" as const };
 
-  if (!plan || (plan.state === "Draft" && plan.objectives.length === 0 && latest?.kind !== "Returned")) {
-    return (
-      <OverviewSection label="My plan" attention action={<SectionAction href="/plan" primary>Start planning</SectionAction>}>
-        <Headline attention>Start your plan</Headline>
-        <Facts facts={[deadline, reviewer ? { label: `Reviewer · ${reviewer}` } : null]} />
-      </OverviewSection>
-    );
+  switch (section.standing) {
+    case "NotStarted":
+      return (
+        <OverviewSection label="My plan" attention action={<SectionAction href={href} primary>Start planning</SectionAction>}>
+          <Headline attention>Start your plan</Headline>
+          <Facts facts={[deadline, reviewer ? { label: `Reviewer · ${reviewer}` } : null]} />
+        </OverviewSection>
+      );
+    case "ReturnedForChanges":
+      return (
+        <OverviewSection label="My plan" attention action={<SectionAction href={href} primary>Revise plan</SectionAction>}>
+          <Headline attention>Your plan was returned for changes</Headline>
+          {section.returnFeedback ? (
+            <blockquote className="mt-2 border-l-2 border-primary/50 pl-3 text-sm text-muted-foreground">
+              <span className="text-foreground">{section.returnedBy ?? "Your reviewer"}:</span> “{section.returnFeedback}”
+            </blockquote>
+          ) : null}
+        </OverviewSection>
+      );
+    case "Draft":
+      return (
+        <OverviewSection label="My plan" action={<SectionAction href={href}>Continue</SectionAction>}>
+          <Headline>Your plan is in progress</Headline>
+          <Facts
+            facts={[
+              { label: plural(section.objectiveCount, "objective") },
+              { label: `${Math.round(section.weightTotal)}% of 100% weighted` },
+              deadline,
+            ]}
+          />
+        </OverviewSection>
+      );
+    case "Submitted":
+      return (
+        <OverviewSection label="My plan" action={<SectionAction href={href}>View plan</SectionAction>}>
+          <Headline>Awaiting {reviewer ? `${reviewer}’s` : "your reviewer’s"} decision</Headline>
+          <Facts facts={[section.submittedAt ? { label: `Submitted ${formatDate(section.submittedAt.slice(0, 10))}` } : null]} />
+        </OverviewSection>
+      );
+    case "Approved": {
+      const e = section.execution;
+      if (!e) return null;
+      const needsUpdate = e.overdueObjectiveCount > 0 || e.withoutRecentUpdateCount > 0 || e.reportingCount === 0;
+      return (
+        <OverviewSection
+          label="My plan"
+          attention={needsUpdate}
+          action={
+            <SectionAction href={href} primary={needsUpdate}>
+              {needsUpdate ? "Update progress" : "Open plan"}
+            </SectionAction>
+          }
+        >
+          <div className="flex max-w-xl items-baseline gap-4">
+            <span className="type-metric text-foreground">{e.reportingCount > 0 ? `${Math.round(e.planProgress)}%` : "—"}</span>
+            <ProgressLine value={e.planProgress} has={e.reportingCount > 0} className="flex-1 [&>span:last-child]:hidden" />
+          </div>
+          <Facts
+            facts={[
+              {
+                label: `${e.reportingCount} of ${plural(e.objectiveCount, "objective")} reporting`,
+                tone: e.reportingCount === 0 ? "attention" : "default",
+              },
+              e.overdueObjectiveCount > 0 ? { label: `${plural(e.overdueObjectiveCount, "objective")} overdue`, tone: "critical" } : null,
+              e.withoutRecentUpdateCount > 0
+                ? { label: `${plural(e.withoutRecentUpdateCount, "objective")} without an update in 30 days`, tone: "attention" }
+                : null,
+            ]}
+          />
+        </OverviewSection>
+      );
+    }
   }
-
-  if (plan.state === "Draft" && latest?.kind === "Returned") {
-    return (
-      <OverviewSection label="My plan" attention action={<SectionAction href="/plan" primary>Revise plan</SectionAction>}>
-        <Headline attention>Your plan was returned for changes</Headline>
-        {latest.feedback ? (
-          <blockquote className="mt-2 border-l-2 border-primary/50 pl-3 text-sm text-muted-foreground">
-            <span className="text-foreground">{latest.actorName ?? reviewer ?? "Your reviewer"}:</span> “{latest.feedback}”
-          </blockquote>
-        ) : null}
-      </OverviewSection>
-    );
-  }
-
-  if (plan.state === "Draft") {
-    return (
-      <OverviewSection label="My plan" action={<SectionAction href="/plan">Continue</SectionAction>}>
-        <Headline>Your plan is in progress</Headline>
-        <Facts
-          facts={[
-            { label: plural(plan.objectives.length, "objective") },
-            { label: `${plan.readiness.weightTotal}% of 100% weighted` },
-            deadline,
-          ]}
-        />
-      </OverviewSection>
-    );
-  }
-
-  if (plan.state === "Submitted") {
-    return (
-      <OverviewSection label="My plan" action={<SectionAction href="/plan">View plan</SectionAction>}>
-        <Headline>Awaiting {reviewer ? `${reviewer}’s` : "your reviewer’s"} decision</Headline>
-        <Facts facts={[plan.submittedAt ? { label: `Submitted ${formatDate(plan.submittedAt.slice(0, 10))}` } : null]} />
-      </OverviewSection>
-    );
-  }
-
-  const execution = planExecution(plan, localToday());
-  const needsUpdate = execution.overdueMilestones > 0 || execution.reporting === 0;
-  return (
-    <OverviewSection
-      label="My plan"
-      attention={needsUpdate}
-      action={
-        <SectionAction href="/plan" primary={needsUpdate}>
-          {needsUpdate ? "Update progress" : "Open plan"}
-        </SectionAction>
-      }
-    >
-      <div className="flex max-w-xl items-baseline gap-4">
-        <span className="type-metric text-foreground">{execution.reporting > 0 ? `${Math.round(plan.planProgress)}%` : "—"}</span>
-        <ProgressLine value={plan.planProgress} has={execution.reporting > 0} className="flex-1 [&>span:last-child]:hidden" />
-      </div>
-      <Facts
-        facts={[
-          { label: `${execution.reporting} of ${plural(execution.objectiveCount, "objective")} reporting`, tone: execution.reporting === 0 ? "attention" : "default" },
-          execution.overdueMilestones > 0 ? { label: `${plural(execution.overdueMilestones, "milestone")} overdue`, tone: "critical" } : null,
-        ]}
-      />
-    </OverviewSection>
-  );
 }
 
-/** What the people one leads need from them — the roster's situation, never the roster itself. */
-export function TeamAttentionSection({ cycle }: { cycle: CycleSummaryDto }) {
-  const roster = useTeamRoster(cycle.id);
-  if (roster.isLoading || !roster.data) {
-    return (
-      <OverviewSection label="Your team">
-        {roster.error ? <Headline muted>Your team could not be loaded</Headline> : <SectionSkeleton />}
-      </OverviewSection>
-    );
-  }
-
-  const team = teamAttention(roster.data);
-  const deciding = team.awaitingDecision > 0;
-  if (team.people === 0) {
+/** What the people one is responsible for need — their situation in counts, never the roster itself. */
+export function TeamSection({ planning, execution }: { planning: Section<"teamPlanning">; execution?: Section<"teamExecution"> }) {
+  const deciding = planning.awaitingDecision > 0;
+  if (planning.people === 0) {
     return (
       <OverviewSection label="Your team">
         <Headline muted>No one reports to you in this cycle</Headline>
       </OverviewSection>
     );
   }
-
   return (
     <OverviewSection
       label="Your team"
       attention={deciding}
       action={
-        <SectionAction href="/team" primary={deciding}>
-          {deciding ? `Review ${plural(team.awaitingDecision, "plan")}` : "Open Team Performance"}
+        <SectionAction href={overviewHref(planning.destination)} primary={deciding}>
+          {deciding ? `Review ${plural(planning.awaitingDecision, "plan")}` : "Open Team Performance"}
         </SectionAction>
       }
     >
       <Headline attention={deciding}>
         {deciding
-          ? `${plural(team.awaitingDecision, "plan")} ${team.awaitingDecision === 1 ? "awaits" : "await"} your decision`
-          : `${plural(team.people, "person", "people")} · ${team.approved === 0 ? "no approved plans yet" : `${team.approved} approved ${team.approved === 1 ? "plan" : "plans"}`}`}
+          ? `${plural(planning.awaitingDecision, "plan")} ${planning.awaitingDecision === 1 ? "awaits" : "await"} your decision`
+          : `${plural(planning.people, "person", "people")} · ${planning.approved === 0 ? "no approved plans yet" : `${planning.approved} approved ${planning.approved === 1 ? "plan" : "plans"}`}`}
       </Headline>
       <Facts
         facts={[
-          deciding ? { label: `${plural(team.people, "person", "people")}` } : null,
-          team.notStarted > 0 ? { label: `${team.notStarted} not started`, tone: "attention" } : null,
-          team.returned > 0 ? { label: `${team.returned} returned for changes` } : null,
-          team.approvedNotReporting > 0 ? { label: `${team.approvedNotReporting} approved, not reporting`, tone: "attention" } : null,
-          team.withOverdue > 0 ? { label: `${team.withOverdue} with overdue milestones`, tone: "critical" } : null,
+          deciding ? { label: plural(planning.people, "person", "people") } : null,
+          planning.notStarted > 0 ? { label: `${planning.notStarted} not started`, tone: "attention" } : null,
+          planning.returned > 0 ? { label: `${planning.returned} returned for changes` } : null,
+          execution && execution.approved - execution.approvedReporting > 0
+            ? { label: `${execution.approved - execution.approvedReporting} approved, not reporting`, tone: "attention" }
+            : null,
+          execution && execution.peopleWithOverdue > 0
+            ? { label: `${plural(execution.peopleWithOverdue, "person", "people")} with overdue objectives`, tone: "critical" }
+            : null,
+          execution && execution.peopleWithoutRecentUpdate > 0
+            ? { label: `${execution.peopleWithoutRecentUpdate} without a recent update`, tone: "attention" }
+            : null,
         ]}
       />
     </OverviewSection>
   );
 }
 
-/** The objective the leader's own team owns: its progress, opening in the objective record. */
-export function TeamObjectiveSection({ cycle }: { cycle: CycleSummaryDto }) {
-  const me = useWorkforceMe(true);
-  const unit = me.data?.employee?.orgUnit ?? null;
-  const workspace = useTeamObjectiveWorkspace(cycle.id, unit?.orgUnitId, unit !== null);
-  const record = useObjectiveRecord();
-
-  if (me.isLoading || (unit && workspace.isLoading)) {
-    return (
-      <OverviewSection label="Team objective">
-        <SectionSkeleton />
-      </OverviewSection>
-    );
-  }
-  // No placement, or the team's workspace is not available for this cycle: nothing truthful to say here.
-  if (!unit || workspace.error || !workspace.data) return null;
-
-  const objectives = workspace.data.objectives;
+/** The objectives one's own team owns, each opening in its record. */
+export function TeamDirectionSection({ section, cycleId }: { section: Section<"teamDirection">; cycleId: string }) {
   return (
     <OverviewSection
-      label={objectives.length > 1 ? "Team objectives" : "Team objective"}
-      action={objectives.length === 0 ? <SectionAction href="/team">Set a team objective</SectionAction> : undefined}
+      label={section.total > 1 ? "Team objectives" : "Team objective"}
+      action={section.total === 0 ? <SectionAction href={overviewHref(section.destination)}>Set a team objective</SectionAction> : undefined}
     >
-      {objectives.length === 0 ? (
-        <Headline muted>No objective for {workspace.data.orgUnitName} yet</Headline>
+      {section.total === 0 ? (
+        <Headline muted>No team objective yet</Headline>
       ) : (
-        <ul className="-mx-3">
-          {objectives.slice(0, 3).map(({ node }) => (
-            <li key={node.id}>
-              <button
-                type="button"
-                onClick={() => record.open({ cycleId: cycle.id, objectiveId: node.id })}
-                className="group flex w-full items-center gap-4 rounded-control px-3 py-2.5 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="type-panel-title block truncate text-foreground">{node.title}</span>
-                  {node.state === "Draft" ? <span className="type-meta text-muted-foreground">Draft</span> : null}
-                </span>
-                {node.state === "Published" ? (
-                  <ProgressLine value={node.derivedProgress} has={node.hasProgress} className="w-48 shrink-0" />
-                ) : null}
-                <ChevronRight className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" aria-hidden />
-              </button>
-            </li>
-          ))}
-        </ul>
+        <ObjectiveList objectives={section.objectives} cycleId={cycleId} showDraft />
       )}
+    </OverviewSection>
+  );
+}
+
+/** A short list of objectives, each opening in the objective record. */
+export function ObjectiveList({
+  objectives,
+  cycleId,
+  showDraft,
+  describe,
+}: {
+  objectives: GoalNodeDto[];
+  cycleId: string;
+  showDraft?: boolean;
+  describe?: (node: GoalNodeDto) => string;
+}) {
+  const record = useObjectiveRecord();
+  return (
+    <ul className="-mx-3">
+      {objectives.map((node) => (
+        <li key={node.id}>
+          <button
+            type="button"
+            onClick={() => record.open({ cycleId, objectiveId: node.id })}
+            className="group flex w-full items-center gap-4 rounded-control px-3 py-2.5 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="type-panel-title block truncate text-foreground">{node.title}</span>
+              {showDraft && node.state === "Draft" ? (
+                <span className="type-meta text-muted-foreground">Draft</span>
+              ) : describe ? (
+                <span className="type-meta text-muted-foreground">{describe(node)}</span>
+              ) : null}
+            </span>
+            {node.state === "Published" ? (
+              <ProgressLine value={node.derivedProgress} has={node.hasProgress} className="hidden w-48 shrink-0 sm:flex" />
+            ) : null}
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" aria-hidden />
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Asks for a progress update on one's own plan: who asked, about what, resuming in record-progress. */
+export function MyRequestsSection({ section }: { section: Section<"myRequests"> }) {
+  const first = section.requests[0]!;
+  const resume = (destination: (typeof first)["destination"]) => destination.workspace === "Objective" && destination.cycleId && destination.objectiveId
+    ? objectiveHref({ cycleId: destination.cycleId, objectiveId: destination.objectiveId }, "record")
+    : overviewHref(destination);
+  return (
+    <OverviewSection label="Update requests" attention action={<SectionAction href={resume(first.destination)} primary>Record progress</SectionAction>}>
+      <Headline attention>
+        {section.requests.length === 1
+          ? `${first.requestedByName} asked for an update${first.objectiveTitle ? ` on ${first.objectiveTitle}` : " on your plan"}`
+          : `${plural(section.requests.length, "update request")} from your reviewer`}
+      </Headline>
+      <Facts facts={section.requests.length === 1
+        ? [{ label: `Asked ${formatDate(first.requestedAt)}` }, first.note ? { label: first.note } : null]
+        : section.requests.map((request) => ({ label: request.objectiveTitle ?? "Your plan" }))} />
     </OverviewSection>
   );
 }

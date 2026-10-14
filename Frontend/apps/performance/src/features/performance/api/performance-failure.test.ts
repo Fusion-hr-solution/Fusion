@@ -1,0 +1,34 @@
+import { describe, expect, it, vi } from "vitest";
+import { ApiError } from "@repo/api";
+import { performanceFailure, reportPerformanceFailure, recoverPerformanceFailure } from "./performance-failure";
+import { toast } from "sonner";
+
+vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+
+describe("Performance failure recovery", () => {
+  it("refreshes stale and invalid-state records and treats forbidden content as unavailable", () => {
+    const error = (kind: string) => new ApiError(409, "Conflict", ["Server message"], null, { code: "Stable.Code", kind });
+    expect(performanceFailure(error("Stale"))).toMatchObject({ refresh: true, message: "This changed since you opened it" });
+    expect(performanceFailure(error("InvalidState")).refresh).toBe(true);
+    expect(performanceFailure(error("Forbidden"))).toMatchObject({ refresh: true, unavailable: true });
+    expect(performanceFailure(error("Validation")).refresh).toBe(false);
+    expect(performanceFailure(new Error("Ordinary failure"))).toMatchObject({ refresh: false, kind: null, message: "Ordinary failure" });
+  });
+
+  it("shows one notification when both the mutation hook and its composer report the same failure", () => {
+    const error = new ApiError(409, "Conflict", ["Server stale message"], null, { kind: "Stale" });
+    reportPerformanceFailure(error);
+    reportPerformanceFailure(error);
+    expect(toast.error).toHaveBeenCalledTimes(1);
+    expect(toast.error).toHaveBeenCalledWith("This changed since you opened it");
+  });
+});
+
+
+it("awaits the record refresh after stale/invalid/forbidden actions and leaves validation drafts intact", async () => {
+  const refresh = vi.fn().mockResolvedValue(undefined);
+  for (const kind of ["Stale", "InvalidState", "Forbidden", "Validation"]) {
+    await recoverPerformanceFailure(new ApiError(409, "Conflict", [kind], null, { kind }), refresh);
+  }
+  expect(refresh).toHaveBeenCalledTimes(3);
+});

@@ -21,3 +21,14 @@ public enum OperationalMilestone
     PerformanceEndReached = 4,
     ClosureReady = 5,
 }
+
+/// <summary>
+/// Where an Active Cycle is operationally. Derived from the planning deadline (and, once review
+/// rounds exist, an Active round) — never stored and never a lifecycle state.
+/// </summary>
+public enum CyclePhase
+{
+    Planning = 0,
+    Execution = 1,
+    Review = 2,
+}

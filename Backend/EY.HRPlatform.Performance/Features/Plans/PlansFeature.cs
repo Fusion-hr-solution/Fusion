@@ -1,3 +1,10 @@
+using EY.HRPlatform.Performance.Domain.Notifications;
+using EY.HRPlatform.Performance.Infrastructure.Notifications;
+using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Infrastructure.Audit;
+using EY.HRPlatform.Performance.Features.Failures;
+using EY.HRPlatform.Performance.Features.Security;
+using EY.HRPlatform.Performance.Features.Security.Policies;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -18,21 +25,19 @@ namespace EY.HRPlatform.Performance.Features.Plans;
 
 public sealed record GetMyPlanQuery(Guid CycleId, PlanActorContext Actor) : IQuery<Result<MyPlanStateDto>>;
 public sealed record GetAlignmentTargetsQuery(Guid CycleId, PlanActorContext Actor) : IQuery<Result<IReadOnlyList<AlignmentTargetDto>>>;
-public sealed record GetPlanReviewsQuery(Guid CycleId, PlanActorContext Actor) : IQuery<Result<PlanReviewListDto>>;
-public sealed record GetTeamRosterQuery(Guid CycleId, PlanActorContext Actor) : IQuery<Result<TeamRosterDto>>;
 public sealed record GetCyclePlanSummaryQuery(Guid CycleId) : IQuery<Result<CyclePlanSummaryDto>>;
 public sealed record GetPlanForReviewQuery(Guid CycleId, Guid PlanId, PlanActorContext Actor) : IQuery<Result<EmployeePlanDto>>;
 
 // ── Commands ───────────────────────────────────────────────────────────────────
 
-public sealed record CreateMyPlanCommand(Guid CycleId, PlanActorContext Actor) : ICommand<Result<EmployeePlanDto>>;
+public sealed record CreateMyPlanCommand(Guid CycleId, PlanActorContext Actor, uint ExpectedVersion = 0) : ICommand<Result<EmployeePlanDto>>;
 public sealed record AddPlanObjectiveCommand(Guid CycleId, AddPlanObjectiveRequest Request, PlanActorContext Actor) : ICommand<Result<EmployeePlanDto>>;
 public sealed record UpdatePlanObjectiveCommand(Guid CycleId, Guid ObjectiveId, UpdatePlanObjectiveRequest Request, PlanActorContext Actor) : ICommand<Result<EmployeePlanDto>>;
-public sealed record RemovePlanObjectiveCommand(Guid CycleId, Guid ObjectiveId, PlanActorContext Actor) : ICommand<Result<EmployeePlanDto>>;
+public sealed record RemovePlanObjectiveCommand(Guid CycleId, Guid ObjectiveId, PlanActorContext Actor, uint ExpectedVersion = 0) : ICommand<Result<EmployeePlanDto>>;
 public sealed record SetPlanWeightsCommand(Guid CycleId, SetPlanWeightsRequest Request, PlanActorContext Actor) : ICommand<Result<EmployeePlanDto>>;
-public sealed record SubmitMyPlanCommand(Guid CycleId, PlanActorContext Actor) : ICommand<Result<EmployeePlanDto>>;
+public sealed record SubmitMyPlanCommand(Guid CycleId, PlanActorContext Actor, uint ExpectedVersion = 0) : ICommand<Result<EmployeePlanDto>>;
 public sealed record ReturnPlanCommand(Guid CycleId, Guid PlanId, ReturnPlanRequest Request, PlanActorContext Actor) : ICommand<Result<EmployeePlanDto>>;
-public sealed record ApprovePlanCommand(Guid CycleId, Guid PlanId, PlanActorContext Actor) : ICommand<Result<EmployeePlanDto>>;
+public sealed record ApprovePlanCommand(Guid CycleId, Guid PlanId, PlanActorContext Actor, uint ExpectedVersion = 0) : ICommand<Result<EmployeePlanDto>>;
 public sealed record ExceptionalApprovePlanCommand(Guid CycleId, Guid PlanId, ExceptionalApprovePlanRequest Request, PlanActorContext Actor) : ICommand<Result<EmployeePlanDto>>;
 
 // ── Shared base ────────────────────────────────────────────────────────────────
@@ -43,20 +48,23 @@ public abstract class PlanHandlerBase(PerformanceDbContext db, ICoreWorkforceCli
     protected ICoreWorkforceClient Workforce => workforce;
     protected ITenantContext Tenant => tenant;
 
-    protected async Task<Result<PerformanceCycle>> LoadOpenCycleAsync(Guid cycleId, CancellationToken cancellationToken)
+    protected async Task<Result<PerformanceCycle>> LoadOpenCycleAsync(Guid cycleId, CancellationToken cancellationToken, bool allowClosed = false)
     {
-        var cycle = await db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == cycleId, cancellationToken);
+        var cycle = await db.Cycles.FirstOrDefaultAsync(c => c.Id == cycleId, cancellationToken);
         if (cycle is null)
-            return Result.Failure<PerformanceCycle>(Error.NotFound("Cycle", cycleId));
-        if (cycle.IsClosed)
-            return Result.Failure<PerformanceCycle>(Error.Conflict("Cycle.Closed", "A Closed Cycle is read-only; plan authoring is not available."));
+            return Result.Failure<PerformanceCycle>(PerformanceErrors.NotFound("Cycle", cycleId));
+        // Employee planning opens at activation: a Draft Cycle's roster is still being shaped.
+        if (cycle.IsDraft)
+            return Result.Failure<PerformanceCycle>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.CycleNotActive, "Planning opens when the Cycle is launched."));
+        if (cycle.IsClosed && !allowClosed)
+            return Result.Failure<PerformanceCycle>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.CycleClosed, "A Closed Cycle is read-only; plan authoring is not available."));
         return Result.Success(cycle);
     }
 
-    protected async Task<bool> StandaloneAllowedAsync(CancellationToken cancellationToken)
+    protected async Task<PlanAlignmentPolicy> AlignmentPolicyAsync(PerformanceCycle cycle, CancellationToken cancellationToken)
     {
-        var settings = await db.CycleSettings.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
-        return settings?.AllowStandaloneObjectives ?? true;
+        var snapshot = await db.Set<ActivationSnapshot>().AsNoTracking().FirstOrDefaultAsync(s => s.CycleId == cycle.Id, cancellationToken);
+        return snapshot is null ? PlanAlignmentPolicy.AtLeastOneConnected : PlanAlignmentSnapshots.Read(snapshot.SettingsJson);
     }
 
     protected Task<EmployeePlan?> LoadPlanTrackedAsync(Guid cycleId, Guid planId, CancellationToken cancellationToken)
@@ -68,9 +76,9 @@ public abstract class PlanHandlerBase(PerformanceDbContext db, ICoreWorkforceCli
     protected async Task<Result<EmployeePlanDto>> ProjectAsync(PerformanceCycle cycle, Guid planId, PlanActorContext actor, CancellationToken cancellationToken)
     {
         var plan = await db.EmployeePlans.AsNoTracking().Include(p => p.Decisions).FirstOrDefaultAsync(p => p.Id == planId, cancellationToken);
-        if (plan is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Plan", planId));
-        var standaloneAllowed = await StandaloneAllowedAsync(cancellationToken);
-        var dto = await PlansComposer.BuildPlanAsync(db, workforce, cycle, plan, standaloneAllowed, actor, cancellationToken);
+        if (plan is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("Plan", planId));
+        var alignmentPolicy = await AlignmentPolicyAsync(cycle, cancellationToken);
+        var dto = await PlansComposer.BuildPlanAsync(db, workforce, cycle, plan, alignmentPolicy, actor, cancellationToken);
         return Result.Success(dto);
     }
 
@@ -93,7 +101,7 @@ public sealed class GetMyPlanHandler(PerformanceDbContext db, ICoreWorkforceClie
     public async Task<Result<MyPlanStateDto>> Handle(GetMyPlanQuery request, CancellationToken cancellationToken)
     {
         var cycle = await Db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
-        if (cycle is null) return Result.Failure<MyPlanStateDto>(Error.NotFound("Cycle", request.CycleId));
+        if (cycle is null) return Result.Failure<MyPlanStateDto>(PerformanceErrors.NotFound("Cycle", request.CycleId));
 
         var employeeId = request.Actor.CallerEmployeeId;
         var participant = await Db.Participants.AsNoTracking()
@@ -108,12 +116,16 @@ public sealed class GetMyPlanHandler(PerformanceDbContext db, ICoreWorkforceClie
             var reviewer = participant.ManagerEmployeeId is null
                 ? null
                 : new PersonRefDto(participant.ManagerEmployeeId.Value, participant.ManagerDisplayName ?? string.Empty);
-            var preview = new PlanPreviewDto(reviewer, participant.OrgUnitName, await StandaloneAllowedAsync(cancellationToken));
+            var preview = new PlanPreviewDto(reviewer, participant.OrgUnitName, (await AlignmentPolicyAsync(cycle, cancellationToken)) != PlanAlignmentPolicy.EveryObjectiveConnected)
+            {
+                ReviewerBasis = reviewer is null ? null : participant.ReviewerBasis,
+                ReviewerAsOf = reviewer is null ? null : participant.ReviewerAsOf,
+            };
             return Result.Success(new MyPlanStateDto(true, false, null, preview));
         }
 
-        var standaloneAllowed = await StandaloneAllowedAsync(cancellationToken);
-        var dto = await PlansComposer.BuildPlanAsync(Db, Workforce, cycle, plan, standaloneAllowed, request.Actor, cancellationToken);
+        var alignmentPolicy = await AlignmentPolicyAsync(cycle, cancellationToken);
+        var dto = await PlansComposer.BuildPlanAsync(Db, Workforce, cycle, plan, alignmentPolicy, request.Actor, cancellationToken);
         return Result.Success(new MyPlanStateDto(true, true, dto));
     }
 }
@@ -124,76 +136,10 @@ public sealed class GetAlignmentTargetsHandler(PerformanceDbContext db, ICoreWor
     public async Task<Result<IReadOnlyList<AlignmentTargetDto>>> Handle(GetAlignmentTargetsQuery request, CancellationToken cancellationToken)
     {
         var cycle = await Db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
-        if (cycle is null) return Result.Failure<IReadOnlyList<AlignmentTargetDto>>(Error.NotFound("Cycle", request.CycleId));
+        if (cycle is null) return Result.Failure<IReadOnlyList<AlignmentTargetDto>>(PerformanceErrors.NotFound("Cycle", request.CycleId));
 
-        var graph = await GoalsComposer.LoadGraphAsync(Db, Workforce, cycle, cancellationToken);
+        var graph = await GoalsComposer.LoadGraphAsync(Db, Workforce, cycle, cancellationToken, new CycleViewer(request.Actor.ToGoalActor(), null));
         return Result.Success(PlansComposer.AlignmentTargets(graph));
-    }
-}
-
-public sealed class GetPlanReviewsHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
-    : PlanHandlerBase(db, workforce, tenant), IQueryHandler<GetPlanReviewsQuery, Result<PlanReviewListDto>>
-{
-    public async Task<Result<PlanReviewListDto>> Handle(GetPlanReviewsQuery request, CancellationToken cancellationToken)
-    {
-        var cycle = await Db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
-        if (cycle is null) return Result.Failure<PlanReviewListDto>(Error.NotFound("Cycle", request.CycleId));
-
-        // The queue is the caller's own review work: plans they are the responsible manager for.
-        // Administration does not widen it — tenant-wide oversight is a separate surface.
-        var query = Db.EmployeePlans.AsNoTracking().Where(p =>
-            p.CycleId == cycle.Id
-            && p.State == PlanLifecycleState.Submitted
-            && p.ResponsibleManagerId == request.Actor.CallerEmployeeId);
-
-        var plans = await query.ToListAsync(cancellationToken);
-        var graph = await GoalsComposer.LoadGraphAsync(Db, Workforce, cycle, cancellationToken);
-        var summaries = plans
-            .Select(p => PlansComposer.ToReviewSummary(p, graph))
-            .OrderBy(s => s.SubmittedAt)
-            .ToList();
-
-        return Result.Success(new PlanReviewListDto(cycle.Id, cycle.Name, summaries.Count, summaries));
-    }
-}
-
-public sealed class GetTeamRosterHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
-    : PlanHandlerBase(db, workforce, tenant), IQueryHandler<GetTeamRosterQuery, Result<TeamRosterDto>>
-{
-    public async Task<Result<TeamRosterDto>> Handle(GetTeamRosterQuery request, CancellationToken cancellationToken)
-    {
-        var cycle = await Db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
-        if (cycle is null) return Result.Failure<TeamRosterDto>(Error.NotFound("Cycle", request.CycleId));
-
-        var plans = await Db.EmployeePlans.AsNoTracking().Include(p => p.Decisions)
-            .Where(p => p.CycleId == cycle.Id)
-            .ToListAsync(cancellationToken);
-        var planByEmployee = plans
-            .GroupBy(p => p.EmployeeId)
-            .ToDictionary(g => g.Key, g => g.First());
-
-        // Roster membership: a manager sees the participants who report to them, plus anyone whose plan
-        // they are the responsible reviewer for — a reorg after submission must not drop a review they
-        // own. Administration does not widen it — tenant-wide oversight is a separate surface. Decision
-        // authority is resolved per plan and is deliberately not implied by membership.
-        var caller = request.Actor.CallerEmployeeId;
-        var reviewedEmployees = plans.Where(p => p.ResponsibleManagerId == caller).Select(p => p.EmployeeId).ToList();
-        var participants = await Db.Participants.AsNoTracking()
-            .Where(p => p.CycleId == cycle.Id
-                && (p.ManagerEmployeeId == caller || reviewedEmployees.Contains(p.EmployeeId)))
-            .ToListAsync(cancellationToken);
-
-        var graph = await GoalsComposer.LoadGraphAsync(Db, Workforce, cycle, cancellationToken);
-        var cycleOpen = !cycle.IsClosed;
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-
-        var members = participants
-            .Select(p => PlansComposer.ToRosterMember(
-                p, planByEmployee.GetValueOrDefault(p.EmployeeId), graph, request.Actor, cycleOpen, today))
-            .OrderBy(m => m.EmployeeName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        return Result.Success(new TeamRosterDto(cycle.Id, members.Count(m => m.CanReview), members));
     }
 }
 
@@ -207,7 +153,7 @@ public sealed class GetCyclePlanSummaryHandler(PerformanceDbContext db)
     public async Task<Result<CyclePlanSummaryDto>> Handle(GetCyclePlanSummaryQuery request, CancellationToken cancellationToken)
     {
         var cycle = await db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
-        if (cycle is null) return Result.Failure<CyclePlanSummaryDto>(Error.NotFound("Cycle", request.CycleId));
+        if (cycle is null) return Result.Failure<CyclePlanSummaryDto>(PerformanceErrors.NotFound("Cycle", request.CycleId));
 
         var participants = await db.Participants.AsNoTracking()
             .Where(p => p.CycleId == cycle.Id)
@@ -242,7 +188,7 @@ public sealed class GetCyclePlanSummaryHandler(PerformanceDbContext db)
             approved.Count,
             approved.Count(s => s.HasProgress),
             approved.Count(s => !s.HasProgress),
-            approved.Count(s => s.OverdueMilestoneCount > 0)));
+            approved.Count(s => s.OverdueObjectiveCount > 0)));
     }
 }
 
@@ -252,18 +198,18 @@ public sealed class GetPlanForReviewHandler(PerformanceDbContext db, ICoreWorkfo
     public async Task<Result<EmployeePlanDto>> Handle(GetPlanForReviewQuery request, CancellationToken cancellationToken)
     {
         var cycle = await Db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
-        if (cycle is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Cycle", request.CycleId));
+        if (cycle is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("Cycle", request.CycleId));
 
         var plan = await Db.EmployeePlans.AsNoTracking().Include(p => p.Decisions)
             .FirstOrDefaultAsync(p => p.Id == request.PlanId && p.CycleId == cycle.Id, cancellationToken);
-        if (plan is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Plan", request.PlanId));
+        if (plan is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("Plan", request.PlanId));
 
         // The plan's own employee and administration always; the responsible manager once it is put forward.
-        if (!ObjectiveAccess.CanViewPlan(request.Actor.ToGoalActor(), plan))
-            return Result.Failure<EmployeePlanDto>(Error.Forbidden("Plan.ViewForbidden", "You are not authorized to view this plan."));
+        if (!PlanPolicy.CanRead(request.Actor.ToGoalActor(), plan))
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.PlanViewForbidden, "You are not authorized to view this plan."));
 
-        var standaloneAllowed = await StandaloneAllowedAsync(cancellationToken);
-        var dto = await PlansComposer.BuildPlanAsync(Db, Workforce, cycle, plan, standaloneAllowed, request.Actor, cancellationToken);
+        var alignmentPolicy = await AlignmentPolicyAsync(cycle, cancellationToken);
+        var dto = await PlansComposer.BuildPlanAsync(Db, Workforce, cycle, plan, alignmentPolicy, request.Actor, cancellationToken);
         return Result.Success(dto);
     }
 }
@@ -284,10 +230,13 @@ public sealed class CreateMyPlanHandler(PerformanceDbContext db, ICoreWorkforceC
         if (existing is not null)
             return await ProjectAsync(cycle, existing.Id, command.Actor, cancellationToken);
 
+        if (VersionGuard.Check(cycle, command.ExpectedVersion) is { } stale)
+            return Result.Failure<EmployeePlanDto>(stale);
+
         var participant = await Db.Participants.AsNoTracking()
             .FirstOrDefaultAsync(p => p.CycleId == cycle.Id && p.EmployeeId == employeeId, cancellationToken);
         if (participant is null)
-            return Result.Failure<EmployeePlanDto>(Error.Forbidden("Plan.NotParticipant", "You are not a participant in this Cycle."));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.PlanNotParticipant, "You are not a participant in this Cycle."));
 
         try
         {
@@ -305,16 +254,16 @@ public sealed class CreateMyPlanHandler(PerformanceDbContext db, ICoreWorkforceC
             await Db.SaveChangesAsync(cancellationToken);
             return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation })
         {
             // A concurrent create raced us; return the winning plan (one-plan-per-participant invariant).
             var winner = await LoadMyPlanTrackedAsync(cycle.Id, employeeId, cancellationToken);
             if (winner is not null) return await ProjectAsync(cycle, winner.Id, command.Actor, cancellationToken);
-            return Result.Failure<EmployeePlanDto>(Error.Conflict("Plan.Conflict", "A plan already exists for this participant."));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.PlanConflict, "A plan already exists for this participant."));
         }
         catch (ArgumentException ex)
         {
-            return Result.Failure<EmployeePlanDto>(Error.Validation("Plan.Invalid", ex.Message));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PlanInvalid, ex.Message));
         }
     }
 }
@@ -329,14 +278,17 @@ public sealed class AddPlanObjectiveHandler(PerformanceDbContext db, ICoreWorkfo
         var cycle = cycleResult.Value;
 
         var plan = await LoadMyPlanTrackedAsync(cycle.Id, command.Actor.CallerEmployeeId, cancellationToken);
-        if (plan is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Plan", command.Actor.CallerEmployeeId));
+        if (plan is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("Plan", command.Actor.CallerEmployeeId));
         if (!PlansComposer.CanAuthor(plan, command.Actor))
-            return Result.Failure<EmployeePlanDto>(Error.Forbidden("Plan.AuthorForbidden", "Only you can author your own plan while it is Draft."));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.PlanAuthorForbidden, "Only you can author your own plan while it is Draft."));
 
         var request = command.Request;
         var parentResult = await ResolveAlignmentAsync(cycle, request.ParentObjectiveId, cancellationToken);
         if (parentResult.IsFailure) return Result.Failure<EmployeePlanDto>(parentResult.Error);
         var parent = parentResult.Value;
+
+        if (VersionGuard.Check(plan, command.Request.ExpectedVersion) is { } stale)
+            return Result.Failure<EmployeePlanDto>(stale);
 
         try
         {
@@ -365,7 +317,7 @@ public sealed class AddPlanObjectiveHandler(PerformanceDbContext db, ICoreWorkfo
         }
         catch (ArgumentException ex)
         {
-            return Result.Failure<EmployeePlanDto>(Error.Validation("Plan.Objective.Invalid", ex.Message));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PlanObjectiveInvalid, ex.Message));
         }
     }
 
@@ -373,13 +325,13 @@ public sealed class AddPlanObjectiveHandler(PerformanceDbContext db, ICoreWorkfo
     {
         if (parentObjectiveId is null) return Result.Success<Objective?>(null);
         var parent = await Db.Objectives.AsNoTracking().FirstOrDefaultAsync(o => o.Id == parentObjectiveId.Value, cancellationToken);
-        if (parent is null) return Result.Failure<Objective?>(Error.NotFound("ParentObjective", parentObjectiveId.Value));
+        if (parent is null) return Result.Failure<Objective?>(PerformanceErrors.NotFound("ParentObjective", parentObjectiveId.Value));
         if (parent.CycleId != cycle.Id)
-            return Result.Failure<Objective?>(Error.Validation("Plan.Alignment", "The aligned objective belongs to a different Cycle."));
+            return Result.Failure<Objective?>(PerformanceErrors.Validation(PerformanceErrors.Codes.PlanAlignment, "The aligned objective belongs to a different Cycle."));
         if (!parent.IsAlignmentBaseline)
-            return Result.Failure<Objective?>(Error.Conflict("Plan.ParentNotBaseline", "You can only align to a published objective."));
+            return Result.Failure<Objective?>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.PlanParentNotBaseline, "You can only align to a published objective."));
         if (parent.OwnershipScope == ObjectiveOwnershipScope.Employee)
-            return Result.Failure<Objective?>(Error.Validation("Plan.Alignment", "An employee objective aligns to strategic or organizational direction, not another plan objective."));
+            return Result.Failure<Objective?>(PerformanceErrors.Validation(PerformanceErrors.Codes.PlanAlignment, "An employee objective aligns to strategic or organizational direction, not another plan objective."));
         return Result.Success<Objective?>(parent);
     }
 }
@@ -394,18 +346,21 @@ public sealed class UpdatePlanObjectiveHandler(PerformanceDbContext db, ICoreWor
         var cycle = cycleResult.Value;
 
         var plan = await LoadMyPlanTrackedAsync(cycle.Id, command.Actor.CallerEmployeeId, cancellationToken);
-        if (plan is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Plan", command.Actor.CallerEmployeeId));
+        if (plan is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("Plan", command.Actor.CallerEmployeeId));
         if (!PlansComposer.CanAuthor(plan, command.Actor))
-            return Result.Failure<EmployeePlanDto>(Error.Forbidden("Plan.AuthorForbidden", "Only you can author your own plan while it is Draft."));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.PlanAuthorForbidden, "Only you can author your own plan while it is Draft."));
 
         var objective = await Db.Objectives.Include(o => o.Measurement)
             .FirstOrDefaultAsync(o => o.Id == command.ObjectiveId && o.EmployeePlanId == plan.Id, cancellationToken);
-        if (objective is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Objective", command.ObjectiveId));
+        if (objective is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("Objective", command.ObjectiveId));
 
         var request = command.Request;
         var parentResult = await ResolveAlignmentAsync(cycle, request.ParentObjectiveId, cancellationToken);
         if (parentResult.IsFailure) return Result.Failure<EmployeePlanDto>(parentResult.Error);
         var parent = parentResult.Value;
+
+        if (VersionGuard.Check(plan, command.Request.ExpectedVersion) is { } stale)
+            return Result.Failure<EmployeePlanDto>(stale);
 
         try
         {
@@ -429,7 +384,7 @@ public sealed class UpdatePlanObjectiveHandler(PerformanceDbContext db, ICoreWor
         }
         catch (ArgumentException ex)
         {
-            return Result.Failure<EmployeePlanDto>(Error.Validation("Plan.Objective.Invalid", ex.Message));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PlanObjectiveInvalid, ex.Message));
         }
     }
 
@@ -437,13 +392,13 @@ public sealed class UpdatePlanObjectiveHandler(PerformanceDbContext db, ICoreWor
     {
         if (parentObjectiveId is null) return Result.Success<Objective?>(null);
         var parent = await Db.Objectives.AsNoTracking().FirstOrDefaultAsync(o => o.Id == parentObjectiveId.Value, cancellationToken);
-        if (parent is null) return Result.Failure<Objective?>(Error.NotFound("ParentObjective", parentObjectiveId.Value));
+        if (parent is null) return Result.Failure<Objective?>(PerformanceErrors.NotFound("ParentObjective", parentObjectiveId.Value));
         if (parent.CycleId != cycle.Id)
-            return Result.Failure<Objective?>(Error.Validation("Plan.Alignment", "The aligned objective belongs to a different Cycle."));
+            return Result.Failure<Objective?>(PerformanceErrors.Validation(PerformanceErrors.Codes.PlanAlignment, "The aligned objective belongs to a different Cycle."));
         if (!parent.IsAlignmentBaseline)
-            return Result.Failure<Objective?>(Error.Conflict("Plan.ParentNotBaseline", "You can only align to a published objective."));
+            return Result.Failure<Objective?>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.PlanParentNotBaseline, "You can only align to a published objective."));
         if (parent.OwnershipScope == ObjectiveOwnershipScope.Employee)
-            return Result.Failure<Objective?>(Error.Validation("Plan.Alignment", "An employee objective aligns to strategic or organizational direction, not another plan objective."));
+            return Result.Failure<Objective?>(PerformanceErrors.Validation(PerformanceErrors.Codes.PlanAlignment, "An employee objective aligns to strategic or organizational direction, not another plan objective."));
         return Result.Success<Objective?>(parent);
     }
 }
@@ -458,12 +413,15 @@ public sealed class RemovePlanObjectiveHandler(PerformanceDbContext db, ICoreWor
         var cycle = cycleResult.Value;
 
         var plan = await LoadMyPlanTrackedAsync(cycle.Id, command.Actor.CallerEmployeeId, cancellationToken);
-        if (plan is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Plan", command.Actor.CallerEmployeeId));
+        if (plan is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("Plan", command.Actor.CallerEmployeeId));
         if (!PlansComposer.CanAuthor(plan, command.Actor))
-            return Result.Failure<EmployeePlanDto>(Error.Forbidden("Plan.AuthorForbidden", "Only you can author your own plan while it is Draft."));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.PlanAuthorForbidden, "Only you can author your own plan while it is Draft."));
 
         var objective = await Db.Objectives.FirstOrDefaultAsync(o => o.Id == command.ObjectiveId && o.EmployeePlanId == plan.Id, cancellationToken);
-        if (objective is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Objective", command.ObjectiveId));
+        if (objective is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("Objective", command.ObjectiveId));
+
+        if (VersionGuard.Check(plan, command.ExpectedVersion) is { } stale)
+            return Result.Failure<EmployeePlanDto>(stale);
 
         Db.Objectives.Remove(objective);
         plan.RecordEdit();
@@ -482,19 +440,22 @@ public sealed class SetPlanWeightsHandler(PerformanceDbContext db, ICoreWorkforc
         var cycle = cycleResult.Value;
 
         var plan = await LoadMyPlanTrackedAsync(cycle.Id, command.Actor.CallerEmployeeId, cancellationToken);
-        if (plan is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Plan", command.Actor.CallerEmployeeId));
+        if (plan is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("Plan", command.Actor.CallerEmployeeId));
         if (!PlansComposer.CanAuthor(plan, command.Actor))
-            return Result.Failure<EmployeePlanDto>(Error.Forbidden("Plan.AuthorForbidden", "Only you can author your own plan while it is Draft."));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.PlanAuthorForbidden, "Only you can author your own plan while it is Draft."));
 
         var objectives = await Db.Objectives.Where(o => o.EmployeePlanId == plan.Id).ToListAsync(cancellationToken);
         var byId = objectives.ToDictionary(o => o.Id);
+
+        if (VersionGuard.Check(plan, command.Request.ExpectedVersion) is { } stale)
+            return Result.Failure<EmployeePlanDto>(stale);
 
         try
         {
             foreach (var weight in command.Request.Weights)
             {
                 if (!byId.TryGetValue(weight.ObjectiveId, out var objective))
-                    return Result.Failure<EmployeePlanDto>(Error.Validation("Plan.Weight", "A weight was given for an objective not in your plan."));
+                    return Result.Failure<EmployeePlanDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PlanWeight, "A weight was given for an objective not in your plan."));
                 objective.SetPlanWeight(weight.Weight);
             }
 
@@ -504,131 +465,179 @@ public sealed class SetPlanWeightsHandler(PerformanceDbContext db, ICoreWorkforc
         }
         catch (ArgumentException ex)
         {
-            return Result.Failure<EmployeePlanDto>(Error.Validation("Plan.Weight", ex.Message));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PlanWeight, ex.Message));
         }
     }
 }
 
-public sealed class SubmitMyPlanHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
+public sealed class SubmitMyPlanHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant, IPerformanceAudit audit, IPerformanceNotifications notifications)
     : PlanHandlerBase(db, workforce, tenant), ICommandHandler<SubmitMyPlanCommand, Result<EmployeePlanDto>>
 {
     public async Task<Result<EmployeePlanDto>> Handle(SubmitMyPlanCommand command, CancellationToken cancellationToken)
     {
-        var cycleResult = await LoadOpenCycleAsync(command.CycleId, cancellationToken);
+        var cycleResult = await LoadOpenCycleAsync(command.CycleId, cancellationToken, allowClosed: true);
         if (cycleResult.IsFailure) return Result.Failure<EmployeePlanDto>(cycleResult.Error);
         var cycle = cycleResult.Value;
 
         var plan = await LoadMyPlanTrackedAsync(cycle.Id, command.Actor.CallerEmployeeId, cancellationToken);
-        if (plan is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Plan", command.Actor.CallerEmployeeId));
+        if (plan is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("Plan", command.Actor.CallerEmployeeId));
 
-        var standaloneAllowed = await StandaloneAllowedAsync(cancellationToken);
+        if (plan.IsTransitionRetry(PlanDecisionKind.Submitted, command.Actor.CallerEmployeeId, null))
+            return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
+        if (cycle.IsClosed)
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.CycleClosed, "A Closed Cycle is read-only."));
+
+        var alignmentPolicy = await AlignmentPolicyAsync(cycle, cancellationToken);
         var graph = await GoalsComposer.LoadGraphAsync(Db, Workforce, cycle, cancellationToken);
-        var facts = PlansComposer.FactsFor(plan, graph, standaloneAllowed);
+        var facts = PlansComposer.FactsFor(plan, graph, alignmentPolicy);
 
+        if (VersionGuard.Check(plan, command.ExpectedVersion) is { } stale)
+            return Result.Failure<EmployeePlanDto>(stale);
+
+        var before = plan.State.ToString();
         try
         {
             plan.Submit(command.Actor.CallerEmployeeId, facts);
             FixNewPlanRows();
+            audit.Record(plan.TenantId, "EmployeePlan", plan.Id, cycle.Id, PerformanceAuditActions.PlanSubmitted,
+                new { before, after = plan.State.ToString(), reason = (string?)null });
+            notifications.EnqueuePlan(plan, PerformanceNotificationKind.PlanSubmitted, plan.EmployeeDisplayName);
             await Db.SaveChangesAsync(cancellationToken);
             return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
         }
         catch (InvalidOperationException ex)
         {
-            return Result.Failure<EmployeePlanDto>(Error.Conflict("Plan.NotSubmittable", ex.Message));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.PlanNotSubmittable, ex.Message));
         }
     }
 }
 
-public sealed class ReturnPlanHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
+public sealed class ReturnPlanHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant, IPerformanceAudit audit, IPerformanceNotifications notifications)
     : PlanHandlerBase(db, workforce, tenant), ICommandHandler<ReturnPlanCommand, Result<EmployeePlanDto>>
 {
     public async Task<Result<EmployeePlanDto>> Handle(ReturnPlanCommand command, CancellationToken cancellationToken)
     {
-        var cycleResult = await LoadOpenCycleAsync(command.CycleId, cancellationToken);
+        var cycleResult = await LoadOpenCycleAsync(command.CycleId, cancellationToken, allowClosed: true);
         if (cycleResult.IsFailure) return Result.Failure<EmployeePlanDto>(cycleResult.Error);
         var cycle = cycleResult.Value;
 
         var plan = await LoadPlanTrackedAsync(cycle.Id, command.PlanId, cancellationToken);
-        if (plan is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Plan", command.PlanId));
+        if (plan is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("Plan", command.PlanId));
         if (!PlansComposer.CanDecide(plan, command.Actor))
-            return Result.Failure<EmployeePlanDto>(Error.Forbidden("Plan.DecideForbidden", "Only the responsible manager can return this plan."));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.PlanDecideForbidden, "Only the responsible manager can return this plan."));
 
+        if (plan.IsTransitionRetry(PlanDecisionKind.Returned, command.Actor.CallerEmployeeId, command.Request.Feedback))
+            return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
+        if (cycle.IsClosed)
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.CycleClosed, "A Closed Cycle is read-only."));
+
+        if (VersionGuard.Check(plan, command.Request.ExpectedVersion) is { } stale)
+            return Result.Failure<EmployeePlanDto>(stale);
+
+        var before = plan.State.ToString();
         try
         {
             plan.Return(command.Actor.CallerEmployeeId, command.Request.Feedback);
             FixNewPlanRows();
+            audit.Record(plan.TenantId, "EmployeePlan", plan.Id, cycle.Id, PerformanceAuditActions.PlanReturned,
+                new { before, after = plan.State.ToString(), reason = (string?)command.Request.Feedback });
+            notifications.EnqueuePlan(plan, PerformanceNotificationKind.PlanReturned, plan.ResponsibleManagerName);
             await Db.SaveChangesAsync(cancellationToken);
             return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
         }
         catch (ArgumentException ex)
         {
-            return Result.Failure<EmployeePlanDto>(Error.Validation("Plan.Feedback", ex.Message));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PlanFeedback, ex.Message));
         }
         catch (InvalidOperationException ex)
         {
-            return Result.Failure<EmployeePlanDto>(Error.Conflict("Plan.NotReturnable", ex.Message));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.PlanNotReturnable, ex.Message));
         }
     }
 }
 
-public sealed class ApprovePlanHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
+public sealed class ApprovePlanHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant, IPerformanceAudit audit, IPerformanceNotifications notifications)
     : PlanHandlerBase(db, workforce, tenant), ICommandHandler<ApprovePlanCommand, Result<EmployeePlanDto>>
 {
     public async Task<Result<EmployeePlanDto>> Handle(ApprovePlanCommand command, CancellationToken cancellationToken)
     {
-        var cycleResult = await LoadOpenCycleAsync(command.CycleId, cancellationToken);
+        var cycleResult = await LoadOpenCycleAsync(command.CycleId, cancellationToken, allowClosed: true);
         if (cycleResult.IsFailure) return Result.Failure<EmployeePlanDto>(cycleResult.Error);
         var cycle = cycleResult.Value;
 
         var plan = await LoadPlanTrackedAsync(cycle.Id, command.PlanId, cancellationToken);
-        if (plan is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Plan", command.PlanId));
+        if (plan is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("Plan", command.PlanId));
         if (!PlansComposer.CanDecide(plan, command.Actor))
-            return Result.Failure<EmployeePlanDto>(Error.Forbidden("Plan.DecideForbidden", "Only the responsible manager can approve this plan."));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.PlanDecideForbidden, "Only the responsible manager can approve this plan."));
 
+        if (plan.IsTransitionRetry(PlanDecisionKind.Approved, command.Actor.CallerEmployeeId, null))
+            return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
+        if (cycle.IsClosed)
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.CycleClosed, "A Closed Cycle is read-only."));
+
+        if (VersionGuard.Check(plan, command.ExpectedVersion) is { } stale)
+            return Result.Failure<EmployeePlanDto>(stale);
+
+        var before = plan.State.ToString();
         try
         {
             plan.Approve(command.Actor.CallerEmployeeId);
             FixNewPlanRows();
+            audit.Record(plan.TenantId, "EmployeePlan", plan.Id, cycle.Id, PerformanceAuditActions.PlanApproved,
+                new { before, after = plan.State.ToString(), reason = (string?)null });
+            notifications.EnqueuePlan(plan, PerformanceNotificationKind.PlanApproved, plan.ResponsibleManagerName);
             await Db.SaveChangesAsync(cancellationToken);
             return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
         }
         catch (InvalidOperationException ex)
         {
-            return Result.Failure<EmployeePlanDto>(Error.Conflict("Plan.NotApprovable", ex.Message));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.PlanNotApprovable, ex.Message));
         }
     }
 }
 
-public sealed class ExceptionalApprovePlanHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
+public sealed class ExceptionalApprovePlanHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant, IPerformanceAudit audit, IPerformanceNotifications notifications)
     : PlanHandlerBase(db, workforce, tenant), ICommandHandler<ExceptionalApprovePlanCommand, Result<EmployeePlanDto>>
 {
     public async Task<Result<EmployeePlanDto>> Handle(ExceptionalApprovePlanCommand command, CancellationToken cancellationToken)
     {
-        var cycleResult = await LoadOpenCycleAsync(command.CycleId, cancellationToken);
+        var cycleResult = await LoadOpenCycleAsync(command.CycleId, cancellationToken, allowClosed: true);
         if (cycleResult.IsFailure) return Result.Failure<EmployeePlanDto>(cycleResult.Error);
         var cycle = cycleResult.Value;
 
         // The governed escape hatch is tenant administration only, and never the normal manager path.
-        if (!command.Actor.IsAdmin)
-            return Result.Failure<EmployeePlanDto>(Error.Forbidden("Plan.ExceptionalForbidden", "Exceptional approval requires tenant performance administration."));
+        if (!PlanPolicy.CanApproveExceptionally(command.Actor))
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.PlanExceptionalForbidden, "Exceptional approval requires tenant performance administration."));
 
         var plan = await LoadPlanTrackedAsync(cycle.Id, command.PlanId, cancellationToken);
-        if (plan is null) return Result.Failure<EmployeePlanDto>(Error.NotFound("Plan", command.PlanId));
+        if (plan is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("Plan", command.PlanId));
 
+        if (plan.IsTransitionRetry(PlanDecisionKind.ApprovedExceptionally, command.Actor.CallerEmployeeId, command.Request.Reason))
+            return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
+        if (cycle.IsClosed)
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.CycleClosed, "A Closed Cycle is read-only."));
+
+        if (VersionGuard.Check(plan, command.Request.ExpectedVersion) is { } stale)
+            return Result.Failure<EmployeePlanDto>(stale);
+
+        var before = plan.State.ToString();
         try
         {
             plan.ApproveExceptionally(command.Actor.CallerEmployeeId, command.Request.Reason);
             FixNewPlanRows();
+            audit.Record(plan.TenantId, "EmployeePlan", plan.Id, cycle.Id, PerformanceAuditActions.PlanExceptionallyApproved,
+                new { before, after = plan.State.ToString(), reason = (string?)command.Request.Reason });
+            notifications.EnqueuePlan(plan, PerformanceNotificationKind.PlanApproved, null);
             await Db.SaveChangesAsync(cancellationToken);
             return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
         }
         catch (ArgumentException ex)
         {
-            return Result.Failure<EmployeePlanDto>(Error.Validation("Plan.Reason", ex.Message));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PlanReason, ex.Message));
         }
         catch (InvalidOperationException ex)
         {
-            return Result.Failure<EmployeePlanDto>(Error.Conflict("Plan.NotApprovable", ex.Message));
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.PlanNotApprovable, ex.Message));
         }
     }
 }

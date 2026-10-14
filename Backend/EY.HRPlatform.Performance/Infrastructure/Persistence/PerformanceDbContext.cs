@@ -1,8 +1,12 @@
+using EY.HRPlatform.Performance.Domain.Notifications;
+using EY.HRPlatform.Performance.Domain.Audit;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
 using EY.HRPlatform.Performance.Domain.Population;
 using EY.HRPlatform.Performance.Domain.Progress;
+using EY.HRPlatform.Performance.Domain.Calibration;
+using EY.HRPlatform.Performance.Domain.Reviews;
 using EY.HRPlatform.Performance.Domain.Settings;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Persistence;
@@ -34,8 +38,14 @@ public sealed class PerformanceDbContext : DbContext
 
     private Guid CurrentTenantId => _tenantContext?.TenantIdOrDefault ?? Guid.Empty;
 
+    public DbSet<PerformanceOutboxMessage> OutboxMessages => Set<PerformanceOutboxMessage>();
+    public DbSet<PerformanceAuditEntry> AuditEntries => Set<PerformanceAuditEntry>();
+
     public DbSet<PerformanceCycle> Cycles => Set<PerformanceCycle>();
     public DbSet<CycleSettings> CycleSettings => Set<CycleSettings>();
+    public DbSet<RatingScale> RatingScales => Set<RatingScale>();
+    public DbSet<RatingScaleVersion> RatingScaleVersions => Set<RatingScaleVersion>();
+    public DbSet<Competency> Competencies => Set<Competency>();
     public DbSet<PopulationDefinition> PopulationDefinitions => Set<PopulationDefinition>();
     public DbSet<Participant> Participants => Set<Participant>();
     public DbSet<Objective> Objectives => Set<Objective>();
@@ -43,7 +53,17 @@ public sealed class PerformanceDbContext : DbContext
     public DbSet<EmployeePlan> EmployeePlans => Set<EmployeePlan>();
     public DbSet<PlanDecision> PlanDecisions => Set<PlanDecision>();
     public DbSet<ProgressUpdate> ProgressUpdates => Set<ProgressUpdate>();
+    public DbSet<EvidenceUpload> EvidenceUploads => Set<EvidenceUpload>();
     public DbSet<EvidenceItem> EvidenceItems => Set<EvidenceItem>();
+    public DbSet<ReviewRound> ReviewRounds => Set<ReviewRound>();
+    public DbSet<ReviewRoundSubject> ReviewRoundSubjects => Set<ReviewRoundSubject>();
+    public DbSet<PerformanceReview> PerformanceReviews => Set<PerformanceReview>();
+    public DbSet<ReviewItemResponse> ReviewItemResponses => Set<ReviewItemResponse>();
+    public DbSet<UpdateRequest> UpdateRequests => Set<UpdateRequest>();
+    public DbSet<CalibrationSession> CalibrationSessions => Set<CalibrationSession>();
+    public DbSet<CalibrationFacilitator> CalibrationFacilitators => Set<CalibrationFacilitator>();
+    public DbSet<CalibrationSubject> CalibrationSubjects => Set<CalibrationSubject>();
+    public DbSet<CalibrationAdjustment> CalibrationAdjustments => Set<CalibrationAdjustment>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -58,12 +78,23 @@ public sealed class PerformanceDbContext : DbContext
         modelBuilder.HasDefaultSchema("performance");
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PerformanceDbContext).Assembly);
 
+        modelBuilder.Entity<PerformanceOutboxMessage>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<PerformanceAuditEntry>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+
         // Fail-closed tenant filter on every root: an unresolved tenant returns no rows.
         modelBuilder.Entity<PerformanceCycle>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<ActivationSnapshot>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<CycleSettings>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<RatingScale>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<RatingScaleVersion>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<Competency>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<PopulationDefinition>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
@@ -85,7 +116,27 @@ public sealed class PerformanceDbContext : DbContext
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<ProgressUpdate>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<EvidenceUpload>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<EvidenceItem>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<ReviewRound>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<ReviewRoundSubject>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<PerformanceReview>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<ReviewItemResponse>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<UpdateRequest>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<CalibrationSession>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<CalibrationFacilitator>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<CalibrationSubject>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<CalibrationAdjustment>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
     }
 }

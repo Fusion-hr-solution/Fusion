@@ -1,5 +1,7 @@
 "use client";
 
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Building2, Gauge, Info, Sigma, Target, UserRound, Waypoints } from "@/lib/icons";
 import { toast } from "sonner";
@@ -94,12 +96,12 @@ export function OrgObjectiveComposer({
   teamLocked: boolean;
   /** Persists a new draft and returns it (the caller reads `node.id`). */
   onCreate: (
-    request: CreateOrganizationalObjectiveRequest
+    request: Omit<CreateOrganizationalObjectiveRequest, "expectedVersion">
   ) => Promise<GoalDetailDto>;
   /** Persists edits to an existing draft. */
   onUpdate: (
     objectiveId: string,
-    request: UpdateOrganizationalObjectiveRequest
+    request: Omit<UpdateOrganizationalObjectiveRequest, "expectedVersion">
   ) => Promise<void>;
   /** Publishes a persisted draft as organizational direction. */
   onPublish: (objectiveId: string) => Promise<void>;
@@ -292,7 +294,7 @@ export function OrgObjectiveComposer({
     return { method: "ManualPercentage" };
   }
 
-  function createRequest(): CreateOrganizationalObjectiveRequest {
+  function createRequest(): Omit<CreateOrganizationalObjectiveRequest, "expectedVersion"> {
     return {
       orgUnitId: orgUnit!.id,
       orgUnitName: orgUnit!.name,
@@ -307,7 +309,7 @@ export function OrgObjectiveComposer({
     };
   }
 
-  function updateRequest(): UpdateOrganizationalObjectiveRequest {
+  function updateRequest(): Omit<UpdateOrganizationalObjectiveRequest, "expectedVersion"> {
     return {
       title: title.trim(),
       description: description.trim() || null,
@@ -338,9 +340,7 @@ export function OrgObjectiveComposer({
       toast.success("Draft saved.");
       onOpenChange(false);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Could not save the draft."
-      );
+      reportPerformanceFailure(error, "Could not save the draft.");
       setBusy(null);
     }
   }
@@ -351,9 +351,7 @@ export function OrgObjectiveComposer({
     try {
       objectiveId = await persist();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Could not save the objective."
-      );
+      reportPerformanceFailure(error, "Could not save the objective.");
       setBusy(null);
       return;
     }

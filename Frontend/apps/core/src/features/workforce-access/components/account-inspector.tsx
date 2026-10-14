@@ -228,7 +228,7 @@ function InspectorContent({
         </div>
         <div className="mt-5 flex items-center gap-4">
           <Avatar size="lg" className="size-14">
-            <AvatarFallback className="bg-primary-tint text-primary-ink type-title">
+            <AvatarFallback className="bg-primary-tint text-primary-ink type-panel-title">
               {initialsOf(data.displayName)}
             </AvatarFallback>
           </Avatar>
@@ -576,7 +576,7 @@ function InspectorSection({
   return (
     <section className="py-6 first:pt-7 last:pb-8">
       <p className="type-eyebrow text-muted-foreground">{eyebrow}</p>
-      <h3 className="mt-1 type-title text-foreground">{title}</h3>
+      <h3 className="mt-1 type-subsection-title text-foreground">{title}</h3>
       {description ? (
         <p className="mt-1.5 max-w-prose type-meta text-muted-foreground">
           {description}

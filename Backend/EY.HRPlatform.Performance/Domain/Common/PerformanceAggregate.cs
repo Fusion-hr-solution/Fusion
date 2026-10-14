@@ -11,7 +11,9 @@ namespace EY.HRPlatform.Performance.Domain.Common;
 public abstract class PerformanceAggregate : AggregateRoot, ITenantEntity
 {
     public Guid TenantId { get; protected set; }
+    public uint Version { get; private set; }
 
+    public void Touch() => MarkUpdated();
     protected void MarkUpdated() => UpdatedAt = DateTime.UtcNow;
 }
 

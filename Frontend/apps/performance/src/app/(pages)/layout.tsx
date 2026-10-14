@@ -4,28 +4,30 @@ import { PageSkeleton } from "@repo/ds/shell";
 import { Toaster } from "@repo/ds/components/ui/sonner";
 import { PerformancePagesShell } from "@/shell/performance-pages-shell";
 import { PerformanceWorkspaceAccessBoundary } from "@/shell/performance-workspace-access-boundary";
-import { BreadcrumbOverridesProvider } from "@/shell/breadcrumb-overrides";
-import { ObjectiveRecordHost } from "@/features/performance/components/objective-record/objective-record-host";
+import { LegacyRecordRedirect } from "@/features/performance/components/objective-record/legacy-record-redirect";
 
 // The module frame (sidebar, top bar) renders unconditionally and stays present
 // while the session restores. Auth/access resolution and route data loading are
 // confined to the content region: the access boundary gates only `children`, and
 // its pending/forbidden states render inside the persistent frame rather than
-// replacing the whole workspace with a skeleton. The objective record is mounted
-// once here, inside the boundary, so every page opens the same record by URL.
-export default function PagesLayout({ children }: { children: ReactNode }) {
+// replacing the whole workspace with a skeleton. The `record` slot shows the
+// objective record over the current workspace when it is opened in context.
+// Every Performance page is an authenticated workspace view whose frame reads the selected Cycle from
+// the URL; none has meaningful static output, so render on request rather than prerender.
+export const dynamic = "force-dynamic";
+
+export default function PagesLayout({ children, record }: { children: ReactNode; record: ReactNode }) {
   return (
     <AuthProvider>
-      <BreadcrumbOverridesProvider>
-        <PerformancePagesShell>
-          <Suspense fallback={<PageSkeleton rows={4} label="Loading Performance" />}>
-            <PerformanceWorkspaceAccessBoundary>
-              {children}
-              <ObjectiveRecordHost />
-            </PerformanceWorkspaceAccessBoundary>
-          </Suspense>
-        </PerformancePagesShell>
-      </BreadcrumbOverridesProvider>
+      <PerformancePagesShell>
+        <Suspense fallback={<PageSkeleton rows={4} label="Loading Performance" />}>
+          <PerformanceWorkspaceAccessBoundary>
+            {children}
+            {record}
+            <LegacyRecordRedirect />
+          </PerformanceWorkspaceAccessBoundary>
+        </Suspense>
+      </PerformancePagesShell>
       <Toaster />
     </AuthProvider>
   );

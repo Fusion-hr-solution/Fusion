@@ -1,7 +1,9 @@
 "use client";
 
+import { performanceFailure, reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { useMemo, useState, type ReactNode } from "react";
-import { Check, Clock, Landmark, LineChart, RotateCcw } from "@/lib/icons";
+import { Check, Clock, Landmark, LineChart, RotateCcw, ShieldCheck } from "@/lib/icons";
 import { toast } from "sonner";
 import type { AlignmentTargetDto, CycleSummaryDto, EmployeePlanDto, PlanObjectiveDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
@@ -26,14 +28,13 @@ import {
   DialogTrigger,
 } from "@repo/ds/components/ui/dialog";
 import { Textarea } from "@repo/ds/components/ui/textarea";
-import { AsyncButton, PageError, StatusBadge } from "@repo/ds/shell";
+import { AsyncButton, PagePermissionNotice, PageError, StatusBadge } from "@repo/ds/shell";
 import {
   useAlignmentTargets,
   usePlanDetail,
   usePlanReviewMutations,
 } from "../../api/use-performance";
 import { formatDate } from "../../lib";
-import { PerformanceBreadcrumbLabel } from "@/shell/performance-breadcrumb";
 import { useObjectiveRecord } from "../objective-record/use-objective-record";
 import { PlanBannerMark } from "./plan-banner";
 import { PlanDirectionSection } from "./plan-direction";
@@ -57,6 +58,10 @@ export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: 
   const targetsQuery = useAlignmentTargets(cycle.id);
 
   if (detail.isLoading) return <PlanSurfaceSkeleton />;
+  if (performanceFailure(detail.error).unavailable) {
+    return <PagePermissionNotice title="Plan unavailable" />;
+  }
+
   if (detail.error || !detail.data) {
     return <PageError title="Plan unavailable" description={detail.error?.message} onRetry={detail.refetch} />;
   }
@@ -68,14 +73,13 @@ export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: 
 
   return (
     <div className="space-y-8">
-      {/* Replace the raw plan-id segment in the shell breadcrumb with the employee's name. */}
-      <PerformanceBreadcrumbLabel segment={planId} label={plan.employee.name ?? undefined} />
-
       <ReviewHeading
         plan={plan}
         actions={
           plan.canDecide ? (
             <ReviewDecision plan={plan} cycleId={cycle.id} planId={planId} firstName={firstName} />
+          ) : plan.canApproveExceptionally ? (
+            <ExceptionalApproval cycleId={cycle.id} plan={plan} planId={planId} firstName={firstName} reviewerName={plan.responsibleManager?.name ?? null} />
           ) : null
         }
       />
@@ -383,12 +387,13 @@ function ReviewDecision({
               disabled={!canReturn}
               onClick={async () => {
                 try {
-                  await mutations.returnForRevision.mutateAsync({ feedback: feedback.trim() });
+                  await mutations.returnForRevision.mutateAsync({ feedback: feedback.trim(), expectedVersion: plan.version });
                   toast.success(`Plan returned to ${firstName} for changes.`);
                   setReturnOpen(false);
                   setFeedback("");
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Could not return the plan.");
+                  if (performanceFailure(error).refresh) setReturnOpen(false);
+                  reportPerformanceFailure(error, "Could not return the plan.");
                 }
               }}
             >
@@ -421,11 +426,12 @@ function ReviewDecision({
               pending={approving}
               onClick={async () => {
                 try {
-                  await mutations.approve.mutateAsync();
+                  await mutations.approve.mutateAsync(plan.version);
                   toast.success("Plan approved and locked.");
                   setApproveOpen(false);
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Could not approve the plan.");
+                  if (performanceFailure(error).refresh) setApproveOpen(false);
+                  reportPerformanceFailure(error, "Could not approve the plan.");
                 }
               }}
             >
@@ -435,5 +441,85 @@ function ReviewDecision({
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+/**
+ * The administrator's escape hatch for a submitted plan whose reviewer cannot decide. Quiet by design:
+ * it is recorded as an administrative approval with its reason, distinct from the reviewer's decision.
+ */
+function ExceptionalApproval({
+  plan,
+  cycleId,
+  planId,
+  firstName,
+  reviewerName,
+}: {
+  plan: EmployeePlanDto;
+  cycleId: string;
+  planId: string;
+  firstName: string;
+  reviewerName: string | null;
+}) {
+  const mutations = usePlanReviewMutations(cycleId, planId);
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const pending = mutations.exceptionalApprove.isLoading;
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (pending) return;
+        setOpen(next);
+        if (!next) setReason("");
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button variant="ghost">
+          <ShieldCheck className="size-4" data-icon="inline-start" /> Approve as administrator
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Approve {firstName}&apos;s plan as administrator</DialogTitle>
+          <DialogDescription>
+            {reviewerName ? `${reviewerName} remains the plan's reviewer. ` : ""}This approval is recorded as yours, with your reason.
+          </DialogDescription>
+        </DialogHeader>
+        <Textarea
+          aria-label="Reason for approving on the reviewer's behalf"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={3}
+          className="min-h-20"
+          placeholder="Why the reviewer can't decide"
+          maxLength={1000}
+          autoFocus
+        />
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={pending}>
+            Cancel
+          </Button>
+          <AsyncButton
+            pending={pending}
+            disabled={reason.trim().length === 0}
+            onClick={async () => {
+              try {
+                await mutations.exceptionalApprove.mutateAsync({ reason: reason.trim(), expectedVersion: plan.version });
+                toast.success("Plan approved by administration.");
+                setOpen(false);
+                setReason("");
+              } catch (error) {
+                if (performanceFailure(error).refresh) setOpen(false);
+                reportPerformanceFailure(error, "Could not approve the plan.");
+              }
+            }}
+          >
+            <ShieldCheck className="size-4" data-icon="inline-start" /> Approve plan
+          </AsyncButton>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

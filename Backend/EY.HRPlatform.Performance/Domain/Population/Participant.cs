@@ -23,6 +23,25 @@ public sealed class Participant : PerformanceChildEntity
     /// <summary>How the employee entered the roster: by the rule or by explicit inclusion.</summary>
     public bool ByExplicitInclusion { get; private set; }
 
+    /// <summary>Why <see cref="ManagerEmployeeId"/> is the responsible reviewer.</summary>
+    public ReviewerBasis ReviewerBasis { get; private set; }
+
+    /// <summary>The date the reviewer responsibility was resolved as of.</summary>
+    public DateOnly ReviewerAsOf { get; private set; }
+
+    /// <summary>Why the participant was closed out of the Cycle without an approved plan, when they were.</summary>
+    public string? ClosureExceptionReason { get; private set; }
+
+    public void RecordClosureException(string reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("A closure exception requires a reason.", nameof(reason));
+        var trimmed = reason.Trim();
+        if (trimmed.Length > 1000)
+            throw new ArgumentException("The closure exception reason must be 1000 characters or fewer.", nameof(reason));
+        ClosureExceptionReason = trimmed;
+    }
+
     public static Participant Create(
         Guid tenantId,
         Guid cycleId,
@@ -33,7 +52,9 @@ public sealed class Participant : PerformanceChildEntity
         string? orgUnitName,
         Guid? managerEmployeeId,
         string? managerDisplayName,
-        bool byExplicitInclusion)
+        bool byExplicitInclusion,
+        DateOnly reviewerAsOf,
+        ReviewerBasis reviewerBasis = ReviewerBasis.CoreManagerAtCycleStart)
     {
         if (employeeId == Guid.Empty) throw new ArgumentException("EmployeeId is required.", nameof(employeeId));
 
@@ -49,6 +70,8 @@ public sealed class Participant : PerformanceChildEntity
             ManagerEmployeeId = managerEmployeeId,
             ManagerDisplayName = managerDisplayName,
             ByExplicitInclusion = byExplicitInclusion,
+            ReviewerBasis = reviewerBasis,
+            ReviewerAsOf = reviewerAsOf,
         };
     }
 }

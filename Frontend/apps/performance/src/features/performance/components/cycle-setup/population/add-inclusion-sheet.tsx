@@ -1,5 +1,7 @@
 "use client";
 
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { useEffect, useMemo, useState } from "react";
 import { Check, Plus, Search, TriangleAlert, UserPlus, X } from "@/lib/icons";
 import type { WorkforceEmployeeSummaryDto } from "@repo/api";
@@ -16,7 +18,6 @@ import { Button } from "@repo/ds/components/ui/button";
 import { AsyncButton } from "@repo/ds/shell";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
-import { toast } from "sonner";
 import { cn } from "@repo/ds/lib/utils";
 import { initials } from "./population-model";
 
@@ -82,9 +83,7 @@ export function AddInclusionSheet({
       await onAddMany(tray.map((person) => person.employeeId));
       onOpenChange(false);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Could not add the employees."
-      );
+      reportPerformanceFailure(error, "Could not add the employees.");
     } finally {
       setCommitting(false);
     }

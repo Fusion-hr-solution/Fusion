@@ -10,6 +10,7 @@ public sealed class EmployeePlanConfiguration : IEntityTypeConfiguration<Employe
     {
         builder.ToTable("EmployeePlans");
         builder.HasKey(plan => plan.Id);
+        builder.Property(plan => plan.Version).IsRowVersion();
 
         builder.Property(plan => plan.EmployeeDisplayName).IsRequired().HasMaxLength(300);
         builder.Property(plan => plan.OrgUnitName).HasMaxLength(300);

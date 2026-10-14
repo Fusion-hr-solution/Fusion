@@ -11,7 +11,7 @@ namespace EY.HRPlatform.Performance.Features;
 public static class PerformanceMappers
 {
     public static CycleSummaryDto ToSummary(PerformanceCycle cycle)
-        => new(cycle.Id, cycle.Name, cycle.Description, cycle.StartDate, cycle.EndDate, cycle.PlanningDeadline, cycle.State, cycle.ActivatedAt);
+        => new(cycle.Id, cycle.Name, cycle.Description, cycle.StartDate, cycle.EndDate, cycle.PlanningDeadline, cycle.State, cycle.ActivatedAt) { Version = cycle.Version };
 
     public static CycleSettingsDto ToDto(CycleSettings settings)
         => new(
@@ -19,7 +19,11 @@ public static class PerformanceMappers
             settings.SuggestedObjectiveCountMin,
             settings.SuggestedObjectiveCountMax,
             settings.PlanningDeadlineOffsetDays,
-            settings.AllowStandaloneObjectives);
+            settings.PlanAlignmentPolicy,
+            settings.DefaultSelfAssessmentEnabled,
+            settings.DefaultObjectiveRatingsEnabled,
+              settings.DefaultCalibrationEnabled,
+              settings.EvidenceRetentionMonths) { Version = settings.Version };
 
     public static MeasurementDto ToDto(ObjectiveMeasurement measurement)
         => new(
@@ -43,7 +47,7 @@ public static class PerformanceMappers
             objective.EndDate,
             objective.State,
             objective.PublishedAt,
-            ToDto(objective.Measurement!));
+            ToDto(objective.Measurement!)) { Version = objective.Version };
 
     public static MeasurementDto? ToDtoOrNull(ObjectiveMeasurement? measurement)
         => measurement is null ? null : ToDto(measurement);
@@ -116,7 +120,7 @@ public static class PerformanceMappers
                 .Select(selection => new OrgUnitSelectionInput(selection.OrgUnitId, selection.IncludeDescendants))
                 .ToList(),
             definition.Inclusions.Select(inclusion => inclusion.EmployeeId).ToList(),
-            definition.Exclusions.Select(exclusion => new ExclusionInput(exclusion.EmployeeId, exclusion.Reason)).ToList());
+            definition.Exclusions.Select(exclusion => new ExclusionInput(exclusion.EmployeeId, exclusion.Reason)).ToList()) { Version = definition.Version };
 
     public static ObjectiveMeasurement ToMeasurement(MeasurementInput input, Guid tenantId)
         => input.Method switch

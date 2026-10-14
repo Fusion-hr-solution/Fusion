@@ -11,27 +11,42 @@ import {
   type ShellNavSection,
 } from "@repo/ds/shell";
 import { ADMIN_NAV, PRIMARY_NAV } from "@/data/sidebar-nav";
-import { resolvePerformanceAccess } from "@/shell/performance-access";
+import { resolvePerformanceWorkspaceAccessState } from "@/shell/performance-workspace-access";
+import { useSelectedCycleId, useWorkspaceContext } from "@/features/performance/api/use-workspace";
+import { withCycle } from "@/lib/performance-routes";
 
 export function PerformanceSidebar() {
-  const pathname = usePathname();
-  const activePath = pathname.replace(/^\/performance/, "") || "/";
-  const { user, logout, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
 
-  // Fail closed: while the session is unresolved `user` is null, so the
-  // administration-only destinations stay hidden and never flash a control that
-  // would then disappear. Once the session resolves they appear per the derived
-  // permission ("hide, don't deny"), matching backend enforcement.
-  const access = resolvePerformanceAccess(user);
+  // Destinations come from the server's workspace context for the selected Cycle — participation and
+  // recorded review responsibility, not persona rules derived from claims. Until it resolves the rail
+  // shows its pending state rather than flashing entries that might disappear ("hide, don't deny").
+  const entitled = resolvePerformanceWorkspaceAccessState({ user, isLoading: isAuthLoading }) === "allowed";
+  const context = useWorkspaceContext(entitled);
+  const destinations = context.data?.destinations;
+  const selectedCycleId = useSelectedCycleId();
+  const carry = (section: ShellNavSection): ShellNavSection => ({
+    ...section,
+    items: section.items.map((item) => ({ ...item, navigateHref: withCycle(item.href, selectedCycleId) })),
+  });
+
   const primaryItems = PRIMARY_NAV.items.filter((item) => {
-    if (item.href === "/plan") return access.canParticipate;
-    if (item.href === "/team") return access.canLeadTeam;
+    if (item.href === "/plan") return destinations?.myPlan ?? false;
+    if (item.href === "/team") return destinations?.team ?? false;
+    if (item.href === "/reviews") return destinations?.reviews ?? false;
     return true;
   });
 
-  const sections: ShellNavSection[] = [{ ...PRIMARY_NAV, items: primaryItems }];
-  if (access.canAdminister) sections.push(ADMIN_NAV);
+  const sections: ShellNavSection[] = [carry({ ...PRIMARY_NAV, items: primaryItems })];
+  if (destinations?.cycleAdmin) sections.push(carry(ADMIN_NAV));
 
+  return <SidebarFrame sections={sections} pending={isAuthLoading || (entitled && context.isLoading)} />;
+}
+
+function SidebarFrame({ sections, pending }: { sections: ShellNavSection[]; pending: boolean }) {
+  const pathname = usePathname();
+  const activePath = pathname.replace(/^\/performance/, "") || "/";
+  const { user, logout, isLoading: isAuthLoading } = useAuth();
   return (
     <ModuleSidebar
       brandTitle="EY Performance"
@@ -39,7 +54,7 @@ export function PerformanceSidebar() {
       brandIcon={BarChart3}
       activePath={activePath}
       sections={sections}
-      pending={isAuthLoading}
+      pending={pending}
       modules={filterModulesByEntitlement(FUSION_MODULES, user?.moduleEntitlements ?? [])}
       currentModuleKey="performance"
       userPanel={(collapsed) => (

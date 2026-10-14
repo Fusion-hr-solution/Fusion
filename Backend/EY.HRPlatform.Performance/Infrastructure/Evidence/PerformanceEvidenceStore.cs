@@ -15,6 +15,8 @@ public interface IPerformanceEvidenceStore
 
     /// <summary>Opens a stored file by key for the current tenant, or null if it is absent.</summary>
     Task<Stream?> OpenAsync(string storageKey, CancellationToken cancellationToken);
+
+    Task DeleteAsync(string storageKey, CancellationToken cancellationToken);
 }
 
 public sealed class LocalPerformanceEvidenceStore(ITenantContext tenant, string rootPath) : IPerformanceEvidenceStore
@@ -23,13 +25,21 @@ public sealed class LocalPerformanceEvidenceStore(ITenantContext tenant, string 
     {
         if (!tenant.IsResolved) throw new InvalidOperationException("A resolved tenant is required to store evidence.");
 
-        var extension = Path.GetExtension(fileName);
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
         var key = $"{tenant.TenantId:N}/{Guid.NewGuid():N}{extension}";
-        var target = Path.Combine(rootPath, key.Replace('/', Path.DirectorySeparatorChar));
+        var target = ResolvePath(key) ?? throw new ArgumentException("Invalid evidence file name.");
         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
 
-        await using var file = File.Create(target);
-        await content.CopyToAsync(file, cancellationToken);
+        try
+        {
+            await using var file = File.Create(target);
+            await content.CopyToAsync(file, cancellationToken);
+        }
+        catch
+        {
+            File.Delete(target);
+            throw;
+        }
         return key;
     }
 
@@ -37,12 +47,28 @@ public sealed class LocalPerformanceEvidenceStore(ITenantContext tenant, string 
     {
         if (!tenant.IsResolved) throw new InvalidOperationException("A resolved tenant is required to read evidence.");
 
-        // Fail closed on tenant boundary: a key must live under the caller's tenant partition.
-        if (!storageKey.StartsWith($"{tenant.TenantId:N}/", StringComparison.Ordinal))
-            return Task.FromResult<Stream?>(null);
-
-        var target = Path.Combine(rootPath, storageKey.Replace('/', Path.DirectorySeparatorChar));
-        if (!File.Exists(target)) return Task.FromResult<Stream?>(null);
+        var target = ResolvePath(storageKey);
+        if (target is null || !File.Exists(target)) return Task.FromResult<Stream?>(null);
         return Task.FromResult<Stream?>(File.OpenRead(target));
+    }
+
+    public Task DeleteAsync(string storageKey, CancellationToken cancellationToken)
+    {
+        if (!tenant.IsResolved) throw new InvalidOperationException("A resolved tenant is required to delete evidence.");
+        cancellationToken.ThrowIfCancellationRequested();
+        var target = ResolvePath(storageKey) ?? throw new ArgumentException("The evidence key does not belong to this tenant.");
+        File.Delete(target);
+        return Task.CompletedTask;
+    }
+
+    private string? ResolvePath(string key)
+    {
+        var parts = key.Split('/');
+        if (parts.Length != 2 || parts[0] != $"{tenant.TenantId:N}" || parts[1].Contains('\\')
+            || Path.GetFileName(parts[1]) != parts[1]
+            || !Guid.TryParseExact(Path.GetFileNameWithoutExtension(parts[1]), "N", out _)) return null;
+        var partition = Path.GetFullPath(Path.Combine(rootPath, parts[0])) + Path.DirectorySeparatorChar;
+        var target = Path.GetFullPath(Path.Combine(partition, parts[1]));
+        return target.StartsWith(partition, StringComparison.OrdinalIgnoreCase) ? target : null;
     }
 }

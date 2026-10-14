@@ -1,23 +1,76 @@
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
+import type { CycleSummaryDto } from "@repo/api";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@repo/ds/components/ui/dropdown-menu";
+import { Check, ChevronsUpDown } from "@/lib/icons";
 import { CycleContextBar } from "@/features/performance/components/cycle-context-bar";
-import { useCurrentCycle, usePerformanceAccess } from "@/features/performance/api/use-performance";
+import { useCurrentCycle } from "@/features/performance/api/use-performance";
+import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
+import { formatDateRange } from "@/features/performance/lib";
+import { isCycleAddress, withCycle } from "@/lib/performance-routes";
+
+const STATE_LABEL: Record<CycleSummaryDto["state"], string> = { Draft: "In setup", Active: "Active", Closed: "Closed" };
 
 /**
- * The top-bar binding of the Cycle context. Shares the pages' current-Cycle query, so it adds no
- * request and follows every invalidation. Access, error, and no-Cycle states belong to the page
- * body; here they simply render nothing.
+ * The top-bar binding of the Cycle context: which Cycle the workspace is showing, and — when the caller
+ * may see more than one — a switch to another. Switching keeps the current workspace; a record that
+ * belongs to its own Cycle returns to Overview for the chosen one. Access, error, and no-Cycle states
+ * belong to the page body; here they simply render nothing.
  */
 export function PerformanceCycleContext() {
-  const access = usePerformanceAccess();
-  const enabled = (access.data?.canEnter ?? false) || (access.data?.canAdminister ?? false);
-  const detail = useCurrentCycle(enabled);
+  const router = useRouter();
+  const pathname = usePathname();
+  const detail = useCurrentCycle();
+  const context = useWorkspaceContext();
   const cycle = detail.data?.cycle ?? null;
 
-  if (access.isLoading || (enabled && detail.isLoading)) {
+  if (context.isLoading || detail.isLoading) {
     return <Skeleton className="h-5 w-72 max-w-full" aria-hidden />;
   }
+  if (context.error) return null;
   if (!cycle) return null;
-  return <CycleContextBar cycle={cycle} />;
+
+  const cycles = context.data?.cycles ?? [];
+  const bar = <CycleContextBar cycle={cycle} phase={detail.data?.phase} />;
+  if (cycles.length < 2) return bar;
+
+  const select = (id: string) => {
+    const path = pathname.replace(/^\/performance/, "") || "/";
+    const workspace = isCycleAddress(path) ? "/" : path;
+    router.push(withCycle(workspace, id));
+  };
+
+  return (
+    <div className="flex min-w-0 items-center gap-1.5">
+      {bar}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          className="inline-flex size-7 shrink-0 items-center justify-center rounded-control text-muted-foreground hover:bg-accent hover:text-foreground"
+          aria-label="Switch cycle"
+        >
+          <ChevronsUpDown className="size-4" aria-hidden />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="min-w-72">
+          {cycles.map((option) => (
+            <DropdownMenuItem key={option.id} onSelect={() => select(option.id)} className="items-start gap-2.5">
+              <Check className={option.id === cycle.id ? "mt-0.5 size-4" : "mt-0.5 size-4 opacity-0"} aria-hidden />
+              <span className="min-w-0">
+                <span className="block truncate text-foreground">{option.name}</span>
+                <span className="block text-xs text-muted-foreground">
+                  {STATE_LABEL[option.state]} · {formatDateRange(option.startDate, option.endDate)}
+                </span>
+              </span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 }

@@ -1,3 +1,9 @@
+using EY.HRPlatform.Performance.Infrastructure.Evidence;
+using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Infrastructure.Audit;
+using EY.HRPlatform.Performance.Features.Failures;
+using EY.HRPlatform.Performance.Features.Security;
+using EY.HRPlatform.Performance.Features.Security.Policies;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -40,18 +46,18 @@ public sealed record ResolveEvidenceFileQuery(Guid CycleId, Guid EvidenceId, Pro
 
 internal static class ProgressAuthorization
 {
-    /// <summary>Named progress detail (history, evidence), decided by <see cref="ObjectiveAccess"/>.</summary>
+    /// <summary>Named progress detail (history, evidence), decided by <see cref="ObjectivePolicy"/>.</summary>
     public static async Task<bool> CanSeeNamedDetailAsync(
         PerformanceDbContext db,
         ICoreWorkforceClient workforce,
         Objective objective,
         EmployeePlan? plan,
         ProgressActorContext actor,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, PerformanceViewer? caller = null)
     {
         var goalActor = actor.ToGoalActor();
         // Ownership, responsibility and administration need no Core lookup; only team governance does.
-        if (ObjectiveAccess.CanReadProgressHistory(new ObjectiveViewer(goalActor, null), objective, plan))
+        if (ObjectivePolicy.CanReadProgressHistory(new CycleViewer(goalActor, null), objective, plan))
             return true;
         if (!actor.HasOrgManageGrant || objective.OwnershipScope != ObjectiveOwnershipScope.OrgUnit)
             return false;
@@ -59,31 +65,44 @@ internal static class ProgressAuthorization
         var cycle = await db.Cycles.AsNoTracking()
             .FirstOrDefaultAsync(candidate => candidate.Id == objective.CycleId, cancellationToken);
         if (cycle is null) return false;
-        var viewer = await ObjectiveViewer.ResolveAsync(workforce, cycle, goalActor, cancellationToken);
-        return ObjectiveAccess.CanReadProgressHistory(viewer, objective, plan);
+        var viewer = await (caller ?? new PerformanceViewer(db, workforce)).ForCycleAsync(cycle, goalActor, cancellationToken);
+        return ObjectivePolicy.CanReadProgressHistory(viewer, objective, plan);
     }
 }
 
-public sealed class ResolveEvidenceFileHandler(PerformanceDbContext db, ICoreWorkforceClient workforce) : IQueryHandler<ResolveEvidenceFileQuery, Result<EvidenceFileRef>>
+public sealed class ResolveEvidenceFileHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, PerformanceViewer? caller = null) : IQueryHandler<ResolveEvidenceFileQuery, Result<EvidenceFileRef>>
 {
     public async Task<Result<EvidenceFileRef>> Handle(ResolveEvidenceFileQuery request, CancellationToken cancellationToken)
     {
         var item = await db.EvidenceItems.AsNoTracking().FirstOrDefaultAsync(e => e.Id == request.EvidenceId, cancellationToken);
-        if (item is null || item.Kind != EvidenceKind.File || item.StorageKey is null)
-            return Result.Failure<EvidenceFileRef>(Error.NotFound("Evidence", request.EvidenceId));
+        if (item is null || item.Kind != EvidenceKind.File || item.StorageKey is null || item.IsRemovedUnderRetention)
+            return Result.Failure<EvidenceFileRef>(PerformanceErrors.NotFound("Evidence", request.EvidenceId));
 
         var update = await db.ProgressUpdates.AsNoTracking().FirstOrDefaultAsync(u => u.Id == item.ProgressUpdateId, cancellationToken);
         if (update is null || update.CycleId != request.CycleId)
-            return Result.Failure<EvidenceFileRef>(Error.NotFound("Evidence", request.EvidenceId));
+            return Result.Failure<EvidenceFileRef>(PerformanceErrors.NotFound("Evidence", request.EvidenceId));
 
         var objective = await db.Objectives.AsNoTracking().FirstOrDefaultAsync(o => o.Id == update.ObjectiveId, cancellationToken);
-        if (objective is null) return Result.Failure<EvidenceFileRef>(Error.NotFound("Evidence", request.EvidenceId));
+        if (objective is null) return Result.Failure<EvidenceFileRef>(PerformanceErrors.NotFound("Evidence", request.EvidenceId));
 
         var plan = objective.EmployeePlanId is null ? null
-            : await db.EmployeePlans.AsNoTracking().FirstOrDefaultAsync(p => p.Id == objective.EmployeePlanId, cancellationToken);
+            : await db.EmployeePlans.AsNoTracking().Include(p => p.Decisions).FirstOrDefaultAsync(p => p.Id == objective.EmployeePlanId, cancellationToken);
 
-        if (!await ProgressAuthorization.CanSeeNamedDetailAsync(db, workforce, objective, plan, request.Actor, cancellationToken))
-            return Result.Failure<EvidenceFileRef>(Error.Forbidden("Evidence.Forbidden", "You are not authorized to open this evidence."));
+        var cycle = await db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
+        if (cycle is null) return Result.Failure<EvidenceFileRef>(PerformanceErrors.NotFound("Cycle", request.CycleId));
+        if (cycle.ClosedAt is { } closedAt)
+        {
+            var retentionMonths = await db.CycleSettings.Select(settings => (int?)settings.EvidenceRetentionMonths)
+                .FirstOrDefaultAsync(cancellationToken) ?? 36;
+            if (EvidenceRetentionPolicy.IsExpired(closedAt, retentionMonths, DateTime.UtcNow))
+                return Result.Failure<EvidenceFileRef>(PerformanceErrors.NotFound("Evidence", request.EvidenceId));
+        }
+        var viewer = await (caller ?? new PerformanceViewer(db, workforce)).ForCycleAsync(cycle, request.Actor.ToGoalActor(), cancellationToken);
+        if (!EvidencePolicy.CanRead(viewer, objective, plan))
+            return Result.Failure<EvidenceFileRef>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.EvidenceForbidden, "You are not authorized to open this evidence."));
+
+        if (!item.StorageKey.StartsWith($"{item.TenantId:N}/", StringComparison.Ordinal))
+            return Result.Failure<EvidenceFileRef>(PerformanceErrors.NotFound("Evidence", request.EvidenceId));
 
         return Result.Success(new EvidenceFileRef(item.StorageKey, item.FileName ?? "attachment", item.ContentType ?? "application/octet-stream"));
     }
@@ -91,40 +110,40 @@ public sealed class ResolveEvidenceFileHandler(PerformanceDbContext db, ICoreWor
 
 // ── Read ─────────────────────────────────────────────────────────────────────
 
-public sealed class GetObjectiveProgressHandler(PerformanceDbContext db, ICoreWorkforceClient workforce)
+public sealed class GetObjectiveProgressHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, PerformanceViewer? caller = null)
     : IQueryHandler<GetObjectiveProgressQuery, Result<ObjectiveProgressDto>>
 {
     public async Task<Result<ObjectiveProgressDto>> Handle(GetObjectiveProgressQuery request, CancellationToken cancellationToken)
     {
         var objective = await db.Objectives.AsNoTracking().Include(o => o.Measurement)
             .FirstOrDefaultAsync(o => o.Id == request.ObjectiveId && o.CycleId == request.CycleId, cancellationToken);
-        if (objective is null) return Result.Failure<ObjectiveProgressDto>(Error.NotFound("Objective", request.ObjectiveId));
+        if (objective is null) return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.NotFound("Objective", request.ObjectiveId));
 
         var plan = objective.EmployeePlanId is null ? null
-            : await db.EmployeePlans.AsNoTracking().FirstOrDefaultAsync(p => p.Id == objective.EmployeePlanId, cancellationToken);
+            : await db.EmployeePlans.AsNoTracking().Include(p => p.Decisions).FirstOrDefaultAsync(p => p.Id == objective.EmployeePlanId, cancellationToken);
 
-        if (!await ProgressAuthorization.CanSeeNamedDetailAsync(db, workforce, objective, plan, request.Actor, cancellationToken))
-            return Result.Failure<ObjectiveProgressDto>(Error.Forbidden("Progress.ViewForbidden", "You are not authorized to view this objective's progress detail."));
+        if (!await ProgressAuthorization.CanSeeNamedDetailAsync(db, workforce, objective, plan, request.Actor, cancellationToken, caller))
+            return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.ProgressViewForbidden, "You are not authorized to view this objective's progress detail."));
 
         var dto = await ProgressComposer.BuildAsync(db, workforce, objective, plan, request.Actor, cancellationToken);
         return Result.Success(dto);
     }
 }
 
-public sealed class GetProgressHistoryPageHandler(PerformanceDbContext db, ICoreWorkforceClient workforce)
+public sealed class GetProgressHistoryPageHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, PerformanceViewer? caller = null)
     : IQueryHandler<GetProgressHistoryPageQuery, Result<ProgressHistoryPageDto>>
 {
     public async Task<Result<ProgressHistoryPageDto>> Handle(GetProgressHistoryPageQuery request, CancellationToken cancellationToken)
     {
         var objective = await db.Objectives.AsNoTracking().Include(o => o.Measurement)
             .FirstOrDefaultAsync(o => o.Id == request.ObjectiveId && o.CycleId == request.CycleId, cancellationToken);
-        if (objective is null) return Result.Failure<ProgressHistoryPageDto>(Error.NotFound("Objective", request.ObjectiveId));
+        if (objective is null) return Result.Failure<ProgressHistoryPageDto>(PerformanceErrors.NotFound("Objective", request.ObjectiveId));
 
         var plan = objective.EmployeePlanId is null ? null
-            : await db.EmployeePlans.AsNoTracking().FirstOrDefaultAsync(p => p.Id == objective.EmployeePlanId, cancellationToken);
+            : await db.EmployeePlans.AsNoTracking().Include(p => p.Decisions).FirstOrDefaultAsync(p => p.Id == objective.EmployeePlanId, cancellationToken);
 
-        if (!await ProgressAuthorization.CanSeeNamedDetailAsync(db, workforce, objective, plan, request.Actor, cancellationToken))
-            return Result.Failure<ProgressHistoryPageDto>(Error.Forbidden("Progress.ViewForbidden", "You are not authorized to view this objective's progress detail."));
+        if (!await ProgressAuthorization.CanSeeNamedDetailAsync(db, workforce, objective, plan, request.Actor, cancellationToken, caller))
+            return Result.Failure<ProgressHistoryPageDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.ProgressViewForbidden, "You are not authorized to view this objective's progress detail."));
 
         var limit = request.Limit <= 0 ? ProgressComposer.HistoryPageSize : request.Limit;
         var (items, nextCursor) = await ProgressComposer.BuildHistoryPageAsync(db, workforce, objective, plan, request.Actor, request.Cursor, limit, cancellationToken);
@@ -134,29 +153,34 @@ public sealed class GetProgressHistoryPageHandler(PerformanceDbContext db, ICore
 
 // ── Submit ───────────────────────────────────────────────────────────────────
 
-public sealed class SubmitProgressHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
+public sealed class SubmitProgressHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant, IPerformanceAudit audit, IPerformanceEvidenceStore store)
     : ICommandHandler<SubmitProgressCommand, Result<ObjectiveProgressDto>>
 {
     public async Task<Result<ObjectiveProgressDto>> Handle(SubmitProgressCommand command, CancellationToken cancellationToken)
     {
         var cycle = await db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == command.CycleId, cancellationToken);
-        if (cycle is null) return Result.Failure<ObjectiveProgressDto>(Error.NotFound("Cycle", command.CycleId));
-        if (cycle.IsClosed) return Result.Failure<ObjectiveProgressDto>(Error.Conflict("Cycle.Closed", "A Closed Cycle is read-only; progress cannot be recorded."));
+        if (cycle is null) return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.NotFound("Cycle", command.CycleId));
+        if (cycle.IsClosed) return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.CycleClosed, "A Closed Cycle is read-only; progress cannot be recorded."));
 
         var objective = await db.Objectives.Include(o => o.Measurement)
             .FirstOrDefaultAsync(o => o.Id == command.ObjectiveId && o.CycleId == command.CycleId, cancellationToken);
-        if (objective is null) return Result.Failure<ObjectiveProgressDto>(Error.NotFound("Objective", command.ObjectiveId));
+        if (objective is null) return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.NotFound("Objective", command.ObjectiveId));
 
         var plan = objective.EmployeePlanId is null ? null
-            : await db.EmployeePlans.AsNoTracking().FirstOrDefaultAsync(p => p.Id == objective.EmployeePlanId, cancellationToken);
+            : await db.EmployeePlans.AsNoTracking().Include(p => p.Decisions).FirstOrDefaultAsync(p => p.Id == objective.EmployeePlanId, cancellationToken);
 
         if (!ProgressComposer.CanUpdate(objective, plan, command.Actor))
-            return Result.Failure<ObjectiveProgressDto>(Error.Forbidden("Progress.UpdateForbidden", "Only the accountable owner records progress, once the objective's baseline is set."));
+            return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.ProgressUpdateForbidden, "Only the accountable owner records progress, once the objective's baseline is set."));
+
+        if (VersionGuard.Check(objective, command.Request.ExpectedVersion) is { } stale)
+            return Result.Failure<ObjectiveProgressDto>(stale);
 
         var request = command.Request;
         var author = command.Actor.CallerEmployeeId;
         var method = objective.Measurement?.Method;
 
+        var before = new { objective.CurrentPercentage, objective.CurrentActual,
+            milestoneCompleted = objective.Measurement?.Milestones.FirstOrDefault(m => m.Id == request.MilestoneId)?.IsCompleted };
         try
         {
             ProgressUpdate update;
@@ -178,25 +202,53 @@ public sealed class SubmitProgressHandler(PerformanceDbContext db, ICoreWorkforc
             }
             else
             {
-                return Result.Failure<ObjectiveProgressDto>(Error.Validation("Progress.Mismatch", "The update does not match the objective's measurement method."));
+                return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.ProgressMismatch, "The update does not match the objective's measurement method."));
             }
 
             foreach (var evidence in request.Evidence ?? [])
-                update.AttachEvidence(ProgressComposer.ToEvidence(evidence, tenant.TenantId));
+            {
+                if (evidence.Kind != EvidenceKind.File)
+                {
+                    update.AttachEvidence(ProgressComposer.ToEvidence(evidence, tenant.TenantId));
+                    continue;
+                }
+                var upload = evidence.UploadId is null ? null : await db.EvidenceUploads.FirstOrDefaultAsync(u =>
+                    u.Id == evidence.UploadId && u.CycleId == cycle.Id && u.ObjectiveId == objective.Id
+                    && u.UploaderEmployeeId == author && u.ClaimedAt == null, cancellationToken);
+                if (upload is null || upload.ClaimedAt is not null)
+                    return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.EvidenceUploadInvalid,
+                        "This upload is unavailable for this progress update. Attach the file again."));
+                await using var file = await store.OpenAsync(upload.StorageKey, cancellationToken);
+                if (file is null)
+                    return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.EvidenceUploadInvalid,
+                        "This file is no longer available. Attach it again."));
+                upload.Claim(objective.Id, author);
+                update.AttachEvidence(EvidenceItem.File(upload.TenantId, upload.FileName, upload.ContentType, upload.SizeBytes, upload.StorageKey));
+            }
 
             db.ProgressUpdates.Add(update);
-            await db.SaveChangesAsync(cancellationToken);
+            if (objective.EmployeePlanId is Guid planId)
+                await EY.HRPlatform.Performance.Features.Plans.UpdateRequests.SatisfyAsync(db, audit, planId, objective.Id, update, cancellationToken);
+            var after = new { objective.CurrentPercentage, objective.CurrentActual,
+                milestoneCompleted = objective.Measurement?.Milestones.FirstOrDefault(m => m.Id == request.MilestoneId)?.IsCompleted };
+            if (request.IsCorrection)
+                audit.Record(objective.TenantId, "Objective", objective.Id, cycle.Id, PerformanceAuditActions.ProgressCorrected,
+                    new { before, after, updateId = update.Id, request.ContextNote, request.MilestoneId });
+            if (before.milestoneCompleted == true && after.milestoneCompleted == false)
+                audit.Record(objective.TenantId, "Objective", objective.Id, cycle.Id, PerformanceAuditActions.MilestoneReopened,
+                    new { before, after, updateId = update.Id, request.ContextNote, request.MilestoneId });
+            await EY.HRPlatform.Performance.Features.Plans.UpdateRequestSatisfaction.SaveAsync(db, cancellationToken);
 
             var dto = await ProgressComposer.BuildAsync(db, workforce, objective, plan, command.Actor, cancellationToken);
             return Result.Success(dto);
         }
         catch (ArgumentException ex)
         {
-            return Result.Failure<ObjectiveProgressDto>(Error.Validation("Progress.Invalid", ex.Message));
+            return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.ProgressInvalid, ex.Message));
         }
         catch (InvalidOperationException ex)
         {
-            return Result.Failure<ObjectiveProgressDto>(Error.Conflict("Progress.NotUpdatable", ex.Message));
+            return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.ProgressNotUpdatable, ex.Message));
         }
     }
 }

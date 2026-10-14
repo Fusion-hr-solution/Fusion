@@ -97,8 +97,78 @@ public sealed class OrganizationalGoalsTests
     private static async Task<Result<GoalDetailDto>> PublishAsync(Fixture f, Guid objectiveId, GoalActorContext actor)
     {
         await using var db = f.Store.NewContext();
-        return await new PublishObjectiveHandler(db, f.Workforce, f.Store.Tenant)
+        var result = await new PublishObjectiveHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db))
             .Handle(new PublishObjectiveCommand(f.CycleId, objectiveId, actor), default);
+        if (result.IsSuccess) await AuditAssertions.RecordedAsync(db, "Objective.Published", objectiveId, f.CycleId);
+        return result;
+    }
+
+    [Fact]
+    public async Task Archive_preserves_children_and_progress_but_excludes_new_alignment_and_is_retry_safe()
+    {
+        var f = await ArrangeAsync(draftCycle: false);
+        var created = await CreateAsync(f, DirectNumeric(f.TalentPodId, f.NourId, f.StrategicId), Manager(f.NourId));
+        var id = created.Value.Node.Id;
+        Assert.True((await PublishAsync(f, id, Manager(f.NourId))).IsSuccess);
+        Guid childId;
+        await using (var db = f.Store.NewContext())
+        {
+            var parent = await db.Objectives.Include(o => o.Measurement).SingleAsync(o => o.Id == id);
+            parent.ApplyNumericActual(90m);
+            db.ProgressUpdates.Add(EY.HRPlatform.Performance.Domain.Progress.ProgressUpdate.RecordNumericActual(f.Store.TenantId, f.CycleId, id, f.NourId, 90m, "Delivered", false));
+            var plan = EY.HRPlatform.Performance.Domain.Plans.EmployeePlan.Create(f.Store.TenantId, f.CycleId, Guid.NewGuid(), f.OtherMemberId, "Employee", "Delivery Pod", f.NourId, "Manager");
+            var child = Objective.CreateEmployee(f.Store.TenantId, f.CycleId, plan.Id, f.OtherMemberId, "Deliver", null, id, CycleStart, CycleEnd, ObjectiveMeasurement.ManualPercentage(), 100m, CycleStart, CycleEnd, CycleStart, CycleEnd);
+            childId = child.Id;
+            db.EmployeePlans.Add(plan); db.Objectives.Add(child); await db.SaveChangesAsync();
+        }
+        GoalDetailDto first;
+        await using (var db = f.Store.NewContext())
+        {
+            var result = await new ArchiveObjectiveHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db)).Handle(new(f.CycleId, id, Manager(f.NourId)), default);
+            Assert.True(result.IsSuccess); first = result.Value;
+            await AuditAssertions.RecordedAsync(db, "Objective.Archived", id, f.CycleId);
+            Assert.Equal(ObjectiveLifecycleState.Archived, first.Node.State);
+            Assert.NotNull(first.ArchivedAt);
+            Assert.True(first.Node.HasProgress);
+            Assert.False(first.CanArchive); Assert.False(first.CanUpdateProgress);
+        }
+        await using (var db = f.Store.NewContext())
+        {
+            var again = await new ArchiveObjectiveHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db)).Handle(new(f.CycleId, id, Manager(f.NourId), uint.MaxValue), default);
+            Assert.Equal(first.ArchivedAt, again.Value.ArchivedAt);
+            Assert.Single(await db.AuditEntries.Where(e => e.Action == "Objective.Archived" && e.ResourceId == id).ToListAsync());
+            Assert.Equal(id, (await db.Objectives.SingleAsync(o => o.Id == childId)).ParentObjectiveId);
+            Assert.Single(await db.ProgressUpdates.Where(p => p.ObjectiveId == id).ToListAsync());
+            var publicRecord = await new GetGoalDetailHandler(db, f.Workforce).Handle(new(f.CycleId, id, Person(f.OtherMemberId)), default);
+            Assert.True(publicRecord.IsSuccess);
+            Assert.False(publicRecord.Value.CanArchive);
+            Assert.False(publicRecord.Value.CanReadProgressHistory);
+            var cycle = await db.Cycles.SingleAsync();
+            Assert.DoesNotContain(await TeamObjectivePolicy.EligibleParentsAsync(db, cycle, (await TeamObjectivePolicy.ResolveScopeAsync(f.Workforce, cycle, Admin(f.CooId), f.OtherUnitId, default)).Value, default), o => o.Id == id);
+            var graph = await GoalsComposer.LoadGraphAsync(db, f.Workforce, cycle, default);
+            Assert.DoesNotContain(EY.HRPlatform.Performance.Features.Plans.PlansComposer.AlignmentTargets(graph), o => o.Id == id);
+            var childDetail = await new GetGoalDetailHandler(db, f.Workforce).Handle(new(f.CycleId, childId, Admin(f.CooId)), default);
+            Assert.Equal(ObjectiveLifecycleState.Archived, childDetail.Value.Parent!.State);
+        }
+        var newChild = await CreateAsync(f, DirectNumeric(f.OtherUnitId, f.OtherMemberId, id), Admin(f.CooId));
+        Assert.True(newChild.IsFailure);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Archive_requires_scope_governance_even_for_the_accountable_person(bool otherTeamManager, bool alreadyArchived)
+    {
+        var f = await ArrangeAsync();
+        var created = await CreateAsync(f, DirectNumeric(f.TalentPodId, f.NourId, f.StrategicId), Admin(f.CooId));
+        await PublishAsync(f, created.Value.Node.Id, Admin(f.CooId));
+        await using var db = f.Store.NewContext();
+        if (alreadyArchived) Assert.True((await new ArchiveObjectiveHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db)).Handle(new(f.CycleId, created.Value.Node.Id, Admin(f.CooId)), default)).IsSuccess);
+        var result = await new ArchiveObjectiveHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db)).Handle(new(f.CycleId, created.Value.Node.Id, otherTeamManager ? Manager(f.OtherMemberId) : Person(f.NourId)), default);
+        Assert.Equal("Objective.ArchiveForbidden", result.Error.Code);
+        Assert.Equal(alreadyArchived ? ObjectiveLifecycleState.Archived : ObjectiveLifecycleState.Published, (await db.Objectives.SingleAsync(o => o.Id == created.Value.Node.Id)).State);
     }
 
     // ── Creation & alignment invariants ────────────────────────────────────────────────────
@@ -303,16 +373,17 @@ public sealed class OrganizationalGoalsTests
 
         await using (var db = f.Store.NewContext())
         {
-            var cleared = await new AlignObjectiveHandler(db, f.Workforce, f.Store.Tenant)
+            var cleared = await new AlignObjectiveHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db))
                 .Handle(new AlignObjectiveCommand(f.CycleId, created.Value.Node.Id, new AlignObjectiveRequest(null), actor), default);
             Assert.True(cleared.IsSuccess, cleared.IsFailure ? cleared.Error.Message : null);
             Assert.Null(cleared.Value.Node.ParentObjectiveId);
+            await AuditAssertions.RecordedAsync(db, "Objective.Realigned", created.Value.Node.Id, f.CycleId);
         }
 
         Assert.True((await PublishAsync(f, created.Value.Node.Id, actor)).IsSuccess);
         await using (var db = f.Store.NewContext())
         {
-            var realign = await new AlignObjectiveHandler(db, f.Workforce, f.Store.Tenant)
+            var realign = await new AlignObjectiveHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db))
                 .Handle(new AlignObjectiveCommand(f.CycleId, created.Value.Node.Id, new AlignObjectiveRequest(f.StrategicId), actor), default);
             Assert.True(realign.IsFailure);
             Assert.Equal("Objective.NotEditable", realign.Error.Code);
@@ -381,6 +452,24 @@ public sealed class OrganizationalGoalsTests
     }
 
     [Fact]
+    public async Task Realignment_through_the_edit_form_is_audited_with_both_parents()
+    {
+        var f = await ArrangeAsync();
+        var created = await CreateAsync(f, DirectNumeric(f.TalentPodId, f.NourId, f.StrategicId), Manager(f.NourId));
+        await using var db = f.Store.NewContext();
+        var result = await new UpdateOrganizationalObjectiveHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db)).Handle(
+            new(f.CycleId, created.Value.Node.Id,
+                new("Delivery", null, f.NourId, null, CycleStart, CycleEnd, ObjectiveProgressSource.Direct,
+                    new(MeasurementMethod.ManualPercentage, null, null, null, null, null)), Manager(f.NourId)), default);
+        Assert.True(result.IsSuccess, result.IsFailure ? result.Error.Message : null);
+        var entry = Assert.Single(await db.AuditEntries.ToListAsync());
+        await AuditAssertions.RecordedAsync(db, "Objective.Realigned", created.Value.Node.Id, f.CycleId);
+        using var summary = System.Text.Json.JsonDocument.Parse(entry.Summary);
+        Assert.Equal(f.StrategicId.ToString(), summary.RootElement.GetProperty("before").GetString());
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, summary.RootElement.GetProperty("after").ValueKind);
+    }
+
+    [Fact]
     public async Task Reassigning_the_accountable_person_does_not_remove_the_managers_authority()
     {
         var f = await ArrangeAsync();
@@ -393,7 +482,7 @@ public sealed class OrganizationalGoalsTests
 
         await using (var db = f.Store.NewContext())
         {
-            var reassign = await new UpdateOrganizationalObjectiveHandler(db, f.Workforce, f.Store.Tenant).Handle(
+            var reassign = await new UpdateOrganizationalObjectiveHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db)).Handle(
                 new UpdateOrganizationalObjectiveCommand(f.CycleId, objectiveId,
                     new UpdateOrganizationalObjectiveRequest("Improve reliability", null, other.EmployeeId, f.StrategicId, CycleStart, CycleEnd,
                         ObjectiveProgressSource.Direct, new MeasurementInput(MeasurementMethod.NumericTarget, 80m, 95m, "%", ImprovementDirection.Increase, null)),
@@ -508,7 +597,7 @@ public sealed class OrganizationalGoalsTests
         }
         await using (var db = f.Store.NewContext())
         {
-            var lockedTooEarly = await new LockContributionHandler(db, f.Workforce, f.Store.Tenant)
+            var lockedTooEarly = await new LockContributionHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db))
                 .Handle(new LockContributionCommand(f.CycleId, opsId, admin), default);
             Assert.True(lockedTooEarly.IsFailure);
         }
@@ -520,10 +609,14 @@ public sealed class OrganizationalGoalsTests
                     new ConfigureContributionRequest([new ContributionInput(childA, 60m), new ContributionInput(childB, 40m)]), admin), default);
         await using (var db = f.Store.NewContext())
         {
-            var locked = await new LockContributionHandler(db, f.Workforce, f.Store.Tenant)
+            var locked = await new LockContributionHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db))
                 .Handle(new LockContributionCommand(f.CycleId, opsId, admin), default);
             Assert.True(locked.IsSuccess, locked.IsFailure ? locked.Error.Message : null);
             Assert.True(locked.Value.Node.IsContributionBaselineLocked);
+            await AuditAssertions.RecordedAsync(db, "Contribution.BaselineLocked", opsId, f.CycleId);
+            Assert.True((await new LockContributionHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db))
+                .Handle(new(f.CycleId, opsId, admin), default)).IsSuccess);
+            Assert.Single(await db.AuditEntries.Where(e => e.Action == "Contribution.BaselineLocked" && e.ResourceId == opsId).ToListAsync());
         }
     }
 
@@ -546,7 +639,7 @@ public sealed class OrganizationalGoalsTests
                     new ConfigureContributionRequest([new ContributionInput(childA, 60m), new ContributionInput(childB, 40m)]), admin), default);
         await using (var db = f.Store.NewContext())
         {
-            var locked = await new LockContributionHandler(db, f.Workforce, f.Store.Tenant)
+            var locked = await new LockContributionHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db))
                 .Handle(new LockContributionCommand(f.CycleId, opsId, admin), default);
             Assert.True(locked.IsFailure);
             Assert.Contains("published", locked.Error.Message, StringComparison.OrdinalIgnoreCase);

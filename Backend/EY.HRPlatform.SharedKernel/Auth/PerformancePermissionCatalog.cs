@@ -44,8 +44,11 @@ public static class PerformancePermissions
     /// </summary>
     public const string ObjectiveOrgManage = "performance.objective.org.manage";
 
+    /// <summary>Facilitate rating calibration in named review-round sessions.</summary>
+    public const string ReviewCalibrate = "performance.review.calibrate";
+
     public static readonly ReadOnlyCollection<string> All =
-        Array.AsReadOnly([CycleView, CycleManage, StrategyPublish, ObjectiveSelfManage, ObjectiveOrgManage]);
+        Array.AsReadOnly([CycleView, CycleManage, StrategyPublish, ObjectiveSelfManage, ObjectiveOrgManage, ReviewCalibrate]);
 }
 
 /// <summary>
@@ -90,5 +93,11 @@ public static class PerformancePermissionCatalog
                 Group,
                 [PermissionScopes.Tenant],
                 "Establish, edit, and publish organizational objectives across the tenant. Separate from viewing Performance data and from being an objective's accountable person. Fine-grained per-org-unit scoping is deferred to the future tenant Access/Profile design."),
+            new(
+                PerformancePermissions.ReviewCalibrate,
+                "Facilitate review calibration",
+                Group,
+                [PermissionScopes.Tenant],
+                "Facilitate rating calibration for review rounds where you are named."),
         ]);
 }

@@ -1,3 +1,6 @@
+using EY.HRPlatform.Performance.Domain.Settings;
+using EY.HRPlatform.Performance.Features.Security;
+using EY.HRPlatform.Performance.Features.Security.Policies;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -17,7 +20,7 @@ namespace EY.HRPlatform.Performance.Features.Plans;
 /// and approval; tenant administration gates the governed exceptional approval (design Decision 2).
 /// </summary>
 /// <summary>One participant's plan standing; see <see cref="PlansComposer.Classify"/>.</summary>
-public sealed record PlanStanding(RosterPlanStatus Status, bool HasProgress, int OverdueMilestoneCount);
+public sealed record PlanStanding(RosterPlanStatus Status, bool HasProgress, int OverdueObjectiveCount);
 
 public sealed record PlanActorContext(Guid CallerEmployeeId, bool IsAdmin, bool CanReviewReports)
 {
@@ -39,24 +42,33 @@ public static class PlansComposer
         ICoreWorkforceClient workforce,
         PerformanceCycle cycle,
         EmployeePlan plan,
-        bool standaloneAllowed,
+        PlanAlignmentPolicy alignmentPolicy,
         PlanActorContext actor,
         CancellationToken cancellationToken)
     {
-        var graph = await GoalsComposer.LoadGraphAsync(db, workforce, cycle, cancellationToken);
-        return BuildPlan(cycle, plan, graph, standaloneAllowed, actor);
+        var graph = await GoalsComposer.LoadGraphAsync(db, workforce, cycle, cancellationToken, new CycleViewer(actor.ToGoalActor(), null));
+        var dto = BuildPlan(cycle, plan, graph, alignmentPolicy, actor);
+        if (plan.ResponsibleManagerId is null) return dto;
+
+        var reviewer = await db.Participants.AsNoTracking()
+            .Where(p => p.Id == plan.ParticipantId)
+            .Select(p => new { p.ReviewerBasis, p.ReviewerAsOf })
+            .FirstOrDefaultAsync(cancellationToken);
+        return reviewer is null
+            ? dto
+            : dto with { ResponsibleReviewerBasis = reviewer.ReviewerBasis, ResponsibleReviewerAsOf = reviewer.ReviewerAsOf };
     }
 
     public static EmployeePlanDto BuildPlan(
         PerformanceCycle cycle,
         EmployeePlan plan,
         GoalsComposer.Graph graph,
-        bool standaloneAllowed,
+        PlanAlignmentPolicy alignmentPolicy,
         PlanActorContext actor)
     {
         var planObjectiveEntities = graph.All.Where(o => o.EmployeePlanId == plan.Id).ToList();
         var isSelf0 = plan.EmployeeId == actor.CallerEmployeeId;
-        var canUpdateProgress = plan.State == PlanLifecycleState.Approved && isSelf0 && !cycle.IsClosed;
+        var canUpdateProgress = plan.State == PlanLifecycleState.Approved && isSelf0 && cycle.IsActive;
 
         var objectives = planObjectiveEntities
             .OrderBy(o => o.IsAligned ? 0 : 1)
@@ -66,7 +78,7 @@ public static class PlansComposer
 
         var planProgress = ProgressCalc.PlanProgress(planObjectiveEntities);
 
-        var readiness = BuildReadiness(plan, graph, standaloneAllowed);
+        var readiness = BuildReadiness(plan, graph, alignmentPolicy);
 
         var history = plan.Decisions
             .OrderBy(d => d.DecidedAt)
@@ -74,14 +86,10 @@ public static class PlansComposer
             .ToList();
 
         var isSelf = plan.EmployeeId == actor.CallerEmployeeId;
-        var cycleOpen = !cycle.IsClosed;
-        var canAuthor = isSelf && plan.State == PlanLifecycleState.Draft && cycleOpen;
-        var canDecide = plan.State == PlanLifecycleState.Submitted
-            && cycleOpen
-            && actor.CanReviewReports
-            && plan.ResponsibleManagerId is not null
-            && plan.ResponsibleManagerId == actor.CallerEmployeeId;
-        var canApproveExceptionally = plan.State == PlanLifecycleState.Submitted && cycleOpen && actor.IsAdmin;
+        var cycleOpen = cycle.IsActive;
+        var canAuthor = PlanPolicy.CanAuthor(plan, actor) && cycleOpen;
+        var canDecide = plan.State == PlanLifecycleState.Submitted && cycleOpen && PlanPolicy.CanDecide(plan, actor);
+        var canApproveExceptionally = plan.State == PlanLifecycleState.Submitted && cycleOpen && PlanPolicy.CanApproveExceptionally(actor);
 
         return new EmployeePlanDto(
             plan.Id,
@@ -104,12 +112,13 @@ public static class PlansComposer
             CanAuthor: canAuthor,
             CanSubmit: canAuthor && readiness.CanSubmit,
             CanDecide: canDecide,
-            CanApproveExceptionally: canApproveExceptionally);
+            CanApproveExceptionally: canApproveExceptionally)
+{ Version = plan.Version, IsOwner = isSelf };
     }
 
-    public static PlanReadinessDto BuildReadiness(EmployeePlan plan, GoalsComposer.Graph graph, bool standaloneAllowed)
+    public static PlanReadinessDto BuildReadiness(EmployeePlan plan, GoalsComposer.Graph graph, PlanAlignmentPolicy alignmentPolicy)
     {
-        var facts = FactsFor(plan, graph, standaloneAllowed);
+        var facts = FactsFor(plan, graph, alignmentPolicy);
         var remaining = 100m - facts.WeightTotal;
 
         var blockers = new List<string>();
@@ -117,10 +126,10 @@ public static class PlansComposer
         if (facts.ObjectiveCount > 0 && !facts.EveryObjectiveHasWeight) blockers.Add("Give every objective a weight.");
         if (facts.ObjectiveCount > 0 && facts.WeightTotal != 100m)
             blockers.Add(remaining > 0 ? $"Assign {Trim(remaining)}% more." : $"Reduce weights by {Trim(-remaining)}%.");
-        if (facts.ObjectiveCount > 0 && !facts.ConnectsToStrategicDirection)
-            blockers.Add("Align at least one objective to strategic direction.");
-        if (facts.HasStandaloneObjective && !facts.StandaloneAllowed)
-            blockers.Add("Standalone objectives are not permitted; align every objective.");
+        if (facts.ObjectiveCount > 0 && !facts.AlignmentSatisfied)
+            blockers.Add(alignmentPolicy == PlanAlignmentPolicy.EveryObjectiveConnected
+                ? "Connect every objective to strategic direction."
+                : "Connect at least one objective to strategic direction.");
 
         return new PlanReadinessDto(
             facts.ObjectiveCount,
@@ -131,11 +140,11 @@ public static class PlansComposer
             facts.HasStandaloneObjective,
             facts.StandaloneAllowed,
             CanSubmit: blockers.Count == 0 && facts.ObjectiveCount > 0,
-            blockers);
+            blockers) { AlignmentPolicy = alignmentPolicy, EveryObjectiveConnectsToStrategicDirection = facts.EveryObjectiveConnectsToStrategicDirection };
     }
 
     /// <summary>The whole-plan submission facts drawn from the plan's objective rows in the graph.</summary>
-    public static PlanSubmissionFacts FactsFor(EmployeePlan plan, GoalsComposer.Graph graph, bool standaloneAllowed)
+    public static PlanSubmissionFacts FactsFor(EmployeePlan plan, GoalsComposer.Graph graph, PlanAlignmentPolicy alignmentPolicy)
     {
         var objectives = graph.All.Where(o => o.EmployeePlanId == plan.Id).ToList();
         var weightTotal = objectives.Sum(o => o.PlanWeight ?? 0m);
@@ -145,7 +154,8 @@ public static class PlansComposer
             WeightTotal: weightTotal,
             ConnectsToStrategicDirection: objectives.Any(o => ConnectsToStrategic(o, graph)),
             HasStandaloneObjective: objectives.Any(o => !o.IsAligned),
-            StandaloneAllowed: standaloneAllowed);
+            AlignmentPolicy: alignmentPolicy,
+            EveryObjectiveConnectsToStrategicDirection: objectives.Count > 0 && objectives.All(o => ConnectsToStrategic(o, graph)));
     }
 
     /// <summary>Published strategic and published organizational objectives an employee objective may align to.</summary>
@@ -167,21 +177,6 @@ public static class PlansComposer
                 DirectionPathTo(o, graph)))
             .ToList();
 
-    public static PlanReviewSummaryDto ToReviewSummary(EmployeePlan plan, GoalsComposer.Graph graph)
-    {
-        var objectives = graph.All.Where(o => o.EmployeePlanId == plan.Id).ToList();
-        return new PlanReviewSummaryDto(
-            plan.Id,
-            new PersonRefDto(plan.EmployeeId, plan.EmployeeDisplayName),
-            plan.OrgUnitName,
-            plan.State,
-            objectives.Count,
-            objectives.Sum(o => o.PlanWeight ?? 0m),
-            objectives.Count(o => o.IsAligned),
-            objectives.Count(o => !o.IsAligned),
-            plan.SubmittedAt);
-    }
-
     /// <summary>
     /// One people-roster row: a Cycle participant enriched with their plan's real lifecycle, execution
     /// facts, latest activity, and the caller's actual action authority. A participant with no plan reads
@@ -198,7 +193,7 @@ public static class PlansComposer
                 participant.EmployeeId, participant.DisplayName, participant.JobTitle, participant.OrgUnitName,
                 PlanId: null, RosterPlanStatus.NotStarted,
                 HasProgress: false, PlanProgress: 0m, ObjectiveProgress: [],
-                OverdueMilestoneCount: 0, RosterActivityKind.None, ActivityAt: null, CanReview: false, CanView: false);
+                OverdueObjectiveCount: 0, RosterActivityKind.None, ActivityAt: null, CanReview: false, CanView: false);
 
         var objectives = graph.All.Where(o => o.EmployeePlanId == plan.Id).ToList();
         var standing = Classify(plan, objectives, today);
@@ -226,7 +221,11 @@ public static class PlansComposer
                 .ToList()
             : [];
 
-        var overdueMilestones = standing.OverdueMilestoneCount;
+        var overdueObjectives = standing.OverdueObjectiveCount;
+        var now = DateTime.UtcNow;
+        var withoutRecentUpdate = status == RosterPlanStatus.Approved
+            ? objectives.Count(o => o.DerivedProgress < 100m && ExecutionFacts.LacksRecentUpdate(o, plan.ApprovedAt ?? now, now))
+            : 0;
 
         var isResponsibleManager = actor.CanReviewReports
             && plan.ResponsibleManagerId is not null
@@ -236,26 +235,26 @@ public static class PlansComposer
         // for changes (a Draft that carries decision history). A never-submitted Draft is the employee's
         // private workspace: there is nothing for the manager to review yet, and the canonical review
         // surface only speaks the submitted/returned/approved states, so exposing it there would mislabel it.
-        var canView = ObjectiveAccess.HasBeenPutForward(plan) && ObjectiveAccess.CanViewPlan(actor.ToGoalActor(), plan);
+        var canView = PlanPolicy.HasBeenPutForward(plan) && PlanPolicy.CanRead(actor.ToGoalActor(), plan);
 
         return new TeamRosterMemberDto(
             participant.EmployeeId, participant.DisplayName, participant.JobTitle, participant.OrgUnitName,
             plan.Id, status,
             hasProgress,
-            ProgressCalc.PlanProgress(objectives), objectiveProgress, overdueMilestones,
-            activityKind, activityAt, canReview, canView);
+            ProgressCalc.PlanProgress(objectives), objectiveProgress, overdueObjectives,
+            activityKind, activityAt, canReview, canView, ObjectivesWithoutRecentUpdate: withoutRecentUpdate);
     }
 
     /// <summary>
     /// Where one participant's plan stands: the single classification the manager roster and the cycle-wide
     /// summary share, so a plan never counts differently on two surfaces. No plan is Not started (never a
     /// fabricated Draft); a returned Draft is told apart by its most recent decision; overdue is only
-    /// meaningful once the plan is being executed (an open milestone past its own due date).
+    /// meaningful once the plan is being executed, and is counted per objective (<see cref="ExecutionFacts"/>).
     /// </summary>
     public static PlanStanding Classify(EmployeePlan? plan, IReadOnlyList<Objective> objectives, DateOnly today)
     {
         if (plan is null)
-            return new PlanStanding(RosterPlanStatus.NotStarted, HasProgress: false, OverdueMilestoneCount: 0);
+            return new PlanStanding(RosterPlanStatus.NotStarted, HasProgress: false, OverdueObjectiveCount: 0);
 
         var isReturnedDraft = plan.State == PlanLifecycleState.Draft
             && plan.Decisions.OrderBy(d => d.DecidedAt).LastOrDefault()?.Kind == PlanDecisionKind.Returned;
@@ -265,11 +264,7 @@ public static class PlansComposer
             PlanLifecycleState.Submitted => RosterPlanStatus.Submitted,
             _ => isReturnedDraft ? RosterPlanStatus.ReturnedForChanges : RosterPlanStatus.Draft,
         };
-        var overdue = status == RosterPlanStatus.Approved
-            ? objectives
-                .SelectMany(o => o.Measurement?.Milestones ?? [])
-                .Count(m => !m.IsCompleted && m.DueDate is { } due && due < today)
-            : 0;
+        var overdue = status == RosterPlanStatus.Approved ? ExecutionFacts.OverdueObjectiveCount(objectives, today) : 0;
         return new PlanStanding(status, objectives.Any(o => o.HasProgress), overdue);
     }
 
@@ -305,23 +300,15 @@ public static class PlansComposer
     // ── Authorization helpers ────────────────────────────────────────────────
 
     /// <summary>Authoring is the plan's own employee while the plan is Draft.</summary>
-    public static bool CanAuthor(EmployeePlan plan, PlanActorContext actor)
-        => plan.EmployeeId == actor.CallerEmployeeId && plan.State == PlanLifecycleState.Draft;
-
-    /// <summary>Review/approve is the responsible manager with the reports-view capability — no admin override on the normal path.</summary>
-    public static bool CanDecide(EmployeePlan plan, PlanActorContext actor)
-        => actor.CanReviewReports
-            && plan.ResponsibleManagerId is not null
-            && plan.ResponsibleManagerId == actor.CallerEmployeeId;
-
-    // ── Internals ────────────────────────────────────────────────────────────
+    public static bool CanAuthor(EmployeePlan plan, PlanActorContext actor) => PlanPolicy.CanAuthor(plan, actor);
+    public static bool CanDecide(EmployeePlan plan, PlanActorContext actor) => PlanPolicy.CanDecide(plan, actor);
 
     private static PlanObjectiveDto ToPlanObjective(Objective objective, GoalsComposer.Graph graph, bool canUpdateProgress)
         => new(
             objective.Id,
             objective.Title,
             objective.Description,
-            objective.ParentObjectiveId,
+            objective.ParentObjectiveId is Guid parent && graph.ById.ContainsKey(parent) ? parent : null,
             DirectionPathTo(objective, graph, includeSelf: false),
             objective.IsAligned,
             objective.StartDate,
@@ -335,7 +322,7 @@ public static class PlansComposer
             objective.CurrentPercentage,
             objective.CurrentActual,
             objective.LastProgressAt,
-            canUpdateProgress);
+            canUpdateProgress) { Version = objective.Version };
 
     private static bool ConnectsToStrategic(Objective objective, GoalsComposer.Graph graph)
     {

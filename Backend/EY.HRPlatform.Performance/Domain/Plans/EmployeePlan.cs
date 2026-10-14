@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Settings;
 using EY.HRPlatform.Performance.Domain.Common;
 
 namespace EY.HRPlatform.Performance.Domain.Plans;
@@ -14,7 +15,18 @@ public sealed record PlanSubmissionFacts(
     decimal WeightTotal,
     bool ConnectsToStrategicDirection,
     bool HasStandaloneObjective,
-    bool StandaloneAllowed);
+    PlanAlignmentPolicy AlignmentPolicy,
+    bool EveryObjectiveConnectsToStrategicDirection = false)
+{
+    public bool StandaloneAllowed => AlignmentPolicy != PlanAlignmentPolicy.EveryObjectiveConnected;
+    public bool AlignmentSatisfied => AlignmentPolicy switch
+    {
+        PlanAlignmentPolicy.Optional => true,
+        PlanAlignmentPolicy.AtLeastOneConnected => ConnectsToStrategicDirection,
+        PlanAlignmentPolicy.EveryObjectiveConnected => EveryObjectiveConnectsToStrategicDirection,
+        _ => false,
+    };
+}
 
 /// <summary>
 /// An employee's own weighted objective plan within one Cycle. The employee authors the objectives
@@ -97,10 +109,10 @@ public sealed class EmployeePlan : PerformanceAggregate
             throw new InvalidOperationException("Every objective needs a plan weight before submitting.");
         if (facts.WeightTotal != 100m)
             throw new InvalidOperationException("Plan weights must total exactly 100% before submitting.");
-        if (!facts.ConnectsToStrategicDirection)
-            throw new InvalidOperationException("At least one objective must connect to strategic direction.");
-        if (facts.HasStandaloneObjective && !facts.StandaloneAllowed)
-            throw new InvalidOperationException("Standalone objectives are not permitted; align every objective to direction.");
+        if (!facts.AlignmentSatisfied)
+            throw new InvalidOperationException(facts.AlignmentPolicy == PlanAlignmentPolicy.EveryObjectiveConnected
+                ? "Every objective must connect to strategic direction."
+                : "At least one objective must connect to strategic direction.");
 
         State = PlanLifecycleState.Submitted;
         SubmittedAt = DateTime.UtcNow;
@@ -157,6 +169,20 @@ public sealed class EmployeePlan : PerformanceAggregate
         ApprovedByEmployeeId = administratorEmployeeId;
         RecordDecision(PlanDecisionKind.ApprovedExceptionally, administratorEmployeeId, reason);
         MarkUpdated();
+    }
+
+    public bool IsTransitionRetry(PlanDecisionKind kind, Guid actorEmployeeId, string? feedback = null)
+    {
+        var target = kind switch
+        {
+            PlanDecisionKind.Submitted => PlanLifecycleState.Submitted,
+            PlanDecisionKind.Returned => PlanLifecycleState.Draft,
+            PlanDecisionKind.Approved or PlanDecisionKind.ApprovedExceptionally => PlanLifecycleState.Approved,
+            _ => (PlanLifecycleState?)null,
+        };
+        var last = _decisions.OrderBy(decision => decision.DecidedAt).LastOrDefault();
+        return target == State && last is not null && last.Kind == kind
+            && last.ActorEmployeeId == actorEmployeeId && last.Feedback == Normalize(feedback);
     }
 
     private void RecordDecision(PlanDecisionKind kind, Guid actorEmployeeId, string? feedback)

@@ -8,6 +8,7 @@ using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -45,16 +46,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddModuleEntitlementAuthorization();
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, PerformanceAuthorizationResultHandler>();
 builder.Services.AddAuthorization(options =>
 {
-    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+    var performancePolicy = new AuthorizationPolicyBuilder()
         .RequireAuthenticatedUser()
         .AddRequirements(new ModuleEntitlementRequirement(ModuleEntitlements.Performance))
         .Build();
+    options.DefaultPolicy = performancePolicy;
+    options.FallbackPolicy = performancePolicy;
 });
 
 builder.Services.AddPerformanceMultitenancy();
-builder.Services.AddPerformanceApplication(builder.Configuration);
+builder.Services.AddPerformanceApplication(builder.Configuration, builder.Environment);
 builder.Services.AddPerformancePersistence(builder.Configuration);
 
 // Customer traffic reaches this service only through the Gateway, which is where withdrawn
@@ -90,8 +94,9 @@ app.UseSerilogRequestLogging();
 app.UseInternalServiceBodyBuffering();
 
 app.UseAuthentication();
-app.UseMiddleware<TenantResolutionMiddleware>();
 app.UseAuthorization();
+// Entitlement checks use signed claims. Deny missing customer authority before tenant resolution.
+app.UseMiddleware<TenantResolutionMiddleware>();
 
 app.MapControllers();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();

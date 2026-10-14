@@ -16,7 +16,7 @@ public sealed class PopulationController(IMediator mediator, IPerformanceAccessP
     [HttpGet]
     public async Task<ActionResult<ApiResponse<PopulationDto>>> Get(Guid cycleId, CancellationToken cancellationToken)
     {
-        if (!policy.CanAdministerCycles(User)) return Forbid();
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new GetPopulationQuery(cycleId), cancellationToken));
     }
 
@@ -26,14 +26,14 @@ public sealed class PopulationController(IMediator mediator, IPerformanceAccessP
         [FromBody] SetPopulationRequest request,
         CancellationToken cancellationToken)
     {
-        if (!policy.CanAdministerCycles(User)) return Forbid();
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new SetPopulationCommand(cycleId, request), cancellationToken));
     }
 
     [HttpPost("confirm")]
-    public async Task<ActionResult<ApiResponse<PopulationDto>>> Confirm(Guid cycleId, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<PopulationDto>>> Confirm(Guid cycleId, [FromBody] ExpectedVersionRequest version, CancellationToken cancellationToken)
     {
-        if (!policy.CanAdministerCycles(User)) return Forbid();
-        return MapResult(await mediator.Send(new ConfirmPopulationCommand(cycleId), cancellationToken));
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new ConfirmPopulationCommand(cycleId, version.ExpectedVersion), cancellationToken));
     }
 }

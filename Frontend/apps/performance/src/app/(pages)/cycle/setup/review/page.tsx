@@ -20,8 +20,8 @@ export default function CycleSetupReviewPage() {
   const allowed = canAccessStep("review", setup);
 
   useEffect(() => {
-    if (!detail.isLoading && !allowed) router.replace(setupStepHref(earliestIncompleteStep(setup)));
-  }, [detail.isLoading, allowed, setup, router]);
+    if (!detail.isLoading && !allowed) router.replace(setupStepHref(earliestIncompleteStep(setup), detail.data?.cycle.id));
+  }, [detail.isLoading, allowed, setup, detail.data?.cycle.id, router]);
 
   if (!detail.data || !allowed) return <ReviewStepSkeleton />;
   return <ReviewLaunchStep detail={detail.data} />;

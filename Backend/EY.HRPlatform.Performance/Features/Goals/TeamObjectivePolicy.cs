@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Features.Failures;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Infrastructure.Core;
@@ -28,24 +29,24 @@ public static class TeamObjectivePolicy
         CancellationToken cancellationToken)
     {
         if (!actor.IsAdmin && !actor.HasOrgManageGrant)
-            return Result.Failure<TeamScope>(Error.Forbidden(
-                "Objective.TeamScopeForbidden",
+            return Result.Failure<TeamScope>(PerformanceErrors.Forbidden(
+                PerformanceErrors.Codes.ObjectiveTeamScopeForbidden,
                 "You are not authorized to manage team objectives."));
 
         Guid orgUnitId;
         if (actor.IsAdmin)
         {
             if (requestedOrgUnitId is null || requestedOrgUnitId == Guid.Empty)
-                return Result.Failure<TeamScope>(Error.Validation(
-                    "Objective.TeamRequired",
+                return Result.Failure<TeamScope>(PerformanceErrors.Validation(
+                    PerformanceErrors.Codes.ObjectiveTeamRequired,
                     "Choose the team that owns this objective."));
             orgUnitId = requestedOrgUnitId.Value;
         }
         else
         {
             if (actor.CallerEmployeeId == Guid.Empty)
-                return Result.Failure<TeamScope>(Error.Forbidden(
-                    "Objective.TeamScopeForbidden",
+                return Result.Failure<TeamScope>(PerformanceErrors.Forbidden(
+                    PerformanceErrors.Codes.ObjectiveTeamScopeForbidden,
                     "A workforce-linked manager is required."));
 
             var caller = (await workforce.ResolveAsync(
@@ -54,14 +55,14 @@ public static class TeamObjectivePolicy
                     cancellationToken))
                 .SingleOrDefault();
             if (caller is null || !caller.IsActive || caller.OrgUnit is null)
-                return Result.Failure<TeamScope>(Error.Forbidden(
-                    "Objective.TeamScopeForbidden",
+                return Result.Failure<TeamScope>(PerformanceErrors.Forbidden(
+                    PerformanceErrors.Codes.ObjectiveTeamScopeForbidden,
                     "You did not have an active team assignment at the start of this Cycle."));
 
             orgUnitId = caller.OrgUnit.OrgUnitId;
             if (requestedOrgUnitId is not null && requestedOrgUnitId != orgUnitId)
-                return Result.Failure<TeamScope>(Error.Forbidden(
-                    "Objective.TeamScopeForbidden",
+                return Result.Failure<TeamScope>(PerformanceErrors.Forbidden(
+                    PerformanceErrors.Codes.ObjectiveTeamScopeForbidden,
                     "Managers can manage objectives only for their own team."));
         }
 
@@ -80,8 +81,8 @@ public static class TeamObjectivePolicy
                 cancellationToken))
             .SingleOrDefault();
         if (unit is null || !unit.IsActive)
-            return Result.Failure<TeamScope>(Error.Validation(
-                "Objective.TeamInvalid",
+            return Result.Failure<TeamScope>(PerformanceErrors.Validation(
+                PerformanceErrors.Codes.ObjectiveTeamInvalid,
                 "The selected team was not active at the start of this Cycle."));
 
         var members = await workforce.GetByScopeAsync(
@@ -105,8 +106,8 @@ public static class TeamObjectivePolicy
     public static Result ValidateOwner(TeamScope scope, Guid accountablePersonId)
         => scope.ActiveMembers.Any(member => member.EmployeeId == accountablePersonId)
             ? Result.Success()
-            : Result.Failure(Error.Validation(
-                "Objective.OwnerOutsideTeam",
+            : Result.Failure(PerformanceErrors.Validation(
+                PerformanceErrors.Codes.ObjectiveOwnerOutsideTeam,
                 "Choose an active owner assigned to this team at the start of the Cycle."));
 
     public static async Task<IReadOnlyList<Objective>> EligibleParentsAsync(
@@ -170,8 +171,8 @@ public static class TeamObjectivePolicy
         var parent = eligible.FirstOrDefault(objective => objective.Id == parentObjectiveId.Value);
         return parent is not null
             ? Result.Success<Objective?>(parent)
-            : Result.Failure<Objective?>(Error.Validation(
-                "Objective.AlignmentIneligible",
+            : Result.Failure<Objective?>(PerformanceErrors.Validation(
+                PerformanceErrors.Codes.ObjectiveAlignmentIneligible,
                 "Choose a published objective from this team's upstream organization."));
     }
 }

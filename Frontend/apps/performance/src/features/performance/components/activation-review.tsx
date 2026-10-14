@@ -1,5 +1,7 @@
 "use client";
 
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import type { CycleDetailDto } from "@repo/api";
@@ -84,7 +86,7 @@ export function ActivationReview({
                 toast.success(`${detail.cycle.name} is now Active — planning is open.`);
                 onOpenChange(false);
               } catch (error) {
-                toast.error(error instanceof Error ? error.message : "Activation failed.");
+                reportPerformanceFailure(error, "Activation failed.");
               } finally {
                 setSubmitting(false);
               }

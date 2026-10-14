@@ -10,8 +10,16 @@ public sealed class CycleSettingsConfiguration : IEntityTypeConfiguration<CycleS
     {
         builder.ToTable("CycleSettings");
         builder.HasKey(settings => settings.Id);
+        builder.Property(settings => settings.Version).IsRowVersion();
 
         builder.Property(settings => settings.DefaultMeasurementMethod).HasConversion<string>().HasMaxLength(30).IsRequired();
+
+        builder.Property(settings => settings.PlanAlignmentPolicy).HasConversion<string>().HasMaxLength(40).IsRequired();
+
+        builder.Property(settings => settings.DefaultSelfAssessmentEnabled).HasDefaultValue(true);
+        builder.Property(settings => settings.DefaultObjectiveRatingsEnabled).HasDefaultValue(true);
+        builder.Property(settings => settings.DefaultCalibrationEnabled).HasDefaultValue(false);
+        builder.Property(settings => settings.EvidenceRetentionMonths).HasDefaultValue(36).IsRequired();
 
         // Exactly one settings row per tenant.
         builder.HasIndex(settings => settings.TenantId).IsUnique();

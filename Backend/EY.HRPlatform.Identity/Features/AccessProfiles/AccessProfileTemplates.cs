@@ -146,12 +146,14 @@ public static class AccessProfileTemplates
             [
                 new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
                 new(PerformancePermissions.CycleManage, PermissionScopes.Tenant),
+                new(PerformancePermissions.ReviewCalibrate, PermissionScopes.Tenant),
             ],
             ["org-admin"] =
             [
                 new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
                 new(PerformancePermissions.CycleManage, PermissionScopes.Tenant),
                 new(PerformancePermissions.StrategyPublish, PermissionScopes.Tenant),
+                new(PerformancePermissions.ReviewCalibrate, PermissionScopes.Tenant),
             ],
         };
 

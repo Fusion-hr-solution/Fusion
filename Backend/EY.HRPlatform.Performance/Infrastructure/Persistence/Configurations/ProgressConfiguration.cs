@@ -10,6 +10,7 @@ public sealed class ProgressUpdateConfiguration : IEntityTypeConfiguration<Progr
     {
         builder.ToTable("ProgressUpdates");
         builder.HasKey(update => update.Id);
+        builder.Property(update => update.Version).IsRowVersion();
 
         builder.Property(update => update.Kind).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(update => update.Value).HasColumnType("numeric(18,4)");
@@ -38,6 +39,7 @@ public sealed class EvidenceItemConfiguration : IEntityTypeConfiguration<Evidenc
         builder.Property(item => item.FileName).HasMaxLength(400);
         builder.Property(item => item.ContentType).HasMaxLength(200);
         builder.Property(item => item.StorageKey).HasMaxLength(400);
+        builder.Property(item => item.IsRemovedUnderRetention).HasDefaultValue(false).IsRequired();
         builder.Property(item => item.Url).HasMaxLength(2000);
         builder.Property(item => item.ReferenceText).HasMaxLength(1000);
 

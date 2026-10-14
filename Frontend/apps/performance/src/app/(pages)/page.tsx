@@ -1,96 +1,76 @@
 "use client";
 
-import { Fragment, useMemo } from "react";
-import { PageContainer, PagePermissionNotice, PageSkeleton } from "@repo/ds/shell";
+import { Fragment } from "react";
+import { PageContainer, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
-import { useCycles, usePerformanceAccess } from "@/features/performance/api/use-performance";
+import { useOverview, useWorkspaceContext } from "@/features/performance/api/use-workspace";
 import { formatDate } from "@/features/performance/lib";
+import { arrangeOverview, type OverviewBlock } from "@/features/performance/components/overview/overview-model";
+import { CalibrationSection, MyReviewSection, ReviewOperationSection, TeamReviewsSection } from "@/features/performance/components/overview/review-sections";
 import {
-  cyclePhase,
-  localToday,
-  resolveOverview,
-  selectOverviewCycles,
-  type OverviewSectionId,
-} from "@/features/performance/components/overview/overview-model";
-import {
-  MyPlanSection,
-  TeamAttentionSection,
-  TeamObjectiveSection,
+  MyPlanSection, MyRequestsSection,
+  TeamDirectionSection,
+  TeamSection,
 } from "@/features/performance/components/overview/personal-sections";
 import {
   ClosedCycleSection,
+  CycleOperationSection,
   CycleStatusSection,
+  DirectionSection,
   NoCycleSection,
-  OrgDirectionSection,
-  PlanningOperationSection,
   SetupSection,
 } from "@/features/performance/components/overview/organization-sections";
 
 /**
- * Overview: what state Performance is in, what needs this person, and where to go next. The sections
- * are composed from the person's capabilities and the tenant's cycles — never from a persona — and
- * each one ends in a workspace or an objective record.
+ * Overview: what state Performance is in, what needs this person, and where to go next. The server
+ * composes the sections from the person's capabilities and recorded responsibility in the selected
+ * Cycle; this page only renders them, and each one ends in a workspace or a record.
  */
 export default function OverviewPage() {
-  const access = usePerformanceAccess();
-  const a = access.data;
-  const canEnter = a?.canEnter ?? false;
-  const cycles = useCycles(canEnter);
-  const overviewCycles = useMemo(() => selectOverviewCycles(cycles.data ?? []), [cycles.data]);
+  const context = useWorkspaceContext();
+  const overview = useOverview(!context.isLoading && !context.error);
 
-  if (access.isLoading || !a) return <PageSkeleton rows={4} label="Loading Performance" />;
-  if (!canEnter) {
-    return (
-      <PagePermissionNotice
-        title="No Performance access"
-        description="You do not have access to the Performance workspace."
-      />
-    );
+  if (context.isLoading) return <PageSkeleton rows={4} label="Loading Performance" />;
+  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
+  if (overview.error) {
+    return <ContentUnavailable error={overview.error} onRetry={overview.refetch} subject="Overview" />;
   }
-  if (cycles.isLoading) return <PageSkeleton rows={4} label="Loading Overview" />;
-  if (cycles.error) {
-    return <ContentUnavailable error={cycles.error} onRetry={cycles.refetch} subject="Overview" />;
-  }
+  if (!overview.data) return <PageSkeleton rows={4} label="Loading Overview" />;
 
-  const sections = resolveOverview({
-    cycles: overviewCycles,
-    canParticipate: a.canParticipate,
-    canLeadTeam: a.canLeadTeam,
-    canManageTeamObjectives: a.canManageOrgObjectives || a.canAdminister,
-    canViewOrgDirection: a.canViewOrgDirection,
-    canAdminister: a.canAdminister,
-  });
-  const { active, draft, latestClosed } = overviewCycles;
-  const phase = active ? cyclePhase(active, localToday()) : null;
+  const { cycle, phase, sections } = overview.data;
+  const cycleId = cycle?.id ?? "";
 
-  const render = (id: OverviewSectionId) => {
-    switch (id) {
-      case "my-plan":
-        return active ? <MyPlanSection cycle={active} /> : null;
-      case "team-attention":
-        return active ? <TeamAttentionSection cycle={active} /> : null;
-      case "team-objective":
-        return active ? <TeamObjectiveSection cycle={active} /> : null;
-      case "planning-operation":
-        return active ? <PlanningOperationSection cycle={active} /> : null;
-      case "org-direction":
-        return active ? <OrgDirectionSection cycle={active} /> : null;
-      case "setup":
-        return draft ? <SetupSection cycle={draft} /> : null;
-      case "closed-cycle":
-        return latestClosed ? (
-          <ClosedCycleSection
-            cycle={latestClosed}
-            canAdminister={a.canAdminister}
-            canParticipate={a.canParticipate}
-            canCreateNext={a.canAdminister && !draft}
-          />
-        ) : null;
-      case "no-cycle":
-        return <NoCycleSection canAdminister={a.canAdminister} />;
-      case "cycle-status":
-        return active ? <CycleStatusSection cycle={active} /> : <NoCycleSection canAdminister={false} />;
+  const render = (block: OverviewBlock) => {
+    switch (block.kind) {
+      case "myPlan":
+        return <MyPlanSection section={block} />;
+      case "myReview":
+        return <MyReviewSection section={block} />;
+      case "myRequests":
+        return <MyRequestsSection section={block} />;
+      case "teamReviews":
+        return <TeamReviewsSection section={block} />;
+      case "reviewOperation":
+        return <ReviewOperationSection section={block} />;
+      case "calibration":
+        return <CalibrationSection section={block} />;
+      case "team":
+        return <TeamSection planning={block.planning} execution={block.execution} />;
+      case "teamDirection":
+        return <TeamDirectionSection section={block} cycleId={cycleId} />;
+      case "cycleOperation":
+        return <CycleOperationSection section={block} />;
+      case "direction":
+        return <DirectionSection section={block} cycleId={cycleId} />;
+      case "setupReadiness":
+        return <SetupSection section={block} />;
+      case "closedCycle":
+        return <ClosedCycleSection section={block} />;
+      case "noCycle":
+        return <NoCycleSection section={block} />;
+      case "cycleStatus":
+        return <CycleStatusSection section={block} />;
     }
   };
 
@@ -101,11 +81,11 @@ export default function OverviewPage() {
         size="display"
         // The cycle bar above names the cycle and its planning deadline; once planning has closed it
         // goes quiet, so the phase is stated here instead of repeated.
-        description={active && phase && !phase.planningOpen ? `Execution until ${formatDate(active.endDate)}` : undefined}
+        description={cycle && phase === "Execution" ? `Execution until ${formatDate(cycle.endDate)}` : undefined}
       />
       <div className="mt-8 max-w-4xl space-y-8">
-        {sections.map((id) => (
-          <Fragment key={id}>{render(id)}</Fragment>
+        {arrangeOverview(sections).map((block, index) => (
+          <Fragment key={`${block.kind}-${index}`}>{render(block)}</Fragment>
         ))}
       </div>
     </PageContainer>

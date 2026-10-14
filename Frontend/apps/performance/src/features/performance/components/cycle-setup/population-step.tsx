@@ -1,5 +1,7 @@
 "use client";
 
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CircleCheck } from "@/lib/icons";
@@ -18,6 +20,7 @@ import {
 } from "@/features/performance/api/use-performance";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { SetupStepFooter } from "./setup-step-footer";
+import { setupStepHref } from "./setup-readiness";
 import { PopulationHero } from "./population/population-hero";
 import { PopulationScope } from "./population/population-scope";
 import { ResolvedPopulation } from "./population/resolved-population";
@@ -59,7 +62,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
     (patch: Partial<SetPopulationRequest>, errorMessage: string) => {
       if (!selection) return;
       set
-        .mutateAsync({ ...selectionToRequest(selection), ...patch })
+        .mutateAsync({ ...selectionToRequest(selection), ...patch, expectedVersion: selection.version })
         .catch((error) =>
           toast.error(error instanceof Error ? error.message : errorMessage)
         );
@@ -93,6 +96,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
       await set.mutateAsync({
         ...selectionToRequest(selection),
         inclusions: [...selection.inclusions, ...additions],
+        expectedVersion: selection.version,
       });
     },
     [selection, set]
@@ -137,6 +141,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
       await set.mutateAsync({
         ...selectionToRequest(selection),
         exclusions: [...selection.exclusions, ...additions],
+        expectedVersion: selection.version,
       });
     },
     [selection, set]
@@ -151,6 +156,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
           ...selection.exclusions,
           { employeeId: excludeTarget.employeeId, reason },
         ],
+        expectedVersion: selection.version,
       });
     },
     [selection, excludeTarget, set]
@@ -225,6 +231,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
       </div>
 
       <PopulationScope
+        cycleId={cycleId}
         mode={selection.mode}
         eligibilityDate={selection.eligibilityDate}
         orgSelections={selection.orgUnitSelections}
@@ -259,7 +266,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
       )}
 
       <SetupStepFooter
-        backHref="/cycle/setup/details"
+        backHref={setupStepHref("details", cycleId)}
         center={
           isConfirmed ? (
             <div
@@ -325,7 +332,7 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
         {isConfirmed ? (
           <AsyncButton
             pending={false}
-            onClick={() => router.push("/cycle/setup/review")}
+            onClick={() => router.push(setupStepHref("review", cycleId))}
           >
             Continue
             <ArrowRight className="size-4" data-icon="inline-end" />
@@ -337,15 +344,11 @@ export function PopulationStep({ cycleId }: { cycleId: string }) {
             aria-describedby={footerMessageId}
             onClick={async () => {
               try {
-                await confirm.mutateAsync();
+                await confirm.mutateAsync(selection.version);
                 setHasConfirmedOnce(true);
                 toast.success("Population confirmed.");
               } catch (error) {
-                toast.error(
-                  error instanceof Error
-                    ? error.message
-                    : "Could not confirm the population."
-                );
+                reportPerformanceFailure(error, "Could not confirm the population.");
               }
             }}
           >

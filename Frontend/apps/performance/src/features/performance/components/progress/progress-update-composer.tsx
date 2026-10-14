@@ -1,9 +1,10 @@
 "use client";
 
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { MilestoneDue } from "../measurement/milestone-due";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp } from "@/lib/icons";
-import { toast } from "sonner";
 import type { EvidenceInput, ObjectiveProgressDto, SubmitProgressRequest } from "@repo/api";
 import { Label } from "@repo/ds/components/ui/label";
 import { Textarea } from "@repo/ds/components/ui/textarea";
@@ -13,7 +14,7 @@ import { num, numericProgress, pct } from "./progress-lib";
 import { ValueDial } from "./value-dial";
 import { numericDomain, percentDomain } from "./value-dial-lib";
 
-type UploadFn = (file: File) => Promise<{ storageKey: string; fileName: string; contentType: string; sizeBytes: number }>;
+type UploadFn = (file: File) => Promise<{ uploadId: string; fileName: string; contentType: string; sizeBytes: number }>;
 
 const NOTE_MAX = 500;
 
@@ -39,7 +40,7 @@ export function ProgressUpdateComposer({
   /** The <form> id the drawer's pinned footer submits — the button lives outside this component. */
   formId: string;
   /** Commits one progress event. Milestone batches call this once per changed milestone. */
-  onSubmit: (request: SubmitProgressRequest) => Promise<void>;
+  onSubmit: (request: Omit<SubmitProgressRequest, "expectedVersion">) => Promise<void>;
   upload: UploadFn;
   /** Reports whether the update is submittable, so the external footer can enable its action. */
   onValidityChange: (valid: boolean) => void;
@@ -68,7 +69,7 @@ function ValueForm({
   progress: ObjectiveProgressDto;
   submitting: boolean;
   formId: string;
-  onSubmit: (request: SubmitProgressRequest) => Promise<void>;
+  onSubmit: (request: Omit<SubmitProgressRequest, "expectedVersion">) => Promise<void>;
   upload: UploadFn;
   onValidityChange: (valid: boolean) => void;
   onRecorded: () => void;
@@ -116,7 +117,7 @@ function ValueForm({
       });
       onRecorded();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not record progress.");
+      reportPerformanceFailure(error, "Could not record progress.");
     }
   }
 
@@ -183,7 +184,7 @@ function MilestoneForm({
   progress: ObjectiveProgressDto;
   submitting: boolean;
   formId: string;
-  onSubmit: (request: SubmitProgressRequest) => Promise<void>;
+  onSubmit: (request: Omit<SubmitProgressRequest, "expectedVersion">) => Promise<void>;
   upload: UploadFn;
   onValidityChange: (valid: boolean) => void;
   onRecorded: () => void;
@@ -224,7 +225,7 @@ function MilestoneForm({
       }
       onRecorded();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not update the milestones.");
+      reportPerformanceFailure(error, "Could not update the milestones.");
     }
   }
 
@@ -403,7 +404,7 @@ export function DerivedCard({
   const complete = derived >= 100;
   const clamped = Math.max(0, Math.min(100, derived));
   return (
-    <div className="rounded-surface border border-border p-4">
+    <div className="rounded-surface border border-border bg-popover p-4 dark:bg-card">
       {label ? <p className="type-eyebrow text-muted-foreground">{label}</p> : null}
       <div className={cn("flex items-center gap-3", label && "mt-2")}>
         <span className={cn("text-2xl font-semibold tabular-nums leading-none", complete ? "text-success" : "text-foreground")}>

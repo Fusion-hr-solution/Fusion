@@ -18,6 +18,9 @@ public interface IPerformanceAccessPolicyService
     /// <summary>Tenant performance administration: settings, cycle lifecycle, population.</summary>
     bool CanAdministerCycles(ClaimsPrincipal user);
 
+    /// <summary>Can facilitate review calibration; session membership is checked separately.</summary>
+    bool CanCalibrateReviews(ClaimsPrincipal user);
+
     /// <summary>Create/publish company strategic direction.</summary>
     bool CanPublishStrategy(ClaimsPrincipal user);
 
@@ -46,6 +49,9 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
     public bool CanAdministerCycles(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant);
 
+    public bool CanCalibrateReviews(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.ReviewCalibrate, PermissionScopes.Tenant);
+
     public bool CanPublishStrategy(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.StrategyPublish, PermissionScopes.Tenant);
 
@@ -62,14 +68,11 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
 
     public string? AggregateViewScope(ClaimsPrincipal user)
     {
-        if (user.HasCorePermission(PerformancePermissions.CycleView, PermissionScopes.Tenant))
-            return PermissionScopes.Tenant;
-        if (user.HasCorePermission(PerformancePermissions.CycleView, PermissionScopes.OrgUnit))
-            return PermissionScopes.OrgUnit;
-        if (user.HasCorePermission(PerformancePermissions.CycleView, PermissionScopes.DirectReports))
-            return PermissionScopes.DirectReports;
-        if (user.HasCorePermission(PerformancePermissions.CycleView, PermissionScopes.Self))
-            return PermissionScopes.Self;
+        var scopes = user.GetCorePermissions()
+            .Where(grant => grant.PermissionKey == PerformancePermissions.CycleView)
+            .Select(grant => grant.Scope).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var scope in new[] { PermissionScopes.Tenant, PermissionScopes.OrgUnit, PermissionScopes.DirectReports, PermissionScopes.Self })
+            if (scopes.Contains(scope)) return scope;
         return null;
     }
 }

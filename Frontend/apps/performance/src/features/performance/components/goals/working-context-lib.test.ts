@@ -5,7 +5,7 @@ import { resolveWorkspace, rootOrgLabel, type UnitContext } from "./working-cont
 /** Minimal node factory — only the fields the derivation reads. */
 function node(partial: Partial<GoalNodeDto> & Pick<GoalNodeDto, "id" | "ownershipScope">): GoalNodeDto {
   return {
-    id: partial.id,
+    version: 0, id: partial.id,
     ownershipScope: partial.ownershipScope,
     title: partial.title ?? partial.id,
     state: partial.state ?? "Published",

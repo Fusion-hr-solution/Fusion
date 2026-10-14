@@ -36,7 +36,7 @@ public sealed class TestStore(Guid tenantId)
     {
         var options = new DbContextOptionsBuilder<PerformanceDbContext>()
             .UseInMemoryDatabase(_name, _root)
-            .AddInterceptors(new TenantSaveChangesInterceptor(tenant))
+            .AddInterceptors(new TenantSaveChangesInterceptor(tenant), new AuditAppendOnlyInterceptor())
             .Options;
         return new PerformanceDbContext(options, tenant);
     }
@@ -131,4 +131,14 @@ public sealed class FakeCoreWorkforceClient : ICoreWorkforceClient
         id = snapshot.EmployeeId;
         ById[snapshot.EmployeeId] = snapshot; // resolvable by id, but NOT in the all-active base set
     }
+}
+
+/// <summary>Stands in for Identity's permission-holder lookup; tests list who holds the grant.</summary>
+public sealed class FakePermissionHoldersClient : EY.HRPlatform.Performance.Infrastructure.Identity.IPermissionHoldersClient
+{
+    public List<EY.HRPlatform.SharedKernel.Auth.PermissionHolder> Holders { get; } = [];
+
+    public Task<IReadOnlyList<EY.HRPlatform.SharedKernel.Auth.PermissionHolder>> GetHoldersAsync(
+        string permissionKey, string scope, CancellationToken cancellationToken)
+        => Task.FromResult<IReadOnlyList<EY.HRPlatform.SharedKernel.Auth.PermissionHolder>>(Holders.ToArray());
 }

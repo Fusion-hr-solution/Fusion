@@ -124,13 +124,7 @@ export interface PlanCheck {
   detail?: string;
 }
 
-/**
- * The plan's submission conditions, one per rule the backend actually evaluates in `BuildReadiness`.
- * The weight-allocation and standalone-permission conditions only apply once they can be judged
- * (an objective exists / a standalone objective is present), so the list stays truthful rather than
- * padding to a fixed count. The passed subset drives the "N checks passed" collapsed summary; the
- * failed subset — leading — drives the actionable state.
- */
+/** Submission conditions follow the cycle's captured policy; Optional has no alignment check. */
 export function planChecks(readiness: PlanReadinessDto): PlanCheck[] {
   const hasObjectives = readiness.objectiveCount > 0;
   const remaining = readiness.weightRemaining;
@@ -158,22 +152,14 @@ export function planChecks(readiness: PlanReadinessDto): PlanCheck[] {
             ? `Plan weight is over by ${pct(-remaining)}%`
             : "Weights total 100%",
     },
-    {
-      id: "direction",
-      label: "At least one objective supports strategic direction",
-      passed: hasObjectives && readiness.connectsToStrategicDirection,
-      detail: "Align at least one objective to organizational direction",
-    },
   ];
-  // Standalone permission is a policy fact, not a condition every plan must pass — it only becomes a
-  // submission gate when the plan actually holds a standalone objective the policy forbids. Surfaced
-  // only then, and only as a failed check, so it never masquerades as a passed requirement.
-  if (readiness.hasStandaloneObjective && !readiness.standaloneAllowed) {
+  if (readiness.alignmentPolicy !== "Optional") {
+    const every = readiness.alignmentPolicy === "EveryObjectiveConnected";
     checks.push({
-      id: "standalone",
-      label: "Align every objective — standalone objectives are not permitted this cycle",
-      passed: false,
-      detail: "Standalone objectives are not permitted — align every objective",
+      id: "direction",
+      label: every ? "Every objective supports strategic direction" : "At least one objective supports strategic direction",
+      passed: hasObjectives && (every ? readiness.everyObjectiveConnectsToStrategicDirection : readiness.connectsToStrategicDirection),
+      detail: every ? "Align every objective to strategic direction" : "Align at least one objective to strategic direction",
     });
   }
   return checks;

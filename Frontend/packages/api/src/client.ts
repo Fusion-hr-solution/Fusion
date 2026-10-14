@@ -264,7 +264,7 @@ export function createApiClient(config: ApiClientConfig = {}): ApiClient {
     },
 
     delete<T>(path: string, options?: RequestOptions): Promise<T> {
-      return request<T>("DELETE", path, undefined, options);
+      return request<T>("DELETE", path, options?.body, options);
     },
   };
 }

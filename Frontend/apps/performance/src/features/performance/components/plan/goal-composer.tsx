@@ -1,8 +1,9 @@
 "use client";
 
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { useEffect, useMemo, useState } from "react";
 import { Minus, Plus, Target, UserRound } from "@/lib/icons";
-import { toast } from "sonner";
 import type {
   AddPlanObjectiveRequest,
   AlignmentTargetDto,
@@ -84,8 +85,8 @@ export function PlanGoalComposer({
   objective?: PlanObjectiveDto;
   /** Combined weight of the plan's other objectives — the allocation before this objective is committed. */
   otherWeightTotal: number;
-  onCreate: (request: AddPlanObjectiveRequest) => Promise<void>;
-  onUpdate: (request: AddPlanObjectiveRequest) => Promise<void>;
+  onCreate: (request: Omit<AddPlanObjectiveRequest, "expectedVersion">) => Promise<void>;
+  onUpdate: (request: Omit<AddPlanObjectiveRequest, "expectedVersion">) => Promise<void>;
 }) {
   const isEdit = Boolean(objective);
 
@@ -269,7 +270,7 @@ export function PlanGoalComposer({
     setSubmitting(true);
     try {
       const measurement = buildMeasurement();
-      const request: AddPlanObjectiveRequest = {
+      const request: Omit<AddPlanObjectiveRequest, "expectedVersion"> = {
         title: title.trim(),
         description: description.trim() || null,
         parentObjectiveId: mode === "aligned" ? parentId : null,
@@ -282,9 +283,7 @@ export function PlanGoalComposer({
       else await onCreate(request);
       onOpenChange(false);
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Could not save the objective."
-      );
+      reportPerformanceFailure(error, "Could not save the objective.");
     } finally {
       setSubmitting(false);
     }

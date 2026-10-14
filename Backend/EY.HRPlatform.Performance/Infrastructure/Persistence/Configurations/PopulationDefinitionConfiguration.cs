@@ -10,6 +10,7 @@ public sealed class PopulationDefinitionConfiguration : IEntityTypeConfiguration
     {
         builder.ToTable("PopulationDefinitions");
         builder.HasKey(definition => definition.Id);
+        builder.Property(definition => definition.Version).IsRowVersion();
 
         builder.Property(definition => definition.Mode).HasConversion<string>().HasMaxLength(20).IsRequired();
 

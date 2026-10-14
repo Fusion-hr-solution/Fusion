@@ -32,14 +32,14 @@ public sealed class GoalsController(IMediator mediator, IPerformanceAccessPolicy
     [HttpGet]
     public async Task<ActionResult<ApiResponse<GoalsOverviewDto>>> Overview(Guid cycleId, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new GetGoalsOverviewQuery(cycleId, Actor), cancellationToken));
     }
 
     [HttpGet("{objectiveId:guid}")]
     public async Task<ActionResult<ApiResponse<GoalDetailDto>>> Detail(Guid cycleId, Guid objectiveId, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new GetGoalDetailQuery(cycleId, objectiveId, Actor), cancellationToken));
     }
 
@@ -49,7 +49,7 @@ public sealed class GoalsController(IMediator mediator, IPerformanceAccessPolicy
         [FromQuery] Guid? orgUnitId,
         CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(
             new GetTeamObjectiveWorkspaceQuery(cycleId, orgUnitId, Actor), cancellationToken));
     }
@@ -58,7 +58,7 @@ public sealed class GoalsController(IMediator mediator, IPerformanceAccessPolicy
     public async Task<ActionResult<ApiResponse<GoalDetailDto>>> Create(
         Guid cycleId, [FromBody] CreateOrganizationalObjectiveRequest request, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new CreateOrganizationalObjectiveCommand(cycleId, request, Actor), cancellationToken));
     }
 
@@ -66,7 +66,7 @@ public sealed class GoalsController(IMediator mediator, IPerformanceAccessPolicy
     public async Task<ActionResult<ApiResponse<GoalDetailDto>>> Update(
         Guid cycleId, Guid objectiveId, [FromBody] UpdateOrganizationalObjectiveRequest request, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new UpdateOrganizationalObjectiveCommand(cycleId, objectiveId, request, Actor), cancellationToken));
     }
 
@@ -74,36 +74,43 @@ public sealed class GoalsController(IMediator mediator, IPerformanceAccessPolicy
     public async Task<ActionResult<ApiResponse<GoalDetailDto>>> Align(
         Guid cycleId, Guid objectiveId, [FromBody] AlignObjectiveRequest request, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new AlignObjectiveCommand(cycleId, objectiveId, request, Actor), cancellationToken));
     }
 
     [HttpPost("{objectiveId:guid}/publish")]
-    public async Task<ActionResult<ApiResponse<GoalDetailDto>>> Publish(Guid cycleId, Guid objectiveId, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GoalDetailDto>>> Publish(Guid cycleId, Guid objectiveId, [FromBody] ExpectedVersionRequest version, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
-        return MapResult(await mediator.Send(new PublishObjectiveCommand(cycleId, objectiveId, Actor), cancellationToken));
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new PublishObjectiveCommand(cycleId, objectiveId, Actor, version.ExpectedVersion), cancellationToken));
+    }
+
+    [HttpPost("{objectiveId:guid}/archive")]
+    public async Task<ActionResult<ApiResponse<GoalDetailDto>>> Archive(Guid cycleId, Guid objectiveId, [FromBody] ExpectedVersionRequest version, CancellationToken cancellationToken)
+    {
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new ArchiveObjectiveCommand(cycleId, objectiveId, Actor, version.ExpectedVersion), cancellationToken));
     }
 
     [HttpPut("{objectiveId:guid}/contribution")]
     public async Task<ActionResult<ApiResponse<GoalDetailDto>>> ConfigureContribution(
         Guid cycleId, Guid objectiveId, [FromBody] ConfigureContributionRequest request, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new ConfigureContributionCommand(cycleId, objectiveId, request, Actor), cancellationToken));
     }
 
     [HttpPost("{objectiveId:guid}/contribution/lock")]
-    public async Task<ActionResult<ApiResponse<GoalDetailDto>>> LockContribution(Guid cycleId, Guid objectiveId, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GoalDetailDto>>> LockContribution(Guid cycleId, Guid objectiveId, [FromBody] ExpectedVersionRequest version, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
-        return MapResult(await mediator.Send(new LockContributionCommand(cycleId, objectiveId, Actor), cancellationToken));
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new LockContributionCommand(cycleId, objectiveId, Actor, version.ExpectedVersion), cancellationToken));
     }
 
     [HttpDelete("{objectiveId:guid}")]
-    public async Task<ActionResult<ApiResponse<bool>>> Delete(Guid cycleId, Guid objectiveId, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<bool>>> Delete(Guid cycleId, Guid objectiveId, [FromBody] ExpectedVersionRequest version, CancellationToken cancellationToken)
     {
-        if (!policy.CanEnterPerformance(User)) return Forbid();
-        return MapResult(await mediator.Send(new DeleteObjectiveCommand(cycleId, objectiveId, Actor), cancellationToken));
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new DeleteObjectiveCommand(cycleId, objectiveId, Actor, version.ExpectedVersion), cancellationToken));
     }
 }

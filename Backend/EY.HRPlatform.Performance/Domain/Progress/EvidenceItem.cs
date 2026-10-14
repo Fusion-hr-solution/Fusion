@@ -20,6 +20,7 @@ public sealed class EvidenceItem : PerformanceChildEntity
     public string? ContentType { get; private set; }
     public long? SizeBytes { get; private set; }
     public string? StorageKey { get; private set; }
+    public bool IsRemovedUnderRetention { get; private set; }
 
     // Link / reference.
     public string? Url { get; private set; }
@@ -64,4 +65,15 @@ public sealed class EvidenceItem : PerformanceChildEntity
     }
 
     internal void AttachTo(Guid progressUpdateId) => ProgressUpdateId = progressUpdateId;
+
+    public void RemoveUnderRetention()
+    {
+        if (Kind != EvidenceKind.File) throw new InvalidOperationException("Only uploaded file evidence can expire.");
+        FileName = null;
+        ContentType = null;
+        SizeBytes = null;
+        StorageKey = null;
+        IsRemovedUnderRetention = true;
+        MarkUpdated();
+    }
 }

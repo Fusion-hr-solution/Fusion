@@ -10,6 +10,7 @@ public sealed class ObjectiveConfiguration : IEntityTypeConfiguration<Objective>
     {
         builder.ToTable("Objectives");
         builder.HasKey(objective => objective.Id);
+        builder.Property(objective => objective.Version).IsRowVersion();
 
         builder.Property(objective => objective.Title).IsRequired().HasMaxLength(300);
         builder.Property(objective => objective.Description).HasMaxLength(2000);

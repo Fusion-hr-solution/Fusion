@@ -5,7 +5,9 @@ import { useEffect } from "react";
 import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
 import { CycleSurfaceSkeleton } from "@/features/performance/components/cycle-setup/setup-skeletons";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { useCurrentCycle, usePerformanceAccess } from "@/features/performance/api/use-performance";
+import { useCurrentCycle, useCycleClosure } from "@/features/performance/api/use-performance";
+import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
+import { ClosureSection, CloseCycleAction } from "@/features/performance/components/cycle/cycle-closure";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { MilestoneRail } from "@/features/performance/components/milestone-rail";
 
@@ -14,25 +16,31 @@ import { MilestoneRail } from "@/features/performance/components/milestone-rail"
  * being created, so it belongs to the guided setup flow (/cycle/setup), and no Cycle at all means
  * there is nothing to manage. Both redirect out.
  */
+const PHASE_LABEL = { Planning: "Planning", Execution: "Execution", Review: "Review" } as const;
+
 export default function CyclePage() {
   const router = useRouter();
-  const access = usePerformanceAccess();
-  const canAdminister = access.data?.canAdminister ?? false;
+  const context = useWorkspaceContext();
+  const canAdminister = context.data?.capabilities.administers ?? false;
   const detail = useCurrentCycle(canAdminister);
 
   const cycle = detail.data?.cycle;
+  const cycleId = cycle?.id;
   const isDraft = cycle?.state === "Draft";
-  const ready = !access.isLoading && !detail.isLoading;
+  const ready = !context.isLoading && !detail.isLoading;
   const noCycle = ready && canAdminister && !detail.data;
+  const closure = useCycleClosure(cycle && !isDraft ? cycle.id : null, canAdminister);
 
   useEffect(() => {
-    if (isDraft) router.replace("/cycle/setup");
-  }, [isDraft, router]);
+    if (isDraft && cycleId) router.replace(`/cycle/setup?cycle=${encodeURIComponent(cycleId)}`);
+  }, [isDraft, cycleId, router]);
   useEffect(() => {
     if (noCycle) router.replace("/");
   }, [noCycle, router]);
 
-  if (access.isLoading) return <CycleSurfaceSkeleton />;
+  if (context.isLoading) return <CycleSurfaceSkeleton />;
+  if (context.error && !canAdminister) return <PagePermissionNotice title="Administration only" description="Cycle administration is available to performance administrators." />;
+  if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
   if (!canAdminister) {
     return (
       <PagePermissionNotice
@@ -53,21 +61,17 @@ export default function CyclePage() {
   return (
     <PageContainer>
       <PerformancePageHeading
-        title="Cycle"
-        description={
-          isActive
-            ? "Planning is open. This Cycle's setup is now read-only history."
-            : "This Cycle is closed."
-        }
+        title={cycleDetail.cycle.name}
+        description={isActive ? PHASE_LABEL[cycleDetail.phase ?? "Planning"] : "Closed"}
+        actions={isActive ? <CloseCycleAction detail={cycleDetail} closure={closure.data} /> : null}
       />
       <div className="space-y-8">
         <MilestoneRail milestones={cycleDetail.milestones} />
-        {/* Population read-only surface temporarily stubbed while the population UI is rebuilt. */}
-        <div className="flex min-h-48 items-center justify-center rounded-surface border border-dashed border-border p-10 text-center">
-          <p className="type-body-secondary text-muted-foreground">
-            Population summary — building next.
-          </p>
-        </div>
+        {closure.error ? (
+          <ContentUnavailable error={closure.error} onRetry={closure.refetch} subject="Closure readiness" />
+        ) : (
+          <ClosureSection closure={closure.data} loading={closure.isLoading} />
+        )}
       </div>
     </PageContainer>
   );

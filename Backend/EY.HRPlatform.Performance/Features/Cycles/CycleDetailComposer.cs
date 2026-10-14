@@ -40,7 +40,11 @@ public static class CycleDetailComposer
         var canActivate = cycle.IsDraft && blockers.Count == 0;
 
         var readiness = new LaunchReadinessDto(canActivate, areas, blockers);
-        var milestones = BuildMilestones(cycle, publishedStrategyCount > 0, populationConfirmed);
+        var approvedCount = await db.EmployeePlans.AsNoTracking()
+            .CountAsync(p => p.CycleId == cycle.Id && p.State == Domain.Plans.PlanLifecycleState.Approved, cancellationToken);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var planningCompleted = !cycle.IsDraft && participantCount > 0 && approvedCount >= participantCount;
+        var milestones = BuildMilestones(cycle, publishedStrategyCount > 0, populationConfirmed, planningCompleted, today);
 
         return new CycleDetailDto(
             PerformanceMappers.ToSummary(cycle),
@@ -50,8 +54,20 @@ public static class CycleDetailComposer
             draftStrategyCount,
             populationConfirmed,
             participantCount,
-            otherActiveExists);
+            otherActiveExists)
+        {
+            Phase = PhaseOf(cycle, today),
+        };
     }
+
+    /// <summary>
+    /// The Active Cycle's operational phase: Planning until the planning deadline passes, then
+    /// Execution. Review joins once review rounds exist. Null for Draft and Closed Cycles.
+    /// </summary>
+    public static CyclePhase? PhaseOf(PerformanceCycle cycle, DateOnly today)
+        => !cycle.IsActive ? null
+            : today <= cycle.PlanningDeadline ? CyclePhase.Planning
+            : CyclePhase.Execution;
 
     public static async Task<IReadOnlyList<string>> ResolveBlockersAsync(PerformanceDbContext db, PerformanceCycle cycle, CancellationToken cancellationToken)
     {
@@ -82,14 +98,19 @@ public static class CycleDetailComposer
         return blockers;
     }
 
-    private static List<MilestoneStateDto> BuildMilestones(PerformanceCycle cycle, bool strategyPublished, bool populationConfirmed)
-        =>
+    private static List<MilestoneStateDto> BuildMilestones(
+        PerformanceCycle cycle, bool strategyPublished, bool populationConfirmed, bool planningCompleted, DateOnly today)
+    {
+        var endReached = !cycle.IsDraft && today >= cycle.EndDate;
+        return
         [
             new(OperationalMilestone.StrategicDirectionPublished, strategyPublished),
             new(OperationalMilestone.PopulationConfirmed, populationConfirmed),
-            new(OperationalMilestone.PlanningOpened, cycle.IsActive),
-            new(OperationalMilestone.PlanningCompleted, false),
-            new(OperationalMilestone.PerformanceEndReached, cycle.IsActive && DateOnly.FromDateTime(DateTime.UtcNow) > cycle.EndDate),
-            new(OperationalMilestone.ClosureReady, false),
+            new(OperationalMilestone.PlanningOpened, !cycle.IsDraft),
+            new(OperationalMilestone.PlanningCompleted, planningCompleted),
+            new(OperationalMilestone.PerformanceEndReached, endReached),
+            // Closable without any exception or early-close reason. Review-round conditions join in Phase 3.
+            new(OperationalMilestone.ClosureReady, cycle.IsClosed || (cycle.IsActive && endReached && planningCompleted)),
         ];
+    }
 }

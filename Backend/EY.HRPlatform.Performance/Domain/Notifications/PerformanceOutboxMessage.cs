@@ -1,0 +1,123 @@
+using System.Text.Json;
+using EY.HRPlatform.Performance.Domain.Common;
+
+namespace EY.HRPlatform.Performance.Domain.Notifications;
+
+public enum PerformanceNotificationKind
+{
+    PlanSubmitted, PlanReturned, PlanApproved,
+    SelfAssessmentOpened, ManagerAssessmentOpened, SelfAssessmentSubmitted, ReviewFinalized,
+    CalibrationReady,
+    UpdateRequested,
+}
+
+public sealed record PlanNotificationPayload(Guid CycleId, Guid PlanId, string? ActorDisplayName);
+public sealed record ReviewNotificationPayload(Guid CycleId, Guid ReviewRoundId, Guid ReviewId, string ReviewRoundName);
+public sealed record CalibrationNotificationPayload(Guid CycleId, Guid ReviewRoundId, Guid SessionId, string ReviewRoundName);
+
+/// <summary>A durable notification staged with its transition and delivered after commit.</summary>
+public sealed class PerformanceOutboxMessage : PerformanceChildEntity
+{
+    private PerformanceOutboxMessage() { }
+    public PerformanceNotificationKind Kind { get; private set; }
+    public Guid RecipientEmployeeId { get; private set; }
+    public string ResourceType { get; private set; } = string.Empty;
+    public Guid ResourceId { get; private set; }
+    public string Payload { get; private set; } = "{}";
+    public string DedupeKey { get; private set; } = string.Empty;
+    public int Attempts { get; private set; }
+    public DateTime NextAttemptAt { get; private set; }
+    public DateTime? DispatchedAt { get; private set; }
+    public string? SkippedReason { get; private set; }
+    public string? LastError { get; private set; }
+    public bool IsPending => DispatchedAt is null && SkippedReason is null && Attempts < 8;
+
+    public static PerformanceOutboxMessage ForPlan(Guid tenantId, PerformanceNotificationKind kind,
+        Guid recipientEmployeeId, Guid planId, Guid transitionId, PlanNotificationPayload payload)
+    {
+        if (tenantId == Guid.Empty || recipientEmployeeId == Guid.Empty || planId == Guid.Empty || transitionId == Guid.Empty)
+            throw new ArgumentException("Notification tenant, recipient, resource and transition are required.");
+        if (!Enum.IsDefined(kind) || payload.PlanId != planId || payload.CycleId == Guid.Empty)
+            throw new ArgumentException("A supported notification and matching plan context are required.");
+        return new PerformanceOutboxMessage
+        {
+            TenantId = tenantId, Kind = kind, RecipientEmployeeId = recipientEmployeeId,
+            ResourceType = "EmployeePlan", ResourceId = planId,
+            Payload = JsonSerializer.Serialize(payload),
+            DedupeKey = $"{kind}:{planId:N}:{transitionId:N}:{recipientEmployeeId:N}",
+            NextAttemptAt = DateTime.UtcNow,
+        };
+    }
+
+    public static PerformanceOutboxMessage ForReview(Guid tenantId, PerformanceNotificationKind kind,
+        Guid recipientEmployeeId, Guid reviewId, Guid transitionId, ReviewNotificationPayload payload)
+    {
+        if (tenantId == Guid.Empty || recipientEmployeeId == Guid.Empty || reviewId == Guid.Empty || transitionId == Guid.Empty
+            || payload.ReviewId != reviewId || payload.CycleId == Guid.Empty || payload.ReviewRoundId == Guid.Empty
+            || string.IsNullOrWhiteSpace(payload.ReviewRoundName))
+            throw new ArgumentException("Review notification tenant, recipient, resource and round context are required.");
+        if (kind is not (PerformanceNotificationKind.SelfAssessmentOpened or PerformanceNotificationKind.ManagerAssessmentOpened
+            or PerformanceNotificationKind.SelfAssessmentSubmitted or PerformanceNotificationKind.ReviewFinalized))
+            throw new ArgumentException("Choose a review notification kind.", nameof(kind));
+        return new PerformanceOutboxMessage
+        {
+            TenantId = tenantId, Kind = kind, RecipientEmployeeId = recipientEmployeeId,
+            ResourceType = "PerformanceReview", ResourceId = reviewId,
+            Payload = JsonSerializer.Serialize(payload),
+            DedupeKey = $"{kind}:{reviewId:N}:{transitionId:N}:{recipientEmployeeId:N}",
+            NextAttemptAt = DateTime.UtcNow,
+        };
+    }
+
+    /// <summary>
+    /// Tells a facilitator that every review reached calibration. A facilitator without an
+    /// employee record has no Core work email, so the message is recorded as skipped.
+    /// </summary>
+    public static PerformanceOutboxMessage ForCalibration(Guid tenantId, Guid recipientUserId, Guid? recipientEmployeeId,
+        CalibrationNotificationPayload payload)
+    {
+        if (tenantId == Guid.Empty || recipientUserId == Guid.Empty || payload.SessionId == Guid.Empty
+            || payload.CycleId == Guid.Empty || payload.ReviewRoundId == Guid.Empty || string.IsNullOrWhiteSpace(payload.ReviewRoundName))
+            throw new ArgumentException("Calibration notification tenant, recipient and session context are required.");
+        var message = new PerformanceOutboxMessage
+        {
+            TenantId = tenantId, Kind = PerformanceNotificationKind.CalibrationReady,
+            RecipientEmployeeId = recipientEmployeeId ?? Guid.Empty,
+            ResourceType = "CalibrationSession", ResourceId = payload.SessionId,
+            Payload = JsonSerializer.Serialize(payload),
+            DedupeKey = $"{PerformanceNotificationKind.CalibrationReady}:{payload.SessionId:N}:{recipientUserId:N}",
+            NextAttemptAt = DateTime.UtcNow,
+        };
+        if (recipientEmployeeId is null || recipientEmployeeId == Guid.Empty) message.Skip("no-work-email");
+        return message;
+    }
+
+    public void MarkDispatched(DateTime now)
+    {
+        RequirePending();
+        Attempts++;
+        DispatchedAt = now;
+        LastError = null;
+    }
+
+    public void Skip(string reason)
+    {
+        RequirePending();
+        if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("A skip reason is required.");
+        SkippedReason = reason;
+    }
+
+    public void Fail(DateTime now, string errorCode)
+    {
+        RequirePending();
+        Attempts++;
+        LastError = errorCode;
+        if (Attempts >= 8) SkippedReason = "dead-letter";
+        else NextAttemptAt = now.AddSeconds(15 * Math.Pow(2, Attempts - 1));
+    }
+
+    private void RequirePending()
+    {
+        if (!IsPending) throw new InvalidOperationException("This notification is already resolved.");
+    }
+}

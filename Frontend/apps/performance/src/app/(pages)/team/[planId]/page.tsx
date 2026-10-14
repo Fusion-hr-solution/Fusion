@@ -1,50 +1,34 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
+import { planHref } from "@/lib/performance-routes";
 import { PlanPageSkeleton } from "@/features/performance/components/plan/plan-skeleton";
-import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
-import { PlanReview } from "@/features/performance/components/plan/plan-review";
-import { usePerformanceAccess, useCurrentCycle } from "@/features/performance/api/use-performance";
+import { useCurrentCycle } from "@/features/performance/api/use-performance";
+import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
 
 /**
- * The canonical submitted-Plan resource, opened by its assigned reviewer (a notification links here
- * directly, not through the Team queue). The same Plan an employee authors — the server authorizes the
- * reviewer and gates the decision; the page only needs the caller to be a Performance entrant, and the
- * plan-detail query enforces the rest.
+ * Older reviewer links addressed a plan without its Cycle and always meant the current one. They now
+ * replace themselves with the plan's canonical, Cycle-addressed record.
  */
-export default function PlanReviewPage() {
-  const params = useParams<{ planId: string }>();
-  const planId = params.planId;
+export default function LegacyPlanReviewRedirect() {
+  const { planId } = useParams<{ planId: string }>();
+  const router = useRouter();
+  const context = useWorkspaceContext();
+  const current = useCurrentCycle(Boolean(context.data));
+  const cycleId = current.data?.cycle.id;
 
-  const access = usePerformanceAccess();
-  const canEnter = access.data?.canEnter ?? false;
+  useEffect(() => {
+    if (cycleId) router.replace(planHref({ cycleId, planId }));
+  }, [cycleId, planId, router]);
 
-  const detail = useCurrentCycle(canEnter);
-  const cycle = detail.data?.cycle ?? null;
-
-  if (access.isLoading) return <PlanPageSkeleton />;
-  if (!canEnter) {
-    return (
-      <PagePermissionNotice
-        title="Plan not available"
-        description="Reviewing a plan is available to managers responsible for a team in an active cycle."
-      />
-    );
-  }
-  if (detail.isLoading) return <PlanPageSkeleton />;
-  if (detail.error) return <ContentUnavailable error={detail.error} onRetry={detail.refetch} subject="The Cycle" />;
-  if (!cycle) {
+  if (!context.isLoading && !current.isLoading && !cycleId) {
     return (
       <PageContainer>
-        <PagePermissionNotice title="No cycle yet" description="Plans open once a Performance cycle is active." />
+        <PagePermissionNotice title="Plan unavailable" />
       </PageContainer>
     );
   }
-
-  return (
-    <PageContainer className="max-w-7xl">
-      <PlanReview cycle={cycle} planId={planId} />
-    </PageContainer>
-  );
+  return <PlanPageSkeleton />;
 }

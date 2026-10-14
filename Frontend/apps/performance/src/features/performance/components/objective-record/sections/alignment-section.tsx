@@ -30,7 +30,7 @@ export function AlignmentSection({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-medium tracking-tight text-foreground">{parent.title}</span>
-          <span className="mt-0.5 block text-xs text-muted-foreground">{parent.scopeLabel}</span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">{parent.scopeLabel}{parent.archived ? " · Archived" : ""}</span>
         </span>
         <ChevronRight
           className="size-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5 group-hover:text-foreground"

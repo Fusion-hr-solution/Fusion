@@ -249,6 +249,9 @@ public class CoreAccessControllerPermissionTests
         public Task<IReadOnlyList<EffectivePermissionGrant>> GetEffectivePermissionsAsync(ApplicationUser user, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<EffectivePermissionGrant>>([]);
 
+        public Task<IReadOnlyList<PermissionHolder>> GetPermissionHoldersAsync(Guid tenantId, string permissionKey, string scope, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<PermissionHolder>>([]);
+
         public Task SetInviteAccessProfilesAsync(Guid tenantId, Guid inviteId, IReadOnlyCollection<Guid> accessProfileIds, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
 

@@ -1,14 +1,15 @@
 "use client";
 
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { useRef, useState } from "react";
 import { FileText, Link2, Loader2, Paperclip, Plus, Type, X } from "@/lib/icons";
-import { toast } from "sonner";
 import type { EvidenceInput } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import { Input } from "@repo/ds/components/ui/input";
 import { cn } from "@repo/ds/lib/utils";
 
-type UploadFn = (file: File) => Promise<{ storageKey: string; fileName: string; contentType: string; sizeBytes: number }>;
+type UploadFn = (file: File) => Promise<{ uploadId: string; fileName: string; contentType: string; sizeBytes: number }>;
 
 function humanSize(bytes: number | null | undefined): string {
   if (!bytes) return "";
@@ -47,14 +48,14 @@ export function EvidenceUploader({
         ...items,
         {
           kind: "File",
-          storageKey: descriptor.storageKey,
+          uploadId: descriptor.uploadId,
           fileName: descriptor.fileName,
           contentType: descriptor.contentType,
           sizeBytes: descriptor.sizeBytes,
         },
       ]);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Upload failed. Try again.");
+      reportPerformanceFailure(error, "Upload failed. Try again.");
     } finally {
       setUploading(false);
       if (fileInput.current) fileInput.current.value = "";
@@ -106,7 +107,7 @@ export function EvidenceUploader({
           }}
           className="flex flex-wrap items-center gap-2.5"
         >
-          <input ref={fileInput} type="file" className="hidden" onChange={(e) => void handleFiles(e.target.files)} />
+          <input ref={fileInput} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.docx,.xlsx,.pptx,.txt,.csv" className="hidden" onChange={(e) => void handleFiles(e.target.files)} />
           <Button
             type="button"
             variant="outline"

@@ -16,6 +16,7 @@ import { AsyncButton } from "@repo/ds/shell";
 import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";
 import { formatDate } from "../../../lib";
+import { setupStepHref } from "../setup-readiness";
 
 type Tone = "done" | "blocked";
 
@@ -141,7 +142,7 @@ export function LaunchHero({
                 asChild
                 className="w-full border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white sm:w-auto"
               >
-                <Link href="/cycle/setup/population">Back to population</Link>
+                <Link href={setupStepHref("population", detail.cycle.id)}>Back to population</Link>
               </Button>
             )}
           </div>

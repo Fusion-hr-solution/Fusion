@@ -8,6 +8,7 @@ import { useOrgHierarchy } from "@repo/workforce-ui";
 import { useActivateCycle, usePopulation, useSettings } from "@/features/performance/api/use-performance";
 import { ActivationReview } from "@/features/performance/components/activation-review";
 import { SetupStepFooter } from "./setup-step-footer";
+import { setupStepHref } from "./setup-readiness";
 import { LaunchHero } from "./review/launch-hero";
 import { LaunchConsequences, LaunchReadinessPanel } from "./review/launch-rail";
 import {
@@ -86,11 +87,11 @@ export function ReviewLaunchStep({ detail }: { detail: CycleDetailDto }) {
         onOpenChange={setReviewOpen}
         detail={detail}
         onActivate={async () => {
-          await activate.mutateAsync();
+          await activate.mutateAsync(detail.cycle.version);
           router.push("/cycle");
         }}
       />
-      <SetupStepFooter backHref="/cycle/setup/population" />
+      <SetupStepFooter backHref={setupStepHref("population", detail.cycle.id)} />
     </div>
   );
 }

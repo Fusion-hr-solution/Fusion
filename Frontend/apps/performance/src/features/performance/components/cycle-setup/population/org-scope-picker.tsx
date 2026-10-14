@@ -24,6 +24,7 @@ import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
 import { formatDate } from "@/features/performance/lib";
 import { computeOrgStates } from "./population-model";
+import { setupStepHref } from "../setup-readiness";
 
 const APPLY_DEBOUNCE_MS = 250;
 const INDENT = 26;
@@ -36,11 +37,13 @@ const INDENT = 26;
  * re-resolution that feeds the matched count back in.
  */
 export function OrgScopePicker({
+  cycleId,
   asOf,
   selections,
   matchedCount,
   onChange,
 }: {
+  cycleId: string;
   asOf: string;
   selections: OrgUnitSelectionInput[];
   matchedCount: number | null;
@@ -367,7 +370,7 @@ export function OrgScopePicker({
         ) : hierarchy.error ? (
           <TreeError onRetry={() => void hierarchy.refetch()} />
         ) : roots.length === 0 ? (
-          <EmptyTree asOf={asOf} startsOn={startsOn} />
+          <EmptyTree cycleId={cycleId} asOf={asOf} startsOn={startsOn} />
         ) : visibleIds && visibleIds.size === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
             <Search className="size-5 text-muted-foreground" aria-hidden />
@@ -403,7 +406,7 @@ function Guides({ depth }: { depth: number }) {
   );
 }
 
-function EmptyTree({ asOf, startsOn }: { asOf: string; startsOn: string | null }) {
+function EmptyTree({ cycleId, asOf, startsOn }: { cycleId: string; asOf: string; startsOn: string | null }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
       <Building2 className="size-6 text-muted-foreground" aria-hidden />
@@ -416,7 +419,7 @@ function EmptyTree({ asOf, startsOn }: { asOf: string; startsOn: string | null }
             This cycle starts on {formatDate(asOf)}, before any units exist.
           </p>
           <Link
-            href="/cycle/setup/details"
+            href={setupStepHref("details", cycleId)}
             className="type-label mt-1 text-primary-ink underline-offset-4 hover:underline"
           >
             Change cycle dates

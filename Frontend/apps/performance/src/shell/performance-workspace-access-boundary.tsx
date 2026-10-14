@@ -70,5 +70,22 @@ export function PerformanceWorkspaceAccessBoundary({
     );
   }
 
+  if (state === "module-unavailable") {
+    return (
+      <PageContainer>
+        <PagePermissionNotice
+          title="Performance is not available"
+          headingLevel={1}
+          description="Performance is not enabled for this tenant."
+          action={
+            <Button asChild variant="outline">
+              <a href={buildShellUrl("/").toString()}>Open Fusion</a>
+            </Button>
+          }
+        />
+      </PageContainer>
+    );
+  }
+
   return children;
 }

@@ -15,6 +15,8 @@ public sealed class ParticipantConfiguration : IEntityTypeConfiguration<Particip
         builder.Property(participant => participant.JobTitle).HasMaxLength(300);
         builder.Property(participant => participant.OrgUnitName).HasMaxLength(300);
         builder.Property(participant => participant.ManagerDisplayName).HasMaxLength(300);
+        builder.Property(participant => participant.ClosureExceptionReason).HasMaxLength(1000);
+        builder.Property(participant => participant.ReviewerBasis).HasConversion<string>().HasMaxLength(30);
 
         builder.HasIndex(participant => participant.TenantId);
 

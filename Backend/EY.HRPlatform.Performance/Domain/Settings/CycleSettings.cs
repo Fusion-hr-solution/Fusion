@@ -4,10 +4,9 @@ using EY.HRPlatform.Performance.Domain.Objectives;
 namespace EY.HRPlatform.Performance.Domain.Settings;
 
 /// <summary>
-/// The tenant's Performance Settings — limited to the Cycle &amp; Goals slice
-/// (performance-cycle-settings). Holds stable tenant policy and strong defaults, never a
-/// specific Cycle's business data. Exactly one row per tenant; its effective values are
-/// captured into a Cycle's activation snapshot so later changes never rewrite a live Cycle.
+/// The tenant's Performance Settings. Exactly one row per tenant. Planning and review defaults
+/// are captured into a Cycle's activation snapshot; evidence retention is evaluated at access
+/// and deletion time so changes also apply to already-closed Cycles.
 /// </summary>
 public sealed class CycleSettings : PerformanceAggregate
 {
@@ -23,8 +22,15 @@ public sealed class CycleSettings : PerformanceAggregate
     /// <summary>Default planning-deadline offset, in days after a Cycle's start date.</summary>
     public int PlanningDeadlineOffsetDays { get; private set; }
 
-    /// <summary>Whether additional standalone employee objectives are allowed (default On).</summary>
-    public bool AllowStandaloneObjectives { get; private set; }
+    /// <summary>How an employee plan connects to strategic direction.</summary>
+    public PlanAlignmentPolicy PlanAlignmentPolicy { get; private set; }
+
+    public bool DefaultSelfAssessmentEnabled { get; private set; }
+    public bool DefaultObjectiveRatingsEnabled { get; private set; }
+    public bool DefaultCalibrationEnabled { get; private set; }
+
+    /// <summary>Months uploaded evidence is retained after its Cycle closes.</summary>
+    public int EvidenceRetentionMonths { get; private set; } = 36;
 
     /// <summary>The tenant defaults, materialized the first time Settings is read.</summary>
     public static CycleSettings CreateDefault(Guid tenantId)
@@ -38,7 +44,11 @@ public sealed class CycleSettings : PerformanceAggregate
             SuggestedObjectiveCountMin = 3,
             SuggestedObjectiveCountMax = 6,
             PlanningDeadlineOffsetDays = 30,
-            AllowStandaloneObjectives = true,
+            PlanAlignmentPolicy = PlanAlignmentPolicy.AtLeastOneConnected,
+            DefaultSelfAssessmentEnabled = true,
+            DefaultObjectiveRatingsEnabled = true,
+            DefaultCalibrationEnabled = false,
+            EvidenceRetentionMonths = 36,
         };
     }
 
@@ -47,18 +57,29 @@ public sealed class CycleSettings : PerformanceAggregate
         int suggestedObjectiveCountMin,
         int suggestedObjectiveCountMax,
         int planningDeadlineOffsetDays,
-        bool allowStandaloneObjectives)
+        PlanAlignmentPolicy planAlignmentPolicy,
+        int? evidenceRetentionMonths = null,
+        bool? defaultSelfAssessmentEnabled = null,
+        bool? defaultObjectiveRatingsEnabled = null,
+        bool? defaultCalibrationEnabled = null)
     {
         if (suggestedObjectiveCountMin < 1 || suggestedObjectiveCountMax < suggestedObjectiveCountMin || suggestedObjectiveCountMax > 20)
             throw new ArgumentException("The suggested objective-count range must be a sensible ascending range.", nameof(suggestedObjectiveCountMin));
         if (planningDeadlineOffsetDays is < 1 or > 365)
             throw new ArgumentOutOfRangeException(nameof(planningDeadlineOffsetDays), "The planning-deadline offset must be between 1 and 365 days.");
 
+        if (!Enum.IsDefined(planAlignmentPolicy)) throw new ArgumentException("Choose a supported plan alignment policy.", nameof(planAlignmentPolicy));
+        if (evidenceRetentionMonths is <= 0) throw new ArgumentOutOfRangeException(nameof(evidenceRetentionMonths), "Evidence retention must be at least one month.");
+
         DefaultMeasurementMethod = defaultMeasurementMethod;
         SuggestedObjectiveCountMin = suggestedObjectiveCountMin;
         SuggestedObjectiveCountMax = suggestedObjectiveCountMax;
         PlanningDeadlineOffsetDays = planningDeadlineOffsetDays;
-        AllowStandaloneObjectives = allowStandaloneObjectives;
+        PlanAlignmentPolicy = planAlignmentPolicy;
+        if (evidenceRetentionMonths is not null) EvidenceRetentionMonths = evidenceRetentionMonths.Value;
+        if (defaultSelfAssessmentEnabled is not null) DefaultSelfAssessmentEnabled = defaultSelfAssessmentEnabled.Value;
+        if (defaultObjectiveRatingsEnabled is not null) DefaultObjectiveRatingsEnabled = defaultObjectiveRatingsEnabled.Value;
+        if (defaultCalibrationEnabled is not null) DefaultCalibrationEnabled = defaultCalibrationEnabled.Value;
         MarkUpdated();
     }
 
@@ -69,7 +90,7 @@ public sealed class CycleSettings : PerformanceAggregate
             SuggestedObjectiveCountMin,
             SuggestedObjectiveCountMax,
             PlanningDeadlineOffsetDays,
-            AllowStandaloneObjectives);
+            PlanAlignmentPolicy);
 }
 
 /// <summary>Immutable capture of the Cycle-related settings effective at activation.</summary>
@@ -78,4 +99,4 @@ public sealed record CycleSettingsSnapshot(
     int SuggestedObjectiveCountMin,
     int SuggestedObjectiveCountMax,
     int PlanningDeadlineOffsetDays,
-    bool AllowStandaloneObjectives);
+    PlanAlignmentPolicy PlanAlignmentPolicy);

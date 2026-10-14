@@ -1,5 +1,7 @@
 "use client";
 
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Check, Lock } from "@/lib/icons";
@@ -117,6 +119,7 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
                 try {
                   await mutations.configureContribution.mutateAsync({
                     objectiveId: record.ref.objectiveId,
+                    expectedVersion: record.source.node.version,
                     request: {
                       contributors: contributors.map((child) => ({
                         childObjectiveId: child.id,
@@ -126,7 +129,7 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
                   });
                   toast.success("Contribution saved.");
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Could not save.");
+                  reportPerformanceFailure(error, "Could not save.");
                 }
               }}
             >
@@ -139,10 +142,10 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
               title={total === 100 && !allPublished ? "Every contributing objective must be published first" : undefined}
               onClick={async () => {
                 try {
-                  await mutations.lockContribution.mutateAsync(record.ref.objectiveId);
+                  await mutations.lockContribution.mutateAsync({ objectiveId: record.ref.objectiveId, expectedVersion: record.source.node.version });
                   toast.success("Contribution baseline locked.");
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Could not lock.");
+                  reportPerformanceFailure(error, "Could not lock.");
                 }
               }}
             >

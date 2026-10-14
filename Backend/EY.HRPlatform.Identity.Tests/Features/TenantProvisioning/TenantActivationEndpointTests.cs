@@ -107,8 +107,10 @@ public sealed class TenantActivationEndpointTests : IAsyncLifetime
 
         // The form states the rules the service will enforce, from one source.
         var rules = entry.GetProperty("passwordRequirements");
-        Assert.Equal(8, rules.GetProperty("minimumLength").GetInt32());
-        Assert.True(rules.GetProperty("requiresSymbol").GetBoolean());
+        var policy = EY.HRPlatform.Identity.Features.Accounts.AccountPasswordPolicy.Describe();
+        Assert.Equal(policy.MinimumLength, rules.GetProperty("minimumLength").GetInt32());
+        Assert.Equal(policy.RequiresDigit, rules.GetProperty("requiresDigit").GetBoolean());
+        Assert.Equal(policy.RequiresSymbol, rules.GetProperty("requiresSymbol").GetBoolean());
     }
 
     [SkippableTheory]

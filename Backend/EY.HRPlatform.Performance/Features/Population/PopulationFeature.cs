@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Features.Failures;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Population;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -11,7 +12,7 @@ namespace EY.HRPlatform.Performance.Features.Population;
 
 public sealed record GetPopulationQuery(Guid CycleId) : IQuery<Result<PopulationDto>>;
 public sealed record SetPopulationCommand(Guid CycleId, SetPopulationRequest Request) : ICommand<Result<PopulationDto>>;
-public sealed record ConfirmPopulationCommand(Guid CycleId) : ICommand<Result<PopulationDto>>;
+public sealed record ConfirmPopulationCommand(Guid CycleId, uint ExpectedVersion = 0) : ICommand<Result<PopulationDto>>;
 
 public sealed class GetPopulationHandler(PerformanceDbContext db, ITenantContext tenant, PopulationResolutionService resolver)
     : IQueryHandler<GetPopulationQuery, Result<PopulationDto>>
@@ -20,7 +21,7 @@ public sealed class GetPopulationHandler(PerformanceDbContext db, ITenantContext
     {
         var cycle = await db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
         if (cycle is null)
-            return Result.Failure<PopulationDto>(Error.NotFound("Cycle", request.CycleId));
+            return Result.Failure<PopulationDto>(PerformanceErrors.NotFound("Cycle", request.CycleId));
 
         var definition = await LoadOrCreateDefinitionAsync(db, tenant, cycle, cancellationToken);
         if (db.Entry(definition).State == EntityState.Added)
@@ -66,13 +67,16 @@ public sealed class SetPopulationHandler(PerformanceDbContext db, ITenantContext
 {
     public async Task<Result<PopulationDto>> Handle(SetPopulationCommand command, CancellationToken cancellationToken)
     {
-        var cycle = await db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == command.CycleId, cancellationToken);
+        var cycle = await db.Cycles.FirstOrDefaultAsync(c => c.Id == command.CycleId, cancellationToken);
         if (cycle is null)
-            return Result.Failure<PopulationDto>(Error.NotFound("Cycle", command.CycleId));
+            return Result.Failure<PopulationDto>(PerformanceErrors.NotFound("Cycle", command.CycleId));
         if (!cycle.IsDraft)
-            return Result.Failure<PopulationDto>(Error.Conflict("Cycle.NotDraft", "Population can only be changed while the Cycle is Draft."));
+            return Result.Failure<PopulationDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.CycleNotDraft, "Population can only be changed while the Cycle is Draft."));
 
         var definition = await GetPopulationHandler.LoadOrCreateDefinitionAsync(db, tenant, cycle, cancellationToken);
+        if (VersionGuard.Check(definition, command.Request.ExpectedVersion) is { } stale)
+            return Result.Failure<PopulationDto>(stale);
+
         var request = command.Request;
 
         var orgSelections = (request.OrgUnitSelections ?? [])
@@ -89,7 +93,10 @@ public sealed class SetPopulationHandler(PerformanceDbContext db, ITenantContext
         if (definition.MatchesSelection(request.Mode, orgSelections, inclusions, exclusions))
         {
             if (db.Entry(definition).State == EntityState.Added)
+            {
+                cycle.Touch();
                 await db.SaveChangesAsync(cancellationToken);
+            }
 
             var unchanged = await resolver.ResolveAsync(cycle, definition, cancellationToken);
             return GetPopulationHandler.ToDto(definition, unchanged);
@@ -101,7 +108,7 @@ public sealed class SetPopulationHandler(PerformanceDbContext db, ITenantContext
         }
         catch (InvalidOperationException ex)
         {
-            return Result.Failure<PopulationDto>(Error.Validation("Population.Invalid", ex.Message));
+            return Result.Failure<PopulationDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PopulationInvalid, ex.Message));
         }
 
         // SetSelection replaces the rule's child rows wholesale (they are immutable value rows,
@@ -119,6 +126,7 @@ public sealed class SetPopulationHandler(PerformanceDbContext db, ITenantContext
         if (existingParticipants.Count > 0)
             db.Participants.RemoveRange(existingParticipants);
 
+        cycle.Touch();
         await db.SaveChangesAsync(cancellationToken);
 
         var resolution = await resolver.ResolveAsync(cycle, definition, cancellationToken);
@@ -131,26 +139,29 @@ public sealed class ConfirmPopulationHandler(PerformanceDbContext db, ITenantCon
 {
     public async Task<Result<PopulationDto>> Handle(ConfirmPopulationCommand command, CancellationToken cancellationToken)
     {
-        var cycle = await db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == command.CycleId, cancellationToken);
+        var cycle = await db.Cycles.FirstOrDefaultAsync(c => c.Id == command.CycleId, cancellationToken);
         if (cycle is null)
-            return Result.Failure<PopulationDto>(Error.NotFound("Cycle", command.CycleId));
+            return Result.Failure<PopulationDto>(PerformanceErrors.NotFound("Cycle", command.CycleId));
         if (!cycle.IsDraft)
-            return Result.Failure<PopulationDto>(Error.Conflict("Cycle.NotDraft", "Population can only be confirmed while the Cycle is Draft."));
+            return Result.Failure<PopulationDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.CycleNotDraft, "Population can only be confirmed while the Cycle is Draft."));
 
         var definition = await GetPopulationHandler.LoadOrCreateDefinitionAsync(db, tenant, cycle, cancellationToken);
+        if (VersionGuard.Check(definition, command.ExpectedVersion) is { } stale)
+            return Result.Failure<PopulationDto>(stale);
+
         var resolution = await resolver.ResolveAsync(cycle, definition, cancellationToken);
 
         if (resolution.UnresolvedBlockers.Count > 0)
         {
             var names = string.Join(", ", resolution.UnresolvedBlockers.Take(5).Select(candidate => candidate.DisplayName));
-            return Result.Failure<PopulationDto>(Error.Conflict(
-                "Population.Unresolved",
+            return Result.Failure<PopulationDto>(PerformanceErrors.InvalidState(
+                PerformanceErrors.Codes.PopulationUnresolved,
                 $"{resolution.UnresolvedBlockers.Count} participant(s) need attention before confirmation: {names}. Resolve the Core data issue or exclude them with a reason."));
         }
 
         var roster = resolution.Candidates.Where(candidate => candidate.CountsToRoster).ToList();
         if (roster.Count == 0)
-            return Result.Failure<PopulationDto>(Error.Conflict("Population.Empty", "The population is empty. Broaden the selection before confirming."));
+            return Result.Failure<PopulationDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.PopulationEmpty, "The population is empty. Broaden the selection before confirming."));
 
         var existing = await db.Participants.Where(p => p.CycleId == cycle.Id).ToListAsync(cancellationToken);
         if (existing.Count > 0)
@@ -168,10 +179,12 @@ public sealed class ConfirmPopulationHandler(PerformanceDbContext db, ITenantCon
                 candidate.OrgUnitName,
                 candidate.ManagerEmployeeId,
                 candidate.ManagerDisplayName,
-                candidate.ByExplicitInclusion));
+                candidate.ByExplicitInclusion,
+                definition.EligibilityDate));
         }
 
         definition.MarkConfirmed();
+        cycle.Touch();
         await db.SaveChangesAsync(cancellationToken);
 
         var confirmed = await resolver.ResolveAsync(cycle, definition, cancellationToken);

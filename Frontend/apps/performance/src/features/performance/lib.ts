@@ -1,8 +1,6 @@
 import type {
-  CycleSummaryDto,
   MeasurementDto,
   MeasurementMethod,
-  MilestoneStateDto,
   OperationalMilestone,
   ReadinessIssueCode,
 } from "@repo/api";
@@ -21,21 +19,6 @@ export const MILESTONE_LABELS: Record<OperationalMilestone, string> = {
   PerformanceEndReached: "Performance end",
   ClosureReady: "Closure ready",
 };
-
-/**
- * The milestones that belong to *setting the Cycle up*: publish direction, confirm
- * population, then go live (Planning opened = activation). Everything after that is
- * automatic, time-driven runtime progress and belongs on Overview, not the setup page.
- */
-const SETUP_MILESTONES: readonly OperationalMilestone[] = [
-  "StrategicDirectionPublished",
-  "PopulationConfirmed",
-  "PlanningOpened",
-];
-
-export function setupMilestones(milestones: MilestoneStateDto[]): MilestoneStateDto[] {
-  return milestones.filter((m) => SETUP_MILESTONES.includes(m.milestone));
-}
 
 /**
  * The secondary detail line for a readiness issue, dated to the cycle's eligibility date where it
@@ -146,17 +129,4 @@ export function measurementSummary(measurement: MeasurementDto): string {
     default:
       return "Manual percentage";
   }
-}
-
-/**
- * The tenant's primary Cycle for the workspace: the Active one if it exists, otherwise the most
- * recent Draft, otherwise the most recent of any state. One living Cycle, not a table.
- */
-export function selectPrimaryCycle(cycles: CycleSummaryDto[] | undefined): CycleSummaryDto | null {
-  if (!cycles || cycles.length === 0) return null;
-  const active = cycles.find((cycle) => cycle.state === "Active");
-  if (active) return active;
-  const drafts = cycles.filter((cycle) => cycle.state === "Draft");
-  if (drafts.length > 0) return drafts[0] ?? null;
-  return cycles[0] ?? null;
 }

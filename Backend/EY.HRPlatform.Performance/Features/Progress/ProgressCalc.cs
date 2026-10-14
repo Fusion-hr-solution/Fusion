@@ -13,10 +13,34 @@ namespace EY.HRPlatform.Performance.Features.Progress;
 public static class ProgressCalc
 {
     public readonly record struct Reported(bool HasProgress, decimal Progress, decimal? Coverage);
+    public sealed record Contributor(Guid Id, decimal Weight);
+    public sealed record Input(Guid Id, ObjectiveProgressSource Source, bool HasProgress, decimal Progress, List<Contributor> Contributors);
+
+    public static Reported For(Guid id, IReadOnlyDictionary<Guid, Input> inputs) => For(id, inputs, []);
+
+    private static Reported For(Guid id, IReadOnlyDictionary<Guid, Input> inputs, HashSet<Guid> path)
+    {
+        if (!inputs.TryGetValue(id, out var input) || !path.Add(id)) return new(false, 0m, null);
+        if (input.Source == ObjectiveProgressSource.Direct)
+        {
+            path.Remove(id);
+            return new(input.HasProgress, input.Progress, null);
+        }
+        decimal progress = 0m, coverage = 0m;
+        foreach (var link in input.Contributors)
+        {
+            var child = For(link.Id, inputs, path);
+            progress += Math.Min(child.Progress, 100m) * link.Weight / 100m;
+            if (child.HasProgress) coverage += link.Weight;
+        }
+        path.Remove(id);
+        return new(coverage > 0m, decimal.Round(progress, 2), decimal.Round(coverage, 2));
+    }
 
     /// <summary>Computes an objective's reported progress and, for a calculated parent, its coverage.</summary>
     public static Reported For(Objective objective, GoalsComposer.Graph graph)
-        => For(objective, graph, new HashSet<Guid>());
+        => graph.ReportedProgress.TryGetValue(objective.Id, out var reported)
+            ? reported : For(objective, graph, new HashSet<Guid>());
 
     private static Reported For(Objective objective, GoalsComposer.Graph graph, HashSet<Guid> guard)
     {

@@ -467,7 +467,7 @@ export default function PeopleWorkspace() {
       {importBatch ? (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-l-2 border-primary bg-primary/[0.06] px-5 py-4">
           <div className="flex flex-wrap items-center gap-3">
-            <p className="type-title font-semibold text-foreground">
+            <p className="type-panel-title text-foreground">
               <span className="tabular-nums">{people.data ? cohortCount : "…"}</span>{" "}
               {cohortCount === 1 ? "person added to your workforce" : "people added to your workforce"}
             </p>

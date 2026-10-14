@@ -1,5 +1,7 @@
 "use client";
 
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useAuth } from "@repo/auth";
@@ -29,7 +31,6 @@ import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import {
-  ArrowUpRight,
   BarChart3,
   CalendarDays,
   ArrowRight,
@@ -191,14 +192,10 @@ export function TeamDirection({
           }
           onDelete={async (item) => {
             try {
-              await mutations.remove.mutateAsync(item.node.id);
+              await mutations.remove.mutateAsync({ objectiveId: item.node.id, expectedVersion: item.node.version });
               toast.success("Draft objective deleted.");
             } catch (error) {
-              toast.error(
-                error instanceof Error
-                  ? error.message
-                  : "The objective could not be deleted."
-              );
+              reportPerformanceFailure(error, "The objective could not be deleted.");
             }
           }}
           onViewDirection={(item) => item.parent && inspect(item.parent.id)}
@@ -607,7 +604,7 @@ function EmptyDirectionCard({
               : "Nothing above your team is published yet. You can still create a standalone team objective."}
           </p>
           {/* The chips settle at the bottom edge as the card's height allows. */}
-          <div className="mt-auto flex gap-2 pt-4">
+          <div className="mt-auto flex flex-wrap gap-2 pt-4">
             {hasTargets ? (
               <DirectionChip icon={<Target aria-hidden />} onClick={onChoose}>
                 {targetCount} eligible objective{targetCount === 1 ? "" : "s"}
@@ -1105,18 +1102,13 @@ function TeamObjectiveRow({
                 <span className="shrink-0 text-muted-foreground">
                   Aligned to
                 </span>
-                <span className="truncate font-medium text-primary-ink">
-                  {item.parent.title}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon-sm"
-                  className="ml-1 shrink-0"
+                <button
+                  type="button"
+                  className="min-w-0 truncate text-left font-medium text-primary-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => onViewDirection(item)}
-                  aria-label={`View direction: ${item.parent.title}`}
                 >
-                  <ArrowUpRight className="size-3.5" aria-hidden />
-                </Button>
+                  {item.parent.title}
+                </button>
               </>
             ) : (
               <span className="inline-flex items-center gap-2 font-medium text-info">
