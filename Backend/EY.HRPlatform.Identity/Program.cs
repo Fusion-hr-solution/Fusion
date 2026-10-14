@@ -56,6 +56,10 @@ using (var scope = app.Services.CreateScope())
     
     await IdentitySeeder.SeedAsync(dbContext, roleManager, userManager);
 
+    if (app.Environment.IsDevelopment())
+        await DevelopmentPlatformAdminBootstrap.SeedIfConfiguredAsync(
+            dbContext, userManager, builder.Configuration);
+
     // Runs after profile seeding, when both the pre-canonical and the canonical
     // administrator definitions exist, so the permission broadening the migration
     // applied is reviewable instead of silent.
