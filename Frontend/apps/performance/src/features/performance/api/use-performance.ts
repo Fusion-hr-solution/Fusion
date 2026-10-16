@@ -174,6 +174,16 @@ export function useGoals(cycleId: string | null, enabled = true) {
   );
 }
 
+/** The cycle's alignment map (D-06): published direction for everyone, personal objectives as visibility allows. */
+export function useAlignmentMap(cycleId: string | null, enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.alignmentMap(cycleId ?? "none"),
+    (signal) => performance.getAlignmentMap(cycleId as string, signal),
+    { enabled: Boolean(cycleId) && enabled }
+  );
+}
+
 export function useTeamObjectiveWorkspace(
   cycleId: string | null,
   orgUnitId?: string | null,

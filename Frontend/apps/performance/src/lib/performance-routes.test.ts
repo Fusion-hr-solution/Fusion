@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calibrationHref, newReviewRoundHref, objectiveHref, planHref, reviewHref, roundHref, roundSetupHref, withCycle } from "./performance-routes";
+import { alignmentMapHref, calibrationHref, newReviewRoundHref, objectiveHref, planHref, reviewHref, roundHref, roundSetupHref, withCycle } from "./performance-routes";
 
 describe("canonical objective addresses", () => {
   it("addresses the supplied cycle independently of current workspace state", () => {
@@ -40,5 +40,13 @@ describe("workspace cycle context", () => {
   it("leaves addresses unchanged without a cycle or when the record already carries one", () => {
     expect(withCycle("/plan", null)).toBe("/plan");
     expect(withCycle("/cycles/fy26/plans/p1", "fy27")).toBe("/cycles/fy26/plans/p1");
+  });
+});
+
+describe("alignment map address", () => {
+  it("opens the map of a cycle, focused when asked", () => {
+    expect(alignmentMapHref("c-1")).toBe("/goals?view=map&cycle=c-1");
+    expect(alignmentMapHref("c-1", "o-1")).toBe("/goals?view=map&cycle=c-1&focus=o-1");
+    expect(alignmentMapHref("c-1", "mine", "parent")).toBe("/goals?view=map&cycle=c-1&focus=mine&near=parent");
   });
 });

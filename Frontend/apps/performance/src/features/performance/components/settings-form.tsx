@@ -162,6 +162,25 @@ export function SettingsForm({ settings }: { settings: CycleSettingsDto }) {
         </div>
       </section>
 
+      <section className="mt-10" aria-labelledby="ai-settings-title">
+        <div className="border-b border-border pb-3">
+          <h2 id="ai-settings-title" className="type-section-title">AI assistance</h2>
+        </div>
+        <div className="divide-y divide-border border-b border-border">
+          <Row
+            title="Suggestions while writing objectives"
+            hint="Off hides every AI suggestion in Performance for everyone in the company."
+            control={
+              <Switch
+                checked={draft.aiAssistanceEnabled}
+                onCheckedChange={(checked) => setDraft((current) => ({ ...current, aiAssistanceEnabled: checked }))}
+                aria-label="AI assistance"
+              />
+            }
+          />
+        </div>
+      </section>
+
       <section className="mt-10" aria-labelledby="reviews-settings-title">
         <div className="border-b border-border pb-3">
           <h2 id="reviews-settings-title" className="type-section-title">Reviews</h2>

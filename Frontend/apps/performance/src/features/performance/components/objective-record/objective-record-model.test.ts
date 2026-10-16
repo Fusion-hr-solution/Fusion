@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GoalDetailDto, GoalNodeDto } from "@repo/api";
-import { resolveSections, toObjectiveRecord, todayMarker, windowLength } from "./objective-record-model";
+import { mapFocusFor, resolveSections, toObjectiveRecord, todayMarker, windowLength } from "./objective-record-model";
 import { parseObjectiveMode, parseObjectiveRef, withObjectiveRef } from "./objective-ref";
 
 function node(overrides: Partial<GoalNodeDto> = {}): GoalNodeDto {
@@ -170,5 +170,24 @@ describe("archived direction", () => {
     expect(record.isExecuting).toBe(true);
     expect(record.progress.derived).toBe(65);
     expect(record.can.archive).toBe(false);
+  });
+});
+
+describe("map focus", () => {
+  it("is the objective itself for published direction", () => {
+    expect(mapFocusFor(toObjectiveRecord(detail()))).toEqual({ focus: "obj-1", near: null });
+    expect(mapFocusFor(toObjectiveRecord(detail({}, { ownershipScope: "Company", parentObjectiveId: null })))).toEqual({ focus: "obj-1", near: null });
+  });
+
+  it("is nothing for a draft", () => {
+    expect(mapFocusFor(toObjectiveRecord(detail({}, { state: "Draft" })))).toBeNull();
+  });
+
+  it("is the personal objective near its parent, and nothing when standalone", () => {
+    expect(mapFocusFor(toObjectiveRecord(detail({}, { ownershipScope: "Employee", orgUnitId: null, orgUnitName: null }))))
+      .toEqual({ focus: "obj-1", near: "parent-1" });
+    expect(
+      mapFocusFor(toObjectiveRecord(detail({ parent: null }, { ownershipScope: "Employee", parentObjectiveId: null, orgUnitId: null })))
+    ).toBeNull();
   });
 });

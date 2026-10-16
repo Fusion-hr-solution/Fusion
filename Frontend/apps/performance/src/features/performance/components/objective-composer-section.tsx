@@ -12,11 +12,14 @@ export function ObjectiveComposerSection({
   title,
   hint,
   bodyClassName,
+  action,
   children,
 }: {
   n: number;
   title: string;
   hint?: string;
+  /** A quiet action beside the heading (the AI coach's trigger). */
+  action?: ReactNode;
   /** Wraps the body in a spacing container when set — omit to let the section space children directly. */
   bodyClassName?: string;
   children?: ReactNode;
@@ -24,9 +27,12 @@ export function ObjectiveComposerSection({
   return (
     <section className="space-y-3">
       <div className="space-y-1">
-        <h3 className="text-base font-semibold tracking-tight text-foreground">
-          {n}. {title}
-        </h3>
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-base font-semibold tracking-tight text-foreground">
+            {n}. {title}
+          </h3>
+          {action}
+        </div>
         {hint ? <p className="text-sm text-muted-foreground">{hint}</p> : null}
       </div>
       {bodyClassName ? <div className={bodyClassName}>{children}</div> : children}

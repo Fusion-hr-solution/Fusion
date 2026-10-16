@@ -2,8 +2,16 @@
 
 import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Building2, Gauge, Info, Sigma, Target, UserRound, Waypoints } from "@/lib/icons";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  Building2,
+  Gauge,
+  Info,
+  Sigma,
+  Target,
+  UserRound,
+  Waypoints,
+} from "@/lib/icons";
 import { toast } from "sonner";
 import type {
   CreateOrganizationalObjectiveRequest,
@@ -58,6 +66,19 @@ import {
 } from "../measurement/milestone-editor";
 import { initials } from "./goals-lib";
 import { ObjectiveComposerSection } from "../objective-composer-section";
+import {
+  AiSuggestedTag,
+  CoachField,
+  CoachNothing,
+  CoachSuggestion,
+  CoachTrigger,
+} from "../coach/coach";
+import {
+  draftMeasurement,
+  measurePreview,
+  milestoneRows,
+} from "../coach/coach-model";
+import { useAutoCoach, useObjectiveCoach } from "../coach/use-objective-coach";
 import type { ComposerAlignmentContext } from "./org-composer-host";
 
 /**
@@ -179,6 +200,18 @@ export function OrgObjectiveComposer({
     milestonesFromMeasurement(measurement)
   );
   const [busy, setBusy] = useState<null | "draft" | "publish">(null);
+  // Fields filled from an AI suggestion keep a label until the author edits them (D-26).
+  const [aiFilled, setAiFilled] = useState({
+    title: false,
+    measure: false,
+    parent: false,
+  });
+  const coach = useObjectiveCoach({
+    open,
+    cycleId: cycle.id,
+    surface: "Team",
+    orgUnitId: orgUnit?.id ?? null,
+  });
   const alignmentRef = useRef<HTMLDivElement>(null);
   // Once a new draft has been created (or on edit), the objective exists on the server: its org unit
   // and parent are fixed, and any further action updates rather than re-creates it.
@@ -186,7 +219,6 @@ export function OrgObjectiveComposer({
   const persistedId = objective?.node.id ?? committedId;
   const isPersisted = persistedId !== null;
   const scopeLocked = teamLocked || isEdit || committedId !== null;
-
 
   useEffect(() => {
     if (!workspace.data) return;
@@ -276,6 +308,59 @@ export function OrgObjectiveComposer({
       : null;
   const canPublish = canSaveDraft && publishBlocker === null;
 
+  // The draft as it stands, complete or not: what the coach reads.
+  const coachDraft = () => ({
+    title: title.trim(),
+    description: description.trim() || null,
+    measurement:
+      source === "Calculated"
+        ? null
+        : draftMeasurement({
+            method,
+            baseline,
+            target,
+            unit,
+            direction,
+            milestones,
+          }),
+    parentObjectiveId:
+      alignmentMode === "aligned" && parentId ? parentId : null,
+  });
+  useAutoCoach({ coach, ready: true, title, draft: coachDraft });
+  const suggestions =
+    coach.state.kind === "ready" ? coach.state.suggestions : null;
+  const suggestedParent = suggestions?.parentObjectiveId
+    ? (targets.find((t) => t.id === suggestions.parentObjectiveId) ?? null)
+    : null;
+
+  function applyMeasure() {
+    const measure = suggestions?.measure;
+    if (!measure) return;
+    setSource("Direct");
+    setMethod(measure.method);
+    if (measure.method === "NumericTarget") {
+      // The baseline is the author's fact: it is filled only when the draft stated one.
+      if (measure.baseline !== null) setBaseline(String(measure.baseline));
+      setTarget(measure.target !== null ? String(measure.target) : "");
+      setUnit(measure.unit ?? "");
+      setDirection(measure.direction ?? "Increase");
+    }
+    if (measure.method === "WeightedMilestones")
+      setMilestones(milestoneRows(measure));
+    setAiFilled((current) => ({ ...current, measure: true }));
+    coach.settle("measure");
+  }
+
+  /** A measurement edit by the author: the field is theirs now, so the AI label goes. */
+  function edited<T>(set: (value: T) => void) {
+    return (value: T) => {
+      set(value);
+      setAiFilled((current) =>
+        current.measure ? { ...current, measure: false } : current
+      );
+    };
+  }
+
   function buildMeasurement(): MeasurementInput | null {
     if (source === "Calculated") return null;
     if (method === "NumericTarget")
@@ -294,7 +379,10 @@ export function OrgObjectiveComposer({
     return { method: "ManualPercentage" };
   }
 
-  function createRequest(): Omit<CreateOrganizationalObjectiveRequest, "expectedVersion"> {
+  function createRequest(): Omit<
+    CreateOrganizationalObjectiveRequest,
+    "expectedVersion"
+  > {
     return {
       orgUnitId: orgUnit!.id,
       orgUnitName: orgUnit!.name,
@@ -309,7 +397,10 @@ export function OrgObjectiveComposer({
     };
   }
 
-  function updateRequest(): Omit<UpdateOrganizationalObjectiveRequest, "expectedVersion"> {
+  function updateRequest(): Omit<
+    UpdateOrganizationalObjectiveRequest,
+    "expectedVersion"
+  > {
     return {
       title: title.trim(),
       description: description.trim() || null,
@@ -415,11 +506,44 @@ export function OrgObjectiveComposer({
                   if (mode === "standalone") setParentId("");
                 }}
                 parentId={parentId}
-                onParentChange={setParentId}
+                onParentChange={(id) => {
+                  setParentId(id);
+                  setAiFilled((current) => ({ ...current, parent: false }));
+                }}
                 targets={targets}
                 loading={workspace.isLoading}
                 error={workspace.error}
                 disabled={orgUnit === null || busy !== null}
+                aiFilled={aiFilled.parent}
+                suggestion={
+                  coach.enabled && suggestedParent
+                    ? {
+                        content: (
+                          <span className="flex min-w-0 flex-col">
+                            <span className="type-eyebrow text-muted-foreground">
+                              {suggestedParent.ownershipScope === "Company"
+                                ? "Company strategy"
+                                : (suggestedParent.orgUnitName ??
+                                  "Organizational")}
+                            </span>
+                            <span className="font-medium">
+                              {suggestedParent.title}
+                            </span>
+                          </span>
+                        ),
+                        onApply: () => {
+                          setAlignmentMode("aligned");
+                          setParentId(suggestedParent.id);
+                          setAiFilled((current) => ({
+                            ...current,
+                            parent: true,
+                          }));
+                          coach.settle("parent");
+                        },
+                        onDismiss: () => coach.settle("parent"),
+                      }
+                    : null
+                }
               />
             </div>
 
@@ -428,18 +552,49 @@ export function OrgObjectiveComposer({
               n={1}
               title="Objective definition"
               bodyClassName="space-y-4"
+              action={
+                coach.enabled ? (
+                  <CoachTrigger
+                    state={coach.state}
+                    onRun={() => void coach.run(coachDraft())}
+                  />
+                ) : undefined
+              }
             >
               <div className="space-y-1.5">
                 <Label htmlFor="og-title">
                   Title <span className="text-destructive">*</span>
+                  {aiFilled.title ? <AiSuggestedTag /> : null}
                 </Label>
-                <Input
-                  id="og-title"
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  placeholder="Improve talent development execution"
-                  autoFocus
-                />
+                <CoachField
+                  label="title"
+                  suggestion={
+                    coach.enabled && suggestions?.title
+                      ? suggestions.title
+                      : null
+                  }
+                  onApply={() => {
+                    if (!suggestions?.title) return;
+                    setTitle(suggestions.title);
+                    setAiFilled((current) => ({ ...current, title: true }));
+                    coach.settle("title");
+                  }}
+                  onDismiss={() => coach.settle("title")}
+                >
+                  <Input
+                    id="og-title"
+                    value={title}
+                    onChange={(event) => {
+                      setTitle(event.target.value);
+                      setAiFilled((current) => ({ ...current, title: false }));
+                    }}
+                    placeholder="Improve talent development execution"
+                    autoFocus
+                  />
+                </CoachField>
+                {coach.enabled && coach.state.kind === "nothing" ? (
+                  <CoachNothing />
+                ) : null}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="og-desc">
@@ -544,7 +699,17 @@ export function OrgObjectiveComposer({
               title="Measurement"
               hint="How will progress on this objective be measured?"
               bodyClassName="space-y-4"
+              action={aiFilled.measure ? <AiSuggestedTag /> : undefined}
             >
+              {coach.enabled && suggestions?.measure ? (
+                <CoachSuggestion
+                  label="measure"
+                  onApply={applyMeasure}
+                  onDismiss={() => coach.settle("measure")}
+                >
+                  {measurePreview(suggestions.measure)}
+                </CoachSuggestion>
+              ) : null}
               <div className="grid gap-3 sm:grid-cols-2">
                 <SourceCard
                   active={source === "Direct"}
@@ -565,20 +730,20 @@ export function OrgObjectiveComposer({
               {source === "Direct" ? (
                 <MeasurementEditor
                   method={method}
-                  onMethodChange={setMethod}
+                  onMethodChange={edited(setMethod)}
                   baseline={baseline}
                   target={target}
                   unit={unit}
                   direction={direction}
                   numericInvalid={numericInvalid}
                   numericSameValue={sameValue}
-                  onBaseline={setBaseline}
-                  onTarget={setTarget}
-                  onUnit={setUnit}
-                  onDirection={setDirection}
+                  onBaseline={edited(setBaseline)}
+                  onTarget={edited(setTarget)}
+                  onUnit={edited(setUnit)}
+                  onDirection={edited(setDirection)}
                   milestones={milestones}
                   milestoneWeightSum={weightSum}
-                  onMilestonesChange={setMilestones}
+                  onMilestonesChange={edited(setMilestones)}
                   milestoneReadyLabel="Ready to publish"
                   minDate={startDate}
                   maxDate={endDate}
@@ -636,6 +801,8 @@ function AlignmentEditor({
   loading,
   error,
   disabled,
+  aiFilled,
+  suggestion,
 }: {
   mode: "aligned" | "standalone" | null;
   onModeChange: (mode: "aligned" | "standalone") => void;
@@ -645,6 +812,14 @@ function AlignmentEditor({
   loading: boolean;
   error: Error | null;
   disabled: boolean;
+  /** The upstream objective came from the coach and is unedited. */
+  aiFilled: boolean;
+  /** The coach's suggested upstream objective, shown inside the picker. */
+  suggestion: {
+    content: ReactNode;
+    onApply: () => void;
+    onDismiss: () => void;
+  } | null;
 }) {
   return (
     <section
@@ -721,12 +896,31 @@ function AlignmentEditor({
 
       {mode === "aligned" ? (
         <div className="mt-4 space-y-1.5">
-          <Label>Upstream objective</Label>
-          <AlignmentTargetPicker
-            targets={targets}
-            value={parentId || null}
-            onChange={onParentChange}
-            disabled={disabled || loading}
+          <Label>
+            Upstream objective
+            {aiFilled ? <AiSuggestedTag /> : null}
+          </Label>
+          <CoachField
+            label="parent"
+            suggestion={suggestion?.content ?? null}
+            onApply={() => suggestion?.onApply()}
+            onDismiss={() => suggestion?.onDismiss()}
+          >
+            <AlignmentTargetPicker
+              targets={targets}
+              value={parentId || null}
+              onChange={onParentChange}
+              disabled={disabled || loading}
+            />
+          </CoachField>
+        </div>
+      ) : suggestion ? (
+        <div className="mt-4">
+          <CoachField
+            label="parent"
+            suggestion={suggestion.content}
+            onApply={suggestion.onApply}
+            onDismiss={suggestion.onDismiss}
           />
         </div>
       ) : null}
@@ -882,8 +1076,14 @@ export function AlignmentTargetPicker({
           {includeStandalone ? (
             <ComboboxGroup>
               <ComboboxLabel>Standalone</ComboboxLabel>
-              <ComboboxItem value="__standalone__" className="items-start rounded-inset py-2">
-                <Waypoints className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
+              <ComboboxItem
+                value="__standalone__"
+                className="items-start rounded-inset py-2"
+              >
+                <Waypoints
+                  className="mt-0.5 size-4 shrink-0 text-info"
+                  aria-hidden
+                />
                 <span>
                   <span className="block font-medium text-foreground">
                     No alignment

@@ -1,13 +1,15 @@
-import { ChevronRight } from "@/lib/icons";
+import Link from "next/link";
+import { ChevronRight, MapView } from "@/lib/icons";
+import { alignmentMapHref } from "@/lib/performance-routes";
 import { ScopeMark } from "../../scope-mark";
 import type { ObjectiveRef } from "../objective-ref";
-import type { ObjectiveRecord } from "../objective-record-model";
+import { mapFocusFor, type ObjectiveRecord } from "../objective-record-model";
 import { RecordSection } from "./record-primitives";
 
 /**
  * The direction this objective supports. The parent opens in the same record, so walking up the
  * cascade is the same gesture everywhere — and reading a published parent never requires entering the
- * organization-direction workspace.
+ * organization-direction workspace. The map link shows where the objective sits in the whole cascade.
  */
 export function AlignmentSection({
   record,
@@ -17,9 +19,20 @@ export function AlignmentSection({
   onOpen: (ref: ObjectiveRef) => void;
 }) {
   const parent = record.parent;
-  if (!parent) return null;
+  const focus = mapFocusFor(record);
+  if (!parent && !focus) return null;
+  const mapLink = focus ? (
+    <Link
+      href={alignmentMapHref(record.ref.cycleId, focus.focus, focus.near)}
+      className="inline-flex items-center gap-1.5 rounded-control-sm text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <MapView className="size-3.5" aria-hidden />
+      View on map
+    </Link>
+  ) : undefined;
+  if (!parent) return <RecordSection label="Alignment" action={mapLink}>{null}</RecordSection>;
   return (
-    <RecordSection label="Supports">
+    <RecordSection label="Supports" action={mapLink}>
       <button
         type="button"
         onClick={() => onOpen(parent.ref)}

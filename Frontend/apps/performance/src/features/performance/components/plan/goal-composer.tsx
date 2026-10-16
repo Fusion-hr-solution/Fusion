@@ -49,6 +49,19 @@ import {
   type MeasurementMethod,
 } from "../measurement/measurement-editor";
 import { ObjectiveComposerSection } from "../objective-composer-section";
+import {
+  AiSuggestedTag,
+  CoachField,
+  CoachNothing,
+  CoachSuggestion,
+  CoachTrigger,
+} from "../coach/coach";
+import {
+  draftMeasurement,
+  measurePreview,
+  milestoneRows,
+} from "../coach/coach-model";
+import { useAutoCoach, useObjectiveCoach } from "../coach/use-objective-coach";
 
 const TITLE_MAX = 300;
 const DESCRIPTION_MAX = 2000;
@@ -85,8 +98,12 @@ export function PlanGoalComposer({
   objective?: PlanObjectiveDto;
   /** Combined weight of the plan's other objectives — the allocation before this objective is committed. */
   otherWeightTotal: number;
-  onCreate: (request: Omit<AddPlanObjectiveRequest, "expectedVersion">) => Promise<void>;
-  onUpdate: (request: Omit<AddPlanObjectiveRequest, "expectedVersion">) => Promise<void>;
+  onCreate: (
+    request: Omit<AddPlanObjectiveRequest, "expectedVersion">
+  ) => Promise<void>;
+  onUpdate: (
+    request: Omit<AddPlanObjectiveRequest, "expectedVersion">
+  ) => Promise<void>;
 }) {
   const isEdit = Boolean(objective);
 
@@ -107,6 +124,13 @@ export function PlanGoalComposer({
   // (the aligned parent's, or the cycle's) until the author picks a range.
   const [dateOverride, setDateOverride] = useState<DateRangeValue | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Fields filled from an AI suggestion keep a label until the author edits them (D-26).
+  const [aiFilled, setAiFilled] = useState({
+    title: false,
+    measure: false,
+    parent: false,
+  });
+  const coach = useObjectiveCoach({ open, cycleId: cycle.id, surface: "Plan" });
 
   useEffect(() => {
     if (!open) return;
@@ -116,7 +140,10 @@ export function PlanGoalComposer({
       objective
         ? (objective.parentObjectiveId ?? "")
         : (targets.find(
-            (t) => t.ownershipScope !== "Company" && teamName != null && t.orgUnitName === teamName
+            (t) =>
+              t.ownershipScope !== "Company" &&
+              teamName != null &&
+              t.orgUnitName === teamName
           )?.id ?? "")
     );
     setTitle(objective?.title ?? "");
@@ -137,6 +164,7 @@ export function PlanGoalComposer({
         ? { from: objective.startDate, to: objective.endDate ?? undefined }
         : null
     );
+    setAiFilled({ title: false, measure: false, parent: false });
     // Seed only when the composer opens; later target refetches must not overwrite the author's choice.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, objective]);
@@ -232,9 +260,9 @@ export function PlanGoalComposer({
               : "Set a baseline, target, and unit for the measure"
           : !milestoneDatesValid
             ? "Move milestone due dates inside the objective's dates"
-          : weightNum <= 0
-            ? "Give this objective a plan weight"
-            : "Plan weight can be at most 100%"
+            : weightNum <= 0
+              ? "Give this objective a plan weight"
+              : "Plan weight can be at most 100%"
     : undefined;
 
   // Allocation context — the plan before this objective (edit mode already excludes its own weight).
@@ -264,6 +292,67 @@ export function PlanGoalComposer({
         direction,
       };
     return { method: "ManualPercentage" };
+  }
+
+  // The draft as it stands, complete or not: what the coach reads.
+  const coachDraft = () => ({
+    title: title.trim(),
+    description: description.trim() || null,
+    measurement: draftMeasurement({
+      method,
+      baseline,
+      target,
+      unit,
+      direction,
+      milestones,
+    }),
+    parentObjectiveId: mode === "aligned" && parentId ? parentId : null,
+  });
+  useAutoCoach({ coach, ready: method !== null, title, draft: coachDraft });
+  const suggestions =
+    coach.state.kind === "ready" ? coach.state.suggestions : null;
+  const suggestedParent = suggestions?.parentObjectiveId
+    ? (targets.find((t) => t.id === suggestions.parentObjectiveId) ?? null)
+    : null;
+
+  function applyTitle(text: string) {
+    setTitle(text);
+    setAiFilled((current) => ({ ...current, title: true }));
+    coach.settle("title");
+  }
+
+  function applyMeasure() {
+    const measure = suggestions?.measure;
+    if (!measure) return;
+    setMethod(measure.method);
+    if (measure.method === "NumericTarget") {
+      // The baseline is the author's fact: it is filled only when the draft stated one.
+      if (measure.baseline !== null) setBaseline(String(measure.baseline));
+      setTarget(measure.target !== null ? String(measure.target) : "");
+      setUnit(measure.unit ?? "");
+      setDirection(measure.direction ?? "Increase");
+    }
+    if (measure.method === "WeightedMilestones")
+      setMilestones(milestoneRows(measure));
+    setAiFilled((current) => ({ ...current, measure: true }));
+    coach.settle("measure");
+  }
+
+  /** A measurement edit by the author: the field is theirs now, so the AI label goes. */
+  function edited<T>(set: (value: T) => void) {
+    return (value: T) => {
+      set(value);
+      setAiFilled((current) =>
+        current.measure ? { ...current, measure: false } : current
+      );
+    };
+  }
+
+  function applyParent(id: string) {
+    setMode("aligned");
+    setParentId(id);
+    setAiFilled((current) => ({ ...current, parent: true }));
+    coach.settle("parent");
   }
 
   async function handleSubmit() {
@@ -376,65 +465,130 @@ export function PlanGoalComposer({
                     No published organizational objectives to align to yet.
                   </p>
                 ) : (
-                  <Select value={parentId} onValueChange={setParentId}>
-                    <SelectTrigger
-                      aria-label="Select organizational objective"
-                      className="h-auto w-full items-center whitespace-normal py-2.5 text-left data-[size=default]:h-auto [&>svg]:self-center"
+                  <CoachField
+                    label="parent"
+                    suggestion={
+                      coach.enabled && suggestedParent ? (
+                        <TargetSummary target={suggestedParent} />
+                      ) : null
+                    }
+                    onApply={() =>
+                      suggestedParent && applyParent(suggestedParent.id)
+                    }
+                    onDismiss={() => coach.settle("parent")}
+                  >
+                    <Select
+                      value={parentId}
+                      onValueChange={(value) => {
+                        setParentId(value);
+                        setAiFilled((current) => ({
+                          ...current,
+                          parent: false,
+                        }));
+                      }}
                     >
-                      {selectedTarget ? (
-                        <TargetSummary target={selectedTarget} />
-                      ) : (
-                        <span className="text-muted-foreground">
-                          Choose an organizational objective
-                        </span>
-                      )}
-                    </SelectTrigger>
-                    <SelectContent
-                      position="popper"
-                      align="start"
-                      className="max-h-72 w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-3rem)]"
-                    >
-                      {targetGroups.company.length > 0 ? (
-                        <SelectGroup>
-                          <SelectLabel>Company strategy</SelectLabel>
-                          {targetGroups.company.map((t) => (
-                            <TargetOption key={t.id} target={t} />
-                          ))}
-                        </SelectGroup>
-                      ) : null}
-                      {targetGroups.organizational.length > 0 ? (
-                        <SelectGroup>
-                          <SelectLabel>Organizational</SelectLabel>
-                          {targetGroups.organizational.map((t) => (
-                            <TargetOption key={t.id} target={t} />
-                          ))}
-                        </SelectGroup>
-                      ) : null}
-                    </SelectContent>
-                  </Select>
+                      <SelectTrigger
+                        aria-label="Select organizational objective"
+                        className="h-auto w-full items-center whitespace-normal py-2.5 text-left data-[size=default]:h-auto [&>svg]:self-center"
+                      >
+                        {selectedTarget ? (
+                          <TargetSummary target={selectedTarget} />
+                        ) : (
+                          <span className="text-muted-foreground">
+                            Choose an organizational objective
+                          </span>
+                        )}
+                      </SelectTrigger>
+                      <SelectContent
+                        position="popper"
+                        align="start"
+                        className="max-h-72 w-[var(--radix-select-trigger-width)] max-w-[calc(100vw-3rem)]"
+                      >
+                        {targetGroups.company.length > 0 ? (
+                          <SelectGroup>
+                            <SelectLabel>Company strategy</SelectLabel>
+                            {targetGroups.company.map((t) => (
+                              <TargetOption key={t.id} target={t} />
+                            ))}
+                          </SelectGroup>
+                        ) : null}
+                        {targetGroups.organizational.length > 0 ? (
+                          <SelectGroup>
+                            <SelectLabel>Organizational</SelectLabel>
+                            {targetGroups.organizational.map((t) => (
+                              <TargetOption key={t.id} target={t} />
+                            ))}
+                          </SelectGroup>
+                        ) : null}
+                      </SelectContent>
+                    </Select>
+                  </CoachField>
                 )
+              ) : coach.enabled && suggestedParent ? (
+                <CoachField
+                  label="parent"
+                  suggestion={<TargetSummary target={suggestedParent} />}
+                  onApply={() => applyParent(suggestedParent.id)}
+                  onDismiss={() => coach.settle("parent")}
+                />
+              ) : null}
+              {aiFilled.parent ? (
+                <p className="text-xs">
+                  <AiSuggestedTag />
+                </p>
               ) : null}
             </ObjectiveComposerSection>
 
             {/* 2. Objective definition */}
-            <ObjectiveComposerSection n={2} title="Objective definition">
+            <ObjectiveComposerSection
+              n={2}
+              title="Objective definition"
+              action={
+                coach.enabled ? (
+                  <CoachTrigger
+                    state={coach.state}
+                    onRun={() => void coach.run(coachDraft())}
+                  />
+                ) : undefined
+              }
+            >
               <div className="space-y-1.5">
                 <div className="flex items-baseline justify-between">
                   <Label htmlFor="pg-title">
                     Title <span className="text-destructive">*</span>
+                    {aiFilled.title ? <AiSuggestedTag /> : null}
                   </Label>
                   <span className="text-xs tabular-nums text-muted-foreground">
                     {title.length}/{TITLE_MAX}
                   </span>
                 </div>
-                <Input
-                  id="pg-title"
-                  value={title}
-                  maxLength={TITLE_MAX}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Enter a clear and specific objective title"
-                  autoFocus
-                />
+                <CoachField
+                  label="title"
+                  suggestion={
+                    coach.enabled && suggestions?.title
+                      ? suggestions.title
+                      : null
+                  }
+                  onApply={() =>
+                    suggestions?.title && applyTitle(suggestions.title)
+                  }
+                  onDismiss={() => coach.settle("title")}
+                >
+                  <Input
+                    id="pg-title"
+                    value={title}
+                    maxLength={TITLE_MAX}
+                    onChange={(e) => {
+                      setTitle(e.target.value);
+                      setAiFilled((current) => ({ ...current, title: false }));
+                    }}
+                    placeholder="Enter a clear and specific objective title"
+                    autoFocus
+                  />
+                </CoachField>
+                {coach.enabled && coach.state.kind === "nothing" ? (
+                  <CoachNothing />
+                ) : null}
               </div>
 
               <div className="space-y-1.5">
@@ -466,23 +620,33 @@ export function PlanGoalComposer({
               n={3}
               title="Measurement"
               hint="How will you measure progress on this objective?"
+              action={aiFilled.measure ? <AiSuggestedTag /> : undefined}
             >
+              {coach.enabled && suggestions?.measure ? (
+                <CoachSuggestion
+                  label="measure"
+                  onApply={applyMeasure}
+                  onDismiss={() => coach.settle("measure")}
+                >
+                  {measurePreview(suggestions.measure)}
+                </CoachSuggestion>
+              ) : null}
               <MeasurementEditor
                 method={method}
-                onMethodChange={setMethod}
+                onMethodChange={edited(setMethod)}
                 baseline={baseline}
                 target={target}
                 unit={unit}
                 direction={direction}
                 numericInvalid={numericInvalid}
                 numericSameValue={numericSameValue}
-                onBaseline={setBaseline}
-                onTarget={setTarget}
-                onUnit={setUnit}
-                onDirection={setDirection}
+                onBaseline={edited(setBaseline)}
+                onTarget={edited(setTarget)}
+                onUnit={edited(setUnit)}
+                onDirection={edited(setDirection)}
                 milestones={milestones}
                 milestoneWeightSum={milestoneSum}
-                onMilestonesChange={setMilestones}
+                onMilestonesChange={edited(setMilestones)}
                 minDate={dateStart}
                 maxDate={dateEnd}
               />
@@ -667,7 +831,9 @@ function ChoiceTile({
         )}
         aria-hidden
       >
-        {active ? <span className={cn("size-2 rounded-full", TILE_TONES[tone].dot)} /> : null}
+        {active ? (
+          <span className={cn("size-2 rounded-full", TILE_TONES[tone].dot)} />
+        ) : null}
       </span>
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold text-foreground">

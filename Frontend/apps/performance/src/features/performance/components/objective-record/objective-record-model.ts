@@ -50,6 +50,17 @@ export type ObjectiveRecord = {
   source: GoalDetailDto;
 };
 
+/**
+ * Where this objective sits on the alignment map: itself when it is published direction; for an aligned
+ * personal objective, itself under its parent (`near` is the parent, for when the plan has not been put
+ * forward and the objective is not on the map yet). Draft and standalone objectives are not on the map.
+ */
+export function mapFocusFor(record: ObjectiveRecord): { focus: string; near: string | null } | null {
+  if (record.kind === "plan")
+    return record.isAligned && record.parent ? { focus: record.ref.objectiveId, near: record.parent.ref.objectiveId } : null;
+  return record.source.node.state === "Published" ? { focus: record.ref.objectiveId, near: null } : null;
+}
+
 export function toObjectiveRecord(detail: GoalDetailDto): ObjectiveRecord {
   const node = detail.node;
   const kind = node.ownershipScope === "Company" ? "company" : node.ownershipScope === "OrgUnit" ? "team" : "plan";

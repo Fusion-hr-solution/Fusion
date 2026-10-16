@@ -12,6 +12,17 @@ export function objectiveHref(ref: ObjectiveRef, mode: ObjectiveRecordMode = "de
   return mode === "record" ? `${path}?mode=record` : path;
 }
 
+/**
+ * The alignment map of a Cycle, optionally centred on one objective. `near` is where to centre when the
+ * focused objective is not on the map for this viewer (a personal objective in a Draft plan).
+ */
+export function alignmentMapHref(cycleId: string, focusId?: string | null, nearId?: string | null) {
+  const query = new URLSearchParams({ view: "map", cycle: cycleId });
+  if (focusId) query.set("focus", focusId);
+  if (nearId && nearId !== focusId) query.set("near", nearId);
+  return `/goals?${query.toString()}`;
+}
+
 export type PlanRef = { cycleId: string; planId: string };
 
 export function planHref(ref: PlanRef) {

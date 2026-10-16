@@ -49,13 +49,14 @@ import {
   GitBranchIcon,
   GoalIcon,
   HierarchyIcon,
+  HierarchySquare01Icon,
   Home01Icon,
   Idea01Icon,
   InformationCircleIcon,
   Layers01Icon,
   Link02Icon,
   LinkSquare02Icon,
-  SquareArrowRightEnterIcon,
+  ListViewIcon,
   Loading03Icon,
   Mail01Icon,
   Message01Icon,
@@ -80,6 +81,8 @@ import {
   ShieldCheckIcon,
   SigmaIcon,
   SlidersHorizontalIcon,
+  SparklesIcon,
+  SquareArrowRightEnterIcon,
   SquareLock02Icon,
   Target02Icon,
   TaskDone01Icon,
@@ -231,3 +234,10 @@ export const Measurement = icon(RulerIcon, "Measurement");
 export const NumericGoal = icon(GoalIcon, "NumericGoal");
 export const Milestones = icon(MilestoneIcon, "Milestones");
 export const PercentMeasure = icon(Progress02Icon, "PercentMeasure");
+
+// AI (DESIGN.md §7): only on deliberate AI blocks, never as "new" or "smart".
+export const Sparkles = icon(SparklesIcon, "Sparkles");
+
+// Organization direction views.
+export const MapView = icon(HierarchySquare01Icon, "MapView");
+export const ListView = icon(ListViewIcon, "ListView");

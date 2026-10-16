@@ -1,10 +1,13 @@
 "use client";
 
 import { Suspense, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Plus } from "@/lib/icons";
+import { ListView, MapView, Plus } from "@/lib/icons";
 import { toast } from "sonner";
 import { Button } from "@repo/ds/components/ui/button";
+import { Skeleton } from "@repo/ds/components/ui/skeleton";
+import { ToggleGroup, ToggleGroupItem } from "@repo/ds/components/ui/toggle-group";
 import { useOrgHierarchy } from "@repo/workforce-ui";
 import {
   PageContainer,
@@ -29,7 +32,9 @@ import {
   WorkingScopeSelector,
 } from "@/features/performance/components/goals/working-scope-selector";
 import { type UnitContext } from "@/features/performance/components/goals/working-context-lib";
+import { resolveDirectionView } from "@/features/performance/components/goals/direction-view";
 import {
+  useAlignmentMap,
   useCurrentCycle,
   useGoals,
   useGoalMutations,
@@ -37,6 +42,25 @@ import {
 } from "@/features/performance/api/use-performance";
 import { useWorkforceMe } from "@/features/performance/api/use-workforce-me";
 import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
+
+function MapSkeleton() {
+  return (
+    <div className="grid h-full min-h-[420px] place-items-center rounded-surface border border-border bg-section" aria-label="Loading the alignment map">
+      <div className="space-y-6">
+        <Skeleton className="mx-auto h-28 w-64 rounded-surface" />
+        <div className="flex gap-8">
+          <Skeleton className="h-28 w-64 rounded-surface" />
+          <Skeleton className="h-28 w-64 rounded-surface" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const AlignmentMap = dynamic(() => import("@/features/performance/components/goals/alignment-map"), {
+  ssr: false,
+  loading: MapSkeleton,
+});
 
 export default function GoalsPage() {
   return (
@@ -52,28 +76,32 @@ function GoalsWorkspace() {
   const router = useRouter();
   const context = useWorkspaceContext();
   const capabilities = context.data?.capabilities;
-  // Organization direction is a workspace for organizational responsibility, reached in context.
-  // Anyone else still reads the objectives their work aligns to — in the objective record.
-  const canViewOrgGoals = capabilities?.canViewOrgDirection ?? false;
-  // Authority (not placement) decides the default context. A tenant-wide actor (administration, or
+  // Everyone in Performance reads published direction on the map (D-06). The List is the authoring
+  // workspace for organizational responsibility, so only direction authority gets it.
+  const canList = capabilities?.canViewOrgDirection ?? false;
+  const view = resolveDirectionView(searchParams.get("view"), canList);
+  const listing = view === "list";
+  // Authority (not placement) decides the List's default context. A tenant-wide actor (administration, or
   // tenant-breadth read) is responsible for the whole organization, so they land organization-wide;
   // everyone else is centered on the unit they actually belong to. Both drill the same hierarchy.
   const broad = capabilities?.canChooseOrganizationScope ?? false;
   const canReachSetup = capabilities?.administers || capabilities?.publishesStrategy || false;
   const requestedScopeId = searchParams.get("scope");
   const focusId = searchParams.get("focus");
+  const nearId = searchParams.get("near");
 
-  const detail = useCurrentCycle(canViewOrgGoals);
+  const detail = useCurrentCycle(Boolean(capabilities));
   const cycle = detail.data?.cycle ?? null;
-  const goals = useGoals(cycle?.id ?? null, canViewOrgGoals);
+  const map = useAlignmentMap(cycle?.id ?? null, !listing);
+  const goals = useGoals(cycle?.id ?? null, listing);
   // The actor's own organizational context — resolved from real workforce data, never fabricated.
-  // Fetched for every actor who can be here (not just non-broad ones) so a broad actor with a real
+  // Fetched for every List viewer (not just non-broad ones) so a broad actor with a real
   // placement can narrow the working scope to their own unit (§33). Absent for a placement-less admin.
-  const me = useWorkforceMe(canViewOrgGoals);
+  const me = useWorkforceMe(listing);
   // A CoreHR tree is fetched only for broad viewers who can actually switch organizational context.
   // Managers stay within their workforce placement, even if the MVP's coarse permission happens to
   // be technically wider.
-  const organization = useOrgHierarchy(canViewOrgGoals && broad);
+  const organization = useOrgHierarchy(listing && broad);
   // Mutation hooks live above every early return so hook order is stable; they no-op until invoked and
   // the id is only meaningful once the Cycle resolves.
   const goalMutations = useGoalMutations(cycle?.id ?? "");
@@ -127,6 +155,7 @@ function GoalsWorkspace() {
   const replaceContext = (next: {
     focusId?: string | null;
     scopeId?: string | null;
+    view?: "map" | "list";
   }) => {
     const query = new URLSearchParams(searchParams.toString());
     if (next.focusId !== undefined) {
@@ -137,6 +166,7 @@ function GoalsWorkspace() {
       if (next.scopeId) query.set("scope", next.scopeId);
       else query.delete("scope");
     }
+    if (next.view !== undefined) query.set("view", next.view);
     router.replace(`${pathname}${query.size ? `?${query.toString()}` : ""}`, {
       scroll: false,
     });
@@ -146,14 +176,6 @@ function GoalsWorkspace() {
     return <PageSkeleton rows={4} label="Loading Performance" />;
   if (context.error)
     return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
-  if (!canViewOrgGoals) {
-    return (
-      <PagePermissionNotice
-        title="No access to organization direction"
-        description="Organization direction is available to leadership and performance administration."
-      />
-    );
-  }
   if (detail.isLoading) return <PageSkeleton rows={4} label="Loading Cycle" />;
   if (detail.error)
     return (
@@ -168,7 +190,7 @@ function GoalsWorkspace() {
       <PageContainer>
         <PagePermissionNotice
           title="No Cycle yet"
-          description="Goals open once a Performance Cycle exists. Your administrator creates and activates it."
+          description="Organization direction opens once a Performance Cycle exists."
         />
       </PageContainer>
     );
@@ -214,11 +236,41 @@ function GoalsWorkspace() {
   }
 
   const overview = goals.data;
-  const meResolving = !broad && me.isLoading;
+  const meResolving = listing && !broad && me.isLoading;
 
-  const actions = overview ? (
+  const viewSwitch = canList ? (
+    <ToggleGroup
+      type="single"
+      value={view}
+      onValueChange={(value) => {
+        if (value === "map" || value === "list") replaceContext({ view: value });
+      }}
+      aria-label="Organization direction view"
+      className="rounded-control border bg-inlay p-0.5"
+    >
+      <ToggleGroupItem
+        value="map"
+        aria-label="Map view"
+        className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
+      >
+        <MapView className="size-4" />
+        Map
+      </ToggleGroupItem>
+      <ToggleGroupItem
+        value="list"
+        aria-label="List view"
+        className="gap-1.5 px-3 text-sm text-muted-foreground data-[state=on]:bg-foreground! data-[state=on]:text-background! data-[state=on]:shadow-raised"
+      >
+        <ListView className="size-4" />
+        List
+      </ToggleGroupItem>
+    </ToggleGroup>
+  ) : null;
+
+  const actions = (
     <>
-      {broad ? (
+      {viewSwitch}
+      {listing && overview && broad ? (
         <WorkingScopeSelector
           roots={organization.data?.roots ?? []}
           value={requestedScopeId}
@@ -226,7 +278,7 @@ function GoalsWorkspace() {
           onChange={(scopeId) => replaceContext({ scopeId, focusId: null })}
         />
       ) : null}
-      {canManageCompany ? (
+      {listing && overview && canManageCompany ? (
         <Button
           size="sm"
           onClick={() => setCompanyComposer({ mode: "create" })}
@@ -236,17 +288,49 @@ function GoalsWorkspace() {
         </Button>
       ) : null}
     </>
-  ) : undefined;
+  );
+
+  const hasDirection = map.data?.nodes.some((node) => node.kind === "Company") ?? false;
 
   return (
-    <PageContainer>
+    <PageContainer width={listing ? undefined : "wide"}>
       <PerformancePageHeading
         title="Organization direction"
         back={{ href: "/", label: "Overview" }}
         actions={actions}
       />
 
-      {goals.isLoading || meResolving ? (
+      {!listing ? (
+        <div className="h-[calc(100dvh-12rem)] min-h-[420px]">
+          {map.isLoading ? (
+            <MapSkeleton />
+          ) : map.error || !map.data ? (
+            <ContentUnavailable
+              error={map.error ?? new Error("The alignment map did not load.")}
+              onRetry={map.refetch}
+              subject="The alignment map"
+            />
+          ) : !hasDirection ? (
+            <div className="grid h-full place-items-center rounded-surface border border-dashed border-border bg-section px-6 text-center">
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-foreground">No published direction for this cycle</p>
+                {canList ? (
+                  <Button size="sm" variant="outline" onClick={() => replaceContext({ view: "list" })}>
+                    Open the list
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <AlignmentMap
+              map={map.data}
+              focusId={focusId}
+              nearId={nearId}
+              onOpen={(objectiveId) => record.open({ cycleId: cycle.id, objectiveId })}
+            />
+          )}
+        </div>
+      ) : goals.isLoading || meResolving ? (
         <PageSkeleton rows={4} label="Loading goals" />
       ) : goals.error || !overview ? (
         <PageError
