@@ -21,3 +21,4 @@ export * from "./core-organization-import";
 export * from "./core-workforce-import";
 export * from "./core-people";
 export * from "./performance";
+export * from "./fusion-attention";

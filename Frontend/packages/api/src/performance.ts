@@ -1323,6 +1323,82 @@ export interface SetPopulationRequest {
   exclusions?: ExclusionInput[];
 }
 
+// ── Person summary (D-32): one person's performance as the viewer may see it ──
+
+/** The caller's relation to the person, from the most permissive that applies. */
+export type PersonPerformanceRelation = "Self" | "Manager" | "Reviewer" | "Administrator" | "Other";
+
+export interface PersonSummaryObjectiveDto {
+  objectiveId: string;
+  /** 1-based position in the plan. */
+  number: number;
+  title: string;
+  /** Title of the objective it's aligned to; null when standalone. */
+  alignedTo: string | null;
+  weight: number | null;
+  /** 0–100, or null before any progress is recorded. */
+  progress: number | null;
+  href: string;
+}
+
+export interface PersonSummaryCycleDto {
+  cycleId: string;
+  cycleName: string;
+  cycleState: CycleLifecycleState;
+  phase: CyclePhase | null;
+  /** False when the person isn't part of the cycle; no plan facts follow. */
+  isParticipant: boolean;
+  planId: string | null;
+  planStatus: RosterPlanStatus | null;
+  /** Weighted plan progress, 0–100. */
+  overallProgress: number | null;
+  planHref: string | null;
+  objectives: PersonSummaryObjectiveDto[];
+}
+
+export interface PersonSummaryCurrentReviewDto {
+  reviewId: string;
+  reviewRoundName: string;
+  state: PerformanceReviewState;
+  /** Due date of the current step, when it has one. */
+  dueDate: string | null;
+  /** Which optional steps this review has. */
+  selfAssessmentEnabled: boolean;
+  calibrationEnabled: boolean;
+  href: string;
+}
+
+export interface PersonSummaryReviewResultDto {
+  reviewId: string;
+  cycleName: string;
+  reviewRoundName: string;
+  finalRatingLabel: string | null;
+  finalizedAt: string | null;
+  href: string;
+}
+
+export interface PersonSummaryReviewsDto {
+  current: PersonSummaryCurrentReviewDto | null;
+  /** Released results, newest first. */
+  history: PersonSummaryReviewResultDto[];
+}
+
+/**
+ * Sections are null when the caller may not see them. An unknown or foreign
+ * employee gets the same answer as an unseen one, without identity.
+ */
+export interface PersonPerformanceSummaryDto {
+  employeeId: string;
+  displayName: string | null;
+  jobTitle: string | null;
+  orgUnitName: string | null;
+  /** Core HR record key, for linking to `/core/people/{key}`. */
+  stableEmployeeKey: string | null;
+  relation: PersonPerformanceRelation;
+  currentCycle: PersonSummaryCycleDto | null;
+  reviews: PersonSummaryReviewsDto | null;
+}
+
 // ── Paths & query keys ─────────────────────────────────────────────────────────
 
 export const performancePaths = {
@@ -1420,6 +1496,7 @@ export const performancePaths = {
   calibrationSubject: (roundId: string, reviewId: string) =>
     `/performance/review-rounds/${roundId}/calibration/subjects/${reviewId}`,
   calibrationFinalize: (roundId: string) => `/performance/review-rounds/${roundId}/calibration/finalize`,
+  personSummary: (employeeId: string) => `/performance/people/${employeeId}/summary`,
 } as const;
 
 export const performanceQueryKeys = {
@@ -1473,6 +1550,8 @@ export const performanceQueryKeys = {
   calibrationRounds: (cycleId: string) => [...performanceQueryKeys.all(), "calibration-rounds", cycleId] as const,
   calibration: (roundId: string) => [...performanceQueryKeys.all(), "calibration", roundId] as const,
   calibrationCandidates: (roundId: string) => [...performanceQueryKeys.all(), "calibration-candidates", roundId] as const,
+  personSummary: (employeeId: string, cycleId?: string | null) =>
+    [...performanceQueryKeys.all(), "person-summary", employeeId, cycleId ?? "default"] as const,
 } as const;
 
 /** Performance Cycle & Goals transport. UI state and cache behavior remain feature-owned. */
@@ -1795,6 +1874,11 @@ export function createPerformanceApi(client: ApiClient) {
     ) =>
       client.get<Blob>(performancePaths.evidenceDownload(cycleId, evidenceId), {
         responseType: "blob",
+        signal,
+      }),
+    getPersonSummary: (employeeId: string, cycleId?: string | null, signal?: AbortSignal) =>
+      client.get<PersonPerformanceSummaryDto>(performancePaths.personSummary(employeeId), {
+        params: { cycleId },
         signal,
       }),
   };

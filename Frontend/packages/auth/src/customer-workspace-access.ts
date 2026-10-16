@@ -1,4 +1,16 @@
-import { canAccessPlatform } from "./roles";
+import type { FusionAttentionModuleKey } from "@repo/api";
+import {
+  canAccessCoreAccess,
+  canAccessCoreOrgChart,
+  canAccessCoreOverview,
+  canAccessCorePeople,
+  canAccessCoreSettings,
+  canAccessCoreTeam,
+  canAccessOwnCoreProfile,
+  canAccessPlatform,
+  canManageCoreAccessProfiles,
+  hasAnyCorePermission,
+} from "./roles";
 import type { AuthUser } from "./types";
 
 /**
@@ -75,4 +87,51 @@ export function resolveCustomerWorkspaceAccessState({
   }
 
   return "allowed";
+}
+
+/** Performance's entry permissions; the service refuses a caller holding neither. */
+const PERFORMANCE_ENTRY_PERMISSIONS = [
+  "performance.cycle.view",
+  "performance.objective.self.manage",
+] as const;
+
+/**
+ * Whether the user can enter Performance: the customer-workspace entry rule for
+ * the Performance module, plus one of the permissions the Performance service
+ * requires to enter at all. Use it wherever another surface offers a way into
+ * Performance (the Fusion home, the Core HR person record), so no door leads to
+ * a refusal.
+ */
+export function canEnterPerformance(user: AuthUser | null): boolean {
+  return (
+    resolveCustomerWorkspaceAccessState({ isLoading: false, user, module: CUSTOMER_MODULES.performance }) ===
+      "allowed" && hasAnyCorePermission(user, PERFORMANCE_ENTRY_PERMISSIONS)
+  );
+}
+
+/** Whether the user can enter Core HR: the customer-workspace rule plus at least one Core HR workspace. */
+export function canEnterCoreHr(user: AuthUser | null): boolean {
+  return (
+    resolveCustomerWorkspaceAccessState({ isLoading: false, user, module: CUSTOMER_MODULES.coreHr }) === "allowed" &&
+    (canAccessCoreOverview(user) ||
+      canAccessCoreAccess(user) ||
+      canManageCoreAccessProfiles(user) ||
+      canAccessCoreSettings(user) ||
+      canAccessCorePeople(user) ||
+      canAccessCoreOrgChart(user) ||
+      canAccessOwnCoreProfile(user) ||
+      canAccessCoreTeam(user))
+  );
+}
+
+/**
+ * The attention modules (work items, notifications) the user's tenant is
+ * entitled to and the user can enter. The `@repo/api/query` attention hooks
+ * read exactly these.
+ */
+export function resolveFusionAttentionModules(user: AuthUser | null): FusionAttentionModuleKey[] {
+  const modules: FusionAttentionModuleKey[] = [];
+  if (canEnterCoreHr(user)) modules.push("core");
+  if (canEnterPerformance(user)) modules.push("performance");
+  return modules;
 }

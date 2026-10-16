@@ -1,17 +1,6 @@
 import type { AuthUser } from "./types";
-import {
-  canAccessCoreAccess,
-  canAccessCoreOverview,
-  canAccessCoreOrgChart,
-  canAccessCorePeople,
-  canAccessCoreSettings,
-  canAccessCoreTeam,
-  canAccessOwnCoreProfile,
-  canAccessPlatform,
-  canManageCoreAccessProfiles,
-  canViewTenantAdministration,
-} from "./roles";
-import { CUSTOMER_MODULES, hasModuleEntitlement } from "./customer-workspace-access";
+import { canAccessPlatform, canViewTenantAdministration } from "./roles";
+import { canEnterCoreHr, canEnterPerformance } from "./customer-workspace-access";
 
 /** The canonical tenant-foundation orientation route. */
 export const GETTING_STARTED_ROUTE = "/getting-started";
@@ -91,14 +80,17 @@ export function sanitizeInternalReturnPath(
   }
 }
 
+/** The Fusion home at the shell root (D-31). */
+export const FUSION_HOME_ROUTE = "/";
+
 /**
  * Product-aware fallback after ordinary authentication. Known journeys such as
  * invitation acceptance use their own purpose-specific destinations instead.
  *
- * The Tenant Administrator foundation landing is readiness-aware: Ready lands on
- * the operational Core Home (`/core`); anything else — including unknown
- * readiness — lands on Getting Started, which itself reads canonical readiness
- * and renders the truthful state.
+ * Tenant users land on the Fusion home when they can enter at least one module.
+ * The Tenant Administrator foundation landing stays readiness-aware: Ready lands
+ * on the home; anything else, including unknown readiness, lands on Getting
+ * Started, which itself reads canonical readiness and renders the truthful state.
  */
 export function resolveDefaultProductDestination(
   user: AuthUser | null,
@@ -109,28 +101,10 @@ export function resolveDefaultProductDestination(
   if (!user.tenantId) return null;
 
   if (canViewTenantAdministration(user)) {
-    return context.organizationReady === true ? "/core" : GETTING_STARTED_ROUTE;
+    return context.organizationReady === true ? FUSION_HOME_ROUTE : GETTING_STARTED_ROUTE;
   }
 
-  if (hasModuleEntitlement(user, CUSTOMER_MODULES.coreHr)) {
-    if (canAccessCoreOverview(user)) return "/core";
-    if (canAccessCoreAccess(user)) return "/core/access";
-    if (canManageCoreAccessProfiles(user)) return "/core/settings?tab=access-permissions";
-    if (canAccessCoreSettings(user)) return "/core/settings";
-    if (canAccessCorePeople(user)) return "/core/employees";
-    if (canAccessCoreOrgChart(user)) return "/core/organization";
-    // Own profile is a safer default than the manager Team workspace. Team stays
-    // reachable via navigation, but must never be a blind landing for a user
-    // without genuine team context (the /core/team "Failed to load team" defect).
-    if (canAccessOwnCoreProfile(user)) return "/core/profile";
-    if (canAccessCoreTeam(user)) return "/core/team";
-  }
-
-  if (hasModuleEntitlement(user, CUSTOMER_MODULES.performance)) {
-    return "/performance";
-  }
-
-  return null;
+  return canEnterCoreHr(user) || canEnterPerformance(user) ? FUSION_HOME_ROUTE : null;
 }
 
 export function resolvePostSignInDestination({

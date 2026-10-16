@@ -64,6 +64,9 @@ export {
 export {
   resolveCustomerWorkspaceAccessState,
   hasModuleEntitlement,
+  canEnterCoreHr,
+  canEnterPerformance,
+  resolveFusionAttentionModules,
   CUSTOMER_MODULES,
 } from "./customer-workspace-access";
 export type { CustomerModule } from "./customer-workspace-access";
@@ -77,6 +80,7 @@ export {
   resolvePostSignInDestination,
   landingRequiresOrganizationReadiness,
   GETTING_STARTED_ROUTE,
+  FUSION_HOME_ROUTE,
 } from "./routing";
 export type { OrganizationReadinessSignal } from "./routing";
 export {

@@ -20,3 +20,12 @@ export {
   type UseApiMutationOptions,
   type UseApiMutationResult,
 } from "./useApiMutation";
+export {
+  FUSION_NOTIFICATION_POLL_MS,
+  orderWorkItems,
+  useFusionNotifications,
+  useFusionWork,
+  type FusionModuleLoadStatus,
+  type FusionModuleState,
+  type UseFusionAttentionOptions,
+} from "./useFusionAttention";

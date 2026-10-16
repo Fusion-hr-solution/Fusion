@@ -83,10 +83,10 @@ describe("default product destination", () => {
     ).toBe("/getting-started");
   });
 
-  it("lands a Tenant Administrator on Core Home once Organization is Ready", () => {
+  it("lands a Tenant Administrator on the Fusion home once Organization is Ready", () => {
     expect(
       resolveDefaultProductDestination(admin(), { organizationReady: true })
-    ).toBe("/core");
+    ).toBe("/");
   });
 
   it("fails closed to Getting Started when readiness is unknown", () => {
@@ -112,40 +112,34 @@ describe("default product destination", () => {
     ).toBe(resolveDefaultProductDestination(second, { organizationReady: false }));
   });
 
-  it("routes another tenant user to a permission-supported destination", () => {
+  it("lands an employee who can enter a module on the Fusion home", () => {
     expect(resolveDefaultProductDestination(user({
+      moduleEntitlements: ["CoreHR", "Performance"],
       effectivePermissions: [grant("core.employee.view")],
-    }))).toBe("/core/employees");
-  });
-
-  it("routes an org-chart-only user to the canonical Organization workspace", () => {
-    expect(resolveDefaultProductDestination(user({
-      effectivePermissions: [grant("core.orgchart.view")],
-    }))).toBe("/core/organization");
-  });
-
-  it("never blind-defaults a profile-capable manager into the Team workspace", () => {
-    // A DirectReports employee-view grant satisfies both own-profile and Team;
-    // the safer own-profile landing must win over /core/team.
+    }))).toBe("/");
     expect(resolveDefaultProductDestination(user({
       employeeId: "emp-1",
-      roles: ["Manager"],
-      effectivePermissions: [
-        { ...grant("core.employee.view"), scope: "DirectReports", allowedScopes: ["DirectReports"] },
-      ],
-    }))).toBe("/core/profile");
-  });
-
-  it("lands a genuine team-only user on the Team workspace as a last resort", () => {
-    // Only a DirectReports team-view grant (no profile/roster access) still
-    // resolves to Team, so real managers keep a meaningful default.
-    expect(resolveDefaultProductDestination(user({
-      employeeId: "emp-1",
-      roles: ["Manager"],
       effectivePermissions: [
         { ...grant("core.team.view"), scope: "DirectReports", allowedScopes: ["DirectReports"] },
       ],
-    }))).toBe("/core/team");
+    }))).toBe("/");
+  });
+
+  it("lands a Performance-only tenant user on the Fusion home", () => {
+    expect(resolveDefaultProductDestination(user({
+      moduleEntitlements: ["Performance"],
+      effectivePermissions: [
+        { ...grant("performance.objective.self.manage"), scope: "Self", allowedScopes: ["Self"] },
+      ],
+    }))).toBe("/");
+  });
+
+  it("returns no destination when no entitled module can be entered", () => {
+    expect(resolveDefaultProductDestination(user({ moduleEntitlements: ["CoreHR"] }))).toBeNull();
+    expect(resolveDefaultProductDestination(user({
+      moduleEntitlements: ["Performance"],
+      effectivePermissions: [grant("core.employee.view")],
+    }))).toBeNull();
   });
 
   it("returns no destination when the account has no usable context", () => {
@@ -154,6 +148,17 @@ describe("default product destination", () => {
       tenantMembershipId: null,
       moduleEntitlements: [],
     }))).toBeNull();
+  });
+
+  it("lets a safe callback win over the Fusion home", () => {
+    expect(resolvePostSignInDestination({
+      intendedDestination: "/performance/plan",
+      user: user({
+        moduleEntitlements: ["Performance"],
+        effectivePermissions: [{ ...grant("performance.objective.self.manage"), scope: "Self", allowedScopes: ["Self"] }],
+      }),
+      trustedOrigin: ORIGIN,
+    })).toBe("/performance/plan");
   });
 
   it("lets a safe intended destination override the default", () => {
@@ -179,7 +184,7 @@ describe("default product destination", () => {
       user: admin(),
       trustedOrigin: ORIGIN,
       organizationReady: true,
-    })).toBe("/core");
+    })).toBe("/");
   });
 
   it("ignores an unsafe intended destination", () => {
@@ -187,6 +192,6 @@ describe("default product destination", () => {
       intendedDestination: "/\\evil.example",
       user: user({ effectivePermissions: [grant("core.employee.view")] }),
       trustedOrigin: ORIGIN,
-    })).toBe("/core/employees");
+    })).toBe("/");
   });
 });

@@ -71,6 +71,8 @@ export interface PeopleProfileIdentityDto {
   preferredName: string | null;
   workEmail: string | null;
   phone: string | null;
+  /** The worker's id, which other modules (Performance) key their records by. */
+  employeeId: string;
 }
 
 export interface PeopleProfileEmploymentDto {

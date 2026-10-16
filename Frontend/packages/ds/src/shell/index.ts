@@ -74,3 +74,23 @@ export type {
   ShellModule,
   ModuleSidebarProps,
 } from "./types";
+export { NotificationBell, relativeStamp } from "./notification-bell";
+export type {
+  NotificationBellItem,
+  NotificationBellModule,
+  NotificationBellProps,
+} from "./notification-bell";
+export {
+  WorkFocus,
+  WorkList,
+  daysUntil,
+  dueLabel,
+  selectFeaturedWork,
+} from "./work-list";
+export type {
+  RenderWorkLink,
+  WorkFocusProps,
+  WorkListItem,
+  WorkListModule,
+  WorkListProps,
+} from "./work-list";
