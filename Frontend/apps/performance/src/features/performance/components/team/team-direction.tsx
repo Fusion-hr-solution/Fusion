@@ -4,6 +4,7 @@ import { reportPerformanceFailure } from "@/features/performance/api/performance
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { classifyApiError } from "@repo/api";
 import { useAuth } from "@repo/auth";
 import type {
   AlignmentTargetDto,
@@ -148,13 +149,16 @@ export function TeamDirection({
         <p className="mt-2 text-sm text-muted-foreground">
           {workspace.error?.message || "Team objectives could not be loaded."}
         </p>
-        <Button
-          variant="outline"
-          className="mt-4"
-          onClick={() => void workspace.refetch()}
-        >
-          Try again
-        </Button>
+        {/* A validation or access answer won't change on retry; only transient failures offer one. */}
+        {["validation", "auth"].includes(classifyApiError(workspace.error)) ? null : (
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => void workspace.refetch()}
+          >
+            Try again
+          </Button>
+        )}
       </section>
     );
   }
