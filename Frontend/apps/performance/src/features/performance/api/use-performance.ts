@@ -6,6 +6,7 @@ import {
   createPlatformApiClient,
   performanceQueryKeys,
   type AddPlanObjectiveRequest,
+  type DevelopmentGoalInput,
   type ConfigureContributionRequest,
   type CreateCycleRequest,
   type CreateOrganizationalObjectiveRequest,
@@ -303,7 +304,12 @@ export function usePlanMutations(cycleId: string) {
     { invalidateQueries: invalidate }
   );
   const submit = usePerformanceMutation((expectedVersion: number) => performance.submitPlan(cycleId, expectedVersion), { invalidateQueries: invalidate });
-  return { create, addObjective, updateObjective, removeObjective, submit };
+  const addressChangeRequest = usePerformanceMutation(
+    (args: { requestId: string; reply: string | null; expectedVersion: number }) =>
+      performance.addressChangeRequest(cycleId, args.requestId, { reply: args.reply, expectedVersion: args.expectedVersion }),
+    { invalidateQueries: [...invalidate, { queryKey: [...performanceQueryKeys.all(), "plan", cycleId] }] }
+  );
+  return { create, addObjective, updateObjective, removeObjective, submit, addressChangeRequest };
 }
 
 /** Manager/administrator decision: return, approve, or exceptionally approve a submitted plan. */
@@ -352,6 +358,9 @@ export function useProgressMutations(cycleId: string, objectiveId: string) {
     // Progress can satisfy an open update request on the objective or its plan.
     { queryKey: [...performanceQueryKeys.all(), "update-requests", cycleId] },
     { queryKey: performanceQueryKeys.overviews() },
+    // Status shows on the plan record and the person summary.
+    { queryKey: [...performanceQueryKeys.all(), "plan", cycleId] },
+    { queryKey: [...performanceQueryKeys.all(), "person-summary"] },
   ];
   const submit = usePerformanceMutation(
     (request: SubmitProgressRequest) => performance.submitProgress(cycleId, objectiveId, request),
@@ -359,6 +368,63 @@ export function useProgressMutations(cycleId: string, objectiveId: string) {
   );
   const uploadEvidence = usePerformanceMutation((file: File) => performance.uploadEvidence(cycleId, objectiveId, file));
   return { submit, uploadEvidence, evidenceDownloadPath: (id: string) => performance.evidenceDownloadPath(cycleId, id) };
+}
+
+/** The plan's responsible reviewer acknowledges an objective's at-risk or off-track status (D-05). */
+export function useAcknowledgeStatus(cycleId: string, objectiveId: string) {
+  const { performance } = useApis();
+  return usePerformanceMutation(
+    (expectedVersion: number) => performance.acknowledgeObjectiveStatus(cycleId, objectiveId, expectedVersion),
+    {
+      invalidateQueries: [
+        { queryKey: performanceQueryKeys.goal(cycleId, objectiveId) },
+        { queryKey: [...performanceQueryKeys.all(), "plan", cycleId] },
+        { queryKey: performanceQueryKeys.yourPeople(cycleId) },
+      ],
+    }
+  );
+}
+
+// ── Development (D-34) ─────────────────────────────────────────────────────────
+
+export function useDevelopmentPlan(cycleId: string | null, employeeId: string | null) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.development(cycleId ?? "none", employeeId ?? "none"),
+    (signal) => performance.getDevelopmentPlan(cycleId as string, employeeId as string, signal),
+    { enabled: Boolean(cycleId) && Boolean(employeeId) }
+  );
+}
+
+/** The employee and their reviewer keep the goals together; every change returns the whole plan. */
+export function useDevelopmentMutations(cycleId: string, employeeId: string) {
+  const { performance } = useApis();
+  const invalidateQueries = [
+    { queryKey: performanceQueryKeys.development(cycleId, employeeId) },
+    { queryKey: [...performanceQueryKeys.all(), "person-summary", employeeId] },
+  ];
+  const add = usePerformanceMutation(
+    (input: DevelopmentGoalInput) => performance.addDevelopmentGoal(cycleId, employeeId, input),
+    { invalidateQueries }
+  );
+  const update = usePerformanceMutation(
+    (args: { goalId: string; input: DevelopmentGoalInput }) => performance.updateDevelopmentGoal(cycleId, employeeId, args.goalId, args.input),
+    { invalidateQueries }
+  );
+  const remove = usePerformanceMutation(
+    (args: { goalId: string; expectedVersion: number }) => performance.removeDevelopmentGoal(cycleId, employeeId, args.goalId, args.expectedVersion),
+    { invalidateQueries }
+  );
+  const carryOver = usePerformanceMutation(
+    (args: { goalIds: string[]; expectedVersion: number }) => performance.carryOverDevelopmentGoals(cycleId, employeeId, args.goalIds, args.expectedVersion),
+    // The earlier plan's goals become carried too.
+    { invalidateQueries: [...invalidateQueries, { queryKey: [...performanceQueryKeys.all(), "development"] }] }
+  );
+  const dismiss = usePerformanceMutation(
+    (expectedVersion: number) => performance.dismissDevelopmentCarryOver(cycleId, employeeId, expectedVersion),
+    { invalidateQueries }
+  );
+  return { add, update, remove, carryOver, dismiss };
 }
 
 /**

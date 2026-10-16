@@ -13,6 +13,7 @@ import { ProgressHistoryTimeline } from "../../progress/progress-history-timelin
 import { objectiveProgressTone, pct, PROGRESS_TONE_TEXT } from "../../plan/plan-lib";
 import type { ObjectiveRecord } from "../objective-record-model";
 import { RECORD_SURFACE, RecordSection } from "./record-primitives";
+import { StatusSection } from "./status-section";
 
 /**
  * Execution: the objective's current progress and — for those who may see named detail — who recorded
@@ -78,6 +79,8 @@ export function ProgressSection({
           </div>
         )}
       </RecordSection>
+
+      <StatusSection record={record} />
 
       {canHistory && (has || pager.items.length > 0) ? (
         <RecordSection label="Progress history">

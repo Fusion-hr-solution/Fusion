@@ -153,6 +153,17 @@ export function planChecks(readiness: PlanReadinessDto): PlanCheck[] {
             : "Weights total 100%",
     },
   ];
+  if (readiness.openChangeRequests > 0) {
+    checks.push({
+      id: "change-requests",
+      label: "Every change request is addressed",
+      passed: false,
+      detail:
+        readiness.openChangeRequests === 1
+          ? "Address 1 change request"
+          : `Address ${readiness.openChangeRequests} change requests`,
+    });
+  }
   if (readiness.alignmentPolicy !== "Optional") {
     const every = readiness.alignmentPolicy === "EveryObjectiveConnected";
     checks.push({

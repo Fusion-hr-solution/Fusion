@@ -20,7 +20,9 @@ import {
   PercentMeasure,
 } from "@/lib/icons";
 import { TargetRange } from "./target-range";
+import type { ReactNode } from "react";
 import type { PlanObjectiveDto } from "@repo/api";
+import { ObjectiveStatusBadge } from "@repo/performance-ui";
 import { Button } from "@repo/ds/components/ui/button";
 import {
   DropdownMenu,
@@ -58,6 +60,8 @@ export function PlanObjectiveRow({
   onViewDetails,
   onViewAlignment,
   cycle,
+  executionAside,
+  footer,
 }: {
   index: number;
   objective: PlanObjectiveDto;
@@ -75,6 +79,10 @@ export function PlanObjectiveRow({
   onViewAlignment?: (parentId: string) => void;
   /** The plan's cycle window: the year is left to the cycle when the objective sits inside it. */
   cycle?: { startDate: string; endDate: string };
+  /** Beside the execution band's actions: an update request's marker or the request action. */
+  executionAside?: ReactNode;
+  /** Under everything, inside the card: a change request on this objective. */
+  footer?: ReactNode;
 }) {
   const duration = formatObjectiveDuration(objective.startDate, objective.endDate, cycle);
   const weight = objective.planWeight ?? 0;
@@ -272,7 +280,10 @@ export function PlanObjectiveRow({
         <div className="mt-4 flex items-center gap-4 border-t border-border/60 pt-4">
           <ExecutionState objective={objective} tone={tone} capped={capped} />
 
+          <ObjectiveStatusBadge status={objective.status} className="shrink-0" />
+
           <div className="flex shrink-0 items-center gap-1.5">
+            {executionAside}
             {onOpenProgress ? (
               objective.canUpdateProgress ? (
                 <Button variant="outline" size="sm" onClick={onOpenProgress}>
@@ -288,6 +299,8 @@ export function PlanObjectiveRow({
           </div>
         </div>
       ) : null}
+
+      {footer ? <div className="mt-4 border-t border-border/60 pt-4">{footer}</div> : null}
     </div>
   );
 }

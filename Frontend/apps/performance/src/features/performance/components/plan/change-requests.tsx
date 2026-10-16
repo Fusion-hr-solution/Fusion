@@ -1,0 +1,218 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { Check, MessageSquare, Pencil, Trash2 } from "@/lib/icons";
+import type { PlanChangeRequestDto } from "@repo/api";
+import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
+import { Button } from "@repo/ds/components/ui/button";
+import { Textarea } from "@repo/ds/components/ui/textarea";
+import { AsyncButton } from "@repo/ds/shell";
+import { cn } from "@repo/ds/lib/utils";
+import { formatDate } from "../../lib";
+import { initials } from "./plan-lib";
+
+export const CHANGE_REQUEST_MAX = 500;
+
+/** The change requests a reviewer is drafting on a submitted plan, one per objective, before Return sends them. */
+export function useChangeRequestDrafts() {
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const set = useCallback((objectiveId: string, text: string) => setDrafts((d) => ({ ...d, [objectiveId]: text })), []);
+  const remove = useCallback((objectiveId: string) => setDrafts(({ [objectiveId]: _removed, ...rest }) => rest), []);
+  const clear = useCallback(() => setDrafts({}), []);
+  const list = Object.entries(drafts).map(([objectiveId, text]) => ({ objectiveId, text }));
+  return { drafts, set, remove, clear, list };
+}
+
+/**
+ * Unsent drafts are only on this page: leaving it asks first — a reload or tab close through the browser's
+ * own prompt, and an in-app link through a confirmation.
+ */
+export function useLeaveGuard(active: boolean, message = "Leave without sending your change requests?") {
+  useEffect(() => {
+    if (!active) return;
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    const onClick = (event: MouseEvent) => {
+      const anchor = (event.target as HTMLElement | null)?.closest?.("a[href]");
+      if (!anchor || (anchor as HTMLAnchorElement).target === "_blank") return;
+      if (!window.confirm(message)) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", beforeUnload);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, [active, message]);
+}
+
+/**
+ * The reviewer drafts a change on one objective, in place on its card: "Request a change" opens a short
+ * field; a saved draft reads as a quiet block that can be edited or removed until Return sends it.
+ */
+export function ChangeRequestDraft({ value, onSave, onRemove }: {
+  value: string | undefined;
+  onSave: (text: string) => void;
+  onRemove: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState(value ?? "");
+
+  if (editing) {
+    return (
+      <div className="space-y-2.5 rounded-control bg-inlay p-3">
+        <label className="sr-only" htmlFor="change-request-text">What should change</label>
+        <Textarea
+          id="change-request-text"
+          autoFocus
+          rows={2}
+          maxLength={CHANGE_REQUEST_MAX}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="What should change"
+          className="min-h-16 resize-none bg-background"
+        />
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={() => { setEditing(false); setText(value ?? ""); }}>Cancel</Button>
+          <Button size="sm" disabled={text.trim() === ""} onClick={() => { onSave(text.trim()); setEditing(false); }}>
+            Save change
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (value) {
+    return (
+      <div className="flex items-start gap-3 rounded-control bg-inlay px-3 py-2.5">
+        <MessageSquare className="mt-0.5 size-4 shrink-0 text-primary-ink" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-muted-foreground">Change to request</p>
+          <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-foreground">{value}</p>
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <Button variant="ghost" size="icon-sm" aria-label="Edit the change" onClick={() => { setText(value); setEditing(true); }}>
+            <Pencil className="size-3.5" aria-hidden />
+          </Button>
+          <Button variant="ghost" size="icon-sm" aria-label="Remove the change" onClick={onRemove}>
+            <Trash2 className="size-3.5" aria-hidden />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Button variant="ghost" size="sm" className="-ml-2" onClick={() => { setText(""); setEditing(true); }}>
+      <MessageSquare className="size-3.5" data-icon="inline-start" /> Request a change
+    </Button>
+  );
+}
+
+function outcome(request: PlanChangeRequestDto): { label: string; tone: string } {
+  if (request.state === "ObjectiveRemoved") return { label: "Objective removed", tone: "text-muted-foreground" };
+  if (request.objectiveChanged) return { label: "Changed", tone: "text-success" };
+  return { label: "Not changed", tone: "text-muted-foreground" };
+}
+
+/** Reviewing a resubmission: what the reviewer asked on this objective, what came of it, and the reply. */
+export function ChangeRequestOutcome({ request }: { request: PlanChangeRequestDto }) {
+  const result = outcome(request);
+  return (
+    <div className="rounded-control bg-inlay px-3 py-2.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-xs font-medium text-muted-foreground">You asked</p>
+        <span className={cn("text-xs font-semibold", result.tone)}>{result.label}</span>
+      </div>
+      <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-foreground">{request.text}</p>
+      {request.reply ? (
+        <p className="mt-2 border-t border-border pt-2 text-sm text-foreground/85">
+          <span className="text-xs font-medium text-muted-foreground">Reply · </span>
+          {request.reply}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The owner's view of a change requested on this objective: who asked and when, the request, and Mark
+ * addressed — with an optional reply — once they've dealt with it. Editing the objective is how it's fixed.
+ */
+export function OwnerChangeRequest({ request, reviewerName, decidedAt, canAddress, onAddress }: {
+  request: PlanChangeRequestDto;
+  reviewerName: string;
+  decidedAt: string;
+  canAddress: boolean;
+  onAddress: (reply: string | null) => Promise<boolean>;
+}) {
+  const [replying, setReplying] = useState(false);
+  const [reply, setReply] = useState("");
+  const [pending, setPending] = useState(false);
+  const addressed = request.state !== "Open";
+
+  return (
+    <div className={cn("rounded-control px-3 py-3", addressed ? "bg-inlay" : "bg-primary-tint ring-1 ring-inset ring-primary-ring")}>
+      <div className="flex items-start gap-3">
+        <Avatar className="size-7 shrink-0">
+          <AvatarFallback className="text-[0.625rem]">{initials(reviewerName)}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">{reviewerName} asked for a change</span> ·{" "}
+            <time dateTime={decidedAt}>{formatDate(decidedAt.slice(0, 10))}</time>
+          </p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm text-foreground">{request.text}</p>
+          {addressed ? (
+            <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+              <Check className="mt-0.5 size-3.5 shrink-0 text-success" aria-hidden />
+              <span>
+                <span className="font-medium text-foreground">Addressed</span>
+                {request.reply ? ` · ${request.reply}` : ""}
+              </span>
+            </p>
+          ) : null}
+        </div>
+        {!addressed && canAddress && !replying ? (
+          <Button size="sm" variant="outline" className="shrink-0" onClick={() => setReplying(true)}>
+            <Check className="size-3.5" data-icon="inline-start" /> Mark addressed
+          </Button>
+        ) : null}
+      </div>
+      {replying ? (
+        <div className="mt-3 space-y-2 pl-10">
+          <label className="text-xs font-medium text-muted-foreground" htmlFor={`reply-${request.id}`}>
+            Reply <span className="font-normal">(optional)</span>
+          </label>
+          <Textarea
+            id={`reply-${request.id}`}
+            rows={2}
+            maxLength={CHANGE_REQUEST_MAX}
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            className="min-h-14 resize-none bg-background"
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" disabled={pending} onClick={() => setReplying(false)}>Cancel</Button>
+            <AsyncButton
+              size="sm"
+              pending={pending}
+              onClick={async () => {
+                setPending(true);
+                const done = await onAddress(reply.trim() || null);
+                setPending(false);
+                if (done) setReplying(false);
+              }}
+            >
+              Mark addressed
+            </AsyncButton>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}

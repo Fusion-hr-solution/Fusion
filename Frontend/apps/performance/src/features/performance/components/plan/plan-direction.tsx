@@ -37,7 +37,14 @@ export function PlanDirectionSection({
   const levels = (directionLevels ?? derived).slice(0, 2);
   const idByTitle = useMemo(() => new Map(targets.map((t) => [t.title, t.id])), [targets]);
   const record = useObjectiveRecord();
-  if (levels.length === 0) return null;
+  // The rail keeps its sections in every state, so an undirected plan still says so.
+  if (levels.length === 0) {
+    return (
+      <SidebarSection label="Direction">
+        <p className="mt-3 text-sm text-muted-foreground">No direction linked yet</p>
+      </SidebarSection>
+    );
+  }
 
   return (
     <SidebarSection label="Direction">
@@ -103,7 +110,13 @@ export function PlanReviewerSection({
   history?: PlanDecisionDto[];
 }) {
   const me = useWorkforceMe(Boolean(reviewerName));
-  if (!reviewerName) return null;
+  if (!reviewerName) {
+    return (
+      <SidebarSection label="Reviewer">
+        <p className="mt-3 text-sm text-muted-foreground">No reviewer assigned</p>
+      </SidebarSection>
+    );
+  }
 
   const manager = me.data?.employee?.manager ?? null;
   const isManager = Boolean(manager && reviewerId && manager.employeeId === reviewerId);

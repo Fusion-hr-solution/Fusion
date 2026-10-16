@@ -54,6 +54,8 @@ function detail(overrides: Partial<GoalDetailDto> = {}, nodeOverrides: Partial<G
     canReadProgressHistory: false,
     canArchive: false,
     archivedAt: null,
+    status: null,
+    canAcknowledgeStatus: false,
     ...overrides,
   };
 }

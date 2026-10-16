@@ -1,0 +1,66 @@
+"use client";
+
+import { reportPerformanceFailure } from "@/features/performance/api/performance-failure";
+import { Check } from "@/lib/icons";
+import { AsyncButton } from "@repo/ds/shell";
+import { ObjectiveStatusBadge } from "@repo/performance-ui";
+import { useAcknowledgeStatus } from "../../../api/use-performance";
+import { formatDate } from "../../../lib";
+import type { ObjectiveRecord } from "../objective-record-model";
+import { RECORD_SURFACE, RecordSection } from "./record-primitives";
+
+/**
+ * How the owner says the objective is going (D-05): the latest status with its reason and date. At risk or
+ * off track, the plan's responsible reviewer acknowledges it here, and everyone who reads the status sees
+ * who did. Absent until the first report — an unreported objective is never shown as on track.
+ */
+export function StatusSection({ record }: { record: ObjectiveRecord }) {
+  const status = record.source.status;
+  const acknowledge = useAcknowledgeStatus(record.ref.cycleId, record.ref.objectiveId);
+  if (!status) return null;
+  const risky = status.value === "AtRisk" || status.value === "OffTrack";
+  const acknowledgedBy = status.acknowledgedBy?.name ?? "the reviewer";
+
+  return (
+    <RecordSection label="How it's going">
+      <div className={RECORD_SURFACE}>
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+          <ObjectiveStatusBadge status={status.value} />
+          <span className="text-xs text-muted-foreground">
+            Reported <time dateTime={status.reportedAt}>{formatDate(status.reportedAt.slice(0, 10))}</time>
+          </span>
+        </div>
+        {status.reason ? (
+          <div className="mt-3">
+            {risky ? <p className="text-xs font-medium text-muted-foreground">What&apos;s in the way</p> : null}
+            <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-foreground">{status.reason}</p>
+          </div>
+        ) : null}
+        {risky && status.acknowledgedAt ? (
+          <p className="mt-3 flex items-center gap-1.5 border-t border-border pt-3 text-xs text-muted-foreground">
+            <Check className="size-3.5 text-success" aria-hidden />
+            Acknowledged by <span className="font-medium text-foreground">{acknowledgedBy}</span> ·{" "}
+            <time dateTime={status.acknowledgedAt}>{formatDate(status.acknowledgedAt.slice(0, 10))}</time>
+          </p>
+        ) : record.source.canAcknowledgeStatus ? (
+          <div className="mt-3 flex justify-end border-t border-border pt-3">
+            <AsyncButton
+              size="sm"
+              variant="outline"
+              pending={acknowledge.isLoading}
+              onClick={async () => {
+                try {
+                  await acknowledge.mutateAsync(record.source.node.version);
+                } catch (error) {
+                  reportPerformanceFailure(error, "Could not acknowledge the status.");
+                }
+              }}
+            >
+              <Check className="size-3.5" data-icon="inline-start" /> Acknowledge
+            </AsyncButton>
+          </div>
+        ) : null}
+      </div>
+    </RecordSection>
+  );
+}

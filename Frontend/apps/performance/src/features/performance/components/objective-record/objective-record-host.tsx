@@ -22,7 +22,7 @@ import { ProgressSection } from "./sections/progress-section";
 import { ObjectiveSummary } from "./sections/summary-section";
 import { PlanWeightSection, TimelineSection } from "./sections/window-sections";
 import { useObjectiveRecord } from "./use-objective-record";
-import { RecordUpdateRequests } from "../update-requests/update-requests";
+import { RecordRequestBand, RequestUpdateAction } from "../update-requests/update-requests";
 
 /**
  * The one objective record. Its canonical cycle-and-objective address renders
@@ -80,14 +80,20 @@ export function ObjectiveRecordHost({ reference, presentation = "sheet" }: { ref
           <>
             <ObjectiveSummary record={r} titleAs={presentation === "sheet" ? SheetTitle : "h1"} />
             {r.kind === "plan" && r.source.plan && r.isExecuting ? (
-              <RecordUpdateRequests
-                cycleId={r.ref.cycleId}
-                planId={r.source.plan.planId}
-                objective={{ id: r.ref.objectiveId, title: r.title }}
-                ownerName={r.source.plan.owner.name ?? "this person"}
-                isOwner={r.can.updateProgress}
-                canRequest={r.source.plan.canRequestUpdate}
-              />
+              r.can.updateProgress ? (
+                // In record mode the band sits above the recorder instead.
+                recording ? null : (
+                  <div className="mt-4">
+                    <RecordRequestBand cycleId={r.ref.cycleId} planId={r.source.plan.planId} objectiveId={r.ref.objectiveId}
+                      onRecord={() => open(r.ref, { mode: "record" })} />
+                  </div>
+                )
+              ) : r.source.plan.canRequestUpdate ? (
+                <div className="mt-4">
+                  <RequestUpdateAction cycleId={r.ref.cycleId} planId={r.source.plan.planId}
+                    personName={r.source.plan.owner.name ?? "this person"} objective={{ id: r.ref.objectiveId, title: r.title }} />
+                </div>
+              ) : null
             ) : null}
           </>
         )}

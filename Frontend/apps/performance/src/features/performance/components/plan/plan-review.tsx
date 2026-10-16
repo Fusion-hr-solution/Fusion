@@ -3,7 +3,7 @@
 import { performanceFailure, reportPerformanceFailure } from "@/features/performance/api/performance-failure";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { Check, Clock, Landmark, LineChart, RotateCcw, ShieldCheck } from "@/lib/icons";
+import { Check, Landmark, LineChart, RotateCcw, ShieldCheck } from "@/lib/icons";
 import { toast } from "sonner";
 import type { AlignmentTargetDto, CycleSummaryDto, EmployeePlanDto, PlanObjectiveDto } from "@repo/api";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
@@ -34,14 +34,13 @@ import {
   usePlanDetail,
   usePlanReviewMutations,
 } from "../../api/use-performance";
-import { formatDate } from "../../lib";
 import { useObjectiveRecord } from "../objective-record/use-objective-record";
-import { PlanBannerMark } from "./plan-banner";
-import { PlanDirectionSection } from "./plan-direction";
-import { PlanDocument, PlanSection, PlanWeightStrip, SidebarSection } from "./plan-layout";
+import { PlanDocument, PlanSection, PlanWeightStrip } from "./plan-layout";
 import { PlanObjectiveRow } from "./plan-objective-row";
-import { PlanProgressCard } from "./plan-progress-card";
-import { PlanApprovedStatus } from "./plan-approved-status";
+import { RequestUpdateAction } from "../update-requests/update-requests";
+import { PlanRail, latestReturn } from "./plan-rail";
+import { DevelopmentSection } from "./development-section";
+import { ChangeRequestDraft, ChangeRequestOutcome, useChangeRequestDrafts, useLeaveGuard } from "./change-requests";
 import { PlanSurfaceSkeleton } from "./plan-skeleton";
 import { initials } from "./plan-lib";
 
@@ -56,6 +55,9 @@ import { initials } from "./plan-lib";
 export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: string }) {
   const detail = usePlanDetail(cycle.id, planId);
   const targetsQuery = useAlignmentTargets(cycle.id);
+  // Change requests are drafted on the cards and sent with Return; leaving first asks (D-09).
+  const drafts = useChangeRequestDrafts();
+  useLeaveGuard(drafts.list.length > 0);
 
   if (detail.isLoading) return <PlanSurfaceSkeleton />;
   if (performanceFailure(detail.error).unavailable) {
@@ -76,8 +78,10 @@ export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: 
       <ReviewHeading
         plan={plan}
         actions={
-          plan.canDecide ? (
-            <ReviewDecision plan={plan} cycleId={cycle.id} planId={planId} firstName={firstName} />
+          plan.canRequestUpdate ? (
+            <RequestUpdateAction cycleId={cycle.id} planId={planId} personName={firstName} size="default" />
+          ) : plan.canDecide ? (
+            <ReviewDecision plan={plan} cycleId={cycle.id} planId={planId} firstName={firstName} drafts={drafts} />
           ) : plan.canApproveExceptionally ? (
             <ExceptionalApproval cycleId={cycle.id} plan={plan} planId={planId} firstName={firstName} reviewerName={plan.responsibleManager?.name ?? null} />
           ) : null
@@ -85,21 +89,24 @@ export function PlanReview({ cycle, planId }: { cycle: CycleSummaryDto; planId: 
       />
 
       <PlanDocument
-        main={<ObjectiveLedgerReadOnly plan={plan} targets={targets} cycleId={cycle.id} cycle={cycle} />}
+        main={
+          <>
+            <ObjectiveLedgerReadOnly plan={plan} targets={targets} cycleId={cycle.id} cycle={cycle} drafts={drafts} />
+            <div className="mt-10">
+              <DevelopmentSection cycleId={cycle.id} employeeId={plan.employee.id} />
+            </div>
+          </>
+        }
         sidebar={
-          plan.isLocked ? (
-            // Approved reads as the same settled agreement the owner sees.
-            <>
-              <PlanProgressCard plan={plan} />
-              <PlanApprovedStatus plan={plan} perspective="reviewer" subjectFirstName={firstName} />
-              <PlanDirectionSection cycleId={cycle.id} objectives={plan.objectives} targets={targets} />
-            </>
-          ) : (
-            <>
-              <ReviewContext plan={plan} firstName={firstName} />
-              <PlanDirectionSection cycleId={cycle.id} objectives={plan.objectives} targets={targets} />
-            </>
-          )
+          // The same four sections the owner sees, in every state (D-08).
+          <PlanRail
+            plan={plan}
+            lens="reviewer"
+            targets={targets}
+            reviewer={{ id: plan.responsibleManager?.id ?? null, name: plan.responsibleManager?.name ?? null }}
+            planningDeadline={cycle.planningDeadline}
+            subjectFirstName={firstName}
+          />
         }
       />
     </div>
@@ -173,89 +180,7 @@ function ReviewHeading({ plan, actions }: { plan: EmployeePlanDto; actions?: Rea
   );
 }
 
-/**
- * The review context in the sidebar: what stage the decision is at, then the facts the objective list
- * does not already carry — when it was submitted and how the plan splits between direction-aligned and
- * standalone objectives. Count and weight total live on the list heading. The lead adapts to the plan's
- * state so a returned plan reads as returned rather than still-awaiting.
- */
-function ReviewContext({ plan, firstName }: { plan: EmployeePlanDto; firstName: string }) {
-  const submittedOn = plan.submittedAt ? formatDate(plan.submittedAt.slice(0, 10)) : null;
-  const aligned = plan.objectives.filter((o) => o.isAligned).length;
-  const standalone = plan.objectives.length - aligned;
 
-  const returned = plan.state === "Draft" && plan.history.some((h) => h.kind === "Returned");
-
-  const lead = returned
-    ? {
-        icon: RotateCcw,
-        tint: "text-warning bg-warning/12 ring-warning/20",
-        title: "Changes requested",
-        detail: `Returned to ${firstName} to revise and resubmit.`,
-      }
-    : plan.canDecide
-      ? {
-          icon: Clock,
-          tint: "text-primary-ink bg-primary-tint ring-primary-ring",
-          title: "Awaiting your review",
-          detail: `Review ${firstName}'s objectives, then approve or request changes.`,
-        }
-      : {
-          icon: Clock,
-          tint: "text-muted-foreground bg-muted ring-border",
-          title: "Submitted for review",
-          detail: plan.responsibleManager?.name
-            ? `Held for ${plan.responsibleManager.name}'s decision.`
-            : "Held for the reviewer's decision.",
-        };
-  const Icon = lead.icon;
-
-  return (
-    <>
-      <SidebarSection>
-        <div className="flex items-start gap-3.5">
-          <PlanBannerMark className={lead.tint}>
-            <Icon className="size-5" aria-hidden />
-          </PlanBannerMark>
-          <div className="min-w-0">
-            <p className="font-semibold tracking-tight text-foreground">{lead.title}</p>
-            <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{lead.detail}</p>
-          </div>
-        </div>
-      </SidebarSection>
-
-      <SidebarSection>
-        <dl className="space-y-4">
-          <ContextFact label="Submitted" value={submittedOn ?? "—"} />
-          <ContextFact
-            label="Alignment"
-            value={
-              <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="size-1.5 rounded-full bg-primary" aria-hidden />
-                  {aligned} aligned
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="size-1.5 rounded-full bg-info" aria-hidden />
-                  {standalone} standalone
-                </span>
-              </span>
-            }
-          />
-        </dl>
-      </SidebarSection>
-    </>
-  );
-}
-
-function ContextFact({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <dt className="type-eyebrow text-muted-foreground">{label}</dt>
-      <dd className="mt-1 text-sm font-semibold tabular-nums text-foreground">{value}</dd>
-    </div>
-  );
-}
 
 /**
  * The complete ledger, read for the manager's responsibility — the same objective cards as My Plan, no
@@ -268,12 +193,16 @@ function ObjectiveLedgerReadOnly({
   targets,
   cycleId,
   cycle,
+  drafts,
 }: {
   plan: EmployeePlanDto;
   targets: AlignmentTargetDto[];
   cycleId: string;
   cycle: CycleSummaryDto;
+  drafts: ReturnType<typeof useChangeRequestDrafts>;
 }) {
+  // A resubmitted plan answers its latest return, objective by objective.
+  const answered = plan.state === "Submitted" ? latestReturn(plan)?.changeRequests ?? [] : [];
   // The reviewer opens the same objective record the employee does; what it offers (progress history,
   // never recording) is decided by the server for this viewer.
   const record = useObjectiveRecord();
@@ -314,6 +243,28 @@ function ObjectiveLedgerReadOnly({
             active={record.isOpen(refFor(objective.id))}
             onViewDetails={() => record.open(refFor(objective.id))}
             onViewAlignment={(parentId) => record.open(refFor(parentId))}
+            footer={(() => {
+              const asked = answered.find((r) => r.objectiveId === objective.id);
+              if (!plan.canDecide && !asked) return null;
+              return (
+                <div className="space-y-2.5">
+                  {asked ? <ChangeRequestOutcome request={asked} /> : null}
+                  {plan.canDecide ? (
+                    <ChangeRequestDraft
+                      value={drafts.drafts[objective.id]}
+                      onSave={(text) => drafts.set(objective.id, text)}
+                      onRemove={() => drafts.remove(objective.id)}
+                    />
+                  ) : null}
+                </div>
+              );
+            })()}
+            executionAside={
+              plan.canRequestUpdate ? (
+                <RequestUpdateAction cycleId={cycleId} planId={plan.id} personName={plan.employee.name?.split(/\s+/)[0] ?? "them"}
+                  objective={{ id: objective.id, title: objective.title }} />
+              ) : null
+            }
           />
         ))}
       </div>
@@ -328,16 +279,18 @@ function ObjectiveLedgerReadOnly({
  * required feedback. Both are consequential, so each confirms in a dialog; returning asks for the
  * feedback there, and its primary stays disabled until the feedback is real.
  */
-function ReviewDecision({
+export function ReviewDecision({
   plan,
   cycleId,
   planId,
   firstName,
+  drafts,
 }: {
   plan: EmployeePlanDto;
   cycleId: string;
   planId: string;
   firstName: string;
+  drafts: ReturnType<typeof useChangeRequestDrafts>;
 }) {
   const mutations = usePlanReviewMutations(cycleId, planId);
   const [returnOpen, setReturnOpen] = useState(false);
@@ -345,7 +298,11 @@ function ReviewDecision({
   const [approveOpen, setApproveOpen] = useState(false);
   const approving = mutations.approve.isLoading;
   const returning = mutations.returnForRevision.isLoading;
-  const canReturn = feedback.trim().length > 0;
+  const requests = drafts.list;
+  // A return needs a note, at least one change on an objective, or both (D-09).
+  const canReturn = feedback.trim().length > 0 || requests.length > 0;
+  const titleOf = (objectiveId: string) => plan.objectives.find((o) => o.id === objectiveId)?.title ?? "Objective";
+  const returnLabel = requests.length > 0 ? `Return with ${requests.length} change${requests.length === 1 ? "" : "s"}` : "Return plan";
 
   return (
     <>
@@ -359,7 +316,7 @@ function ReviewDecision({
       >
         <DialogTrigger asChild>
           <Button variant="outline">
-            <RotateCcw className="size-4" data-icon="inline-start" /> Request changes
+            <RotateCcw className="size-4" data-icon="inline-start" /> {requests.length > 0 ? returnLabel : "Request changes"}
           </Button>
         </DialogTrigger>
         <DialogContent>
@@ -369,13 +326,23 @@ function ReviewDecision({
               The whole plan reopens for {firstName} to revise and resubmit.
             </DialogDescription>
           </DialogHeader>
+          {requests.length > 0 ? (
+            <ul className="space-y-2">
+              {requests.map((request) => (
+                <li key={request.objectiveId} className="rounded-control bg-inlay px-3 py-2.5">
+                  <p className="text-xs font-medium text-muted-foreground">{titleOf(request.objectiveId)}</p>
+                  <p className="mt-0.5 whitespace-pre-wrap break-words text-sm text-foreground">{request.text}</p>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <Textarea
-            aria-label={`What should ${firstName} change?`}
+            aria-label={requests.length > 0 ? "A note for the whole plan (optional)" : `What should ${firstName} change?`}
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
             rows={3}
             className="min-h-20"
-            placeholder={`What should ${firstName} change?`}
+            placeholder={requests.length > 0 ? "A note for the whole plan (optional)" : `What should ${firstName} change?`}
             autoFocus
           />
           <DialogFooter>
@@ -387,17 +354,22 @@ function ReviewDecision({
               disabled={!canReturn}
               onClick={async () => {
                 try {
-                  await mutations.returnForRevision.mutateAsync({ feedback: feedback.trim(), expectedVersion: plan.version });
+                  await mutations.returnForRevision.mutateAsync({
+                    feedback: feedback.trim() || null,
+                    changeRequests: requests,
+                    expectedVersion: plan.version,
+                  });
                   toast.success(`Plan returned to ${firstName} for changes.`);
                   setReturnOpen(false);
                   setFeedback("");
+                  drafts.clear();
                 } catch (error) {
                   if (performanceFailure(error).refresh) setReturnOpen(false);
                   reportPerformanceFailure(error, "Could not return the plan.");
                 }
               }}
             >
-              <RotateCcw className="size-4" data-icon="inline-start" /> Return plan
+              <RotateCcw className="size-4" data-icon="inline-start" /> {returnLabel}
             </AsyncButton>
           </DialogFooter>
         </DialogContent>

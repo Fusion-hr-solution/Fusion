@@ -2,11 +2,9 @@
 
 import { performanceFailure, reportPerformanceFailure } from "@/features/performance/api/performance-failure";
 
-import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Check,
-  ChevronDown,
-  RotateCcw,
   BarChart3,
   Plus,
   Send,
@@ -16,14 +14,15 @@ import {
   Users,
 } from "@/lib/icons";
 import { toast } from "sonner";
+import { useAuth } from "@repo/auth";
 import type {
   AddPlanObjectiveRequest,
   AlignmentTargetDto,
   CycleSummaryDto,
   EmployeePlanDto,
   PlanObjectiveDto,
+  UpdateRequestDto,
 } from "@repo/api";
-import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -37,24 +36,22 @@ import {
 import { Button } from "@repo/ds/components/ui/button";
 import { AsyncButton, PagePermissionNotice, PageError } from "@repo/ds/shell";
 import { PlanEmptySkeleton } from "./plan-skeleton";
-import { cn } from "@repo/ds/lib/utils";
 import {
   useAlignmentTargets,
   useMyPlan,
   usePlanMutations,
 } from "../../api/use-performance";
 import { formatDateTime } from "../../lib";
-import { PlanDirectionSection, PlanReviewerSection, directionFromTargets } from "./plan-direction";
+import { directionFromTargets } from "./plan-direction";
 import { PlanGoalComposer } from "./goal-composer";
 import { useObjectiveRecord } from "../objective-record/use-objective-record";
 import { PlanObjectiveRow } from "./plan-objective-row";
-import { PlanSubmissionChecks } from "./plan-submission-checks";
-import { PlanSubmissionStatus } from "./plan-submission-status";
-import { initials } from "./plan-lib";
-import { PlanProgressCard } from "./plan-progress-card";
-import { PlanApprovedStatus } from "./plan-approved-status";
-import { PlanUpdateRequests } from "../update-requests/update-requests";
-import { PlanDocument, PlanSection, PlanWeightStrip, SidebarSection } from "./plan-layout";
+import { ObjectiveRequestMarker, RequestBand, openRequestsFor } from "../update-requests/update-requests";
+import { useUpdateRequests } from "../../api/use-update-requests";
+import { PlanDocument, PlanSection, PlanWeightStrip } from "./plan-layout";
+import { PlanRail, activeReturn } from "./plan-rail";
+import { DevelopmentSection } from "./development-section";
+import { OwnerChangeRequest } from "./change-requests";
 
 /**
  * The employee's Plan as a document with a properties sidebar (see `plan-layout.tsx`). The page heading
@@ -72,6 +69,10 @@ export function MyPlan({
   const state = useMyPlan(cycleId);
   const targetsQuery = useAlignmentTargets(cycleId, state.data?.participatesInCycle ?? false);
   const mutations = usePlanMutations(cycleId);
+  const { user } = useAuth();
+  // Update requests concern an executing plan only.
+  const lockedPlan = state.data?.plan?.isLocked ? state.data.plan : null;
+  const requests = useUpdateRequests(lockedPlan?.cycleId ?? null, lockedPlan?.id ?? null);
 
   const [composer, setComposer] = useState<{ objective?: PlanObjectiveDto } | null>(null);
 
@@ -157,18 +158,25 @@ export function MyPlan({
       <>
         {heading()}
         <PlanDocument
-          main={<PlanNotStarted cycleName={cycle.name} onStart={() => setComposer({})} />}
-          sidebar={
+          main={
             <>
-              <PlanReviewerSection reviewerId={preview?.reviewer?.id ?? null} reviewerName={reviewerName} />
-              <PlanDirectionSection
-                cycleId={cycleId}
-                objectives={[]}
-                targets={targets}
-                directionLevels={directionLevels}
-              />
-              <PlanNextSteps reviewerName={reviewerName} />
+              <PlanNotStarted cycleName={cycle.name} onStart={() => setComposer({})} />
+              {user?.employeeId ? (
+                <div className="mt-10">
+                  <DevelopmentSection cycleId={cycleId} employeeId={user.employeeId} />
+                </div>
+              ) : null}
             </>
+          }
+          sidebar={
+            <PlanRail
+              plan={null}
+              lens="owner"
+              targets={targets}
+              reviewer={{ id: preview?.reviewer?.id ?? null, name: reviewerName }}
+              planningDeadline={cycle.planningDeadline}
+              directionLevels={directionLevels}
+            />
           }
         />
         {composerNode}
@@ -179,53 +187,18 @@ export function MyPlan({
   // From here a plan exists with at least one objective.
   if (!plan) return null;
 
-  const latestReturn = [...plan.history].reverse().find((h) => h.kind === "Returned");
-  const returned = plan.state === "Draft" && Boolean(latestReturn);
-  // Edited after the reviewer sent it back (the return itself stamps the plan, so allow it a moment).
-  const revisedSinceReturn =
-    returned && Date.parse(plan.lastSavedAt) - Date.parse(latestReturn?.decidedAt ?? plan.lastSavedAt) > 2000;
+  const returned = plan.state === "Draft" && plan.history.at(-1)?.kind === "Returned";
   const isAuthor = plan.canAuthor;
 
-  // The sidebar leads with the plan's phase and carries only what the objective list does not: while
-  // authoring, the reviewer's returned feedback, the submission checks and who will review; once handed
-  // over, the review status; once approved, the settled agreement and overall progress. The reviewer and phase lead;
-  // the direction the plan serves follows. Per-objective facts are the list's, so the sidebar never restates them.
-  const phase = isAuthor && plan.state === "Draft" ? (
-    <>
-      {returned ? (
-        <ReviewerFeedback
-          reviewer={latestReturn?.actorName ?? plan.responsibleManager?.name ?? "Your reviewer"}
-          feedback={latestReturn?.feedback ?? null}
-          at={latestReturn?.decidedAt ?? null}
-          revisedAt={revisedSinceReturn ? plan.lastSavedAt : null}
-        />
-      ) : null}
-    </>
-  ) : plan.state === "Submitted" ? (
-    <PlanSubmissionStatus plan={plan} />
-  ) : plan.isLocked ? (
-    <PlanApprovedStatus plan={plan} perspective="owner" />
-  ) : null;
+  // The side panel keeps one structure in every state (D-08); see PlanRail.
   const sidebar = (
-    <>
-      {/* In execution, where the plan stands leads the column. */}
-      {plan.isLocked ? (
-        <PlanProgressCard plan={plan} emptyDescription="Plan progress begins once you update your objectives." />
-      ) : null}
-      {/* A returned plan's feedback already names the reviewer and when they acted; once approved, the
-          Approved & locked section names who approved it. */}
-      {(returned && isAuthor) || plan.isLocked ? null : (
-        <PlanReviewerSection
-          reviewerId={plan.responsibleManager?.id ?? null}
-          reviewerName={reviewerName}
-          history={plan.history}
-        />
-      )}
-      {phase}
-      <PlanDirectionSection cycleId={plan.cycleId} objectives={plan.objectives} targets={targets} />
-      {/* What stands between the draft and submission closes the column. */}
-      {isAuthor && plan.state === "Draft" ? <PlanSubmissionChecks readiness={plan.readiness} /> : null}
-    </>
+    <PlanRail
+      plan={plan}
+      lens="owner"
+      targets={targets}
+      reviewer={{ id: plan.responsibleManager?.id ?? null, name: reviewerName }}
+      planningDeadline={cycle.planningDeadline}
+    />
   );
 
   const actions = isAuthor ? (
@@ -255,12 +228,26 @@ export function MyPlan({
       <PlanDocument
           main={
             <>
-              {plan.isLocked ? <PlanUpdateRequests cycleId={plan.cycleId} planId={plan.id} /> : null}
+              {plan.isLocked && openRequestsFor(requests.data, null).length > 0 ? (
+                <div className="mb-6 space-y-2">
+                  {openRequestsFor(requests.data, null).map((item) => <RequestBand key={item.id} request={item} />)}
+                </div>
+              ) : null}
               <div id="plan-objectives" className="scroll-mt-6">
                 <ObjectiveLedger
                   plan={plan}
                   cycle={cycle}
                   targets={targets}
+                  requests={requests.data}
+                  onAddress={async (requestId, reply) => {
+                    try {
+                      await mutations.addressChangeRequest.mutateAsync({ requestId, reply, expectedVersion: plan.version });
+                      return true;
+                    } catch (error) {
+                      reportPerformanceFailure(error, "Could not mark the change addressed.");
+                      return false;
+                    }
+                  }}
                   onAdd={() => setComposer({})}
                   onEdit={(objective) => setComposer({ objective })}
                   onRemove={async (id) => {
@@ -271,6 +258,9 @@ export function MyPlan({
                     }
                   }}
                 />
+              </div>
+              <div className="mt-10">
+                <DevelopmentSection cycleId={plan.cycleId} employeeId={plan.employee.id} />
               </div>
             </>
           }
@@ -290,6 +280,8 @@ function ObjectiveLedger({
   plan,
   cycle,
   targets,
+  requests,
+  onAddress,
   onAdd,
   onEdit,
   onRemove,
@@ -297,6 +289,9 @@ function ObjectiveLedger({
   plan: EmployeePlanDto;
   cycle: CycleSummaryDto;
   targets: AlignmentTargetDto[];
+  requests: UpdateRequestDto[] | undefined;
+  /** Marks a change request addressed; resolves whether it saved. */
+  onAddress: (requestId: string, reply: string | null) => Promise<boolean>;
   onAdd: () => void;
   onEdit: (objective: PlanObjectiveDto) => void;
   onRemove: (objectiveId: string) => void;
@@ -359,6 +354,20 @@ function ObjectiveLedger({
               onOpenProgress={plan.isLocked ? () => record.open(refFor(objective.id), { mode: "record" }) : undefined}
               onViewDetails={() => record.open(refFor(objective.id))}
               onViewAlignment={(parentId) => record.open(refFor(parentId))}
+              executionAside={openRequestsFor(requests, objective.id).map((item) => <ObjectiveRequestMarker key={item.id} request={item} />)}
+              footer={(() => {
+                const returned = activeReturn(plan);
+                const asked = returned?.changeRequests.find((r) => r.objectiveId === objective.id);
+                return returned && asked ? (
+                  <OwnerChangeRequest
+                    request={asked}
+                    reviewerName={returned.actorName ?? "Your reviewer"}
+                    decidedAt={returned.decidedAt}
+                    canAddress={plan.canAuthor}
+                    onAddress={(reply) => onAddress(asked.id, reply)}
+                  />
+                ) : null;
+              })()}
             />
           ))}
         </div>
@@ -433,145 +442,7 @@ function SubmitPlanAction({
   );
 }
 
-/**
- * The reviewer's returned decision, read as their message to the author: who asked, when, and their
- * verbatim feedback quoted, closing with the ask to revise. Leads the rail on a returned plan so the
- * required change is the first thing seen, not a status chip.
- */
-function ReviewerFeedback({
-  reviewer,
-  feedback,
-  at,
-  revisedAt,
-}: {
-  reviewer: string;
-  feedback: string | null;
-  at: string | null;
-  /** When the author last edited the plan after the return; null while untouched. */
-  revisedAt: string | null;
-}) {
-  const revised = Boolean(revisedAt);
-  return (
-    <SidebarSection label="Reviewer feedback">
-      {/* Who sent it back, as one identity: the reviewer's avatar carries the live beacon, the status
-          leads beside it, and the name and time sit quietly under the status. */}
-      <div className="mt-4 flex items-center gap-3">
-        <span className="relative shrink-0">
-          <Avatar className="size-10">
-            <AvatarFallback className="text-xs">{initials(reviewer)}</AvatarFallback>
-          </Avatar>
-          <span className="absolute -right-0.5 -top-0.5 flex size-3 items-center justify-center" aria-hidden>
-            {/* Pulses while the plan waits on its owner; settles once they have revised it. */}
-            {revised ? null : (
-              <span className="absolute inline-flex size-full scale-150 rounded-full bg-primary opacity-90 animate-ping" />
-            )}
-            <span
-              className={cn(
-                "relative inline-flex size-3 rounded-full ring-2 ring-background",
-                revised ? "bg-info" : "bg-primary-ink"
-              )}
-            />
-          </span>
-        </span>
-        <div className="min-w-0">
-          <p className={cn("text-base font-semibold leading-tight tracking-tight", revised ? "text-info" : "text-primary-ink")}>
-            {revised ? "Changes made" : "Changes requested"}
-          </p>
-          <p className="mt-1 truncate text-xs text-muted-foreground">
-            <span className="font-medium text-foreground/85">{reviewer}</span>
-            {at ? (
-              <>
-                <span aria-hidden> · </span>
-                <time dateTime={at} className="tabular-nums">
-                  {formatDateTime(at)}
-                </time>
-              </>
-            ) : null}
-          </p>
-        </div>
-      </div>
 
-      {feedback ? (
-        // The note as the reviewer's speech: a bubble whose tail points back up to their avatar.
-        <blockquote className="relative mt-4 rounded-control border border-border bg-inlay px-4 py-3.5 shadow-raised">
-          <span
-            className="absolute -top-[7px] left-[14px] size-3 rotate-45 rounded-tl-detail border-l border-t border-border bg-inlay"
-            aria-hidden
-          />
-          <ClampedText text={feedback} />
-        </blockquote>
-      ) : null}
-
-      {revised && revisedAt ? (
-        <p className="mt-3 flex items-center gap-2 rounded-control-sm bg-info/10 px-2.5 py-1.5 text-xs font-medium text-info ring-1 ring-inset ring-info/25">
-          <Check className="size-3.5 shrink-0" aria-hidden />
-          <span className="min-w-0">
-            Revised <time dateTime={revisedAt} className="tabular-nums">{formatDateTime(revisedAt)}</time> · resubmit
-            when ready
-          </span>
-        </p>
-      ) : (
-        <p className="mt-3 flex items-center gap-2 rounded-control-sm bg-primary-tint px-2.5 py-1.5 text-xs font-medium text-primary-ink ring-1 ring-inset ring-primary-ring">
-          <RotateCcw className="size-3.5 shrink-0" aria-hidden />
-          Revise your plan and resubmit when ready.
-        </p>
-      )}
-    </SidebarSection>
-  );
-}
-
-/**
- * Long text held to a short preview that fades out, with a toggle only when it actually overflows.
- * Blank lines become paragraphs.
- */
-function ClampedText({ text }: { text: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [overflows, setOverflows] = useState(false);
-  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el || expanded) return;
-    const measure = () => setOverflows(el.scrollHeight > el.clientHeight + 1);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [text, expanded]);
-
-  const clipped = overflows && !expanded;
-
-  return (
-    <div>
-      <div
-        ref={ref}
-        className={cn(
-          "space-y-2.5 text-sm leading-relaxed text-foreground/85",
-          !expanded && "max-h-[7.25rem] overflow-hidden",
-          clipped && "[mask-image:linear-gradient(to_bottom,black_55%,transparent)]"
-        )}
-      >
-        {paragraphs.map((p, i) => (
-          <p key={i} className="whitespace-pre-line break-words">
-            {p}
-          </p>
-        ))}
-      </div>
-      {overflows || expanded ? (
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          aria-expanded={expanded}
-          className="mt-0.5 inline-flex items-center gap-1 rounded-detail text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {expanded ? "Show less" : "Read more"}
-          <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} aria-hidden />
-        </button>
-      ) : null}
-    </div>
-  );
-}
 
 /**
  * The not-started ledger: the objectives surface before a plan exists. A single document-and-plus mark
@@ -651,49 +522,4 @@ function PlanIllustration() {
   );
 }
 
-/**
- * The planning path from here: author, submit, and manager review, as a three-step numbered rail with
- * the first step live. It names the reviewer the plan will go to, so the sequence is concrete.
- */
-function PlanNextSteps({ reviewerName }: { reviewerName: string | null }) {
-  const steps = [
-    { title: "Create your plan", desc: "Add objectives and assign weights.", active: true },
-    {
-      title: "Submit for review",
-      desc: reviewerName
-        ? `Once complete, submit your plan to ${reviewerName}.`
-        : "Once complete, submit your plan for review.",
-      active: false,
-    },
-    { title: "Manager reviews", desc: "You'll be notified once a decision is made.", active: false },
-  ];
-
-  return (
-    <SidebarSection label="Next steps">
-      <ol className="mt-5">
-        {steps.map((step, index) => (
-          <li key={step.title} className="relative flex gap-3.5 pb-6 last:pb-0">
-            {index < steps.length - 1 ? (
-              <span className="absolute left-4 top-10 bottom-2 w-px -translate-x-1/2 bg-border" aria-hidden />
-            ) : null}
-            <span
-              className={cn(
-                "relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold tabular-nums",
-                step.active
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-border bg-inlay text-muted-foreground"
-              )}
-            >
-              {index + 1}
-            </span>
-            <div className="min-w-0 pt-1">
-              <p className="text-sm font-medium leading-tight text-foreground">{step.title}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{step.desc}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
-    </SidebarSection>
-  );
-}
 

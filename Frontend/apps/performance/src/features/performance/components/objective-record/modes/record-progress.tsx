@@ -8,6 +8,7 @@ import { useObjectiveProgress, useProgressMutations } from "../../../api/use-per
 import { ProgressUpdateComposer } from "../../progress/progress-update-composer";
 import type { ObjectiveRecord } from "../objective-record-model";
 import { MeasurementSection } from "../sections/measurement-section";
+import { RecordRequestBand } from "../../update-requests/update-requests";
 
 /**
  * Recording progress is a task inside the same record, not another surface: the measurement it is read
@@ -32,6 +33,10 @@ export function RecordProgressMode({ record, onDone }: { record: ObjectiveRecord
         >
           <ArrowLeft className="size-3.5" aria-hidden /> Back to objective details
         </button>
+
+        {record.kind === "plan" && record.source.plan ? (
+          <RecordRequestBand cycleId={cycleId} planId={record.source.plan.planId} objectiveId={objectiveId} />
+        ) : null}
 
         <MeasurementSection measurement={record.measurement} showMilestones={false} />
 

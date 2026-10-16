@@ -5,10 +5,9 @@ import { Check } from "@/lib/icons";
 import type { EmployeePlanDto } from "@repo/api";
 import { formatDate } from "../../lib";
 import { PlanBannerMark } from "./plan-banner";
-import { SidebarSection } from "./plan-layout";
 
 /**
- * The approved, locked plan stated once — the same sidebar section whether the plan's owner or its reviewer reads
+ * The approved, locked plan stated once — the same Status content whether the plan's owner or its reviewer reads
  * it, since both are looking at the same settled agreement. It leads with the outcome and keeps only the
  * facts that still matter once execution is underway: who approved it and when. The objective count
  * lives on the list heading beside it. Allocation is deliberately absent — a plan cannot be approved unless it is fully allocated, so
@@ -53,7 +52,6 @@ export function PlanApprovedStatus({
         : "This is now your locked baseline.";
 
   return (
-    <SidebarSection>
       <div className="flex items-start gap-3.5">
         <PlanBannerMark className="text-success bg-success/12 ring-success/20">
           <Check className="size-5" aria-hidden />
@@ -70,6 +68,5 @@ export function PlanApprovedStatus({
           <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{detail}</p>
         </div>
       </div>
-    </SidebarSection>
   );
 }

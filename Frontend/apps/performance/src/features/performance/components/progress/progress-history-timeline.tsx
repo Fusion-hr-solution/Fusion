@@ -4,6 +4,7 @@ import { ChevronDown, ExternalLink, FileText, Link2, Loader2, Paperclip, Triangl
 import { useState, type ReactNode } from "react";
 import type { EvidenceDto, ProgressUpdateDto } from "@repo/api";
 import { AsyncButton } from "@repo/ds/shell";
+import { ObjectiveStatusBadge } from "@repo/performance-ui";
 import { cn } from "@repo/ds/lib/utils";
 import { formatDate } from "../../lib";
 
@@ -79,8 +80,10 @@ function HistoryRow({
   const files = entry.evidence.filter((e) => e.kind === "File");
   const links = entry.evidence.filter((e) => e.kind === "Link");
   const openable = entry.evidence.filter((e) => e.kind === "File" || e.kind === "Link");
-  const milestoneAction =
-    entry.kind === "MilestoneCompleted" ? "Completed" : entry.kind === "MilestoneReopened" ? "Reopened" : null;
+  const completed = entry.milestoneChanges.filter((change) => change.completed);
+  const reopened = entry.milestoneChanges.filter((change) => !change.completed);
+  // At risk or off track, the note is the reason and reads in full.
+  const reason = entry.status === "AtRisk" || entry.status === "OffTrack" ? entry.contextNote : null;
   // A row reveals something only when it carries a note or evidence; otherwise it stays a flat entry.
   const expandable = Boolean(entry.contextNote) || openable.length > 0;
   const [open, setOpen] = useState(false);
@@ -130,18 +133,25 @@ function HistoryRow({
             <span className={cn("text-xl font-semibold tabular-nums leading-none", toneClass)}>
               {Math.round(entry.resultingProgress)}%
             </span>
-            <DeltaBadge delta={entry.deltaProgress} correction={entry.isCorrection} />
+            {entry.kind === "StatusOnly" ? null : <DeltaBadge delta={entry.deltaProgress} correction={entry.isCorrection} />}
+            <ObjectiveStatusBadge status={entry.status} />
           </div>
 
-          {milestoneAction ? (
+          {completed.length > 0 ? (
             <p className="mt-1.5 text-xs font-medium text-muted-foreground">
-              {milestoneAction}
-              {entry.milestoneTitle ? <span className="text-muted-foreground"> · {entry.milestoneTitle}</span> : null}
+              Completed · {completed.map((change) => change.title ?? "Milestone").join(", ")}
+            </p>
+          ) : null}
+          {reopened.length > 0 ? (
+            <p className="mt-1 text-xs font-medium text-muted-foreground">
+              Reopened · {reopened.map((change) => change.title ?? "Milestone").join(", ")}
             </p>
           ) : null}
 
+          {reason && !isOpen ? <p className="mt-1.5 text-sm leading-relaxed text-foreground/85">{reason}</p> : null}
+
           {/* A one-line note preview when collapsed; the full note moves into the card once open. */}
-          {entry.contextNote && !isOpen ? (
+          {entry.contextNote && !reason && !isOpen ? (
             <p className="mt-1.5 line-clamp-1 text-sm leading-relaxed text-muted-foreground">{entry.contextNote}</p>
           ) : null}
         </Wrapper>

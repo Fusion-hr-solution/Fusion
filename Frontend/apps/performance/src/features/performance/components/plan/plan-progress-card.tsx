@@ -1,5 +1,6 @@
 "use client";
 
+import { statusMix } from "@repo/performance-ui";
 import type { EmployeePlanDto } from "@repo/api";
 import { AllocationGauge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
@@ -41,6 +42,7 @@ export function PlanProgressCard({
           {emptyDescription ? (
             <p className="mt-1 max-w-[16rem] text-xs leading-relaxed text-muted-foreground">{emptyDescription}</p>
           ) : null}
+          <StatusMixLine plan={plan} />
         </div>
       </SidebarSection>
     );
@@ -51,9 +53,33 @@ export function PlanProgressCard({
       <div className="mt-4 flex flex-col items-center text-center">
         <ObjectiveProgressRing plan={plan} complete={complete} />
         <p className="mt-3 text-xs text-muted-foreground">Weighted across {plan.objectives.length} objectives</p>
+        <StatusMixLine plan={plan} />
       </div>
 
     </SidebarSection>
+  );
+}
+
+/** How the owners say their objectives are going (D-05), once any has reported: "2 on track · 1 at risk". */
+function StatusMixLine({ plan }: { plan: EmployeePlanDto }) {
+  const mix = statusMix(plan.objectives.map((o) => o.status));
+  if (mix.notReported === plan.objectives.length) return null;
+  return (
+    <p className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+      {mix.onTrack > 0 ? <MixItem dot="bg-success" label={`${mix.onTrack} on track`} /> : null}
+      {mix.atRisk > 0 ? <MixItem dot="bg-primary" label={`${mix.atRisk} at risk`} /> : null}
+      {mix.offTrack > 0 ? <MixItem dot="bg-destructive" label={`${mix.offTrack} off track`} /> : null}
+      {mix.notReported > 0 ? <MixItem dot="bg-muted-foreground/40" label={`${mix.notReported} not reported`} /> : null}
+    </p>
+  );
+}
+
+function MixItem({ dot, label }: { dot: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={cn("size-1.5 rounded-full", dot)} aria-hidden />
+      {label}
+    </span>
   );
 }
 

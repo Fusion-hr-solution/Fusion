@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, ChevronDown, X } from "@/lib/icons";
 import type { PlanReadinessDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
@@ -14,7 +14,7 @@ import { planChecks } from "./plan-lib";
  * over a reveal — because a wall of green ticks is noise. When conditions fail the card leads with
  * them, actionably, and the passing ones recede. It never hard-codes the valid state.
  */
-export function PlanSubmissionChecks({ readiness }: { readiness: PlanReadinessDto }) {
+export function PlanSubmissionChecks({ readiness, bare = false }: { readiness: PlanReadinessDto; bare?: boolean }) {
   const checks = planChecks(readiness);
   const failed = checks.filter((check) => !check.passed);
   const passedCount = checks.length - failed.length;
@@ -22,8 +22,9 @@ export function PlanSubmissionChecks({ readiness }: { readiness: PlanReadinessDt
 
   const [open, setOpen] = useState(true);
 
+  const Wrapper = bare ? BareSection : SidebarSection;
   return (
-    <SidebarSection label="Submission checks">
+    <Wrapper label="Submission checks">
 
       {allPassed ? (
         <>
@@ -80,8 +81,13 @@ export function PlanSubmissionChecks({ readiness }: { readiness: PlanReadinessDt
           ) : null}
         </>
       )}
-    </SidebarSection>
+    </Wrapper>
   );
+}
+
+/** Inside another section (the plan rail's Status), the checks are content, not a section of their own. */
+function BareSection({ children }: { label?: string; children: ReactNode }) {
+  return <div>{children}</div>;
 }
 
 function CheckRow({ passed, label, muted = false }: { passed: boolean; label: string; muted?: boolean }) {

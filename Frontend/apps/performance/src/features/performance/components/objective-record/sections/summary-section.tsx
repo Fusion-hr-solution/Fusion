@@ -2,6 +2,7 @@ import type { ElementType, ReactNode } from "react";
 import { cn } from "@repo/ds/lib/utils";
 import { Unlink } from "@/lib/icons";
 import { StatusBadge } from "@repo/ds/shell";
+import { ObjectiveStatusBadge } from "@repo/performance-ui";
 import { ScopeMark } from "../../scope-mark";
 import type { ObjectiveRecord } from "../objective-record-model";
 
@@ -32,6 +33,7 @@ export function ObjectiveSummary({
           <StatusBadge tone={record.status.tone} dot>
             {record.status.label}
           </StatusBadge>
+          <ObjectiveStatusBadge status={record.source.status?.value ?? null} />
         </p>
         <p className="mt-1.5 truncate text-xs text-muted-foreground">
           Accountable · <span className="text-foreground">{record.accountable.name ?? "Unassigned"}</span>

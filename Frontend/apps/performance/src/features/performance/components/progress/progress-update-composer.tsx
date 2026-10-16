@@ -4,8 +4,8 @@ import { reportPerformanceFailure } from "@/features/performance/api/performance
 
 import { MilestoneDue } from "../measurement/milestone-due";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, ChevronUp } from "@/lib/icons";
-import type { EvidenceInput, ObjectiveProgressDto, SubmitProgressRequest } from "@repo/api";
+import { Check, ChevronDown, ChevronUp, X } from "@/lib/icons";
+import type { EvidenceInput, ObjectiveProgressDto, ObjectiveStatus, SubmitProgressRequest } from "@repo/api";
 import { Label } from "@repo/ds/components/ui/label";
 import { Textarea } from "@repo/ds/components/ui/textarea";
 import { cn } from "@repo/ds/lib/utils";
@@ -19,12 +19,12 @@ type UploadFn = (file: File) => Promise<{ uploadId: string; fileName: string; co
 const NOTE_MAX = 500;
 
 /**
- * The record-progress form — the measurement-aware body of the objective drawer's record mode. Manual
- * percentage records a direct completion figure with a fill preview; numeric target records the current
- * actual and previews the derived objective progress live against the baseline→target rail; weighted
- * milestones select completion and derive progress from the agreed weights. A note and evidence subordinate
- * every update, and the drawer footer (Cancel / Record progress) commits it. Corrections — a value that
- * moves backward or a reopened milestone — require a note and are recorded as append-only correction events.
+ * The record-progress form — the measurement-aware body of the objective drawer's record mode, and one
+ * check-in: manual percentage records a completion figure, numeric target the current actual against the
+ * baseline→target rail, weighted milestones every milestone completed or reopened together. "How it's going"
+ * carries the owner's status (D-05), preselected from the last report; at risk or off track turns the note
+ * into "What's in the way", required. A check-in may change no value and report status alone. Corrections —
+ * a value that moves backward or a reopened milestone — also require the note.
  */
 export function ProgressUpdateComposer({
   progress,
@@ -39,7 +39,7 @@ export function ProgressUpdateComposer({
   submitting: boolean;
   /** The <form> id the drawer's pinned footer submits — the button lives outside this component. */
   formId: string;
-  /** Commits one progress event. Milestone batches call this once per changed milestone. */
+  /** Commits the check-in. */
   onSubmit: (request: Omit<SubmitProgressRequest, "expectedVersion">) => Promise<void>;
   upload: UploadFn;
   /** Reports whether the update is submittable, so the external footer can enable its action. */
@@ -89,28 +89,31 @@ function ValueForm({
   const reported = isNumeric ? progress.currentActual : progress.currentPercentage;
   const [dialValue, setDialValue] = useState<number | null>(null);
   const [value, setValue] = useState("");
+  const [status, setStatus] = useState<ObjectiveStatus | null>(progress.currentStatus);
   const [note, setNote] = useState("");
   const [evidence, setEvidence] = useState<EvidenceInput[]>([]);
 
   const typed = value === "" ? null : Number(value);
   const entered = domain ? dialValue : typed;
-  // Re-recording the figure already on record is not an update.
-  const validNumber = entered != null && Number.isFinite(entered) && entered !== reported;
+  // Re-recording the figure already on record changes nothing; the check-in then reports status alone.
+  const changed = entered != null && Number.isFinite(entered) && entered !== reported;
 
   // A value that moves backward from the last reported figure is a correction — note required.
   const decreased =
-    !isNumeric && validNumber && progress.currentPercentage != null && (entered as number) < progress.currentPercentage;
-  const noteRequired = decreased;
-  const canSubmit = validNumber && (!noteRequired || note.trim() !== "");
+    !isNumeric && changed && progress.currentPercentage != null && (entered as number) < progress.currentPercentage;
+  const risky = isRisky(status);
+  const noteRequired = decreased || risky;
+  const canSubmit = status !== null && (!noteRequired || note.trim() !== "");
   useEffect(() => onValidityChange(canSubmit), [canSubmit, onValidityChange]);
 
   async function save() {
+    if (!status) return;
     try {
       await onSubmit({
-        percentage: isNumeric ? null : entered,
-        numericActual: isNumeric ? entered : null,
-        milestoneId: null,
-        milestoneCompleted: null,
+        percentage: !isNumeric && changed ? entered : null,
+        numericActual: isNumeric && changed ? entered : null,
+        milestones: null,
+        status,
         contextNote: note.trim() || null,
         isCorrection: decreased,
         evidence: evidence.length > 0 ? evidence : null,
@@ -164,7 +167,8 @@ function ValueForm({
         </div>
       )}
 
-      <NoteField value={note} onChange={setNote} required={noteRequired} hint={decreased ? "This lowers the last reported value — add a short note." : undefined} />
+      <StatusPicker value={status} onChange={setStatus} disabled={submitting} />
+      <NoteField value={note} onChange={setNote} required={noteRequired} risky={risky} hint={decreased && !risky ? "This lowers the last reported value — add a short note." : undefined} />
       <EvidenceField items={evidence} onChange={setEvidence} upload={upload} />
     </form>
   );
@@ -195,34 +199,34 @@ function MilestoneForm({
     [progress.milestones]
   );
   const [pending, setPending] = useState<Record<string, boolean>>(initial);
+  const [status, setStatus] = useState<ObjectiveStatus | null>(progress.currentStatus);
   const [note, setNote] = useState("");
   const [evidence, setEvidence] = useState<EvidenceInput[]>([]);
 
   const total = progress.milestones.length;
   const completedCount = progress.milestones.filter((m) => pending[m.id]).length;
-  const completedWeight = progress.milestones.filter((m) => pending[m.id]).reduce((sum, m) => sum + m.weight, 0);
+  const wasCompleted = progress.milestones.filter((m) => m.isCompleted).length;
 
   const changes = progress.milestones.filter((m) => pending[m.id] !== m.isCompleted);
   const reopening = changes.some((m) => !pending[m.id]);
-  const noteRequired = reopening;
-  const canSubmit = changes.length > 0 && (!noteRequired || note.trim() !== "");
+  const risky = isRisky(status);
+  const noteRequired = reopening || risky;
+  const canSubmit = status !== null && (!noteRequired || note.trim() !== "");
   useEffect(() => onValidityChange(canSubmit), [canSubmit, onValidityChange]);
 
   async function save() {
+    if (!status) return;
     try {
-      // Append-only: each changed milestone is its own event; the note anchors the batch, evidence attaches once.
-      for (let i = 0; i < changes.length; i++) {
-        const m = changes[i]!;
-        await onSubmit({
-          percentage: null,
-          numericActual: null,
-          milestoneId: m.id,
-          milestoneCompleted: pending[m.id]!,
-          contextNote: note.trim() || null,
-          isCorrection: !pending[m.id],
-          evidence: i === 0 && evidence.length > 0 ? evidence : null,
-        });
-      }
+      // One check-in: every milestone changed here is recorded together, with the status, note and evidence.
+      await onSubmit({
+        percentage: null,
+        numericActual: null,
+        milestones: changes.length > 0 ? changes.map((m) => ({ milestoneId: m.id, completed: pending[m.id]! })) : null,
+        status,
+        contextNote: note.trim() || null,
+        isCorrection: reopening,
+        evidence: evidence.length > 0 ? evidence : null,
+      });
       onRecorded();
     } catch (error) {
       reportPerformanceFailure(error, "Could not update the milestones.");
@@ -238,13 +242,24 @@ function MilestoneForm({
         if (canSubmit && !submitting) void save();
       }}
     >
-      <div>
-        <p className="text-sm font-medium text-foreground">Update milestones</p>
-        <ul className="mt-2.5 divide-y divide-border rounded-surface border border-border">
+      <div className="rounded-surface border border-border bg-popover p-4 dark:bg-card">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="type-eyebrow text-muted-foreground">Milestones</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              <span className="text-2xl font-semibold tabular-nums text-foreground">{completedCount}</span> of {total} complete
+            </p>
+          </div>
+          {changes.length > 0 ? (
+            <span className="text-xs tabular-nums text-muted-foreground">was {wasCompleted} of {total}</span>
+          ) : null}
+        </div>
+        <ul className="mt-3 space-y-0.5">
           {progress.milestones.map((m) => {
             const on = pending[m.id] ?? false;
+            const change = on === m.isCompleted ? null : on ? "New" : "Reopened";
             return (
-              <li key={m.id} className="flex items-center gap-3 px-4 py-3">
+              <li key={m.id} className={cn("flex items-center gap-3 rounded-control-sm px-2.5 py-2.5", change && "bg-inlay")}>
                 <button
                   type="button"
                   role="checkbox"
@@ -258,28 +273,68 @@ function MilestoneForm({
                 >
                   {on ? <Check className="size-3.5" aria-hidden /> : null}
                 </button>
-                <span className="min-w-0 flex-1 text-sm text-foreground">{m.title}</span>
+                <span className={cn("min-w-0 flex-1 text-sm text-foreground", change && "font-medium")}>{m.title}</span>
                 <MilestoneDue milestone={m} />
-                <span className="w-9 shrink-0 text-right text-xs font-medium tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
+                {change ? (
+                  <span className={cn("shrink-0 text-xs font-semibold", change === "New" ? "text-primary-ink" : "text-warning")}>{change}</span>
+                ) : (
+                  <span className="w-9 shrink-0 text-right text-xs font-medium tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
+                )}
               </li>
             );
           })}
         </ul>
       </div>
 
-      <DerivedCard
-        label="Objective progress"
-        derived={completedWeight}
-        subtitle={`${completedCount} of ${total} milestone${total === 1 ? "" : "s"} completed · ${pct(completedWeight)}% of total weight`}
-      />
-
-      <NoteField value={note} onChange={setNote} required={noteRequired} hint={reopening ? "Reopening a completed milestone — add a short note." : undefined} />
+      <StatusPicker value={status} onChange={setStatus} disabled={submitting} />
+      <NoteField value={note} onChange={setNote} required={noteRequired} risky={risky} hint={reopening && !risky ? "Reopening a completed milestone — add a short note." : undefined} />
       <EvidenceField items={evidence} onChange={setEvidence} upload={upload} />
     </form>
   );
 }
 
 // ── Shared field pieces ──────────────────────────────────────────────────────
+
+const isRisky = (status: ObjectiveStatus | null) => status === "AtRisk" || status === "OffTrack";
+
+const STATUS_OPTIONS: { value: ObjectiveStatus; label: string; mark: string; selected: string }[] = [
+  { value: "OnTrack", label: "On track", mark: "bg-success-subtle text-success", selected: "border-success bg-success-subtle/40 ring-success/30" },
+  { value: "AtRisk", label: "At risk", mark: "bg-primary text-primary-foreground", selected: "border-primary bg-primary-tint ring-primary-ring" },
+  { value: "OffTrack", label: "Off track", mark: "bg-destructive/12 text-destructive", selected: "border-destructive bg-destructive/10 ring-destructive/30" },
+];
+
+/** "How it's going": the owner's status as three tiles (PlanDrawer board). Required with every check-in. */
+function StatusPicker({ value, onChange, disabled }: { value: ObjectiveStatus | null; onChange: (value: ObjectiveStatus) => void; disabled?: boolean }) {
+  return (
+    <fieldset>
+      <legend className="text-sm font-semibold text-foreground">How it&apos;s going</legend>
+      <div role="radiogroup" aria-label="How it's going" className="mt-2.5 grid grid-cols-3 gap-2.5">
+        {STATUS_OPTIONS.map((option) => {
+          const on = value === option.value;
+          return (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              disabled={disabled}
+              onClick={() => onChange(option.value)}
+              className={cn(
+                "flex flex-col items-start gap-3 rounded-control border px-3 py-3 text-left text-sm font-semibold text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                on ? cn("ring-2", option.selected) : "border-border hover:border-foreground/30"
+              )}
+            >
+              <span className={cn("flex size-7 items-center justify-center rounded-control-sm", option.mark)} aria-hidden>
+                {option.value === "OnTrack" ? <Check className="size-3.5" /> : option.value === "AtRisk" ? <span className="text-sm font-bold leading-none">!</span> : <X className="size-3.5" />}
+              </span>
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
 
 /**
  * A number input with a unit suffix and its own up/down stepper. `min`/`max` are hard guardrails: typing,
@@ -420,21 +475,26 @@ export function DerivedCard({
   );
 }
 
-/** The optional (dynamically required) note, always present, with a live character count. */
+/** The note, with a live character count. At risk or off track, it is the reason: "What's in the way". */
 function NoteField({
   value,
   onChange,
   required,
+  risky,
   hint,
 }: {
   value: string;
   onChange: (value: string) => void;
   required?: boolean;
+  risky?: boolean;
   hint?: string;
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor="pv-note">Add a note {required ? <span className="text-destructive">(required)</span> : <span className="text-muted-foreground">(optional)</span>}</Label>
+      <Label htmlFor="pv-note">
+        {risky ? "What's in the way" : "Add a note"}{" "}
+        {risky ? null : required ? <span className="text-destructive">(required)</span> : <span className="text-muted-foreground">(optional)</span>}
+      </Label>
       <div className="relative">
         <Textarea
           id="pv-note"
@@ -442,7 +502,7 @@ function NoteField({
           onChange={(e) => onChange(e.target.value.slice(0, NOTE_MAX))}
           rows={3}
           maxLength={NOTE_MAX}
-          placeholder="e.g. Key activities completed, outcomes, or context…"
+          placeholder={risky ? undefined : "e.g. Key activities completed, outcomes, or context…"}
           className="resize-none pb-6"
         />
         <span className="pointer-events-none absolute bottom-2 right-3 text-[0.6875rem] tabular-nums text-muted-foreground/70">
