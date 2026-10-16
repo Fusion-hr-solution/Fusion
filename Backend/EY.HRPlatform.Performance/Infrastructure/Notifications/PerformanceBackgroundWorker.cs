@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Features.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Evidence;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Core;
@@ -60,10 +61,12 @@ public sealed class PerformanceNotificationDispatcher(PerformanceDbContext db, I
     }
 }
 
-public sealed class PerformanceBackgroundWorker(IServiceScopeFactory scopeFactory, ILogger<PerformanceBackgroundWorker> logger, EvidenceUploadSweeper sweeper)
+public sealed class PerformanceBackgroundWorker(IServiceScopeFactory scopeFactory, ILogger<PerformanceBackgroundWorker> logger,
+    EvidenceUploadSweeper sweeper, PerformanceNotificationRetention retention)
     : BackgroundService
 {
     private DateTime _nextEvidenceSweep = DateTime.UtcNow;
+    private DateTime _nextNotificationPurge = DateTime.UtcNow;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -77,6 +80,11 @@ public sealed class PerformanceBackgroundWorker(IServiceScopeFactory scopeFactor
                 {
                     await sweeper.SweepAsync(DateTime.UtcNow, stoppingToken);
                     _nextEvidenceSweep = DateTime.UtcNow.AddHours(1);
+                }
+                if (DateTime.UtcNow >= _nextNotificationPurge)
+                {
+                    await retention.PurgeAsync(DateTime.UtcNow, stoppingToken);
+                    _nextNotificationPurge = DateTime.UtcNow.AddDays(1);
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }

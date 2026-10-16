@@ -1,5 +1,6 @@
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Audit;
+using EY.HRPlatform.Performance.Features.Notifications;
 using EY.HRPlatform.Performance.Features.Population;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Infrastructure.Core;
@@ -30,6 +31,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IPerformanceNotificationSender, SmtpPerformanceNotificationSender>();
         services.AddScoped<PerformanceNotificationDispatcher>();
         services.AddSingleton<EvidenceUploadSweeper>();
+        services.AddSingleton<PerformanceNotificationRetention>();
         services.AddHostedService<PerformanceBackgroundWorker>();
         services.AddScoped<PopulationResolutionService>();
 

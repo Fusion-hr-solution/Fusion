@@ -39,6 +39,7 @@ public sealed class PerformanceDbContext : DbContext
     private Guid CurrentTenantId => _tenantContext?.TenantIdOrDefault ?? Guid.Empty;
 
     public DbSet<PerformanceOutboxMessage> OutboxMessages => Set<PerformanceOutboxMessage>();
+    public DbSet<PerformanceNotification> Notifications => Set<PerformanceNotification>();
     public DbSet<PerformanceAuditEntry> AuditEntries => Set<PerformanceAuditEntry>();
 
     public DbSet<PerformanceCycle> Cycles => Set<PerformanceCycle>();
@@ -79,6 +80,8 @@ public sealed class PerformanceDbContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(PerformanceDbContext).Assembly);
 
         modelBuilder.Entity<PerformanceOutboxMessage>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<PerformanceNotification>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<PerformanceAuditEntry>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);

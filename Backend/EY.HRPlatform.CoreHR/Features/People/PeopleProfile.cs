@@ -26,7 +26,9 @@ public sealed record PeopleProfileIdentityDto(
     string LastName,
     string? PreferredName,
     string? WorkEmail,
-    string? Phone);
+    string? Phone,
+    /// <summary>The worker's id, which other modules (Performance) key their records by.</summary>
+    Guid EmployeeId);
 
 public sealed record PeopleProfileEmploymentDto(
     PeopleEmploymentState State,
@@ -183,7 +185,8 @@ public sealed class PeopleProfileQueryHandler(
                 employee.LastName,
                 employee.PreferredName,
                 employee.Email,
-                employee.Phone),
+                employee.Phone,
+                employee.Id),
             new PeopleProfileEmploymentDto(
                 state,
                 employment?.EffectiveFrom,

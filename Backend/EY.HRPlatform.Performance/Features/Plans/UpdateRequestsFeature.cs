@@ -132,7 +132,7 @@ public sealed class CreateUpdateRequestHandler(PerformanceDbContext db, IPerform
         db.UpdateRequests.Add(request);
         audit.Record(request.TenantId, "UpdateRequest", request.Id, request.CycleId, PerformanceAuditActions.UpdateRequested,
             new { after = request.State.ToString(), request.PlanId, request.ObjectiveId, hasNote = request.Note is not null });
-        notifications.EnqueueUpdateRequested(request);
+        notifications.EnqueueUpdateRequested(request, objective?.Title);
         try { await db.SaveChangesAsync(token); }
         catch (DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation })
         {

@@ -54,5 +54,3 @@ public sealed class CycleVisibilityHttpTests
         Assert.Equal(3, adminContext.GetProperty("data").GetProperty("cycles").GetArrayLength());
     }
 }
-
-\n

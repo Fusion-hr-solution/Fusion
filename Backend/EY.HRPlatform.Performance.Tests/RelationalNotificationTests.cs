@@ -98,7 +98,8 @@ public sealed class RelationalNotificationTests
             services.Configure<PerformanceNotificationOptions>(o => o.Enabled = true);
             services.AddScoped<PerformanceNotificationDispatcher>();
             await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
-            using var worker = new PerformanceBackgroundWorker(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<PerformanceBackgroundWorker>.Instance, new EY.HRPlatform.Performance.Infrastructure.Evidence.EvidenceUploadSweeper(provider.GetRequiredService<IServiceScopeFactory>()));
+            using var worker = new PerformanceBackgroundWorker(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<PerformanceBackgroundWorker>.Instance, new EY.HRPlatform.Performance.Infrastructure.Evidence.EvidenceUploadSweeper(provider.GetRequiredService<IServiceScopeFactory>()),
+                new EY.HRPlatform.Performance.Features.Notifications.PerformanceNotificationRetention(provider.GetRequiredService<IServiceScopeFactory>()));
             await worker.ProcessBatchAsync(default);
             await worker.ProcessBatchAsync(default);
             Assert.Equal(new[] { tenantA, tenantB }.Order(), resolvedTenants.Order());
@@ -151,7 +152,8 @@ public sealed class RelationalNotificationTests
             await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
             var scopes = provider.GetRequiredService<IServiceScopeFactory>();
             using var worker = new PerformanceBackgroundWorker(scopes, NullLogger<PerformanceBackgroundWorker>.Instance,
-                new EY.HRPlatform.Performance.Infrastructure.Evidence.EvidenceUploadSweeper(scopes));
+                new EY.HRPlatform.Performance.Infrastructure.Evidence.EvidenceUploadSweeper(scopes),
+                new EY.HRPlatform.Performance.Features.Notifications.PerformanceNotificationRetention(scopes));
 
             // The server accepts, then the worker stops before its bookkeeping commits.
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => worker.ProcessBatchAsync(crash.Token));

@@ -1,0 +1,28 @@
+using EY.HRPlatform.Performance.Features.People;
+using EY.HRPlatform.Performance.Features.Security;
+using EY.HRPlatform.SharedKernel.Api;
+using EY.HRPlatform.SharedKernel.Auth;
+using MediatR;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace EY.HRPlatform.Performance.Controllers;
+
+/// <summary>One person's performance, shaped for the caller (D-32). Always 200 with only the visible sections.</summary>
+[ApiController]
+[Authorize]
+[Route("api/performance/people")]
+public sealed class PeopleController(IMediator mediator, IPerformanceAccessPolicyService policy) : PerformanceControllerBase
+{
+    [HttpGet("{employeeId:guid}/summary")]
+    public async Task<ActionResult<ApiResponse<PersonPerformanceSummaryDto>>> Summary(
+        Guid employeeId, [FromQuery] Guid? cycleId, CancellationToken cancellationToken)
+    {
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        var viewer = new PersonSummaryViewer(
+            User.GetEmployeeId() ?? Guid.Empty,
+            policy.CanReviewDirectReports(User),
+            policy.CanAdministerCycles(User));
+        return MapResult(await mediator.Send(new GetPersonSummaryQuery(employeeId, cycleId, viewer), cancellationToken));
+    }
+}

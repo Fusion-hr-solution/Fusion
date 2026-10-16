@@ -1,0 +1,177 @@
+using EY.HRPlatform.Performance.Domain.Cycles;
+using EY.HRPlatform.Performance.Domain.Objectives;
+using EY.HRPlatform.Performance.Domain.Plans;
+using EY.HRPlatform.Performance.Domain.Reviews;
+using EY.HRPlatform.Performance.Features.Cycles;
+using EY.HRPlatform.Performance.Features.Failures;
+using EY.HRPlatform.Performance.Features.Plans;
+using EY.HRPlatform.Performance.Features.Progress;
+using EY.HRPlatform.Performance.Features.Reviews;
+using EY.HRPlatform.Performance.Features.Security.Policies;
+using EY.HRPlatform.Performance.Infrastructure.Core;
+using EY.HRPlatform.Performance.Infrastructure.Notifications;
+using EY.HRPlatform.Performance.Infrastructure.Persistence;
+using EY.HRPlatform.Performance.Models;
+using EY.HRPlatform.SharedKernel.CQRS;
+using EY.HRPlatform.SharedKernel.Results;
+using Microsoft.EntityFrameworkCore;
+
+namespace EY.HRPlatform.Performance.Features.People;
+
+/// <summary>The caller's relation to the person, from the most permissive that applies.</summary>
+public enum PersonRelation { Self, Manager, Reviewer, Administrator, Other }
+
+public sealed record PersonSummaryObjectiveDto(Guid ObjectiveId, int Number, string Title, string? AlignedTo,
+    decimal? Weight, decimal? Progress, string Href);
+public sealed record PersonSummaryCycleDto(Guid CycleId, string CycleName, CycleLifecycleState CycleState, CyclePhase? Phase,
+    bool IsParticipant, Guid? PlanId, RosterPlanStatus? PlanStatus, decimal? OverallProgress, string? PlanHref,
+    IReadOnlyList<PersonSummaryObjectiveDto> Objectives);
+public sealed record PersonSummaryCurrentReviewDto(Guid ReviewId, string ReviewRoundName, PerformanceReviewState State,
+    DateOnly? DueDate, bool SelfAssessmentEnabled, bool CalibrationEnabled, string Href);
+public sealed record PersonSummaryReviewResultDto(Guid ReviewId, string CycleName, string ReviewRoundName,
+    string? FinalRatingLabel, DateTime? FinalizedAt, string Href);
+public sealed record PersonSummaryReviewsDto(PersonSummaryCurrentReviewDto? Current, IReadOnlyList<PersonSummaryReviewResultDto> History);
+
+/// <summary>
+/// One person's performance as the caller may see it (D-32). Sections are null when hidden. An unknown
+/// or foreign employee gets the same answer as an unseen one, without identity.
+/// </summary>
+public sealed record PersonPerformanceSummaryDto(Guid EmployeeId, string? DisplayName, string? JobTitle, string? OrgUnitName,
+    string? StableEmployeeKey, PersonRelation Relation, PersonSummaryCycleDto? CurrentCycle, PersonSummaryReviewsDto? Reviews);
+
+public sealed record PersonSummaryViewer(Guid EmployeeId, bool ReviewsReports, bool Administers);
+
+public sealed record GetPersonSummaryQuery(Guid EmployeeId, Guid? CycleId, PersonSummaryViewer Viewer)
+    : IQuery<Result<PersonPerformanceSummaryDto>>;
+
+public sealed class GetPersonSummaryHandler(PerformanceDbContext db, ICoreWorkforceClient workforce)
+    : IQueryHandler<GetPersonSummaryQuery, Result<PersonPerformanceSummaryDto>>
+{
+    public async Task<Result<PersonPerformanceSummaryDto>> Handle(GetPersonSummaryQuery query, CancellationToken token)
+    {
+        var empty = new PersonPerformanceSummaryDto(query.EmployeeId, null, null, null, null, PersonRelation.Other, null, null);
+        if (query.EmployeeId == Guid.Empty) return Result.Success(empty);
+
+        // People belong to Core HR: the tenant-scoped snapshot is the only source of identity and reporting line.
+        WorkforceSnapshot? person;
+        try
+        {
+            person = (await workforce.ResolveAsync(DateTime.UtcNow, [query.EmployeeId], token))
+                .SingleOrDefault(p => p.EmployeeId == query.EmployeeId);
+        }
+        catch (HttpRequestException) { return Result.Failure<PersonPerformanceSummaryDto>(PerformanceErrors.CoreUnavailable()); }
+        if (person is null) return Result.Success(empty);
+
+        var cycle = await SelectCycleAsync(query.EmployeeId, query.CycleId, token);
+        if (query.CycleId is not null && cycle is null) return Result.Success(empty);
+        var plan = cycle is null ? null : await db.EmployeePlans.AsNoTracking().Include(p => p.Decisions)
+            .FirstOrDefaultAsync(p => p.CycleId == cycle.Id && p.EmployeeId == query.EmployeeId, token);
+
+        var relation = Relate(query.Viewer, person, plan);
+        var identity = empty with
+        {
+            DisplayName = person.DisplayName, JobTitle = person.JobTitle, OrgUnitName = person.OrgUnit?.Name,
+            StableEmployeeKey = person.StableEmployeeKey, Relation = relation,
+        };
+        if (relation == PersonRelation.Other) return Result.Success(identity);
+
+        return Result.Success(identity with
+        {
+            CurrentCycle = cycle is null ? null : await CycleSectionAsync(cycle, query.EmployeeId, plan, relation, token),
+            Reviews = await ReviewsAsync(query.EmployeeId, token),
+        });
+    }
+
+    /// <summary>
+    /// Self; the current Core HR manager; the plan's recorded reviewer for this cycle; a cycle administrator.
+    /// Managing and reviewing both need the direct-reports view grant, as everywhere else in Performance.
+    /// </summary>
+    private static PersonRelation Relate(PersonSummaryViewer viewer, WorkforceSnapshot person, EmployeePlan? plan)
+    {
+        var me = viewer.EmployeeId;
+        if (me != Guid.Empty && me == person.EmployeeId) return PersonRelation.Self;
+        if (viewer.ReviewsReports && me != Guid.Empty && person.Manager?.EmployeeId == me) return PersonRelation.Manager;
+        if (viewer.ReviewsReports && me != Guid.Empty && plan?.ResponsibleManagerId == me) return PersonRelation.Reviewer;
+        return viewer.Administers ? PersonRelation.Administrator : PersonRelation.Other;
+    }
+
+    /// <summary>The requested cycle; otherwise the active cycle that includes the person; otherwise their most recent.</summary>
+    private async Task<PerformanceCycle?> SelectCycleAsync(Guid employeeId, Guid? cycleId, CancellationToken token)
+    {
+        if (cycleId is Guid requested)
+            return await db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == requested && c.State != CycleLifecycleState.Draft, token);
+        var taken = db.Participants.AsNoTracking().Where(p => p.EmployeeId == employeeId).Select(p => p.CycleId);
+        return await db.Cycles.AsNoTracking()
+                   .Where(c => c.State == CycleLifecycleState.Active && taken.Contains(c.Id))
+                   .OrderByDescending(c => c.StartDate).FirstOrDefaultAsync(token)
+               ?? await db.Cycles.AsNoTracking()
+                   .Where(c => c.State != CycleLifecycleState.Draft && taken.Contains(c.Id))
+                   .OrderByDescending(c => c.StartDate).FirstOrDefaultAsync(token)
+               ?? await db.Cycles.AsNoTracking()
+                   .Where(c => c.State == CycleLifecycleState.Active)
+                   .OrderByDescending(c => c.StartDate).FirstOrDefaultAsync(token);
+    }
+
+    private async Task<PersonSummaryCycleDto> CycleSectionAsync(PerformanceCycle cycle, Guid employeeId, EmployeePlan? plan,
+        PersonRelation relation, CancellationToken token)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var phase = CycleDetailComposer.PhaseOf(cycle, today);
+        var participates = await db.Participants.AsNoTracking().AnyAsync(p => p.CycleId == cycle.Id && p.EmployeeId == employeeId, token);
+        if (!participates)
+            return new(cycle.Id, cycle.Name, cycle.State, phase, false, null, null, null, null, []);
+
+        // A never-submitted Draft stays the owner's private workspace for everyone but the owner and administrators.
+        var privateDraft = plan is not null && relation is PersonRelation.Manager or PersonRelation.Reviewer
+            && !PlanPolicy.HasBeenPutForward(plan);
+        var objectives = plan is null || privateDraft ? [] : await db.Objectives.AsNoTracking().Include(o => o.Measurement)
+            .Where(o => o.EmployeePlanId == plan.Id && o.State != ObjectiveLifecycleState.Archived)
+            .ToListAsync(token);
+        var standing = PlansComposer.Classify(plan, objectives, today);
+        var parentIds = objectives.Where(o => o.ParentObjectiveId is not null).Select(o => o.ParentObjectiveId!.Value).Distinct().ToList();
+        var parents = await db.Objectives.AsNoTracking().Where(o => parentIds.Contains(o.Id))
+            .ToDictionaryAsync(o => o.Id, o => o.Title, token);
+
+        var ordered = objectives.OrderBy(o => o.IsAligned ? 0 : 1).ThenBy(o => o.Title).ToList();
+        var approved = standing.Status == RosterPlanStatus.Approved;
+        return new(cycle.Id, cycle.Name, cycle.State, phase, true, privateDraft ? null : plan?.Id, standing.Status,
+            // Missing is not 0%: no figure until some objective has recorded progress.
+            approved && objectives.Any(o => o.HasProgress) ? ProgressCalc.PlanProgress(objectives) : null,
+            plan is null || privateDraft ? null : PerformanceNotificationTemplates.PlanPath(cycle.Id, plan.Id),
+            ordered.Select((o, index) => new PersonSummaryObjectiveDto(o.Id, index + 1, o.Title,
+                o.ParentObjectiveId is Guid parent && parents.TryGetValue(parent, out var title) ? title : null,
+                o.PlanWeight,
+                approved && o.HasProgress ? Math.Min(o.DerivedProgress, 100m) : null,
+                PerformanceNotificationTemplates.ObjectivePath(cycle.Id, o.Id))).ToList());
+    }
+
+    /// <summary>
+    /// The open review's step, and released results across cycles. The step never carries a rating, so a
+    /// subject in calibration sees only that calibration is under way (B-049); results exist once finalized.
+    /// </summary>
+    private async Task<PersonSummaryReviewsDto> ReviewsAsync(Guid employeeId, CancellationToken token)
+    {
+        var current = await (from review in db.PerformanceReviews.AsNoTracking()
+                             join round in db.ReviewRounds.AsNoTracking() on review.ReviewRoundId equals round.Id
+                             where review.SubjectEmployeeId == employeeId && round.State == ReviewRoundState.Active
+                                && review.State != PerformanceReviewState.Finalized && review.State != PerformanceReviewState.Closed
+                             orderby review.OpenedAt descending
+                             select new { review.Id, RoundName = round.Name, review.State, review.CurrentStageDueDate,
+                                 review.SelfAssessmentEnabled, review.CalibrationEnabled })
+            .FirstOrDefaultAsync(token);
+        var history = await (from review in db.PerformanceReviews.AsNoTracking()
+                             join round in db.ReviewRounds.AsNoTracking() on review.ReviewRoundId equals round.Id
+                             join cycle in db.Cycles.AsNoTracking() on review.CycleId equals cycle.Id
+                             where review.SubjectEmployeeId == employeeId && review.State == PerformanceReviewState.Finalized
+                             orderby review.FinalizedAt descending
+                             select new { review.Id, CycleName = cycle.Name, RoundName = round.Name, review.FinalRating,
+                                 review.FinalizedSnapshotJson, review.FinalizedAt })
+            .ToListAsync(token);
+        return new(
+            current is null ? null : new(current.Id, current.RoundName, current.State, current.CurrentStageDueDate,
+                current.SelfAssessmentEnabled, current.CalibrationEnabled, PerformanceNotificationTemplates.ReviewPath(current.Id)),
+            history.Select(r => new PersonSummaryReviewResultDto(r.Id, r.CycleName, r.RoundName,
+                ReviewHistoryRating.Label(r.FinalizedSnapshotJson, r.FinalRating), r.FinalizedAt,
+                PerformanceNotificationTemplates.ReviewPath(r.Id))).ToList());
+    }
+}
