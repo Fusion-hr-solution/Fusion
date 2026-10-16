@@ -73,6 +73,8 @@ export interface CycleSettingsDto {
   defaultObjectiveRatingsEnabled: boolean;
   defaultCalibrationEnabled: boolean;
   evidenceRetentionMonths: number;
+  /** Performance AI for the tenant (D-26). Live policy, on by default; omitted on update keeps it. */
+  aiAssistanceEnabled: boolean;
 }
 
 export interface RatingScaleLevelDto { value: number; label: string; description: string | null }
@@ -163,6 +165,8 @@ export interface WorkspaceCapabilitiesDto {
   canCalibrate: boolean;
   canViewOrgDirection: boolean;
   canChooseOrganizationScope: boolean;
+  /** Performance AI may run now: the tenant switch is on and the provider is up. Render AI only when true. */
+  aiAssistance: boolean;
 }
 
 /** Which primary destinations the workspace offers in the selected Cycle. */
@@ -1008,6 +1012,78 @@ export interface MyPlanStateDto {
   preview: PlanPreviewDto | null;
 }
 
+// ── Objective coach (AI, D-07) ───────────────────────────────────────────────
+
+/** Which composer the coach serves: it decides the authority and the allowed parents. */
+export type ObjectiveCoachSurface = "Plan" | "Team";
+
+/** The draft as the composer holds it right now. Nothing is saved. */
+export interface ObjectiveCoachRequest {
+  surface: ObjectiveCoachSurface;
+  /** Team only: the composer's owning unit. */
+  orgUnitId?: string | null;
+  title: string;
+  description?: string | null;
+  measurement?: MeasurementInput | null;
+  parentObjectiveId?: string | null;
+}
+
+/** A suggested measure. A numeric baseline is present only when the draft stated one. */
+export interface CoachMeasureDto {
+  method: MeasurementMethod;
+  baseline: number | null;
+  target: number | null;
+  unit: string | null;
+  direction: ImprovementDirection | null;
+  milestones: Array<{ title: string; weight: number }> | null;
+}
+
+/** At most one suggestion of each kind; a missing one means AI abstained. */
+export interface ObjectiveCoachResultDto {
+  outcome: "Suggested" | "NothingToSuggest";
+  title: string | null;
+  measure: CoachMeasureDto | null;
+  parentObjectiveId: string | null;
+}
+
+// ── Alignment map (D-06) ─────────────────────────────────────────────────────
+
+export type AlignmentMapNodeKind = "Company" | "OrgUnit" | "Personal";
+
+/**
+ * Personal objectives aligned directly to one direction objective, from plans that were put
+ * forward, by owner-reported status. Counts only. `readable` is how many arrive as nodes.
+ */
+export interface PersonalAlignmentDto {
+  total: number;
+  onTrack: number;
+  atRisk: number;
+  offTrack: number;
+  noStatus: number;
+  readable: number;
+}
+
+export interface AlignmentMapNodeDto {
+  id: string;
+  kind: AlignmentMapNodeKind;
+  parentId: string | null;
+  title: string;
+  orgUnitName: string | null;
+  ownerName: string | null;
+  isOwn: boolean;
+  status: ObjectiveStatus | null;
+  statusSince: string | null;
+  hasProgress: boolean;
+  progress: number;
+  /** Company and unit nodes only. */
+  personal: PersonalAlignmentDto | null;
+}
+
+export interface AlignmentMapDto {
+  cycleId: string;
+  nodes: AlignmentMapNodeDto[];
+}
+
 export interface AlignmentTargetDto {
   id: string;
   ownershipScope: ObjectiveOwnershipScope;
@@ -1563,6 +1639,8 @@ export const performancePaths = {
   confirmPopulation: (cycleId: string) =>
     `/performance/cycles/${cycleId}/population/confirm`,
   goals: (cycleId: string) => `/performance/cycles/${cycleId}/goals`,
+  alignmentMap: (cycleId: string) => `/performance/cycles/${cycleId}/goals/map`,
+  objectiveCoach: (cycleId: string) => `/performance/cycles/${cycleId}/objective-coach`,
   teamObjectiveWorkspace: (cycleId: string, orgUnitId?: string | null) => {
     const base = `/performance/cycles/${cycleId}/goals/team-workspace`;
     return orgUnitId
@@ -1662,6 +1740,8 @@ export const performanceQueryKeys = {
     [...performanceQueryKeys.all(), "population", cycleId] as const,
   goals: (cycleId: string) =>
     [...performanceQueryKeys.all(), "goals", cycleId] as const,
+  alignmentMap: (cycleId: string) =>
+    [...performanceQueryKeys.all(), "alignment-map", cycleId] as const,
   teamObjectiveWorkspace: (cycleId: string, orgUnitId?: string | null) =>
     [
       ...performanceQueryKeys.all(),
@@ -1836,6 +1916,10 @@ export function createPerformanceApi(client: ApiClient) {
 
     getGoals: (cycleId: string, signal?: AbortSignal) =>
       client.get<GoalsOverviewDto>(performancePaths.goals(cycleId), { signal }),
+    getAlignmentMap: (cycleId: string, signal?: AbortSignal) =>
+      client.get<AlignmentMapDto>(performancePaths.alignmentMap(cycleId), { signal }),
+    coachObjective: (cycleId: string, request: ObjectiveCoachRequest, signal?: AbortSignal) =>
+      client.post<ObjectiveCoachResultDto>(performancePaths.objectiveCoach(cycleId), request, { signal }),
     getGoal: (cycleId: string, objectiveId: string, signal?: AbortSignal) =>
       client.get<GoalDetailDto>(performancePaths.goal(cycleId, objectiveId), {
         signal,

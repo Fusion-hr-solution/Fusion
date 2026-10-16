@@ -1,7 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import dagre from "dagre";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -19,6 +18,7 @@ import {
 } from "@xyflow/react";
 import { ChevronDown, ChevronRight, GripVertical, Plus } from "lucide-react";
 import { Button, cn } from "@repo/ds";
+import { AnchorViewport, layoutTree, useAnchoredToggle } from "@repo/ds/flow";
 import type { OrganizationHierarchyModel } from "../model/hierarchy";
 import { isInvalidMoveTarget, organizationAccessibleName } from "../model/hierarchy";
 
@@ -177,33 +177,6 @@ function FocusSelected({
   return null;
 }
 
-// Keep the interacted node spatially anchored across an expand/collapse relayout.
-// dagre re-lays-out every visible node, so without compensation the toggled node
-// jumps; here the viewport is translated by the node's position delta (preserving
-// zoom) so it stays put on screen. Runs synchronously before paint.
-function AnchorViewport({
-  nodes,
-  pendingAnchorRef,
-}: {
-  nodes: OrganizationFlowNode[];
-  pendingAnchorRef: React.MutableRefObject<{ id: string; x: number; y: number } | null>;
-}) {
-  const flow = useReactFlow<OrganizationFlowNode, Edge>();
-  useLayoutEffect(() => {
-    const anchor = pendingAnchorRef.current;
-    if (!anchor) return;
-    pendingAnchorRef.current = null;
-    const next = nodes.find((node) => node.id === anchor.id);
-    if (!next) return;
-    const viewport = flow.getViewport();
-    const dx = (anchor.x - next.position.x) * viewport.zoom;
-    const dy = (anchor.y - next.position.y) * viewport.zoom;
-    if (dx === 0 && dy === 0) return;
-    void flow.setViewport({ x: viewport.x + dx, y: viewport.y + dy, zoom: viewport.zoom });
-  }, [flow, nodes, pendingAnchorRef]);
-  return null;
-}
-
 // A genuine reveal is allowed to move the viewport: bring the just-changed unit(s)
 // into view — center a single node, or fit a created set — without disturbing
 // pan/zoom on ordinary interactions.
@@ -278,19 +251,10 @@ export default function OrganizationChart({
   // itself travelling under the cursor.
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   // Keep the node the user toggled visually anchored: capture its pre-relayout
-  // position, and after dagre repositions everything, compensate the viewport so
+  // position, and after the layout repositions everything, compensate the viewport so
   // it does not jump across the screen. See AnchorViewport.
   const nodesRef = useRef<OrganizationFlowNode[]>([]);
-  const pendingAnchorRef = useRef<{ id: string; x: number; y: number } | null>(null);
-
-  const handleToggle = useCallback(
-    (id: string) => {
-      const current = nodesRef.current.find((node) => node.id === id);
-      if (current) pendingAnchorRef.current = { id, x: current.position.x, y: current.position.y };
-      onToggle(id);
-    },
-    [onToggle]
-  );
+  const { pendingAnchorRef, handleToggle } = useAnchoredToggle(nodesRef, onToggle);
 
   const dropValid =
     dragSource !== null &&
@@ -328,26 +292,28 @@ export default function OrganizationChart({
     };
     for (const root of model.roots) visit(root);
 
-    const graph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
     // Top-to-bottom layout: the root sits on top and depth flows downward across ranks,
     // while sibling units at each level spread sideways. `nodesep` is the horizontal gap
     // between siblings; `ranksep` is the vertical gap between depth levels. The wide, short
     // nodes spread far horizontally, so a generous `ranksep` gives the tree comparable
     // vertical extent rather than a short, very wide band.
-    graph.setGraph({ rankdir: "TB", nodesep: 8, ranksep: 260, marginx: 40, marginy: 40 });
-    for (const id of visibleIds) graph.setNode(id, { width: NODE_WIDTH, height: NODE_HEIGHT });
-    for (const edge of visibleEdges) graph.setEdge(edge.source, edge.target);
-    dagre.layout(graph);
+    const positions = layoutTree(visibleIds, visibleEdges, {
+      nodeWidth: NODE_WIDTH,
+      nodeHeight: NODE_HEIGHT,
+      nodesep: 8,
+      ranksep: 260,
+      margin: 40,
+    });
 
     return {
       nodes: visibleIds.map<OrganizationFlowNode>((id) => {
         const unit = model.byId.get(id)!;
-        const position = graph.node(id) ?? { x: 0, y: 0 };
+        const position = positions.get(id) ?? { x: 0, y: 0 };
         const isCandidate = dropTarget === id && dragSource !== null && dragSource !== id;
         return {
           id,
           type: "organizationUnit",
-          position: { x: position.x - NODE_WIDTH / 2, y: position.y - NODE_HEIGHT / 2 },
+          position,
           // Top-to-bottom flow: parents connect from their bottom edge to a child's top.
           sourcePosition: Position.Bottom,
           targetPosition: Position.Top,

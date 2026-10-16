@@ -23,6 +23,7 @@
     "@repo/ds": "workspace:*",
     "@repo/performance-ui": "workspace:*",
     "@repo/workforce-ui": "workspace:*",
+    "@xyflow/react": "^12.10.2",
     "lucide-react": "^0.469.0",
     "next": "^15.1.0",
     "react": "^19.0.0",
