@@ -20,6 +20,7 @@ public sealed class CycleSettingsConfiguration : IEntityTypeConfiguration<CycleS
         builder.Property(settings => settings.DefaultObjectiveRatingsEnabled).HasDefaultValue(true);
         builder.Property(settings => settings.DefaultCalibrationEnabled).HasDefaultValue(false);
         builder.Property(settings => settings.EvidenceRetentionMonths).HasDefaultValue(36).IsRequired();
+        builder.Property(settings => settings.AiAssistanceEnabled).HasDefaultValue(true);
 
         // Exactly one settings row per tenant.
         builder.HasIndex(settings => settings.TenantId).IsUnique();

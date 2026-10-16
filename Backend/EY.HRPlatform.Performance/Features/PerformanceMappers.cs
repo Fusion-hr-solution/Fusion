@@ -23,7 +23,8 @@ public static class PerformanceMappers
             settings.DefaultSelfAssessmentEnabled,
             settings.DefaultObjectiveRatingsEnabled,
               settings.DefaultCalibrationEnabled,
-              settings.EvidenceRetentionMonths) { Version = settings.Version };
+              settings.EvidenceRetentionMonths,
+              settings.AiAssistanceEnabled) { Version = settings.Version };
 
     public static MeasurementDto ToDto(ObjectiveMeasurement measurement)
         => new(

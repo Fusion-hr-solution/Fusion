@@ -36,6 +36,14 @@ public sealed class GoalsController(IMediator mediator, IPerformanceAccessPolicy
         return MapResult(await mediator.Send(new GetGoalsOverviewQuery(cycleId, Actor), cancellationToken));
     }
 
+    /// <summary>The alignment map: every Performance entrant reads published direction; personal objectives follow plan visibility.</summary>
+    [HttpGet("map")]
+    public async Task<ActionResult<ApiResponse<AlignmentMapDto>>> Map(Guid cycleId, CancellationToken cancellationToken)
+    {
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new GetAlignmentMapQuery(cycleId, Actor), cancellationToken));
+    }
+
     [HttpGet("{objectiveId:guid}")]
     public async Task<ActionResult<ApiResponse<GoalDetailDto>>> Detail(Guid cycleId, Guid objectiveId, CancellationToken cancellationToken)
     {

@@ -18,6 +18,8 @@ public static class PerformanceErrors
     public static Error Stale(string code, string message) => Create(code, message, FailureKind.Stale);
     public static Error Changed() => Stale("Performance.Stale", "This changed since you opened it. Refresh and try again.");
     public static Error CoreUnavailable() => Create("Core.Unavailable", "Workforce information is temporarily unavailable. Try again.", FailureKind.UpstreamUnavailable);
+    /// <summary>AI is off for the tenant, not configured, resting, or the call failed. Clients hide AI quietly.</summary>
+    public static Error AiUnavailable() => Create(Codes.AiUnavailable, "Suggestions are not available right now.", FailureKind.UpstreamUnavailable);
     public static Error UniqueConflict() => InvalidState("Performance.UniqueConflict", "This action conflicts with an existing record. Refresh and try again.");
     public static FailureDetails Details(Error error)
         => error.Details is FailureInfo info ? new(error.Code, info.Kind, info.Extra)
@@ -25,6 +27,8 @@ public static class PerformanceErrors
 
     public static class Codes
     {
+        public const string AiUnavailable = "Performance.AiUnavailable";
+        public const string CoachInvalid = "Coach.Invalid";
         public const string CycleClosed = "Cycle.Closed";
         public const string CycleNotActive = "Cycle.NotActive";
         public const string CycleHasActiveReviewRound = "Cycle.HasActiveReviewRound";

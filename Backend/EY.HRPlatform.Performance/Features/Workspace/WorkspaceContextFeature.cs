@@ -1,4 +1,6 @@
 using EY.HRPlatform.Performance.Domain.Cycles;
+using EY.HRPlatform.Performance.Features.Ai;
+using EY.HRPlatform.Performance.Infrastructure.Ai;
 using EY.HRPlatform.Performance.Features.Cycles;
 using EY.HRPlatform.Performance.Features.Failures;
 using EY.HRPlatform.Performance.Features.Security;
@@ -29,7 +31,7 @@ public sealed record GetWorkspaceContextQuery(Guid? CycleId, WorkspaceGrants Gra
 /// (participation, responsible reviewer), never from a persona. Navigation follows this read; every
 /// action is still authorized on its own.
 /// </summary>
-public sealed class GetWorkspaceContextHandler(PerformanceDbContext db, PerformanceViewer viewer)
+public sealed class GetWorkspaceContextHandler(PerformanceDbContext db, PerformanceViewer viewer, IPerformanceAiProvider ai)
     : IQueryHandler<GetWorkspaceContextQuery, Result<WorkspaceContextDto>>
 {
     public async Task<Result<WorkspaceContextDto>> Handle(GetWorkspaceContextQuery request, CancellationToken cancellationToken)
@@ -85,7 +87,8 @@ public sealed class GetWorkspaceContextHandler(PerformanceDbContext db, Performa
             ManagesOrgObjectives: grants.ManagesOrgObjectives,
             CanCalibrate: grants.CanCalibrate,
             CanViewOrgDirection: grants.Administers || grants.PublishesStrategy || grants.ManagesOrgObjectives || orgRead,
-            CanChooseOrganizationScope: grants.Administers || grants.AggregateViewScope == "Tenant");
+            CanChooseOrganizationScope: grants.Administers || grants.AggregateViewScope == "Tenant",
+            AiAssistance: await PerformanceAiAccess.IsAvailableAsync(db, ai, cancellationToken));
 
         var destinations = new WorkspaceDestinationsDto(
             Overview: true,

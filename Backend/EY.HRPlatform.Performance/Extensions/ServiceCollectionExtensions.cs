@@ -1,3 +1,9 @@
+using EY.HRPlatform.SharedKernel.Auth;
+using System.Threading.RateLimiting;
+using System.Security.Claims;
+using EY.HRPlatform.Performance.Features.Ai;
+using EY.HRPlatform.Performance.Infrastructure.Ai;
+using EY.HRPlatform.SharedKernel.Ai;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Audit;
 using EY.HRPlatform.Performance.Features.Notifications;
@@ -74,6 +80,30 @@ public static class ServiceCollectionExtensions
 
             client.Timeout = TimeSpan.FromSeconds(10);
             client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+        });
+
+        var ai = PerformanceAiOptions.From(configuration);
+        services.AddSingleton(ai);
+        services.AddSingleton(new AiAvailability(ai.IsConfigured));
+        services.AddHttpClient<IPerformanceAiProvider, PerformanceAiProvider>(client =>
+        {
+            client.BaseAddress = GroqEndpoint.BaseAddress(ai.Endpoint);
+            // The provider's own linked token enforces the call budget.
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        }).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
+        services.AddHostedService<ObjectiveCoachWarmUp>();
+        // Per person, per tenant: one author cannot spend the provider budget Core HR imports share.
+        services.AddRateLimiter(limiter =>
+        {
+            limiter.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+            limiter.AddPolicy(ObjectiveCoachVersions.RateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+                $"{context.User.GetTenantId()}:{context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value}",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = ObjectiveCoachVersions.CallsPerMinute,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                }));
         });
 
         return services;

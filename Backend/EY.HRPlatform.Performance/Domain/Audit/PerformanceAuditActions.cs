@@ -50,4 +50,6 @@ public static class PerformanceAuditActions
     public const string CalibrationFacilitatorsChanged = "Calibration.FacilitatorsChanged";
     public const string CalibrationSubjectChanged = "Calibration.SubjectChanged";
     public const string CalibrationFinalized = "Calibration.Finalized";
+    /// <summary>One AI generation attempt. Counts and outcome only; never prompt, input or output text.</summary>
+    public const string AiGenerated = "Ai.Generated";
 }

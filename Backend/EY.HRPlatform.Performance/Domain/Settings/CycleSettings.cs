@@ -32,6 +32,9 @@ public sealed class CycleSettings : PerformanceAggregate
     /// <summary>Months uploaded evidence is retained after its Cycle closes.</summary>
     public int EvidenceRetentionMonths { get; private set; } = 36;
 
+    /// <summary>Whether Performance AI runs for this tenant. Live policy: never captured in an activation snapshot.</summary>
+    public bool AiAssistanceEnabled { get; private set; } = true;
+
     /// <summary>The tenant defaults, materialized the first time Settings is read.</summary>
     public static CycleSettings CreateDefault(Guid tenantId)
     {
@@ -49,6 +52,7 @@ public sealed class CycleSettings : PerformanceAggregate
             DefaultObjectiveRatingsEnabled = true,
             DefaultCalibrationEnabled = false,
             EvidenceRetentionMonths = 36,
+            AiAssistanceEnabled = true,
         };
     }
 
@@ -61,7 +65,8 @@ public sealed class CycleSettings : PerformanceAggregate
         int? evidenceRetentionMonths = null,
         bool? defaultSelfAssessmentEnabled = null,
         bool? defaultObjectiveRatingsEnabled = null,
-        bool? defaultCalibrationEnabled = null)
+        bool? defaultCalibrationEnabled = null,
+        bool? aiAssistanceEnabled = null)
     {
         if (suggestedObjectiveCountMin < 1 || suggestedObjectiveCountMax < suggestedObjectiveCountMin || suggestedObjectiveCountMax > 20)
             throw new ArgumentException("The suggested objective-count range must be a sensible ascending range.", nameof(suggestedObjectiveCountMin));
@@ -80,6 +85,7 @@ public sealed class CycleSettings : PerformanceAggregate
         if (defaultSelfAssessmentEnabled is not null) DefaultSelfAssessmentEnabled = defaultSelfAssessmentEnabled.Value;
         if (defaultObjectiveRatingsEnabled is not null) DefaultObjectiveRatingsEnabled = defaultObjectiveRatingsEnabled.Value;
         if (defaultCalibrationEnabled is not null) DefaultCalibrationEnabled = defaultCalibrationEnabled.Value;
+        if (aiAssistanceEnabled is not null) AiAssistanceEnabled = aiAssistanceEnabled.Value;
         MarkUpdated();
     }
 

@@ -97,6 +97,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 // Entitlement checks use signed claims. Deny missing customer authority before tenant resolution.
 app.UseMiddleware<TenantResolutionMiddleware>();
+app.UseRateLimiter();
 
 app.MapControllers();
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();

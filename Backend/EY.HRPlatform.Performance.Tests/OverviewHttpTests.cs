@@ -149,11 +149,11 @@ public sealed class OverviewHttpTests
     [InlineData(State.Draft, "reviewer", "noCycle")]
     [InlineData(State.Draft, "admin", "setupReadiness")]
     [InlineData(State.Draft, "mixed", "setupReadiness")]
-    [InlineData(State.Planning, "employee", "myPlan")]
+    [InlineData(State.Planning, "employee", "myPlan,direction")]
     [InlineData(State.Planning, "reviewer", "teamPlanning,direction")]
     [InlineData(State.Planning, "admin", "cycleOperation,direction")]
     [InlineData(State.Planning, "mixed", "teamPlanning,teamDirection,cycleOperation,direction")]
-    [InlineData(State.Execution, "employee", "myPlan,myReview")]
+    [InlineData(State.Execution, "employee", "myPlan,myReview,direction")]
     [InlineData(State.Execution, "reviewer", "teamPlanning,teamExecution,teamReviews,direction")]
     [InlineData(State.Execution, "admin", "cycleOperation,reviewOperation,direction")]
     [InlineData(State.Execution, "mixed", "teamPlanning,teamExecution,teamDirection,teamReviews,cycleOperation,reviewOperation,direction")]
@@ -171,6 +171,26 @@ public sealed class OverviewHttpTests
         Assert.Equal(expected.Split(','), Kinds(overview));
         // No section anywhere carries an averaged progress figure.
         Assert.DoesNotContain("average", overview.GetRawText(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Direction_resumes_into_the_map_and_disappears_without_published_direction()
+    {
+        var f = await ArrangeAsync(State.Planning);
+        await using var _ = f.Factory;
+
+        var direction = Section(await OverviewAsync(f, "employee"), "direction");
+        Assert.Equal("OrganizationDirection", direction.GetProperty("destination").GetProperty("workspace").GetString());
+
+        await using (var db = f.Factory.Store.NewContext())
+        {
+            foreach (var company in db.Objectives.Where(o => o.OwnershipScope == ObjectiveOwnershipScope.Company))
+                company.Archive();
+            await db.SaveChangesAsync();
+        }
+
+        foreach (var who in new[] { "employee", "admin" })
+            Assert.DoesNotContain("direction", Kinds(await OverviewAsync(f, who)));
     }
 
     [Fact]

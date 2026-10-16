@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Infrastructure.Ai;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Calibration;
 using EY.HRPlatform.Performance.Domain.Objectives;
@@ -27,14 +28,14 @@ public sealed record GetOverviewQuery(Guid? CycleId, WorkspaceGrants Grants, Pla
 /// a participant, a reviewer and an administrator — or one person who is all three — simply get the union.
 /// Team counts cover only recorded responsibility; operational counts are administration's tenant view.
 /// </summary>
-public sealed class GetOverviewHandler(PerformanceDbContext db, PerformanceViewer viewer, ICoreWorkforceClient workforce)
+public sealed class GetOverviewHandler(PerformanceDbContext db, PerformanceViewer viewer, ICoreWorkforceClient workforce, IPerformanceAiProvider ai)
     : IQueryHandler<GetOverviewQuery, Result<OverviewDto>>
 {
     private const int ListedObjectives = 3;
 
     public async Task<Result<OverviewDto>> Handle(GetOverviewQuery request, CancellationToken cancellationToken)
     {
-        var context = await new GetWorkspaceContextHandler(db, viewer)
+        var context = await new GetWorkspaceContextHandler(db, viewer, ai)
             .Handle(new GetWorkspaceContextQuery(request.CycleId, request.Grants), cancellationToken);
         if (context.IsFailure) return Result.Failure<OverviewDto>(context.Error);
         var ctx = context.Value;
@@ -154,16 +155,17 @@ public sealed class GetOverviewHandler(PerformanceDbContext db, PerformanceViewe
             }
         }
 
-        if (caps.CanViewOrgDirection)
+        // Published direction is readable by every entrant, and the alignment map is theirs to open (D-06).
         {
             var g = await Graph();
             var roots = g.All
                 .Where(o => o.OwnershipScope == ObjectiveOwnershipScope.Company && o.State == ObjectiveLifecycleState.Published)
                 .OrderBy(o => o.Title)
                 .ToList();
-            sections.Add(new DirectionSectionDto(roots.Count,
-                roots.Take(ListedObjectives).Select(o => GoalsComposer.ToNode(o, g)).ToList(),
-                new OverviewDestinationDto(OverviewWorkspace.OrganizationDirection, cycle.Id)));
+            if (roots.Count > 0)
+                sections.Add(new DirectionSectionDto(roots.Count,
+                    roots.Take(ListedObjectives).Select(o => GoalsComposer.ToNode(o, g)).ToList(),
+                    new OverviewDestinationDto(OverviewWorkspace.OrganizationDirection, cycle.Id)));
         }
 
         // The next Cycle being prepared alongside the running one.

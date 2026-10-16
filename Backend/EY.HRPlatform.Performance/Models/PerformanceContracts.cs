@@ -19,7 +19,8 @@ public sealed record CycleSettingsDto(
     bool DefaultSelfAssessmentEnabled,
     bool DefaultObjectiveRatingsEnabled,
     bool DefaultCalibrationEnabled,
-    int EvidenceRetentionMonths)
+    int EvidenceRetentionMonths,
+    bool AiAssistanceEnabled)
 {
     public uint Version { get; init; }
 }
@@ -35,6 +36,8 @@ public sealed record UpdateCycleSettingsRequest(
     public bool? DefaultSelfAssessmentEnabled { get; init; }
     public bool? DefaultObjectiveRatingsEnabled { get; init; }
     public bool? DefaultCalibrationEnabled { get; init; }
+    /// <summary>Omitted keeps the current value, so older clients never switch AI off by accident.</summary>
+    public bool? AiAssistanceEnabled { get; init; }
 
     [System.Text.Json.Serialization.JsonRequired]
     public uint ExpectedVersion { get; init; }
@@ -152,6 +155,40 @@ public sealed record MeasurementInput(
     string? Unit,
     ImprovementDirection? Direction,
     IReadOnlyList<MilestoneInput>? Milestones);
+
+// ----- Objective coach (AI) -----
+
+/// <summary>Which composer the coach serves; it decides the authority and the allowed parents.</summary>
+public enum ObjectiveCoachSurface { Plan, Team }
+
+public enum ObjectiveCoachOutcome { Suggested, NothingToSuggest }
+
+/// <summary>The draft as the composer holds it right now. Nothing here is saved.</summary>
+public sealed record ObjectiveCoachRequest(
+    ObjectiveCoachSurface Surface,
+    Guid? OrgUnitId,
+    string Title,
+    string? Description,
+    MeasurementInput? Measurement,
+    Guid? ParentObjectiveId);
+
+public sealed record CoachMilestoneDto(string Title, decimal Weight);
+
+/// <summary>A suggested measure. A numeric baseline is present only when the draft stated one.</summary>
+public sealed record CoachMeasureDto(
+    MeasurementMethod Method,
+    decimal? Baseline,
+    decimal? Target,
+    string? Unit,
+    ImprovementDirection? Direction,
+    IReadOnlyList<CoachMilestoneDto>? Milestones);
+
+/// <summary>At most one suggestion of each kind; a missing one means AI abstained or the suggestion failed the composer's rules.</summary>
+public sealed record ObjectiveCoachResultDto(
+    ObjectiveCoachOutcome Outcome,
+    string? Title,
+    CoachMeasureDto? Measure,
+    Guid? ParentObjectiveId);
 
 public sealed record MilestoneDto(Guid Id, string Title, decimal Weight, DateOnly? DueDate, bool IsCompleted);
 
@@ -303,6 +340,35 @@ public sealed record GoalNodeDto(
 {
     public uint Version { get; init; }
 }
+
+// ----- Alignment map -----
+
+public enum AlignmentMapNodeKind { Company, OrgUnit, Personal }
+
+/// <summary>
+/// Personal objectives aligned directly to one direction objective, from plans that were put
+/// forward (Submitted or Approved), by owner-reported status. Counts only: no names or ids.
+/// <paramref name="Readable"/> is how many of them the viewer may open, and gets as nodes.
+/// </summary>
+public sealed record PersonalAlignmentDto(int Total, int OnTrack, int AtRisk, int OffTrack, int NoStatus, int Readable);
+
+/// <summary>One map node: published direction (Company, OrgUnit), or a personal objective the viewer may read.</summary>
+public sealed record AlignmentMapNodeDto(
+    Guid Id,
+    AlignmentMapNodeKind Kind,
+    Guid? ParentId,
+    string Title,
+    string? OrgUnitName,
+    string? OwnerName,
+    bool IsOwn,
+    ObjectiveStatus? Status,
+    DateTime? StatusSince,
+    bool HasProgress,
+    decimal Progress,
+    PersonalAlignmentDto? Personal);
+
+/// <summary>The cycle's published direction as a tree, shaped for the alignment map (D-06, S-15).</summary>
+public sealed record AlignmentMapDto(Guid CycleId, IReadOnlyList<AlignmentMapNodeDto> Nodes);
 
 /// <summary>The whole cycle's objective graph plus operational counts for the Goals area.</summary>
 public sealed record GoalsOverviewDto(
@@ -910,7 +976,9 @@ public sealed record WorkspaceCapabilitiesDto(
     bool ManagesOrgObjectives,
     bool CanCalibrate,
     bool CanViewOrgDirection,
-    bool CanChooseOrganizationScope);
+    bool CanChooseOrganizationScope,
+    // Performance AI may run for this tenant now: the tenant switch is on and the provider is up.
+    bool AiAssistance);
 
 /// <summary>Which primary destinations the workspace offers the caller in the selected Cycle.</summary>
 public sealed record WorkspaceDestinationsDto(

@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using EY.HRPlatform.Performance.Infrastructure.Ai;
 using EY.HRPlatform.Performance.Infrastructure.Core;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.Auth;
@@ -18,6 +19,8 @@ public sealed class PerformanceApiFactory : WebApplicationFactory<Program>
     public TestStore Store { get; } = TestStore.ForNewTenant();
     public FakeCoreWorkforceClient Core { get; } = new();
     public FakePermissionHoldersClient Holders { get; } = new();
+    /// <summary>Never the real provider: a GROQ_API_KEY in the environment must not reach tests.</summary>
+    public FakePerformanceAiProvider Ai { get; } = new();
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -41,6 +44,8 @@ public sealed class PerformanceApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<ICoreWorkforceClient>(Core);
             services.RemoveAll<EY.HRPlatform.Performance.Infrastructure.Identity.IPermissionHoldersClient>();
             services.AddSingleton<EY.HRPlatform.Performance.Infrastructure.Identity.IPermissionHoldersClient>(Holders);
+            services.RemoveAll<IPerformanceAiProvider>();
+            services.AddSingleton<IPerformanceAiProvider>(Ai);
         });
     }
 

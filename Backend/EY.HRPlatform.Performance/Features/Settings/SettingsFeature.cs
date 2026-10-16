@@ -59,6 +59,7 @@ public sealed class UpdateCycleSettingsHandler(PerformanceDbContext db, ITenantC
             settings.DefaultObjectiveRatingsEnabled,
             settings.DefaultCalibrationEnabled,
             settings.EvidenceRetentionMonths,
+            settings.AiAssistanceEnabled,
         };
         var request = command.Request;
         try
@@ -72,7 +73,8 @@ public sealed class UpdateCycleSettingsHandler(PerformanceDbContext db, ITenantC
                 request.EvidenceRetentionMonths,
                 request.DefaultSelfAssessmentEnabled,
                 request.DefaultObjectiveRatingsEnabled,
-                request.DefaultCalibrationEnabled);
+                request.DefaultCalibrationEnabled,
+                request.AiAssistanceEnabled);
         }
         catch (ArgumentException ex)
         {
@@ -90,6 +92,7 @@ public sealed class UpdateCycleSettingsHandler(PerformanceDbContext db, ITenantC
             settings.DefaultObjectiveRatingsEnabled,
             settings.DefaultCalibrationEnabled,
             settings.EvidenceRetentionMonths,
+            settings.AiAssistanceEnabled,
         };
         if (!Equals(before, after))
             audit.Record(settings.TenantId, "CycleSettings", settings.Id, null, PerformanceAuditActions.SettingsChanged, new { before, after });
