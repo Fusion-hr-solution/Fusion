@@ -1,6 +1,5 @@
-using System.Net.Http.Headers;
-using System.Net.Http.Json;
 using System.Text.Json;
+using EY.HRPlatform.SharedKernel.Ai;
 using System.Text.Json.Serialization;
 
 namespace EY.HRPlatform.CoreHR.Infrastructure.Imports.Semantic;
@@ -21,95 +20,85 @@ public sealed record GroqSemanticAsk(
     string? ReasoningEffort = "low");
 
 /// <summary>
-/// Groq chat-completions transport shared by every import domain: strict <c>json_schema</c>
-/// output enumerating only the questions and targets Fusion allows, Suggest-or-Abstain answers,
-/// provider status mapped to failure categories, and Retry-After honoured. Exactly one call;
-/// retries and budgets belong to <see cref="ImportSemanticRunner"/>. What a question means and
+/// The import domains' classification call on the shared <see cref="GroqStructuredTransport"/>: a
+/// strict schema enumerating only the questions and targets Fusion allows, Suggest-or-Abstain
+/// answers, and the shared failure categories under the import's own names and wording. Exactly one
+/// call; retries and budgets belong to <see cref="ImportSemanticRunner"/>. What a question means and
 /// which evidence it carries stay with the domain provider.
 /// </summary>
 public static class GroqSemanticTransport
 {
-    private static readonly JsonSerializerOptions EnvelopeJson = new(JsonSerializerDefaults.Web);
     private static readonly JsonSerializerOptions StructuredJson = new(JsonSerializerDefaults.Web)
     {
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false) },
     };
 
+    private static readonly AiSafeMessages Messages = new(
+        "Automatic matching is temporarily unavailable.",
+        "Automatic matching is not authorized.",
+        "Automatic matching is unavailable right now.",
+        "Automatic matching could not be used with the current configuration.",
+        "Automatic matching returned an unusable result.");
+
     public static async Task<ImportSemanticProviderResult> AskAsync(
         HttpClient httpClient,
         GroqSemanticAsk ask,
         CancellationToken cancellationToken)
     {
-        var body = new Dictionary<string, object?>
-        {
-            ["model"] = ask.Model,
-            ["messages"] = new object[]
-            {
-                new { role = "system", content = ask.Instructions },
-                // Source-derived evidence travels only as data in the user message, never as instructions.
-                new { role = "user", content = JsonSerializer.Serialize(ask.Input) },
-            },
-            ["temperature"] = 0.1,
-            ["max_completion_tokens"] = ask.MaxCompletionTokens,
-            ["stream"] = false,
-            ["response_format"] = new
-            {
-                type = "json_schema",
-                json_schema = new
-                {
-                    name = ask.SchemaName,
-                    strict = true,
-                    schema = CreateSchema(ask),
-                },
-            },
-        };
-        if (ask.ReasoningEffort is not null) body["reasoning_effort"] = ask.ReasoningEffort;
-
-        using var message = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
-        {
-            Content = JsonContent.Create(body),
-        };
-        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ask.ApiKey.Trim());
-        using var response = await httpClient.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-            throw FailureFor(response);
-
-        GroqChatResponse? envelope;
+        AiStructuredResult result;
         try
         {
-            envelope = await response.Content.ReadFromJsonAsync<GroqChatResponse>(EnvelopeJson, cancellationToken);
+            result = await GroqStructuredTransport.CompleteAsync(
+                httpClient,
+                new GroqStructuredRequest(
+                    ask.ApiKey,
+                    ask.Model,
+                    ask.Instructions,
+                    ask.Input,
+                    ask.SchemaName,
+                    CreateSchema(ask),
+                    ask.MaxCompletionTokens,
+                    ask.ReasoningEffort),
+                cancellationToken,
+                Messages);
         }
-        catch (JsonException exception)
+        catch (AiProviderException exception)
         {
-            throw InvalidOutput(exception);
+            throw Translate(exception);
         }
 
-        var content = envelope?.Choices?.FirstOrDefault()?.Message?.Content;
-        if (string.IsNullOrWhiteSpace(content)) throw InvalidOutput();
+        StructuredAnswerDocument document;
         try
         {
-            var document = JsonSerializer.Deserialize<StructuredAnswerDocument>(content, StructuredJson);
-            if (document is null
-                || !string.Equals(document.ContractVersion, ask.ResultContractVersion, StringComparison.Ordinal)
-                || document.Answers is null
-                || document.Answers.Count > ask.Questions.Count
-                || !MatchesSchemaEnums(document.Answers, ask.Questions))
-                throw InvalidOutput();
-            return new ImportSemanticProviderResult(
-                document.Answers
-                    .Select(item => new ImportSemanticAnswer(item.QuestionKey, item.Disposition, item.TargetKey))
-                    .ToList(),
-                envelope?.Usage?.PromptTokens,
-                envelope?.Usage?.CompletionTokens,
-                envelope?.Id,
-                envelope?.SystemFingerprint);
+            document = result.Read<StructuredAnswerDocument>(StructuredJson, Messages.InvalidOutput);
         }
-        catch (JsonException exception)
+        catch (AiProviderException exception)
         {
-            throw InvalidOutput(exception);
+            throw Translate(exception);
         }
+        if (!string.Equals(document.ContractVersion, ask.ResultContractVersion, StringComparison.Ordinal)
+            || document.Answers is null
+            || document.Answers.Count > ask.Questions.Count
+            || !MatchesSchemaEnums(document.Answers, ask.Questions))
+            throw InvalidOutput();
+        return new ImportSemanticProviderResult(
+            document.Answers
+                .Select(item => new ImportSemanticAnswer(item.QuestionKey, item.Disposition, item.TargetKey))
+                .ToList(),
+            result.InputTokens,
+            result.OutputTokens,
+            result.ResponseId,
+            result.SystemFingerprint);
     }
+
+    /// <summary>The shared categories carry the same names as the import's persisted ones.</summary>
+    private static ImportSemanticProviderException Translate(AiProviderException exception)
+        => new(
+            Enum.Parse<ImportSemanticFailureCategory>(exception.Category.ToString()),
+            exception.Message,
+            exception.RetryAfter,
+            exception.InnerException);
 
     private static bool MatchesSchemaEnums(IReadOnlyList<StructuredAnswer> answers, IReadOnlyList<ImportSemanticIssue> questions)
     {
@@ -163,28 +152,6 @@ public static class GroqSemanticTransport
         };
     }
 
-    private static ImportSemanticProviderException FailureFor(HttpResponseMessage response)
-        => (int)response.StatusCode switch
-        {
-            429 => new(ImportSemanticFailureCategory.RateLimited,
-                "Automatic matching is temporarily unavailable.", RetryAfter(response)),
-            401 or 403 => new(ImportSemanticFailureCategory.Unauthorized,
-                "Automatic matching is not authorized."),
-            // 498: provider capacity exceeded. 5xx: transient provider trouble.
-            498 or >= 500 => new(ImportSemanticFailureCategory.ProviderUnavailable,
-                "Automatic matching is unavailable right now."),
-            // Other 4xx: the request or the configured model was refused. Retrying won't change that.
-            _ => new(ImportSemanticFailureCategory.ProviderRejected,
-                "Automatic matching could not be used with the current configuration."),
-        };
-
-    private static DateTime? RetryAfter(HttpResponseMessage response)
-    {
-        if (response.Headers.RetryAfter?.Delta is { } delta)
-            return DateTime.UtcNow.Add(delta > TimeSpan.Zero ? delta : TimeSpan.Zero);
-        return response.Headers.RetryAfter?.Date?.UtcDateTime;
-    }
-
     private static ImportSemanticProviderException InvalidOutput(Exception? innerException = null)
         => new(
             ImportSemanticFailureCategory.InvalidOutput,
@@ -212,35 +179,5 @@ public static class GroqSemanticTransport
 
         [JsonRequired]
         public string? TargetKey { get; init; }
-    }
-
-    private sealed class GroqChatResponse
-    {
-        public string? Id { get; init; }
-
-        [JsonPropertyName("system_fingerprint")]
-        public string? SystemFingerprint { get; init; }
-
-        public List<GroqChoice>? Choices { get; init; }
-        public GroqUsage? Usage { get; init; }
-    }
-
-    private sealed class GroqChoice
-    {
-        public GroqMessage? Message { get; init; }
-    }
-
-    private sealed class GroqMessage
-    {
-        public string? Content { get; init; }
-    }
-
-    private sealed class GroqUsage
-    {
-        [JsonPropertyName("prompt_tokens")]
-        public int? PromptTokens { get; init; }
-
-        [JsonPropertyName("completion_tokens")]
-        public int? CompletionTokens { get; init; }
     }
 }

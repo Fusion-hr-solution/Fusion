@@ -1,3 +1,4 @@
+using EY.HRPlatform.SharedKernel.Ai;
 using EY.HRPlatform.CoreHR.Infrastructure.Imports;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
 using EY.HRPlatform.CoreHR.Infrastructure.Persistence.Interceptors;
@@ -146,12 +147,7 @@ public static class ServiceCollectionExtensions
             throw new InvalidOperationException("OrganizationImport:SemanticAssistance:Provider must be Groq.");
         if (string.IsNullOrWhiteSpace(options.Model))
             throw new InvalidOperationException("OrganizationImport:SemanticAssistance:Model is required.");
-        if (!Uri.TryCreate(options.Endpoint, UriKind.Absolute, out var endpoint)
-            || (endpoint.Scheme != Uri.UriSchemeHttps && !endpoint.IsLoopback)
-            || (!endpoint.IsLoopback && !string.Equals(endpoint.Host, "api.groq.com", StringComparison.OrdinalIgnoreCase))
-            || !string.IsNullOrEmpty(endpoint.UserInfo)
-            || !string.IsNullOrEmpty(endpoint.Query)
-            || !string.IsNullOrEmpty(endpoint.Fragment))
+        if (!GroqEndpoint.IsAllowed(options.Endpoint))
             throw new InvalidOperationException("OrganizationImport:SemanticAssistance:Endpoint must use api.groq.com over HTTPS or a loopback development URL.");
         if (options.TimeoutSeconds is < 1 or > 60
             || options.UploadBudgetSeconds is < 1 or > 60
