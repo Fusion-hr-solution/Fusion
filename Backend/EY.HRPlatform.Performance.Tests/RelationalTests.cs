@@ -84,6 +84,51 @@ public sealed class RelationalTests
         finally { await DropDatabaseAsync(baseConnection, databaseName); }
     }
 
+    /// <summary>An earlier single-milestone event reads as one check-in with one change, and rolls back.</summary>
+    [RelationalDatabaseFact]
+    public async Task Check_in_migration_moves_milestone_events_onto_their_change_list()
+    {
+        var baseConnection = Environment.GetEnvironmentVariable("FUSION_PERFORMANCE_RELATIONAL_TEST_CONNECTION")!;
+        var databaseName = $"fusion_perf_{Guid.NewGuid():N}";
+        var connection = new NpgsqlConnectionStringBuilder(baseConnection) { Database = databaseName, Pooling = false }.ConnectionString;
+        var tenantId = Guid.NewGuid();
+        var updateId = Guid.NewGuid();
+        var milestoneId = Guid.NewGuid();
+        try
+        {
+            await CreateDatabaseAsync(baseConnection, databaseName);
+            await using var db = CreateDb(connection, tenantId);
+            var migrations = db.Database.GetMigrations().ToArray();
+            var current = Array.FindIndex(migrations, m => m.EndsWith("_AddObjectiveStatusChangeRequestsAndDevelopment"));
+            Assert.True(current > 0);
+            var migrator = db.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>();
+            await migrator.MigrateAsync(migrations[current - 1]);
+            await db.Database.ExecuteSqlRawAsync("""
+                INSERT INTO performance."ProgressUpdates"
+                    ("Id", "ObjectiveId", "CycleId", "AuthorEmployeeId", "Kind", "MilestoneId", "IsCorrection", "RecordedAt", "CreatedAt", "TenantId")
+                VALUES ({0}, gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'MilestoneCompleted', {1}, false, now(), now(), {2})
+                """, updateId, milestoneId, tenantId);
+
+            await migrator.MigrateAsync(migrations[current]);
+            db.ChangeTracker.Clear();
+            var update = await db.ProgressUpdates.AsNoTracking().SingleAsync(u => u.Id == updateId);
+            Assert.Equal(EY.HRPlatform.Performance.Domain.Progress.ProgressEventKind.MilestonesChanged, update.Kind);
+            Assert.Null(update.Status);
+            var change = Assert.Single(update.MilestoneChanges);
+            Assert.Equal(milestoneId, change.MilestoneId);
+            Assert.True(change.Completed);
+
+            await migrator.MigrateAsync(migrations[current - 1]);
+            Assert.Equal(milestoneId, await db.Database.SqlQueryRaw<Guid>("""
+                SELECT "MilestoneId" AS "Value" FROM performance."ProgressUpdates"
+                """).SingleAsync());
+            Assert.Equal("MilestoneCompleted", await db.Database.SqlQueryRaw<string>("""
+                SELECT "Kind" AS "Value" FROM performance."ProgressUpdates"
+                """).SingleAsync());
+        }
+        finally { await DropDatabaseAsync(baseConnection, databaseName); }
+    }
+
     [RelationalDatabaseFact]
     public async Task Competency_migration_enforces_one_case_insensitive_active_name_per_tenant()
     {
@@ -404,7 +449,7 @@ public sealed class RelationalTests
             {
                 var team = await db.Objectives.Include(o => o.Measurement).SingleAsync(o => o.Id == teamId);
                 var version = team.Version;
-                team.ApplyMilestone(milestoneId, true);
+                team.ApplyMilestones([(milestoneId, true)]);
                 await db.SaveChangesAsync();
                 Assert.NotEqual(version, team.Version);
             }

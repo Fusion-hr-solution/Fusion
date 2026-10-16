@@ -356,7 +356,21 @@ public sealed record GoalDetailDto(
     public bool CanArchive { get; init; }
     public DateTime? ArchivedAt { get; init; }
     public IReadOnlyList<AlignedPlanObjectiveDto> AlignedPlanObjectives { get; init; } = [];
+    public ObjectiveStatusDto? Status { get; init; }
+    public bool CanAcknowledgeStatus { get; init; }
 }
+
+/// <summary>
+/// The owner's latest reported status with its reason (the note of that check-in), and the responsible
+/// reviewer's acknowledgement of a risky one. Present only for viewers of named progress detail.
+/// </summary>
+public sealed record ObjectiveStatusDto(
+    ObjectiveStatus Value,
+    string? Reason,
+    DateTime ReportedAt,
+    DateTime Since,
+    DateTime? AcknowledgedAt,
+    PersonRefDto? AcknowledgedBy);
 
 /// <summary>The plan an Employee objective belongs to, as seen from the objective.</summary>
 public sealed record GoalPlanFacetDto(
@@ -458,6 +472,10 @@ public sealed record PlanObjectiveDto(
     bool CanUpdateProgress)
 {
     public uint Version { get; init; }
+
+    /// <summary>The owner's latest reported status; null until the first check-in that carries one.</summary>
+    public ObjectiveStatus? Status { get; init; }
+    public DateTime? StatusReportedAt { get; init; }
 }
 
 /// <summary>Live readiness of a plan for submission — the whole-plan invariants, computed continuously.</summary>
@@ -475,6 +493,9 @@ public sealed record PlanReadinessDto(
 {
     public PlanAlignmentPolicy AlignmentPolicy { get; init; } = PlanAlignmentPolicy.AtLeastOneConnected;
     public bool EveryObjectiveConnectsToStrategicDirection { get; init; }
+
+    /// <summary>Change requests from the latest return still to address before resubmitting.</summary>
+    public int OpenChangeRequests { get; init; }
 }
 
 public sealed record PlanDecisionDto(
@@ -482,7 +503,33 @@ public sealed record PlanDecisionDto(
     Guid ActorEmployeeId,
     string? ActorName,
     string? Feedback,
-    DateTime DecidedAt);
+    DateTime DecidedAt)
+{
+    /// <summary>The change requests a return carried on specific objectives (D-09); empty for other decisions.</summary>
+    public IReadOnlyList<PlanChangeRequestDto> ChangeRequests { get; init; } = [];
+}
+
+/// <summary>
+/// One change requested on an objective when the plan was returned, with what came of it. ObjectiveChanged says
+/// whether the objective was edited after the return; null once the objective has been removed.
+/// </summary>
+public sealed record PlanChangeRequestDto(
+    Guid Id,
+    Guid ObjectiveId,
+    string ObjectiveTitle,
+    string Text,
+    PlanChangeRequestState State,
+    string? Reply,
+    DateTime? AddressedAt,
+    bool? ObjectiveChanged);
+
+public sealed record ChangeRequestInput(Guid ObjectiveId, string Text);
+
+public sealed record AddressChangeRequestRequest(string? Reply)
+{
+    [System.Text.Json.Serialization.JsonRequired]
+    public uint ExpectedVersion { get; init; }
+}
 
 /// <summary>The full employee-plan surface — objectives, readiness, agreement history, and caller capabilities.</summary>
 public sealed record EmployeePlanDto(
@@ -512,6 +559,9 @@ public sealed record EmployeePlanDto(
 {
     public uint Version { get; init; }
     public bool IsOwner { get; init; }
+
+    /// <summary>The caller is the Approved plan's responsible reviewer in an Active Cycle, so may ask for updates.</summary>
+    public bool CanRequestUpdate { get; init; }
 
     /// <summary>Why the responsible reviewer holds that responsibility, and as of when.</summary>
     public ReviewerBasis? ResponsibleReviewerBasis { get; init; }
@@ -733,7 +783,8 @@ public sealed record SetPlanWeightsRequest(IReadOnlyList<PlanWeightInput> Weight
     public uint ExpectedVersion { get; init; }
 }
 
-public sealed record ReturnPlanRequest(string Feedback)
+/// <summary>Returning a plan needs a general note, at least one change request on an objective, or both (D-09).</summary>
+public sealed record ReturnPlanRequest(string? Feedback, IReadOnlyList<ChangeRequestInput>? ChangeRequests = null)
 {
     [System.Text.Json.Serialization.JsonRequired]
     public uint ExpectedVersion { get; init; }
@@ -761,12 +812,16 @@ public sealed record EvidenceDto(
     public bool IsRemovedUnderRetention { get; init; }
 }
 
+/// <summary>One milestone completed or reopened in a check-in.</summary>
+public sealed record ProgressMilestoneChangeDto(Guid MilestoneId, string? Title, bool Completed);
+
 public sealed record ProgressUpdateDto(
     Guid Id,
     ProgressEventKind Kind,
     decimal? Value,
-    Guid? MilestoneId,
-    string? MilestoneTitle,
+    IReadOnlyList<ProgressMilestoneChangeDto> MilestoneChanges,
+    // The owner's status with this check-in; null on check-ins recorded before status existed.
+    ObjectiveStatus? Status,
     string? ContextNote,
     bool IsCorrection,
     PersonRefDto Author,
@@ -803,6 +858,9 @@ public sealed record ObjectiveProgressDto(
     string? HistoryNextCursor)
 {
     public uint Version { get; init; }
+
+    /// <summary>The owner's latest status, preselected when recording the next check-in.</summary>
+    public ObjectiveStatus? CurrentStatus { get; init; }
 }
 
 /// <summary>Staged file descriptor returned by the evidence upload, folded into the progress submit.</summary>
@@ -818,11 +876,18 @@ public sealed record EvidenceInput(
     string? Label,
     string? ReferenceText);
 
+public sealed record MilestoneChangeInput(Guid MilestoneId, bool Completed);
+
+/// <summary>
+/// One progress check-in: the status (required), at most one measurement change matching the objective's
+/// method — a percentage, a numeric actual, or the milestones changed together — or none for a status-only
+/// check-in, plus the note (the reason when at risk or off track) and evidence.
+/// </summary>
 public sealed record SubmitProgressRequest(
     decimal? Percentage,
     decimal? NumericActual,
-    Guid? MilestoneId,
-    bool? MilestoneCompleted,
+    IReadOnlyList<MilestoneChangeInput>? Milestones,
+    ObjectiveStatus? Status,
     string? ContextNote,
     bool IsCorrection,
     IReadOnlyList<EvidenceInput>? Evidence)

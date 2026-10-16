@@ -94,6 +94,16 @@ public static class GoalsComposer
     }
 
     /// <summary>The plan an Employee objective belongs to (with its decision trail), or null for direction.</summary>
+    /// <summary>The reason behind the current status: the note of the latest check-in that reported one.</summary>
+    public static Task<string?> LoadStatusReasonAsync(PerformanceDbContext db, Objective objective, CancellationToken cancellationToken)
+        => objective.CurrentStatus is null
+            ? Task.FromResult<string?>(null)
+            : db.ProgressUpdates.AsNoTracking()
+                .Where(update => update.ObjectiveId == objective.Id && update.Status != null)
+                .OrderByDescending(update => update.RecordedAt)
+                .Select(update => update.ContextNote)
+                .FirstOrDefaultAsync(cancellationToken);
+
     public static Task<EmployeePlan?> LoadOwningPlanAsync(
         PerformanceDbContext db, Objective objective, CancellationToken cancellationToken)
         => objective.EmployeePlanId is Guid planId
@@ -161,7 +171,8 @@ public static class GoalsComposer
         Objective objective,
         Graph graph,
         CycleViewer viewer,
-        EmployeePlan? plan = null)
+        EmployeePlan? plan = null,
+        string? statusReason = null)
     {
         var parent = objective.ParentObjectiveId is Guid parentId
             ? graph.ById.GetValueOrDefault(parentId)
@@ -238,7 +249,19 @@ public static class GoalsComposer
             CanArchive = open && objective.State == ObjectiveLifecycleState.Published && ObjectivePolicy.CanGovern(viewer, objective),
             ArchivedAt = objective.ArchivedAt,
             AlignedPlanObjectives = alignedPlanObjectives,
+            Status = ToStatus(objective, plan, ObjectivePolicy.CanReadProgressHistory(viewer, objective, plan), statusReason),
+            CanAcknowledgeStatus = open && plan is not null && PlanPolicy.CanAcknowledgeStatus(viewer.Actor, plan, cycle, objective),
         });
+    }
+
+    private static ObjectiveStatusDto? ToStatus(Objective objective, EmployeePlan? plan, bool canReadDetail, string? reason)
+    {
+        if (!canReadDetail || objective.CurrentStatus is not { } status || objective.StatusReportedAt is not { } reportedAt) return null;
+        var acknowledgedBy = objective.StatusAcknowledgedByEmployeeId is Guid by
+            ? new PersonRefDto(by, plan?.ResponsibleManagerId == by ? plan.ResponsibleManagerName : null)
+            : null;
+        return new ObjectiveStatusDto(status, reason, reportedAt, objective.StatusSince ?? reportedAt,
+            objective.StatusAcknowledgedAt, acknowledgedBy);
     }
 
     public static GoalNodeDto ToNode(Objective objective, Graph graph)

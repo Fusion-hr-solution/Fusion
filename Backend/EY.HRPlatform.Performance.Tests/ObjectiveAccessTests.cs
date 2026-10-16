@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Domain.Settings;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
@@ -376,8 +377,8 @@ public sealed class ObjectiveAccessTests
             Assert.True(approval.IsSuccess);
         }
         await using var context = f.Store.NewContext();
-        var result = await new EY.HRPlatform.Performance.Features.Progress.SubmitProgressHandler(context, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(context), new TestEvidenceStore(Guid.NewGuid()))
-            .Handle(new(f.CycleId, f.EmployeeObjectiveId, new(40m, null, null, null, null, false, []) { ExpectedVersion = 1 },
+        var result = await new EY.HRPlatform.Performance.Features.Progress.SubmitProgressHandler(context, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(context), new TestEvidenceStore(Guid.NewGuid()), new PerformanceNotifications(context))
+            .Handle(new(f.CycleId, f.EmployeeObjectiveId, new(40m, null, null, EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, null, false, []) { ExpectedVersion = 1 },
                 new(f.SamiId, false, false)), default);
         Assert.Equal("Performance.Stale", result.Error.Code);
         Assert.Empty(context.ProgressUpdates);

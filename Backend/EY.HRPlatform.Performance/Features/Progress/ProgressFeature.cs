@@ -10,6 +10,7 @@ using EY.HRPlatform.Performance.Domain.Plans;
 using EY.HRPlatform.Performance.Domain.Progress;
 using EY.HRPlatform.Performance.Features.Goals;
 using EY.HRPlatform.Performance.Infrastructure.Core;
+using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Models;
 using EY.HRPlatform.SharedKernel.CQRS;
@@ -153,7 +154,8 @@ public sealed class GetProgressHistoryPageHandler(PerformanceDbContext db, ICore
 
 // ── Submit ───────────────────────────────────────────────────────────────────
 
-public sealed class SubmitProgressHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant, IPerformanceAudit audit, IPerformanceEvidenceStore store)
+public sealed class SubmitProgressHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant, IPerformanceAudit audit,
+    IPerformanceEvidenceStore store, IPerformanceNotifications notifications)
     : ICommandHandler<SubmitProgressCommand, Result<ObjectiveProgressDto>>
 {
     public async Task<Result<ObjectiveProgressDto>> Handle(SubmitProgressCommand command, CancellationToken cancellationToken)
@@ -178,32 +180,46 @@ public sealed class SubmitProgressHandler(PerformanceDbContext db, ICoreWorkforc
         var request = command.Request;
         var author = command.Actor.CallerEmployeeId;
         var method = objective.Measurement?.Method;
+        if (request.Status is not ObjectiveStatus status || !Enum.IsDefined(status))
+            return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.ProgressStatusRequired,
+                "Choose how the objective is going."));
 
-        var before = new { objective.CurrentPercentage, objective.CurrentActual,
-            milestoneCompleted = objective.Measurement?.Milestones.FirstOrDefault(m => m.Id == request.MilestoneId)?.IsCompleted };
+        var milestones = request.Milestones ?? [];
+        var measurementChanges = (request.Percentage is null ? 0 : 1) + (request.NumericActual is null ? 0 : 1) + (milestones.Count == 0 ? 0 : 1);
+        var mismatch = measurementChanges > 1
+            || (request.Percentage is not null && method != MeasurementMethod.ManualPercentage)
+            || (request.NumericActual is not null && method != MeasurementMethod.NumericTarget)
+            || (milestones.Count > 0 && method != MeasurementMethod.WeightedMilestones);
+        if (mismatch)
+            return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.ProgressMismatch, "The update does not match the objective's measurement method."));
+
+        var completedBefore = (objective.Measurement?.Milestones ?? []).ToDictionary(m => m.Id, m => m.IsCompleted);
+        var before = new { objective.CurrentPercentage, objective.CurrentActual };
         try
         {
             ProgressUpdate update;
-            if (method == MeasurementMethod.ManualPercentage && request.Percentage is not null)
+            if (request.Percentage is decimal percentage)
             {
-                var decreased = objective.CurrentPercentage is not null && request.Percentage < objective.CurrentPercentage;
-                update = ProgressUpdate.RecordPercentage(tenant.TenantId, cycle.Id, objective.Id, author, request.Percentage.Value, request.ContextNote, request.IsCorrection, decreased);
-                objective.ApplyManualPercentage(request.Percentage.Value);
+                var decreased = objective.CurrentPercentage is not null && percentage < objective.CurrentPercentage;
+                update = ProgressUpdate.RecordPercentage(tenant.TenantId, cycle.Id, objective.Id, author, percentage, status, request.ContextNote, request.IsCorrection, decreased);
+                objective.ApplyManualPercentage(percentage);
             }
-            else if (method == MeasurementMethod.NumericTarget && request.NumericActual is not null)
+            else if (request.NumericActual is decimal actual)
             {
-                update = ProgressUpdate.RecordNumericActual(tenant.TenantId, cycle.Id, objective.Id, author, request.NumericActual.Value, request.ContextNote, request.IsCorrection);
-                objective.ApplyNumericActual(request.NumericActual.Value);
+                update = ProgressUpdate.RecordNumericActual(tenant.TenantId, cycle.Id, objective.Id, author, actual, status, request.ContextNote, request.IsCorrection);
+                objective.ApplyNumericActual(actual);
             }
-            else if (method == MeasurementMethod.WeightedMilestones && request.MilestoneId is not null && request.MilestoneCompleted is not null)
+            else if (milestones.Count > 0)
             {
-                update = ProgressUpdate.RecordMilestone(tenant.TenantId, cycle.Id, objective.Id, author, request.MilestoneId.Value, request.MilestoneCompleted.Value, request.ContextNote, request.IsCorrection);
-                objective.ApplyMilestone(request.MilestoneId.Value, request.MilestoneCompleted.Value);
+                var changes = milestones.Select(change => (change.MilestoneId, change.Completed)).ToList();
+                update = ProgressUpdate.RecordMilestones(tenant.TenantId, cycle.Id, objective.Id, author, changes, status, request.ContextNote, request.IsCorrection);
+                objective.ApplyMilestones(changes);
             }
             else
             {
-                return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.ProgressMismatch, "The update does not match the objective's measurement method."));
+                update = ProgressUpdate.RecordStatusOnly(tenant.TenantId, cycle.Id, objective.Id, author, status, request.ContextNote);
             }
+            var enteredRisk = objective.ReportStatus(status, update.RecordedAt);
 
             foreach (var evidence in request.Evidence ?? [])
             {
@@ -227,20 +243,36 @@ public sealed class SubmitProgressHandler(PerformanceDbContext db, ICoreWorkforc
             }
 
             db.ProgressUpdates.Add(update);
-            if (objective.EmployeePlanId is Guid planId)
-                await EY.HRPlatform.Performance.Features.Plans.UpdateRequests.SatisfyAsync(db, audit, planId, objective.Id, update, cancellationToken);
-            var after = new { objective.CurrentPercentage, objective.CurrentActual,
-                milestoneCompleted = objective.Measurement?.Milestones.FirstOrDefault(m => m.Id == request.MilestoneId)?.IsCompleted };
-            if (request.IsCorrection)
+            if (plan is not null)
+            {
+                await EY.HRPlatform.Performance.Features.Plans.UpdateRequests.SatisfyAsync(db, audit, notifications, plan, objective, update, cancellationToken);
+                if (enteredRisk && plan.State == PlanLifecycleState.Approved)
+                    notifications.EnqueueObjectiveAtRisk(plan, objective, status, update.Id);
+            }
+            var after = new { objective.CurrentPercentage, objective.CurrentActual };
+            if (request.IsCorrection && update.Kind != ProgressEventKind.MilestonesChanged)
                 audit.Record(objective.TenantId, "Objective", objective.Id, cycle.Id, PerformanceAuditActions.ProgressCorrected,
-                    new { before, after, updateId = update.Id, request.ContextNote, request.MilestoneId });
-            if (before.milestoneCompleted == true && after.milestoneCompleted == false)
-                audit.Record(objective.TenantId, "Objective", objective.Id, cycle.Id, PerformanceAuditActions.MilestoneReopened,
-                    new { before, after, updateId = update.Id, request.ContextNote, request.MilestoneId });
+                    new { before, after, updateId = update.Id, request.ContextNote });
+            foreach (var change in update.MilestoneChanges)
+            {
+                var wasCompleted = completedBefore.GetValueOrDefault(change.MilestoneId);
+                if (wasCompleted && !change.Completed)
+                    audit.Record(objective.TenantId, "Objective", objective.Id, cycle.Id, PerformanceAuditActions.MilestoneReopened,
+                        new { before = new { milestoneCompleted = true }, after = new { milestoneCompleted = false },
+                            updateId = update.Id, request.ContextNote, change.MilestoneId });
+                else if (request.IsCorrection && wasCompleted != change.Completed)
+                    audit.Record(objective.TenantId, "Objective", objective.Id, cycle.Id, PerformanceAuditActions.ProgressCorrected,
+                        new { before = new { milestoneCompleted = wasCompleted }, after = new { milestoneCompleted = change.Completed },
+                            updateId = update.Id, request.ContextNote, change.MilestoneId });
+            }
             await EY.HRPlatform.Performance.Features.Plans.UpdateRequestSatisfaction.SaveAsync(db, cancellationToken);
 
             var dto = await ProgressComposer.BuildAsync(db, workforce, objective, plan, command.Actor, cancellationToken);
             return Result.Success(dto);
+        }
+        catch (ProgressReasonRequiredException ex)
+        {
+            return Result.Failure<ObjectiveProgressDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.ProgressReasonRequired, ex.Message));
         }
         catch (ArgumentException ex)
         {

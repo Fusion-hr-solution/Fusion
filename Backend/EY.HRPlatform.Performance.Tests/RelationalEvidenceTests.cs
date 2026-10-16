@@ -61,7 +61,7 @@ public sealed class RelationalEvidenceTests
 
                 var settings = CycleSettings.CreateDefault(tenant);
                 db.CycleSettings.Add(settings);
-                var expiredUpdate = ProgressUpdate.RecordPercentage(tenant, closed.Id, Guid.NewGuid(), Guid.NewGuid(), 10, null, false, false);
+                var expiredUpdate = ProgressUpdate.RecordPercentage(tenant, closed.Id, Guid.NewGuid(), Guid.NewGuid(), 10, EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, null, false, false);
                 var expiredItem = EvidenceItem.File(tenant, "expired.pdf", "application/pdf", 7, expiredKey);
                 expiredUpdate.AttachEvidence(expiredItem);
                 var staged = EvidenceUpload.Stage(tenant, closed.Id, expiredUpdate.ObjectiveId, expiredUpdate.AuthorEmployeeId,
@@ -70,7 +70,7 @@ public sealed class RelationalEvidenceTests
                 db.ProgressUpdates.Add(expiredUpdate);
                 db.EvidenceUploads.Add(staged);
 
-                var activeUpdate = ProgressUpdate.RecordPercentage(tenant, active.Id, Guid.NewGuid(), Guid.NewGuid(), 20, null, false, false);
+                var activeUpdate = ProgressUpdate.RecordPercentage(tenant, active.Id, Guid.NewGuid(), Guid.NewGuid(), 20, EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, null, false, false);
                 var activeItem = EvidenceItem.File(tenant, "active.pdf", "application/pdf", 6, activeKey);
                 activeUpdate.AttachEvidence(activeItem);
                 db.ProgressUpdates.Add(activeUpdate);

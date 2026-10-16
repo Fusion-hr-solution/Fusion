@@ -1,4 +1,6 @@
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Notifications;
+using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
 using EY.HRPlatform.Performance.Domain.Progress;
 using EY.HRPlatform.Performance.Features.Failures;
@@ -46,6 +48,15 @@ public static class UpdateRequestSatisfaction
                         .Where(item => item.State == EntityState.Added && item.Entity.ResourceId == requestId
                             && item.Entity.Action == PerformanceAuditActions.UpdateRequestSatisfied).ToList())
                         claim.State = EntityState.Detached;
+                    // The other update answered it first, and its requester was told then.
+                    foreach (var told in db.ChangeTracker.Entries<PerformanceOutboxMessage>()
+                        .Where(item => item.State == EntityState.Added && item.Entity.ResourceId == requestId
+                            && item.Entity.Kind == PerformanceNotificationKind.UpdateRequestAnswered).ToList())
+                        told.State = EntityState.Detached;
+                    foreach (var told in db.ChangeTracker.Entries<PerformanceNotification>()
+                        .Where(item => item.State == EntityState.Added && item.Entity.ResourceId == requestId
+                            && item.Entity.Kind == PerformanceNotificationKind.UpdateRequestAnswered).ToList())
+                        told.State = EntityState.Detached;
                     await entry.ReloadAsync(token);
                 }
             }
@@ -68,17 +79,21 @@ internal static class UpdateRequests
             request.RequestedAt, request.Note, request.State, request.SatisfiedAt, request.ClosedAt, request.Version);
 
     /// <summary>
-    /// Runs inside the progress transaction: an update on an objective satisfies the open request on that
-    /// objective and the open request on its plan, when they were made before the update.
+    /// Runs inside the progress transaction: a check-in on an objective satisfies the open request on that
+    /// objective and the open request on its plan, when they were made before it, and tells each requester.
     /// </summary>
-    public static async Task SatisfyAsync(PerformanceDbContext db, IPerformanceAudit audit, Guid planId, Guid objectiveId,
-        ProgressUpdate update, CancellationToken token)
+    public static async Task SatisfyAsync(PerformanceDbContext db, IPerformanceAudit audit, IPerformanceNotifications notifications,
+        EmployeePlan plan, Objective objective, ProgressUpdate update, CancellationToken token)
     {
-        var open = await db.UpdateRequests.Where(r => r.PlanId == planId && r.State == UpdateRequestState.Open
-            && (r.ObjectiveId == objectiveId || r.ObjectiveId == null)).ToListAsync(token);
+        var open = await db.UpdateRequests.Where(r => r.PlanId == plan.Id && r.State == UpdateRequestState.Open
+            && (r.ObjectiveId == objective.Id || r.ObjectiveId == null)).ToListAsync(token);
         foreach (var request in open.Where(r => r.SatisfyBy(update.Id, update.RecordedAt)))
+        {
             audit.Record(request.TenantId, "UpdateRequest", request.Id, request.CycleId, PerformanceAuditActions.UpdateRequestSatisfied,
                 new { before = UpdateRequestState.Open.ToString(), after = request.State.ToString(), progressUpdateId = update.Id });
+            notifications.EnqueueUpdateRequestAnswered(request, plan.EmployeeDisplayName,
+                request.ObjectiveId is null ? null : objective.Title);
+        }
     }
 
     /// <summary>At Cycle close, whatever is still open is recorded as unresolved.</summary>

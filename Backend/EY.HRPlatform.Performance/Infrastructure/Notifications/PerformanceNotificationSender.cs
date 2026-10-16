@@ -42,6 +42,26 @@ public static class PerformanceNotificationRenderer
             return new("Calibration is ready",
                 $"Every review in {calibration.ReviewRoundName} has reached calibration.\n\nOpen calibration: {calibrationLink}");
         }
+        if (message.Kind is PerformanceNotificationKind.ObjectiveAtRisk or PerformanceNotificationKind.UpdateRequestAnswered
+            or PerformanceNotificationKind.DevelopmentGoalAdded)
+        {
+            var path = JsonSerializer.Deserialize<PathNotificationPayload>(message.Payload)
+                ?? throw new InvalidOperationException("Notification context is missing.");
+            if (path.ResourceId != message.ResourceId || !path.Path.StartsWith("/performance/", StringComparison.Ordinal))
+                throw new InvalidOperationException("Notification context does not match its resource.");
+            var pathLink = $"{shellBaseUrl.TrimEnd('/')}{path.Path}";
+            var actor = path.ActorDisplayName ?? "Someone";
+            // The owner's reason stays out of email; the link opens it for those allowed to read it.
+            return message.Kind switch
+            {
+                PerformanceNotificationKind.ObjectiveAtRisk => new("An objective needs your attention",
+                    $"{actor} reported that one of their objectives is at risk or off track.\n\nOpen objective: {pathLink}"),
+                PerformanceNotificationKind.UpdateRequestAnswered => new("Progress updated",
+                    $"{actor} recorded progress after your request.\n\nOpen: {pathLink}"),
+                _ => new("New development goal",
+                    $"{actor} added a development goal.\n\nOpen development: {pathLink}"),
+            };
+        }
         if (message.ResourceType == "PerformanceReview")
         {
             var review = JsonSerializer.Deserialize<ReviewNotificationPayload>(message.Payload)

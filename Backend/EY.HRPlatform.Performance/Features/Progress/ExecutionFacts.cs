@@ -32,7 +32,7 @@ public static class ExecutionFacts
     /// </summary>
     public static bool LacksRecentUpdate(Objective objective, DateTime executionStartedAt, DateTime now)
     {
-        var last = objective.LastProgressAt ?? executionStartedAt;
+        var last = objective.LastCheckInAt ?? executionStartedAt;
         return now - last > TimeSpan.FromDays(RecentUpdateDays);
     }
 }

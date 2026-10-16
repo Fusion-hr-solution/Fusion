@@ -91,6 +91,14 @@ public sealed class EmployeePlansController(IMediator mediator, IPerformanceAcce
     // ── Team review work ────────────────────────────────────────────────────────
 
     /// <summary>Your People: the caller's recorded responsibility, action required first, filtered and paged by the server.</summary>
+    [HttpPost("plan/change-requests/{requestId:guid}/address")]
+    public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> AddressChangeRequest(
+        Guid cycleId, Guid requestId, [FromBody] AddressChangeRequestRequest request, CancellationToken cancellationToken)
+    {
+        if (!policy.CanManageOwnParticipation(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new AddressChangeRequestCommand(cycleId, requestId, request, Actor), cancellationToken));
+    }
+
     [HttpGet("team/people")]
     public async Task<ActionResult<ApiResponse<YourPeoplePageDto>>> YourPeople(
         Guid cycleId,

@@ -54,6 +54,14 @@ public sealed class ProgressController(IMediator mediator, IPerformanceAccessPol
         return MapResult(await mediator.Send(new SubmitProgressCommand(cycleId, objectiveId, request, Actor), cancellationToken));
     }
 
+    [HttpPost("objectives/{objectiveId:guid}/status/acknowledge")]
+    public async Task<ActionResult<ApiResponse<GoalDetailDto>>> AcknowledgeStatus(
+        Guid cycleId, Guid objectiveId, [FromBody] ExpectedVersionRequest request, CancellationToken cancellationToken)
+    {
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new AcknowledgeObjectiveStatusCommand(cycleId, objectiveId, Actor.ToGoalActor(), request.ExpectedVersion), cancellationToken));
+    }
+
     [HttpPost("objectives/{objectiveId:guid}/evidence/uploads")]
     [RequestSizeLimit(MaxEvidenceBytes + 4096)]
     public async Task<ActionResult<ApiResponse<EvidenceDescriptorDto>>> UploadEvidence(Guid cycleId, Guid objectiveId,

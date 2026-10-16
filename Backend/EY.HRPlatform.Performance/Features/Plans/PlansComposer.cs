@@ -82,7 +82,15 @@ public static class PlansComposer
 
         var history = plan.Decisions
             .OrderBy(d => d.DecidedAt)
-            .Select(d => new PlanDecisionDto(d.Kind, d.ActorEmployeeId, graph.Names.GetValueOrDefault(d.ActorEmployeeId), d.Feedback, d.DecidedAt))
+            .Select(d => new PlanDecisionDto(d.Kind, d.ActorEmployeeId, ActorName(plan, graph, d.ActorEmployeeId), d.Feedback, d.DecidedAt)
+            {
+                ChangeRequests = d.ChangeRequests.OrderBy(r => r.ObjectiveTitle).Select(r =>
+                {
+                    var objective = planObjectiveEntities.FirstOrDefault(o => o.Id == r.ObjectiveId);
+                    return new PlanChangeRequestDto(r.Id, r.ObjectiveId, objective?.Title ?? r.ObjectiveTitle, r.Text, r.State, r.Reply,
+                        r.AddressedAt, objective is null ? null : objective.UpdatedAt > d.DecidedAt);
+                }).ToList(),
+            })
             .ToList();
 
         var isSelf = plan.EmployeeId == actor.CallerEmployeeId;
@@ -113,8 +121,14 @@ public static class PlansComposer
             CanSubmit: canAuthor && readiness.CanSubmit,
             CanDecide: canDecide,
             CanApproveExceptionally: canApproveExceptionally)
-{ Version = plan.Version, IsOwner = isSelf };
+{ Version = plan.Version, IsOwner = isSelf, CanRequestUpdate = PlanPolicy.CanRequestUpdate(actor.ToGoalActor(), plan, cycle) };
     }
+
+    /// <summary>Who acted on the plan: from the cycle's names, else the plan's own recorded reviewer and employee.</summary>
+    private static string? ActorName(EmployeePlan plan, GoalsComposer.Graph graph, Guid actorId)
+        => graph.Names.GetValueOrDefault(actorId)
+           ?? (actorId == plan.ResponsibleManagerId ? plan.ResponsibleManagerName
+               : actorId == plan.EmployeeId ? plan.EmployeeDisplayName : null);
 
     public static PlanReadinessDto BuildReadiness(EmployeePlan plan, GoalsComposer.Graph graph, PlanAlignmentPolicy alignmentPolicy)
     {
@@ -126,6 +140,9 @@ public static class PlansComposer
         if (facts.ObjectiveCount > 0 && !facts.EveryObjectiveHasWeight) blockers.Add("Give every objective a weight.");
         if (facts.ObjectiveCount > 0 && facts.WeightTotal != 100m)
             blockers.Add(remaining > 0 ? $"Assign {Trim(remaining)}% more." : $"Reduce weights by {Trim(-remaining)}%.");
+        var openRequests = plan.OpenChangeRequests.Count;
+        if (openRequests > 0)
+            blockers.Add(openRequests == 1 ? "Address 1 change request." : $"Address {openRequests} change requests.");
         if (facts.ObjectiveCount > 0 && !facts.AlignmentSatisfied)
             blockers.Add(alignmentPolicy == PlanAlignmentPolicy.EveryObjectiveConnected
                 ? "Connect every objective to strategic direction."
@@ -140,7 +157,12 @@ public static class PlansComposer
             facts.HasStandaloneObjective,
             facts.StandaloneAllowed,
             CanSubmit: blockers.Count == 0 && facts.ObjectiveCount > 0,
-            blockers) { AlignmentPolicy = alignmentPolicy, EveryObjectiveConnectsToStrategicDirection = facts.EveryObjectiveConnectsToStrategicDirection };
+            blockers)
+        {
+            AlignmentPolicy = alignmentPolicy,
+            EveryObjectiveConnectsToStrategicDirection = facts.EveryObjectiveConnectsToStrategicDirection,
+            OpenChangeRequests = openRequests,
+        };
     }
 
     /// <summary>The whole-plan submission facts drawn from the plan's objective rows in the graph.</summary>
@@ -289,7 +311,7 @@ public static class PlansComposer
                 .Select(d => (DateTime?)d.DecidedAt)
                 .LastOrDefault()),
             RosterPlanStatus.Approved => hasProgress
-                ? (RosterActivityKind.ProgressUpdated, objectives.Where(o => o.LastProgressAt is not null).Max(o => o.LastProgressAt))
+                ? (RosterActivityKind.ProgressUpdated, objectives.Where(o => o.LastCheckInAt is not null).Max(o => o.LastCheckInAt))
                 : (RosterActivityKind.Approved, plan.Decisions
                     .Where(d => d.Kind is PlanDecisionKind.Approved or PlanDecisionKind.ApprovedExceptionally)
                     .Select(d => (DateTime?)d.DecidedAt)
@@ -322,7 +344,12 @@ public static class PlansComposer
             objective.CurrentPercentage,
             objective.CurrentActual,
             objective.LastProgressAt,
-            canUpdateProgress) { Version = objective.Version };
+            canUpdateProgress)
+        {
+            Version = objective.Version,
+            Status = objective.CurrentStatus,
+            StatusReportedAt = objective.StatusReportedAt,
+        };
 
     private static bool ConnectsToStrategic(Objective objective, GoalsComposer.Graph graph)
     {

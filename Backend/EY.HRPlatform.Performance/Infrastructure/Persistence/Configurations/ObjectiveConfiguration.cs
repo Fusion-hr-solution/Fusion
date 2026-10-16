@@ -21,6 +21,7 @@ public sealed class ObjectiveConfiguration : IEntityTypeConfiguration<Objective>
         builder.Property(objective => objective.PlanWeight).HasColumnType("numeric(6,2)");
         builder.Property(objective => objective.CurrentPercentage).HasColumnType("numeric(9,4)");
         builder.Property(objective => objective.CurrentActual).HasColumnType("numeric(18,4)");
+        builder.Property(objective => objective.CurrentStatus).HasConversion<string>().HasMaxLength(20);
 
         builder.HasIndex(objective => objective.TenantId);
         builder.HasIndex(objective => objective.CycleId);

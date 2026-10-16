@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Features.Goals;
@@ -24,4 +25,7 @@ public static class PlanPolicy
     public static bool CanRequestUpdate(GoalActorContext actor, EmployeePlan plan, PerformanceCycle cycle)
         => IsResponsibleReviewer(actor, plan) && plan.State == PlanLifecycleState.Approved && cycle.IsActive;
     public static bool CanApproveExceptionally(PlanActorContext actor) => actor.IsAdmin;
+    /// <summary>The responsible reviewer acknowledges an unacknowledged At risk or Off track report while the plan executes.</summary>
+    public static bool CanAcknowledgeStatus(GoalActorContext actor, EmployeePlan plan, PerformanceCycle cycle, Objective objective)
+        => CanRequestUpdate(actor, plan, cycle) && objective.EmployeePlanId == plan.Id && objective.NeedsStatusAttention;
 }

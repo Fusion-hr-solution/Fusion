@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Progress;
@@ -86,8 +87,8 @@ public sealed class EvidenceUploadTests
         var item = new EvidenceInput(EvidenceKind.File, uploadId, null, null, null, null, null, null);
         await using (var db = f.Store.NewContext())
         {
-            var request = new SubmitProgressRequest(30m, null, null, null, null, false, [item, item]);
-            var result = await new SubmitProgressHandler(db, f.Core, f.Store.Tenant, new TestPerformanceAudit(db), f.Files)
+            var request = new SubmitProgressRequest(30m, null, null, EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, null, false, [item, item]);
+            var result = await new SubmitProgressHandler(db, f.Core, f.Store.Tenant, new TestPerformanceAudit(db), f.Files, new PerformanceNotifications(db))
                 .Handle(new(f.CycleId, f.ObjectiveId, request, new(f.OwnerId, false, false)), default);
             Assert.Equal("Evidence.UploadInvalid", result.Error.Code);
         }
@@ -103,7 +104,7 @@ public sealed class EvidenceUploadTests
         var f = await ArrangeAsync(); Guid evidenceId;
         await using (var db = f.Store.NewContext())
         {
-            var update = ProgressUpdate.RecordPercentage(f.Store.TenantId, f.CycleId, f.ObjectiveId, f.OwnerId, 10m, null, false, false);
+            var update = ProgressUpdate.RecordPercentage(f.Store.TenantId, f.CycleId, f.ObjectiveId, f.OwnerId, 10m, EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, null, false, false);
             var item = EvidenceItem.File(f.Store.TenantId, "proof.txt", "text/plain", 5, $"{Guid.NewGuid():N}/{Guid.NewGuid():N}.txt");
             evidenceId = item.Id; update.AttachEvidence(item);
             db.ProgressUpdates.Add(update); await db.SaveChangesAsync();
@@ -129,7 +130,7 @@ public sealed class EvidenceUploadTests
                 settings.PlanAlignmentPolicy, evidenceRetentionMonths: 1);
             db.CycleSettings.Add(settings);
 
-            var update = ProgressUpdate.RecordPercentage(f.Store.TenantId, f.CycleId, f.ObjectiveId, f.OwnerId, 10m, null, false, false);
+            var update = ProgressUpdate.RecordPercentage(f.Store.TenantId, f.CycleId, f.ObjectiveId, f.OwnerId, 10m, EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, null, false, false);
             var key = $"{f.Store.TenantId:N}/{Guid.NewGuid():N}.txt";
             var item = EvidenceItem.File(f.Store.TenantId, "proof.txt", "text/plain", 5, key);
             evidenceId = item.Id;
@@ -192,17 +193,17 @@ public sealed class EvidenceUploadTests
             Assert.True(result.IsSuccess); uploadId = result.Value.UploadId;
             Assert.Equal("proof.txt", result.Value.FileName);
         }
-        var request = new SubmitProgressRequest(30m, null, null, null, null, false,
+        var request = new SubmitProgressRequest(30m, null, null, EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, null, false,
             [new(EvidenceKind.File, uploadId, "forged.exe", "application/evil", -1, null, null, null)]);
         await using (var db = f.Store.NewContext())
         {
-            var result = await new SubmitProgressHandler(db, f.Core, f.Store.Tenant, new TestPerformanceAudit(db), f.Files)
+            var result = await new SubmitProgressHandler(db, f.Core, f.Store.Tenant, new TestPerformanceAudit(db), f.Files, new PerformanceNotifications(db))
                 .Handle(new(f.CycleId, f.ObjectiveId, request, new(f.OwnerId, false, false)), default);
             Assert.True(result.IsSuccess, result.IsFailure ? result.Error.Message : null);
         }
         await using (var db = f.Store.NewContext())
         {
-            var result = await new SubmitProgressHandler(db, f.Core, f.Store.Tenant, new TestPerformanceAudit(db), f.Files)
+            var result = await new SubmitProgressHandler(db, f.Core, f.Store.Tenant, new TestPerformanceAudit(db), f.Files, new PerformanceNotifications(db))
                 .Handle(new(f.CycleId, f.ObjectiveId, request with { Percentage = 40m }, new(f.OwnerId, false, false)), default);
             Assert.Equal("Evidence.UploadInvalid", result.Error.Code);
         }
@@ -235,9 +236,9 @@ public sealed class EvidenceUploadTests
         { db.EvidenceUploads.Add(upload); await db.SaveChangesAsync(); }
         await using (var db = f.Store.NewContext())
         {
-            var request = new SubmitProgressRequest(30m, null, null, null, null, false,
+            var request = new SubmitProgressRequest(30m, null, null, EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, null, false,
                 [new(EvidenceKind.File, upload.Id, null, null, null, null, null, null)]);
-            var result = await new SubmitProgressHandler(db, f.Core, f.Store.Tenant, new TestPerformanceAudit(db), f.Files)
+            var result = await new SubmitProgressHandler(db, f.Core, f.Store.Tenant, new TestPerformanceAudit(db), f.Files, new PerformanceNotifications(db))
                 .Handle(new(f.CycleId, f.ObjectiveId, request, new(f.OwnerId, false, false)), default);
             Assert.Equal("Evidence.UploadInvalid", result.Error.Code);
         }

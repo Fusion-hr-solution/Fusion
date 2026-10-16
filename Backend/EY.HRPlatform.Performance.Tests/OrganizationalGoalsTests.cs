@@ -115,7 +115,7 @@ public sealed class OrganizationalGoalsTests
         {
             var parent = await db.Objectives.Include(o => o.Measurement).SingleAsync(o => o.Id == id);
             parent.ApplyNumericActual(90m);
-            db.ProgressUpdates.Add(EY.HRPlatform.Performance.Domain.Progress.ProgressUpdate.RecordNumericActual(f.Store.TenantId, f.CycleId, id, f.NourId, 90m, "Delivered", false));
+            db.ProgressUpdates.Add(EY.HRPlatform.Performance.Domain.Progress.ProgressUpdate.RecordNumericActual(f.Store.TenantId, f.CycleId, id, f.NourId, 90m, EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, "Delivered", false));
             var plan = EY.HRPlatform.Performance.Domain.Plans.EmployeePlan.Create(f.Store.TenantId, f.CycleId, Guid.NewGuid(), f.OtherMemberId, "Employee", "Delivery Pod", f.NourId, "Manager");
             var child = Objective.CreateEmployee(f.Store.TenantId, f.CycleId, plan.Id, f.OtherMemberId, "Deliver", null, id, CycleStart, CycleEnd, ObjectiveMeasurement.ManualPercentage(), 100m, CycleStart, CycleEnd, CycleStart, CycleEnd);
             childId = child.Id;

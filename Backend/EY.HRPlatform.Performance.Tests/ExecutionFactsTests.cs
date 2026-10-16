@@ -40,7 +40,7 @@ public sealed class ExecutionFactsTests
     public void A_completed_late_milestone_is_not_overdue()
     {
         var objective = WithMilestones(Today.AddDays(-3), Today.AddDays(30));
-        objective.ApplyMilestone(objective.Measurement!.Milestones.First().Id, completed: true);
+        objective.ApplyMilestones([(objective.Measurement!.Milestones.First().Id, true)]);
 
         Assert.False(ExecutionFacts.IsOverdue(objective, Today));
     }

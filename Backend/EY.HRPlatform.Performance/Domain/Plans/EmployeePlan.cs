@@ -28,6 +28,9 @@ public sealed record PlanSubmissionFacts(
     };
 }
 
+/// <summary>A change request the reviewer drafted on one objective, sent with the return.</summary>
+public sealed record PlanChangeRequestDraft(Guid ObjectiveId, string ObjectiveTitle, string Text);
+
 /// <summary>
 /// An employee's own weighted objective plan within one Cycle. The employee authors the objectives
 /// and weights (Draft), submits the whole plan once, and the responsible manager returns it with
@@ -109,6 +112,10 @@ public sealed class EmployeePlan : PerformanceAggregate
             throw new InvalidOperationException("Every objective needs a plan weight before submitting.");
         if (facts.WeightTotal != 100m)
             throw new InvalidOperationException("Plan weights must total exactly 100% before submitting.");
+        if (OpenChangeRequests.Count > 0)
+            throw new InvalidOperationException(OpenChangeRequests.Count == 1
+                ? "Address 1 change request before resubmitting."
+                : $"Address {OpenChangeRequests.Count} change requests before resubmitting.");
         if (!facts.AlignmentSatisfied)
             throw new InvalidOperationException(facts.AlignmentPolicy == PlanAlignmentPolicy.EveryObjectiveConnected
                 ? "Every objective must connect to strategic direction."
@@ -123,18 +130,65 @@ public sealed class EmployeePlan : PerformanceAggregate
     /// <summary>Marks the plan as edited — its objectives or weights changed — so "last saved" tracks authoring, not only lifecycle.</summary>
     public void RecordEdit() => MarkUpdated();
 
-    /// <summary>Returns a Submitted plan to Draft with required feedback, performed by the responsible manager.</summary>
-    public void Return(Guid actorEmployeeId, string feedback)
+    /// <summary>
+    /// Returns a Submitted plan to Draft, performed by the responsible manager. It needs a general note, at
+    /// least one change request on a specific objective, or both (D-09); at most one request per objective.
+    /// The caller has checked that each request's objective belongs to this plan.
+    /// </summary>
+    public void Return(Guid actorEmployeeId, string? feedback, IReadOnlyCollection<PlanChangeRequestDraft>? changeRequests = null)
     {
         if (State != PlanLifecycleState.Submitted)
             throw new InvalidOperationException("Only a Submitted plan can be returned.");
-        if (string.IsNullOrWhiteSpace(feedback))
-            throw new ArgumentException("Returning a plan requires feedback.", nameof(feedback));
+        var requests = changeRequests ?? [];
+        if (string.IsNullOrWhiteSpace(feedback) && requests.Count == 0)
+            throw new ArgumentException("Add a note or a change request on an objective before returning the plan.", nameof(feedback));
+        if (requests.Select(request => request.ObjectiveId).Distinct().Count() != requests.Count)
+            throw new ArgumentException("Each objective can carry one change request.", nameof(changeRequests));
+        var built = requests.Select(request => PlanChangeRequest.Create(TenantId, request.ObjectiveId, request.ObjectiveTitle, request.Text)).ToList();
 
         State = PlanLifecycleState.Draft;
         SubmittedAt = null;
-        RecordDecision(PlanDecisionKind.Returned, actorEmployeeId, feedback);
+        var decision = RecordDecision(PlanDecisionKind.Returned, actorEmployeeId, feedback);
+        foreach (var request in built) decision.Carry(request);
         MarkUpdated();
+    }
+
+    /// <summary>The latest return, while the plan is back in Draft because of it.</summary>
+    public PlanDecision? ActiveReturn
+    {
+        get
+        {
+            if (State != PlanLifecycleState.Draft) return null;
+            var last = _decisions.OrderBy(decision => decision.DecidedAt).LastOrDefault();
+            return last?.Kind == PlanDecisionKind.Returned ? last : null;
+        }
+    }
+
+    /// <summary>The change requests that still stand between a returned plan and its resubmission.</summary>
+    public IReadOnlyList<PlanChangeRequest> OpenChangeRequests
+        => ActiveReturn?.ChangeRequests.Where(request => request.IsOpen).ToList() ?? [];
+
+    /// <summary>The owner marks a request from the active return addressed. False when it already was.</summary>
+    public bool AddressChangeRequest(Guid actorEmployeeId, Guid requestId, string? reply)
+    {
+        if (actorEmployeeId != EmployeeId)
+            throw new UnauthorizedAccessException("Only the plan's own employee addresses its change requests.");
+        var request = _decisions.SelectMany(decision => decision.ChangeRequests).FirstOrDefault(item => item.Id == requestId)
+            ?? throw new KeyNotFoundException("That change request is not part of this plan.");
+        if (ActiveReturn?.ChangeRequests.Contains(request) != true)
+            throw new InvalidOperationException("Change requests can be addressed only while the plan is back with you after that return.");
+        var changed = request.Address(reply, DateTime.UtcNow);
+        if (changed) MarkUpdated();
+        return changed;
+    }
+
+    /// <summary>Removing an objective addresses the active return's request on it.</summary>
+    public PlanChangeRequest? ObjectiveRemoved(Guid objectiveId)
+    {
+        var request = OpenChangeRequests.FirstOrDefault(item => item.ObjectiveId == objectiveId);
+        if (request is null || !request.ObjectiveWasRemoved(DateTime.UtcNow)) return null;
+        MarkUpdated();
+        return request;
     }
 
     /// <summary>Approves a Submitted plan through the normal manager path, locking the expectation baseline.</summary>
@@ -171,7 +225,8 @@ public sealed class EmployeePlan : PerformanceAggregate
         MarkUpdated();
     }
 
-    public bool IsTransitionRetry(PlanDecisionKind kind, Guid actorEmployeeId, string? feedback = null)
+    public bool IsTransitionRetry(PlanDecisionKind kind, Guid actorEmployeeId, string? feedback = null,
+        IReadOnlyCollection<PlanChangeRequestDraft>? changeRequests = null)
     {
         var target = kind switch
         {
@@ -182,14 +237,21 @@ public sealed class EmployeePlan : PerformanceAggregate
         };
         var last = _decisions.OrderBy(decision => decision.DecidedAt).LastOrDefault();
         return target == State && last is not null && last.Kind == kind
-            && last.ActorEmployeeId == actorEmployeeId && last.Feedback == Normalize(feedback);
+            && last.ActorEmployeeId == actorEmployeeId && last.Feedback == Normalize(feedback)
+            && SameRequests(last, changeRequests ?? []);
     }
 
-    private void RecordDecision(PlanDecisionKind kind, Guid actorEmployeeId, string? feedback)
+    private static bool SameRequests(PlanDecision decision, IReadOnlyCollection<PlanChangeRequestDraft> requests)
+        => decision.ChangeRequests.Count == requests.Count
+           && requests.All(request => decision.ChangeRequests.Any(item =>
+               item.ObjectiveId == request.ObjectiveId && item.Text == request.Text.Trim()));
+
+    private PlanDecision RecordDecision(PlanDecisionKind kind, Guid actorEmployeeId, string? feedback)
     {
         var decision = PlanDecision.Record(TenantId, kind, actorEmployeeId, feedback);
         decision.AttachTo(Id);
         _decisions.Add(decision);
+        return decision;
     }
 
     private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();

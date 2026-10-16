@@ -46,7 +46,7 @@ public sealed class EvidenceHttpTests
         Assert.DoesNotContain("storageKey", body);
         using var json = JsonDocument.Parse(body);
         var uploadId = json.RootElement.GetProperty("data").GetProperty("uploadId").GetGuid();
-        using var submit = await client.PostAsJsonAsync(route + "/progress", new SubmitProgressRequest(20m, null, null, null, null, false,
+        using var submit = await client.PostAsJsonAsync(route + "/progress", new SubmitProgressRequest(20m, null, null, EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, null, false,
             [new(EvidenceKind.File, uploadId, null, null, null, null, null, null)]));
         Assert.Equal(HttpStatusCode.OK, submit.StatusCode);
         await using var verify = factory.Store.NewContext();

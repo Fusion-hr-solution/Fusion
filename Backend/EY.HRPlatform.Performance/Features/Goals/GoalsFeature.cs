@@ -83,7 +83,8 @@ public sealed class GetGoalDetailHandler(PerformanceDbContext db, ICoreWorkforce
                 PerformanceErrors.Codes.ObjectiveViewForbidden,
                 "You are not authorized to view this objective."));
         var graph = await GoalsComposer.LoadGraphAsync(db, workforce, cycle, cancellationToken, viewer);
-        return GoalsComposer.BuildDetail(cycle, target, graph, viewer, plan);
+        var reason = await GoalsComposer.LoadStatusReasonAsync(db, target, cancellationToken);
+        return GoalsComposer.BuildDetail(cycle, target, graph, viewer, plan, reason);
     }
 }
 
@@ -171,7 +172,8 @@ public abstract class GoalCommandHandlerBase(PerformanceDbContext db, ICoreWorkf
         if (node is null)
             return Result.Failure<GoalDetailDto>(PerformanceErrors.NotFound("Objective", objectiveId));
         var plan = await GoalsComposer.LoadOwningPlanAsync(db, node, cancellationToken);
-        return GoalsComposer.BuildDetail(cycle, node, graph, viewer, plan);
+        var reason = await GoalsComposer.LoadStatusReasonAsync(db, node, cancellationToken);
+        return GoalsComposer.BuildDetail(cycle, node, graph, viewer, plan, reason);
     }
 
     protected async Task<bool> CanGovernObjectiveAsync(PerformanceCycle cycle, Objective objective, GoalActorContext actor, CancellationToken cancellationToken)

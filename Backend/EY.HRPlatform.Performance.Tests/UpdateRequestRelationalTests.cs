@@ -111,7 +111,7 @@ public sealed class UpdateRequestRelationalTests
             for (var i = 0; i < 2; i++)
             {
                 var db = contexts[i];
-                updates[i] = ProgressUpdate.RecordPercentage(tenant, cycleId, objectiveIds[i], nour, 40 + i, null, false, false);
+                updates[i] = ProgressUpdate.RecordPercentage(tenant, cycleId, objectiveIds[i], nour, 40 + i, EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, null, false, false);
                 db.ProgressUpdates.Add(updates[i]);
                 var open = await db.UpdateRequests.SingleAsync(item => item.Id == requestId);
                 Assert.True(open.SatisfyBy(updates[i].Id, updates[i].RecordedAt));

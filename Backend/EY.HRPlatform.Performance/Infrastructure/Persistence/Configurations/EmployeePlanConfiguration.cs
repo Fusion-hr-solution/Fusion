@@ -32,6 +32,9 @@ public sealed class EmployeePlanConfiguration : IEntityTypeConfiguration<Employe
             .HasForeignKey(decision => decision.PlanId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(plan => plan.Decisions).AutoInclude(false);
+        // Computed from the decisions, never stored.
+        builder.Ignore(plan => plan.ActiveReturn);
+        builder.Ignore(plan => plan.OpenChangeRequests);
     }
 }
 
@@ -44,5 +47,25 @@ public sealed class PlanDecisionConfiguration : IEntityTypeConfiguration<PlanDec
         builder.Property(decision => decision.Kind).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(decision => decision.Feedback).HasMaxLength(2000);
         builder.HasIndex(decision => decision.PlanId);
+
+        builder.HasMany(decision => decision.ChangeRequests)
+            .WithOne()
+            .HasForeignKey(request => request.DecisionId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(decision => decision.ChangeRequests).AutoInclude();
+    }
+}
+
+public sealed class PlanChangeRequestConfiguration : IEntityTypeConfiguration<PlanChangeRequest>
+{
+    public void Configure(EntityTypeBuilder<PlanChangeRequest> builder)
+    {
+        builder.ToTable("PlanChangeRequests");
+        builder.HasKey(request => request.Id);
+        builder.Property(request => request.ObjectiveTitle).IsRequired().HasMaxLength(300);
+        builder.Property(request => request.Text).IsRequired().HasMaxLength(PlanChangeRequest.MaxTextLength);
+        builder.Property(request => request.Reply).HasMaxLength(PlanChangeRequest.MaxTextLength);
+        builder.Property(request => request.State).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.HasIndex(request => request.DecisionId);
     }
 }

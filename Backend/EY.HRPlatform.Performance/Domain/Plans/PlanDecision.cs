@@ -4,11 +4,14 @@ namespace EY.HRPlatform.Performance.Domain.Plans;
 
 /// <summary>
 /// One attributable step in an employee plan's agreement history: who acted, what they did, and (for
-/// a return) the required feedback. Append-only; the plan surfaces read it to show the agreement
-/// trail. Exceptional approvals carry the administrator's reason as feedback (product-spec §14/§15).
+/// a return) the reviewer's note and the change requests on specific objectives. Append-only; the plan
+/// surfaces read it to show the agreement trail. Exceptional approvals carry the administrator's reason
+/// as feedback (product-spec §14/§15).
 /// </summary>
 public sealed class PlanDecision : PerformanceChildEntity
 {
+    private readonly List<PlanChangeRequest> _changeRequests = [];
+
     private PlanDecision() { }
 
     public Guid PlanId { get; private set; }
@@ -16,6 +19,8 @@ public sealed class PlanDecision : PerformanceChildEntity
     public Guid ActorEmployeeId { get; private set; }
     public string? Feedback { get; private set; }
     public DateTime DecidedAt { get; private set; }
+
+    public IReadOnlyList<PlanChangeRequest> ChangeRequests => _changeRequests;
 
     public static PlanDecision Record(Guid tenantId, PlanDecisionKind kind, Guid actorEmployeeId, string? feedback)
         => new()
@@ -28,4 +33,10 @@ public sealed class PlanDecision : PerformanceChildEntity
         };
 
     internal void AttachTo(Guid planId) => PlanId = planId;
+
+    internal void Carry(PlanChangeRequest request)
+    {
+        request.AttachTo(Id);
+        _changeRequests.Add(request);
+    }
 }

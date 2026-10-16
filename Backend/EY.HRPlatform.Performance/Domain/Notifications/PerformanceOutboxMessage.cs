@@ -9,11 +9,14 @@ public enum PerformanceNotificationKind
     SelfAssessmentOpened, ManagerAssessmentOpened, SelfAssessmentSubmitted, ReviewFinalized,
     CalibrationReady,
     UpdateRequested,
+    ObjectiveAtRisk, UpdateRequestAnswered, DevelopmentGoalAdded,
 }
 
 public sealed record PlanNotificationPayload(Guid CycleId, Guid PlanId, string? ActorDisplayName);
 public sealed record ReviewNotificationPayload(Guid CycleId, Guid ReviewRoundId, Guid ReviewId, string ReviewRoundName);
 public sealed record CalibrationNotificationPayload(Guid CycleId, Guid ReviewRoundId, Guid SessionId, string ReviewRoundName);
+/// <summary>A notification that opens one in-app place: an objective, a plan, or a person's development.</summary>
+public sealed record PathNotificationPayload(Guid CycleId, Guid ResourceId, string? ActorDisplayName, string Path);
 
 /// <summary>A durable notification staged with its transition and delivered after commit.</summary>
 public sealed class PerformanceOutboxMessage : PerformanceChildEntity
@@ -65,6 +68,30 @@ public sealed class PerformanceOutboxMessage : PerformanceChildEntity
             ResourceType = "PerformanceReview", ResourceId = reviewId,
             Payload = JsonSerializer.Serialize(payload),
             DedupeKey = $"{kind}:{reviewId:N}:{transitionId:N}:{recipientEmployeeId:N}",
+            NextAttemptAt = DateTime.UtcNow,
+        };
+    }
+
+    /// <summary>
+    /// A notification about one objective, update request or development plan that opens an in-app path
+    /// (objective at risk, update request answered, development goal added).
+    /// </summary>
+    public static PerformanceOutboxMessage ForPath(Guid tenantId, PerformanceNotificationKind kind, Guid recipientEmployeeId,
+        string resourceType, Guid transitionId, PathNotificationPayload payload)
+    {
+        if (tenantId == Guid.Empty || recipientEmployeeId == Guid.Empty || payload.ResourceId == Guid.Empty
+            || transitionId == Guid.Empty || payload.CycleId == Guid.Empty || string.IsNullOrWhiteSpace(resourceType)
+            || !payload.Path.StartsWith("/performance/", StringComparison.Ordinal))
+            throw new ArgumentException("Notification tenant, recipient, resource, transition and path are required.");
+        if (kind is not (PerformanceNotificationKind.ObjectiveAtRisk or PerformanceNotificationKind.UpdateRequestAnswered
+            or PerformanceNotificationKind.DevelopmentGoalAdded))
+            throw new ArgumentException("Choose a path notification kind.", nameof(kind));
+        return new PerformanceOutboxMessage
+        {
+            TenantId = tenantId, Kind = kind, RecipientEmployeeId = recipientEmployeeId,
+            ResourceType = resourceType, ResourceId = payload.ResourceId,
+            Payload = JsonSerializer.Serialize(payload),
+            DedupeKey = $"{kind}:{payload.ResourceId:N}:{transitionId:N}:{recipientEmployeeId:N}",
             NextAttemptAt = DateTime.UtcNow,
         };
     }

@@ -35,6 +35,10 @@ public static class PerformanceErrors
         public const string CycleNotActivatable = "Cycle.NotActivatable";
         public const string CycleNotDraft = "Cycle.NotDraft";
         public const string CycleNotFound = "Cycle.NotFound";
+        public const string DevelopmentForbidden = "Development.Forbidden";
+        public const string DevelopmentInvalid = "Development.Invalid";
+        public const string DevelopmentNotParticipant = "Development.NotParticipant";
+        public const string DevelopmentReadOnly = "Development.ReadOnly";
         public const string EvidenceUploadInvalid = "Evidence.UploadInvalid";
         public const string EvidenceForbidden = "Evidence.Forbidden";
         public const string EvidenceNotFound = "Evidence.NotFound";
@@ -49,6 +53,8 @@ public static class PerformanceErrors
         public const string ObjectiveNotDraft = "Objective.NotDraft";
         public const string ObjectiveNotEditable = "Objective.NotEditable";
         public const string ObjectiveNotFound = "Objective.NotFound";
+        public const string ObjectiveStatusAcknowledgeForbidden = "Objective.StatusAcknowledgeForbidden";
+        public const string ObjectiveStatusNotAcknowledgeable = "Objective.StatusNotAcknowledgeable";
         public const string ObjectiveNotOrganizational = "Objective.NotOrganizational";
         public const string ObjectiveNotPublishable = "Objective.NotPublishable";
         public const string ObjectiveOwnerOutsideTeam = "Objective.OwnerOutsideTeam";
@@ -60,6 +66,9 @@ public static class PerformanceErrors
         public const string ParentObjectiveNotFound = "ParentObjective.NotFound";
         public const string PlanAlignment = "Plan.Alignment";
         public const string PlanAuthorForbidden = "Plan.AuthorForbidden";
+        public const string PlanChangeRequestForbidden = "Plan.ChangeRequestForbidden";
+        public const string PlanChangeRequestInvalid = "Plan.ChangeRequestInvalid";
+        public const string PlanChangeRequestNotOpen = "Plan.ChangeRequestNotOpen";
         public const string PlanConflict = "Plan.Conflict";
         public const string PlanDecideForbidden = "Plan.DecideForbidden";
         public const string PlanExceptionalForbidden = "Plan.ExceptionalForbidden";
@@ -79,6 +88,8 @@ public static class PerformanceErrors
         public const string PopulationInvalid = "Population.Invalid";
         public const string PopulationUnresolved = "Population.Unresolved";
         public const string ProgressInvalid = "Progress.Invalid";
+        public const string ProgressStatusRequired = "Progress.StatusRequired";
+        public const string ProgressReasonRequired = "Progress.ReasonRequired";
         public const string ProgressMismatch = "Progress.Mismatch";
         public const string ProgressNotUpdatable = "Progress.NotUpdatable";
         public const string ProgressUpdateForbidden = "Progress.UpdateForbidden";

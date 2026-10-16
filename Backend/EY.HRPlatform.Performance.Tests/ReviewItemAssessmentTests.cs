@@ -148,7 +148,7 @@ public sealed class ReviewItemAssessmentTests
         if (objective is not null) db.Objectives.Add(objective);
         if (objective is not null)
         {
-            var update = ProgressUpdate.RecordPercentage(store.TenantId, cycle.Id, objective.Id, subjectId, 30m, null, false, false);
+            var update = ProgressUpdate.RecordPercentage(store.TenantId, cycle.Id, objective.Id, subjectId, 30m, EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, null, false, false);
             update.AttachEvidence(EvidenceItem.Reference(store.TenantId, "Incident postmortem"));
             db.ProgressUpdates.Add(update);
         }

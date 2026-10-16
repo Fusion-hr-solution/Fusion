@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Progress;
@@ -127,10 +128,10 @@ public sealed class ProgressTests
     private static ProgressActorContext Owner(Guid id) => new(id, IsAdmin: false, CanReviewReports: false);
 
     private static Task<Result<ObjectiveProgressDto>> Submit(Fx f, PerformanceDbContext db, Guid objectiveId, SubmitProgressRequest req, ProgressActorContext actor)
-        => new SubmitProgressHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new TestEvidenceStore(Guid.NewGuid())).Handle(new SubmitProgressCommand(f.CycleId, objectiveId, req, actor), default);
+        => new SubmitProgressHandler(db, f.Workforce, f.Store.Tenant, new TestPerformanceAudit(db), new TestEvidenceStore(Guid.NewGuid()), new PerformanceNotifications(db)).Handle(new SubmitProgressCommand(f.CycleId, objectiveId, req, actor), default);
 
     private static SubmitProgressRequest Manual(decimal pct, string? context = null, bool correction = false)
-        => new(pct, null, null, null, context, correction, null);
+        => new(pct, null, null, ObjectiveStatus.OnTrack, context, correction, null);
 
     [Theory]
     [InlineData(-1)]

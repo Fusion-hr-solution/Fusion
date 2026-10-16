@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Progress;
 using EY.HRPlatform.Performance.Domain.Common;
 
 namespace EY.HRPlatform.Performance.Domain.Objectives;
@@ -71,6 +72,27 @@ public sealed class Objective : PerformanceAggregate
 
     /// <summary>Whether any progress has ever been reported (distinguishes missing from a reported 0).</summary>
     public bool HasProgress => LastProgressAt is not null;
+
+    /// <summary>The owner's latest reported status (D-05); null until the first check-in that carries one.</summary>
+    public ObjectiveStatus? CurrentStatus { get; private set; }
+
+    /// <summary>When the current status value began; repeating the same status leaves it unchanged.</summary>
+    public DateTime? StatusSince { get; private set; }
+
+    /// <summary>When a status was last reported, including repeats and status-only check-ins.</summary>
+    public DateTime? StatusReportedAt { get; private set; }
+
+    /// <summary>When the plan's responsible reviewer acknowledged the current risky status; cleared when it changes.</summary>
+    public DateTime? StatusAcknowledgedAt { get; private set; }
+    public Guid? StatusAcknowledgedByEmployeeId { get; private set; }
+
+    /// <summary>An At risk or Off track status the responsible reviewer hasn't acknowledged yet.</summary>
+    public bool NeedsStatusAttention => ObjectiveStatuses.IsRisky(CurrentStatus) && StatusAcknowledgedAt is null;
+
+    /// <summary>The last sign of life: a measurement change or a status report, whichever is later.</summary>
+    public DateTime? LastCheckInAt => StatusReportedAt is { } reported && (LastProgressAt is null || reported > LastProgressAt)
+        ? reported
+        : LastProgressAt;
 
     /// <summary>The derived progress percentage from current state (may exceed 100%); 0 when never reported.</summary>
     public decimal DerivedProgress => Measurement?.DerivedProgress(CurrentPercentage, CurrentActual) ?? 0m;
@@ -506,14 +528,51 @@ public sealed class Objective : PerformanceAggregate
         MarkUpdated();
     }
 
-    /// <summary>Completes or reopens a milestone (reversible); progress is derived from completed weights.</summary>
-    public void ApplyMilestone(Guid milestoneId, bool completed)
+    /// <summary>Completes or reopens milestones together (reversible); progress is derived from completed weights.</summary>
+    public void ApplyMilestones(IEnumerable<(Guid MilestoneId, bool Completed)> changes)
     {
         RequireDirectMethod(MeasurementMethod.WeightedMilestones);
-        if (Measurement is null || !Measurement.ToggleMilestone(milestoneId, completed))
-            throw new ArgumentException("That milestone is not part of this objective.", nameof(milestoneId));
+        foreach (var (milestoneId, completed) in changes)
+        {
+            if (Measurement is null || !Measurement.ToggleMilestone(milestoneId, completed))
+                throw new ArgumentException("That milestone is not part of this objective.", nameof(changes));
+        }
         LastProgressAt = DateTime.UtcNow;
         MarkUpdated();
+    }
+
+    /// <summary>
+    /// Records the owner's reported status. A new value starts a new period and clears any acknowledgement;
+    /// repeating the same value only refreshes when it was reported. Returns whether the objective has just
+    /// entered At risk or Off track — the transition that asks for the reviewer's attention.
+    /// </summary>
+    public bool ReportStatus(ObjectiveStatus status, DateTime at)
+    {
+        if (ProgressSource != ObjectiveProgressSource.Direct)
+            throw new InvalidOperationException("A calculated objective takes no status of its own.");
+        var changed = CurrentStatus != status;
+        if (changed)
+        {
+            CurrentStatus = status;
+            StatusSince = at;
+            StatusAcknowledgedAt = null;
+            StatusAcknowledgedByEmployeeId = null;
+        }
+        StatusReportedAt = at;
+        MarkUpdated();
+        return changed && ObjectiveStatuses.IsRisky(status);
+    }
+
+    /// <summary>The responsible reviewer acknowledges the current risky status. False when already acknowledged.</summary>
+    public bool AcknowledgeStatus(Guid reviewerEmployeeId, DateTime at)
+    {
+        if (!ObjectiveStatuses.IsRisky(CurrentStatus))
+            throw new InvalidOperationException("Only an objective at risk or off track can be acknowledged.");
+        if (StatusAcknowledgedAt is not null) return false;
+        StatusAcknowledgedAt = at;
+        StatusAcknowledgedByEmployeeId = reviewerEmployeeId;
+        MarkUpdated();
+        return true;
     }
 
     private void RequireDirectMethod(MeasurementMethod method)

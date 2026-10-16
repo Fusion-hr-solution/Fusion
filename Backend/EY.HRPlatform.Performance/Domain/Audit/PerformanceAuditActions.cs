@@ -16,6 +16,13 @@ public static class PerformanceAuditActions
     public const string ContributionLocked = "Contribution.BaselineLocked";
     public const string ProgressCorrected = "Progress.Corrected";
     public const string MilestoneReopened = "Progress.MilestoneReopened";
+    public const string ObjectiveStatusAcknowledged = "Objective.StatusAcknowledged";
+    public const string PlanChangeRequestAddressed = "Plan.ChangeRequestAddressed";
+    public const string DevelopmentGoalAdded = "Development.GoalAdded";
+    public const string DevelopmentGoalChanged = "Development.GoalChanged";
+    public const string DevelopmentGoalRemoved = "Development.GoalRemoved";
+    public const string DevelopmentGoalsCarriedOver = "Development.GoalsCarriedOver";
+    public const string DevelopmentCarryOverDismissed = "Development.CarryOverDismissed";
     public const string SettingsChanged = "Settings.Changed";
     public const string RatingScaleChanged = "RatingScale.Changed";
     public const string CompetencyCreated = "Competency.Created";

@@ -1,5 +1,7 @@
 using EY.HRPlatform.Performance.Domain.Calibration;
 using EY.HRPlatform.Performance.Domain.Notifications;
+using EY.HRPlatform.Performance.Domain.Objectives;
+using EY.HRPlatform.Performance.Domain.Progress;
 using EY.HRPlatform.Performance.Domain.Plans;
 using EY.HRPlatform.Performance.Domain.Reviews;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -16,6 +18,10 @@ public interface IPerformanceNotifications
     void EnqueueReview(PerformanceReview review, PerformanceNotificationKind kind, string reviewRoundName);
     void EnqueueCalibrationReady(CalibrationSession session, string reviewRoundName);
     void EnqueueUpdateRequested(UpdateRequest request, string? objectiveTitle);
+    void EnqueueObjectiveAtRisk(EmployeePlan plan, Objective objective, ObjectiveStatus status, Guid progressUpdateId);
+    void EnqueueUpdateRequestAnswered(UpdateRequest request, string ownerName, string? objectiveTitle);
+    void EnqueueDevelopmentGoalAdded(Guid tenantId, Guid cycleId, Guid developmentPlanId, Guid goalId, Guid recipientEmployeeId,
+        string actorName, string goalTitle, string path);
 }
 
 public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerformanceNotifications
@@ -55,6 +61,38 @@ public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerform
         var message = PerformanceOutboxMessage.ForPlan(request.TenantId, PerformanceNotificationKind.UpdateRequested, request.EmployeeId,
             request.PlanId, request.Id, new PlanNotificationPayload(request.CycleId, request.PlanId, request.RequestedByName));
         Stage(message, null, PerformanceNotificationTemplates.ForUpdateRequest(request, objectiveTitle));
+    }
+
+    /// <summary>The plan's responsible reviewer hears when a report's objective goes at risk or off track.</summary>
+    public void EnqueueObjectiveAtRisk(EmployeePlan plan, Objective objective, ObjectiveStatus status, Guid progressUpdateId)
+    {
+        if (plan.ResponsibleManagerId is not Guid reviewer || reviewer == Guid.Empty) return;
+        var path = PerformanceNotificationTemplates.ObjectivePath(objective.CycleId, objective.Id);
+        var message = PerformanceOutboxMessage.ForPath(plan.TenantId, PerformanceNotificationKind.ObjectiveAtRisk, reviewer,
+            "Objective", progressUpdateId, new PathNotificationPayload(objective.CycleId, objective.Id, plan.EmployeeDisplayName, path));
+        Stage(message, null, PerformanceNotificationTemplates.ForObjectiveAtRisk(plan.EmployeeDisplayName, objective.Title,
+            status == ObjectiveStatus.OffTrack, path));
+    }
+
+    /// <summary>The requester hears when recorded progress answers their request.</summary>
+    public void EnqueueUpdateRequestAnswered(UpdateRequest request, string ownerName, string? objectiveTitle)
+    {
+        var path = request.ObjectiveId is Guid objectiveId
+            ? PerformanceNotificationTemplates.ObjectivePath(request.CycleId, objectiveId)
+            : PerformanceNotificationTemplates.PlanPath(request.CycleId, request.PlanId);
+        var message = PerformanceOutboxMessage.ForPath(request.TenantId, PerformanceNotificationKind.UpdateRequestAnswered,
+            request.RequestedByEmployeeId, "UpdateRequest", request.SatisfiedByProgressUpdateId ?? request.Id,
+            new PathNotificationPayload(request.CycleId, request.Id, ownerName, path));
+        Stage(message, null, PerformanceNotificationTemplates.ForUpdateRequestAnswered(ownerName, objectiveTitle, path));
+    }
+
+    /// <summary>The other person hears when a development goal is added to the plan they share.</summary>
+    public void EnqueueDevelopmentGoalAdded(Guid tenantId, Guid cycleId, Guid developmentPlanId, Guid goalId, Guid recipientEmployeeId,
+        string actorName, string goalTitle, string path)
+    {
+        var message = PerformanceOutboxMessage.ForPath(tenantId, PerformanceNotificationKind.DevelopmentGoalAdded, recipientEmployeeId,
+            "DevelopmentPlan", goalId, new PathNotificationPayload(cycleId, developmentPlanId, actorName, path));
+        Stage(message, null, PerformanceNotificationTemplates.ForDevelopmentGoalAdded(actorName, goalTitle, path));
     }
 
     /// <summary>

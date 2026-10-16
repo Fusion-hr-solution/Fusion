@@ -66,8 +66,8 @@ public sealed class UpdateRequestTests
             .Handle(new CreateUpdateRequestCommand(w.CycleId, planId ?? w.PlanId, objectiveId, note, As(caller), "Lina"), default);
 
     private static Task<SharedKernel.Results.Result<ObjectiveProgressDto>> Progress(World w, PerformanceDbContext db, Guid caller, Guid objectiveId, decimal pct)
-        => new SubmitProgressHandler(db, w.Workforce, w.Store.Tenant, new TestPerformanceAudit(db), new TestEvidenceStore(Guid.NewGuid()))
-            .Handle(new SubmitProgressCommand(w.CycleId, objectiveId, new SubmitProgressRequest(pct, null, null, null, "Weekly update", false, null),
+        => new SubmitProgressHandler(db, w.Workforce, w.Store.Tenant, new TestPerformanceAudit(db), new TestEvidenceStore(Guid.NewGuid()), new PerformanceNotifications(db))
+            .Handle(new SubmitProgressCommand(w.CycleId, objectiveId, new SubmitProgressRequest(pct, null, null, EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, "Weekly update", false, null),
                 new ProgressActorContext(caller, IsAdmin: false, CanReviewReports: true)), default);
 
     [Fact]

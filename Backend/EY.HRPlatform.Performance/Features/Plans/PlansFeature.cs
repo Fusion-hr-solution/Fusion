@@ -37,6 +37,7 @@ public sealed record RemovePlanObjectiveCommand(Guid CycleId, Guid ObjectiveId, 
 public sealed record SetPlanWeightsCommand(Guid CycleId, SetPlanWeightsRequest Request, PlanActorContext Actor) : ICommand<Result<EmployeePlanDto>>;
 public sealed record SubmitMyPlanCommand(Guid CycleId, PlanActorContext Actor, uint ExpectedVersion = 0) : ICommand<Result<EmployeePlanDto>>;
 public sealed record ReturnPlanCommand(Guid CycleId, Guid PlanId, ReturnPlanRequest Request, PlanActorContext Actor) : ICommand<Result<EmployeePlanDto>>;
+public sealed record AddressChangeRequestCommand(Guid CycleId, Guid RequestId, AddressChangeRequestRequest Request, PlanActorContext Actor) : ICommand<Result<EmployeePlanDto>>;
 public sealed record ApprovePlanCommand(Guid CycleId, Guid PlanId, PlanActorContext Actor, uint ExpectedVersion = 0) : ICommand<Result<EmployeePlanDto>>;
 public sealed record ExceptionalApprovePlanCommand(Guid CycleId, Guid PlanId, ExceptionalApprovePlanRequest Request, PlanActorContext Actor) : ICommand<Result<EmployeePlanDto>>;
 
@@ -82,14 +83,21 @@ public abstract class PlanHandlerBase(PerformanceDbContext db, ICoreWorkforceCli
         return Result.Success(dto);
     }
 
-    /// <summary>A new plan-decision row reached through an already-tracked plan is detected Modified; correct it to Added.</summary>
+    /// <summary>
+    /// A new plan-decision row (and the change requests a return carries) reached through an already-tracked plan
+    /// is detected Modified; correct it to Added.
+    /// </summary>
     protected void FixNewPlanRows()
     {
-        foreach (var entry in Db.ChangeTracker.Entries().Where(e => e.State == EntityState.Modified))
+        var added = new HashSet<Guid>();
+        foreach (var entry in Db.ChangeTracker.Entries<PlanDecision>().Where(e => e.State == EntityState.Modified).ToList())
         {
-            if (entry.Entity is PlanDecision)
-                entry.State = EntityState.Added;
+            entry.State = EntityState.Added;
+            added.Add(entry.Entity.Id);
         }
+        foreach (var entry in Db.ChangeTracker.Entries<PlanChangeRequest>()
+            .Where(e => e.State == EntityState.Modified && added.Contains(e.Entity.DecisionId)).ToList())
+            entry.State = EntityState.Added;
     }
 }
 
@@ -403,7 +411,7 @@ public sealed class UpdatePlanObjectiveHandler(PerformanceDbContext db, ICoreWor
     }
 }
 
-public sealed class RemovePlanObjectiveHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant)
+public sealed class RemovePlanObjectiveHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant, IPerformanceAudit audit)
     : PlanHandlerBase(db, workforce, tenant), ICommandHandler<RemovePlanObjectiveCommand, Result<EmployeePlanDto>>
 {
     public async Task<Result<EmployeePlanDto>> Handle(RemovePlanObjectiveCommand command, CancellationToken cancellationToken)
@@ -425,6 +433,10 @@ public sealed class RemovePlanObjectiveHandler(PerformanceDbContext db, ICoreWor
 
         Db.Objectives.Remove(objective);
         plan.RecordEdit();
+        // Removing the objective in question settles the change requested on it (D-09).
+        if (plan.ObjectiveRemoved(objective.Id) is { } settled)
+            audit.Record(plan.TenantId, "EmployeePlan", plan.Id, cycle.Id, PerformanceAuditActions.PlanChangeRequestAddressed,
+                new { before = PlanChangeRequestState.Open.ToString(), after = settled.State.ToString(), changeRequestId = settled.Id, objectiveId = objective.Id });
         await Db.SaveChangesAsync(cancellationToken);
         return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
     }
@@ -526,7 +538,16 @@ public sealed class ReturnPlanHandler(PerformanceDbContext db, ICoreWorkforceCli
         if (!PlansComposer.CanDecide(plan, command.Actor))
             return Result.Failure<EmployeePlanDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.PlanDecideForbidden, "Only the responsible manager can return this plan."));
 
-        if (plan.IsTransitionRetry(PlanDecisionKind.Returned, command.Actor.CallerEmployeeId, command.Request.Feedback))
+        // Each request must name an objective of this plan; titles are kept with the request.
+        var titles = await Db.Objectives.AsNoTracking().Where(o => o.EmployeePlanId == plan.Id)
+            .ToDictionaryAsync(o => o.Id, o => o.Title, cancellationToken);
+        var inputs = command.Request.ChangeRequests ?? [];
+        if (inputs.Any(input => !titles.ContainsKey(input.ObjectiveId)))
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PlanChangeRequestInvalid,
+                "Change requests can only target objectives in this plan."));
+        var drafts = inputs.Select(input => new PlanChangeRequestDraft(input.ObjectiveId, titles[input.ObjectiveId], input.Text ?? string.Empty)).ToList();
+
+        if (plan.IsTransitionRetry(PlanDecisionKind.Returned, command.Actor.CallerEmployeeId, command.Request.Feedback, drafts))
             return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
         if (cycle.IsClosed)
             return Result.Failure<EmployeePlanDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.CycleClosed, "A Closed Cycle is read-only."));
@@ -537,10 +558,11 @@ public sealed class ReturnPlanHandler(PerformanceDbContext db, ICoreWorkforceCli
         var before = plan.State.ToString();
         try
         {
-            plan.Return(command.Actor.CallerEmployeeId, command.Request.Feedback);
+            plan.Return(command.Actor.CallerEmployeeId, command.Request.Feedback, drafts);
             FixNewPlanRows();
             audit.Record(plan.TenantId, "EmployeePlan", plan.Id, cycle.Id, PerformanceAuditActions.PlanReturned,
-                new { before, after = plan.State.ToString(), reason = (string?)command.Request.Feedback });
+                new { before, after = plan.State.ToString(), reason = (string?)command.Request.Feedback,
+                    changeRequests = drafts.Select(draft => draft.ObjectiveId).ToList() });
             notifications.EnqueuePlan(plan, PerformanceNotificationKind.PlanReturned, plan.ResponsibleManagerName);
             await Db.SaveChangesAsync(cancellationToken);
             return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
@@ -554,6 +576,56 @@ public sealed class ReturnPlanHandler(PerformanceDbContext db, ICoreWorkforceCli
             return Result.Failure<EmployeePlanDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.PlanNotReturnable, ex.Message));
         }
     }
+}
+
+/// <summary>The plan's owner marks a change request from the latest return addressed, optionally replying (D-09).</summary>
+public sealed class AddressChangeRequestHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant, IPerformanceAudit audit)
+    : PlanHandlerBase(db, workforce, tenant), ICommandHandler<AddressChangeRequestCommand, Result<EmployeePlanDto>>
+{
+    public async Task<Result<EmployeePlanDto>> Handle(AddressChangeRequestCommand command, CancellationToken cancellationToken)
+    {
+        var cycleResult = await LoadOpenCycleAsync(command.CycleId, cancellationToken);
+        if (cycleResult.IsFailure) return Result.Failure<EmployeePlanDto>(cycleResult.Error);
+        var cycle = cycleResult.Value;
+
+        var decisionId = await Db.PlanChangeRequests.AsNoTracking().Where(r => r.Id == command.RequestId)
+            .Select(r => (Guid?)r.DecisionId).FirstOrDefaultAsync(cancellationToken);
+        var planId = decisionId is null ? null
+            : await Db.PlanDecisions.AsNoTracking().Where(d => d.Id == decisionId).Select(d => (Guid?)d.PlanId).FirstOrDefaultAsync(cancellationToken);
+        var plan = planId is Guid id ? await LoadPlanTrackedAsync(cycle.Id, id, cancellationToken) : null;
+        if (plan is null) return Result.Failure<EmployeePlanDto>(PerformanceErrors.NotFound("ChangeRequest", command.RequestId));
+        if (plan.EmployeeId != command.Actor.CallerEmployeeId)
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.PlanChangeRequestForbidden,
+                "Only the plan's own employee marks its change requests addressed."));
+
+        var request = plan.Decisions.SelectMany(d => d.ChangeRequests).First(r => r.Id == command.RequestId);
+        // A retry after success finds it addressed and returns the plan unchanged.
+        if (request.State == PlanChangeRequestState.Addressed && request.Reply == Normalize(command.Request.Reply)
+            && plan.ActiveReturn?.ChangeRequests.Contains(request) == true)
+            return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
+        if (VersionGuard.Check(plan, command.Request.ExpectedVersion) is { } stale)
+            return Result.Failure<EmployeePlanDto>(stale);
+
+        try
+        {
+            if (plan.AddressChangeRequest(command.Actor.CallerEmployeeId, request.Id, command.Request.Reply))
+                audit.Record(plan.TenantId, "EmployeePlan", plan.Id, cycle.Id, PerformanceAuditActions.PlanChangeRequestAddressed,
+                    new { before = PlanChangeRequestState.Open.ToString(), after = request.State.ToString(), changeRequestId = request.Id,
+                        objectiveId = request.ObjectiveId, reply = request.Reply });
+            await Db.SaveChangesAsync(cancellationToken);
+            return await ProjectAsync(cycle, plan.Id, command.Actor, cancellationToken);
+        }
+        catch (ArgumentException ex)
+        {
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PlanChangeRequestInvalid, ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Result.Failure<EmployeePlanDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.PlanChangeRequestNotOpen, ex.Message));
+        }
+    }
+
+    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
 
 public sealed class ApprovePlanHandler(PerformanceDbContext db, ICoreWorkforceClient workforce, ITenantContext tenant, IPerformanceAudit audit, IPerformanceNotifications notifications)

@@ -469,6 +469,123 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.ToTable("PerformanceCycles", "performance");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Development.DevelopmentGoal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActionsJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime?>("CarriedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CarriedFromGoalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CarriedToCycleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CompetencyId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CreatedByEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DevelopmentPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateOnly?>("TargetDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UpdatedByEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DevelopmentPlanId");
+
+                    b.ToTable("DevelopmentGoals", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Development.DevelopmentPlan", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CarryOverDismissedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CycleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ParticipantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "EmployeeId");
+
+                    b.HasIndex("TenantId", "CycleId", "ParticipantId")
+                        .IsUnique();
+
+                    b.ToTable("DevelopmentPlans", "performance");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Notifications.PerformanceNotification", b =>
                 {
                     b.Property<Guid>("Id")
@@ -695,6 +812,10 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Property<decimal?>("CurrentPercentage")
                         .HasColumnType("numeric(9,4)");
 
+                    b.Property<string>("CurrentStatus")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<Guid>("CycleId")
                         .HasColumnType("uuid");
 
@@ -744,6 +865,18 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime?>("StatusAcknowledgedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("StatusAcknowledgedByEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("StatusReportedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("StatusSince")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -863,6 +996,62 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("EmployeePlans", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Plans.PlanChangeRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AddressedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("DecisionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ObjectiveId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ObjectiveTitle")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Reply")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecisionId");
+
+                    b.ToTable("PlanChangeRequests", "performance");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Plans.PlanDecision", b =>
@@ -1372,6 +1561,45 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.ToTable("EvidenceUploads", "performance");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Progress.ProgressMilestoneChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("MilestoneId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProgressUpdateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MilestoneId");
+
+                    b.HasIndex("ProgressUpdateId");
+
+                    b.ToTable("ProgressMilestoneChanges", "performance");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Progress.ProgressUpdate", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1402,14 +1630,15 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
-                    b.Property<Guid?>("MilestoneId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("ObjectiveId")
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("RecordedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -2078,6 +2307,15 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Development.DevelopmentGoal", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Development.DevelopmentPlan", null)
+                        .WithMany("Goals")
+                        .HasForeignKey("DevelopmentPlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Objectives.ContributionLink", b =>
                 {
                     b.HasOne("EY.HRPlatform.Performance.Domain.Objectives.Objective", null)
@@ -2173,6 +2411,15 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Navigation("Measurement");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Plans.PlanChangeRequest", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Plans.PlanDecision", null)
+                        .WithMany("ChangeRequests")
+                        .HasForeignKey("DecisionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Plans.PlanDecision", b =>
                 {
                     b.HasOne("EY.HRPlatform.Performance.Domain.Plans.EmployeePlan", null)
@@ -2222,6 +2469,15 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                 {
                     b.HasOne("EY.HRPlatform.Performance.Domain.Progress.ProgressUpdate", null)
                         .WithMany("Evidence")
+                        .HasForeignKey("ProgressUpdateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Progress.ProgressMilestoneChange", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Progress.ProgressUpdate", null)
+                        .WithMany("MilestoneChanges")
                         .HasForeignKey("ProgressUpdateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2367,6 +2623,11 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Navigation("ActivationSnapshot");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Development.DevelopmentPlan", b =>
+                {
+                    b.Navigation("Goals");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Objectives.Objective", b =>
                 {
                     b.Navigation("ContributionLinks");
@@ -2375,6 +2636,11 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Plans.EmployeePlan", b =>
                 {
                     b.Navigation("Decisions");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Plans.PlanDecision", b =>
+                {
+                    b.Navigation("ChangeRequests");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Population.PopulationDefinition", b =>
@@ -2389,6 +2655,8 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Progress.ProgressUpdate", b =>
                 {
                     b.Navigation("Evidence");
+
+                    b.Navigation("MilestoneChanges");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.PerformanceReview", b =>

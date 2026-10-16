@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Progress;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -22,7 +23,11 @@ namespace EY.HRPlatform.Performance.Features.People;
 public enum PersonRelation { Self, Manager, Reviewer, Administrator, Other }
 
 public sealed record PersonSummaryObjectiveDto(Guid ObjectiveId, int Number, string Title, string? AlignedTo,
-    decimal? Weight, decimal? Progress, string Href);
+    decimal? Weight, decimal? Progress, string Href)
+{
+    /// <summary>The owner's latest reported status; null until reported, never assumed On track.</summary>
+    public ObjectiveStatus? Status { get; init; }
+}
 public sealed record PersonSummaryCycleDto(Guid CycleId, string CycleName, CycleLifecycleState CycleState, CyclePhase? Phase,
     bool IsParticipant, Guid? PlanId, RosterPlanStatus? PlanStatus, decimal? OverallProgress, string? PlanHref,
     IReadOnlyList<PersonSummaryObjectiveDto> Objectives);
@@ -30,6 +35,10 @@ public sealed record PersonSummaryCurrentReviewDto(Guid ReviewId, string ReviewR
     DateOnly? DueDate, bool SelfAssessmentEnabled, bool CalibrationEnabled, string Href);
 public sealed record PersonSummaryReviewResultDto(Guid ReviewId, string CycleName, string ReviewRoundName,
     string? FinalRatingLabel, DateTime? FinalizedAt, string Href);
+public sealed record PersonSummaryDevelopmentGoalDto(string Title, string? CompetencyName,
+    EY.HRPlatform.Performance.Domain.Development.DevelopmentGoalStatus Status, DateOnly? TargetDate);
+/// <summary>The person's development goals for the summary's cycle, linking to the plan's Development section.</summary>
+public sealed record PersonSummaryDevelopmentDto(IReadOnlyList<PersonSummaryDevelopmentGoalDto> Goals, string Href);
 public sealed record PersonSummaryReviewsDto(PersonSummaryCurrentReviewDto? Current, IReadOnlyList<PersonSummaryReviewResultDto> History);
 
 /// <summary>
@@ -37,9 +46,17 @@ public sealed record PersonSummaryReviewsDto(PersonSummaryCurrentReviewDto? Curr
 /// or foreign employee gets the same answer as an unseen one, without identity.
 /// </summary>
 public sealed record PersonPerformanceSummaryDto(Guid EmployeeId, string? DisplayName, string? JobTitle, string? OrgUnitName,
-    string? StableEmployeeKey, PersonRelation Relation, PersonSummaryCycleDto? CurrentCycle, PersonSummaryReviewsDto? Reviews);
+    string? StableEmployeeKey, PersonRelation Relation, PersonSummaryCycleDto? CurrentCycle, PersonSummaryReviewsDto? Reviews)
+{
+    /// <summary>Present under the development plan's own visibility (D-34), empty when no goals.</summary>
+    public PersonSummaryDevelopmentDto? Development { get; init; }
+}
 
-public sealed record PersonSummaryViewer(Guid EmployeeId, bool ReviewsReports, bool Administers);
+public sealed record PersonSummaryViewer(Guid EmployeeId, bool ReviewsReports, bool Administers)
+{
+    /// <summary>Holds the own-participation grant that every self-authoring action needs.</summary>
+    public bool ManagesOwnParticipation { get; init; } = true;
+}
 
 public sealed record GetPersonSummaryQuery(Guid EmployeeId, Guid? CycleId, PersonSummaryViewer Viewer)
     : IQuery<Result<PersonPerformanceSummaryDto>>;
@@ -73,13 +90,33 @@ public sealed class GetPersonSummaryHandler(PerformanceDbContext db, ICoreWorkfo
             DisplayName = person.DisplayName, JobTitle = person.JobTitle, OrgUnitName = person.OrgUnit?.Name,
             StableEmployeeKey = person.StableEmployeeKey, Relation = relation,
         };
-        if (relation == PersonRelation.Other) return Result.Success(identity);
+        var development = cycle is null ? null : await DevelopmentAsync(cycle, query.EmployeeId, plan, query.Viewer, person, token);
+        if (relation == PersonRelation.Other) return Result.Success(identity with { Development = development });
 
         return Result.Success(identity with
         {
             CurrentCycle = cycle is null ? null : await CycleSectionAsync(cycle, query.EmployeeId, plan, relation, token),
             Reviews = await ReviewsAsync(query.EmployeeId, token),
+            Development = development,
         });
+    }
+
+    /// <summary>The cycle's development goals, under the development plan's own read rule.</summary>
+    private async Task<PersonSummaryDevelopmentDto?> DevelopmentAsync(PerformanceCycle cycle, Guid employeeId, EmployeePlan? plan,
+        PersonSummaryViewer viewer, WorkforceSnapshot person, CancellationToken token)
+    {
+        var participant = await db.Participants.AsNoTracking().FirstOrDefaultAsync(p => p.CycleId == cycle.Id && p.EmployeeId == employeeId, token);
+        if (participant is null) return null;
+        var reviewer = EY.HRPlatform.Performance.Features.Development.DevelopmentPolicy.ResponsibleReviewer(participant, plan);
+        if (!EY.HRPlatform.Performance.Features.Development.DevelopmentPolicy.CanRead(viewer, employeeId, reviewer, person.Manager?.EmployeeId))
+            return null;
+        var goals = await db.DevelopmentPlans.AsNoTracking().Where(p => p.CycleId == cycle.Id && p.ParticipantId == participant.Id)
+            .SelectMany(p => p.Goals).OrderBy(g => g.CreatedAt).ToListAsync(token);
+        var competencyIds = goals.Select(g => g.CompetencyId).OfType<Guid>().Distinct().ToList();
+        var competencies = await db.Competencies.AsNoTracking().Where(c => competencyIds.Contains(c.Id)).ToDictionaryAsync(c => c.Id, c => c.Name, token);
+        var href = PerformanceNotificationTemplates.DevelopmentPath(cycle.Id, plan?.Id, employeeId, forOwner: viewer.EmployeeId == employeeId);
+        return new PersonSummaryDevelopmentDto(goals.Select(g => new PersonSummaryDevelopmentGoalDto(g.Title,
+            g.CompetencyId is Guid c ? competencies.GetValueOrDefault(c) : null, g.Status, g.TargetDate)).ToList(), href);
     }
 
     /// <summary>
@@ -142,7 +179,7 @@ public sealed class GetPersonSummaryHandler(PerformanceDbContext db, ICoreWorkfo
                 o.ParentObjectiveId is Guid parent && parents.TryGetValue(parent, out var title) ? title : null,
                 o.PlanWeight,
                 approved && o.HasProgress ? Math.Min(o.DerivedProgress, 100m) : null,
-                PerformanceNotificationTemplates.ObjectivePath(cycle.Id, o.Id))).ToList());
+                PerformanceNotificationTemplates.ObjectivePath(cycle.Id, o.Id)) { Status = approved ? o.CurrentStatus : null }).ToList());
     }
 
     /// <summary>

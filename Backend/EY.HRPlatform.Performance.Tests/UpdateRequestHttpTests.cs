@@ -45,7 +45,7 @@ public sealed class UpdateRequestHttpTests
         var recorded = await nourClient.PostAsJsonAsync($"/api/performance/cycles/{cycleId}/objectives/{objectiveId}/progress", new
         {
             expectedVersion = progress.GetProperty("version").GetUInt32(), percentage = 40, numericActual = (decimal?)null,
-            milestoneId = (Guid?)null, milestoneCompleted = (bool?)null, contextNote = "Closed two more entities.", isCorrection = false, evidence = Array.Empty<object>(),
+            milestones = (object[]?)null, status = "OnTrack", contextNote = "Closed two more entities.", isCorrection = false, evidence = Array.Empty<object>(),
         });
         Assert.True(recorded.IsSuccessStatusCode, await recorded.Content.ReadAsStringAsync());
 

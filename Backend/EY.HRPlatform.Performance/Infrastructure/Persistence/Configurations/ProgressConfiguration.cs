@@ -15,6 +15,7 @@ public sealed class ProgressUpdateConfiguration : IEntityTypeConfiguration<Progr
         builder.Property(update => update.Kind).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(update => update.Value).HasColumnType("numeric(18,4)");
         builder.Property(update => update.ContextNote).HasMaxLength(2000);
+        builder.Property(update => update.Status).HasConversion<string>().HasMaxLength(20);
 
         builder.HasIndex(update => update.TenantId);
         builder.HasIndex(update => update.ObjectiveId);
@@ -25,6 +26,23 @@ public sealed class ProgressUpdateConfiguration : IEntityTypeConfiguration<Progr
             .HasForeignKey(item => item.ProgressUpdateId)
             .OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(update => update.Evidence).AutoInclude(false);
+
+        builder.HasMany(update => update.MilestoneChanges)
+            .WithOne()
+            .HasForeignKey(change => change.ProgressUpdateId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(update => update.MilestoneChanges).AutoInclude();
+    }
+}
+
+public sealed class ProgressMilestoneChangeConfiguration : IEntityTypeConfiguration<ProgressMilestoneChange>
+{
+    public void Configure(EntityTypeBuilder<ProgressMilestoneChange> builder)
+    {
+        builder.ToTable("ProgressMilestoneChanges");
+        builder.HasKey(change => change.Id);
+        builder.HasIndex(change => change.ProgressUpdateId);
+        builder.HasIndex(change => change.MilestoneId);
     }
 }
 

@@ -1,6 +1,7 @@
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Audit;
 using EY.HRPlatform.Performance.Domain.Cycles;
+using EY.HRPlatform.Performance.Domain.Development;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
 using EY.HRPlatform.Performance.Domain.Population;
@@ -53,7 +54,11 @@ public sealed class PerformanceDbContext : DbContext
     public DbSet<ContributionLink> ContributionLinks => Set<ContributionLink>();
     public DbSet<EmployeePlan> EmployeePlans => Set<EmployeePlan>();
     public DbSet<PlanDecision> PlanDecisions => Set<PlanDecision>();
+    public DbSet<PlanChangeRequest> PlanChangeRequests => Set<PlanChangeRequest>();
+    public DbSet<DevelopmentPlan> DevelopmentPlans => Set<DevelopmentPlan>();
+    public DbSet<DevelopmentGoal> DevelopmentGoals => Set<DevelopmentGoal>();
     public DbSet<ProgressUpdate> ProgressUpdates => Set<ProgressUpdate>();
+    public DbSet<ProgressMilestoneChange> ProgressMilestoneChanges => Set<ProgressMilestoneChange>();
     public DbSet<EvidenceUpload> EvidenceUploads => Set<EvidenceUpload>();
     public DbSet<EvidenceItem> EvidenceItems => Set<EvidenceItem>();
     public DbSet<ReviewRound> ReviewRounds => Set<ReviewRound>();
@@ -118,6 +123,14 @@ public sealed class PerformanceDbContext : DbContext
         modelBuilder.Entity<PlanDecision>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<ProgressUpdate>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<ProgressMilestoneChange>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<PlanChangeRequest>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<DevelopmentPlan>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<DevelopmentGoal>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<EvidenceUpload>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);

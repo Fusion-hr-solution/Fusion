@@ -1,6 +1,7 @@
 using EY.HRPlatform.Performance.Domain.Calibration;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Plans;
+using EY.HRPlatform.Performance.Domain.Progress;
 using EY.HRPlatform.Performance.Domain.Reviews;
 using EY.HRPlatform.Performance.Features.Cycles;
 using EY.HRPlatform.Performance.Features.Security.Policies;
@@ -40,7 +41,11 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
         if (cycle is not null && actor.EmployeeId != Guid.Empty)
         {
             if (actor.Participates) await PlanningAsync(cycle, actor.EmployeeId, today, items, token);
-            if (actor.ReviewsReports) await PlanDecisionsAsync(cycle, actor.EmployeeId, items, token);
+            if (actor.ReviewsReports)
+            {
+                await PlanDecisionsAsync(cycle, actor.EmployeeId, items, token);
+                await ObjectiveAttentionAsync(cycle, actor.EmployeeId, items, token);
+            }
             await UpdateRequestsAsync(cycle, actor.EmployeeId, items, token);
         }
         if (actor.EmployeeId != Guid.Empty) await AssessmentsAsync(actor, items, token);
@@ -62,10 +67,14 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
             .FirstOrDefaultAsync(p => p.CycleId == cycle.Id && p.EmployeeId == employeeId, token);
         if (plan is not null && plan.State != PlanLifecycleState.Draft) return;
         var returned = plan?.Decisions.OrderBy(d => d.DecidedAt).LastOrDefault()?.Kind == PlanDecisionKind.Returned;
+        var open = plan?.OpenChangeRequests.Count ?? 0;
         items.Add(new(Id(returned ? "plan-revise" : "plan-write", plan?.Id ?? participant.Id), Module,
             returned ? "plan-revise" : "plan-write",
             returned ? "Revise your plan" : "Write your plan",
-            returned ? "Your reviewer asked for changes" : cycle.Name,
+            !returned ? cycle.Name
+                : open == 1 ? "1 change to address"
+                : open > 1 ? $"{open} changes to address"
+                : "Your reviewer asked for changes",
             cycle.PlanningDeadline, "/performance/plan"));
     }
 
@@ -80,6 +89,27 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
         items.AddRange(plans.Select(p => new FusionWorkItemDto(Id("plan-decision", p.Id), Module, "plan-decision",
             $"Review {p.EmployeeDisplayName}'s plan", "Waiting for your decision", null,
             PerformanceNotificationTemplates.PlanPath(cycle.Id, p.Id), new FusionWorkSubjectDto(p.EmployeeDisplayName))));
+    }
+
+    /// <summary>
+    /// Objectives of approved plans the caller is responsible for, reported At risk or Off track and not yet
+    /// acknowledged (D-05). Each opens the objective, where the caller acknowledges it.
+    /// </summary>
+    private async Task ObjectiveAttentionAsync(PerformanceCycle cycle, Guid employeeId, List<FusionWorkItemDto> items, CancellationToken token)
+    {
+        var flagged = await (from objective in db.Objectives.AsNoTracking()
+                             join plan in db.EmployeePlans.AsNoTracking() on objective.EmployeePlanId equals plan.Id
+                             where plan.CycleId == cycle.Id && plan.ResponsibleManagerId == employeeId
+                                && plan.State == PlanLifecycleState.Approved
+                                && (objective.CurrentStatus == ObjectiveStatus.AtRisk || objective.CurrentStatus == ObjectiveStatus.OffTrack)
+                                && objective.StatusAcknowledgedAt == null
+                             orderby objective.StatusSince descending
+                             select new { objective.Id, objective.Title, objective.CurrentStatus, plan.EmployeeDisplayName })
+            .ToListAsync(token);
+        items.AddRange(flagged.Select(o => new FusionWorkItemDto(Id("objective-status", o.Id), Module, "objective-status",
+            $"{o.EmployeeDisplayName}'s objective is {(o.CurrentStatus == ObjectiveStatus.OffTrack ? "off track" : "at risk")}",
+            o.Title, null, PerformanceNotificationTemplates.ObjectivePath(cycle.Id, o.Id),
+            new FusionWorkSubjectDto(o.EmployeeDisplayName))));
     }
 
     /// <summary>Open update requests addressed to the caller: one objective opens in record mode, the plan opens the plan.</summary>

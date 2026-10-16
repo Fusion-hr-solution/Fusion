@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -146,7 +147,7 @@ public sealed class AuditTests
         var measurement = milestone ? ObjectiveMeasurement.WeightedMilestones([step]) : ObjectiveMeasurement.ManualPercentage();
         var objective = Objective.CreateStrategic(store.TenantId, cycle.Id, "Direction", null, owner, Start, End, measurement, Start, End);
         objective.Publish();
-        if (milestone) objective.ApplyMilestone(step.Id, true);
+        if (milestone) objective.ApplyMilestones([(step.Id, true)]);
         else objective.ApplyManualPercentage(60m);
         await using (var db = store.NewContext())
         {
@@ -154,9 +155,9 @@ public sealed class AuditTests
         }
         await using (var db = store.NewContext())
         {
-            var request = new SubmitProgressRequest(milestone ? null : 40m, null, milestone ? step.Id : null,
-                milestone ? false : null, "Corrected the recorded result", !milestone, null);
-            var result = await new SubmitProgressHandler(db, workforce, store.Tenant, new TestPerformanceAudit(db), new TestEvidenceStore(Guid.NewGuid()))
+            var request = new SubmitProgressRequest(milestone ? null : 40m, null, milestone ? [new MilestoneChangeInput(step.Id, false)] : null,
+                EY.HRPlatform.Performance.Domain.Progress.ObjectiveStatus.OnTrack, "Corrected the recorded result", !milestone, null);
+            var result = await new SubmitProgressHandler(db, workforce, store.Tenant, new TestPerformanceAudit(db), new TestEvidenceStore(Guid.NewGuid()), new PerformanceNotifications(db))
                 .Handle(new(cycle.Id, objective.Id, request, new(owner, false, false)), default);
             Assert.True(result.IsSuccess, result.IsFailure ? result.Error.Message : null);
         }

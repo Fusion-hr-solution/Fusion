@@ -45,7 +45,7 @@ public static class ProgressComposer
             milestones.Select(m => new ProgressMilestoneDto(m.Id, m.Title, m.Weight, m.DueDate, m.IsCompleted)).ToList(),
             CanUpdate(objective, plan, actor),
             items,
-            nextCursor) { Version = objective.Version };
+            nextCursor) { Version = objective.Version, CurrentStatus = objective.CurrentStatus };
     }
 
     /// <summary>
@@ -91,8 +91,10 @@ public static class ProgressComposer
                 update.Id,
                 update.Kind,
                 update.Value,
-                update.MilestoneId,
-                update.MilestoneId is not null ? milestoneTitles.GetValueOrDefault(update.MilestoneId.Value) : null,
+                update.MilestoneChanges
+                    .Select(change => new ProgressMilestoneChangeDto(change.MilestoneId, milestoneTitles.GetValueOrDefault(change.MilestoneId), change.Completed))
+                    .ToList(),
+                update.Status,
                 update.ContextNote,
                 update.IsCorrection,
                 new PersonRefDto(update.AuthorEmployeeId, names.GetValueOrDefault(update.AuthorEmployeeId)),
@@ -109,7 +111,7 @@ public static class ProgressComposer
     /// Replays every update oldest-first to derive each one's resulting objective progress and its change from the
     /// prior state. Reuses the domain's measurement formula for manual/numeric; for weighted milestones it folds the
     /// completed-weight set forward (the live measurement reflects only the final state, so it cannot be reused here).
-    /// Evidence is not loaded — this pass needs only kind, value, and milestone id.
+    /// Evidence is not loaded — this pass needs only kind, value, and milestone changes.
     /// </summary>
     private static async Task<Dictionary<Guid, (decimal Resulting, decimal Delta)>> BuildTrailAsync(
         PerformanceDbContext db, Objective objective, CancellationToken cancellationToken)
@@ -117,7 +119,7 @@ public static class ProgressComposer
         var ascending = await db.ProgressUpdates.AsNoTracking()
             .Where(u => u.ObjectiveId == objective.Id)
             .OrderBy(u => u.RecordedAt)
-            .Select(u => new { u.Id, u.Kind, u.Value, u.MilestoneId })
+            .Select(u => new { u.Id, u.Kind, u.Value, Changes = u.MilestoneChanges.Select(c => new { c.MilestoneId, c.Completed }).ToList() })
             .ToListAsync(cancellationToken);
 
         var measurement = objective.Measurement;
@@ -134,8 +136,13 @@ public static class ProgressComposer
             {
                 case ProgressEventKind.PercentageSet: percentage = u.Value; break;
                 case ProgressEventKind.NumericActual: actual = u.Value; break;
-                case ProgressEventKind.MilestoneCompleted when u.MilestoneId is Guid mc: completed.Add(mc); break;
-                case ProgressEventKind.MilestoneReopened when u.MilestoneId is Guid mr: completed.Remove(mr); break;
+                case ProgressEventKind.MilestonesChanged:
+                    foreach (var change in u.Changes)
+                    {
+                        if (change.Completed) completed.Add(change.MilestoneId);
+                        else completed.Remove(change.MilestoneId);
+                    }
+                    break;
             }
 
             var resulting = measurement is null ? 0m

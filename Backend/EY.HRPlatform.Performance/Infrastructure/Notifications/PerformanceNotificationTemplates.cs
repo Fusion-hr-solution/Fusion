@@ -44,6 +44,19 @@ public static class PerformanceNotificationTemplates
             : new(title, "On your plan", actor, PlanPath(request.CycleId, request.PlanId));
     }
 
+    public static PerformanceNotificationText ForObjectiveAtRisk(string ownerName, string objectiveTitle, bool offTrack, string path)
+        => new($"{ownerName}'s objective is {(offTrack ? "off track" : "at risk")}", objectiveTitle, ownerName, path);
+
+    public static PerformanceNotificationText ForUpdateRequestAnswered(string ownerName, string? objectiveTitle, string path)
+        => new($"{ownerName} updated their progress", Clean(objectiveTitle) ?? "On their plan", ownerName, path);
+
+    public static PerformanceNotificationText ForDevelopmentGoalAdded(string actorName, string goalTitle, string path)
+        => new($"{actorName} added a development goal", goalTitle, actorName, path);
+
+    public static string DevelopmentPath(Guid cycleId, Guid? planId, Guid employeeId, bool forOwner)
+        => forOwner ? $"/performance/plan?cycle={cycleId}#development"
+            : planId is Guid id ? $"{PlanPath(cycleId, id)}#development" : $"/performance/people/{employeeId}";
+
     public static PerformanceNotificationText ForReview(PerformanceReview review, PerformanceNotificationKind kind, string roundName)
     {
         var href = ReviewPath(review.Id);
