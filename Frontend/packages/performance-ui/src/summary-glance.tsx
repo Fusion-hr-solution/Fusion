@@ -71,6 +71,7 @@ function PlanFact({ cycle }: { cycle: PersonSummaryCycleDto | null }) {
         <p className="type-meta text-muted-foreground">
           {cycle.objectives.length === 1 ? "1 objective" : `${cycle.objectives.length} objectives`}
         </p>
+        {atRisk(cycle) > 0 ? <p className="type-meta font-medium text-primary-ink">{atRisk(cycle)} at risk</p> : null}
       </div>
     </div>
   );
@@ -124,6 +125,11 @@ export function ResultsOverTime({ reviews }: { reviews: PersonSummaryReviewsDto 
       ))}
     </ol>
   );
+}
+
+/** At risk and off track together: the objectives someone said need attention. */
+function atRisk(cycle: PersonSummaryCycleDto): number {
+  return cycle.objectives.filter((objective) => objective.status === "AtRisk" || objective.status === "OffTrack").length;
 }
 
 /** The three facts that answer "how is this person doing": plan, review, results. */

@@ -29,8 +29,8 @@ const full: PersonPerformanceSummaryDto = {
     overallProgress: 30,
     planHref: "/performance/cycles/c/plans/p",
     objectives: [
-      { objectiveId: "o1", number: 1, title: "Ship the playbook", alignedTo: "Grow retention", weight: 60, progress: 50, href: "/performance/cycles/c/objectives/o1" },
-      { objectiveId: "o2", number: 2, title: "Learn Spanish", alignedTo: null, weight: 40, progress: null, href: "/performance/cycles/c/objectives/o2" },
+      { objectiveId: "o1", number: 1, title: "Ship the playbook", alignedTo: "Grow retention", weight: 60, progress: 50, href: "/performance/cycles/c/objectives/o1", status: "AtRisk" },
+      { objectiveId: "o2", number: 2, title: "Learn Spanish", alignedTo: null, weight: 40, progress: null, href: "/performance/cycles/c/objectives/o2", status: null },
     ],
   },
   reviews: {
@@ -46,6 +46,13 @@ const full: PersonPerformanceSummaryDto = {
     history: [
       { reviewId: "h2", cycleName: "FY2026", reviewRoundName: "Year-end", finalRatingLabel: "Strong", finalizedAt: "2026-01-20T10:00:00Z", href: "/performance/reviews/h2" },
       { reviewId: "h1", cycleName: "FY2025", reviewRoundName: "Year-end", finalRatingLabel: "Solid", finalizedAt: "2025-01-20T10:00:00Z", href: "/performance/reviews/h1" },
+    ],
+  },
+  development: {
+    href: "/performance/cycles/c/plans/p#development",
+    goals: [
+      { title: "Lead a design review", competencyName: "Collaboration", status: "InProgress", targetDate: "2027-03-31" },
+      { title: "Present the migration", competencyName: null, status: "Done", targetDate: "2026-09-01" },
     ],
   },
 };
@@ -66,10 +73,34 @@ describe("PersonPerformanceSummary", () => {
     expect(screen.getByRole("link", { name: /Year-end, FY2026/ })).toHaveAttribute("href", "/performance/reviews/h2");
   });
 
+  it("shows each reported status and never invents one", () => {
+    render(<PersonPerformanceSummary state={{ status: "ready", summary: full }} renderLink={renderLink} />);
+    expect(within(screen.getByRole("link", { name: /Ship the playbook/ })).getByText("At risk")).toBeInTheDocument();
+    expect(within(screen.getByRole("link", { name: /Learn Spanish/ })).queryByText(/track|risk/i)).not.toBeInTheDocument();
+    expect(within(screen.getByRole("region", { name: "At a glance" })).getByText("1 at risk")).toBeInTheDocument();
+  });
+
+  it("lists development goals with their status, linking to the plan's Development", () => {
+    render(<PersonPerformanceSummary state={{ status: "ready", summary: full }} renderLink={renderLink} />);
+    expect(screen.getByText("In progress · Collaboration · by 31 Mar 2027")).toBeInTheDocument();
+    expect(screen.getByText("Done")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open development" })).toHaveAttribute("href", "/performance/cycles/c/plans/p#development");
+  });
+
+  it("says when there are no development goals yet", () => {
+    render(<PersonPerformanceSummary state={{ status: "ready", summary: { ...full, development: { href: "/x", goals: [] } } }} renderLink={renderLink} />);
+    expect(screen.getByText("No development goals yet")).toBeInTheDocument();
+  });
+
+  it("hides development from someone who may not see it", () => {
+    render(<PersonPerformanceSummary state={{ status: "ready", summary: { ...full, development: null } }} renderLink={renderLink} />);
+    expect(screen.queryByRole("heading", { name: "Development" })).not.toBeInTheDocument();
+  });
+
   it("says there is nothing to see when no section is visible", () => {
     render(
       <PersonPerformanceSummary
-        state={{ status: "ready", summary: { ...full, relation: "Other", currentCycle: null, reviews: null } }}
+        state={{ status: "ready", summary: { ...full, relation: "Other", currentCycle: null, reviews: null, development: null } }}
         renderLink={renderLink}
       />,
     );

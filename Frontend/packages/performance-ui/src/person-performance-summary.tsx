@@ -2,6 +2,7 @@ import type { PersonPerformanceSummaryDto } from "@repo/api";
 import { Button, Skeleton } from "@repo/ds";
 import { SummaryGlance } from "./summary-glance";
 import { SummaryObjectives } from "./summary-objectives";
+import { SummaryDevelopment } from "./summary-development";
 import { SummaryReviews } from "./summary-reviews";
 import type { RenderSummaryLink } from "./summary-lib";
 
@@ -48,7 +49,8 @@ export function PersonPerformanceSummary({ state, renderLink }: PersonPerformanc
   const { summary } = state;
   const cycle = summary.currentCycle;
   const reviews = summary.reviews;
-  if (!cycle && !reviews) {
+  const development = summary.development;
+  if (!cycle && !reviews && !development) {
     return <p className="type-body-secondary text-muted-foreground">There&apos;s nothing you can see here yet.</p>;
   }
 
@@ -57,6 +59,7 @@ export function PersonPerformanceSummary({ state, renderLink }: PersonPerformanc
       <SummaryGlance cycle={cycle} reviews={reviews} />
       {cycle ? <SummaryObjectives cycle={cycle} renderLink={renderLink} /> : null}
       {reviews ? <SummaryReviews reviews={reviews} renderLink={renderLink} /> : null}
+      {development ? <SummaryDevelopment development={development} renderLink={renderLink} /> : null}
     </div>
   );
 }

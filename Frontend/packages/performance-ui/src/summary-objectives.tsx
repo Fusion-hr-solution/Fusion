@@ -1,5 +1,6 @@
 import type { PersonSummaryCycleDto } from "@repo/api";
 import { cn } from "@repo/ds";
+import { ObjectiveStatusBadge } from "./objective-status";
 import { percent, type RenderSummaryLink } from "./summary-lib";
 
 /**
@@ -67,6 +68,9 @@ export function SummaryObjectives({ cycle, renderLink }: { cycle: PersonSummaryC
                         <span className="w-9 text-right type-meta tabular-nums text-foreground">
                           {objective.progress === null ? "–" : `${percent(objective.progress)}%`}
                         </span>
+                      </span>
+                      <span className="hidden w-20 shrink-0 justify-end sm:flex">
+                        <ObjectiveStatusBadge status={objective.status} />
                       </span>
                     </>
                   ),

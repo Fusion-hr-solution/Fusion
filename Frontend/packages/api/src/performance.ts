@@ -38,8 +38,12 @@ export type RosterActivityKind =
 export type ProgressEventKind =
   | "PercentageSet"
   | "NumericActual"
-  | "MilestoneCompleted"
-  | "MilestoneReopened";
+  | "MilestonesChanged"
+  | "StatusOnly";
+/** How the owner says an objective is going (D-05). Reported with each check-in, never inferred. */
+export type ObjectiveStatus = "OnTrack" | "AtRisk" | "OffTrack";
+export type PlanChangeRequestState = "Open" | "Addressed" | "ObjectiveRemoved";
+export type DevelopmentGoalStatus = "NotStarted" | "InProgress" | "Done";
 export type EvidenceKind = "File" | "Link" | "Reference";
 export type ReadinessIssueCode =
   | "InactiveEmployment"
@@ -801,9 +805,24 @@ export interface GoalDetailDto {
   canReadProgressHistory: boolean;
   canArchive: boolean;
   archivedAt: string | null;
+  /** The owner's latest status and its reason; present only with named progress detail. */
+  status: ObjectiveStatusDto | null;
+  /** The plan's responsible reviewer may acknowledge an unacknowledged risky status. */
+  canAcknowledgeStatus: boolean;
 }
 
 /** The plan an Employee objective belongs to, as seen from the objective. */
+export interface ObjectiveStatusDto {
+  value: ObjectiveStatus;
+  /** The note of the check-in that reported it: "What's in the way" when at risk or off track. */
+  reason: string | null;
+  reportedAt: string;
+  /** When the current status value began; repeats keep it. */
+  since: string;
+  acknowledgedAt: string | null;
+  acknowledgedBy: PersonRefDto | null;
+}
+
 export interface GoalPlanFacetDto {
   planId: string;
   planState: PlanLifecycleState;
@@ -895,6 +914,9 @@ export interface PlanObjectiveDto {
   currentActual: number | null;
   lastProgressAt: string | null;
   canUpdateProgress: boolean;
+  /** The owner's latest reported status; null until the first check-in that carries one. */
+  status: ObjectiveStatus | null;
+  statusReportedAt: string | null;
 }
 
 export interface PlanReadinessDto {
@@ -910,6 +932,21 @@ export interface PlanReadinessDto {
   standaloneAllowed: boolean;
   canSubmit: boolean;
   blockers: string[];
+  /** Change requests from the latest return still to address before resubmitting. */
+  openChangeRequests: number;
+}
+
+/** A change requested on one objective when the plan was returned (D-09). */
+export interface PlanChangeRequestDto {
+  id: string;
+  objectiveId: string;
+  objectiveTitle: string;
+  text: string;
+  state: PlanChangeRequestState;
+  reply: string | null;
+  addressedAt: string | null;
+  /** Whether the objective was edited after the return; null once it was removed. */
+  objectiveChanged: boolean | null;
 }
 
 export interface PlanDecisionDto {
@@ -918,6 +955,8 @@ export interface PlanDecisionDto {
   actorName: string | null;
   feedback: string | null;
   decidedAt: string;
+  /** Change requests a return carried; empty for other decisions. */
+  changeRequests: PlanChangeRequestDto[];
 }
 
 /** Why a participant's responsible reviewer holds that responsibility. */
@@ -950,6 +989,8 @@ export interface EmployeePlanDto {
   canSubmit: boolean;
   canDecide: boolean;
   canApproveExceptionally: boolean;
+  /** The caller is the approved plan's responsible reviewer and may ask for updates. */
+  canRequestUpdate: boolean;
 }
 
 export interface PlanPreviewDto {
@@ -1156,9 +1197,21 @@ export interface SetPlanWeightsRequest {
   weights: Array<{ objectiveId: string; weight: number }>;
 }
 
+export interface ChangeRequestInput {
+  objectiveId: string;
+  text: string;
+}
+
+/** A return needs a general note, at least one change request, or both. */
 export interface ReturnPlanRequest {
   expectedVersion: number;
-  feedback: string;
+  feedback: string | null;
+  changeRequests?: ChangeRequestInput[];
+}
+
+export interface AddressChangeRequestRequest {
+  expectedVersion: number;
+  reply: string | null;
 }
 
 export interface ExceptionalApprovePlanRequest {
@@ -1185,8 +1238,10 @@ export interface ProgressUpdateDto {
   id: string;
   kind: ProgressEventKind;
   value: number | null;
-  milestoneId: string | null;
-  milestoneTitle: string | null;
+  /** Milestones completed or reopened in this check-in. */
+  milestoneChanges: ProgressMilestoneChangeDto[];
+  /** The owner's status with this check-in; null on check-ins from before status existed. */
+  status: ObjectiveStatus | null;
   contextNote: string | null;
   isCorrection: boolean;
   author: PersonRefDto;
@@ -1196,6 +1251,12 @@ export interface ProgressUpdateDto {
   resultingProgress: number;
   /** Signed change from the previous update (first update measured from an unstarted 0). */
   deltaProgress: number;
+}
+
+export interface ProgressMilestoneChangeDto {
+  milestoneId: string;
+  title: string | null;
+  completed: boolean;
 }
 
 export interface ProgressHistoryPageDto {
@@ -1230,6 +1291,8 @@ export interface ObjectiveProgressDto {
   history: ProgressUpdateDto[];
   /** Cursor for the next older page of history; null when the first page holds all of it. */
   historyNextCursor: string | null;
+  /** The owner's latest status, preselected for the next check-in. */
+  currentStatus: ObjectiveStatus | null;
 }
 
 export interface EvidenceDescriptorDto {
@@ -1250,12 +1313,21 @@ export interface EvidenceInput {
   referenceText?: string | null;
 }
 
+export interface MilestoneChangeInput {
+  milestoneId: string;
+  completed: boolean;
+}
+
+/**
+ * One check-in: the status, at most one measurement change matching the method (or none, to report status
+ * alone), the note (the reason when at risk or off track) and evidence.
+ */
 export interface SubmitProgressRequest {
   expectedVersion: number;
   percentage?: number | null;
   numericActual?: number | null;
-  milestoneId?: string | null;
-  milestoneCompleted?: boolean | null;
+  milestones?: MilestoneChangeInput[] | null;
+  status: ObjectiveStatus;
   contextNote?: string | null;
   isCorrection: boolean;
   evidence?: EvidenceInput[] | null;
@@ -1339,6 +1411,8 @@ export interface PersonSummaryObjectiveDto {
   /** 0–100, or null before any progress is recorded. */
   progress: number | null;
   href: string;
+  /** The owner's latest status; null until reported, never assumed on track. */
+  status: ObjectiveStatus | null;
 }
 
 export interface PersonSummaryCycleDto {
@@ -1397,6 +1471,69 @@ export interface PersonPerformanceSummaryDto {
   relation: PersonPerformanceRelation;
   currentCycle: PersonSummaryCycleDto | null;
   reviews: PersonSummaryReviewsDto | null;
+  /** Development goals for the cycle, under the development plan's own visibility. */
+  development: PersonSummaryDevelopmentDto | null;
+}
+
+export interface PersonSummaryDevelopmentGoalDto {
+  title: string;
+  competencyName: string | null;
+  status: DevelopmentGoalStatus;
+  targetDate: string | null;
+}
+
+export interface PersonSummaryDevelopmentDto {
+  goals: PersonSummaryDevelopmentGoalDto[];
+  /** The plan's Development section. */
+  href: string;
+}
+
+// ── Development plans (D-34) ───────────────────────────────────────────────────
+
+export interface DevelopmentGoalDto {
+  id: string;
+  title: string;
+  competencyId: string | null;
+  competencyName: string | null;
+  actions: string[];
+  targetDate: string | null;
+  status: DevelopmentGoalStatus;
+  addedBy: PersonRefDto;
+  updatedAt: string;
+  /** Set once carried into a later cycle; the goal is then read-only here. */
+  carriedToCycleName: string | null;
+  carriedFromEarlierCycle: boolean;
+}
+
+export interface DevelopmentCarryOverDto {
+  fromCycleId: string;
+  fromCycleName: string;
+  goals: DevelopmentGoalDto[];
+}
+
+/** A participant's development plan in one cycle, as the caller may see and act on it. */
+export interface DevelopmentPlanDto {
+  cycleId: string;
+  employeeId: string;
+  exists: boolean;
+  version: number;
+  goals: DevelopmentGoalDto[];
+  /** How many more goals fit (up to 5 in all). */
+  room: number;
+  canEdit: boolean;
+  /** Open goals of the most recent earlier plan, offered once per cycle. */
+  carryOver: DevelopmentCarryOverDto | null;
+  /** The tenant's active competencies a goal can name; given to those who edit. */
+  competencyOptions: { id: string; name: string }[];
+}
+
+export interface DevelopmentGoalInput {
+  expectedVersion: number;
+  title: string;
+  competencyId: string | null;
+  actions: string[];
+  targetDate: string | null;
+  status: DevelopmentGoalStatus;
 }
 
 // ── Paths & query keys ─────────────────────────────────────────────────────────
@@ -1497,6 +1634,14 @@ export const performancePaths = {
     `/performance/review-rounds/${roundId}/calibration/subjects/${reviewId}`,
   calibrationFinalize: (roundId: string) => `/performance/review-rounds/${roundId}/calibration/finalize`,
   personSummary: (employeeId: string) => `/performance/people/${employeeId}/summary`,
+  acknowledgeStatus: (cycleId: string, objectiveId: string) =>
+    `/performance/cycles/${cycleId}/objectives/${objectiveId}/status/acknowledge`,
+  addressChangeRequest: (cycleId: string, requestId: string) =>
+    `/performance/cycles/${cycleId}/plan/change-requests/${requestId}/address`,
+  development: (cycleId: string, employeeId: string) =>
+    `/performance/cycles/${cycleId}/people/${employeeId}/development`,
+  developmentGoal: (cycleId: string, employeeId: string, goalId: string) =>
+    `/performance/cycles/${cycleId}/people/${employeeId}/development/goals/${goalId}`,
 } as const;
 
 export const performanceQueryKeys = {
@@ -1552,6 +1697,8 @@ export const performanceQueryKeys = {
   calibrationCandidates: (roundId: string) => [...performanceQueryKeys.all(), "calibration-candidates", roundId] as const,
   personSummary: (employeeId: string, cycleId?: string | null) =>
     [...performanceQueryKeys.all(), "person-summary", employeeId, cycleId ?? "default"] as const,
+  development: (cycleId: string, employeeId: string) =>
+    [...performanceQueryKeys.all(), "development", cycleId, employeeId] as const,
 } as const;
 
 /** Performance Cycle & Goals transport. UI state and cache behavior remain feature-owned. */
@@ -1881,6 +2028,24 @@ export function createPerformanceApi(client: ApiClient) {
         params: { cycleId },
         signal,
       }),
+
+    // Status, change requests and development (slice 2a)
+    acknowledgeObjectiveStatus: (cycleId: string, objectiveId: string, expectedVersion: number) =>
+      client.post<GoalDetailDto>(performancePaths.acknowledgeStatus(cycleId, objectiveId), { expectedVersion }),
+    addressChangeRequest: (cycleId: string, requestId: string, request: AddressChangeRequestRequest) =>
+      client.post<EmployeePlanDto>(performancePaths.addressChangeRequest(cycleId, requestId), request),
+    getDevelopmentPlan: (cycleId: string, employeeId: string, signal?: AbortSignal) =>
+      client.get<DevelopmentPlanDto>(performancePaths.development(cycleId, employeeId), { signal }),
+    addDevelopmentGoal: (cycleId: string, employeeId: string, input: DevelopmentGoalInput) =>
+      client.post<DevelopmentPlanDto>(`${performancePaths.development(cycleId, employeeId)}/goals`, input),
+    updateDevelopmentGoal: (cycleId: string, employeeId: string, goalId: string, input: DevelopmentGoalInput) =>
+      client.put<DevelopmentPlanDto>(performancePaths.developmentGoal(cycleId, employeeId, goalId), input),
+    removeDevelopmentGoal: (cycleId: string, employeeId: string, goalId: string, expectedVersion: number) =>
+      client.delete<DevelopmentPlanDto>(performancePaths.developmentGoal(cycleId, employeeId, goalId), { body: { expectedVersion } }),
+    carryOverDevelopmentGoals: (cycleId: string, employeeId: string, goalIds: string[], expectedVersion: number) =>
+      client.post<DevelopmentPlanDto>(`${performancePaths.development(cycleId, employeeId)}/carry-over`, { goalIds, expectedVersion }),
+    dismissDevelopmentCarryOver: (cycleId: string, employeeId: string, expectedVersion: number) =>
+      client.post<DevelopmentPlanDto>(`${performancePaths.development(cycleId, employeeId)}/carry-over/dismiss`, { expectedVersion }),
   };
 }
 
