@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { AppShell, TopBar } from "@repo/ds/shell";
 import { AppBreadcrumb } from "@/shell/app-breadcrumb";
 import { CoreSidebar } from "@/shell/navigation/core-sidebar";
+import { FusionNotificationBell } from "@/shell/fusion-notification-bell";
 
 // The frame renders unconditionally — SSR and first client paint are identical.
 // Loading only ever happens inside the content area (route loading boundary);
@@ -13,7 +14,11 @@ export function CorePagesShell({ children }: { children: ReactNode }) {
   return (
     <AppShell
       sidebar={<CoreSidebar />}
-      header={<TopBar left={<AppBreadcrumb />} />}
+      header={
+        <TopBar left={<AppBreadcrumb />}>
+          <FusionNotificationBell />
+        </TopBar>
+      }
     >
       {children}
     </AppShell>

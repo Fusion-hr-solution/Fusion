@@ -1,7 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  notFound,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   Button,
@@ -29,6 +34,7 @@ import { useBreadcrumbLabel } from "@/shell/breadcrumb-overrides";
 import {
   canAccessCorePeople,
   canAccessCoreTeam,
+  canEnterPerformance,
   canManageCoreEmployees,
   canViewWorkforceAccess,
   useAuth,
@@ -54,6 +60,7 @@ import {
 } from "../api/use-people";
 import { formatWorkforceDate } from "./workforce-ui";
 import { WorkerProfile } from "./worker-profile/worker-profile";
+import { PerformanceRecordView, RecordViewSwitcher } from "./record-views";
 import { WorkerProfileSkeleton } from "./worker-profile/worker-profile-skeleton";
 import { fromPeopleProfile } from "./worker-profile/worker-profile-view";
 
@@ -63,16 +70,23 @@ function isoDay(value: string): string {
 
 export default function PeopleProfileWorkspace({
   employeeKey,
+  view: recordView = "profile",
 }: {
   employeeKey: string;
+  /** Which sibling view of the record to show under the shared header. */
+  view?: "profile" | "performance";
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const asOfParam = searchParams.get("asOf");
 
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const canManage = canManageCoreEmployees(user);
+  // The Performance view exists only where the viewer can enter Performance (hide, don't deny).
+  const showPerformance = canEnterPerformance(user);
+  if (recordView === "performance" && !authLoading && !showPerformance)
+    notFound();
   // History and Fusion-access mirror the backend's manager/HR gates; a plain
   // colleague never fetches them, so nothing flashes a skeleton it can't fill.
   const canExplore = canAccessCoreTeam(user);
@@ -177,7 +191,8 @@ export default function PeopleProfileWorkspace({
     accessEnabled ? (access.data ?? null) : null
   );
 
-  const showActions = canManage && !isAsOf && employee.employment.state !== "Former";
+  const showActions =
+    canManage && !isAsOf && employee.employment.state !== "Former";
   const goAsOf = (date: string) => router.push(`${pathname}?asOf=${date}`);
   const returnToToday = () => router.push(pathname);
 
@@ -185,38 +200,39 @@ export default function PeopleProfileWorkspace({
   // the section — only a genuinely transient failure surfaces a retry.
   const accessForbidden =
     Boolean(access.error) && classifyApiError(access.error) === "auth";
-  const accessState = !accessEnabled || accessForbidden
-    ? undefined
-    : access.isLoading
-      ? ("loading" as const)
-      : access.error
-        ? ("error" as const)
-        : ("ready" as const);
+  const accessState =
+    !accessEnabled || accessForbidden
+      ? undefined
+      : access.isLoading
+        ? ("loading" as const)
+        : access.error
+          ? ("error" as const)
+          : ("ready" as const);
   const hasHeaderActions = isAsOf || canExplore || showActions;
 
   const canManageWorkEmail = canManage && !isAsOf;
   const accessAction =
-    accessEnabled && access.data && canViewWorkforceAccess(user)
-      ? view.workEmail ? (
-          <Link
-            href="/workforce-access"
-            className="inline-block type-meta text-primary-ink underline-offset-4 hover:underline"
-          >
-            {access.data.state === "NoAccess"
-              ? "Set up workforce access"
-              : "Review workforce access"}
-          </Link>
-        ) : canManage ? (
-          <Button
-            variant="link"
-            className="h-auto p-0 type-meta text-primary-ink"
-            onClick={() => setWorkEmailEditorOpen(true)}
-          >
-            Add work email
-            <ChevronRight className="ml-1 size-3.5" aria-hidden />
-          </Button>
-        ) : undefined
-      : undefined;
+    accessEnabled && access.data && canViewWorkforceAccess(user) ? (
+      view.workEmail ? (
+        <Link
+          href="/workforce-access"
+          className="inline-block type-meta text-primary-ink underline-offset-4 hover:underline"
+        >
+          {access.data.state === "NoAccess"
+            ? "Set up workforce access"
+            : "Review workforce access"}
+        </Link>
+      ) : canManage ? (
+        <Button
+          variant="link"
+          className="h-auto p-0 type-meta text-primary-ink"
+          onClick={() => setWorkEmailEditorOpen(true)}
+        >
+          Add work email
+          <ChevronRight className="ml-1 size-3.5" aria-hidden />
+        </Button>
+      ) : undefined
+    ) : undefined;
 
   return (
     <>
@@ -248,59 +264,78 @@ export default function PeopleProfileWorkspace({
         }
         headerActions={
           hasHeaderActions ? (
-          <>
-            {isAsOf ? (
-              <div className="inline-flex items-center gap-2.5 rounded-full border border-primary/30 bg-primary/[0.06] py-1.5 pl-3.5 pr-1.5 motion-safe:animate-in motion-safe:fade-in">
-                <span className="type-label">
-                  As of {formatWorkforceDate(employee.viewedDate, { month: "long" })}
-                </span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 gap-1.5 rounded-full px-2.5 text-muted-foreground hover:text-foreground"
-                  onClick={returnToToday}
-                >
-                  <RotateCcw className="size-3.5" /> Today
-                </Button>
-              </div>
-            ) : canExplore ? (
-              <AsOfControl today={isoDay(employee.viewedDate)} onPick={goAsOf} />
-            ) : null}
-            {showActions ? (
-              <div className="flex items-center gap-2">
-                <Button asChild size="sm">
-                  <Link href={`/people/${employeeKey}/change-work`}>
-                    <BriefcaseBusiness className="size-4" /> Change work
-                  </Link>
-                </Button>
-                <Button asChild size="sm" variant="outline">
-                  <Link href={`/people/${employeeKey}/change-manager`}>
-                    Change manager
-                  </Link>
-                </Button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button size="icon" variant="ghost" aria-label="More actions">
-                      <MoreHorizontal className="size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem asChild>
-                      <Link
-                        href={`/people/${employeeKey}/end-employment`}
-                        className="text-destructive focus:text-destructive"
+            <>
+              {isAsOf ? (
+                <div className="inline-flex items-center gap-2.5 rounded-full border border-primary/30 bg-primary/[0.06] py-1.5 pl-3.5 pr-1.5 motion-safe:animate-in motion-safe:fade-in">
+                  <span className="type-label">
+                    As of{" "}
+                    {formatWorkforceDate(employee.viewedDate, {
+                      month: "long",
+                    })}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 gap-1.5 rounded-full px-2.5 text-muted-foreground hover:text-foreground"
+                    onClick={returnToToday}
+                  >
+                    <RotateCcw className="size-3.5" /> Today
+                  </Button>
+                </div>
+              ) : canExplore ? (
+                <AsOfControl
+                  today={isoDay(employee.viewedDate)}
+                  onPick={goAsOf}
+                />
+              ) : null}
+              {showActions ? (
+                <div className="flex items-center gap-2">
+                  <Button asChild size="sm">
+                    <Link href={`/people/${employeeKey}/change-work`}>
+                      <BriefcaseBusiness className="size-4" /> Change work
+                    </Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/people/${employeeKey}/change-manager`}>
+                      Change manager
+                    </Link>
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label="More actions"
                       >
-                        <UserRoundX className="size-4" /> End employment
-                      </Link>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            ) : null}
-          </>
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href={`/people/${employeeKey}/end-employment`}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <UserRoundX className="size-4" /> End employment
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ) : null}
+            </>
           ) : undefined
         }
         onViewAsOf={goAsOf}
+        viewSwitcher={
+          showPerformance ? (
+            <RecordViewSwitcher
+              profileHref={`/people/${employeeKey}`}
+              performanceHref={`/people/${employeeKey}/performance`}
+              current={recordView}
+            />
+          ) : undefined
+        }
         accessState={accessState}
         onRetryAccess={() => void access.refetch()}
         timelineLoading={timeline.isLoading}
@@ -317,7 +352,11 @@ export default function PeopleProfileWorkspace({
             </Button>
           ) : undefined
         }
-      />
+      >
+        {recordView === "performance" && showPerformance ? (
+          <PerformanceRecordView employeeId={employee.identity.employeeId} />
+        ) : undefined}
+      </WorkerProfile>
       <WorkEmailEditorDialog
         open={workEmailEditorOpen}
         onOpenChange={setWorkEmailEditorOpen}
@@ -476,7 +515,9 @@ function WorkEmailEditorDialog({
         >
           <div className="rounded-surface border bg-inlay px-4 py-3">
             <p className="type-label">{displayName}</p>
-            <p className="mt-1 type-code text-muted-foreground">{employeeNumber}</p>
+            <p className="mt-1 type-code text-muted-foreground">
+              {employeeNumber}
+            </p>
           </div>
 
           <div className="space-y-2">
@@ -494,7 +535,8 @@ function WorkEmailEditorDialog({
               aria-invalid={error ? true : undefined}
             />
             <p className="type-meta text-muted-foreground">
-              The canonical People value Fusion resolves workforce access against.
+              The canonical People value Fusion resolves workforce access
+              against.
             </p>
           </div>
 
@@ -516,7 +558,10 @@ function WorkEmailEditorDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={!draft.trim() || updateWorkEmail.isLoading}>
+            <Button
+              type="submit"
+              disabled={!draft.trim() || updateWorkEmail.isLoading}
+            >
               {updateWorkEmail.isLoading ? "Saving..." : "Save work email"}
             </Button>
           </DialogFooter>

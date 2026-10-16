@@ -80,7 +80,7 @@ describe("resolveShellEntryState", () => {
     ).toEqual({ kind: "redirect", destination: "/getting-started" });
   });
 
-  it("lands a Tenant Administrator on Core Home once Organization is Ready", () => {
+  it("renders the Fusion home for a Tenant Administrator once Organization is Ready", () => {
     expect(
       resolveShellEntryState({
         isLoading: false,
@@ -89,10 +89,10 @@ describe("resolveShellEntryState", () => {
           effectivePermissions: [grant("access.assignments.view")],
         }),
       }),
-    ).toEqual({ kind: "redirect", destination: "/core" });
+    ).toEqual({ kind: "home" });
   });
 
-  it("routes another tenant user to a usable product destination", () => {
+  it("renders the Fusion home for an employee who can enter a module", () => {
     expect(
       resolveShellEntryState({
         isLoading: false,
@@ -100,7 +100,16 @@ describe("resolveShellEntryState", () => {
           effectivePermissions: [grant("core.employee.view")],
         }),
       }),
-    ).toEqual({ kind: "redirect", destination: "/core/employees" });
+    ).toEqual({ kind: "home" });
+  });
+
+  it("shows the no-workspace state when no entitled module can be entered", () => {
+    expect(
+      resolveShellEntryState({
+        isLoading: false,
+        user: makeUser([], { moduleEntitlements: ["CoreHR"] }),
+      }),
+    ).toEqual({ kind: "no-usable-context" });
   });
 
   it("shows an explicit state instead of the developer catalogue without usable access", () => {

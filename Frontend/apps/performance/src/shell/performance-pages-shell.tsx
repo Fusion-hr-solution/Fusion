@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { AppShell, TopBar } from "@repo/ds/shell";
 import { PerformanceSidebar } from "@/shell/navigation/performance-sidebar";
 import { PerformanceCycleContext } from "@/shell/performance-cycle-context";
+import { FusionNotificationBell } from "@/shell/fusion-notification-bell";
 import { RecordCycleScopeProvider } from "@/features/performance/api/use-workspace";
 
 export function PerformancePagesShell({ children }: { children: ReactNode }) {
@@ -13,7 +14,11 @@ export function PerformancePagesShell({ children }: { children: ReactNode }) {
   // is parked until the breadcrumb architecture is revisited.
   return (
     <RecordCycleScopeProvider>
-      <AppShell sidebar={<PerformanceSidebar />} header={<TopBar left={<PerformanceCycleContext />} />}>
+      <AppShell sidebar={<PerformanceSidebar />} header={
+          <TopBar left={<PerformanceCycleContext />}>
+            <FusionNotificationBell />
+          </TopBar>
+        }>
         {children}
       </AppShell>
     </RecordCycleScopeProvider>

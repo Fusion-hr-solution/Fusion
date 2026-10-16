@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useAuth, useOrganizationReadyLanding } from "@repo/auth";
 import { resolveShellEntryState } from "@/lib/shell-entry";
+import { FusionHome } from "@/features/home/fusion-home";
 
 export default function HomePage() {
   const { user, isLoading, logout } = useAuth();
@@ -23,6 +24,10 @@ export default function HomePage() {
       window.location.replace(destination);
     }
   }, [destination]);
+
+  if (state.kind === "home") {
+    return <FusionHome />;
+  }
 
   if (state.kind !== "no-usable-context") {
     return <ShellEntrySkeleton />;

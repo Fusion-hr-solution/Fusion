@@ -11,7 +11,16 @@ const user: AuthUser = {
   roles: ["Employee"],
   moduleEntitlements: ["Performance"],
   accessProfiles: [],
-  effectivePermissions: [],
+  effectivePermissions: [
+    {
+      permissionKey: "performance.objective.self.manage",
+      scope: "Self",
+      label: "",
+      group: "",
+      helperText: null,
+      allowedScopes: ["Self"],
+    },
+  ],
 };
 
 describe("Performance workspace entitlement", () => {
@@ -26,6 +35,12 @@ describe("Performance workspace entitlement", () => {
     expect(resolvePerformanceWorkspaceAccessState({
       isLoading: false, user: { ...user, tenantId: null, roles: ["PlatformAdmin"] },
     })).toBe("forbidden");
+  });
+
+  it("refuses an entitled tenant user who holds no Performance permission", () => {
+    expect(resolvePerformanceWorkspaceAccessState({
+      isLoading: false, user: { ...user, effectivePermissions: [] },
+    })).toBe("no-access");
   });
 
   it("keeps unresolved authentication inside the loading state", () => {

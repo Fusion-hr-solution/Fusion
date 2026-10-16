@@ -16,7 +16,11 @@ const {
   mockTimeline,
   mockPush,
   mockUpdateWorkEmail,
+  mockCanEnterPerformance,
+  mockSummary,
 } = vi.hoisted(() => ({
+  mockCanEnterPerformance: vi.fn(() => true),
+  mockSummary: vi.fn(),
   mockSearchParams: { current: new URLSearchParams() },
   mockProfile: vi.fn(),
   mockAccess: vi.fn(),
@@ -53,6 +57,11 @@ vi.mock("@repo/auth", () => ({
   canViewWorkforceAccess: () => true,
   canAccessCoreTeam: () => true,
   canAccessCorePeople: () => true,
+  canEnterPerformance: () => mockCanEnterPerformance(),
+}));
+
+vi.mock("@repo/api/query", () => ({
+  useApiQuery: () => mockSummary(),
 }));
 
 vi.mock("../api/use-people", () => ({
@@ -75,6 +84,8 @@ function profile(overrides: Partial<PeopleProfileDto> = {}): PeopleProfileDto {
       preferredName: null,
       workEmail: "ada@ey-hr.com",
       phone: "+216 00 000 000",
+
+      employeeId: "employee-1",
     },
     employment: {
       state: "Active",
@@ -253,6 +264,8 @@ describe("PeopleProfileWorkspace", () => {
             preferredName: null,
             workEmail: null,
             phone: null,
+
+            employeeId: "employee-1",
           },
         }),
       })
@@ -275,6 +288,8 @@ describe("PeopleProfileWorkspace", () => {
             preferredName: null,
             workEmail: null,
             phone: null,
+
+            employeeId: "employee-1",
           },
         }),
       })
@@ -394,5 +409,50 @@ describe("PeopleProfileWorkspace", () => {
     render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
     const status = screen.getByRole("status");
     expect(status).toHaveTextContent(/Employee hired/i);
+  });
+
+  describe("Performance view", () => {
+    beforeEach(() => {
+      mockCanEnterPerformance.mockReturnValue(true);
+      mockProfile.mockReturnValue(q({ data: profile() }));
+      mockSummary.mockReturnValue({ data: undefined, error: null, isLoading: true, refetch: vi.fn() });
+    });
+
+    it("offers Profile and Performance as sibling views when the viewer can enter Performance", () => {
+      render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
+      const views = screen.getByRole("navigation", { name: "Record views" });
+      expect(views).toHaveTextContent("Profile");
+      expect(screen.getByRole("link", { name: "Performance" })).toHaveAttribute("href", "/people/E-KEY-1/performance");
+      expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute("aria-current", "page");
+    });
+
+    it("shows no switcher when the tenant or viewer has no Performance", () => {
+      mockCanEnterPerformance.mockReturnValue(false);
+      render(<PeopleProfileWorkspace employeeKey="E-KEY-1" />);
+      expect(screen.queryByRole("navigation", { name: "Record views" })).not.toBeInTheDocument();
+    });
+
+    it("shows one line to a colleague who may see no section", () => {
+      mockSummary.mockReturnValue({
+        data: { employeeId: "employee-1", displayName: "Nour", jobTitle: null, orgUnitName: null, stableEmployeeKey: "E-KEY-1",
+          relation: "Other", currentCycle: null, reviews: null },
+        error: null,
+        isLoading: false,
+        refetch: vi.fn(),
+      });
+      render(<PeopleProfileWorkspace employeeKey="E-KEY-1" view="performance" />);
+      expect(screen.getByRole("link", { name: "Performance" })).toHaveAttribute("aria-current", "page");
+      expect(screen.getByText("There's nothing you can see here yet.")).toBeInTheDocument();
+    });
+
+    it("keeps the record header when Performance fails and offers a retry in place", async () => {
+      const refetch = vi.fn();
+      mockSummary.mockReturnValue({ data: undefined, error: new Error("down"), isLoading: false, refetch });
+      render(<PeopleProfileWorkspace employeeKey="E-KEY-1" view="performance" />);
+      expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+      expect(screen.getByText("Performance couldn't be loaded.")).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+      expect(refetch).toHaveBeenCalledOnce();
+    });
   });
 });

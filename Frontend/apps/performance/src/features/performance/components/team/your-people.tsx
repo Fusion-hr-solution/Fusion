@@ -283,7 +283,15 @@ function rosterColumns(showOrgUnit: boolean, cycleId: string, showReviewStage: b
                   </AvatarFallback>
                 </Avatar>
               }
-              primary={displayName(m)}
+              primary={
+                <Link
+                  href={`/people/${m.employeeId}`}
+                  onClick={(event) => event.stopPropagation()}
+                  className="rounded-detail hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {displayName(m)}
+                </Link>
+              }
               secondary={context || undefined}
             />
             {/* On a phone the Plan column folds in under the person; the row itself opens the plan. */}

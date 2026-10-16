@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   basePath: "/performance",
   outputFileTracingRoot: frontendWorkspaceRoot,
-  transpilePackages: ["@repo/auth", "@repo/api", "@repo/ds", "@repo/workforce-ui"],
+  transpilePackages: ["@repo/auth", "@repo/api", "@repo/ds", "@repo/workforce-ui", "@repo/performance-ui"],
   allowedDevOrigins: ["http://localhost:3000"],
   async redirects() {
     return [

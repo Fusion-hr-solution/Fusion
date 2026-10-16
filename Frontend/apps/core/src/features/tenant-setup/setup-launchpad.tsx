@@ -324,8 +324,8 @@ export function LaunchpadView({
           {isFresh ? (
             <h1 className="type-display text-balance text-4xl leading-[1.05] sm:text-5xl">
               <span className="text-[0.55em] font-medium text-foreground/70">
-                Welcome,{" "}
-              </span>
+                Welcome,
+              </span>{" "}
               {tenantName}
             </h1>
           ) : (

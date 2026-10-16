@@ -5,3 +5,4 @@
 
 @source "../../../../packages/ds/src/**/*.{ts,tsx}";
 @source "../../../../packages/auth/src/**/*.{ts,tsx}";
+@source "../../../../packages/performance-ui/src/**/*.{ts,tsx}";

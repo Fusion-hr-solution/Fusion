@@ -25,7 +25,10 @@ import type {
   PeopleUpcomingChangeDto,
 } from "@repo/api";
 import { Monogram, OrgPath, formatWorkforceDate } from "../workforce-ui";
-import { formatEmploymentType, type WorkerProfileView } from "./worker-profile-view";
+import {
+  formatEmploymentType,
+  type WorkerProfileView,
+} from "./worker-profile-view";
 
 export interface WorkerProfileProps {
   view: WorkerProfileView;
@@ -52,6 +55,10 @@ export interface WorkerProfileProps {
   workEmailAction?: ReactNode;
   /** View the worker as of a scheduled change's effective date (other-worker). */
   onViewAsOf?: (isoDate: string) => void;
+  /** Sibling-view switcher (Profile | Performance) rendered under the record header. */
+  viewSwitcher?: ReactNode;
+  /** Another view's body under the same header; when given, the profile sections are not rendered. */
+  children?: ReactNode;
 }
 
 function isoDay(value: string): string {
@@ -72,6 +79,8 @@ export function WorkerProfile({
   accessAction,
   workEmailAction,
   onViewAsOf,
+  viewSwitcher,
+  children,
 }: WorkerProfileProps) {
   const {
     manager,
@@ -82,7 +91,8 @@ export function WorkerProfile({
     access,
   } = view;
   const visibleReports = directReports.slice(0, 5);
-  const showAccess = accessState === "loading" || accessState === "error" || Boolean(access);
+  const showAccess =
+    accessState === "loading" || accessState === "error" || Boolean(access);
   const showTimeline = timelineLoading || timeline.length > 0;
   const showUpcoming = !view.isAsOf && upcoming.length > 0;
 
@@ -127,7 +137,9 @@ export function WorkerProfile({
                 {nameBadge}
               </div>
               {view.jobTitle ? (
-                <p className="mt-1.5 type-body text-foreground">{view.jobTitle}</p>
+                <p className="mt-1.5 type-body text-foreground">
+                  {view.jobTitle}
+                </p>
               ) : null}
               {view.orgUnitName ? (
                 <p className="mt-1 inline-flex items-center gap-1.5 type-meta text-muted-foreground">
@@ -157,7 +169,11 @@ export function WorkerProfile({
             />
           ) : null}
           {view.workLocation ? (
-            <HeroFact icon={MapPin} label="Location" value={view.workLocation} />
+            <HeroFact
+              icon={MapPin}
+              label="Location"
+              value={view.workLocation}
+            />
           ) : null}
           {manager ? (
             <HeroFact icon={Users} label="Manager">
@@ -175,300 +191,315 @@ export function WorkerProfile({
         </dl>
       </section>
 
-      {/* Upcoming — delta-first scheduled changes; collapses entirely when empty */}
-      {showUpcoming ? (
-        <section className="motion-safe:animate-in motion-safe:fade-in">
-          <h2 className="type-eyebrow text-muted-foreground">Upcoming</h2>
-          <ul className="mt-3.5 grid gap-3 sm:grid-cols-2">
-            {upcoming.map((item, index) => (
-              <UpcomingCard
-                key={`${item.kind}-${item.effectiveDate}-${index}`}
-                item={item}
-                onView={
-                  onViewAsOf
-                    ? () => onViewAsOf(isoDay(item.effectiveDate))
-                    : undefined
-                }
-              />
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      {viewSwitcher}
 
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        {/* Left column */}
-        <div className="space-y-6">
-          <ProfileCard icon={BriefcaseBusiness} title="Current assignment">
-            {view.workUnavailable ? (
-              <p className="type-body text-muted-foreground">
-                Work details unavailable
-              </p>
-            ) : (
-              <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-                <CardFact
-                  label="Display title"
-                  value={view.jobTitle || "Not assigned"}
-                  quiet={!view.jobTitle}
-                />
-                <CardFact label="Organization">
-                  {view.orgUnitPath ? (
-                    <OrgPath
-                      name={view.orgUnitName}
-                      path={view.orgUnitPath}
-                      unitClassName="type-body text-foreground"
+      {children ?? (
+        <>
+          {/* Upcoming — delta-first scheduled changes; collapses entirely when empty */}
+          {showUpcoming ? (
+            <section className="motion-safe:animate-in motion-safe:fade-in">
+              <h2 className="type-eyebrow text-muted-foreground">Upcoming</h2>
+              <ul className="mt-3.5 grid gap-3 sm:grid-cols-2">
+                {upcoming.map((item, index) => (
+                  <UpcomingCard
+                    key={`${item.kind}-${item.effectiveDate}-${index}`}
+                    item={item}
+                    onView={
+                      onViewAsOf
+                        ? () => onViewAsOf(isoDay(item.effectiveDate))
+                        : undefined
+                    }
+                  />
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            {/* Left column */}
+            <div className="space-y-6">
+              <ProfileCard icon={BriefcaseBusiness} title="Current assignment">
+                {view.workUnavailable ? (
+                  <p className="type-body text-muted-foreground">
+                    Work details unavailable
+                  </p>
+                ) : (
+                  <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+                    <CardFact
+                      label="Display title"
+                      value={view.jobTitle || "Not assigned"}
+                      quiet={!view.jobTitle}
                     />
-                  ) : (
-                    <span
-                      className={cn(
-                        "truncate",
-                        view.orgUnitName
-                          ? "type-body text-foreground"
-                          : "type-body text-muted-foreground"
+                    <CardFact label="Organization">
+                      {view.orgUnitPath ? (
+                        <OrgPath
+                          name={view.orgUnitName}
+                          path={view.orgUnitPath}
+                          unitClassName="type-body text-foreground"
+                        />
+                      ) : (
+                        <span
+                          className={cn(
+                            "truncate",
+                            view.orgUnitName
+                              ? "type-body text-foreground"
+                              : "type-body text-muted-foreground"
+                          )}
+                        >
+                          {view.orgUnitName || "Not assigned"}
+                        </span>
                       )}
-                    >
-                      {view.orgUnitName || "Not assigned"}
-                    </span>
-                  )}
-                </CardFact>
-                <CardFact label="Manager">
+                    </CardFact>
+                    <CardFact label="Manager">
+                      {manager ? (
+                        <Link
+                          href={manager.href}
+                          className="truncate type-body text-foreground underline-offset-4 hover:underline"
+                        >
+                          {manager.name}
+                        </Link>
+                      ) : (
+                        <span className="type-body text-muted-foreground">
+                          No manager
+                        </span>
+                      )}
+                    </CardFact>
+                    <CardFact
+                      label="Effective since"
+                      value={
+                        formatWorkforceDate(view.assignmentEffectiveFrom, {
+                          month: "long",
+                        }) || "—"
+                      }
+                      quiet={!view.assignmentEffectiveFrom}
+                    />
+                    <CardFact label="Worker status">
+                      <StatusBadge tone={view.status.tone} dot>
+                        {view.status.label}
+                      </StatusBadge>
+                    </CardFact>
+                  </dl>
+                )}
+              </ProfileCard>
+
+              <ProfileCard icon={Users} title="Organization & reporting">
+                <div>
+                  <p className="type-eyebrow text-muted-foreground">Manager</p>
                   {manager ? (
                     <Link
                       href={manager.href}
-                      className="truncate type-body text-foreground underline-offset-4 hover:underline"
+                      className="group mt-2.5 flex items-center gap-3"
                     >
-                      {manager.name}
+                      <Monogram name={manager.name} size="md" />
+                      <div className="min-w-0">
+                        <p className="truncate type-label font-semibold text-foreground group-hover:underline">
+                          {manager.name}
+                        </p>
+                        {manager.email ? (
+                          <p className="truncate type-meta text-muted-foreground">
+                            {manager.email}
+                          </p>
+                        ) : manager.employeeNumber ? (
+                          <p className="truncate type-code text-xs text-muted-foreground">
+                            {manager.employeeNumber}
+                          </p>
+                        ) : null}
+                      </div>
                     </Link>
                   ) : (
-                    <span className="type-body text-muted-foreground">
-                      No manager
-                    </span>
-                  )}
-                </CardFact>
-                <CardFact
-                  label="Effective since"
-                  value={
-                    formatWorkforceDate(view.assignmentEffectiveFrom, {
-                      month: "long",
-                    }) || "—"
-                  }
-                  quiet={!view.assignmentEffectiveFrom}
-                />
-                <CardFact label="Worker status">
-                  <StatusBadge tone={view.status.tone} dot>
-                    {view.status.label}
-                  </StatusBadge>
-                </CardFact>
-              </dl>
-            )}
-          </ProfileCard>
-
-          <ProfileCard icon={Users} title="Organization & reporting">
-            <div>
-              <p className="type-eyebrow text-muted-foreground">Manager</p>
-              {manager ? (
-                <Link href={manager.href} className="group mt-2.5 flex items-center gap-3">
-                  <Monogram name={manager.name} size="md" />
-                  <div className="min-w-0">
-                    <p className="truncate type-label font-semibold text-foreground group-hover:underline">
-                      {manager.name}
+                    <p className="mt-2 type-body text-muted-foreground">
+                      No manager assigned
                     </p>
-                    {manager.email ? (
-                      <p className="truncate type-meta text-muted-foreground">
-                        {manager.email}
-                      </p>
-                    ) : manager.employeeNumber ? (
-                      <p className="truncate type-code text-xs text-muted-foreground">
-                        {manager.employeeNumber}
-                      </p>
-                    ) : null}
+                  )}
+                </div>
+
+                {directReportCount > 0 ? (
+                  <div className="mt-5 border-t pt-5">
+                    <p className="type-eyebrow text-muted-foreground">
+                      Direct reports ·{" "}
+                      {directReportCount > visibleReports.length
+                        ? `${visibleReports.length} of ${directReportCount}`
+                        : directReportCount}
+                    </p>
+                    <ul className="mt-3 space-y-3.5">
+                      {visibleReports.map((report) => (
+                        <li key={report.href}>
+                          <Link
+                            href={report.href}
+                            className="group flex items-center gap-3"
+                          >
+                            <Monogram name={report.name} size="sm" />
+                            <div className="min-w-0">
+                              <p className="truncate type-label font-medium text-foreground group-hover:underline">
+                                {report.name}
+                              </p>
+                              {report.jobTitle ? (
+                                <p className="truncate type-meta text-muted-foreground">
+                                  {report.jobTitle}
+                                </p>
+                              ) : null}
+                            </div>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                    {reportsFooter ??
+                      (directReportCount > visibleReports.length ? (
+                        <p className="mt-3 type-meta text-muted-foreground">
+                          +{directReportCount - visibleReports.length} more
+                        </p>
+                      ) : null)}
                   </div>
-                </Link>
-              ) : (
-                <p className="mt-2 type-body text-muted-foreground">
-                  No manager assigned
-                </p>
-              )}
+                ) : null}
+              </ProfileCard>
             </div>
 
-            {directReportCount > 0 ? (
-              <div className="mt-5 border-t pt-5">
-                <p className="type-eyebrow text-muted-foreground">
-                  Direct reports ·{" "}
-                  {directReportCount > visibleReports.length
-                    ? `${visibleReports.length} of ${directReportCount}`
-                    : directReportCount}
-                </p>
-                <ul className="mt-3 space-y-3.5">
-                  {visibleReports.map((report) => (
-                    <li key={report.href}>
-                      <Link href={report.href} className="group flex items-center gap-3">
-                        <Monogram name={report.name} size="sm" />
-                        <div className="min-w-0">
-                          <p className="truncate type-label font-medium text-foreground group-hover:underline">
-                            {report.name}
+            {/* Right column */}
+            <div className="space-y-6">
+              <ProfileCard icon={FileText} title="Employment">
+                <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+                  <CardFact
+                    icon={CalendarDays}
+                    label="Employment period"
+                    value={view.employmentLine || "—"}
+                    quiet={!view.employmentLine}
+                  />
+                  <CardFact
+                    label="Worker type"
+                    value={formatEmploymentType(view.employmentType)}
+                    quiet={!view.employmentType}
+                  />
+                </dl>
+              </ProfileCard>
+
+              {showAccess ? (
+                <ProfileCard icon={Lock} title="Fusion access">
+                  {accessState === "loading" ? (
+                    <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+                      <Skeleton className="h-9 w-full" />
+                      <Skeleton className="h-9 w-full" />
+                      <Skeleton className="h-9 w-full" />
+                      <Skeleton className="h-9 w-full" />
+                    </div>
+                  ) : accessState === "error" ? (
+                    <div>
+                      <p className="type-body font-medium text-foreground">
+                        Status unavailable
+                      </p>
+                      {onRetryAccess ? (
+                        <Button
+                          variant="link"
+                          className="mt-1 h-auto p-0 type-meta"
+                          onClick={onRetryAccess}
+                        >
+                          Retry
+                        </Button>
+                      ) : null}
+                    </div>
+                  ) : access ? (
+                    isRichAccess(access) ? (
+                      <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+                        <CardFact label="Account status">
+                          <StatusBadge tone={access.tone} dot>
+                            {access.label}
+                          </StatusBadge>
+                        </CardFact>
+                        <CardFact
+                          label="Linked account"
+                          value={access.linkedEmail || "—"}
+                          quiet={!access.linkedEmail}
+                        />
+                        <CardFact
+                          label="Access profile"
+                          value={
+                            access.accessProfiles &&
+                            access.accessProfiles.length > 0
+                              ? access.accessProfiles.join(", ")
+                              : "—"
+                          }
+                          quiet={
+                            !access.accessProfiles ||
+                            access.accessProfiles.length === 0
+                          }
+                        />
+                        <CardFact
+                          label="Last sign-in"
+                          value={
+                            formatWorkforceDate(access.lastSignInAt, {
+                              month: "short",
+                            }) || "—"
+                          }
+                          quiet={!access.lastSignInAt}
+                        />
+                      </dl>
+                    ) : (
+                      <div>
+                        <p className="type-body font-medium text-foreground">
+                          {access.label}
+                        </p>
+                        {access.detail ? (
+                          <p className="truncate type-meta text-muted-foreground">
+                            {access.detail}
                           </p>
-                          {report.jobTitle ? (
-                            <p className="truncate type-meta text-muted-foreground">
-                              {report.jobTitle}
-                            </p>
-                          ) : null}
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-                {reportsFooter ??
-                  (directReportCount > visibleReports.length ? (
-                    <p className="mt-3 type-meta text-muted-foreground">
-                      +{directReportCount - visibleReports.length} more
-                    </p>
-                  ) : null)}
-              </div>
-            ) : null}
-          </ProfileCard>
-        </div>
-
-        {/* Right column */}
-        <div className="space-y-6">
-          <ProfileCard icon={FileText} title="Employment">
-            <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-              <CardFact
-                icon={CalendarDays}
-                label="Employment period"
-                value={view.employmentLine || "—"}
-                quiet={!view.employmentLine}
-              />
-              <CardFact
-                label="Worker type"
-                value={formatEmploymentType(view.employmentType)}
-                quiet={!view.employmentType}
-              />
-            </dl>
-          </ProfileCard>
-
-          {showAccess ? (
-            <ProfileCard icon={Lock} title="Fusion access">
-              {accessState === "loading" ? (
-                <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-                  <Skeleton className="h-9 w-full" />
-                  <Skeleton className="h-9 w-full" />
-                  <Skeleton className="h-9 w-full" />
-                  <Skeleton className="h-9 w-full" />
-                </div>
-              ) : accessState === "error" ? (
-                <div>
-                  <p className="type-body font-medium text-foreground">
-                    Status unavailable
-                  </p>
-                  {onRetryAccess ? (
-                    <Button
-                      variant="link"
-                      className="mt-1 h-auto p-0 type-meta"
-                      onClick={onRetryAccess}
-                    >
-                      Retry
-                    </Button>
+                        ) : null}
+                        {accessAction ? (
+                          <div className="mt-1.5">{accessAction}</div>
+                        ) : null}
+                      </div>
+                    )
                   ) : null}
-                </div>
-              ) : access ? (
-                isRichAccess(access) ? (
-                  <dl className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-                    <CardFact label="Account status">
-                      <StatusBadge tone={access.tone} dot>
-                        {access.label}
-                      </StatusBadge>
-                    </CardFact>
+                </ProfileCard>
+              ) : null}
+
+              <ProfileCard icon={Mail} title="Work contact">
+                <dl className="grid gap-x-5 gap-y-5 sm:grid-cols-[1.9fr_1fr_1fr]">
+                  <div className="min-w-0">
                     <CardFact
-                      label="Linked account"
-                      value={access.linkedEmail || "—"}
-                      quiet={!access.linkedEmail}
+                      icon={Mail}
+                      label="Work email"
+                      value={view.workEmail || "Not set"}
+                      quiet={!view.workEmail}
                     />
-                    <CardFact
-                      label="Access profile"
-                      value={
-                        access.accessProfiles && access.accessProfiles.length > 0
-                          ? access.accessProfiles.join(", ")
-                          : "—"
-                      }
-                      quiet={
-                        !access.accessProfiles ||
-                        access.accessProfiles.length === 0
-                      }
-                    />
-                    <CardFact
-                      label="Last sign-in"
-                      value={
-                        formatWorkforceDate(access.lastSignInAt, {
-                          month: "short",
-                        }) || "—"
-                      }
-                      quiet={!access.lastSignInAt}
-                    />
-                  </dl>
-                ) : (
-                  <div>
-                    <p className="type-body font-medium text-foreground">
-                      {access.label}
-                    </p>
-                    {access.detail ? (
-                      <p className="truncate type-meta text-muted-foreground">
-                        {access.detail}
+                    {!view.workEmail ? (
+                      <p className="mt-1 type-meta text-muted-foreground">
+                        Required before Fusion access can be set up.
                       </p>
                     ) : null}
-                    {accessAction ? <div className="mt-1.5">{accessAction}</div> : null}
+                    {workEmailAction ? (
+                      <div className="mt-1.5">{workEmailAction}</div>
+                    ) : null}
                   </div>
-                )
+                  <CardFact
+                    icon={Phone}
+                    label="Work phone"
+                    value={view.phone || "Not set"}
+                    quiet={!view.phone}
+                  />
+                  <CardFact
+                    icon={MapPin}
+                    label="Location"
+                    value={view.workLocation || "Not set"}
+                    quiet={!view.workLocation}
+                  />
+                </dl>
+              </ProfileCard>
+
+              {showTimeline ? (
+                <ProfileCard icon={Clock} title="History">
+                  {timelineLoading && timeline.length === 0 ? (
+                    <div className="space-y-3">
+                      <Skeleton className="h-10 w-full" />
+                      <Skeleton className="h-10 w-2/3" />
+                    </div>
+                  ) : (
+                    <ProfileTimeline events={timeline} />
+                  )}
+                </ProfileCard>
               ) : null}
-            </ProfileCard>
-          ) : null}
-
-          <ProfileCard icon={Mail} title="Work contact">
-            <dl className="grid gap-x-5 gap-y-5 sm:grid-cols-[1.9fr_1fr_1fr]">
-              <div className="min-w-0">
-                <CardFact
-                  icon={Mail}
-                  label="Work email"
-                  value={view.workEmail || "Not set"}
-                  quiet={!view.workEmail}
-                />
-                {!view.workEmail ? (
-                  <p className="mt-1 type-meta text-muted-foreground">
-                    Required before Fusion access can be set up.
-                  </p>
-                ) : null}
-                {workEmailAction ? (
-                  <div className="mt-1.5">{workEmailAction}</div>
-                ) : null}
-              </div>
-              <CardFact
-                icon={Phone}
-                label="Work phone"
-                value={view.phone || "Not set"}
-                quiet={!view.phone}
-              />
-              <CardFact
-                icon={MapPin}
-                label="Location"
-                value={view.workLocation || "Not set"}
-                quiet={!view.workLocation}
-              />
-            </dl>
-          </ProfileCard>
-
-          {showTimeline ? (
-            <ProfileCard icon={Clock} title="History">
-              {timelineLoading && timeline.length === 0 ? (
-                <div className="space-y-3">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-10 w-2/3" />
-                </div>
-              ) : (
-                <ProfileTimeline events={timeline} />
-              )}
-            </ProfileCard>
-          ) : null}
-        </div>
-      </div>
+            </div>
+          </div>
+        </>
+      )}
     </PageContainer>
   );
 }
@@ -534,7 +565,9 @@ function HeroFact({
             <span
               className={cn(
                 "block truncate",
-                code ? "type-code text-sm text-foreground" : "type-body text-foreground"
+                code
+                  ? "type-code text-sm text-foreground"
+                  : "type-body text-foreground"
               )}
             >
               {value}
@@ -566,7 +599,10 @@ function CardFact({
       <dt className="type-meta text-muted-foreground">{label}</dt>
       <dd className="mt-1 flex min-w-0 items-center gap-2">
         {Icon ? (
-          <Icon className="size-4 shrink-0 text-muted-foreground/70" aria-hidden />
+          <Icon
+            className="size-4 shrink-0 text-muted-foreground/70"
+            aria-hidden
+          />
         ) : null}
         {children ?? (
           <span
@@ -649,7 +685,9 @@ function UpcomingCard({
 function ProfileTimeline({ events }: { events: PeopleTimelineEventDto[] }) {
   if (events.length === 0) {
     return (
-      <p className="type-body text-muted-foreground">No employment history yet.</p>
+      <p className="type-body text-muted-foreground">
+        No employment history yet.
+      </p>
     );
   }
   // Oldest first: the timeline reads as a life-of-record story top to bottom.

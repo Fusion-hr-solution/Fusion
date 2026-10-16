@@ -21,6 +21,7 @@
     "@repo/api": "workspace:*",
     "@repo/auth": "workspace:*",
     "@repo/ds": "workspace:*",
+    "@repo/performance-ui": "workspace:*",
     "@repo/workforce-ui": "workspace:*",
     "lucide-react": "^0.469.0",
     "next": "^15.1.0",

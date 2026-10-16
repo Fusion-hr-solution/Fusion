@@ -70,6 +70,23 @@ export function PerformanceWorkspaceAccessBoundary({
     );
   }
 
+  if (state === "no-access") {
+    return (
+      <PageContainer>
+        <PagePermissionNotice
+          title="You don't have access to Performance"
+          headingLevel={1}
+          description="Ask a tenant administrator for Performance access."
+          action={
+            <Button asChild variant="outline">
+              <a href={buildShellUrl("/").toString()}>Open Fusion</a>
+            </Button>
+          }
+        />
+      </PageContainer>
+    );
+  }
+
   if (state === "module-unavailable") {
     return (
       <PageContainer>
