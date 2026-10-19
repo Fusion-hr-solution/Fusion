@@ -24,6 +24,11 @@ public sealed class CycleSettingsConfiguration : IEntityTypeConfiguration<CycleS
         builder.Property(settings => settings.DefaultOneOnOneCadence).HasConversion<string>().HasMaxLength(20)
             .HasDefaultValue(EY.HRPlatform.Performance.Domain.Conversations.OneOnOneCadence.EveryTwoWeeks).IsRequired();
 
+        builder.Property(settings => settings.SelfAssessmentDueDays).HasDefaultValue(14);
+        builder.Property(settings => settings.PeerInputDueDays).HasDefaultValue(14);
+        builder.Property(settings => settings.ManagerAssessmentDueDays).HasDefaultValue(7);
+        builder.Property(settings => settings.AcknowledgementReminderDays).HasDefaultValue(7);
+
         // Exactly one settings row per tenant.
         builder.HasIndex(settings => settings.TenantId).IsUnique();
     }

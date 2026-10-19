@@ -29,6 +29,10 @@ public interface IPerformanceNotifications
     /// </summary>
     void EnqueueConversation(Guid tenantId, PerformanceNotificationKind kind, Guid recipientEmployeeId, Guid actorEmployeeId,
         string resourceType, Guid resourceId, Guid transitionId, PerformanceNotificationText text);
+
+    /// <summary>Stages a peer, schedule, reminder or acknowledgement notification. Nothing is staged without a recipient.</summary>
+    void EnqueueReviewWork(PerformanceReview review, PerformanceNotificationKind kind, Guid recipientEmployeeId, string resourceType,
+        Guid resourceId, string dedupeKey, ReviewWorkNotificationPayload payload, PerformanceNotificationText text);
 }
 
 public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerformanceNotifications
@@ -108,6 +112,15 @@ public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerform
         if (recipientEmployeeId == Guid.Empty || recipientEmployeeId == actorEmployeeId) return;
         var message = PerformanceOutboxMessage.ForConversation(tenantId, kind, recipientEmployeeId, resourceType, transitionId,
             new ConversationNotificationPayload(resourceId, text.ActorName, text.Href));
+        Stage(message, null, text);
+    }
+
+    public void EnqueueReviewWork(PerformanceReview review, PerformanceNotificationKind kind, Guid recipientEmployeeId, string resourceType,
+        Guid resourceId, string dedupeKey, ReviewWorkNotificationPayload payload, PerformanceNotificationText text)
+    {
+        if (recipientEmployeeId == Guid.Empty) return;
+        var message = PerformanceOutboxMessage.ForReviewWork(review.TenantId, kind, recipientEmployeeId, resourceType, resourceId,
+            dedupeKey, payload);
         Stage(message, null, text);
     }
 

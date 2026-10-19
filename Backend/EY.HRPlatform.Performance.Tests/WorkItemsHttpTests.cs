@@ -169,7 +169,7 @@ public sealed class WorkItemsHttpTests
         await using (var db = world.Factory.Store.NewContext())
         {
             var tracked = await db.PerformanceReviews.SingleAsync(r => r.Id == review.Id);
-            tracked.SubmitSelfAssessment(world.Nour, "A good half", DateTime.UtcNow);
+            tracked.SubmitSelfAssessment(world.Nour, "A good half", 3, DateTime.UtcNow);
             await db.SaveChangesAsync();
         }
         Assert.DoesNotContain(await WorkAsync(nour), item => Kind(item) == "self-assessment");

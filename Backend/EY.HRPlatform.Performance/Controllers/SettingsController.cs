@@ -72,6 +72,48 @@ public sealed class SettingsController(IMediator mediator, IPerformanceAccessPol
         return MapResult(await mediator.Send(new ArchiveCompetencyCommand(id, request), cancellationToken));
     }
 
+    [HttpGet("review-questions")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<ReviewQuestionDto>>>> ListReviewQuestions(CancellationToken cancellationToken)
+    {
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new ListReviewQuestionsQuery(), cancellationToken));
+    }
+
+    [HttpPost("review-questions")]
+    public async Task<ActionResult<ApiResponse<ReviewQuestionDto>>> CreateReviewQuestion([FromBody] CreateReviewQuestionRequest request, CancellationToken cancellationToken)
+    {
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new CreateReviewQuestionCommand(request), cancellationToken));
+    }
+
+    [HttpPut("review-questions/order")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<ReviewQuestionDto>>>> ReorderReviewQuestions([FromBody] ReorderReviewQuestionsRequest request, CancellationToken cancellationToken)
+    {
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new ReorderReviewQuestionsCommand(request), cancellationToken));
+    }
+
+    [HttpPut("review-questions/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<ReviewQuestionDto>>> UpdateReviewQuestion(Guid id, [FromBody] UpdateReviewQuestionRequest request, CancellationToken cancellationToken)
+    {
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new UpdateReviewQuestionCommand(id, request), cancellationToken));
+    }
+
+    [HttpPost("review-questions/{id:guid}/archive")]
+    public async Task<ActionResult<ApiResponse<ReviewQuestionDto>>> ArchiveReviewQuestion(Guid id, [FromBody] ReviewQuestionVersionRequest request, CancellationToken cancellationToken)
+    {
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new ArchiveReviewQuestionCommand(id, request), cancellationToken));
+    }
+
+    [HttpDelete("review-questions/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteReviewQuestion(Guid id, [FromBody] ReviewQuestionVersionRequest request, CancellationToken cancellationToken)
+    {
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new DeleteReviewQuestionCommand(id, request), cancellationToken));
+    }
+
     [HttpDelete("competencies/{id:guid}")]
     public async Task<ActionResult<ApiResponse<bool>>> DeleteCompetency(Guid id, [FromBody] CompetencyVersionRequest request, CancellationToken cancellationToken)
     {

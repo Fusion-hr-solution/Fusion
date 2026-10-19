@@ -5,11 +5,18 @@ using System.Text.Json;
 
 namespace EY.HRPlatform.Performance.Domain.Reviews;
 
+/// <summary>The reviewer's view of what someone could grow into (D-24). Never the tenant rating scale; never shown to the person.</summary>
+public enum ReviewPotential { Developing, Growing, High }
+
 /// <summary>One employee's formal review, created atomically with its round launch.</summary>
 public sealed class PerformanceReview : PerformanceAggregate
 {
     private PerformanceReview() { }
     private readonly List<ReviewItemResponse> _itemResponses = [];
+    private readonly List<ReviewQuestionAnswer> _answers = [];
+    private readonly List<PeerNomination> _peerNominations = [];
+    public const int MaxPeers = 5;
+    public const int MaxAcknowledgementComment = 1000;
 
     public Guid ReviewRoundId { get; private set; }
     public Guid CycleId { get; private set; }
@@ -30,6 +37,19 @@ public sealed class PerformanceReview : PerformanceAggregate
     public bool ObjectiveRatingsEnabled { get; private set; }
     public bool CalibrationEnabled { get; private set; }
     public DateOnly? ManagerAssessmentDueDate { get; private set; }
+    public DateOnly? SelfAssessmentDueDate { get; private set; }
+    /// <summary>Set when HR moved this review's own date: later round-level moves of that stage skip it.</summary>
+    public bool SelfDueOverridden { get; private set; }
+    public bool ManagerDueOverridden { get; private set; }
+    public bool PeerInputEnabled { get; private set; }
+    public bool QuestionsEnabled { get; private set; }
+    public bool PotentialEnabled { get; private set; }
+    public ReviewPotential? Potential { get; private set; }
+    public DateTime? PeersNominatedAt { get; private set; }
+    public DateTime? PeerListApprovedAt { get; private set; }
+    public Guid? PeerListApprovedByEmployeeId { get; private set; }
+    public DateTime? AcknowledgedAt { get; private set; }
+    public string? AcknowledgementComment { get; private set; }
     public ReviewAssessment SelfAssessment { get; private set; } = new();
     public ReviewAssessment ManagerAssessment { get; private set; } = new();
     public string? FinalizedSnapshotJson { get; private set; }
@@ -39,6 +59,8 @@ public sealed class PerformanceReview : PerformanceAggregate
     public DateTime? ClosedAt { get; private set; }
     public string? CloseReason { get; private set; }
     public IReadOnlyList<ReviewItemResponse> ItemResponses => _itemResponses;
+    public IReadOnlyList<ReviewQuestionAnswer> Answers => _answers;
+    public IReadOnlyList<PeerNomination> PeerNominations => _peerNominations;
 
     public void AddItemResponse(ReviewItemResponse response)
     {
@@ -65,6 +87,7 @@ public sealed class PerformanceReview : PerformanceAggregate
             throw new ArgumentException("Only an included subject of this round can be reviewed.", nameof(subject));
         if (subject.ReviewerEmployeeId is not Guid reviewerId || reviewerId == Guid.Empty)
             throw new ArgumentException("A review requires a recorded reviewer.", nameof(subject));
+        var schedule = round.ScheduleFor(DateOnly.FromDateTime(openedAt));
         return new PerformanceReview
         {
             TenantId = tenantId,
@@ -81,62 +104,77 @@ public sealed class PerformanceReview : PerformanceAggregate
             RatingScaleVersionId = ratingScaleVersionId,
             RatingScaleSnapshotJson = ratingScaleSnapshotJson,
             State = round.SelfAssessmentEnabled ? PerformanceReviewState.SelfAssessment : PerformanceReviewState.ManagerAssessment,
-            CurrentStageDueDate = round.SelfAssessmentEnabled ? round.SelfAssessmentDueDate : round.ManagerAssessmentDueDate,
+            CurrentStageDueDate = round.SelfAssessmentEnabled ? schedule.SelfAssessment : schedule.ManagerAssessment,
             SelfAssessmentEnabled = round.SelfAssessmentEnabled,
+            PeerInputEnabled = round.PeerInputEnabled,
+            QuestionsEnabled = round.QuestionsEnabled,
+            PotentialEnabled = round.PotentialEnabled,
             ObjectiveRatingsEnabled = round.ObjectiveRatingsEnabled,
             CalibrationEnabled = round.CalibrationEnabled,
-            ManagerAssessmentDueDate = round.ManagerAssessmentDueDate,
+            SelfAssessmentDueDate = round.SelfAssessmentEnabled ? schedule.SelfAssessment : null,
+            ManagerAssessmentDueDate = schedule.ManagerAssessment,
             SelfAssessment = new ReviewAssessment(),
             ManagerAssessment = new ReviewAssessment(),
             OpenedAt = openedAt,
         };
     }
 
-    public bool SaveSelfAssessment(Guid actorEmployeeId, string summary, DateTime savedAt)
+    public bool SaveSelfAssessment(Guid actorEmployeeId, string summary, DateTime savedAt, int? overallRating = null)
     {
         RequireActor(actorEmployeeId, SubjectEmployeeId, "Only the subject can save a self-assessment.");
         if (!SelfAssessmentEnabled || State != PerformanceReviewState.SelfAssessment || SelfAssessment.IsSubmitted)
             throw new InvalidOperationException("The self-assessment is not editable at this stage.");
-        SelfAssessment.Save(summary, null, savedAt);
+        ValidateRating(overallRating, required: false);
+        SelfAssessment.Save(summary, overallRating, savedAt);
         MarkUpdated();
         return true;
     }
 
-    public bool SubmitSelfAssessment(Guid actorEmployeeId, string summary, DateTime submittedAt)
+    /// <summary>The person's own overall view is required on submit (D-16); only the manager's rating counts.</summary>
+    public bool SubmitSelfAssessment(Guid actorEmployeeId, string summary, int? overallRating, DateTime submittedAt)
     {
         RequireActor(actorEmployeeId, SubjectEmployeeId, "Only the subject can submit a self-assessment.");
         if (SelfAssessment.IsSubmitted)
-            return SelfAssessment.Summary == NormalizeSummary(summary) ? false : throw new InvalidOperationException("A submitted self-assessment is locked.");
+            return SelfAssessment.Summary == NormalizeSummary(summary) && SelfAssessment.OverallRating == overallRating
+                ? false : throw new InvalidOperationException("A submitted self-assessment is locked.");
         if (!SelfAssessmentEnabled || State != PerformanceReviewState.SelfAssessment)
             throw new InvalidOperationException("The self-assessment cannot be submitted at this stage.");
-        SelfAssessment.Submit(summary, null, submittedAt);
+        ValidateRating(overallRating, required: true);
+        SelfAssessment.Submit(summary, overallRating, submittedAt);
         State = PerformanceReviewState.ManagerAssessment;
         CurrentStageDueDate = ManagerAssessmentDueDate;
         MarkUpdated();
         return true;
     }
 
-    public bool SaveManagerAssessment(Guid actorEmployeeId, string summary, int? overallRating, DateTime savedAt)
+    public bool SaveManagerAssessment(Guid actorEmployeeId, string summary, int? overallRating, DateTime savedAt,
+        ReviewPotential? potential = null)
     {
         RequireActor(actorEmployeeId, ReviewerEmployeeId, "Only the reviewer of record can save a manager assessment.");
         if (State != PerformanceReviewState.ManagerAssessment || ManagerAssessment.IsSubmitted)
             throw new InvalidOperationException("The manager assessment is not editable at this stage.");
         ValidateRating(overallRating, required: false);
+        ValidatePotential(potential, required: false);
         ManagerAssessment.Save(summary, overallRating, savedAt);
+        Potential = PotentialEnabled ? potential : null;
         MarkUpdated();
         return true;
     }
 
-    public bool SubmitManagerAssessment(Guid actorEmployeeId, string summary, int? overallRating, DateTime submittedAt)
+    public bool SubmitManagerAssessment(Guid actorEmployeeId, string summary, int? overallRating, DateTime submittedAt,
+        ReviewPotential? potential = null)
     {
         RequireActor(actorEmployeeId, ReviewerEmployeeId, "Only the reviewer of record can submit a manager assessment.");
         if (ManagerAssessment.IsSubmitted)
             return ManagerAssessment.Summary == NormalizeSummary(summary) && ManagerAssessment.OverallRating == overallRating
+                && (!PotentialEnabled || Potential == potential)
                 ? false : throw new InvalidOperationException("A submitted manager assessment is locked.");
         if (State != PerformanceReviewState.ManagerAssessment)
             throw new InvalidOperationException("The manager assessment cannot be submitted at this stage.");
         ValidateRating(overallRating, required: true);
+        ValidatePotential(potential, required: true);
         ManagerAssessment.Submit(summary, overallRating, submittedAt);
+        Potential = PotentialEnabled ? potential : null;
         State = CalibrationEnabled ? PerformanceReviewState.Calibration : PerformanceReviewState.ReadyToFinalize;
         CurrentStageDueDate = null;
         MarkUpdated();
@@ -194,6 +232,160 @@ public sealed class PerformanceReview : PerformanceAggregate
         CurrentStageDueDate = null;
         MarkUpdated();
         return true;
+    }
+
+    /// <summary>Saves or clears one answer on the side that is still being written; answers lock with that side's submit.</summary>
+    public void SetAnswer(ReviewQuestionAuthor author, Guid questionSnapshotId, string? text)
+    {
+        if (!QuestionsEnabled) throw new InvalidOperationException("This round asks no questions.");
+        var open = author == ReviewQuestionAuthor.Self
+            ? SelfAssessmentEnabled && State == PerformanceReviewState.SelfAssessment && !SelfAssessment.IsSubmitted
+            : State == PerformanceReviewState.ManagerAssessment && !ManagerAssessment.IsSubmitted;
+        if (!open) throw new InvalidOperationException("These answers are no longer editable.");
+        var existing = _answers.FirstOrDefault(item => item.Author == author && item.QuestionSnapshotId == questionSnapshotId);
+        if (existing is null)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return;
+            _answers.Add(ReviewQuestionAnswer.Create(TenantId, Id, questionSnapshotId, author, text));
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(text)) _answers.Remove(existing);
+        else existing.Change(text);
+    }
+
+    /// <summary>
+    /// The person's list of 1–5 colleagues while self-assessing, editable until the reviewer approves it.
+    /// Returns true the first time a list is given (the reviewer is told once).
+    /// </summary>
+    public bool NominatePeers(Guid actorEmployeeId, IReadOnlyList<(Guid EmployeeId, string DisplayName)> peers, DateTime at)
+    {
+        RequireActor(actorEmployeeId, SubjectEmployeeId, "Only the person reviewed nominates their peers.");
+        if (!PeerInputEnabled) throw new InvalidOperationException("This round does not ask for peer input.");
+        if (State != PerformanceReviewState.SelfAssessment || SelfAssessment.IsSubmitted)
+            throw new InvalidOperationException("Peers are nominated while the self-assessment is open.");
+        if (PeerListApprovedAt is not null) throw new InvalidOperationException("The peer list was already approved.");
+        ValidatePeers(peers);
+        var first = PeersNominatedAt is null;
+        _peerNominations.RemoveAll(item => peers.All(peer => peer.EmployeeId != item.EmployeeId));
+        foreach (var peer in peers.Where(peer => _peerNominations.All(item => item.EmployeeId != peer.EmployeeId)))
+            _peerNominations.Add(PeerNomination.Create(TenantId, Id, peer.EmployeeId, peer.DisplayName, PeerNominationSource.Subject, at));
+        PeersNominatedAt ??= at;
+        MarkUpdated();
+        return first;
+    }
+
+    /// <summary>
+    /// The reviewer approves the final list (as nominated, or with colleagues removed, swapped or added).
+    /// Approval happens once, before the manager assessment is submitted. Returns the change against the nominations.
+    /// </summary>
+    public PeerListDecision ApprovePeerList(Guid actorEmployeeId, IReadOnlyList<(Guid EmployeeId, string DisplayName)> peers, DateTime at)
+    {
+        RequireActor(actorEmployeeId, ReviewerEmployeeId, "Only the reviewer approves the peer list.");
+        if (!PeerInputEnabled) throw new InvalidOperationException("This round does not ask for peer input.");
+        if (PeerListApprovedAt is not null) throw new InvalidOperationException("The peer list was already approved.");
+        if (State is not (PerformanceReviewState.SelfAssessment or PerformanceReviewState.ManagerAssessment) || ManagerAssessment.IsSubmitted)
+            throw new InvalidOperationException("The peer list can be approved until the manager assessment is submitted.");
+        ValidatePeers(peers);
+        var nominated = _peerNominations.Select(item => item.EmployeeId).ToHashSet();
+        var approved = peers.Select(item => item.EmployeeId).ToHashSet();
+        var decision = new PeerListDecision(
+            nominated.Where(id => !approved.Contains(id)).ToArray(),
+            approved.Where(id => !nominated.Contains(id)).ToArray());
+        _peerNominations.RemoveAll(item => !approved.Contains(item.EmployeeId));
+        foreach (var peer in peers.Where(peer => !nominated.Contains(peer.EmployeeId)))
+            _peerNominations.Add(PeerNomination.Create(TenantId, Id, peer.EmployeeId, peer.DisplayName, PeerNominationSource.Reviewer, at));
+        PeerListApprovedAt = at;
+        PeerListApprovedByEmployeeId = actorEmployeeId;
+        MarkUpdated();
+        return decision;
+    }
+
+    /// <summary>
+    /// A round-level move of one stage. Returns true when this review's open task is the one that moved
+    /// (its owner is told); reviews with their own date for that stage keep it.
+    /// </summary>
+    public bool ApplyRoundDueDateMove(ReviewStage stage, DateOnly to)
+    {
+        switch (stage)
+        {
+            case ReviewStage.SelfAssessment:
+                if (!SelfAssessmentEnabled || SelfDueOverridden || State != PerformanceReviewState.SelfAssessment
+                    || SelfAssessmentDueDate == to) return false;
+                SelfAssessmentDueDate = to;
+                CurrentStageDueDate = to;
+                MarkUpdated();
+                return true;
+            case ReviewStage.ManagerAssessment:
+                if (ManagerDueOverridden || ManagerAssessment.IsSubmitted || ManagerAssessmentDueDate == to
+                    || State is not (PerformanceReviewState.SelfAssessment or PerformanceReviewState.ManagerAssessment)) return false;
+                ManagerAssessmentDueDate = to;
+                if (State == PerformanceReviewState.ManagerAssessment) CurrentStageDueDate = to;
+                MarkUpdated();
+                return State == PerformanceReviewState.ManagerAssessment;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>Moves this review's current task only. Later round-level moves of that stage leave it alone.</summary>
+    public (ReviewStage Stage, DateOnly? From) MoveCurrentDueDate(DateOnly to)
+    {
+        if (State == PerformanceReviewState.SelfAssessment && SelfAssessmentEnabled)
+        {
+            var from = SelfAssessmentDueDate;
+            if (ManagerAssessmentDueDate is DateOnly manager && to > manager)
+                throw new ArgumentException("The manager assessment is due on or after the self-assessment.", nameof(to));
+            SelfAssessmentDueDate = to;
+            SelfDueOverridden = true;
+            CurrentStageDueDate = to;
+            MarkUpdated();
+            return (ReviewStage.SelfAssessment, from);
+        }
+        if (State == PerformanceReviewState.ManagerAssessment && !ManagerAssessment.IsSubmitted)
+        {
+            var from = ManagerAssessmentDueDate;
+            ManagerAssessmentDueDate = to;
+            ManagerDueOverridden = true;
+            CurrentStageDueDate = to;
+            MarkUpdated();
+            return (ReviewStage.ManagerAssessment, from);
+        }
+        throw new InvalidOperationException("This review has no open task with a due date.");
+    }
+
+    /// <summary>"I've read this" (D-20): once, by the person, after release. It never changes the result.</summary>
+    public bool Acknowledge(Guid actorEmployeeId, string? comment, DateTime at)
+    {
+        RequireActor(actorEmployeeId, SubjectEmployeeId, "Only the person reviewed acknowledges their result.");
+        if (State != PerformanceReviewState.Finalized) throw new InvalidOperationException("Only a released review can be acknowledged.");
+        if (AcknowledgedAt is not null) return false;
+        var cleaned = string.IsNullOrWhiteSpace(comment) ? null : comment.Trim();
+        if (cleaned?.Length > MaxAcknowledgementComment)
+            throw new ArgumentException($"A comment can be up to {MaxAcknowledgementComment:N0} characters.", nameof(comment));
+        AcknowledgedAt = at;
+        AcknowledgementComment = cleaned;
+        MarkUpdated();
+        return true;
+    }
+
+    private void ValidatePeers(IReadOnlyList<(Guid EmployeeId, string DisplayName)> peers)
+    {
+        ArgumentNullException.ThrowIfNull(peers);
+        if (peers.Count is < 1 or > MaxPeers) throw new ArgumentException($"Choose 1 to {MaxPeers} colleagues.", nameof(peers));
+        if (peers.Select(item => item.EmployeeId).Distinct().Count() != peers.Count)
+            throw new ArgumentException("Choose each colleague once.", nameof(peers));
+        if (peers.Any(item => item.EmployeeId == Guid.Empty || string.IsNullOrWhiteSpace(item.DisplayName)))
+            throw new ArgumentException("Each colleague needs a name.", nameof(peers));
+        if (peers.Any(item => item.EmployeeId == SubjectEmployeeId))
+            throw new ArgumentException("The person reviewed can't give their own peer input.", nameof(peers));
+        if (peers.Any(item => item.EmployeeId == ReviewerEmployeeId))
+            throw new ArgumentException("The reviewer writes the review; choose other colleagues.", nameof(peers));
+    }
+
+    private void ValidatePotential(ReviewPotential? potential, bool required)
+    {
+        if (potential is { } value && !Enum.IsDefined(value)) throw new ArgumentException("Choose Developing, Growing or High.", nameof(potential));
+        if (required && PotentialEnabled && potential is null) throw new ArgumentException("Rate their potential before submitting.", nameof(potential));
     }
 
     private void ValidateRating(int? rating, bool required)

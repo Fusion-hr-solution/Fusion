@@ -63,9 +63,11 @@ public sealed class PerformanceNotificationDispatcher(PerformanceDbContext db, I
 
 public sealed class PerformanceBackgroundWorker(IServiceScopeFactory scopeFactory, ILogger<PerformanceBackgroundWorker> logger,
     EvidenceUploadSweeper sweeper, PerformanceNotificationRetention retention,
-    EY.HRPlatform.Performance.Features.OneOnOnes.OneOnOneReconciler oneOnOnes)
+    EY.HRPlatform.Performance.Features.OneOnOnes.OneOnOneReconciler oneOnOnes,
+    EY.HRPlatform.Performance.Features.Reviews.ReviewReminderScanner reminders)
     : BackgroundService
 {
+    private DateTime _nextReminderScan = DateTime.UtcNow;
     private DateTime _nextEvidenceSweep = DateTime.UtcNow;
     private DateTime _nextOneOnOneReconciliation = DateTime.UtcNow;
     private DateTime _nextNotificationPurge = DateTime.UtcNow;
@@ -88,6 +90,12 @@ public sealed class PerformanceBackgroundWorker(IServiceScopeFactory scopeFactor
                     // Set first: a Core outage shouldn't turn this into a retry every tick.
                     _nextOneOnOneReconciliation = DateTime.UtcNow.AddMinutes(15);
                     await oneOnOnes.ReconcileAsync(DateTime.UtcNow, stoppingToken);
+                }
+                if (DateTime.UtcNow >= _nextReminderScan)
+                {
+                    // Hourly; the dedupe key keeps reruns and restarts to one reminder per task per day.
+                    _nextReminderScan = DateTime.UtcNow.AddHours(1);
+                    await reminders.ScanAsync(DateTime.UtcNow, stoppingToken);
                 }
                 if (DateTime.UtcNow >= _nextNotificationPurge)
                 {

@@ -34,7 +34,7 @@ public sealed class ReviewItemAssessmentTests
                 [new(ReviewItemKind.Competency, fixture.CompetencyId, null, null, null, null),
                  new(ReviewItemKind.Objective, fixture.ObjectiveId, "Reflection", 4, null, null)]), default);
             Assert.True(missing.IsFailure);
-            Assert.Contains("Missing", missing.Error.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("1 rating", missing.Error.Message, StringComparison.OrdinalIgnoreCase);
         }
 
         await using (var db = store.NewContext())
@@ -51,7 +51,7 @@ public sealed class ReviewItemAssessmentTests
             var submit = new SubmitSelfAssessmentHandler(db, new TestPerformanceAudit(db), new PerformanceNotifications(db));
             var complete = await submit.Handle(new(fixture.ReviewId, new ReviewActor(fixture.SubjectId, false, CanParticipate: true), fixture.Version, "Summary",
                 [new(ReviewItemKind.Competency, fixture.CompetencyId, null, 3, "Useful behavior", null),
-                 new(ReviewItemKind.Objective, fixture.ObjectiveId, "Delivered milestones", 4, null, null)]), default);
+                 new(ReviewItemKind.Objective, fixture.ObjectiveId, "Delivered milestones", 4, null, null)]) { OverallRating = 4 }, default);
             Assert.True(complete.IsSuccess, complete.IsFailure ? complete.Error.Message : null);
         }
 

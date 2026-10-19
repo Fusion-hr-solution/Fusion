@@ -34,7 +34,7 @@ public sealed class ReviewPolicyTests
         Assert.False(ReviewPolicy.Visibility(adminActor, review).CanEditSelfAssessment);
         Assert.False(ReviewPolicy.Visibility(adminActor, review).CanEditManagerAssessment);
 
-        review.SubmitSelfAssessment(participant.EmployeeId, "Self submitted", DateTime.UtcNow);
+        review.SubmitSelfAssessment(participant.EmployeeId, "Self submitted", 3, DateTime.UtcNow);
         AssertVisibility(review, reviewerActor, true, true, true);
         Assert.True(ReviewPolicy.Visibility(reviewerActor, review).CanEditManagerAssessment);
         Assert.False(ReviewPolicy.Visibility(reviewerActor, review).CanEditSelfAssessment);

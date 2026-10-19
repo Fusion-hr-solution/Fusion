@@ -2343,11 +2343,207 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.ToTable("ProgressUpdates", "performance");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.PeerAnswer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("PeerRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("QuestionSnapshotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PeerRequestId");
+
+                    b.HasIndex("QuestionSnapshotId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "PeerRequestId", "QuestionSnapshotId")
+                        .IsUnique();
+
+                    b.ToTable("PeerAnswers", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.PeerNomination", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<Guid>("EmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("NominatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ReviewId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ReviewId", "EmployeeId")
+                        .IsUnique();
+
+                    b.ToTable("PeerNominations", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.PeerRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CycleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DeclineNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PeerDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<Guid>("PeerEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("RespondedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("ReviewId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReviewRoundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SubjectDisplayName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<Guid>("SubjectEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewId");
+
+                    b.HasIndex("ReviewRoundId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "PeerEmployeeId", "State");
+
+                    b.HasIndex("TenantId", "ReviewId", "PeerEmployeeId")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "ReviewRoundId", "State");
+
+                    b.ToTable("PeerRequests", "performance");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.PerformanceReview", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AcknowledgedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AcknowledgementComment")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<bool>("CalibrationEnabled")
                         .HasColumnType("boolean");
@@ -2387,11 +2583,36 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly?>("ManagerAssessmentDueDate")
                         .HasColumnType("date");
 
+                    b.Property<bool>("ManagerDueOverridden")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("ObjectiveRatingsEnabled")
                         .HasColumnType("boolean");
 
                     b.Property<DateTime>("OpenedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("PeerInputEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("PeerListApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PeerListApprovedByEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("PeersNominatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Potential")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("PotentialEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("QuestionsEnabled")
+                        .HasColumnType("boolean");
 
                     b.Property<string>("RatingScaleSnapshotJson")
                         .IsRequired()
@@ -2416,7 +2637,13 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ReviewerEmployeeId")
                         .HasColumnType("uuid");
 
+                    b.Property<DateOnly?>("SelfAssessmentDueDate")
+                        .HasColumnType("date");
+
                     b.Property<bool>("SelfAssessmentEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SelfDueOverridden")
                         .HasColumnType("boolean");
 
                     b.Property<string>("State")
@@ -2474,6 +2701,80 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("PerformanceReviews", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewDueDateMove", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ActorEmployeeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<int>("AffectedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly?>("FromDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime>("MovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid?>("ReviewId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReviewRoundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Stage")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("SubjectDisplayName")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("ToDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewId");
+
+                    b.HasIndex("ReviewRoundId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ReviewRoundId", "MovedAt");
+
+                    b.ToTable("ReviewDueDateMoves", "performance");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewItemResponse", b =>
@@ -2538,11 +2839,119 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.ToTable("ReviewItemResponses", "performance");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewQuestionAnswer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Author")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("QuestionSnapshotId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReviewId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionSnapshotId");
+
+                    b.HasIndex("ReviewId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ReviewId", "QuestionSnapshotId", "Author")
+                        .IsUnique();
+
+                    b.ToTable("ReviewQuestionAnswers", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewQuestionSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("QuestionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReviewRoundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewRoundId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ReviewRoundId", "QuestionId")
+                        .IsUnique();
+
+                    b.ToTable("ReviewQuestionSnapshots", "performance");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewRound", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<int>("AcknowledgementReminderDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(7);
 
                     b.Property<Guid?>("ActiveCycleSlot")
                         .HasColumnType("uuid");
@@ -2572,6 +2981,11 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly?>("ManagerAssessmentDueDate")
                         .HasColumnType("date");
 
+                    b.Property<int>("ManagerAssessmentDueDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(7);
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -2580,17 +2994,39 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Property<bool>("ObjectiveRatingsEnabled")
                         .HasColumnType("boolean");
 
+                    b.Property<DateOnly?>("PeerInputDueDate")
+                        .HasColumnType("date");
+
+                    b.Property<int>("PeerInputDueDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(14);
+
+                    b.Property<bool>("PeerInputEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<DateOnly>("PeriodEnd")
                         .HasColumnType("date");
 
                     b.Property<DateOnly>("PeriodStart")
                         .HasColumnType("date");
 
+                    b.Property<bool>("PotentialEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("QuestionsEnabled")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid?>("RatingScaleVersionId")
                         .HasColumnType("uuid");
 
                     b.Property<DateOnly?>("SelfAssessmentDueDate")
                         .HasColumnType("date");
+
+                    b.Property<int>("SelfAssessmentDueDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(14);
 
                     b.Property<bool>("SelfAssessmentEnabled")
                         .HasColumnType("boolean");
@@ -2630,6 +3066,55 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "CycleId");
 
                     b.ToTable("ReviewRounds", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewRoundQuestion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("QuestionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReviewRoundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuestionId");
+
+                    b.HasIndex("ReviewRoundId");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "ReviewRoundId", "QuestionId")
+                        .IsUnique();
+
+                    b.ToTable("ReviewRoundQuestions", "performance");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewRoundSubject", b =>
@@ -2775,6 +3260,11 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AcknowledgementReminderDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(7);
+
                     b.Property<bool>("AiAssistanceEnabled")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -2818,6 +3308,16 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(36);
 
+                    b.Property<int>("ManagerAssessmentDueDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(7);
+
+                    b.Property<int>("PeerInputDueDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(14);
+
                     b.Property<string>("PlanAlignmentPolicy")
                         .IsRequired()
                         .HasMaxLength(40)
@@ -2825,6 +3325,11 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("PlanningDeadlineOffsetDays")
                         .HasColumnType("integer");
+
+                    b.Property<int>("SelfAssessmentDueDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(14);
 
                     b.Property<int>("SuggestedObjectiveCountMax")
                         .HasColumnType("integer");
@@ -2940,6 +3445,63 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("RatingScaleVersions", "performance");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Settings.ReviewQuestion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Audience")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("FirstUsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<uint>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Audience", "SortOrder");
+
+                    b.ToTable("ReviewQuestions", "performance");
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Calibration.CalibrationAdjustment", b =>
@@ -3232,6 +3794,45 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.PeerAnswer", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Reviews.PeerRequest", null)
+                        .WithMany("Answers")
+                        .HasForeignKey("PeerRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Reviews.ReviewQuestionSnapshot", null)
+                        .WithMany()
+                        .HasForeignKey("QuestionSnapshotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.PeerNomination", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Reviews.PerformanceReview", null)
+                        .WithMany("PeerNominations")
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.PeerRequest", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Reviews.PerformanceReview", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Reviews.ReviewRound", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewRoundId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.PerformanceReview", b =>
                 {
                     b.HasOne("EY.HRPlatform.Performance.Domain.Settings.RatingScaleVersion", null)
@@ -3315,11 +3916,49 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewDueDateMove", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Reviews.PerformanceReview", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Reviews.ReviewRound", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewRoundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewItemResponse", b =>
                 {
                     b.HasOne("EY.HRPlatform.Performance.Domain.Reviews.PerformanceReview", null)
                         .WithMany("ItemResponses")
                         .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewQuestionAnswer", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Reviews.ReviewQuestionSnapshot", null)
+                        .WithMany()
+                        .HasForeignKey("QuestionSnapshotId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Reviews.PerformanceReview", null)
+                        .WithMany("Answers")
+                        .HasForeignKey("ReviewId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewQuestionSnapshot", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Reviews.ReviewRound", null)
+                        .WithMany()
+                        .HasForeignKey("ReviewRoundId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
@@ -3336,6 +3975,21 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("RatingScaleVersionId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewRoundQuestion", b =>
+                {
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Settings.ReviewQuestion", null)
+                        .WithMany()
+                        .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EY.HRPlatform.Performance.Domain.Reviews.ReviewRound", null)
+                        .WithMany("Questions")
+                        .HasForeignKey("ReviewRoundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewRoundSubject", b =>
@@ -3428,9 +4082,23 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Navigation("MilestoneChanges");
                 });
 
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.PeerRequest", b =>
+                {
+                    b.Navigation("Answers");
+                });
+
             modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.PerformanceReview", b =>
                 {
+                    b.Navigation("Answers");
+
                     b.Navigation("ItemResponses");
+
+                    b.Navigation("PeerNominations");
+                });
+
+            modelBuilder.Entity("EY.HRPlatform.Performance.Domain.Reviews.ReviewRound", b =>
+                {
+                    b.Navigation("Questions");
                 });
 #pragma warning restore 612, 618
         }

@@ -9,7 +9,14 @@ namespace EY.HRPlatform.Performance.Features.Security.Policies;
 public sealed record ReviewActor(Guid EmployeeId, bool IsAdministrator, bool IsCalibrationFacilitator = false,
     Guid? CalibratorUserId = null, bool CanParticipate = false, bool CanReviewReports = false);
 public sealed record ReviewVisibility(bool CanRead, bool ShowSelfAssessment, bool ShowManagerAssessment,
-    bool CanEditSelfAssessment, bool CanEditManagerAssessment, bool ShowCalibration = false, bool IsSubject = false);
+    bool CanEditSelfAssessment, bool CanEditManagerAssessment, bool ShowCalibration = false, bool IsSubject = false)
+{
+    public bool IsReviewer { get; init; }
+    /// <summary>A round administrator reading someone else's review.</summary>
+    public bool IsAdministrator { get; init; }
+    /// <summary>Potential and attributed peer answers: the reviewer and round administrators, never the person (D-R5).</summary>
+    public bool ShowPeerInputAndPotential => !IsSubject && (IsReviewer || IsAdministrator);
+}
 
 /// <summary>Object-level review permissions and the stage-specific content projection.</summary>
 public static class ReviewPolicy
@@ -55,6 +62,10 @@ public static class ReviewPolicy
             || (facilitator && review.ManagerAssessment.IsSubmitted);
         var canEditSelf = CanSelfAssess(actor, review);
         var canEditManager = CanManagerAssess(actor, review);
-        return new(true, showSelf, showManager, canEditSelf, canEditManager, showCalibration, isSubject);
+        return new(true, showSelf, showManager, canEditSelf, canEditManager, showCalibration, isSubject)
+        {
+            IsReviewer = isReviewer && !isSubject,
+            IsAdministrator = actor.IsAdministrator && !isSubject,
+        };
     }
 }

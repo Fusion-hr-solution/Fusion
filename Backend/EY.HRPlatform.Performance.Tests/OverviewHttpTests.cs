@@ -80,8 +80,8 @@ public sealed class OverviewHttpTests
                 var samiSubject = ReviewRoundSubject.Create(tenant, round.Id, samiParticipant, reviewAssignee, assignedName);
                 var nourReview = PerformanceReview.Open(tenant, round, nourSubject, scaleVersion.Id, scaleVersion.LevelsJson, DateTime.UtcNow);
                 var samiReview = PerformanceReview.Open(tenant, round, samiSubject, scaleVersion.Id, scaleVersion.LevelsJson, DateTime.UtcNow);
-                nourReview.SubmitSelfAssessment(nour, "My self-assessment", DateTime.UtcNow);
-                samiReview.SubmitSelfAssessment(samiParticipant.EmployeeId, "Sami's self-assessment", DateTime.UtcNow);
+                nourReview.SubmitSelfAssessment(nour, "My self-assessment", 3, DateTime.UtcNow);
+                samiReview.SubmitSelfAssessment(samiParticipant.EmployeeId, "Sami's self-assessment", 3, DateTime.UtcNow);
                 samiReview.SubmitManagerAssessment(reviewAssignee, "Ready", RatingScaleDefaults.Levels[0].Value, DateTime.UtcNow);
                 round.Launch("{\"competencies\":[]}", scaleVersion.Id, DateTime.UtcNow);
                 db.RatingScales.Add(ratingScale);

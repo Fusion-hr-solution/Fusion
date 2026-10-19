@@ -24,7 +24,12 @@ public static class PerformanceMappers
             settings.DefaultObjectiveRatingsEnabled,
               settings.DefaultCalibrationEnabled,
               settings.EvidenceRetentionMonths,
-              settings.AiAssistanceEnabled) { Version = settings.Version, DefaultOneOnOneCadence = settings.DefaultOneOnOneCadence };
+              settings.AiAssistanceEnabled) {
+                  Version = settings.Version, DefaultOneOnOneCadence = settings.DefaultOneOnOneCadence,
+                  SelfAssessmentDueDays = settings.SelfAssessmentDueDays, PeerInputDueDays = settings.PeerInputDueDays,
+                  ManagerAssessmentDueDays = settings.ManagerAssessmentDueDays,
+                  AcknowledgementReminderDays = settings.AcknowledgementReminderDays,
+              };
 
     public static MeasurementDto ToDto(ObjectiveMeasurement measurement)
         => new(

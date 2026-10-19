@@ -50,7 +50,8 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
         }
         if (actor.EmployeeId != Guid.Empty)
         {
-            await AssessmentsAsync(actor, items, token);
+            await AssessmentsAsync(actor, today, items, token);
+            await PeerWorkAsync(actor, today, items, token);
             await FeedbackRequestsAsync(actor.EmployeeId, items, token);
             await OneOnOneActionsAsync(actor.EmployeeId, today, items, token);
         }
@@ -163,8 +164,68 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
             PerformanceNotificationTemplates.OneOnOnePath(a.SeriesId))));
     }
 
+    /// <summary>The round name, and how late the task is once past its current due date.</summary>
+    private static string LateContext(string roundName, DateOnly? due, DateOnly today)
+    {
+        var late = ReviewReminderSchedule.DaysLate(due, today);
+        return late switch { 0 => roundName, 1 => $"{roundName} · a day late", _ => $"{roundName} · {late} days late" };
+    }
+
+    /// <summary>
+    /// Peer input work (D-18): the person nominates while self-assessing, the reviewer approves the list, each peer answers
+    /// their open request, and the person acknowledges a released result.
+    /// </summary>
+    private async Task PeerWorkAsync(WorkActor actor, DateOnly today, List<FusionWorkItemDto> items, CancellationToken token)
+    {
+        var me = actor.EmployeeId;
+        if (actor.Participates)
+        {
+            var nominate = await (from review in db.PerformanceReviews.AsNoTracking()
+                                  join round in db.ReviewRounds.AsNoTracking() on review.ReviewRoundId equals round.Id
+                                  where round.State == ReviewRoundState.Active && review.SubjectEmployeeId == me && review.PeerInputEnabled
+                                        && review.State == PerformanceReviewState.SelfAssessment && review.SelfAssessment.SubmittedAt == null
+                                        && review.PeersNominatedAt == null && review.PeerListApprovedAt == null
+                                  select new { review.Id, review.SelfAssessmentDueDate, RoundName = round.Name }).ToListAsync(token);
+            items.AddRange(nominate.Select(r => new FusionWorkItemDto(Id("nominate-peers", r.Id), Module, "nominate-peers",
+                "Choose colleagues for peer input", r.RoundName, r.SelfAssessmentDueDate, PerformanceNotificationTemplates.ReviewPath(r.Id))));
+
+            var asked = await (from request in db.PeerRequests.AsNoTracking()
+                               join round in db.ReviewRounds.AsNoTracking() on request.ReviewRoundId equals round.Id
+                               where round.State == ReviewRoundState.Active && request.PeerEmployeeId == me && request.State == PeerRequestState.Open
+                               orderby request.DueDate
+                               select new { request.Id, request.SubjectDisplayName, request.DueDate, RoundName = round.Name }).ToListAsync(token);
+            items.AddRange(asked.Select(r => new FusionWorkItemDto(Id("peer-input", r.Id), Module, "peer-input",
+                $"Peer input for {r.SubjectDisplayName}", LateContext(r.RoundName, r.DueDate, today), r.DueDate,
+                PerformanceNotificationTemplates.PeerRequestPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName))));
+
+            var unacknowledged = await (from review in db.PerformanceReviews.AsNoTracking()
+                                        join round in db.ReviewRounds.AsNoTracking() on review.ReviewRoundId equals round.Id
+                                        where review.SubjectEmployeeId == me && review.State == PerformanceReviewState.Finalized
+                                              && review.AcknowledgedAt == null
+                                        orderby review.FinalizedAt descending
+                                        select new { review.Id, RoundName = round.Name }).ToListAsync(token);
+            items.AddRange(unacknowledged.Select(r => new FusionWorkItemDto(Id("acknowledge-result", r.Id), Module, "acknowledge-result",
+                "Read and acknowledge your review", r.RoundName, null, PerformanceNotificationTemplates.ReviewPath(r.Id))));
+        }
+        if (actor.ReviewsReports)
+        {
+            var lists = await (from review in db.PerformanceReviews.AsNoTracking()
+                               join round in db.ReviewRounds.AsNoTracking() on review.ReviewRoundId equals round.Id
+                               where round.State == ReviewRoundState.Active && review.ReviewerEmployeeId == me && review.PeerInputEnabled
+                                     && review.PeersNominatedAt != null && review.PeerListApprovedAt == null
+                                     && review.ManagerAssessment.SubmittedAt == null
+                                     && (review.State == PerformanceReviewState.SelfAssessment || review.State == PerformanceReviewState.ManagerAssessment)
+                               orderby review.PeersNominatedAt
+                               select new { review.Id, review.SubjectDisplayName, Due = review.SelfAssessmentDueDate ?? round.SelfAssessmentDueDate, RoundName = round.Name })
+                .ToListAsync(token);
+            items.AddRange(lists.Select(r => new FusionWorkItemDto(Id("approve-peer-list", r.Id), Module, "approve-peer-list",
+                $"Review {r.SubjectDisplayName}'s peer list", LateContext(r.RoundName, r.Due, today), r.Due,
+                PerformanceNotificationTemplates.PeerListPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName))));
+        }
+    }
+
     /// <summary>The review work queue's own rule: the subject in self-assessment, the reviewer in manager assessment.</summary>
-    private async Task AssessmentsAsync(WorkActor actor, List<FusionWorkItemDto> items, CancellationToken token)
+    private async Task AssessmentsAsync(WorkActor actor, DateOnly today, List<FusionWorkItemDto> items, CancellationToken token)
     {
         var me = actor.EmployeeId;
         var reviewActor = new ReviewActor(me, false, CanParticipate: actor.Participates, CanReviewReports: actor.ReviewsReports);
@@ -185,7 +246,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
             items.Add(new(Id(self ? "self-assessment" : "manager-assessment", review.Id), Module,
                 self ? "self-assessment" : "manager-assessment",
                 self ? "Complete your self-assessment" : $"Assess {review.SubjectDisplayName}",
-                review.RoundName, review.CurrentStageDueDate,
+                LateContext(review.RoundName, review.CurrentStageDueDate, today), review.CurrentStageDueDate,
                 PerformanceNotificationTemplates.ReviewPath(review.Id),
                 self ? null : new FusionWorkSubjectDto(review.SubjectDisplayName)));
         }

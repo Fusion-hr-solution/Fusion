@@ -23,6 +23,14 @@ public sealed class PerformanceReviewsController(IMediator mediator, IPerformanc
             policy.CanAdministerCycles(User), policy.CanReviewDirectReports(User)), token));
     }
 
+    [HttpGet("workspace")]
+    public async Task<ActionResult<ApiResponse<ReviewsWorkspaceDto>>> Workspace(Guid? cycle, CancellationToken token)
+    {
+        if (!policy.CanEnterPerformance(User) && !policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new GetReviewsWorkspaceQuery(cycle, new ReviewsWorkspaceViewer(User.GetEmployeeId() ?? Guid.Empty,
+            policy.CanManageOwnParticipation(User), policy.CanReviewDirectReports(User), policy.CanAdministerCycles(User))), token));
+    }
+
     [HttpGet("{reviewId:guid}")]
     public async Task<ActionResult<ApiResponse<PerformanceReviewDto>>> Get(Guid reviewId, CancellationToken token)
     {
@@ -41,7 +49,7 @@ public sealed class PerformanceReviewsController(IMediator mediator, IPerformanc
     {
         if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new SaveSelfAssessmentCommand(reviewId, AssessmentActor(),
-            request.ExpectedVersion, request.Summary, request.Items), token));
+            request.ExpectedVersion, request.Summary, request.Items) { OverallRating = request.OverallRating, Answers = request.Answers }, token));
     }
 
     [HttpPost("{reviewId:guid}/self-assessment")]
@@ -50,7 +58,7 @@ public sealed class PerformanceReviewsController(IMediator mediator, IPerformanc
     {
         if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new SubmitSelfAssessmentCommand(reviewId, AssessmentActor(),
-            request.ExpectedVersion, request.Summary, request.Items), token));
+            request.ExpectedVersion, request.Summary, request.Items) { OverallRating = request.OverallRating, Answers = request.Answers }, token));
     }
 
     [HttpPut("{reviewId:guid}/manager-assessment")]
@@ -59,7 +67,7 @@ public sealed class PerformanceReviewsController(IMediator mediator, IPerformanc
     {
         if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new SaveManagerAssessmentCommand(reviewId, AssessmentActor(),
-            request.ExpectedVersion, request.Summary, request.OverallRating, request.Items), token));
+            request.ExpectedVersion, request.Summary, request.OverallRating, request.Items) { Potential = request.Potential, Answers = request.Answers }, token));
     }
 
     [HttpPost("{reviewId:guid}/manager-assessment")]
@@ -68,7 +76,7 @@ public sealed class PerformanceReviewsController(IMediator mediator, IPerformanc
     {
         if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new SubmitManagerAssessmentCommand(reviewId, AssessmentActor(),
-            request.ExpectedVersion, request.Summary, request.OverallRating, request.Items), token));
+            request.ExpectedVersion, request.Summary, request.OverallRating, request.Items) { Potential = request.Potential, Answers = request.Answers }, token));
     }
 
     [HttpPost("{reviewId:guid}/finalize")]
@@ -76,6 +84,32 @@ public sealed class PerformanceReviewsController(IMediator mediator, IPerformanc
     {
         if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new FinalizeReviewCommand(reviewId, request.ExpectedVersion, User.GetEmployeeId() ?? Guid.Empty), token));
+    }
+
+    [HttpGet("{reviewId:guid}/pdf")]
+    public async Task<IActionResult> Pdf(Guid reviewId, CancellationToken token)
+    {
+        if (!policy.CanEnterPerformance(User) && !policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        var result = await mediator.Send(new DownloadReviewPdfCommand(reviewId, new ReviewActor(User.GetEmployeeId() ?? Guid.Empty,
+            policy.CanAdministerCycles(User), CanParticipate: policy.CanManageOwnParticipation(User),
+            CanReviewReports: policy.CanReviewDirectReports(User))), token);
+        if (result.IsFailure) return MapResult(result).Result!;
+        return File(result.Value.Content, "application/pdf", result.Value.FileName);
+    }
+
+    [HttpPost("{reviewId:guid}/acknowledge")]
+    public async Task<ActionResult<ApiResponse<ReviewAcknowledgementDto>>> Acknowledge(Guid reviewId, [FromBody] AcknowledgeReviewRequest request, CancellationToken token)
+    {
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new AcknowledgeReviewCommand(reviewId, User.GetEmployeeId() ?? Guid.Empty, request.Comment), token));
+    }
+
+    [HttpPost("{reviewId:guid}/due-date")]
+    public async Task<ActionResult<ApiResponse<ReviewDueDateMoveDto>>> MoveDueDate(Guid reviewId, [FromBody] MoveReviewDueDateRequest request, CancellationToken token)
+    {
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new MoveReviewDueDateCommand(reviewId, request,
+            new ScheduleActor(User.GetEmployeeId(), User.GetFullName())), token));
     }
 
     [HttpPost("{reviewId:guid}/close")]

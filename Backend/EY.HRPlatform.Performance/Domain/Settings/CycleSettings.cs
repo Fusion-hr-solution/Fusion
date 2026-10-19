@@ -39,6 +39,14 @@ public sealed class CycleSettings : PerformanceAggregate
     public EY.HRPlatform.Performance.Domain.Conversations.OneOnOneCadence DefaultOneOnOneCadence { get; private set; }
         = EY.HRPlatform.Performance.Domain.Conversations.OneOnOneCadence.EveryTwoWeeks;
 
+    /// <summary>Review due-date defaults in days (D-02). A new round copies them; rounds already created keep theirs.</summary>
+    public int SelfAssessmentDueDays { get; private set; } = 14;
+    public int PeerInputDueDays { get; private set; } = 14;
+    /// <summary>Counted from the self-assessment due date.</summary>
+    public int ManagerAssessmentDueDays { get; private set; } = 7;
+    /// <summary>Days after release before an unacknowledged result is first reminded.</summary>
+    public int AcknowledgementReminderDays { get; private set; } = 7;
+
     /// <summary>The tenant defaults, materialized the first time Settings is read.</summary>
     public static CycleSettings CreateDefault(Guid tenantId)
     {
@@ -58,7 +66,32 @@ public sealed class CycleSettings : PerformanceAggregate
             EvidenceRetentionMonths = 36,
             AiAssistanceEnabled = true,
             DefaultOneOnOneCadence = EY.HRPlatform.Performance.Domain.Conversations.OneOnOneCadence.EveryTwoWeeks,
+            SelfAssessmentDueDays = 14,
+            PeerInputDueDays = 14,
+            ManagerAssessmentDueDays = 7,
+            AcknowledgementReminderDays = 7,
         };
+    }
+
+    /// <summary>Sets the review due-date defaults; each bound is whole days.</summary>
+    public void UpdateReviewDueDays(int selfAssessmentDueDays, int peerInputDueDays, int managerAssessmentDueDays,
+        int acknowledgementReminderDays)
+    {
+        if (selfAssessmentDueDays is < 1 or > 60)
+            throw new ArgumentOutOfRangeException(nameof(selfAssessmentDueDays), "The self-assessment default must be 1 to 60 days.");
+        if (peerInputDueDays is < 1 or > 60)
+            throw new ArgumentOutOfRangeException(nameof(peerInputDueDays), "The peer input default must be 1 to 60 days.");
+        if (managerAssessmentDueDays is < 1 or > 60)
+            throw new ArgumentOutOfRangeException(nameof(managerAssessmentDueDays), "The manager assessment default must be 1 to 60 days.");
+        if (acknowledgementReminderDays is < 1 or > 30)
+            throw new ArgumentOutOfRangeException(nameof(acknowledgementReminderDays), "The acknowledgement reminder must be 1 to 30 days.");
+        if (SelfAssessmentDueDays == selfAssessmentDueDays && PeerInputDueDays == peerInputDueDays
+            && ManagerAssessmentDueDays == managerAssessmentDueDays && AcknowledgementReminderDays == acknowledgementReminderDays) return;
+        SelfAssessmentDueDays = selfAssessmentDueDays;
+        PeerInputDueDays = peerInputDueDays;
+        ManagerAssessmentDueDays = managerAssessmentDueDays;
+        AcknowledgementReminderDays = acknowledgementReminderDays;
+        MarkUpdated();
     }
 
     public void Update(

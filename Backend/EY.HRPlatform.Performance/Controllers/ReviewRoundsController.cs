@@ -77,6 +77,14 @@ public sealed class ReviewRoundsController(IMediator mediator, IPerformanceAcces
         return MapResult(await mediator.Send(new GetReviewRoundStatusQuery(roundId, User.GetEmployeeId() ?? Guid.Empty), cancellationToken));
     }
 
+    [HttpPost("review-rounds/{roundId:guid}/due-dates")]
+    public async Task<ActionResult<ApiResponse<ReviewDueDateMoveDto>>> MoveDueDate(Guid roundId, [FromBody] MoveRoundDueDateRequest request, CancellationToken cancellationToken)
+    {
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new MoveRoundDueDateCommand(roundId, request,
+            new ScheduleActor(User.GetEmployeeId(), User.GetFullName())), cancellationToken));
+    }
+
     [HttpPost("review-rounds/{roundId:guid}/finalize")]
     public async Task<ActionResult<ApiResponse<ReviewRoundFinalizationDto>>> Finalize(Guid roundId,
         [FromBody] FinalizeReviewRoundRequest request, CancellationToken cancellationToken)

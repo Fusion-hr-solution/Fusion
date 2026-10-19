@@ -13,7 +13,16 @@ public enum PerformanceNotificationKind
     OneOnOneStarted, OneOnOneRescheduled, OneOnOneActionAssigned,
     FeedbackReceived, FeedbackForReport, FeedbackRequested, FeedbackRequestResponded,
     PraiseReceived, PraiseForReport,
+    PeersNominated, PeerListApproved, PeerInputRequested, PeerDeclined, ReviewDueDateMoved, ReviewReminder, ReviewAcknowledged,
 }
+
+/// <summary>
+/// A review-work notification (peers, schedule, reminders, acknowledgement): the review's context plus the exact in-app
+/// path, and what the email may say. Never carries answers, notes or comments.
+/// </summary>
+public sealed record ReviewWorkNotificationPayload(Guid CycleId, Guid ReviewRoundId, Guid ReviewId, string ReviewRoundName, string Path,
+    string? ActorDisplayName = null, string? SubjectDisplayName = null, string? Task = null, DateOnly? DueDate = null,
+    int DaysLate = 0, DateOnly? PreviousDueDate = null);
 
 /// <summary>A notification about a 1:1, feedback, a feedback request or praise: no cycle, one in-app path.</summary>
 public sealed record ConversationNotificationPayload(Guid ResourceId, string? ActorDisplayName, string Path);
@@ -126,6 +135,33 @@ public sealed class PerformanceOutboxMessage : PerformanceChildEntity
             ResourceType = resourceType, ResourceId = payload.ResourceId,
             Payload = JsonSerializer.Serialize(payload),
             DedupeKey = $"{kind}:{payload.ResourceId:N}:{transitionId:N}:{recipientEmployeeId:N}",
+            NextAttemptAt = DateTime.UtcNow,
+        };
+    }
+
+    public static bool IsReviewWorkKind(PerformanceNotificationKind kind) => kind is PerformanceNotificationKind.PeersNominated
+        or PerformanceNotificationKind.PeerListApproved or PerformanceNotificationKind.PeerInputRequested
+        or PerformanceNotificationKind.PeerDeclined or PerformanceNotificationKind.ReviewDueDateMoved
+        or PerformanceNotificationKind.ReviewReminder or PerformanceNotificationKind.ReviewAcknowledged;
+
+    /// <summary>
+    /// A review-work notification. The caller gives the dedupe key: per transition for events,
+    /// <c>Reminder:{task}:{resource}:{date}</c> for reminders, so a task is reminded at most once a day.
+    /// </summary>
+    public static PerformanceOutboxMessage ForReviewWork(Guid tenantId, PerformanceNotificationKind kind, Guid recipientEmployeeId,
+        string resourceType, Guid resourceId, string dedupeKey, ReviewWorkNotificationPayload payload)
+    {
+        if (tenantId == Guid.Empty || recipientEmployeeId == Guid.Empty || resourceId == Guid.Empty || string.IsNullOrWhiteSpace(resourceType)
+            || string.IsNullOrWhiteSpace(dedupeKey) || payload.ReviewId == Guid.Empty || payload.CycleId == Guid.Empty
+            || !payload.Path.StartsWith("/performance/", StringComparison.Ordinal))
+            throw new ArgumentException("Review notification tenant, recipient, resource, key and path are required.");
+        if (!IsReviewWorkKind(kind)) throw new ArgumentException("Choose a review-work notification kind.", nameof(kind));
+        return new PerformanceOutboxMessage
+        {
+            TenantId = tenantId, Kind = kind, RecipientEmployeeId = recipientEmployeeId,
+            ResourceType = resourceType, ResourceId = resourceId,
+            Payload = JsonSerializer.Serialize(payload),
+            DedupeKey = dedupeKey,
             NextAttemptAt = DateTime.UtcNow,
         };
     }

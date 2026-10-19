@@ -58,6 +58,10 @@ internal static class ReviewFinalization
             selfAssessment = composed.Value.SelfAssessment,
             managerAssessment = composed.Value.ManagerAssessment,
             items = composed.Value.Items,
+            // Both people's answers, potential and attributed peer answers (D-21); projections strip what the person may not see.
+            questions = composed.Value.Questions,
+            potential = composed.Value.Potential,
+            peers = composed.Value.Peers,
             finalRating,
             finalRatingSource = source,
         });
@@ -161,7 +165,11 @@ public sealed class CloseReviewHandler(PerformanceDbContext db, IPerformanceAudi
         if (VersionGuard.Check(review, command.ExpectedVersion) is { } stale)
             return Result.Failure<PerformanceReviewMutationDto>(stale);
         var before = review.State;
-        try { review.CloseAdministratively(command.Reason, DateTime.UtcNow); }
+        try
+        {
+            review.CloseAdministratively(command.Reason, DateTime.UtcNow);
+            await PeerRequestClosure.CloseOpenAsync(db, review.Id, DateTime.UtcNow, token);
+        }
         catch (InvalidOperationException ex) { return Result.Failure<PerformanceReviewMutationDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.ReviewFinalizationInvalid, ex.Message)); }
         catch (ArgumentException ex) { return Result.Failure<PerformanceReviewMutationDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.ReviewFinalizationInvalid, ex.Message)); }
         audit.Record(review.TenantId, "PerformanceReview", review.Id, review.CycleId, PerformanceAuditActions.ReviewAdministrativelyClosed,

@@ -17,6 +17,7 @@ public sealed class ReviewRoundsTests
 {
     private static readonly DateOnly Start = new(2026, 1, 1);
     private static readonly DateOnly End = new(2026, 12, 31);
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow);
 
     [Fact]
     public void Review_history_rating_label_comes_from_the_finalized_scale_snapshot()
@@ -35,7 +36,7 @@ public sealed class ReviewRoundsTests
         {
             db.Cycles.Add(cycle);
             await db.SaveChangesAsync();
-            var rejected = await new CreateReviewRoundHandler(db, draftStore.Tenant, new TestPerformanceAudit(db))
+            var rejected = await new CreateReviewRoundHandler(db, draftStore.Tenant, new TestPerformanceAudit(db), new FakeCoreWorkforceClient())
                 .Handle(new(cycle.Id, new("Mid-year", Start, End)), default);
             Assert.True(rejected.IsFailure);
         }
@@ -54,7 +55,7 @@ public sealed class ReviewRoundsTests
         }
         await using (var db = store.NewContext())
         {
-            var result = await new CreateReviewRoundHandler(db, store.Tenant, new TestPerformanceAudit(db))
+            var result = await new CreateReviewRoundHandler(db, store.Tenant, new TestPerformanceAudit(db), new FakeCoreWorkforceClient())
                 .Handle(new(cycle.Id, new("Mid-year", Start, End)), default);
             Assert.True(result.IsSuccess);
             Assert.True(result.Value.SelfAssessmentEnabled);
@@ -129,7 +130,7 @@ public sealed class ReviewRoundsTests
             db.Cycles.Add(cycle);
             db.Participants.AddRange(participants);
             await db.SaveChangesAsync();
-            var created = await new CreateReviewRoundHandler(db, store.Tenant, new TestPerformanceAudit(db))
+            var created = await new CreateReviewRoundHandler(db, store.Tenant, new TestPerformanceAudit(db), new FakeCoreWorkforceClient())
                 .Handle(new(cycle.Id, new("Mid-year", Start, End)), default);
             Assert.True(created.IsSuccess);
             roundId = created.Value.Id;
@@ -203,14 +204,14 @@ public sealed class ReviewRoundsTests
         db.Competencies.Add(competency);
         await db.SaveChangesAsync();
 
-        var create = await new CreateReviewRoundHandler(db, store.Tenant, new TestPerformanceAudit(db))
+        var create = await new CreateReviewRoundHandler(db, store.Tenant, new TestPerformanceAudit(db), new FakeCoreWorkforceClient())
             .Handle(new(cycle.Id, new("Mid-year", Start, End)), default);
         Assert.True(create.IsSuccess);
         var update = create.Value;
         round = await db.ReviewRounds.SingleAsync(r => r.Id == update.Id);
         round.UpdateDraft(cycle, round.Name, round.PeriodStart, round.PeriodEnd,
             round.SelfAssessmentEnabled, round.ObjectiveRatingsEnabled, round.CalibrationEnabled,
-            Start.AddDays(270), Start.AddDays(271), System.Text.Json.JsonSerializer.Serialize(new[] { competency.Id }));
+            Today.AddDays(5), Today.AddDays(6), System.Text.Json.JsonSerializer.Serialize(new[] { competency.Id }));
         await db.SaveChangesAsync();
 
         var handler = new LaunchReviewRoundHandler(db, store.Tenant, workforce,
@@ -230,7 +231,7 @@ public sealed class ReviewRoundsTests
         Assert.Equal("Product Engineering", review.SubjectOrgUnitName);
         Assert.Equal("Reviewer at launch", review.ReviewerDisplayName);
         Assert.Equal(ReviewerBasis.CoreManagerAtCycleStart, review.ReviewerBasis);
-        Assert.Equal(Start.AddDays(271), review.CurrentStageDueDate);
+        Assert.Equal(Today.AddDays(6), review.CurrentStageDueDate);
         Assert.Equal(originalScale.Id, review.RatingScaleVersionId);
         Assert.Contains("Exceptional", review.RatingScaleSnapshotJson);
         Assert.Contains(originalScale.Id.ToString(), (await db.ReviewRounds.SingleAsync()).ConfigSnapshotJson);
@@ -262,6 +263,9 @@ public sealed class ReviewRoundsTests
         Assert.Equal(3, await db.AuditEntries.CountAsync());
         Assert.Equal(originalScale.Id, review.RatingScaleVersionId);
 
+        // Time passes: the due date is behind us, and the work stays open (advisory deadlines).
+        db.Entry(review).Property(r => r.CurrentStageDueDate).CurrentValue = Today.AddDays(-2);
+        await db.SaveChangesAsync();
         var status = await new GetReviewRoundStatusHandler(db).Handle(new(round.Id), default);
         Assert.True(status.IsSuccess);
         Assert.Equal(1, status.Value.OverdueManagerAssessments);
@@ -269,7 +273,7 @@ public sealed class ReviewRoundsTests
         Assert.True(work.IsSuccess);
         var item = Assert.Single(work.Value);
         Assert.Equal(PerformanceReviewState.ManagerAssessment, item.State);
-        Assert.Equal(Start.AddDays(271), item.DueDate);
+        Assert.Equal(Today.AddDays(-2), item.DueDate);
 
         // A submitted assessment stays on the reviewer's list until finalization, no longer waiting on them.
         Assert.True(review.SubmitManagerAssessment(reviewer.EmployeeId, "Met the goals.", 4, DateTime.UtcNow));
@@ -295,7 +299,7 @@ public sealed class ReviewRoundsTests
         db.Participants.Add(participant);
         db.CycleSettings.Add(CycleSettings.CreateDefault(store.TenantId));
         await db.SaveChangesAsync();
-        var created = await new CreateReviewRoundHandler(db, store.Tenant, new TestPerformanceAudit(db))
+        var created = await new CreateReviewRoundHandler(db, store.Tenant, new TestPerformanceAudit(db), new FakeCoreWorkforceClient())
             .Handle(new(cycle.Id, new("Mid-year", Start, End)), default);
         var result = await new LaunchReviewRoundHandler(db, store.Tenant, workforce,
             new TestPerformanceAudit(db), new PerformanceNotifications(db)).Handle(new(created.Value.Id, created.Value.Version), default);

@@ -128,6 +128,17 @@ public static class PerformanceErrors
         public const string ReviewFinalizationInvalid = "Review.FinalizationInvalid";
         public const string ReviewFinalizationNotReady = "Review.FinalizationNotReady";
         public const string ReviewRoundUnresolved = "ReviewRound.Unresolved";
+        public const string ReviewRoundNotActive = "ReviewRound.NotActive";
+        public const string ReviewDueDateInvalid = "Review.DueDateInvalid";
+        public const string ReviewNotOpen = "Review.NotOpen";
+        public const string PeerInputInvalid = "PeerInput.Invalid";
+        public const string PeerInputNotOpen = "PeerInput.NotOpen";
+        public const string PeerInputForbidden = "PeerInput.Forbidden";
+        public const string PeerRequestClosed = "PeerRequest.Closed";
+        public const string PeerRequestInvalid = "PeerRequest.Invalid";
+        public const string PeerRequestAnswered = "PeerRequest.AlreadyAnswered";
+        public const string ReviewAcknowledgementInvalid = "Review.AcknowledgementInvalid";
+        public const string ReviewNotReleased = "Review.NotReleased";
         public const string UpdateRequestForbidden = "UpdateRequest.Forbidden";
         public const string UpdateRequestInvalid = "UpdateRequest.Invalid";
         public const string UpdateRequestNotAllowed = "UpdateRequest.NotAllowed";

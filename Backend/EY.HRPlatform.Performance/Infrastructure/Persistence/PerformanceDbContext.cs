@@ -66,6 +66,14 @@ public sealed class PerformanceDbContext : DbContext
     public DbSet<ReviewRoundSubject> ReviewRoundSubjects => Set<ReviewRoundSubject>();
     public DbSet<PerformanceReview> PerformanceReviews => Set<PerformanceReview>();
     public DbSet<ReviewItemResponse> ReviewItemResponses => Set<ReviewItemResponse>();
+    public DbSet<ReviewQuestion> ReviewQuestions => Set<ReviewQuestion>();
+    public DbSet<ReviewRoundQuestion> ReviewRoundQuestions => Set<ReviewRoundQuestion>();
+    public DbSet<ReviewQuestionSnapshot> ReviewQuestionSnapshots => Set<ReviewQuestionSnapshot>();
+    public DbSet<ReviewQuestionAnswer> ReviewQuestionAnswers => Set<ReviewQuestionAnswer>();
+    public DbSet<PeerNomination> PeerNominations => Set<PeerNomination>();
+    public DbSet<PeerRequest> PeerRequests => Set<PeerRequest>();
+    public DbSet<PeerAnswer> PeerAnswers => Set<PeerAnswer>();
+    public DbSet<ReviewDueDateMove> ReviewDueDateMoves => Set<ReviewDueDateMove>();
     public DbSet<UpdateRequest> UpdateRequests => Set<UpdateRequest>();
     public DbSet<CalibrationSession> CalibrationSessions => Set<CalibrationSession>();
     public DbSet<CalibrationFacilitator> CalibrationFacilitators => Set<CalibrationFacilitator>();
@@ -155,6 +163,22 @@ public sealed class PerformanceDbContext : DbContext
         modelBuilder.Entity<PerformanceReview>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<ReviewItemResponse>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<ReviewQuestion>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<ReviewRoundQuestion>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<ReviewQuestionSnapshot>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<ReviewQuestionAnswer>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<PeerNomination>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<PeerRequest>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<PeerAnswer>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<ReviewDueDateMove>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<UpdateRequest>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);

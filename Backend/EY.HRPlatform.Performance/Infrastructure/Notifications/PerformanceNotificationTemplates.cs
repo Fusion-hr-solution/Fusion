@@ -62,7 +62,8 @@ public static class PerformanceNotificationTemplates
         var href = ReviewPath(review.Id);
         return kind switch
         {
-            PerformanceNotificationKind.SelfAssessmentOpened => new("Your self-assessment is open", roundName, null, href),
+            PerformanceNotificationKind.SelfAssessmentOpened => new("Your self-assessment is open",
+                review.PeerInputEnabled ? $"{roundName} · choose colleagues for peer input" : roundName, null, href),
             PerformanceNotificationKind.ManagerAssessmentOpened => new($"{review.SubjectDisplayName}'s review is ready for your assessment",
                 roundName, null, href),
             PerformanceNotificationKind.SelfAssessmentSubmitted => new($"{review.SubjectDisplayName} submitted their self-assessment",
@@ -71,6 +72,33 @@ public static class PerformanceNotificationTemplates
             _ => throw new ArgumentOutOfRangeException(nameof(kind), "Choose a review notification kind."),
         };
     }
+
+    public static string PeerRequestPath(Guid requestId) => $"/performance/reviews/peer-requests/{requestId}";
+    public static string PeerListPath(Guid reviewId) => $"/performance/reviews?peers={reviewId}";
+
+    public static PerformanceNotificationText ForPeersNominated(string subjectName, string roundName, Guid reviewId)
+        => new($"{subjectName} chose colleagues for peer input", "Approve the list", subjectName, PeerListPath(reviewId));
+
+    public static PerformanceNotificationText ForPeerListApproved(string reviewerName, string roundName, Guid reviewId)
+        => new("Your peer list was approved", $"{reviewerName} · {roundName}", reviewerName, ReviewPath(reviewId));
+
+    public static PerformanceNotificationText ForPeerInputRequested(string subjectName, string roundName, DateOnly? due, Guid requestId)
+        => new($"Peer input for {subjectName}", due is DateOnly date ? $"{roundName} · due {date:ddd d MMM}" : roundName, subjectName,
+            PeerRequestPath(requestId));
+
+    public static PerformanceNotificationText ForPeerDeclined(string peerName, string subjectName, Guid reviewId)
+        => new($"{peerName} declined peer input for {subjectName}", null, peerName, ReviewPath(reviewId));
+
+    /// <summary><paramref name="title"/> names the task from the recipient's side ("Your self-assessment is now due Fri 17 Sep").</summary>
+    public static PerformanceNotificationText ForDueDateMoved(string title, DateOnly? from, string roundName, string href)
+        => new(title, from is DateOnly previous ? $"Moved from {previous:ddd d MMM} · {roundName}" : roundName,
+            null, href);
+
+    public static PerformanceNotificationText ForReminder(ReviewWorkNotificationPayload payload)
+        => new(PerformanceNotificationRenderer.ReminderSubject(payload), payload.ReviewRoundName, null, payload.Path);
+
+    public static PerformanceNotificationText ForAcknowledged(string subjectName, string roundName, Guid reviewId)
+        => new($"{subjectName} acknowledged their review", roundName, subjectName, ReviewPath(reviewId));
 
     public static PerformanceNotificationText ForCalibrationReady(CalibrationSession session, string roundName)
         => new("Calibration is ready", $"Every review in {roundName} has reached calibration", null,

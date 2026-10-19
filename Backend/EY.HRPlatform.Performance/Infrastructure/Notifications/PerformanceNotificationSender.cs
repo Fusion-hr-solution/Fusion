@@ -62,6 +62,34 @@ public static class PerformanceNotificationRenderer
                     $"{actor} added a development goal.\n\nOpen development: {pathLink}"),
             };
         }
+        if (PerformanceOutboxMessage.IsReviewWorkKind(message.Kind))
+        {
+            var work = JsonSerializer.Deserialize<ReviewWorkNotificationPayload>(message.Payload)
+                ?? throw new InvalidOperationException("Notification review context is missing.");
+            if (!work.Path.StartsWith("/performance/", StringComparison.Ordinal))
+                throw new InvalidOperationException("Notification review context does not match its resource.");
+            var workLink = $"{shellBaseUrl.TrimEnd('/')}{work.Path}";
+            var who = work.ActorDisplayName ?? "Someone";
+            var subject = work.SubjectDisplayName ?? "a colleague";
+            // Names, tasks and dates only: answers, decline notes and acknowledgement comments stay in the app.
+            return message.Kind switch
+            {
+                PerformanceNotificationKind.PeersNominated => new("A peer list to approve",
+                    $"{subject} chose colleagues for peer input in {work.ReviewRoundName}.\n\nReview the list: {workLink}"),
+                PerformanceNotificationKind.PeerListApproved => new("Your peer list is approved",
+                    $"{who} approved who gives you peer input in {work.ReviewRoundName}.\n\nOpen your review: {workLink}"),
+                PerformanceNotificationKind.PeerInputRequested => new($"Peer input for {subject}",
+                    $"{subject}'s {work.ReviewRoundName} asks for your input{(work.DueDate is DateOnly due ? $" by {due:ddd d MMM}" : "")}.\n\nGive your input: {workLink}"),
+                PerformanceNotificationKind.PeerDeclined => new("A colleague declined peer input",
+                    $"{who} declined to give peer input for {subject}.\n\nOpen the review: {workLink}"),
+                PerformanceNotificationKind.ReviewDueDateMoved => new("A review due date moved",
+                    $"{work.Task ?? "A review task has a new due date"} ({work.ReviewRoundName}).\n\nOpen: {workLink}"),
+                PerformanceNotificationKind.ReviewReminder => new(ReminderSubject(work),
+                    $"{ReminderSubject(work)} ({work.ReviewRoundName}).\n\nOpen: {workLink}"),
+                _ => new("A review was acknowledged",
+                    $"{subject} acknowledged their {work.ReviewRoundName} review.\n\nOpen the review: {workLink}"),
+            };
+        }
         if (PerformanceOutboxMessage.IsConversationKind(message.Kind))
         {
             var conversation = JsonSerializer.Deserialize<ConversationNotificationPayload>(message.Payload)
@@ -114,6 +142,21 @@ public static class PerformanceNotificationRenderer
             };
         }
 
+        return RenderPlan(message, shellBaseUrl);
+    }
+
+    /// <summary>"Your self-assessment is a day late", "Your self-assessment is due Wed 15 Sep".</summary>
+    public static string ReminderSubject(ReviewWorkNotificationPayload work)
+    {
+        if (work.Task == "review result") return "Your review is ready to acknowledge";
+        var task = work.Task ?? "review task";
+        if (work.DaysLate == 1) return $"Your {task} is a day late";
+        if (work.DaysLate > 1) return $"Your {task} is {work.DaysLate} days late";
+        return work.DueDate is DateOnly due ? $"Your {task} is due {due:ddd d MMM}" : $"Your {task} is waiting";
+    }
+
+    private static PerformanceNotificationEmail RenderPlan(PerformanceOutboxMessage message, string shellBaseUrl)
+    {
         var payload = JsonSerializer.Deserialize<PlanNotificationPayload>(message.Payload)
             ?? throw new InvalidOperationException("Notification plan context is missing.");
         if (payload.PlanId != message.ResourceId || payload.CycleId == Guid.Empty)

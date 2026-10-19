@@ -61,6 +61,10 @@ public sealed class UpdateCycleSettingsHandler(PerformanceDbContext db, ITenantC
             settings.EvidenceRetentionMonths,
             settings.AiAssistanceEnabled,
             settings.DefaultOneOnOneCadence,
+            settings.SelfAssessmentDueDays,
+            settings.PeerInputDueDays,
+            settings.ManagerAssessmentDueDays,
+            settings.AcknowledgementReminderDays,
         };
         var request = command.Request;
         try
@@ -77,6 +81,11 @@ public sealed class UpdateCycleSettingsHandler(PerformanceDbContext db, ITenantC
                 request.DefaultCalibrationEnabled,
                 request.AiAssistanceEnabled,
                 request.DefaultOneOnOneCadence);
+            settings.UpdateReviewDueDays(
+                request.SelfAssessmentDueDays ?? settings.SelfAssessmentDueDays,
+                request.PeerInputDueDays ?? settings.PeerInputDueDays,
+                request.ManagerAssessmentDueDays ?? settings.ManagerAssessmentDueDays,
+                request.AcknowledgementReminderDays ?? settings.AcknowledgementReminderDays);
         }
         catch (ArgumentException ex)
         {
@@ -96,6 +105,10 @@ public sealed class UpdateCycleSettingsHandler(PerformanceDbContext db, ITenantC
             settings.EvidenceRetentionMonths,
             settings.AiAssistanceEnabled,
             settings.DefaultOneOnOneCadence,
+            settings.SelfAssessmentDueDays,
+            settings.PeerInputDueDays,
+            settings.ManagerAssessmentDueDays,
+            settings.AcknowledgementReminderDays,
         };
         if (!Equals(before, after))
             audit.Record(settings.TenantId, "CycleSettings", settings.Id, null, PerformanceAuditActions.SettingsChanged, new { before, after });

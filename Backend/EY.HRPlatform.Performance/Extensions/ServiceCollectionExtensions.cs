@@ -39,6 +39,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<EvidenceUploadSweeper>();
         services.AddSingleton<PerformanceNotificationRetention>();
         services.AddSingleton<EY.HRPlatform.Performance.Features.OneOnOnes.OneOnOneReconciler>();
+        services.AddSingleton<EY.HRPlatform.Performance.Features.Reviews.ReviewReminderScanner>();
         services.AddHostedService<PerformanceBackgroundWorker>();
         services.AddScoped<PopulationResolutionService>();
 

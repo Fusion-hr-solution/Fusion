@@ -122,7 +122,7 @@ public sealed class ListReviewRoundsHandler(PerformanceDbContext db)
     }
 }
 
-public sealed class CreateReviewRoundHandler(PerformanceDbContext db, ITenantContext tenant, IPerformanceAudit audit)
+public sealed class CreateReviewRoundHandler(PerformanceDbContext db, ITenantContext tenant, IPerformanceAudit audit, ICoreWorkforceClient workforce)
     : ICommandHandler<CreateReviewRoundCommand, Result<ReviewRoundDto>>
 {
     public async Task<Result<ReviewRoundDto>> Handle(CreateReviewRoundCommand command, CancellationToken cancellationToken)
@@ -138,9 +138,7 @@ public sealed class CreateReviewRoundHandler(PerformanceDbContext db, ITenantCon
         try
         {
             round = ReviewRound.CreateDraft(tenant.TenantId, cycle, command.Request.Name,
-                command.Request.PeriodStart, command.Request.PeriodEnd,
-                settings.DefaultSelfAssessmentEnabled, settings.DefaultObjectiveRatingsEnabled,
-                settings.DefaultCalibrationEnabled);
+                command.Request.PeriodStart, command.Request.PeriodEnd, settings);
         }
         catch (InvalidOperationException ex)
         {
@@ -166,7 +164,23 @@ public sealed class CreateReviewRoundHandler(PerformanceDbContext db, ITenantCon
         audit.Record(tenant.TenantId, "ReviewRound", round.Id, cycle.Id, PerformanceAuditActions.ReviewRoundCreated,
             new { round.Name, round.PeriodStart, round.PeriodEnd, subjectCount = rows.Count });
         await db.SaveChangesAsync(cancellationToken);
-        return Result.Success(ReviewRoundProjection.Detail(round, rows, new Dictionary<Guid, IReadOnlyList<ReviewReadinessIssueDto>>()));
+        return Result.Success(await ReviewRoundReads.ComposeAsync(db, workforce, round, rows, cancellationToken, tolerateCore: true));
+    }
+}
+
+/// <summary>Loads and composes a round for its page; a Draft's readiness needs Core.</summary>
+internal static class ReviewRoundReads
+{
+    public static async Task<ReviewRoundDto> ComposeAsync(PerformanceDbContext db, ICoreWorkforceClient workforce, ReviewRound round,
+        IReadOnlyList<ReviewRoundSubject> subjects, CancellationToken token, bool tolerateCore)
+    {
+        ReviewReadinessResolver.Resolution? readiness = null;
+        if (round.State == ReviewRoundState.Draft)
+        {
+            try { readiness = await ReviewReadinessResolver.ResolveAsync(subjects, workforce, DateTime.UtcNow, token); }
+            catch (HttpRequestException) when (tolerateCore) { }
+        }
+        return await ReviewRoundComposer.ComposeAsync(db, workforce, round, subjects, readiness, DateOnly.FromDateTime(DateTime.UtcNow), token);
     }
 }
 
@@ -178,10 +192,8 @@ public sealed class GetReviewRoundHandler(PerformanceDbContext db, ICoreWorkforc
         var round = await db.ReviewRounds.AsNoTracking().FirstOrDefaultAsync(r => r.Id == request.RoundId, cancellationToken);
         if (round is null) return Result.Failure<ReviewRoundDto>(PerformanceErrors.NotFound("ReviewRound", request.RoundId));
         var subjects = await db.ReviewRoundSubjects.AsNoTracking().Where(s => s.ReviewRoundId == round.Id).ToListAsync(cancellationToken);
-        ReviewReadinessResolver.Resolution readiness;
-        try { readiness = await ReviewReadinessResolver.ResolveAsync(subjects, workforce, DateTime.UtcNow, cancellationToken); }
+        try { return Result.Success(await ReviewRoundReads.ComposeAsync(db, workforce, round, subjects, cancellationToken, tolerateCore: false)); }
         catch (HttpRequestException) { return Result.Failure<ReviewRoundDto>(PerformanceErrors.CoreUnavailable()); }
-        return Result.Success(ReviewRoundProjection.Detail(round, subjects, readiness.Issues));
     }
 }
 
@@ -209,42 +221,66 @@ public sealed class GetEligibleReviewersHandler(PerformanceDbContext db, ICoreWo
     }
 }
 
-public sealed class UpdateReviewRoundHandler(PerformanceDbContext db, ITenantContext tenant, IPerformanceAudit audit)
+public sealed class UpdateReviewRoundHandler(PerformanceDbContext db, IPerformanceAudit audit, ICoreWorkforceClient workforce)
     : ICommandHandler<UpdateReviewRoundCommand, Result<ReviewRoundDto>>
 {
     public async Task<Result<ReviewRoundDto>> Handle(UpdateReviewRoundCommand command, CancellationToken cancellationToken)
     {
-        var round = await db.ReviewRounds.FirstOrDefaultAsync(r => r.Id == command.RoundId, cancellationToken);
+        var round = await db.ReviewRounds.Include(r => r.Questions).FirstOrDefaultAsync(r => r.Id == command.RoundId, cancellationToken);
         if (round is null) return Result.Failure<ReviewRoundDto>(PerformanceErrors.NotFound("ReviewRound", command.RoundId));
         var cycle = await db.Cycles.FirstOrDefaultAsync(c => c.Id == round.CycleId, cancellationToken);
         if (cycle is null) return Result.Failure<ReviewRoundDto>(PerformanceErrors.NotFound("Cycle", round.CycleId));
         if (VersionGuard.Check(round, command.Request.ExpectedVersion) is { } stale) return Result.Failure<ReviewRoundDto>(stale);
-        var before = new { round.Name, round.PeriodStart, round.PeriodEnd, round.SelfAssessmentEnabled,
-            round.ObjectiveRatingsEnabled, round.CalibrationEnabled, round.SelfAssessmentDueDate,
-            round.ManagerAssessmentDueDate, round.CompetencyIdsJson };
+        var request = command.Request;
+        var before = Facts(round);
         try
         {
-            var competencies = command.Request.CompetencyIds.Distinct().ToArray();
-            if (competencies.Length != command.Request.CompetencyIds.Count)
+            var competencies = request.CompetencyIds.Distinct().ToArray();
+            if (competencies.Length != request.CompetencyIds.Count)
                 return Result.Failure<ReviewRoundDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.ReviewRoundInvalid, "Competencies must be unique."));
             var activeCompetencyIds = await db.Competencies.Where(item => item.State == CompetencyState.Active && competencies.Contains(item.Id))
                 .Select(item => item.Id).ToListAsync(cancellationToken);
             if (activeCompetencyIds.Count != competencies.Length)
                 return Result.Failure<ReviewRoundDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.ReviewRoundInvalid, "Choose only active competencies from this tenant."));
-            round.UpdateDraft(cycle, command.Request.Name, command.Request.PeriodStart, command.Request.PeriodEnd,
-                command.Request.SelfAssessmentEnabled, command.Request.ObjectiveRatingsEnabled, command.Request.CalibrationEnabled,
-                command.Request.SelfAssessmentDueDate, command.Request.ManagerAssessmentDueDate, JsonSerializer.Serialize(competencies));
+            round.UpdateDraft(cycle, request.Name, request.PeriodStart, request.PeriodEnd,
+                new ReviewRoundComponents(request.SelfAssessmentEnabled, request.PeerInputEnabled ?? round.PeerInputEnabled,
+                    request.ObjectiveRatingsEnabled, request.QuestionsEnabled ?? round.QuestionsEnabled,
+                    request.PotentialEnabled ?? round.PotentialEnabled, request.CalibrationEnabled),
+                new ReviewRoundDueDates(request.SelfAssessmentDueDate,
+                    request.PeerInputDueDate is not null || request.PeerInputDueDateSet ? request.PeerInputDueDate : round.PeerInputDueDate,
+                    request.ManagerAssessmentDueDate),
+                JsonSerializer.Serialize(competencies), DateOnly.FromDateTime(DateTime.UtcNow));
+            if (request.QuestionIds is { } questionIds)
+            {
+                var unique = questionIds.Distinct().ToArray();
+                var library = await db.ReviewQuestions.Where(q => unique.Contains(q.Id)).ToDictionaryAsync(q => q.Id, cancellationToken);
+                if (library.Count != unique.Length)
+                    return Result.Failure<ReviewRoundDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.ReviewRoundInvalid, "Choose questions from this tenant's library."));
+                var picked = questionIds.Select(id => library[id]).ToList();
+                var old = round.Questions.ToList();
+                if (round.SetQuestions(picked))
+                {
+                    db.ReviewRoundQuestions.RemoveRange(old);
+                    db.ReviewRoundQuestions.AddRange(round.Questions);
+                }
+            }
         }
         catch (InvalidOperationException ex) { return Result.Failure<ReviewRoundDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.ReviewRoundNotDraft, ex.Message)); }
         catch (ArgumentException ex) { return Result.Failure<ReviewRoundDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.ReviewRoundInvalid, ex.Message)); }
-        var after = new { round.Name, round.PeriodStart, round.PeriodEnd, round.SelfAssessmentEnabled,
-            round.ObjectiveRatingsEnabled, round.CalibrationEnabled, round.SelfAssessmentDueDate,
-            round.ManagerAssessmentDueDate, round.CompetencyIdsJson };
-        if (!Equals(before, after)) audit.Record(tenant.TenantId, "ReviewRound", round.Id, round.CycleId, PerformanceAuditActions.ReviewRoundChanged, new { before, after });
+        var after = Facts(round);
+        if (before != after) audit.Record(round.TenantId, "ReviewRound", round.Id, round.CycleId, PerformanceAuditActions.ReviewRoundChanged, new { before, after });
         await db.SaveChangesAsync(cancellationToken);
         var subjects = await db.ReviewRoundSubjects.AsNoTracking().Where(s => s.ReviewRoundId == round.Id).ToListAsync(cancellationToken);
-        return Result.Success(ReviewRoundProjection.Detail(round, subjects, new Dictionary<Guid, IReadOnlyList<ReviewReadinessIssueDto>>()));
+        return Result.Success(await ReviewRoundReads.ComposeAsync(db, workforce, round, subjects, cancellationToken, tolerateCore: true));
     }
+
+    private static string Facts(ReviewRound round) => JsonSerializer.Serialize(new
+    {
+        round.Name, round.PeriodStart, round.PeriodEnd, round.SelfAssessmentEnabled, round.PeerInputEnabled,
+        round.ObjectiveRatingsEnabled, round.QuestionsEnabled, round.PotentialEnabled, round.CalibrationEnabled,
+        round.SelfAssessmentDueDate, round.PeerInputDueDate, round.ManagerAssessmentDueDate, round.CompetencyIdsJson,
+        questions = round.Questions.OrderBy(q => q.Audience).ThenBy(q => q.SortOrder).Select(q => q.QuestionId).ToArray(),
+    });
 }
 
 public sealed class GetReviewRoundPopulationHandler(PerformanceDbContext db)
@@ -340,7 +376,7 @@ public sealed class LaunchReviewRoundHandler(PerformanceDbContext db, ITenantCon
 {
     public async Task<Result<ReviewRoundLaunchDto>> Handle(LaunchReviewRoundCommand command, CancellationToken cancellationToken)
     {
-        var round = await db.ReviewRounds.FirstOrDefaultAsync(r => r.Id == command.RoundId, cancellationToken);
+        var round = await db.ReviewRounds.Include(r => r.Questions).FirstOrDefaultAsync(r => r.Id == command.RoundId, cancellationToken);
         if (round is null) return Result.Failure<ReviewRoundLaunchDto>(PerformanceErrors.NotFound("ReviewRound", command.RoundId));
         if (round.State == ReviewRoundState.Active)
         {
@@ -363,13 +399,31 @@ public sealed class LaunchReviewRoundHandler(PerformanceDbContext db, ITenantCon
         if (included.Count == 0)
             return Result.Failure<ReviewRoundLaunchDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.ReviewRoundPopulationEmpty, "A review round needs at least one included subject."));
         var now = DateTime.UtcNow;
+        var launchDay = DateOnly.FromDateTime(now);
         ReviewReadinessResolver.Resolution readiness;
         try { readiness = await ReviewReadinessResolver.ResolveAsync(included, workforce, now, cancellationToken); }
         catch (HttpRequestException) { return Result.Failure<ReviewRoundLaunchDto>(PerformanceErrors.CoreUnavailable()); }
+
+        // Archived picks drop out: archiving removes a question from new rounds.
+        var pickedIds = round.Questions.Select(q => q.QuestionId).ToArray();
+        var library = await db.ReviewQuestions.Where(q => pickedIds.Contains(q.Id) && q.State == ReviewQuestionState.Active)
+            .ToDictionaryAsync(q => q.Id, cancellationToken);
+        var picks = round.Questions.Where(q => library.ContainsKey(q.QuestionId)
+                && (q.Audience == ReviewQuestionAudience.Peer ? round.PeerInputEnabled : round.QuestionsEnabled))
+            .OrderBy(q => q.Audience).ThenBy(q => q.SortOrder).ToList();
+        var running = await ReviewRoundComposer.RunningRoundAsync(db, round, cancellationToken);
+        var roundIssues = ReviewRoundComposer.RoundIssues(round, cycle, included.Count,
+            picks.Select(p => new ReviewRoundQuestionDto(p.Id, p.QuestionId, p.Audience, p.SortOrder, library[p.QuestionId].Text)).ToArray(),
+            running is not null, launchDay);
         var blocking = readiness.Issues.Values.SelectMany(values => values).ToArray();
-        if (blocking.Length > 0)
+        if (blocking.Length > 0 || roundIssues.Count > 0)
+        {
+            var message = running is not null
+                ? $"{running.Name} is running. Launch this round once it is closed."
+                : "Resolve every review readiness issue before launch.";
             return Result.Failure<ReviewRoundLaunchDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.ReviewRoundNotReady,
-                "Resolve every review readiness issue before launch.", blocking));
+                message, new { issues = blocking, roundIssues, runningRound = running }));
+        }
 
         var scale = await db.RatingScales.SingleOrDefaultAsync(cancellationToken);
         RatingScaleVersion version;
@@ -396,13 +450,20 @@ public sealed class LaunchReviewRoundHandler(PerformanceDbContext db, ITenantCon
         if (competencies.Count != selectedCompetencyIds.Count || competencies.Any(item => item.State != CompetencyState.Active))
             return Result.Failure<ReviewRoundLaunchDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.ReviewRoundInvalid, "The round includes a competency that is no longer active."));
         foreach (var competency in competencies) competency.MarkUsed(now);
+        var snapshots = picks.Select(pick => ReviewQuestionSnapshot.Create(round, pick, library[pick.QuestionId])).ToList();
+        foreach (var question in library.Values.Where(q => picks.Any(p => p.QuestionId == q.Id))) question.MarkUsed(now);
+        var schedule = round.ScheduleFor(launchDay);
         var configSnapshot = JsonSerializer.Serialize(new
         {
             round.Name, round.PeriodStart, round.PeriodEnd,
-            round.SelfAssessmentEnabled, round.ObjectiveRatingsEnabled, round.CalibrationEnabled,
-            round.SelfAssessmentDueDate, round.ManagerAssessmentDueDate,
+            round.SelfAssessmentEnabled, round.PeerInputEnabled, round.ObjectiveRatingsEnabled, round.QuestionsEnabled,
+            round.PotentialEnabled, round.CalibrationEnabled,
+            SelfAssessmentDueDate = round.SelfAssessmentEnabled ? schedule.SelfAssessment : (DateOnly?)null,
+            PeerInputDueDate = round.PeerInputEnabled ? schedule.PeerInput : (DateOnly?)null,
+            ManagerAssessmentDueDate = schedule.ManagerAssessment,
             competencyIds = selectedCompetencyIds,
             competencies = competencies.Select(item => new { id = item.Id, name = item.Name, description = item.Description, behaviors = item.Behaviors }).ToArray(),
+            questions = snapshots.Select(q => new { id = q.Id, questionId = q.QuestionId, audience = q.Audience.ToString(), q.SortOrder, q.Text }).ToArray(),
             ratingScaleVersionId = version.Id,
             ratingScaleVersion = version.Number,
             ratingScale = version.Levels,
@@ -417,13 +478,15 @@ public sealed class LaunchReviewRoundHandler(PerformanceDbContext db, ITenantCon
         }).ToList();
         var beforeState = round.State;
         round.Launch(configSnapshot, version.Id, now);
+        db.ReviewQuestionSnapshots.AddRange(snapshots);
         db.PerformanceReviews.AddRange(reviews);
         foreach (var review in reviews)
             notifications.EnqueueReview(review,
                 round.SelfAssessmentEnabled ? PerformanceNotificationKind.SelfAssessmentOpened : PerformanceNotificationKind.ManagerAssessmentOpened,
                 round.Name);
         audit.Record(tenant.TenantId, "ReviewRound", round.Id, round.CycleId, PerformanceAuditActions.ReviewRoundLaunched,
-            new { before = new { state = beforeState }, after = new { state = round.State, reviewCount = reviews.Count, ratingScaleVersion = version.Number } });
+            new { before = new { state = beforeState }, after = new { state = round.State, reviewCount = reviews.Count, ratingScaleVersion = version.Number,
+                questionCount = snapshots.Count } });
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success(new ReviewRoundLaunchDto(round.Id, round.State, reviews.Count, reviews.Select(r => r.Id).ToArray()));
     }

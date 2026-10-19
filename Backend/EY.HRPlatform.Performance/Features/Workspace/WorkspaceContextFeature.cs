@@ -75,7 +75,10 @@ public sealed class GetWorkspaceContextHandler(PerformanceDbContext db, Performa
         var calibrates = selected is not null && grants.CanCalibrate && await db.ReviewRounds.AsNoTracking()
             .AnyAsync(round => round.CycleId == selected.Id && round.CalibrationEnabled
                 && round.State != Domain.Reviews.ReviewRoundState.Draft, cancellationToken);
-        var hasReviews = selected is not null && (grants.Administers || hasReviewRelationship || calibrates);
+        // A colleague asked for peer input has review work too: their request lives in Reviews (D-18).
+        var hasPeerRequest = selected is not null && employeeId != Guid.Empty && grants.Participates
+            && await db.PeerRequests.AsNoTracking().AnyAsync(request => request.CycleId == selected.Id && request.PeerEmployeeId == employeeId, cancellationToken);
+        var hasReviews = selected is not null && (grants.Administers || hasReviewRelationship || calibrates || hasPeerRequest);
         var orgRead = grants.AggregateViewScope is "DirectReports" or "OrgUnit" or "Tenant";
 
         var capabilities = new WorkspaceCapabilitiesDto(

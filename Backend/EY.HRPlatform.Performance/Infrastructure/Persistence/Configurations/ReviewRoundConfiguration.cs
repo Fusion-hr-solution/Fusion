@@ -15,6 +15,11 @@ public sealed class ReviewRoundConfiguration : IEntityTypeConfiguration<ReviewRo
         builder.Property(round => round.State).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(round => round.CompetencyIdsJson).HasColumnType("jsonb").IsRequired();
         builder.Property(round => round.ConfigSnapshotJson).HasColumnType("jsonb");
+        builder.Property(round => round.SelfAssessmentDueDays).HasDefaultValue(14);
+        builder.Property(round => round.PeerInputDueDays).HasDefaultValue(14);
+        builder.Property(round => round.ManagerAssessmentDueDays).HasDefaultValue(7);
+        builder.Property(round => round.AcknowledgementReminderDays).HasDefaultValue(7);
+        builder.Navigation(round => round.Questions).HasField("_questions");
         builder.HasIndex(round => round.TenantId);
         builder.HasIndex(round => new { round.TenantId, round.CycleId });
         builder.HasIndex(round => round.ActiveCycleSlot).IsUnique().HasFilter("\"ActiveCycleSlot\" IS NOT NULL");
@@ -40,6 +45,10 @@ public sealed class PerformanceReviewConfiguration : IEntityTypeConfiguration<Pe
         builder.Property(review => review.FinalRatingSource).HasMaxLength(30);
         builder.Property(review => review.CloseReason).HasMaxLength(1000);
         builder.Property(review => review.State).HasConversion<string>().HasMaxLength(30).IsRequired();
+        builder.Property(review => review.Potential).HasConversion<string>().HasMaxLength(20);
+        builder.Property(review => review.AcknowledgementComment).HasMaxLength(PerformanceReview.MaxAcknowledgementComment);
+        builder.Navigation(review => review.Answers).HasField("_answers");
+        builder.Navigation(review => review.PeerNominations).HasField("_peerNominations");
         builder.OwnsOne(review => review.SelfAssessment, assessment =>
         {
             assessment.Ignore(value => value.IsSubmitted);

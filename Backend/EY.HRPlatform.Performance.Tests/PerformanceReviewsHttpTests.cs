@@ -67,6 +67,7 @@ public sealed class PerformanceReviewsHttpTests
         {
             expectedVersion = review.Version,
             summary = "Reflection",
+            overallRating = 4,
             items = new[] { new { kind = "Competency", itemId = competencyId, rating = (int?)4, comment = "Useful" } },
         }))
             Assert.Equal(HttpStatusCode.OK, submitted.StatusCode);
@@ -161,7 +162,7 @@ public sealed class PerformanceReviewsHttpTests
             Assert.Equal(HttpStatusCode.Forbidden, prematureManagerSave.StatusCode);
 
         using (var selfSubmit = await subject.PostAsJsonAsync($"/api/performance/reviews/{review.Id}/self-assessment",
-            new { expectedVersion = review.Version, summary = "I delivered the plan." }))
+            new { expectedVersion = review.Version, summary = "I delivered the plan.", overallRating = 4 }))
             Assert.Equal(HttpStatusCode.OK, selfSubmit.StatusCode);
         using (var reviewerCanReadSubmittedSelf = await reviewer.GetAsync($"/api/performance/reviews/{review.Id}"))
         {

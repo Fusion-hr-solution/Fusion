@@ -27,11 +27,11 @@ public sealed class ReviewAssessmentTests
 
         review.SaveSelfAssessment(subjectId, "  Progress was strong.  ", DateTime.UtcNow);
         Assert.Equal("Progress was strong.", review.SelfAssessment.Summary);
-        Assert.True(review.SubmitSelfAssessment(subjectId, "Progress was strong.", DateTime.UtcNow));
+        Assert.True(review.SubmitSelfAssessment(subjectId, "Progress was strong.", 3, DateTime.UtcNow));
         Assert.Equal(PerformanceReviewState.ManagerAssessment, review.State);
         Assert.Equal(Start.AddDays(200), review.CurrentStageDueDate);
-        Assert.False(review.SubmitSelfAssessment(subjectId, "Progress was strong.", DateTime.UtcNow));
-        Assert.Throws<InvalidOperationException>(() => review.SubmitSelfAssessment(subjectId, "Changed after submit", DateTime.UtcNow));
+        Assert.False(review.SubmitSelfAssessment(subjectId, "Progress was strong.", 3, DateTime.UtcNow));
+        Assert.Throws<InvalidOperationException>(() => review.SubmitSelfAssessment(subjectId, "Changed after submit", 3, DateTime.UtcNow));
         Assert.Throws<InvalidOperationException>(() => review.SaveSelfAssessment(subjectId, "Changed", DateTime.UtcNow));
 
         Assert.Throws<ArgumentException>(() => review.SubmitManagerAssessment(reviewerId, "Manager summary", 99, DateTime.UtcNow));
@@ -75,9 +75,9 @@ public sealed class ReviewAssessmentTests
             .Handle(new(review.Id, new ReviewActor(subjectId, false, CanParticipate: true), review.Version, "Draft"), default);
         Assert.True(saved.IsSuccess);
         var submitHandler = new SubmitSelfAssessmentHandler(db, audit, notifications);
-        var submitted = await submitHandler.Handle(new(review.Id, new ReviewActor(subjectId, false, CanParticipate: true), review.Version, "Submitted summary"), default);
+        var submitted = await submitHandler.Handle(new(review.Id, new ReviewActor(subjectId, false, CanParticipate: true), review.Version, "Submitted summary") { OverallRating = 3 }, default);
         Assert.True(submitted.IsSuccess);
-        var retried = await submitHandler.Handle(new(review.Id, new ReviewActor(subjectId, false, CanParticipate: true), 0, "Submitted summary"), default);
+        var retried = await submitHandler.Handle(new(review.Id, new ReviewActor(subjectId, false, CanParticipate: true), 0, "Submitted summary") { OverallRating = 3 }, default);
         Assert.True(retried.IsSuccess);
         Assert.Equal(1, await db.OutboxMessages.CountAsync(m => m.Kind == PerformanceNotificationKind.SelfAssessmentSubmitted));
         Assert.Equal(1, await db.AuditEntries.CountAsync(e => e.Action == PerformanceAuditActions.ReviewSelfAssessmentSubmitted));

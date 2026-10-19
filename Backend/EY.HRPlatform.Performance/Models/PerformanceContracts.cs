@@ -24,6 +24,10 @@ public sealed record CycleSettingsDto(
 {
     public uint Version { get; init; }
     public EY.HRPlatform.Performance.Domain.Conversations.OneOnOneCadence DefaultOneOnOneCadence { get; init; }
+    public int SelfAssessmentDueDays { get; init; }
+    public int PeerInputDueDays { get; init; }
+    public int ManagerAssessmentDueDays { get; init; }
+    public int AcknowledgementReminderDays { get; init; }
 }
 
 public sealed record UpdateCycleSettingsRequest(
@@ -41,6 +45,11 @@ public sealed record UpdateCycleSettingsRequest(
     public bool? AiAssistanceEnabled { get; init; }
     /// <summary>Omitted keeps the current default cadence for new 1:1 series.</summary>
     public EY.HRPlatform.Performance.Domain.Conversations.OneOnOneCadence? DefaultOneOnOneCadence { get; init; }
+    /// <summary>Review due-date defaults in days; omitted keeps the current values. Only rounds created later use them.</summary>
+    public int? SelfAssessmentDueDays { get; init; }
+    public int? PeerInputDueDays { get; init; }
+    public int? ManagerAssessmentDueDays { get; init; }
+    public int? AcknowledgementReminderDays { get; init; }
 
     [System.Text.Json.Serialization.JsonRequired]
     public uint ExpectedVersion { get; init; }
@@ -63,6 +72,14 @@ public sealed record CreateCompetencyRequest(string Name, string Description, IR
 public sealed record UpdateCompetencyRequest([property: System.Text.Json.Serialization.JsonRequired] uint ExpectedVersion,
     string Name, string Description, IReadOnlyList<string>? Behaviors);
 public sealed record CompetencyVersionRequest([property: System.Text.Json.Serialization.JsonRequired] uint ExpectedVersion);
+
+public sealed record ReviewQuestionDto(Guid Id, string Text, ReviewQuestionAudience Audience, int SortOrder,
+    ReviewQuestionState State, DateTime? FirstUsedAt, uint Version);
+public sealed record CreateReviewQuestionRequest(string Text, ReviewQuestionAudience Audience);
+public sealed record UpdateReviewQuestionRequest([property: System.Text.Json.Serialization.JsonRequired] uint ExpectedVersion, string Text);
+public sealed record ReviewQuestionVersionRequest([property: System.Text.Json.Serialization.JsonRequired] uint ExpectedVersion);
+/// <summary>Every active question of one audience, in its new order.</summary>
+public sealed record ReorderReviewQuestionsRequest(ReviewQuestionAudience Audience, IReadOnlyList<Guid> QuestionIds);
 
 // ----- Cycles -----
 

@@ -173,7 +173,8 @@ public sealed class RelationalTests
             var index = Array.FindIndex(migrations, m => m.EndsWith("_LaunchReviewRounds"));
             Assert.True(index > 0);
             var migrator = db.GetService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>();
-            await migrator.MigrateAsync(migrations[index]);
+            // Saved through the current model, so applied in full; the partial slot index still comes from LaunchReviewRounds.
+            await migrator.MigrateAsync();
 
             var cycle = PerformanceCycle.CreateDraft(tenantId, "FY2026", Start, End, Start.AddDays(30)).Activated();
             var scale = RatingScale.CreateDefault(tenantId);
