@@ -11,7 +11,7 @@ import { useReviewRoundMutations } from "@/features/performance/api/use-reviews"
 import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
-import { roundSetupHref, withCycle } from "@/lib/performance-routes";
+import { roundHref, withCycle } from "@/lib/performance-routes";
 
 export default function NewReviewRoundPage() {
   const router = useRouter();
@@ -39,7 +39,7 @@ export default function NewReviewRoundPage() {
     setPending(true);
     try {
       const created = await create.mutateAsync({ name: name.trim(), periodStart: formStart, periodEnd: formEnd });
-      router.push(withCycle(roundSetupHref(created.id, "details"), activeCycle.id));
+      router.push(withCycle(roundHref(created.id), activeCycle.id));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not create this review round.");
       setPending(false);

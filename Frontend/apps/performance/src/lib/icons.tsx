@@ -8,6 +8,10 @@ import { forwardRef, type ForwardRefExoticComponent, type RefAttributes } from "
 import { HugeiconsIcon, type HugeiconsProps, type IconSvgElement } from "@hugeicons/react";
 import {
   Add01Icon,
+  BalanceScaleIcon,
+  ChartIncreaseIcon,
+  Download04Icon,
+  Notification03Icon,
   Chatting01Icon,
   Clapping01Icon,
   FavouriteIcon,
@@ -255,3 +259,7 @@ export const Clapping = icon(Clapping01Icon, "Clapping");
 export const Party = icon(PartyIcon, "Party");
 export const Heart = icon(FavouriteIcon, "Heart");
 export const Star = icon(StarIcon, "Star");
+export const Download = icon(Download04Icon, "Download");
+export const Bell = icon(Notification03Icon, "Bell");
+export const Scale = icon(BalanceScaleIcon, "Scale");
+export const Growth = icon(ChartIncreaseIcon, "Growth");

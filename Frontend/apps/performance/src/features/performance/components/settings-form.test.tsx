@@ -38,6 +38,10 @@ const settings: CycleSettingsDto = {
   evidenceRetentionMonths: 36,
   aiAssistanceEnabled: true,
   defaultOneOnOneCadence: "EveryTwoWeeks",
+  selfAssessmentDueDays: 14,
+  peerInputDueDays: 14,
+  managerAssessmentDueDays: 7,
+  acknowledgementReminderDays: 7,
 };
 
 describe("AI assistance setting", () => {

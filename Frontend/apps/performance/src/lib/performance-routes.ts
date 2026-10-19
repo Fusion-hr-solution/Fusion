@@ -41,8 +41,14 @@ export function newReviewRoundHref() {
   return "/reviews/rounds/new";
 }
 
-export function roundSetupHref(roundId: string, step: "details" | "population" | "review") {
-  return `${roundHref(roundId)}/setup/${step}`;
+/** The page a colleague answers a peer request on (board 11). */
+export function peerRequestHref(requestId: string) {
+  return `/reviews/peer-requests/${segment(requestId)}`;
+}
+
+/** Reviews with one review's peer list open (board 10). */
+export function peerListHref(reviewId: string) {
+  return `/reviews?peers=${segment(reviewId)}`;
 }
 
 export function calibrationHref(roundId: string) {

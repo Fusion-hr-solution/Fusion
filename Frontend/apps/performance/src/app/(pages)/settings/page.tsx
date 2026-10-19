@@ -6,6 +6,7 @@ import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { SettingsForm } from "@/features/performance/components/settings-form";
+import { ReviewSettings } from "@/features/performance/components/reviews/review-settings";
 
 export default function SettingsPage() {
   const context = useWorkspaceContext();
@@ -32,7 +33,10 @@ export default function SettingsPage() {
       ) : !settings.data ? (
         <PageError title="Settings unavailable" description="No settings were returned." onRetry={settings.refetch} />
       ) : (
-        <SettingsForm settings={settings.data} />
+        <>
+          <SettingsForm settings={settings.data} />
+          <ReviewSettings settings={settings.data} />
+        </>
       )}
     </PageContainer>
   );
