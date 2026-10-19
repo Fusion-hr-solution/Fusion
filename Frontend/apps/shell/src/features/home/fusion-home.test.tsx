@@ -12,6 +12,9 @@ const mocks = vi.hoisted(() => ({
   user: null as AuthUser | null,
   work: { items: [] as FusionWorkItem[], modules: [] as ModuleState[] },
   requested: [] as string[],
+  praise: { data: undefined as unknown, error: null as Error | null },
+  praiseEnabled: [] as boolean[],
+  react: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: vi.fn() }) }));
@@ -31,6 +34,12 @@ vi.mock("@repo/api/query", () => ({
       refetch: vi.fn(),
     };
   },
+  usePraiseFeed: (_query: unknown, options: { enabled?: boolean }) => {
+    mocks.praiseEnabled.push(Boolean(options.enabled));
+    return mocks.praise;
+  },
+  useReactToPraise: () => ({ mutate: mocks.react, isLoading: false }),
+  useCompanyValues: () => ({ data: [] }),
   useFusionNotifications: () => ({
     items: [],
     unreadCount: 0,
@@ -65,6 +74,9 @@ const ready: ModuleState[] = [
 describe("FusionHome", () => {
   beforeEach(() => {
     mocks.user = employee;
+    mocks.praise = { data: { items: [], next: null }, error: null };
+    mocks.praiseEnabled = [];
+    mocks.react.mockClear();
   });
   afterEach(() => cleanup());
 
@@ -109,5 +121,42 @@ describe("FusionHome", () => {
     render(<FusionHome />);
     expect(screen.queryByRole("link", { name: "Performance" })).toBeNull();
     expect(mocks.requested).toEqual(["core"]);
+  });
+
+  it("shows the company's praise beside the work and reacts in place", () => {
+    mocks.work = { modules: ready, items: [] };
+    mocks.praise = {
+      data: {
+        next: null,
+        items: [{
+          id: "p1", author: { id: "a", name: "Amine Jaziri" }, recipients: [{ id: "n", name: "Nour Ben Ali" }],
+          value: { id: "v", name: "Ownership" }, message: "You ran the cut-over with zero downtime.", givenAt: "2026-10-17T08:00:00Z",
+          reactions: [{ kind: "Celebrate", count: 1, mine: false }], canDelete: false,
+        }],
+      },
+      error: null,
+    };
+    render(<FusionHome />);
+    expect(screen.getByRole("heading", { name: "Praise" })).toBeTruthy();
+    expect(screen.getByText("Ownership")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Give praise" }).getAttribute("href")).toBe("/performance/feedback?tab=praise&compose=praise");
+    screen.getByRole("button", { name: "Celebrate, 1" }).click();
+    expect(mocks.react).toHaveBeenCalledWith({ praiseId: "p1", kind: "Celebrate", add: true });
+  });
+
+  it("keeps the work when praise fails, with one quiet line", () => {
+    mocks.work = { modules: ready, items: [{ id: "a", module: "performance", kind: "plan-write", title: "Write your plan", dueOn: "2099-01-02", href: "/performance/plan" }] };
+    mocks.praise = { data: undefined, error: new Error("down") };
+    render(<FusionHome />);
+    expect(screen.getByRole("heading", { name: "Write your plan" })).toBeTruthy();
+    expect(screen.getByText("Praise couldn't be loaded")).toBeTruthy();
+  });
+
+  it("has no praise and asks for none without Performance", () => {
+    mocks.user = { ...employee, moduleEntitlements: ["CoreHR"] };
+    mocks.work = { modules: [ready[0]!], items: [] };
+    render(<FusionHome />);
+    expect(screen.queryByRole("heading", { name: "Praise" })).toBeNull();
+    expect(mocks.praiseEnabled.every((enabled) => !enabled)).toBe(true);
   });
 });

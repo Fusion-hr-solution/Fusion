@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
   // directories make the two incapable of colliding.
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   outputFileTracingRoot: frontendWorkspaceRoot,
-  transpilePackages: ["@repo/ds", "@repo/auth", "@repo/api"],
+  transpilePackages: ["@repo/ds", "@repo/auth", "@repo/api", "@repo/performance-ui"],
   experimental: {
     // The shell reverse-proxies module documents to each MFE via `rewrites()`.
     // Next's rewrite proxy defaults to a 30s timeout; when a Next dev server

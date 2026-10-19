@@ -6,6 +6,7 @@ import { resolveFusionAttentionModules, useAuth } from "@repo/auth";
 import { Skeleton } from "@repo/ds";
 import { AppShell, PageContainer, ThemeProvider, TopBar, WorkFocus, WorkList, selectFeaturedWork } from "@repo/ds/shell";
 import { FusionSidebar } from "./fusion-sidebar";
+import { HomePraise } from "./home-praise";
 import { ShellNotificationBell } from "./shell-notification-bell";
 
 function greeting(now: Date): string {
@@ -58,7 +59,7 @@ export function HomeWork() {
   );
 }
 
-/** The Fusion home at the shell root (D-31): the Fusion frame, a greeting and the person's work across modules. */
+/** The Fusion home at the shell root (D-31): the Fusion frame, a greeting, the person's work across modules and the company's praise. */
 export function FusionHome() {
   const { user } = useAuth();
   const name = firstName(user?.fullName);
@@ -78,6 +79,7 @@ export function FusionHome() {
             {name ? `, ${name}` : ""}
           </h1>
           <HomeWork />
+          <HomePraise />
         </PageContainer>
       </AppShell>
     </ThemeProvider>

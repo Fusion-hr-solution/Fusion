@@ -62,6 +62,8 @@ vi.mock("@repo/auth", () => ({
 
 vi.mock("@repo/api/query", () => ({
   useApiQuery: () => mockSummary(),
+  useReactToPraise: () => ({ mutate: vi.fn(), isLoading: false }),
+  useCompanyValues: () => ({ data: [] }),
 }));
 
 vi.mock("../api/use-people", () => ({
