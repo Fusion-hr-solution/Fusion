@@ -37,6 +37,23 @@ public interface IInternalWorkforceSnapshotService
         DateTime asOf,
         bool includeInactive,
         CancellationToken cancellationToken);
+
+    /// <summary>Active employees whose primary manager as of the date is one of the listed managers.</summary>
+    Task<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>> GetDirectReportsAsync(
+        DateTime asOf,
+        IReadOnlyCollection<Guid> managerEmployeeIds,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Active employees whose first, last, preferred or full name contains the term, ordered by display
+    /// name, at most <c>limit</c> (capped at <see cref="InternalWorkforceSnapshotService.MaxSearchResults"/>).
+    /// For pickers in other modules; it doesn't apply a caller's view scope because the caller is a service.
+    /// </summary>
+    Task<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>> SearchActiveAsync(
+        DateTime asOf,
+        string term,
+        int limit,
+        CancellationToken cancellationToken);
 }
 
 public sealed class InternalWorkforceSnapshotService(CoreHRDbContext dbContext) : IInternalWorkforceSnapshotService
@@ -182,6 +199,91 @@ public sealed class InternalWorkforceSnapshotService(CoreHRDbContext dbContext) 
         return includeInactive
             ? snapshots
             : snapshots.Where(snapshot => snapshot.IsActive).ToList();
+    }
+
+    public const int MaxSearchResults = 20;
+
+    public async Task<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>> GetDirectReportsAsync(
+        DateTime asOf,
+        IReadOnlyCollection<Guid> managerEmployeeIds,
+        CancellationToken cancellationToken)
+    {
+        if (managerEmployeeIds.Count == 0)
+        {
+            return [];
+        }
+
+        var at = Normalize(asOf);
+        var managers = managerEmployeeIds.ToHashSet();
+        var subjectIds = await dbContext.ManagerRelationships
+            .AsNoTracking()
+            .Where(relationship => managers.Contains(relationship.ManagerEmployeeId)
+                && relationship.Type == ReportingRelationshipType.PrimaryManager
+                && relationship.EffectiveFrom <= at
+                && (relationship.EffectiveTo == null || at < relationship.EffectiveTo))
+            .Select(relationship => relationship.SubjectEmployeeId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        if (subjectIds.Count == 0)
+        {
+            return [];
+        }
+
+        // The snapshot's manager is the subject's current primary manager; re-checking it drops anyone
+        // whose overlapping older link still names the manager.
+        var snapshots = await BuildSnapshotsAsync(at, subjectIds, cancellationToken);
+        return snapshots
+            .Where(snapshot => snapshot.IsActive
+                && snapshot.Manager is not null
+                && managers.Contains(snapshot.Manager.EmployeeId))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>> SearchActiveAsync(
+        DateTime asOf,
+        string term,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        var needle = term?.Trim().ToLowerInvariant() ?? string.Empty;
+        if (needle.Length < 2)
+        {
+            return [];
+        }
+
+        var at = Normalize(asOf);
+        var take = Math.Clamp(limit, 1, MaxSearchResults);
+        var activeEmployeeIds = dbContext.Employments
+            .AsNoTracking()
+            .Where(e => e.Status == EmploymentStatus.Active
+                && e.EffectiveFrom <= at
+                && (e.EffectiveTo == null || at < e.EffectiveTo))
+            .Select(e => e.EmployeeId);
+
+        var matches = await dbContext.Employees
+            .AsNoTracking()
+            .Where(employee => activeEmployeeIds.Contains(employee.Id)
+                && (employee.FirstName.ToLower().Contains(needle)
+                    || employee.LastName.ToLower().Contains(needle)
+                    || (employee.PreferredName != null && employee.PreferredName.ToLower().Contains(needle))
+                    || (employee.FirstName + " " + employee.LastName).ToLower().Contains(needle)))
+            .OrderBy(employee => employee.FirstName)
+            .ThenBy(employee => employee.LastName)
+            .Select(employee => employee.Id)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
+        if (matches.Count == 0)
+        {
+            return [];
+        }
+
+        var snapshots = await BuildSnapshotsAsync(at, matches, cancellationToken);
+        return snapshots
+            .Where(snapshot => snapshot.IsActive)
+            .OrderBy(snapshot => snapshot.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private async Task<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>> BuildSnapshotsAsync(

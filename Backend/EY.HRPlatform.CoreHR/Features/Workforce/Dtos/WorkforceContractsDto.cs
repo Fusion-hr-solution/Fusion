@@ -144,6 +144,17 @@ public sealed record InternalWorkforceAllActiveRequest(
     DateTime AsOf,
     bool IncludeInactive = false);
 
+/// <summary>The active direct reports, by primary manager, of each listed manager as of a date.</summary>
+public sealed record InternalWorkforceDirectReportsRequest(
+    DateTime AsOf,
+    IReadOnlyList<Guid> ManagerEmployeeIds);
+
+/// <summary>Active employees whose name contains the term, as of a date; at most <see cref="Limit"/> (capped at 20).</summary>
+public sealed record InternalWorkforceSearchRequest(
+    DateTime AsOf,
+    string Term,
+    int Limit = 20);
+
 public sealed record InternalOrgUnitResolveRequest(
     DateTime AsOf,
     IReadOnlyList<Guid> OrgUnitIds);

@@ -71,4 +71,33 @@ public sealed class InternalWorkforceSnapshotsController(
             request.IncludeInactive,
             cancellationToken));
     }
+
+    [HttpPost("direct-reports")]
+    public async Task<ActionResult<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>>> GetDirectReports(
+        [FromBody] InternalWorkforceDirectReportsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await authorizer.AuthorizeAsync(Request, cancellationToken))
+            return Unauthorized();
+
+        return Ok(await workforceSnapshotService.GetDirectReportsAsync(
+            request.AsOf,
+            request.ManagerEmployeeIds ?? [],
+            cancellationToken));
+    }
+
+    [HttpPost("search")]
+    public async Task<ActionResult<IReadOnlyList<InternalWorkforceEmployeeSnapshotDto>>> Search(
+        [FromBody] InternalWorkforceSearchRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!await authorizer.AuthorizeAsync(Request, cancellationToken))
+            return Unauthorized();
+
+        return Ok(await workforceSnapshotService.SearchActiveAsync(
+            request.AsOf,
+            request.Term ?? string.Empty,
+            request.Limit,
+            cancellationToken));
+    }
 }
