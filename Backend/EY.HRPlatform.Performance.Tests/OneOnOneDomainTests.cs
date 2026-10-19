@@ -166,6 +166,40 @@ public sealed class OneOnOneDomainTests
     }
 
     [Fact]
+    public void An_agenda_holds_a_bounded_number_of_items()
+    {
+        var (_, meeting) = Start();
+        var first = meeting.AddAgendaItem(Guid.NewGuid(), "Item 1", Nour, null, out _);
+        for (var i = 2; i <= OneOnOneMeeting.MaxAgendaItems; i++) meeting.AddAgendaItem(Guid.NewGuid(), $"Item {i}", Nour, null, out _);
+
+        Assert.Throws<ArgumentException>(() => meeting.AddAgendaItem(Guid.NewGuid(), "One more", Karim, null, out _));
+        Assert.Same(first, meeting.AddAgendaItem(first.Id, "Item 1", Nour, null, out var added));
+        Assert.False(added);
+
+        Assert.True(meeting.RemoveAgendaItem(first.Id, Nour));
+        meeting.AddAgendaItem(Guid.NewGuid(), "One more", Karim, null, out added);
+        Assert.True(added);
+    }
+
+    [Fact]
+    public void A_series_holds_a_bounded_number_of_open_actions_and_a_reopen_counts()
+    {
+        var (series, meeting) = Start();
+        var first = series.AddAction(Guid.NewGuid(), "Action 1", Nour, null, meeting.Id, Karim, out _);
+        for (var i = 2; i <= OneOnOneSeries.MaxOpenActions; i++) series.AddAction(Guid.NewGuid(), $"Action {i}", Nour, null, meeting.Id, Karim, out _);
+
+        Assert.Throws<ArgumentException>(() => series.AddAction(Guid.NewGuid(), "One more", Karim, null, meeting.Id, Nour, out _));
+        Assert.Same(first, series.AddAction(first.Id, "Action 1", Nour, null, meeting.Id, Karim, out var added));
+        Assert.False(added);
+
+        series.SetActionDone(first.Id, true, meeting.Id, Tuesday);
+        series.AddAction(Guid.NewGuid(), "One more", Karim, null, meeting.Id, Nour, out added);
+        Assert.True(added);
+        Assert.Throws<ArgumentException>(() => series.SetActionDone(first.Id, false, meeting.Id, Tuesday));
+        Assert.False(series.SetActionDone(first.Id, true, meeting.Id, Tuesday));
+    }
+
+    [Fact]
     public void An_ended_series_rejects_writes_and_its_upcoming_meeting_is_not_held()
     {
         var (series, meeting) = Start();

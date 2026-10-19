@@ -883,7 +883,7 @@ public sealed class SetActionDoneHandler(PerformanceDbContext db, ICoreWorkforce
             .FirstOrDefaultAsync(m => m.SeriesId == series.Id && m.State == OneOnOneMeetingState.Upcoming, token);
         if (upcoming is null) return SeriesEnded();
         try { series.SetActionDone(command.ActionId, command.Done, upcoming.Id, DateTime.UtcNow); }
-        catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException) { return Invalid(ex); }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or KeyNotFoundException) { return Invalid(ex); }
         return await SaveAsync(series.Id, command.Viewer, token);
     }
 }

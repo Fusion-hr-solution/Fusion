@@ -53,6 +53,8 @@ public static class OneOnOneSchedule
 /// </summary>
 public sealed class OneOnOneSeries : PerformanceAggregate
 {
+    public const int MaxOpenActions = 50;
+
     private readonly List<OneOnOneActionItem> _actions = [];
 
     private OneOnOneSeries() { }
@@ -131,6 +133,7 @@ public sealed class OneOnOneSeries : PerformanceAggregate
         if (existing is not null) { added = false; return existing; }
         if (actionId == Guid.Empty) throw new ArgumentException("An action item needs an id.", nameof(actionId));
         if (!Involves(ownerEmployeeId)) throw new ArgumentException("An action item belongs to one of the two people.", nameof(ownerEmployeeId));
+        EnsureRoomForOpenAction();
         var item = OneOnOneActionItem.Create(TenantId, actionId, Id, text, ownerEmployeeId, dueDate, meetingId, actorEmployeeId);
         _actions.Add(item);
         MarkUpdated();
@@ -152,12 +155,20 @@ public sealed class OneOnOneSeries : PerformanceAggregate
     public bool SetActionDone(Guid actionId, bool done, Guid meetingId, DateTime now)
     {
         EnsureActive();
-        var changed = FindAction(actionId).SetDone(done, meetingId, now);
+        var item = FindAction(actionId);
+        if (!done && item.DoneAt is not null) EnsureRoomForOpenAction();
+        var changed = item.SetDone(done, meetingId, now);
         if (changed) MarkUpdated();
         return changed;
     }
 
     public IReadOnlyList<OneOnOneActionItem> OpenActionItems() => _actions.Where(a => a.DoneAt is null).ToList();
+
+    private void EnsureRoomForOpenAction()
+    {
+        if (_actions.Count(a => a.DoneAt is null) >= MaxOpenActions)
+            throw new ArgumentException($"A 1:1 holds up to {MaxOpenActions} open action items. Mark some done first.");
+    }
 
     private OneOnOneActionItem FindAction(Guid actionId)
         => _actions.FirstOrDefault(a => a.Id == actionId) ?? throw new KeyNotFoundException("That action item isn't part of this 1:1.");
@@ -220,6 +231,7 @@ public sealed class OneOnOneActionItem : PerformanceChildEntity
 public sealed class OneOnOneMeeting : PerformanceAggregate
 {
     public const int MaxNotesLength = 10_000;
+    public const int MaxAgendaItems = 50;
 
     private readonly List<OneOnOneAgendaItem> _agenda = [];
 
@@ -282,6 +294,7 @@ public sealed class OneOnOneMeeting : PerformanceAggregate
         if (itemId == Guid.Empty) throw new ArgumentException("An agenda item needs an id.", nameof(itemId));
         if (source is not null && _agenda.Any(i => i.SourceKind == source.Kind && i.SourceId == source.Id))
             throw new InvalidOperationException("That's already on the agenda.");
+        if (_agenda.Count >= MaxAgendaItems) throw new ArgumentException($"An agenda holds up to {MaxAgendaItems} items.");
         var order = _agenda.Count == 0 ? 0 : _agenda.Max(i => i.Order) + 1;
         var item = OneOnOneAgendaItem.Create(TenantId, itemId, Id, text, authorEmployeeId, order, source);
         _agenda.Add(item);

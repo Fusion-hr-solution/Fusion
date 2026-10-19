@@ -186,6 +186,35 @@ public sealed class OneOnOneHttpTests
     }
 
     [Fact]
+    public async Task Agendas_and_open_actions_stop_at_their_caps()
+    {
+        var w = Arrange();
+        await using var _ = w.Factory;
+        var series = await StartAsync(w, w.Nour, w.Karim, Employee);
+        var meetingId = Id(Upcoming(series));
+        var actionsPath = $"/api/performance/one-on-ones/{Id(series)}/actions";
+        var nour = w.As(w.Nour);
+
+        for (var i = 1; i <= OneOnOneMeeting.MaxAgendaItems; i++)
+            await DataAsync(await nour.PostAsJsonAsync($"/api/performance/one-on-ones/meetings/{meetingId}/agenda", new { id = Guid.NewGuid(), text = $"Item {i}" }));
+        var agendaFull = await DataAsync(await nour.PostAsJsonAsync($"/api/performance/one-on-ones/meetings/{meetingId}/agenda",
+            new { id = Guid.NewGuid(), text = "One more" }), HttpStatusCode.BadRequest);
+        Assert.Equal("OneOnOne.Invalid", Code(agendaFull));
+
+        var firstAction = Guid.NewGuid();
+        for (var i = 1; i <= OneOnOneSeries.MaxOpenActions; i++)
+            await DataAsync(await nour.PostAsJsonAsync(actionsPath, new { id = i == 1 ? firstAction : Guid.NewGuid(), text = $"Action {i}", ownerEmployeeId = w.Nour }));
+        var actionsFull = await DataAsync(await nour.PostAsJsonAsync(actionsPath,
+            new { id = Guid.NewGuid(), text = "One more", ownerEmployeeId = w.Nour }), HttpStatusCode.BadRequest);
+        Assert.Equal("OneOnOne.Invalid", Code(actionsFull));
+
+        await DataAsync(await nour.PutAsJsonAsync($"{actionsPath}/{firstAction}/done", new { done = true }));
+        await DataAsync(await nour.PostAsJsonAsync(actionsPath, new { id = Guid.NewGuid(), text = "One more", ownerEmployeeId = w.Nour }));
+        var reopen = await DataAsync(await nour.PutAsJsonAsync($"{actionsPath}/{firstAction}/done", new { done = false }), HttpStatusCode.BadRequest);
+        Assert.Equal("OneOnOne.Invalid", Code(reopen));
+    }
+
+    [Fact]
     public async Task Nobody_but_the_two_people_sees_a_series_HR_included()
     {
         var w = Arrange();
