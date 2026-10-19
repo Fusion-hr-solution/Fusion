@@ -10,7 +10,13 @@ public enum PerformanceNotificationKind
     CalibrationReady,
     UpdateRequested,
     ObjectiveAtRisk, UpdateRequestAnswered, DevelopmentGoalAdded,
+    OneOnOneStarted, OneOnOneRescheduled, OneOnOneActionAssigned,
+    FeedbackReceived, FeedbackForReport, FeedbackRequested, FeedbackRequestResponded,
+    PraiseReceived, PraiseForReport,
 }
+
+/// <summary>A notification about a 1:1, feedback, a feedback request or praise: no cycle, one in-app path.</summary>
+public sealed record ConversationNotificationPayload(Guid ResourceId, string? ActorDisplayName, string Path);
 
 public sealed record PlanNotificationPayload(Guid CycleId, Guid PlanId, string? ActorDisplayName);
 public sealed record ReviewNotificationPayload(Guid CycleId, Guid ReviewRoundId, Guid ReviewId, string ReviewRoundName);
@@ -86,6 +92,34 @@ public sealed class PerformanceOutboxMessage : PerformanceChildEntity
         if (kind is not (PerformanceNotificationKind.ObjectiveAtRisk or PerformanceNotificationKind.UpdateRequestAnswered
             or PerformanceNotificationKind.DevelopmentGoalAdded))
             throw new ArgumentException("Choose a path notification kind.", nameof(kind));
+        return new PerformanceOutboxMessage
+        {
+            TenantId = tenantId, Kind = kind, RecipientEmployeeId = recipientEmployeeId,
+            ResourceType = resourceType, ResourceId = payload.ResourceId,
+            Payload = JsonSerializer.Serialize(payload),
+            DedupeKey = $"{kind}:{payload.ResourceId:N}:{transitionId:N}:{recipientEmployeeId:N}",
+            NextAttemptAt = DateTime.UtcNow,
+        };
+    }
+
+    public static bool IsConversationKind(PerformanceNotificationKind kind) => kind is PerformanceNotificationKind.OneOnOneStarted
+        or PerformanceNotificationKind.OneOnOneRescheduled or PerformanceNotificationKind.OneOnOneActionAssigned
+        or PerformanceNotificationKind.FeedbackReceived or PerformanceNotificationKind.FeedbackForReport
+        or PerformanceNotificationKind.FeedbackRequested or PerformanceNotificationKind.FeedbackRequestResponded
+        or PerformanceNotificationKind.PraiseReceived or PerformanceNotificationKind.PraiseForReport;
+
+    /// <summary>
+    /// A conversation notification (1:1s, feedback, requests, praise). These belong to people, not cycles, so the
+    /// payload carries no cycle; it never carries feedback, note, answer or praise text either.
+    /// </summary>
+    public static PerformanceOutboxMessage ForConversation(Guid tenantId, PerformanceNotificationKind kind, Guid recipientEmployeeId,
+        string resourceType, Guid transitionId, ConversationNotificationPayload payload)
+    {
+        if (tenantId == Guid.Empty || recipientEmployeeId == Guid.Empty || payload.ResourceId == Guid.Empty
+            || transitionId == Guid.Empty || string.IsNullOrWhiteSpace(resourceType)
+            || !payload.Path.StartsWith("/performance/", StringComparison.Ordinal))
+            throw new ArgumentException("Notification tenant, recipient, resource, transition and path are required.");
+        if (!IsConversationKind(kind)) throw new ArgumentException("Choose a conversation notification kind.", nameof(kind));
         return new PerformanceOutboxMessage
         {
             TenantId = tenantId, Kind = kind, RecipientEmployeeId = recipientEmployeeId,

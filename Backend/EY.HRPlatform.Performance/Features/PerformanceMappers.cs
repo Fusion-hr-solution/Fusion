@@ -24,7 +24,7 @@ public static class PerformanceMappers
             settings.DefaultObjectiveRatingsEnabled,
               settings.DefaultCalibrationEnabled,
               settings.EvidenceRetentionMonths,
-              settings.AiAssistanceEnabled) { Version = settings.Version };
+              settings.AiAssistanceEnabled) { Version = settings.Version, DefaultOneOnOneCadence = settings.DefaultOneOnOneCadence };
 
     public static MeasurementDto ToDto(ObjectiveMeasurement measurement)
         => new(

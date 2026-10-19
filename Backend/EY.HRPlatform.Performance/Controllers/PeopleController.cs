@@ -25,4 +25,13 @@ public sealed class PeopleController(IMediator mediator, IPerformanceAccessPolic
             policy.CanAdministerCycles(User));
         return MapResult(await mediator.Send(new GetPersonSummaryQuery(employeeId, cycleId, viewer), cancellationToken));
     }
+
+    /// <summary>Active colleagues by name for the feedback, request and praise pickers. Core HR being down answers 503.</summary>
+    [HttpGet("directory")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<DirectoryPersonDto>>>> Directory([FromQuery] string? search,
+        CancellationToken cancellationToken)
+    {
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new SearchPeopleDirectoryQuery(search), cancellationToken));
+    }
 }

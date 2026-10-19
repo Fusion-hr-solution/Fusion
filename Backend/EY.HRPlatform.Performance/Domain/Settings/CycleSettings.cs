@@ -35,6 +35,10 @@ public sealed class CycleSettings : PerformanceAggregate
     /// <summary>Whether Performance AI runs for this tenant. Live policy: never captured in an activation snapshot.</summary>
     public bool AiAssistanceEnabled { get; private set; } = true;
 
+    /// <summary>The cadence a new 1:1 series starts with unless the person starting it picks another. Never snapshotted.</summary>
+    public EY.HRPlatform.Performance.Domain.Conversations.OneOnOneCadence DefaultOneOnOneCadence { get; private set; }
+        = EY.HRPlatform.Performance.Domain.Conversations.OneOnOneCadence.EveryTwoWeeks;
+
     /// <summary>The tenant defaults, materialized the first time Settings is read.</summary>
     public static CycleSettings CreateDefault(Guid tenantId)
     {
@@ -53,6 +57,7 @@ public sealed class CycleSettings : PerformanceAggregate
             DefaultCalibrationEnabled = false,
             EvidenceRetentionMonths = 36,
             AiAssistanceEnabled = true,
+            DefaultOneOnOneCadence = EY.HRPlatform.Performance.Domain.Conversations.OneOnOneCadence.EveryTwoWeeks,
         };
     }
 
@@ -66,7 +71,8 @@ public sealed class CycleSettings : PerformanceAggregate
         bool? defaultSelfAssessmentEnabled = null,
         bool? defaultObjectiveRatingsEnabled = null,
         bool? defaultCalibrationEnabled = null,
-        bool? aiAssistanceEnabled = null)
+        bool? aiAssistanceEnabled = null,
+        EY.HRPlatform.Performance.Domain.Conversations.OneOnOneCadence? defaultOneOnOneCadence = null)
     {
         if (suggestedObjectiveCountMin < 1 || suggestedObjectiveCountMax < suggestedObjectiveCountMin || suggestedObjectiveCountMax > 20)
             throw new ArgumentException("The suggested objective-count range must be a sensible ascending range.", nameof(suggestedObjectiveCountMin));
@@ -74,6 +80,8 @@ public sealed class CycleSettings : PerformanceAggregate
             throw new ArgumentOutOfRangeException(nameof(planningDeadlineOffsetDays), "The planning-deadline offset must be between 1 and 365 days.");
 
         if (!Enum.IsDefined(planAlignmentPolicy)) throw new ArgumentException("Choose a supported plan alignment policy.", nameof(planAlignmentPolicy));
+        if (defaultOneOnOneCadence is { } cadence && !Enum.IsDefined(cadence))
+            throw new ArgumentException("Choose weekly, every two weeks or monthly.", nameof(defaultOneOnOneCadence));
         if (evidenceRetentionMonths is <= 0) throw new ArgumentOutOfRangeException(nameof(evidenceRetentionMonths), "Evidence retention must be at least one month.");
 
         DefaultMeasurementMethod = defaultMeasurementMethod;
@@ -86,6 +94,7 @@ public sealed class CycleSettings : PerformanceAggregate
         if (defaultObjectiveRatingsEnabled is not null) DefaultObjectiveRatingsEnabled = defaultObjectiveRatingsEnabled.Value;
         if (defaultCalibrationEnabled is not null) DefaultCalibrationEnabled = defaultCalibrationEnabled.Value;
         if (aiAssistanceEnabled is not null) AiAssistanceEnabled = aiAssistanceEnabled.Value;
+        if (defaultOneOnOneCadence is not null) DefaultOneOnOneCadence = defaultOneOnOneCadence.Value;
         MarkUpdated();
     }
 

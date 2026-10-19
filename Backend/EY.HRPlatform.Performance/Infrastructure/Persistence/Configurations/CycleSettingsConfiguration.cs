@@ -21,6 +21,8 @@ public sealed class CycleSettingsConfiguration : IEntityTypeConfiguration<CycleS
         builder.Property(settings => settings.DefaultCalibrationEnabled).HasDefaultValue(false);
         builder.Property(settings => settings.EvidenceRetentionMonths).HasDefaultValue(36).IsRequired();
         builder.Property(settings => settings.AiAssistanceEnabled).HasDefaultValue(true);
+        builder.Property(settings => settings.DefaultOneOnOneCadence).HasConversion<string>().HasMaxLength(20)
+            .HasDefaultValue(EY.HRPlatform.Performance.Domain.Conversations.OneOnOneCadence.EveryTwoWeeks).IsRequired();
 
         // Exactly one settings row per tenant.
         builder.HasIndex(settings => settings.TenantId).IsUnique();

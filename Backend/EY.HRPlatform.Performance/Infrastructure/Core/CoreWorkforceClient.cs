@@ -29,6 +29,19 @@ public interface ICoreWorkforceClient
         DateTime asOf,
         IReadOnlyCollection<Guid> employeeIds,
         CancellationToken cancellationToken);
+
+    /// <summary>Active employees whose primary manager as of the date is one of the listed managers.</summary>
+    Task<IReadOnlyList<WorkforceSnapshot>> GetDirectReportsAsync(
+        DateTime asOf,
+        IReadOnlyCollection<Guid> managerEmployeeIds,
+        CancellationToken cancellationToken);
+
+    /// <summary>Active employees whose name contains the term, at most <paramref name="limit"/> (Core caps it at 20).</summary>
+    Task<IReadOnlyList<WorkforceSnapshot>> SearchAsync(
+        DateTime asOf,
+        string term,
+        int limit,
+        CancellationToken cancellationToken);
 }
 
 public sealed class CoreWorkforceClient(
@@ -81,6 +94,35 @@ public sealed class CoreWorkforceClient(
         return PostAsync(
             $"{BasePath}/resolve",
             new WorkforceResolveRequest(asOf, employeeIds.ToList()),
+            cancellationToken);
+    }
+
+    public Task<IReadOnlyList<WorkforceSnapshot>> GetDirectReportsAsync(
+        DateTime asOf,
+        IReadOnlyCollection<Guid> managerEmployeeIds,
+        CancellationToken cancellationToken)
+    {
+        if (managerEmployeeIds.Count == 0)
+            return Task.FromResult<IReadOnlyList<WorkforceSnapshot>>([]);
+
+        return PostAsync(
+            $"{BasePath}/direct-reports",
+            new WorkforceDirectReportsRequest(asOf, managerEmployeeIds.ToList()),
+            cancellationToken);
+    }
+
+    public Task<IReadOnlyList<WorkforceSnapshot>> SearchAsync(
+        DateTime asOf,
+        string term,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(term) || term.Trim().Length < 2)
+            return Task.FromResult<IReadOnlyList<WorkforceSnapshot>>([]);
+
+        return PostAsync(
+            $"{BasePath}/search",
+            new WorkforceSearchRequest(asOf, term.Trim(), limit),
             cancellationToken);
     }
 

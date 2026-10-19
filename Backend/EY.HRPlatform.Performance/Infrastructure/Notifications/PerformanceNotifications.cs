@@ -22,6 +22,13 @@ public interface IPerformanceNotifications
     void EnqueueUpdateRequestAnswered(UpdateRequest request, string ownerName, string? objectiveTitle);
     void EnqueueDevelopmentGoalAdded(Guid tenantId, Guid cycleId, Guid developmentPlanId, Guid goalId, Guid recipientEmployeeId,
         string actorName, string goalTitle, string path);
+
+    /// <summary>
+    /// Stages a 1:1, feedback, request or praise notification for one recipient. Nothing is staged when the
+    /// recipient is the person who acted. <paramref name="transitionId"/> makes the dedupe key per transition.
+    /// </summary>
+    void EnqueueConversation(Guid tenantId, PerformanceNotificationKind kind, Guid recipientEmployeeId, Guid actorEmployeeId,
+        string resourceType, Guid resourceId, Guid transitionId, PerformanceNotificationText text);
 }
 
 public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerformanceNotifications
@@ -93,6 +100,15 @@ public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerform
         var message = PerformanceOutboxMessage.ForPath(tenantId, PerformanceNotificationKind.DevelopmentGoalAdded, recipientEmployeeId,
             "DevelopmentPlan", goalId, new PathNotificationPayload(cycleId, developmentPlanId, actorName, path));
         Stage(message, null, PerformanceNotificationTemplates.ForDevelopmentGoalAdded(actorName, goalTitle, path));
+    }
+
+    public void EnqueueConversation(Guid tenantId, PerformanceNotificationKind kind, Guid recipientEmployeeId, Guid actorEmployeeId,
+        string resourceType, Guid resourceId, Guid transitionId, PerformanceNotificationText text)
+    {
+        if (recipientEmployeeId == Guid.Empty || recipientEmployeeId == actorEmployeeId) return;
+        var message = PerformanceOutboxMessage.ForConversation(tenantId, kind, recipientEmployeeId, resourceType, transitionId,
+            new ConversationNotificationPayload(resourceId, text.ActorName, text.Href));
+        Stage(message, null, text);
     }
 
     /// <summary>

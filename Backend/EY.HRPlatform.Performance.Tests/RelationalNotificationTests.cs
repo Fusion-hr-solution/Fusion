@@ -99,7 +99,8 @@ public sealed class RelationalNotificationTests
             services.AddScoped<PerformanceNotificationDispatcher>();
             await using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
             using var worker = new PerformanceBackgroundWorker(provider.GetRequiredService<IServiceScopeFactory>(), NullLogger<PerformanceBackgroundWorker>.Instance, new EY.HRPlatform.Performance.Infrastructure.Evidence.EvidenceUploadSweeper(provider.GetRequiredService<IServiceScopeFactory>()),
-                new EY.HRPlatform.Performance.Features.Notifications.PerformanceNotificationRetention(provider.GetRequiredService<IServiceScopeFactory>()));
+                new EY.HRPlatform.Performance.Features.Notifications.PerformanceNotificationRetention(provider.GetRequiredService<IServiceScopeFactory>()),
+                new EY.HRPlatform.Performance.Features.OneOnOnes.OneOnOneReconciler(provider.GetRequiredService<IServiceScopeFactory>()));
             await worker.ProcessBatchAsync(default);
             await worker.ProcessBatchAsync(default);
             Assert.Equal(new[] { tenantA, tenantB }.Order(), resolvedTenants.Order());
@@ -153,7 +154,8 @@ public sealed class RelationalNotificationTests
             var scopes = provider.GetRequiredService<IServiceScopeFactory>();
             using var worker = new PerformanceBackgroundWorker(scopes, NullLogger<PerformanceBackgroundWorker>.Instance,
                 new EY.HRPlatform.Performance.Infrastructure.Evidence.EvidenceUploadSweeper(scopes),
-                new EY.HRPlatform.Performance.Features.Notifications.PerformanceNotificationRetention(scopes));
+                new EY.HRPlatform.Performance.Features.Notifications.PerformanceNotificationRetention(scopes),
+                new EY.HRPlatform.Performance.Features.OneOnOnes.OneOnOneReconciler(scopes));
 
             // The server accepts, then the worker stops before its bookkeeping commits.
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => worker.ProcessBatchAsync(crash.Token));
@@ -209,6 +211,10 @@ public sealed class RelationalNotificationTests
         public Task<IReadOnlyList<WorkforceSnapshot>> GetAllActiveAsOfAsync(DateTime asOf, CancellationToken cancellationToken)
             => throw new NotSupportedException();
         public Task<IReadOnlyList<WorkforceSnapshot>> GetByScopeAsync(DateTime asOf, IReadOnlyCollection<Guid> orgUnitIds, bool includeDescendants, CancellationToken cancellationToken)
+            => throw new NotSupportedException();
+        public Task<IReadOnlyList<WorkforceSnapshot>> GetDirectReportsAsync(DateTime asOf, IReadOnlyCollection<Guid> managerEmployeeIds, CancellationToken cancellationToken)
+            => Task.FromResult<IReadOnlyList<WorkforceSnapshot>>([]);
+        public Task<IReadOnlyList<WorkforceSnapshot>> SearchAsync(DateTime asOf, string term, int limit, CancellationToken cancellationToken)
             => throw new NotSupportedException();
     }
 }

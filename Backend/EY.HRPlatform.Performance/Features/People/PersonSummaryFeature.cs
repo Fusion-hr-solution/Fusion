@@ -41,6 +41,15 @@ public sealed record PersonSummaryDevelopmentGoalDto(string Title, string? Compe
 public sealed record PersonSummaryDevelopmentDto(IReadOnlyList<PersonSummaryDevelopmentGoalDto> Goals, string Href);
 public sealed record PersonSummaryReviewsDto(PersonSummaryCurrentReviewDto? Current, IReadOnlyList<PersonSummaryReviewResultDto> History);
 
+/// <summary>Praise the person received (D-14): public to every Performance entrant, newest first.</summary>
+public sealed record PersonSummaryPraiseDto(IReadOnlyList<EY.HRPlatform.Performance.Features.Conversations.PraiseDto> Items, int Total, string Href);
+
+/// <summary>Feedback the person received that the viewer may read: never manager-only feedback addressed to someone else.</summary>
+public sealed record PersonSummaryFeedbackDto(IReadOnlyList<EY.HRPlatform.Performance.Features.Conversations.FeedbackDto> Items, int Total, string Href);
+
+/// <summary>The viewer's active 1:1 series with the person; only ever present for the two people.</summary>
+public sealed record PersonSummaryOneOnOneDto(Guid SeriesId, DateTime? NextMeetingAt, string Href);
+
 /// <summary>
 /// One person's performance as the caller may see it (D-32). Sections are null when hidden. An unknown
 /// or foreign employee gets the same answer as an unseen one, without identity.
@@ -50,6 +59,12 @@ public sealed record PersonPerformanceSummaryDto(Guid EmployeeId, string? Displa
 {
     /// <summary>Present under the development plan's own visibility (D-34), empty when no goals.</summary>
     public PersonSummaryDevelopmentDto? Development { get; init; }
+    /// <summary>For every Performance entrant, whatever their relation.</summary>
+    public PersonSummaryPraiseDto? Praise { get; init; }
+    /// <summary>For the person, their current manager and cycle administrators, under feedback visibility.</summary>
+    public PersonSummaryFeedbackDto? Feedback { get; init; }
+    /// <summary>Only for the two people in an active series.</summary>
+    public PersonSummaryOneOnOneDto? OneOnOne { get; init; }
 }
 
 public sealed record PersonSummaryViewer(Guid EmployeeId, bool ReviewsReports, bool Administers)
@@ -91,6 +106,13 @@ public sealed class GetPersonSummaryHandler(PerformanceDbContext db, ICoreWorkfo
             StableEmployeeKey = person.StableEmployeeKey, Relation = relation,
         };
         var development = cycle is null ? null : await DevelopmentAsync(cycle, query.EmployeeId, plan, query.Viewer, person, token);
+        // Conversations belong to people, not cycles: these sections don't follow the selected cycle.
+        identity = identity with
+        {
+            Praise = await PraiseAsync(query.EmployeeId, query.Viewer, token),
+            Feedback = await FeedbackAsync(query.EmployeeId, query.Viewer, person, token),
+            OneOnOne = await OneOnOneAsync(query.EmployeeId, query.Viewer.EmployeeId, token),
+        };
         if (relation == PersonRelation.Other) return Result.Success(identity with { Development = development });
 
         return Result.Success(identity with
@@ -99,6 +121,47 @@ public sealed class GetPersonSummaryHandler(PerformanceDbContext db, ICoreWorkfo
             Reviews = await ReviewsAsync(query.EmployeeId, token),
             Development = development,
         });
+    }
+
+    private const int SummaryItems = 5;
+
+    private async Task<PersonSummaryPraiseDto> PraiseAsync(Guid employeeId, PersonSummaryViewer viewer, CancellationToken token)
+    {
+        var received = PraisePolicy.Readable(db.Praise.AsNoTracking()).Where(p => p.Recipients.Any(r => r.EmployeeId == employeeId));
+        var latest = await received.OrderByDescending(p => p.GivenAt).Take(SummaryItems).ToListAsync(token);
+        var actor = new EY.HRPlatform.Performance.Features.Conversations.PraiseActor(viewer.EmployeeId, viewer.Administers);
+        return new PersonSummaryPraiseDto(await new EY.HRPlatform.Performance.Features.Conversations.PraiseReader(db).ProjectAsync(latest, actor, token),
+            await received.CountAsync(token), $"/performance/feedback?tab=praise&employee={employeeId}");
+    }
+
+    /// <summary>The person, their current Core HR manager (with the direct-reports grant) and administrators; nobody else.</summary>
+    private async Task<PersonSummaryFeedbackDto?> FeedbackAsync(Guid employeeId, PersonSummaryViewer viewer, WorkforceSnapshot person,
+        CancellationToken token)
+    {
+        var me = viewer.EmployeeId;
+        var self = me != Guid.Empty && me == employeeId;
+        var manager = viewer.ReviewsReports && me != Guid.Empty && person.Manager?.EmployeeId == me;
+        if (!self && !manager && !viewer.Administers) return null;
+        var reader = FeedbackViewer.For(me, viewer.Administers, viewer.ReviewsReports,
+            manager ? new HashSet<Guid> { employeeId } : new HashSet<Guid>());
+        var received = FeedbackPolicy.Readable(db.Feedback.AsNoTracking(), reader).Where(f => f.ReceiverEmployeeId == employeeId);
+        var latest = await received.OrderByDescending(f => f.SentAt).Take(SummaryItems).ToListAsync(token);
+        var items = await new EY.HRPlatform.Performance.Features.Conversations.FeedbackReader(db, new Security.PerformanceViewer(db, workforce))
+            .ProjectAsync(latest, reader, token);
+        return new PersonSummaryFeedbackDto(items, await received.CountAsync(token),
+            self ? "/performance/feedback" : "/performance/feedback?view=team");
+    }
+
+    private async Task<PersonSummaryOneOnOneDto?> OneOnOneAsync(Guid employeeId, Guid me, CancellationToken token)
+    {
+        if (me == Guid.Empty || me == employeeId) return null;
+        var series = await db.OneOnOneSeries.AsNoTracking().FirstOrDefaultAsync(s => s.EndedAt == null
+            && ((s.ManagerEmployeeId == me && s.ReportEmployeeId == employeeId) || (s.ReportEmployeeId == me && s.ManagerEmployeeId == employeeId)), token);
+        if (series is null) return null;
+        var next = await db.OneOnOneMeetings.AsNoTracking()
+            .Where(m => m.SeriesId == series.Id && m.State == EY.HRPlatform.Performance.Domain.Conversations.OneOnOneMeetingState.Upcoming)
+            .Select(m => (DateTime?)m.ScheduledAt).FirstOrDefaultAsync(token);
+        return new PersonSummaryOneOnOneDto(series.Id, next, PerformanceNotificationTemplates.OneOnOnePath(series.Id));
     }
 
     /// <summary>The cycle's development goals, under the development plan's own read rule.</summary>

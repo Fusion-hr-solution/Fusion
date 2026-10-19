@@ -23,6 +23,7 @@ public sealed record CycleSettingsDto(
     bool AiAssistanceEnabled)
 {
     public uint Version { get; init; }
+    public EY.HRPlatform.Performance.Domain.Conversations.OneOnOneCadence DefaultOneOnOneCadence { get; init; }
 }
 
 public sealed record UpdateCycleSettingsRequest(
@@ -38,6 +39,8 @@ public sealed record UpdateCycleSettingsRequest(
     public bool? DefaultCalibrationEnabled { get; init; }
     /// <summary>Omitted keeps the current value, so older clients never switch AI off by accident.</summary>
     public bool? AiAssistanceEnabled { get; init; }
+    /// <summary>Omitted keeps the current default cadence for new 1:1 series.</summary>
+    public EY.HRPlatform.Performance.Domain.Conversations.OneOnOneCadence? DefaultOneOnOneCadence { get; init; }
 
     [System.Text.Json.Serialization.JsonRequired]
     public uint ExpectedVersion { get; init; }
@@ -424,6 +427,10 @@ public sealed record GoalDetailDto(
     public IReadOnlyList<AlignedPlanObjectiveDto> AlignedPlanObjectives { get; init; } = [];
     public ObjectiveStatusDto? Status { get; init; }
     public bool CanAcknowledgeStatus { get; init; }
+    /// <summary>The viewer can give the objective's owner feedback about it (they aren't the owner).</summary>
+    public bool CanGiveFeedback { get; init; }
+    /// <summary>The viewer owns the objective and can ask colleagues for feedback on it.</summary>
+    public bool CanAskForFeedback { get; init; }
 }
 
 /// <summary>
@@ -987,7 +994,13 @@ public sealed record WorkspaceDestinationsDto(
     bool Team,
     bool Reviews,
     bool CycleAdmin,
-    bool Settings);
+    bool Settings)
+{
+    /// <summary>1:1s: a current Core HR manager or direct reports, or any series. Not cycle-bound.</summary>
+    public bool OneOnOnes { get; init; }
+    /// <summary>Feedback: everyone with Performance access. Not cycle-bound.</summary>
+    public bool Feedback { get; init; }
+}
 
 /// <summary>The selected Cycle, the Cycles the caller may switch to, and the workspace composition for them.</summary>
 public sealed record WorkspaceContextDto(

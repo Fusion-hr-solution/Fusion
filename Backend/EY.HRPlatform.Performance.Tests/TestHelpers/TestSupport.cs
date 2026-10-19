@@ -79,9 +79,45 @@ public sealed class FakeCoreWorkforceClient : ICoreWorkforceClient
         return Task.FromResult<IReadOnlyList<WorkforceSnapshot>>(inScope);
     }
 
+    /// <summary>When set, every call fails as Core being unreachable.</summary>
+    public bool Unavailable { get; set; }
+
+    private void ThrowIfUnavailable()
+    {
+        if (Unavailable) throw new HttpRequestException("Core HR is unreachable.");
+    }
+
+    /// <summary>Known people (by id) whose manager is one of the listed managers and who are active.</summary>
+    public Task<IReadOnlyList<WorkforceSnapshot>> GetDirectReportsAsync(
+        DateTime asOf, IReadOnlyCollection<Guid> managerEmployeeIds, CancellationToken cancellationToken)
+    {
+        ThrowIfUnavailable();
+        LastAsOf = asOf;
+        var managers = managerEmployeeIds.ToHashSet();
+        return Task.FromResult<IReadOnlyList<WorkforceSnapshot>>(ById.Values
+            .Where(snapshot => snapshot.IsActive && snapshot.Manager is not null && managers.Contains(snapshot.Manager.EmployeeId))
+            .ToList());
+    }
+
+    public int SearchCalls { get; private set; }
+
+    public Task<IReadOnlyList<WorkforceSnapshot>> SearchAsync(
+        DateTime asOf, string term, int limit, CancellationToken cancellationToken)
+    {
+        ThrowIfUnavailable();
+        SearchCalls++;
+        LastAsOf = asOf;
+        return Task.FromResult<IReadOnlyList<WorkforceSnapshot>>(ById.Values
+            .Where(snapshot => snapshot.IsActive && snapshot.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(snapshot => snapshot.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .Take(Math.Clamp(limit, 1, 20))
+            .ToList());
+    }
+
     public Task<IReadOnlyList<WorkforceSnapshot>> ResolveAsync(
         DateTime asOf, IReadOnlyCollection<Guid> employeeIds, CancellationToken cancellationToken)
     {
+        ThrowIfUnavailable();
         LastAsOf = asOf;
         var resolved = employeeIds
             .Where(ById.ContainsKey)

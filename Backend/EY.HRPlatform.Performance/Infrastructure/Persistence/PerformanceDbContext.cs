@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Conversations;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Audit;
 using EY.HRPlatform.Performance.Domain.Cycles;
@@ -70,6 +71,17 @@ public sealed class PerformanceDbContext : DbContext
     public DbSet<CalibrationFacilitator> CalibrationFacilitators => Set<CalibrationFacilitator>();
     public DbSet<CalibrationSubject> CalibrationSubjects => Set<CalibrationSubject>();
     public DbSet<CalibrationAdjustment> CalibrationAdjustments => Set<CalibrationAdjustment>();
+    public DbSet<OneOnOneSeries> OneOnOneSeries => Set<OneOnOneSeries>();
+    public DbSet<OneOnOneActionItem> OneOnOneActionItems => Set<OneOnOneActionItem>();
+    public DbSet<OneOnOneMeeting> OneOnOneMeetings => Set<OneOnOneMeeting>();
+    public DbSet<OneOnOneAgendaItem> OneOnOneAgendaItems => Set<OneOnOneAgendaItem>();
+    public DbSet<OneOnOnePrivateNote> OneOnOnePrivateNotes => Set<OneOnOnePrivateNote>();
+    public DbSet<Feedback> Feedback => Set<Feedback>();
+    public DbSet<FeedbackRequest> FeedbackRequests => Set<FeedbackRequest>();
+    public DbSet<FeedbackRequestInvitee> FeedbackRequestInvitees => Set<FeedbackRequestInvitee>();
+    public DbSet<Praise> Praise => Set<Praise>();
+    public DbSet<PraiseRecipient> PraiseRecipients => Set<PraiseRecipient>();
+    public DbSet<PraiseReaction> PraiseReactions => Set<PraiseReaction>();
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -153,6 +165,28 @@ public sealed class PerformanceDbContext : DbContext
         modelBuilder.Entity<CalibrationSubject>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<CalibrationAdjustment>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<OneOnOneSeries>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<OneOnOneActionItem>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<OneOnOneMeeting>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<OneOnOneAgendaItem>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<OneOnOnePrivateNote>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<Feedback>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<FeedbackRequest>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<FeedbackRequestInvitee>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<Praise>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<PraiseRecipient>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<PraiseReaction>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
     }
 }

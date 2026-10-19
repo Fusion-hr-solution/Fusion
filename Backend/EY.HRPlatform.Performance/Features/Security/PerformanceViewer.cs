@@ -10,6 +10,17 @@ namespace EY.HRPlatform.Performance.Features.Security;
 public sealed record CycleViewer(GoalActorContext Actor, Guid? GovernedOrgUnitId);
 public sealed record CycleResponsibilities(bool Participates, IReadOnlyList<Guid> ReviewedEmployeeIds);
 
+/// <summary>
+/// The caller's reporting line in Core HR now: their own snapshot (with their primary manager) and their active direct
+/// reports. Conversations (1:1s, manager feedback) follow the current line, not a cycle's snapshot.
+/// </summary>
+public sealed record CurrentLine(WorkforceSnapshot? Self, IReadOnlyList<WorkforceSnapshot> DirectReports)
+{
+    public static readonly CurrentLine None = new(null, []);
+    public Guid? ManagerEmployeeId => Self is { IsActive: true, Manager: { IsActive: true } manager } ? manager.EmployeeId : null;
+    public IReadOnlySet<Guid> DirectReportIds { get; } = DirectReports.Select(r => r.EmployeeId).ToHashSet();
+}
+
 /// <summary>Request-scoped caller facts. Core supplies team governance; Performance supplies review responsibility.</summary>
 public sealed class PerformanceViewer(PerformanceDbContext db, ICoreWorkforceClient workforce, IHttpContextAccessor? http = null)
 {
@@ -20,6 +31,21 @@ public sealed class PerformanceViewer(PerformanceDbContext db, ICoreWorkforceCli
     public Guid? UserId => http?.HttpContext?.User.GetUserId();
     public Guid? EmployeeId => http?.HttpContext?.User.GetEmployeeId();
     public IReadOnlyList<EffectivePermissionGrant> Grants => http?.HttpContext?.User.GetCorePermissions() ?? [];
+
+    private Task<CurrentLine>? _line;
+
+    /// <summary>Once per request: Core HR's current line for the caller. Throws <see cref="HttpRequestException"/> when Core is down.</summary>
+    public Task<CurrentLine> CurrentLineAsync(CancellationToken cancellationToken)
+        => _line ??= LoadLineAsync(cancellationToken);
+
+    private async Task<CurrentLine> LoadLineAsync(CancellationToken cancellationToken)
+    {
+        if (EmployeeId is not Guid me || me == Guid.Empty) return CurrentLine.None;
+        var now = DateTime.UtcNow;
+        var self = (await workforce.ResolveAsync(now, [me], cancellationToken)).SingleOrDefault(s => s.EmployeeId == me);
+        var reports = await workforce.GetDirectReportsAsync(now, [me], cancellationToken);
+        return new CurrentLine(self, reports.Where(r => r.EmployeeId != me).ToList());
+    }
 
     public Task<CycleViewer> ForCycleAsync(PerformanceCycle cycle, GoalActorContext actor, CancellationToken cancellationToken)
     {

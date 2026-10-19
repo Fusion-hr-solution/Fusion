@@ -251,6 +251,9 @@ public static class GoalsComposer
             AlignedPlanObjectives = alignedPlanObjectives,
             Status = ToStatus(objective, plan, ObjectivePolicy.CanReadProgressHistory(viewer, objective, plan), statusReason),
             CanAcknowledgeStatus = open && plan is not null && PlanPolicy.CanAcknowledgeStatus(viewer.Actor, plan, cycle, objective),
+            // D-13: anyone reading the objective gives its owner feedback about it; the owner asks colleagues about it.
+            CanGiveFeedback = viewer.Actor.CallerEmployeeId != Guid.Empty && viewer.Actor.CallerEmployeeId != objective.AccountablePersonId,
+            CanAskForFeedback = viewer.Actor.CallerEmployeeId != Guid.Empty && viewer.Actor.CallerEmployeeId == objective.AccountablePersonId,
         });
     }
 

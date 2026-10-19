@@ -96,7 +96,11 @@ public sealed class GetWorkspaceContextHandler(PerformanceDbContext db, Performa
             Team: reviewer,
             Reviews: hasReviews,
             CycleAdmin: grants.Administers,
-            Settings: grants.Administers);
+            Settings: grants.Administers)
+        {
+            OneOnOnes = await HasOneOnOnesAsync(employeeId, cancellationToken),
+            Feedback = true,
+        };
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         return new WorkspaceContextDto(
@@ -105,6 +109,23 @@ public sealed class GetWorkspaceContextHandler(PerformanceDbContext db, Performa
             selected is null ? null : CycleDetailComposer.PhaseOf(selected, today),
             capabilities,
             destinations);
+    }
+
+    /// <summary>
+    /// 1:1s follow people, not cycles: anyone with a current manager or direct reports in Core HR, or any series. With Core
+    /// HR down, a series alone decides; navigation never grants access.
+    /// </summary>
+    private async Task<bool> HasOneOnOnesAsync(Guid employeeId, CancellationToken cancellationToken)
+    {
+        if (employeeId == Guid.Empty) return false;
+        if (await db.OneOnOneSeries.AsNoTracking().AnyAsync(s => s.ManagerEmployeeId == employeeId || s.ReportEmployeeId == employeeId, cancellationToken))
+            return true;
+        try
+        {
+            var line = await viewer.CurrentLineAsync(cancellationToken);
+            return line.ManagerEmployeeId is not null || line.DirectReports.Count > 0;
+        }
+        catch (HttpRequestException) { return false; }
     }
 
 }

@@ -62,10 +62,12 @@ public sealed class PerformanceNotificationDispatcher(PerformanceDbContext db, I
 }
 
 public sealed class PerformanceBackgroundWorker(IServiceScopeFactory scopeFactory, ILogger<PerformanceBackgroundWorker> logger,
-    EvidenceUploadSweeper sweeper, PerformanceNotificationRetention retention)
+    EvidenceUploadSweeper sweeper, PerformanceNotificationRetention retention,
+    EY.HRPlatform.Performance.Features.OneOnOnes.OneOnOneReconciler oneOnOnes)
     : BackgroundService
 {
     private DateTime _nextEvidenceSweep = DateTime.UtcNow;
+    private DateTime _nextOneOnOneReconciliation = DateTime.UtcNow;
     private DateTime _nextNotificationPurge = DateTime.UtcNow;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -80,6 +82,12 @@ public sealed class PerformanceBackgroundWorker(IServiceScopeFactory scopeFactor
                 {
                     await sweeper.SweepAsync(DateTime.UtcNow, stoppingToken);
                     _nextEvidenceSweep = DateTime.UtcNow.AddHours(1);
+                }
+                if (DateTime.UtcNow >= _nextOneOnOneReconciliation)
+                {
+                    // Set first: a Core outage shouldn't turn this into a retry every tick.
+                    _nextOneOnOneReconciliation = DateTime.UtcNow.AddMinutes(15);
+                    await oneOnOnes.ReconcileAsync(DateTime.UtcNow, stoppingToken);
                 }
                 if (DateTime.UtcNow >= _nextNotificationPurge)
                 {

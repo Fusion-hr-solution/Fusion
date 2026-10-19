@@ -40,3 +40,7 @@ public sealed record WorkforceByScopeRequest(
 public sealed record WorkforceAllActiveRequest(DateTime AsOf, bool IncludeInactive = false);
 
 public sealed record WorkforceOrgUnitResolveRequest(DateTime AsOf, IReadOnlyList<Guid> OrgUnitIds);
+
+public sealed record WorkforceDirectReportsRequest(DateTime AsOf, IReadOnlyList<Guid> ManagerEmployeeIds);
+
+public sealed record WorkforceSearchRequest(DateTime AsOf, string Term, int Limit);

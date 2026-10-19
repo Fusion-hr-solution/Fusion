@@ -62,6 +62,37 @@ public static class PerformanceNotificationRenderer
                     $"{actor} added a development goal.\n\nOpen development: {pathLink}"),
             };
         }
+        if (PerformanceOutboxMessage.IsConversationKind(message.Kind))
+        {
+            var conversation = JsonSerializer.Deserialize<ConversationNotificationPayload>(message.Payload)
+                ?? throw new InvalidOperationException("Notification context is missing.");
+            if (conversation.ResourceId != message.ResourceId || !conversation.Path.StartsWith("/performance/", StringComparison.Ordinal))
+                throw new InvalidOperationException("Notification context does not match its resource.");
+            var conversationLink = $"{shellBaseUrl.TrimEnd('/')}{conversation.Path}";
+            var who = conversation.ActorDisplayName ?? "A colleague";
+            // Names and kinds only: feedback, answers, notes, actions and praise messages stay in the app.
+            return message.Kind switch
+            {
+                PerformanceNotificationKind.OneOnOneStarted => new("Your 1:1s have started",
+                    $"{who} started recurring 1:1s with you.\n\nOpen your 1:1s: {conversationLink}"),
+                PerformanceNotificationKind.OneOnOneRescheduled => new("Your next 1:1 moved",
+                    $"{who} moved your next 1:1.\n\nOpen your 1:1s: {conversationLink}"),
+                PerformanceNotificationKind.OneOnOneActionAssigned => new("A 1:1 action for you",
+                    $"{who} gave you an action item from your 1:1.\n\nOpen your 1:1s: {conversationLink}"),
+                PerformanceNotificationKind.FeedbackReceived => new("You have new feedback",
+                    $"{who} gave you feedback.\n\nRead it: {conversationLink}"),
+                PerformanceNotificationKind.FeedbackForReport => new("Feedback about someone on your team",
+                    $"{who} gave you manager-only feedback about someone on your team.\n\nRead it: {conversationLink}"),
+                PerformanceNotificationKind.FeedbackRequested => new("A colleague asked for your feedback",
+                    $"{who} asked for your feedback.\n\nOpen the request: {conversationLink}"),
+                PerformanceNotificationKind.FeedbackRequestResponded => new("A response to your feedback request",
+                    $"{who} responded to your feedback request.\n\nOpen the request: {conversationLink}"),
+                PerformanceNotificationKind.PraiseReceived => new("You were praised",
+                    $"{who} praised you.\n\nSee it: {conversationLink}"),
+                _ => new("Someone on your team was praised",
+                    $"{who} praised someone on your team.\n\nSee it: {conversationLink}"),
+            };
+        }
         if (message.ResourceType == "PerformanceReview")
         {
             var review = JsonSerializer.Deserialize<ReviewNotificationPayload>(message.Payload)

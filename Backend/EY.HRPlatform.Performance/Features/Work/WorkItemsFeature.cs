@@ -48,7 +48,12 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
             }
             await UpdateRequestsAsync(cycle, actor.EmployeeId, items, token);
         }
-        if (actor.EmployeeId != Guid.Empty) await AssessmentsAsync(actor, items, token);
+        if (actor.EmployeeId != Guid.Empty)
+        {
+            await AssessmentsAsync(actor, items, token);
+            await FeedbackRequestsAsync(actor.EmployeeId, items, token);
+            await OneOnOneActionsAsync(actor.EmployeeId, today, items, token);
+        }
         if (actor.Calibrates && actor.UserId != Guid.Empty) await CalibrationAsync(actor.UserId, items, token);
         if (actor.Administers) await FinalizationAsync(items, token);
         return Result.Success<IReadOnlyList<FusionWorkItemDto>>(items);
@@ -128,6 +133,34 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
             r.ObjectiveId is Guid objectiveId
                 ? PerformanceNotificationTemplates.ObjectivePath(cycle.Id, objectiveId, record: true)
                 : PerformanceNotificationTemplates.PlanPath(cycle.Id, r.PlanId))));
+    }
+
+    /// <summary>Feedback the caller was asked for and hasn't answered or declined, while the request is open. Not cycle-bound.</summary>
+    private async Task FeedbackRequestsAsync(Guid employeeId, List<FusionWorkItemDto> items, CancellationToken token)
+    {
+        var waiting = await db.FeedbackRequests.AsNoTracking()
+            .Where(r => r.State == Domain.Conversations.FeedbackRequestState.Open
+                && r.Invitees.Any(i => i.EmployeeId == employeeId && i.Status == Domain.Conversations.FeedbackInviteeStatus.Waiting))
+            .OrderBy(r => r.DueDate).ToListAsync(token);
+        items.AddRange(waiting.Select(r => new FusionWorkItemDto(Id("feedback-request", r.Id), Module, "feedback-request",
+            $"Feedback for {r.RequesterName}", r.Question, r.DueDate, PerformanceNotificationTemplates.FeedbackRequestPath(r.Id))));
+    }
+
+    /// <summary>The caller's open 1:1 action items in an active series, once due within three days or overdue. Not cycle-bound.</summary>
+    private async Task OneOnOneActionsAsync(Guid employeeId, DateOnly today, List<FusionWorkItemDto> items, CancellationToken token)
+    {
+        var horizon = today.AddDays(3);
+        var due = await (from action in db.OneOnOneActionItems.AsNoTracking()
+                         join series in db.OneOnOneSeries.AsNoTracking() on action.SeriesId equals series.Id
+                         where action.OwnerEmployeeId == employeeId && action.DoneAt == null && action.DueDate != null
+                               && action.DueDate <= horizon && series.EndedAt == null
+                               && (series.ManagerEmployeeId == employeeId || series.ReportEmployeeId == employeeId)
+                         orderby action.DueDate
+                         select new { ActionId = action.Id, action.Text, action.DueDate, SeriesId = series.Id, series.ManagerEmployeeId, series.ManagerName, series.ReportName })
+            .ToListAsync(token);
+        items.AddRange(due.Select(a => new FusionWorkItemDto(Id("one-on-one-action", a.ActionId), Module, "one-on-one-action", a.Text,
+            $"1:1 with {(a.ManagerEmployeeId == employeeId ? a.ReportName : a.ManagerName)}", a.DueDate,
+            PerformanceNotificationTemplates.OneOnOnePath(a.SeriesId))));
     }
 
     /// <summary>The review work queue's own rule: the subject in self-assessment, the reviewer in manager assessment.</summary>

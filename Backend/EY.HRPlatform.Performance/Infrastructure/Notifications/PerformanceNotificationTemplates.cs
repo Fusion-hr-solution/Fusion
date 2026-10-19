@@ -76,5 +76,40 @@ public static class PerformanceNotificationTemplates
         => new("Calibration is ready", $"Every review in {roundName} has reached calibration", null,
             CalibrationPath(session.ReviewRoundId));
 
+    public static string OneOnOnePath(Guid seriesId) => $"/performance/one-on-ones/{seriesId}";
+    public static string FeedbackPath(Guid feedbackId) => $"/performance/feedback?feedback={feedbackId}";
+    public static string FeedbackRequestPath(Guid requestId) => $"/performance/feedback/requests/{requestId}";
+    public static string PraisePath(Guid praiseId) => $"/performance/feedback?tab=praise&praise={praiseId}";
+
+    public static PerformanceNotificationText ForOneOnOneStarted(string actorName, Guid seriesId)
+        => new($"{actorName} started 1:1s with you", null, actorName, OneOnOnePath(seriesId));
+
+    public static PerformanceNotificationText ForOneOnOneRescheduled(string actorName, Guid seriesId)
+        => new($"{actorName} moved your next 1:1", null, actorName, OneOnOnePath(seriesId));
+
+    /// <summary>The owner reads the action's text in the app; the email never carries it.</summary>
+    public static PerformanceNotificationText ForOneOnOneActionAssigned(string actorName, string actionText, Guid seriesId)
+        => new($"{actorName} gave you an action from your 1:1", actionText, actorName, OneOnOnePath(seriesId));
+
+    /// <summary>Names what the feedback is about, never what it says.</summary>
+    public static PerformanceNotificationText ForFeedbackReceived(string authorName, string? subjectLabel, Guid feedbackId)
+        => new($"{authorName} gave you feedback", Clean(subjectLabel), authorName, FeedbackPath(feedbackId));
+
+    public static PerformanceNotificationText ForFeedbackForReport(string authorName, string receiverName, Guid feedbackId)
+        => new($"{authorName} gave you feedback about {receiverName}", "Manager only", authorName, FeedbackPath(feedbackId));
+
+    public static PerformanceNotificationText ForFeedbackRequested(string requesterName, string question, Guid requestId)
+        => new($"{requesterName} asked for your feedback", question, requesterName, FeedbackRequestPath(requestId));
+
+    public static PerformanceNotificationText ForFeedbackRequestResponded(string inviteeName, bool answered, string question, Guid requestId)
+        => new(answered ? $"{inviteeName} answered your feedback request" : $"{inviteeName} declined your feedback request",
+            question, inviteeName, FeedbackRequestPath(requestId));
+
+    public static PerformanceNotificationText ForPraiseReceived(string authorName, string valueName, Guid praiseId)
+        => new($"{authorName} praised you for {valueName}", null, authorName, PraisePath(praiseId));
+
+    public static PerformanceNotificationText ForPraiseForReport(string authorName, string recipientName, string valueName, Guid praiseId)
+        => new($"{authorName} praised {recipientName} for {valueName}", null, authorName, PraisePath(praiseId));
+
     private static string? Clean(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
