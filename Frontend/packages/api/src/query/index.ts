@@ -29,3 +29,10 @@ export {
   type FusionModuleState,
   type UseFusionAttentionOptions,
 } from "./useFusionAttention";
+export {
+  useCompanyValues,
+  usePraiseFeed,
+  useReactToPraise,
+  type ReactToPraiseArgs,
+  type UsePraiseOptions,
+} from "./usePraise";

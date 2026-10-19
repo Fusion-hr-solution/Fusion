@@ -1,10 +1,12 @@
-import type { PersonPerformanceSummaryDto } from "@repo/api";
+import type { PersonPerformanceSummaryDto, PraiseDto, PraiseReactionKind } from "@repo/api";
 import { Button, Skeleton } from "@repo/ds";
 import { SummaryGlance } from "./summary-glance";
 import { SummaryObjectives } from "./summary-objectives";
 import { SummaryDevelopment } from "./summary-development";
 import { SummaryReviews } from "./summary-reviews";
 import type { RenderSummaryLink } from "./summary-lib";
+import { SummaryFeedback, SummaryOneOnOne, SummaryPraise } from "./summary-conversations";
+import type { PraiseReactionIcons } from "./praise";
 
 export type PersonPerformanceSummaryState =
   | { status: "loading" }
@@ -14,6 +16,10 @@ export type PersonPerformanceSummaryState =
 export interface PersonPerformanceSummaryProps {
   state: PersonPerformanceSummaryState;
   renderLink: RenderSummaryLink;
+  /** The host's reaction glyphs; the package carries no icon set. */
+  reactionIcons: PraiseReactionIcons;
+  onReact?: (praise: PraiseDto, kind: PraiseReactionKind, add: boolean) => void;
+  onOpenPraise?: (praise: PraiseDto) => void;
 }
 
 function SummarySkeleton() {
@@ -33,7 +39,7 @@ function SummarySkeleton() {
  * the reviews. Only the sections the server returned are rendered; when it returned none, one line
  * says so. Loading and failure stay in place, so the surrounding record never waits on Performance.
  */
-export function PersonPerformanceSummary({ state, renderLink }: PersonPerformanceSummaryProps) {
+export function PersonPerformanceSummary({ state, renderLink, reactionIcons, onReact, onOpenPraise }: PersonPerformanceSummaryProps) {
   if (state.status === "loading") return <SummarySkeleton />;
   if (state.status === "error") {
     return (
@@ -50,16 +56,21 @@ export function PersonPerformanceSummary({ state, renderLink }: PersonPerformanc
   const cycle = summary.currentCycle;
   const reviews = summary.reviews;
   const development = summary.development;
-  if (!cycle && !reviews && !development) {
+  if (!cycle && !reviews && !development && !summary.praise && !summary.feedback) {
     return <p className="type-body-secondary text-muted-foreground">There&apos;s nothing you can see here yet.</p>;
   }
 
   return (
     <div className="space-y-8">
-      <SummaryGlance cycle={cycle} reviews={reviews} />
+      {cycle || reviews ? <SummaryGlance cycle={cycle} reviews={reviews} /> : null}
+      {summary.oneOnOne ? <SummaryOneOnOne oneOnOne={summary.oneOnOne} renderLink={renderLink} /> : null}
       {cycle ? <SummaryObjectives cycle={cycle} renderLink={renderLink} /> : null}
       {reviews ? <SummaryReviews reviews={reviews} renderLink={renderLink} /> : null}
       {development ? <SummaryDevelopment development={development} renderLink={renderLink} /> : null}
+      {summary.feedback ? <SummaryFeedback feedback={summary.feedback} renderLink={renderLink} /> : null}
+      {summary.praise ? (
+        <SummaryPraise praise={summary.praise} renderLink={renderLink} reactionIcons={reactionIcons} onReact={onReact} onOpen={onOpenPraise} />
+      ) : null}
     </div>
   );
 }

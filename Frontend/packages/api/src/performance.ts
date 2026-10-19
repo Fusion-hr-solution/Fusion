@@ -1,3 +1,4 @@
+import type { FeedbackDto, OneOnOneCadence, PraiseDto } from "./performance-conversations";
 import type { ApiClient } from "./types";
 
 // ── Enumerations (mirror the Performance service contracts) ──────────────────
@@ -75,6 +76,8 @@ export interface CycleSettingsDto {
   evidenceRetentionMonths: number;
   /** Performance AI for the tenant (D-26). Live policy, on by default; omitted on update keeps it. */
   aiAssistanceEnabled: boolean;
+  /** The cadence new 1:1 series start with (D-35). Omitted on update keeps it. */
+  defaultOneOnOneCadence: OneOnOneCadence;
 }
 
 export interface RatingScaleLevelDto { value: number; label: string; description: string | null }
@@ -177,6 +180,10 @@ export interface WorkspaceDestinationsDto {
   reviews: boolean;
   cycleAdmin: boolean;
   settings: boolean;
+  /** A current manager or direct reports in Core HR, or any series. Not cycle-bound. */
+  oneOnOnes: boolean;
+  /** Everyone with Performance access. Not cycle-bound. */
+  feedback: boolean;
 }
 
 /** Where an Overview section resumes; the client turns it into a route for the Cycle. */
@@ -813,6 +820,10 @@ export interface GoalDetailDto {
   status: ObjectiveStatusDto | null;
   /** The plan's responsible reviewer may acknowledge an unacknowledged risky status. */
   canAcknowledgeStatus: boolean;
+  /** The viewer can give the objective's owner feedback about it. */
+  canGiveFeedback: boolean;
+  /** The viewer owns the objective and can ask colleagues for feedback on it. */
+  canAskForFeedback: boolean;
 }
 
 /** The plan an Employee objective belongs to, as seen from the objective. */
@@ -1549,6 +1560,30 @@ export interface PersonPerformanceSummaryDto {
   reviews: PersonSummaryReviewsDto | null;
   /** Development goals for the cycle, under the development plan's own visibility. */
   development: PersonSummaryDevelopmentDto | null;
+  /** Praise the person received; for everyone with Performance access. */
+  praise: PersonSummaryPraiseDto | null;
+  /** Feedback the person received that the viewer may read; for the person, their manager and HR only. */
+  feedback: PersonSummaryFeedbackDto | null;
+  /** The viewer's active 1:1 with the person; only for the two people. */
+  oneOnOne: PersonSummaryOneOnOneDto | null;
+}
+
+export interface PersonSummaryPraiseDto {
+  items: PraiseDto[];
+  total: number;
+  href: string;
+}
+
+export interface PersonSummaryFeedbackDto {
+  items: FeedbackDto[];
+  total: number;
+  href: string;
+}
+
+export interface PersonSummaryOneOnOneDto {
+  seriesId: string;
+  nextMeetingAt: string | null;
+  href: string;
 }
 
 export interface PersonSummaryDevelopmentGoalDto {

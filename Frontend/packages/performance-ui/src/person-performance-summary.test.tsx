@@ -4,6 +4,11 @@ import userEvent from "@testing-library/user-event";
 import type { PersonPerformanceSummaryDto } from "@repo/api";
 import { PersonPerformanceSummary } from "./person-performance-summary";
 import type { RenderSummaryLink } from "./summary-lib";
+import type { PraiseReactionIcons } from "./praise";
+
+vi.mock("@repo/api/query", () => ({ useCompanyValues: () => ({ data: [] }) }));
+
+const icons: PraiseReactionIcons = { Applause: <i>A</i>, Celebrate: <i>C</i>, Insightful: <i>I</i>, ThankYou: <i>T</i> };
 
 const renderLink: RenderSummaryLink = ({ href, className, children }) => (
   <a href={href} className={className}>
@@ -55,11 +60,30 @@ const full: PersonPerformanceSummaryDto = {
       { title: "Present the migration", competencyName: null, status: "Done", targetDate: "2026-09-01" },
     ],
   },
+  praise: null,
+  feedback: null,
+  oneOnOne: null,
+};
+
+const praise = {
+  id: "p1",
+  author: { id: "amine", name: "Amine Jaziri" },
+  recipients: [{ id: "nour", name: "Nour Ben Ali" }],
+  value: { id: "v", name: "Ownership" },
+  message: "You ran the payment gateway cut-over with zero downtime.",
+  givenAt: "2026-10-17T08:00:00Z",
+  reactions: [
+    { kind: "Applause" as const, count: 2, mine: false },
+    { kind: "Celebrate" as const, count: 1, mine: true },
+    { kind: "Insightful" as const, count: 0, mine: false },
+    { kind: "ThankYou" as const, count: 0, mine: false },
+  ],
+  canDelete: false,
 };
 
 describe("PersonPerformanceSummary", () => {
   it("renders the glance, objectives and reviews, each linking into Performance", () => {
-    render(<PersonPerformanceSummary state={{ status: "ready", summary: full }} renderLink={renderLink} />);
+    render(<PersonPerformanceSummary state={{ status: "ready", summary: full }} renderLink={renderLink} reactionIcons={icons} />);
     const glance = screen.getByRole("region", { name: "At a glance" });
     expect(within(glance).getByText("30%")).toBeInTheDocument();
     expect(within(glance).getByText("Approved")).toBeInTheDocument();
@@ -74,34 +98,35 @@ describe("PersonPerformanceSummary", () => {
   });
 
   it("shows each reported status and never invents one", () => {
-    render(<PersonPerformanceSummary state={{ status: "ready", summary: full }} renderLink={renderLink} />);
+    render(<PersonPerformanceSummary state={{ status: "ready", summary: full }} renderLink={renderLink} reactionIcons={icons} />);
     expect(within(screen.getByRole("link", { name: /Ship the playbook/ })).getByText("At risk")).toBeInTheDocument();
     expect(within(screen.getByRole("link", { name: /Learn Spanish/ })).queryByText(/track|risk/i)).not.toBeInTheDocument();
     expect(within(screen.getByRole("region", { name: "At a glance" })).getByText("1 at risk")).toBeInTheDocument();
   });
 
   it("lists development goals with their status, linking to the plan's Development", () => {
-    render(<PersonPerformanceSummary state={{ status: "ready", summary: full }} renderLink={renderLink} />);
+    render(<PersonPerformanceSummary state={{ status: "ready", summary: full }} renderLink={renderLink} reactionIcons={icons} />);
     expect(screen.getByText("In progress · Collaboration · by 31 Mar 2027")).toBeInTheDocument();
     expect(screen.getByText("Done")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open development" })).toHaveAttribute("href", "/performance/cycles/c/plans/p#development");
   });
 
   it("says when there are no development goals yet", () => {
-    render(<PersonPerformanceSummary state={{ status: "ready", summary: { ...full, development: { href: "/x", goals: [] } } }} renderLink={renderLink} />);
+    render(<PersonPerformanceSummary state={{ status: "ready", summary: { ...full, development: { href: "/x", goals: [] } } }} renderLink={renderLink} reactionIcons={icons} />);
     expect(screen.getByText("No development goals yet")).toBeInTheDocument();
   });
 
   it("hides development from someone who may not see it", () => {
-    render(<PersonPerformanceSummary state={{ status: "ready", summary: { ...full, development: null } }} renderLink={renderLink} />);
+    render(<PersonPerformanceSummary state={{ status: "ready", summary: { ...full, development: null } }} renderLink={renderLink} reactionIcons={icons} />);
     expect(screen.queryByRole("heading", { name: "Development" })).not.toBeInTheDocument();
   });
 
   it("says there is nothing to see when no section is visible", () => {
     render(
       <PersonPerformanceSummary
-        state={{ status: "ready", summary: { ...full, relation: "Other", currentCycle: null, reviews: null, development: null } }}
+        state={{ status: "ready", summary: { ...full, relation: "Other", currentCycle: null, reviews: null, development: null, praise: null } }}
         renderLink={renderLink}
+        reactionIcons={icons}
       />,
     );
     expect(screen.getByText("There's nothing you can see here yet.")).toBeInTheDocument();
@@ -113,17 +138,74 @@ describe("PersonPerformanceSummary", () => {
       ...full,
       currentCycle: { ...full.currentCycle!, isParticipant: false, planId: null, planStatus: null, overallProgress: null, planHref: null, objectives: [] },
     };
-    render(<PersonPerformanceSummary state={{ status: "ready", summary: outside }} renderLink={renderLink} />);
+    render(<PersonPerformanceSummary state={{ status: "ready", summary: outside }} renderLink={renderLink} reactionIcons={icons} />);
     expect(screen.getAllByText("Not part of FY2027").length).toBeGreaterThan(0);
     expect(screen.queryByRole("link", { name: /Ship the playbook/ })).not.toBeInTheDocument();
   });
 
   it("keeps loading and failure in place", async () => {
     const onRetry = vi.fn();
-    const { rerender } = render(<PersonPerformanceSummary state={{ status: "loading" }} renderLink={renderLink} />);
+    const { rerender } = render(<PersonPerformanceSummary state={{ status: "loading" }} renderLink={renderLink} reactionIcons={icons} />);
     expect(screen.getByLabelText("Loading performance")).toBeInTheDocument();
-    rerender(<PersonPerformanceSummary state={{ status: "error", onRetry }} renderLink={renderLink} />);
+    rerender(<PersonPerformanceSummary state={{ status: "error", onRetry }} renderLink={renderLink} reactionIcons={icons} />);
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
     expect(onRetry).toHaveBeenCalledOnce();
+  });
+
+  it("shows a colleague only the praise the person received", () => {
+    render(
+      <PersonPerformanceSummary
+        state={{ status: "ready", summary: { ...full, relation: "Other", currentCycle: null, reviews: null, development: null,
+          praise: { items: [praise], total: 1, href: "/performance/feedback?tab=praise&employee=nour" } } }}
+        renderLink={renderLink}
+        reactionIcons={icons}
+      />,
+    );
+    expect(screen.getByRole("heading", { name: /Praise/ })).toBeInTheDocument();
+    expect(screen.getByText("Ownership")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "At a glance" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Feedback/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "1:1" })).not.toBeInTheDocument();
+  });
+
+  it("says when there is no praise yet", () => {
+    render(
+      <PersonPerformanceSummary state={{ status: "ready", summary: { ...full, praise: { items: [], total: 0, href: "/x" } } }}
+        renderLink={renderLink} reactionIcons={icons} />,
+    );
+    expect(screen.getByText("No praise yet")).toBeInTheDocument();
+  });
+
+  it("marks manager-only feedback and links to the 1:1 when the server sends one", () => {
+    const feedback = {
+      items: [
+        { id: "f1", author: { id: "leila", name: "Leila Gharsallah" }, receiver: { id: "nour", name: "Nour Ben Ali" }, visibility: "ManagerOnly" as const,
+          addressedManager: { id: "karim", name: "Karim Haddad" }, subject: { kind: "Competency" as const, cycleId: null, objectiveId: null,
+            competencyId: "c", label: "Collaboration", href: null }, message: "Specific and kind.", requestId: null, requestQuestion: null,
+          sentAt: "2026-10-03T08:00:00Z" },
+      ],
+      total: 1,
+      href: "/performance/feedback?view=team",
+    };
+    render(
+      <PersonPerformanceSummary
+        state={{ status: "ready", summary: { ...full, feedback, oneOnOne: { seriesId: "s", nextMeetingAt: "2026-10-21T10:00:00Z", href: "/performance/one-on-ones/s" } } }}
+        renderLink={renderLink} reactionIcons={icons}
+      />,
+    );
+    expect(screen.getByText("Manager only")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open 1:1s" })).toHaveAttribute("href", "/performance/one-on-ones/s");
+  });
+
+  it("toggles a reaction through the host", async () => {
+    const onReact = vi.fn();
+    render(
+      <PersonPerformanceSummary state={{ status: "ready", summary: { ...full, praise: { items: [praise], total: 1, href: "/x" } } }}
+        renderLink={renderLink} reactionIcons={icons} onReact={onReact} />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Celebrate, 1" }));
+    expect(onReact).toHaveBeenCalledWith(praise, "Celebrate", false);
+    await userEvent.click(screen.getByRole("button", { name: "Insightful" }));
+    expect(onReact).toHaveBeenCalledWith(praise, "Insightful", true);
   });
 });

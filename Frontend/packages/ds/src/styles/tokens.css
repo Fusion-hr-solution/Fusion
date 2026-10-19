@@ -60,6 +60,12 @@
     --chart-3: oklch(0.666 0.179 58.318);
     --chart-4: oklch(0.555 0.163 48.998);
     --chart-5: oklch(0.473 0.137 46.201);
+    /* Identity hues for categories people tell apart by colour (company values). Never state or emphasis. */
+    --identity-1: oklch(0.52 0.15 255);
+    --identity-2: oklch(0.52 0.1 185);
+    --identity-3: oklch(0.53 0.14 140);
+    --identity-4: oklch(0.52 0.17 295);
+    --identity-5: oklch(0.55 0.18 340);
     --radius: 0.75rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.141 0.005 285.823);
@@ -122,6 +128,11 @@
     --chart-3: oklch(0.666 0.179 58.318);
     --chart-4: oklch(0.555 0.163 48.998);
     --chart-5: oklch(0.473 0.137 46.201);
+    --identity-1: oklch(0.76 0.12 255);
+    --identity-2: oklch(0.78 0.1 185);
+    --identity-3: oklch(0.8 0.15 140);
+    --identity-4: oklch(0.75 0.14 295);
+    --identity-5: oklch(0.76 0.15 340);
     --sidebar: oklch(0.21 0.006 285.885);
     --sidebar-foreground: oklch(0.985 0 0);
     --sidebar-primary: oklch(0.795 0.184 86.047);
@@ -152,6 +163,11 @@
     --color-chart-3: var(--chart-3);
     --color-chart-2: var(--chart-2);
     --color-chart-1: var(--chart-1);
+    --color-identity-1: var(--identity-1);
+    --color-identity-2: var(--identity-2);
+    --color-identity-3: var(--identity-3);
+    --color-identity-4: var(--identity-4);
+    --color-identity-5: var(--identity-5);
     --color-ring: var(--ring);
     --color-input: var(--input);
     --color-border: var(--border);
