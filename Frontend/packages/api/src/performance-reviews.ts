@@ -1,0 +1,503 @@
+// Performance reviews, slice 4: round setup and monitoring, the per-viewer workspace, peer input (D-18), questions (D-19),
+// due-date moves (D-02), acknowledgement (D-20) and the PDF (D-21). Transport only; mirrors the Performance contracts.
+import type { ObjectiveStatus, PerformanceReviewState, ReviewRoundState } from "./performance";
+import type { ApiClient } from "./types";
+
+export type ReviewQuestionAudience = "Person" | "Manager" | "Peer";
+export type ReviewQuestionState = "Active" | "Archived";
+export type ReviewStage = "SelfAssessment" | "PeerInput" | "ManagerAssessment";
+export type ReviewPotential = "Developing" | "Growing" | "High";
+export type PeerRequestState = "Open" | "Answered" | "Declined" | "Closed";
+export type ReviewLens = "Subject" | "Reviewer" | "Administrator" | "Facilitator";
+
+export const REVIEW_POTENTIALS: readonly ReviewPotential[] = ["Developing", "Growing", "High"];
+
+// ── Question library (Settings › Reviews) ────────────────────────────────────────
+
+export interface ReviewQuestionDto {
+  id: string;
+  text: string;
+  audience: ReviewQuestionAudience;
+  sortOrder: number;
+  state: ReviewQuestionState;
+  firstUsedAt: string | null;
+  version: number;
+}
+
+// ── Rounds ───────────────────────────────────────────────────────────────────────
+
+export type ReviewRoundIssueCode =
+  | "NoSubjects"
+  | "NoQuestions"
+  | "NoPeerQuestions"
+  | "NoCompetencies"
+  | "DueDateBeforeLaunch"
+  | "DueDateAfterCycleEnd"
+  | "ManagerBeforeSelf"
+  | "RoundRunning";
+
+/** One task's due date; `followsDefault` while a Draft date is computed from its day offset. */
+export interface ReviewDueDateDto {
+  date: string;
+  followsDefault: boolean;
+  offsetDays: number;
+}
+export interface ReviewRoundScheduleDto {
+  launchDay: string;
+  selfAssessment: ReviewDueDateDto;
+  peerInput: ReviewDueDateDto;
+  managerAssessment: ReviewDueDateDto;
+  acknowledgementReminderDays: number;
+}
+export interface ReviewRoundQuestionDto {
+  id: string;
+  questionId: string;
+  audience: ReviewQuestionAudience;
+  sortOrder: number;
+  text: string;
+}
+/** The round that blocks a launch (B-060), with its progress. */
+export interface RunningReviewRoundDto {
+  id: string;
+  name: string;
+  launchedAt: string | null;
+  reviewCount: number;
+  selfSubmitted: number;
+  selfRequired: number;
+  managerSubmitted: number;
+  managerRequired: number;
+}
+export interface ReviewRoundReadinessDto {
+  ready: boolean;
+  launchCount: number;
+  subjectIssueCount: number;
+  issues: ReviewRoundIssueCode[];
+  runningRound: RunningReviewRoundDto | null;
+}
+export type ReviewProgressStage = "SelfAssessment" | "PeerInput" | "ManagerAssessment" | "Released";
+export interface ReviewStageProgressDto {
+  stage: ReviewProgressStage;
+  done: number;
+  total: number;
+  dueDate: string | null;
+  open: number;
+  late: number;
+  declined: number;
+  readyToWrite: number;
+}
+export interface ReviewRatioDto {
+  done: number;
+  total: number;
+}
+export interface ReviewTeamProgressDto {
+  reviewerEmployeeId: string;
+  reviewerDisplayName: string;
+  orgUnitName: string | null;
+  people: number;
+  self: ReviewRatioDto;
+  peers: ReviewRatioDto;
+  manager: ReviewRatioDto;
+  listsToApprove: number;
+}
+export interface ReviewReminderForecastDto {
+  date: string;
+  selfAssessments: number;
+  peerLists: number;
+  peerInputs: number;
+  managerAssessments: number;
+}
+export interface ReviewRoundProgressDto {
+  stages: ReviewStageProgressDto[];
+  teams: ReviewTeamProgressDto[];
+  nextReminder: ReviewReminderForecastDto | null;
+  readyToFinalize: number;
+  finalized: number;
+  closed: number;
+}
+export interface ReviewRoundFrozenConfigurationDto {
+  selfAssessment: boolean;
+  peerInput: boolean;
+  objectiveRatings: boolean;
+  questions: boolean;
+  potential: boolean;
+  calibration: boolean;
+  competencies: string[];
+  ratingScaleVersion: number;
+}
+export type ReviewRoundActivityKind = "Launched" | "DueDateMoved" | "ReviewClosed" | "Released" | "Closed";
+export interface ReviewRoundActivityDto {
+  kind: ReviewRoundActivityKind;
+  at: string;
+  actorName: string | null;
+  text: string;
+  detail: string | null;
+}
+export interface ReviewPersonRefDto {
+  reviewId: string;
+  displayName: string;
+}
+export interface ReviewRoundOutcomeDto {
+  released: number;
+  total: number;
+  acknowledged: number;
+  calibratedChanged: number;
+  calibratedDown: number;
+  calibratedUp: number;
+  closedWithoutResult: { reviewId: string; subjectDisplayName: string; reason: string; closedAt: string | null }[];
+  distribution: { value: number; label: string; count: number }[];
+  notAcknowledged: ReviewPersonRefDto[];
+  nextAcknowledgementReminder: string | null;
+  releasedAt: string | null;
+}
+
+/** The failure `extra` of a refused launch: subject issues, round issues and the running round (B-060). */
+export interface ReviewRoundLaunchBlockedDto {
+  issues: { code: string; subjectEmployeeId: string; reviewerEmployeeId: string | null }[];
+  roundIssues: ReviewRoundIssueCode[];
+  runningRound: RunningReviewRoundDto | null;
+}
+
+export interface MoveRoundDueDateRequest {
+  expectedVersion: number;
+  stage: ReviewStage;
+  dueDate: string;
+  reason: string;
+}
+export interface MoveReviewDueDateRequest {
+  expectedVersion: number;
+  dueDate: string;
+  reason: string;
+}
+export interface ReviewDueDateMoveDto {
+  id: string;
+  stage: ReviewStage;
+  from: string | null;
+  to: string;
+  reason: string;
+  actorName: string;
+  movedAt: string;
+  affected: number;
+  reviewId: string | null;
+  subjectDisplayName: string | null;
+}
+
+// ── The review record (per lens) ─────────────────────────────────────────────────
+
+export interface ReviewObjectiveFeedbackDto {
+  authorName: string;
+  message: string;
+  sentAt: string;
+}
+export interface ReviewQuestionAnswerDto {
+  questionId: string;
+  audience: ReviewQuestionAudience;
+  sortOrder: number;
+  text: string;
+  selfAnswer: string | null;
+  managerAnswer: string | null;
+}
+export interface ReviewPeerAnswerDto {
+  questionId: string;
+  question: string;
+  text: string;
+}
+/** A colleague on the peer list. The person sees only who: no source, request, state or answers. */
+export interface ReviewPeerDto {
+  employeeId: string;
+  displayName: string;
+  source: "Subject" | "Reviewer" | null;
+  requestId: string | null;
+  state: PeerRequestState | null;
+  declineNote: string | null;
+  respondedAt: string | null;
+  answers: ReviewPeerAnswerDto[] | null;
+}
+export interface ReviewPeersDto {
+  approved: boolean;
+  approvedAt: string | null;
+  nominatedAt: string | null;
+  people: ReviewPeerDto[];
+  questions: string[];
+}
+export interface ReviewAcknowledgementDto {
+  at: string;
+  comment: string | null;
+}
+export interface ReviewScheduleStateDto {
+  selfAssessmentDue: string | null;
+  peerInputDue: string | null;
+  managerAssessmentDue: string | null;
+  daysLate: number;
+  selfOverridden: boolean;
+  managerOverridden: boolean;
+  nextReminder: string | null;
+  remindersSent: string[];
+}
+export interface ReviewYearContextDto {
+  subjectEmployeeId: string;
+  feedback: number;
+  praise: number;
+  oneOnOnesHeld: number;
+  actionsDone: number;
+  developmentGoals: number;
+  lastResult: { reviewId: string; roundName: string; rating: number | null; label: string | null; finalizedAt: string | null } | null;
+}
+export interface ReviewActivityDto {
+  kind: string;
+  at: string;
+  text: string;
+  detail: string | null;
+}
+/** Fields slice 4 adds to the review record (merged into `PerformanceReviewDto`). */
+export interface PerformanceReviewRecordFields {
+  lens: ReviewLens;
+  subjectEmployeeId: string;
+  reviewerEmployeeId: string;
+  subjectJobTitle: string | null;
+  subjectOrgUnitName: string | null;
+  roundState: ReviewRoundState;
+  peerInputEnabled: boolean;
+  questionsEnabled: boolean;
+  /** Never true for the person. */
+  potentialEnabled: boolean;
+  questions: ReviewQuestionAnswerDto[];
+  /** Never present for the person (D-24). */
+  potential: ReviewPotential | null;
+  peers: ReviewPeersDto | null;
+  acknowledgement: ReviewAcknowledgementDto | null;
+  schedule: ReviewScheduleStateDto | null;
+  year: ReviewYearContextDto | null;
+  activity: ReviewActivityDto[];
+  closeReason: string | null;
+  canAcknowledge: boolean;
+  canDownloadPdf: boolean;
+  canNominatePeers: boolean;
+  canApprovePeers: boolean;
+  canMoveDueDate: boolean;
+  canClose: boolean;
+}
+export interface ReviewItemRecordFields {
+  status?: ObjectiveStatus | null;
+  feedback?: ReviewObjectiveFeedbackDto[];
+}
+export interface ReviewAnswerInput {
+  questionId: string;
+  text: string | null;
+}
+/** What a submit lacks: the failure `extra` of a rejected self or manager submit. */
+export interface ReviewMissingDto {
+  items: { kind: "Objective" | "Competency"; itemId: string }[];
+  questions: string[];
+  summary: boolean;
+  overallRating: boolean;
+  potential: boolean;
+}
+
+// ── Peer input ───────────────────────────────────────────────────────────────────
+
+export interface PeerSuggestionDto {
+  employeeId: string;
+  displayName: string;
+  jobTitle: string | null;
+  orgUnitName: string | null;
+  sharedObjective: boolean;
+  feedbackExchanged: number;
+  praiseExchanged: number;
+}
+/** What a peer sees (board 11): whose review, the peer questions with their own answers. Never the review. */
+export interface PeerRequestDto {
+  id: string;
+  subjectEmployeeId: string;
+  subjectDisplayName: string;
+  reviewRoundName: string;
+  dueDate: string | null;
+  daysLate: number;
+  state: PeerRequestState;
+  questions: { questionId: string; sortOrder: number; text: string; answer: string | null }[];
+  declineNote: string | null;
+  respondedAt: string | null;
+  canAnswer: boolean;
+  version: number;
+}
+
+// ── Workspace (boards 01–03, 18) ─────────────────────────────────────────────────
+
+export type ReviewPeerStep = "Off" | "ToNominate" | "ToApprove" | "Approved";
+export type ReviewSelfStep = "Off" | "NotStarted" | "Writing" | "Submitted";
+export type ReviewWriteStep = "Waiting" | "ReadyToWrite" | "Writing" | "Submitted" | "Released" | "Closed";
+export type ReviewNextAction = "ApprovePeers" | "WriteReview" | "Wait" | "Done";
+
+export interface ReviewsWorkspaceOwnDto {
+  reviewId: string;
+  roundId: string;
+  roundName: string;
+  state: PerformanceReviewState;
+  reviewerName: string;
+  periodStart: string;
+  periodEnd: string;
+  dueDate: string | null;
+  daysLate: number;
+  selfAssessmentDue: string | null;
+  managerAssessmentDue: string | null;
+  selfAssessmentEnabled: boolean;
+  calibrationEnabled: boolean;
+  selfSubmittedAt: string | null;
+  sections: { objectivesDone: number; objectives: number; competenciesDone: number; competencies: number; questionsDone: number; questions: number };
+  peers: { asked: string[]; approved: boolean; approvedAt: string | null; canNominate: boolean } | null;
+  finalRating: number | null;
+  finalRatingLabel: string | null;
+  finalizedAt: string | null;
+  acknowledgedAt: string | null;
+}
+export interface ReviewsWorkspaceTeamRowDto {
+  reviewId: string;
+  subjectEmployeeId: string;
+  subjectDisplayName: string;
+  jobTitle: string | null;
+  roundName: string;
+  state: PerformanceReviewState;
+  peerStep: ReviewPeerStep;
+  peerCount: number;
+  selfStep: ReviewSelfStep;
+  selfSubmittedAt: string | null;
+  peerAnswered: number;
+  peerTotal: number;
+  peerDeclined: number;
+  reviewStep: ReviewWriteStep;
+  dueDate: string | null;
+  daysLate: number;
+  nextAction: ReviewNextAction;
+  selfOverallRating: number | null;
+  selfOverallLabel: string | null;
+  peerNames: string[];
+  /** The person's year as the reviewer may see it, in the round period. */
+  planProgress: number | null;
+  atRisk: number;
+  feedback: number;
+  praise: number;
+}
+export interface ReviewsWorkspaceRoundDto {
+  roundId: string;
+  name: string;
+  state: ReviewRoundState;
+  launchedAt: string | null;
+  periodStart: string;
+  periodEnd: string;
+  people: number;
+  components: number;
+  calibrationEnabled: boolean;
+  selfAssessmentDue: string | null;
+  peerInputDue: string | null;
+  managerAssessmentDue: string | null;
+  stages: ReviewStageProgressDto[];
+  listsToApprove: number;
+  released: number;
+  acknowledged: number;
+  closedAt: string | null;
+}
+export interface ReviewsWorkspaceDto {
+  cycleId: string | null;
+  cycleName: string | null;
+  cycleEnd: string | null;
+  canAdminister: boolean;
+  own: ReviewsWorkspaceOwnDto | null;
+  notIncluded: { roundId: string; roundName: string; reason: string | null } | null;
+  year: { planProgress: number | null; objectives: number; feedback: number; praise: number; oneOnOnes: number } | null;
+  toWrite: ReviewsWorkspaceTeamRowDto[];
+  peerLists: { reviewId: string; subjectDisplayName: string; count: number; nominatedAt: string | null; dueDate: string | null }[];
+  askedOfYou: {
+    requestId: string;
+    subjectDisplayName: string;
+    roundName: string;
+    questions: number;
+    dueDate: string | null;
+    daysLate: number;
+    state: PeerRequestState;
+    respondedAt: string | null;
+  }[];
+  rounds: ReviewsWorkspaceRoundDto[];
+  cycleFacts: { participants: number; approvedPlans: number } | null;
+  pastResults: {
+    reviewId: string;
+    cycleName: string;
+    roundName: string;
+    finalRating: number | null;
+    label: string | null;
+    finalizedAt: string | null;
+    acknowledgedAt: string | null;
+  }[];
+}
+
+// ── Paths, keys and transport ────────────────────────────────────────────────────
+
+export const reviewPaths = {
+  workspace: () => "/performance/reviews/workspace",
+  reviewQuestions: () => "/performance/settings/review-questions",
+  reviewQuestion: (id: string) => `/performance/settings/review-questions/${id}`,
+  reviewQuestionOrder: () => "/performance/settings/review-questions/order",
+  roundDueDates: (roundId: string) => `/performance/review-rounds/${roundId}/due-dates`,
+  reviewDueDate: (reviewId: string) => `/performance/reviews/${reviewId}/due-date`,
+  acknowledge: (reviewId: string) => `/performance/reviews/${reviewId}/acknowledge`,
+  pdf: (reviewId: string) => `/performance/reviews/${reviewId}/pdf`,
+  peers: (reviewId: string) => `/performance/reviews/${reviewId}/peers`,
+  approvePeers: (reviewId: string) => `/performance/reviews/${reviewId}/peers/approve`,
+  peerSuggestions: (reviewId: string) => `/performance/reviews/${reviewId}/peer-suggestions`,
+  peerRequest: (requestId: string) => `/performance/peer-requests/${requestId}`,
+} as const;
+
+export const reviewQueryKeys = {
+  all: () => ["performance", "reviews"] as const,
+  workspace: (cycleId: string | null) => [...reviewQueryKeys.all(), "workspace", cycleId] as const,
+  questions: () => ["performance", "settings", "review-questions"] as const,
+  peerSuggestions: (reviewId: string) => [...reviewQueryKeys.all(), "peer-suggestions", reviewId] as const,
+  peerRequest: (requestId: string) => [...reviewQueryKeys.all(), "peer-request", requestId] as const,
+} as const;
+
+export function createReviewsApi(client: ApiClient) {
+  return {
+    getWorkspace: (cycleId?: string | null, signal?: AbortSignal) =>
+      client.get<ReviewsWorkspaceDto>(reviewPaths.workspace(), { params: cycleId ? { cycle: cycleId } : undefined, signal }),
+
+    // Question library
+    listQuestions: (signal?: AbortSignal) => client.get<ReviewQuestionDto[]>(reviewPaths.reviewQuestions(), { signal }),
+    createQuestion: (text: string, audience: ReviewQuestionAudience) =>
+      client.post<ReviewQuestionDto>(reviewPaths.reviewQuestions(), { text, audience }),
+    updateQuestion: (id: string, text: string, expectedVersion: number) =>
+      client.put<ReviewQuestionDto>(reviewPaths.reviewQuestion(id), { text, expectedVersion }),
+    archiveQuestion: (id: string, expectedVersion: number) =>
+      client.post<ReviewQuestionDto>(`${reviewPaths.reviewQuestion(id)}/archive`, { expectedVersion }),
+    deleteQuestion: (id: string, expectedVersion: number) =>
+      client.delete<boolean>(reviewPaths.reviewQuestion(id), { body: { expectedVersion } }),
+    reorderQuestions: (audience: ReviewQuestionAudience, questionIds: string[]) =>
+      client.put<ReviewQuestionDto[]>(reviewPaths.reviewQuestionOrder(), { audience, questionIds }),
+
+    // Schedule
+    moveRoundDueDate: (roundId: string, request: MoveRoundDueDateRequest) =>
+      client.post<ReviewDueDateMoveDto>(reviewPaths.roundDueDates(roundId), request),
+    moveReviewDueDate: (reviewId: string, request: MoveReviewDueDateRequest) =>
+      client.post<ReviewDueDateMoveDto>(reviewPaths.reviewDueDate(reviewId), request),
+
+    // Release
+    acknowledge: (reviewId: string, comment: string | null) =>
+      client.post<ReviewAcknowledgementDto>(reviewPaths.acknowledge(reviewId), { comment }),
+    downloadPdf: (reviewId: string) => client.get<Blob>(reviewPaths.pdf(reviewId), { responseType: "blob" }),
+
+    // Peer input
+    nominatePeers: (reviewId: string, employeeIds: string[], expectedVersion: number) =>
+      client.put<ReviewPeersDto>(reviewPaths.peers(reviewId), { employeeIds, expectedVersion }),
+    approvePeers: (reviewId: string, employeeIds: string[], expectedVersion: number) =>
+      client.post<ReviewPeersDto>(reviewPaths.approvePeers(reviewId), { employeeIds, expectedVersion }),
+    getPeerSuggestions: (reviewId: string, signal?: AbortSignal) =>
+      client.get<PeerSuggestionDto[]>(reviewPaths.peerSuggestions(reviewId), { signal }),
+    getPeerRequest: (requestId: string, signal?: AbortSignal) =>
+      client.get<PeerRequestDto>(reviewPaths.peerRequest(requestId), { signal }),
+    savePeerAnswers: (requestId: string, answers: ReviewAnswerInput[]) =>
+      client.put<PeerRequestDto>(reviewPaths.peerRequest(requestId), { answers }),
+    sendPeerAnswers: (requestId: string, answers: ReviewAnswerInput[]) =>
+      client.post<PeerRequestDto>(`${reviewPaths.peerRequest(requestId)}/send`, { answers }),
+    declinePeerRequest: (requestId: string, note: string | null) =>
+      client.post<PeerRequestDto>(`${reviewPaths.peerRequest(requestId)}/decline`, { note }),
+  };
+}
+
+export type ReviewsApi = ReturnType<typeof createReviewsApi>;

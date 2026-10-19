@@ -22,4 +22,5 @@ export * from "./core-workforce-import";
 export * from "./core-people";
 export * from "./performance";
 export * from "./performance-conversations";
+export * from "./performance-reviews";
 export * from "./fusion-attention";

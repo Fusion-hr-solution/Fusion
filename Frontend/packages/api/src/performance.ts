@@ -1,4 +1,17 @@
 import type { FeedbackDto, OneOnOneCadence, PraiseDto } from "./performance-conversations";
+import type {
+  PerformanceReviewRecordFields,
+  ReviewAnswerInput,
+  ReviewItemRecordFields,
+  ReviewPotential,
+  ReviewRoundActivityDto,
+  ReviewRoundFrozenConfigurationDto,
+  ReviewRoundOutcomeDto,
+  ReviewRoundProgressDto,
+  ReviewRoundQuestionDto,
+  ReviewRoundReadinessDto,
+  ReviewRoundScheduleDto,
+} from "./performance-reviews";
 import type { ApiClient } from "./types";
 
 // ── Enumerations (mirror the Performance service contracts) ──────────────────
@@ -78,6 +91,11 @@ export interface CycleSettingsDto {
   aiAssistanceEnabled: boolean;
   /** The cadence new 1:1 series start with (D-35). Omitted on update keeps it. */
   defaultOneOnOneCadence: OneOnOneCadence;
+  /** Review due-date defaults in days (D-02); only rounds created afterwards use them. */
+  selfAssessmentDueDays: number;
+  peerInputDueDays: number;
+  managerAssessmentDueDays: number;
+  acknowledgementReminderDays: number;
 }
 
 export interface RatingScaleLevelDto { value: number; label: string; description: string | null }
@@ -354,6 +372,27 @@ export interface ReviewRoundDto {
   state: ReviewRoundState;
   version: number;
   subjects: ReviewRoundSubjectDto[];
+  peerInputEnabled: boolean;
+  questionsEnabled: boolean;
+  potentialEnabled: boolean;
+  peerInputDueDate: string | null;
+  cycleName: string;
+  cycleStart: string;
+  cycleEnd: string;
+  launchedAt: string | null;
+  /** Computed from today while Draft; fixed at launch. */
+  schedule: ReviewRoundScheduleDto;
+  /** Draft: the library picks. Launched: the frozen snapshot. */
+  questions: ReviewRoundQuestionDto[];
+  /** Draft only. */
+  readiness: ReviewRoundReadinessDto | null;
+  /** Active only. */
+  progress: ReviewRoundProgressDto | null;
+  /** Closed only. */
+  outcome: ReviewRoundOutcomeDto | null;
+  /** Active and Closed. */
+  configuration: ReviewRoundFrozenConfigurationDto | null;
+  activity: ReviewRoundActivityDto[];
 }
 export interface EligibleReviewerDto { employeeId: string; displayName: string; jobTitle: string | null; orgUnitName: string | null }
 
@@ -369,6 +408,14 @@ export interface UpdateReviewRoundRequest {
   selfAssessmentDueDate: string | null;
   managerAssessmentDueDate: string | null;
   competencyIds: string[];
+  peerInputEnabled?: boolean;
+  questionsEnabled?: boolean;
+  potentialEnabled?: boolean;
+  peerInputDueDate?: string | null;
+  /** True with a null `peerInputDueDate` returns the peer date to its default offset. */
+  peerInputDueDateSet?: boolean;
+  /** Library question ids, in order within each audience; omitted keeps the picks. */
+  questionIds?: string[];
 }
 export interface UpdateReviewRoundPopulationRequest {
   expectedVersion: number;
@@ -461,7 +508,7 @@ export interface ReviewEvidenceRefDto {
   recordedAt: string | null;
 }
 
-export interface ReviewItemAssessmentDto {
+export interface ReviewItemAssessmentDto extends ReviewItemRecordFields {
   kind: ReviewItemKind;
   itemId: string;
   title: string;
@@ -481,7 +528,7 @@ export interface ReviewItemAssessmentDto {
   legacyMeasurementSummary?: string | null;
 }
 
-export interface PerformanceReviewDto {
+export interface PerformanceReviewDto extends PerformanceReviewRecordFields {
   id: string;
   reviewRoundId: string;
   cycleId: string;
@@ -631,8 +678,23 @@ export interface ReviewItemResponseInput {
   comment?: string | null;
   assessment?: string | null;
 }
-export interface SaveSelfAssessmentRequest { expectedVersion: number; summary: string; items?: ReviewItemResponseInput[] }
-export interface SaveManagerAssessmentRequest { expectedVersion: number; summary: string; overallRating: number | null; items?: ReviewItemResponseInput[] }
+export interface SaveSelfAssessmentRequest {
+  expectedVersion: number;
+  summary: string;
+  /** The person's own overall view (D-16); required on submit. */
+  overallRating?: number | null;
+  items?: ReviewItemResponseInput[];
+  answers?: ReviewAnswerInput[];
+}
+export interface SaveManagerAssessmentRequest {
+  expectedVersion: number;
+  summary: string;
+  overallRating: number | null;
+  items?: ReviewItemResponseInput[];
+  answers?: ReviewAnswerInput[];
+  /** Required on submit when the round asks for it; never shown to the person. */
+  potential?: ReviewPotential | null;
+}
 
 export interface CloseCycleRequest {
   earlyCloseReason?: string | null;
