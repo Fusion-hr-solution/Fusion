@@ -37,6 +37,7 @@ const settings: CycleSettingsDto = {
   defaultCalibrationEnabled: false,
   evidenceRetentionMonths: 36,
   aiAssistanceEnabled: true,
+  defaultOneOnOneCadence: "EveryTwoWeeks",
 };
 
 describe("AI assistance setting", () => {

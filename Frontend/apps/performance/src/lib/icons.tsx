@@ -8,6 +8,12 @@ import { forwardRef, type ForwardRefExoticComponent, type RefAttributes } from "
 import { HugeiconsIcon, type HugeiconsProps, type IconSvgElement } from "@hugeicons/react";
 import {
   Add01Icon,
+  Chatting01Icon,
+  Clapping01Icon,
+  FavouriteIcon,
+  MessageMultiple01Icon,
+  PartyIcon,
+  StarIcon,
   Alert02Icon,
   AlertCircleIcon,
   ArrowDown01Icon,
@@ -241,3 +247,11 @@ export const Sparkles = icon(SparklesIcon, "Sparkles");
 // Organization direction views.
 export const MapView = icon(HierarchySquare01Icon, "MapView");
 export const ListView = icon(ListViewIcon, "ListView");
+
+// Conversations: navigation for 1:1s and Feedback, and the four praise reactions.
+export const OneOnOnes = icon(Chatting01Icon, "OneOnOnes");
+export const FeedbackIcon = icon(MessageMultiple01Icon, "FeedbackIcon");
+export const Clapping = icon(Clapping01Icon, "Clapping");
+export const Party = icon(PartyIcon, "Party");
+export const Heart = icon(FavouriteIcon, "Heart");
+export const Star = icon(StarIcon, "Star");

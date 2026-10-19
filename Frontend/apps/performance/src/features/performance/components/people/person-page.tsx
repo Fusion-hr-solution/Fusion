@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { canEnterCoreHr, useAuth } from "@repo/auth";
 import { Button, Skeleton } from "@repo/ds";
 import { PageContainer } from "@repo/ds/shell";
 import { PersonPerformanceSummary, type RenderSummaryLink } from "@repo/performance-ui";
+import { useReactToPraise } from "@repo/api/query";
 import { usePersonSummary } from "../../api/use-performance";
+import { REACTION_ICONS } from "../conversations/reaction-icons";
+import { FeedbackComposer } from "../conversations/composers";
+import { useState } from "react";
 import { PerformancePageHeading } from "../performance-page-heading";
 
 const BASE_PATH = "/performance";
@@ -25,7 +30,10 @@ export const renderPerformanceLink: RenderSummaryLink = ({ href, className, chil
 /** One person inside Performance (D-32): their summary, with a way to their Core HR record. */
 export function PersonPage({ employeeId }: { employeeId: string }) {
   const { user } = useAuth();
+  const router = useRouter();
+  const react = useReactToPraise();
   const summary = usePersonSummary(employeeId);
+  const [giving, setGiving] = useState(false);
   const person = summary.data;
   const coreRecord = person?.stableEmployeeKey && canEnterCoreHr(user) ? `/core/people/${person.stableEmployeeKey}` : null;
   const context = [person?.jobTitle, person?.orgUnitName].filter(Boolean);
@@ -37,11 +45,14 @@ export function PersonPage({ employeeId }: { employeeId: string }) {
           title={person.displayName ?? "Person"}
           description={context.length ? context.join(", ") : undefined}
           actions={
-            coreRecord ? (
-              <Button asChild variant="outline">
-                <a href={coreRecord}>Open Core HR record</a>
-              </Button>
-            ) : undefined
+            <>
+              {coreRecord ? (
+                <Button asChild variant="outline">
+                  <a href={coreRecord}>Open Core HR record</a>
+                </Button>
+              ) : null}
+              {person.relation !== "Self" ? <Button onClick={() => setGiving(true)}>Give feedback</Button> : null}
+            </>
           }
         />
       ) : summary.error ? (
@@ -55,6 +66,9 @@ export function PersonPage({ employeeId }: { employeeId: string }) {
       <div className="mt-6">
         <PersonPerformanceSummary
           renderLink={renderPerformanceLink}
+          reactionIcons={REACTION_ICONS}
+          onReact={(praise, kind, add) => react.mutate({ praiseId: praise.id, kind, add })}
+          onOpenPraise={(praise) => router.push(`/feedback?tab=praise&praise=${praise.id}`)}
           state={
             person
               ? { status: "ready", summary: person }
@@ -64,6 +78,12 @@ export function PersonPage({ employeeId }: { employeeId: string }) {
           }
         />
       </div>
+      {giving && person ? (
+        <FeedbackComposer
+          receiver={{ employeeId: person.employeeId, displayName: person.displayName ?? "This colleague", subtitle: person.jobTitle }}
+          onClose={() => setGiving(false)}
+        />
+      ) : null}
     </PageContainer>
   );
 }

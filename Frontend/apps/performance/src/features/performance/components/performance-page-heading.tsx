@@ -18,6 +18,7 @@ export function PerformancePageHeading({
   actions,
   eyebrow,
   back,
+  leading,
   className,
   size = "default",
 }: {
@@ -26,6 +27,8 @@ export function PerformancePageHeading({
   actions?: ReactNode;
   eyebrow?: ReactNode;
   back?: { href: string; label: string };
+  /** What the page is about, set before the title (a record's people). */
+  leading?: ReactNode;
   className?: string;
   size?: "default" | "display";
 }) {
@@ -41,20 +44,23 @@ export function PerformancePageHeading({
         </Link>
       ) : null}
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          {eyebrow ? <div className="mb-1">{eyebrow}</div> : null}
-          <h1 className={cn(size === "display" ? "type-display" : "type-page-title", "text-foreground")}>{title}</h1>
-          {description ? (
-            typeof description === "string" ? (
-              <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
-                {description}
-              </p>
-            ) : (
-              <div className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
-                {description}
-              </div>
-            )
-          ) : null}
+        <div className="flex min-w-0 items-center gap-4">
+          {leading ? <div className="shrink-0">{leading}</div> : null}
+          <div className="min-w-0">
+            {eyebrow ? <div className="mb-1">{eyebrow}</div> : null}
+            <h1 className={cn(size === "display" ? "type-display" : "type-page-title", "text-foreground")}>{title}</h1>
+            {description ? (
+              typeof description === "string" ? (
+                <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
+                  {description}
+                </p>
+              ) : (
+                <div className="mt-1.5 max-w-2xl text-sm text-muted-foreground">
+                  {description}
+                </div>
+              )
+            ) : null}
+          </div>
         </div>
         {actions ? (
           <div className="flex shrink-0 flex-wrap items-center gap-2">

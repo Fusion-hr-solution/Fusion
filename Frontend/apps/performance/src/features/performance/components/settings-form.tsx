@@ -4,7 +4,7 @@ import { reportPerformanceFailure } from "@/features/performance/api/performance
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import type { CycleSettingsDto, MeasurementMethod, PlanAlignmentPolicy } from "@repo/api";
+import type { CycleSettingsDto, MeasurementMethod, OneOnOneCadence, PlanAlignmentPolicy } from "@repo/api";
 import { Input } from "@repo/ds/components/ui/input";
 import {
   Select,
@@ -15,6 +15,7 @@ import {
 } from "@repo/ds/components/ui/select";
 import { AsyncButton } from "@repo/ds/shell";
 import { MEASUREMENT_LABELS } from "../lib";
+import { CADENCES, CADENCE_LABEL } from "./one-on-ones/one-on-one-lib";
 import { useRatingScale, useUpdateRatingScale, useUpdateSettings } from "../api/use-performance";
 import { Switch } from "@repo/ds/components/ui/switch";
 import type { RatingScaleLevelDto } from "@repo/api";
@@ -176,6 +177,31 @@ export function SettingsForm({ settings }: { settings: CycleSettingsDto }) {
                 onCheckedChange={(checked) => setDraft((current) => ({ ...current, aiAssistanceEnabled: checked }))}
                 aria-label="AI assistance"
               />
+            }
+          />
+        </div>
+      </section>
+
+      <section className="mt-10" aria-labelledby="conversations-settings-title">
+        <div className="border-b border-border pb-3">
+          <h2 id="conversations-settings-title" className="type-section-title">Conversations</h2>
+        </div>
+        <div className="divide-y divide-border border-b border-border">
+          <Row
+            title="How often new 1:1s meet"
+            hint="People can choose another cadence when they start their 1:1s."
+            control={
+              <Select
+                value={draft.defaultOneOnOneCadence}
+                onValueChange={(value) => setDraft((current) => ({ ...current, defaultOneOnOneCadence: value as OneOnOneCadence }))}
+              >
+                <SelectTrigger className="w-44" aria-label="Default 1:1 cadence">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CADENCES.map((cadence) => <SelectItem key={cadence} value={cadence}>{CADENCE_LABEL[cadence]}</SelectItem>)}
+                </SelectContent>
+              </Select>
             }
           />
         </div>

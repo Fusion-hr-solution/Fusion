@@ -1,0 +1,416 @@
+"use client";
+
+import { useState, type ReactNode } from "react";
+import Link from "next/link";
+import { useAuth } from "@repo/auth";
+import type { AgendaSourceKind, OneOnOneOwedActionDto, OneOnOnePersonDto, OneOnOneRowDto, OneOnOnesDto } from "@repo/api";
+import { Button } from "@repo/ds/components/ui/button";
+import { Skeleton } from "@repo/ds/components/ui/skeleton";
+import { PageContainer, StatusBadge } from "@repo/ds/shell";
+import { cn } from "@repo/ds/lib/utils";
+import { PersonInitials } from "@repo/performance-ui";
+import { ArrowRight, ChevronRight, Flag, MessageSquare, Plus, RefreshCw, Star, Target } from "@/lib/icons";
+import { useOneOnOne, useOneOnOnes } from "../../api/use-conversations";
+import { ContentUnavailable } from "../content-unavailable";
+import { PerformancePageHeading } from "../performance-page-heading";
+import { PlanDocument, SidebarSection } from "../plan/plan-layout";
+import { formatDate } from "../../lib";
+import { CADENCE_LABEL, formatDay, howSoon, shortDay, timeBlock } from "./one-on-one-lib";
+import { RhythmScale, RhythmStrip, SourceWell, TimeBlock } from "./one-on-one-parts";
+import { StartOneOnOnesDialog, StartWithManager } from "./start-one-on-ones";
+
+const WEEK_MS = 7 * 86_400_000;
+
+/**
+ * The 1:1s workspace (D-12, S-02). It leads with the next conversation and what to bring to it, then the team's
+ * rhythm: who you meet, how regularly, and when next. Your own 1:1 with your manager, the actions you owe and the
+ * week ahead sit beside it. Someone with no 1:1s yet gets one job: starting them. Not cycle-bound.
+ */
+export function OneOnOnesWorkspace() {
+  const query = useOneOnOnes();
+  if (query.error) return <ContentUnavailable error={query.error} onRetry={query.refetch} subject="Your 1:1s" />;
+  if (!query.data) return <OneOnOnesSkeleton />;
+  return <Workspace data={query.data} />;
+}
+
+function Workspace({ data }: { data: OneOnOnesDto }) {
+  const { user } = useAuth();
+  const [starting, setStarting] = useState<OneOnOnePersonDto | null>(null);
+  const active = [...(data.withManager ? [data.withManager] : []), ...data.reports];
+  const next = active.filter((r) => r.nextMeetingAt).sort((a, b) => a.nextMeetingAt!.localeCompare(b.nextMeetingAt!))[0] ?? null;
+  const hasTeam = data.reports.length > 0 || data.startWithReports.length > 0;
+  const thisWeek = active.filter((r) => r.nextMeetingAt && new Date(r.nextMeetingAt).getTime() - Date.now() < WEEK_MS);
+  const openActions = active.reduce((sum, r) => sum + r.openActions, 0);
+
+  // Nobody to meet: say why in one line.
+  if (!data.withManager && !data.startWithManager && !hasTeam && data.ended.length === 0) {
+    return (
+      <PageContainer>
+        <PerformancePageHeading title="1:1s" />
+        <p className="mt-6 type-body-secondary text-muted-foreground">
+          {data.lineAvailable ? "You have no manager or direct reports in Core HR." : "Your reporting line couldn't be loaded. Try again shortly."}
+        </p>
+      </PageContainer>
+    );
+  }
+
+  const summary = [
+    hasTeam ? `${data.reports.length + data.startWithReports.length} ${data.reports.length + data.startWithReports.length === 1 ? "person" : "people"}` : null,
+    thisWeek.length > 0 ? `${thisWeek.length} this week` : null,
+    openActions > 0 ? `${openActions} open action${openActions === 1 ? "" : "s"}` : null,
+  ].filter(Boolean).join(" · ");
+
+  const main = (
+    <div className="space-y-10">
+      {data.startWithManager && !hasTeam && !data.withManager ? (
+        <StartWithManager me={user?.fullName ?? ""} manager={data.startWithManager.with} defaultCadence={data.defaultCadence} />
+      ) : next ? (
+        <NextUp row={next} isManager={next !== data.withManager} />
+      ) : null}
+
+      {hasTeam ? (
+        <RhythmTable title="Your team" count={data.reports.length + data.startWithReports.length}>
+          {data.reports.map((row) => <RhythmRow key={row.seriesId} row={row} />)}
+          {data.startWithReports.map((option) => (
+            <StartRow key={option.with.employeeId} person={option.with} onStart={() => setStarting(option.with)} />
+          ))}
+        </RhythmTable>
+      ) : data.withManager ? (
+        <RhythmTable title="With your manager">
+          <RhythmRow row={data.withManager} />
+        </RhythmTable>
+      ) : null}
+
+      {!data.lineAvailable ? (
+        <p className="type-body-secondary text-muted-foreground">Your reporting line couldn&apos;t be loaded, so nothing new can start until it is.</p>
+      ) : null}
+      {data.ended.length > 0 ? <EndedLine rows={data.ended} /> : null}
+    </div>
+  );
+
+  const sidebar = (
+    <>
+      {hasTeam ? (
+        <SidebarSection label="With your manager">
+          {data.withManager ? (
+            <ManagerCard row={data.withManager} />
+          ) : data.startWithManager ? (
+            <button
+              type="button"
+              onClick={() => setStarting(data.startWithManager!.with)}
+              className="mt-3 flex w-full items-center gap-3 rounded-surface border border-dashed border-border px-4 py-3 text-left hover:bg-card"
+            >
+              <PersonInitials name={data.startWithManager.with.displayName} size="lg" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate type-label text-foreground">{data.startWithManager.with.displayName}</span>
+                <span className="block type-meta text-muted-foreground">Not meeting yet</span>
+              </span>
+              <Plus className="size-4 text-muted-foreground" aria-hidden />
+            </button>
+          ) : (
+            <p className="mt-3 type-body-secondary text-muted-foreground">No manager in Core HR</p>
+          )}
+        </SidebarSection>
+      ) : null}
+      <SidebarSection label={`Actions you owe${data.myActions.length > 0 ? ` · ${data.myActions.length}` : ""}`}>
+        <OwedActions actions={data.myActions} />
+      </SidebarSection>
+      {thisWeek.length > 0 ? (
+        <SidebarSection label="This week">
+          <ThisWeek rows={thisWeek} managerSeriesId={data.withManager?.seriesId ?? null} />
+        </SidebarSection>
+      ) : null}
+    </>
+  );
+
+  return (
+    <PageContainer width="wide">
+      <PerformancePageHeading title="1:1s" description={summary || undefined} />
+      <div className="mt-6">
+        <PlanDocument main={main} sidebar={data.startWithManager && !hasTeam && !data.withManager ? undefined : sidebar} />
+      </div>
+      {starting ? <StartOneOnOnesDialog person={starting} defaultCadence={data.defaultCadence} onClose={() => setStarting(null)} /> : null}
+    </PageContainer>
+  );
+}
+
+// ── Next up ────────────────────────────────────────────────────────────────────
+
+const SINCE_ICON: Record<AgendaSourceKind, typeof Target> = { Objective: Target, UpdateRequest: RefreshCw, Feedback: MessageSquare, Praise: Star };
+
+function sinceLabel(kind: AgendaSourceKind, count: number): string {
+  switch (kind) {
+    case "Objective": return `${count} objective${count === 1 ? "" : "s"} at risk`;
+    case "UpdateRequest": return `${count} update${count === 1 ? "" : "s"} requested`;
+    case "Feedback": return `${count} feedback`;
+    case "Praise": return `${count} praise`;
+  }
+}
+
+/** The one conversation that matters now: when, with whom, what's on the agenda and what changed since last time. */
+function NextUp({ row, isManager }: { row: OneOnOneRowDto; isManager: boolean }) {
+  const series = useOneOnOne(row.seriesId);
+  const meeting = series.data?.upcoming ?? null;
+  const agenda = meeting?.agenda ?? [];
+  const counts = new Map<AgendaSourceKind, number>();
+  for (const s of meeting?.suggestions ?? []) counts.set(s.kind, (counts.get(s.kind) ?? 0) + 1);
+  const href = `/one-on-ones/${row.seriesId}`;
+  const names = series.data ? new Map([[series.data.manager.employeeId, series.data.manager.displayName], [series.data.report.employeeId, series.data.report.displayName]]) : new Map<string, string>();
+
+  return (
+    <section aria-labelledby="next-up" className="rounded-surface border border-primary-ring bg-card p-6">
+      <div className="flex flex-wrap items-start gap-5">
+        <TimeBlock iso={row.nextMeetingAt!} size="lg" />
+        <div className="min-w-0 flex-1">
+          <p className="type-eyebrow text-primary-ink">Next up · {howSoon(row.nextMeetingAt!)}</p>
+          <div className="mt-2 flex items-center gap-3">
+            <PersonInitials name={row.with.displayName} size="lg" />
+            <div className="min-w-0">
+              <h2 id="next-up" className="truncate type-section-title text-foreground">{row.with.displayName}</h2>
+              <p className="truncate type-meta text-muted-foreground">
+                {[row.with.jobTitle, isManager ? null : "your manager", CADENCE_LABEL[row.cadence].toLowerCase()].filter(Boolean).join(" · ")}
+              </p>
+            </div>
+          </div>
+        </div>
+        <Button asChild>
+          <Link href={href}>
+            Open 1:1 <ArrowRight className="size-4" data-icon="inline-end" />
+          </Link>
+        </Button>
+      </div>
+
+      <div className="mt-5 grid gap-6 border-t border-primary-ring pt-5 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+        <div className="min-w-0">
+          <p className="type-eyebrow text-muted-foreground">On the agenda{row.agendaCount > 0 ? ` · ${row.agendaCount}` : ""}</p>
+          {series.isLoading ? (
+            <div className="mt-3 space-y-2"><Skeleton className="h-5 w-3/4" /><Skeleton className="h-5 w-1/2" /></div>
+          ) : agenda.length === 0 ? (
+            <p className="mt-3 type-body-secondary text-muted-foreground">Nothing yet</p>
+          ) : (
+            <ul className="mt-3 space-y-2">
+              {agenda.slice(0, 3).map((item) => (
+                <li key={item.id} className="flex items-center gap-2.5">
+                  {item.sourceKind ? <SourceWell kind={item.sourceKind} size="sm" /> : <PersonInitials name={names.get(item.authorEmployeeId)} size="xs" className="mx-0.5" />}
+                  <span className={cn("min-w-0 truncate type-body", item.discussed ? "text-muted-foreground line-through" : "text-foreground")}>{item.text}</span>
+                </li>
+              ))}
+              {agenda.length > 3 ? <li className="pl-9 type-meta text-muted-foreground">+{agenda.length - 3} more</li> : null}
+            </ul>
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="type-eyebrow text-muted-foreground">{row.lastMetAt ? `Since you met · ${shortDay(row.lastMetAt)}` : "Ready to discuss"}</p>
+          {series.isLoading ? (
+            <Skeleton className="mt-3 h-7 w-2/3" />
+          ) : counts.size === 0 && row.overdueActions === 0 ? (
+            <p className="mt-3 type-body-secondary text-muted-foreground">Nothing new</p>
+          ) : (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {row.overdueActions > 0 ? (
+                <span className="inline-flex h-7 items-center gap-1.5 rounded-control-sm bg-destructive/12 px-2.5 type-meta font-medium text-destructive">
+                  <Flag className="size-3.5" aria-hidden />
+                  {row.overdueActions} action{row.overdueActions === 1 ? "" : "s"} overdue
+                </span>
+              ) : null}
+              {[...counts.entries()].map(([kind, count]) => {
+                const Icon = SINCE_ICON[kind];
+                return (
+                  <span key={kind} className="inline-flex h-7 items-center gap-1.5 rounded-control-sm bg-inlay px-2.5 type-meta font-medium text-foreground">
+                    <Icon className="size-3.5 text-muted-foreground" aria-hidden />
+                    {sinceLabel(kind, count)}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Rhythm table ───────────────────────────────────────────────────────────────
+
+const ROW_GRID = "grid grid-cols-[minmax(0,1fr)_auto_1rem] items-center gap-4 md:grid-cols-[15rem_minmax(0,1fr)_7.5rem_1rem] md:gap-6";
+
+function RhythmTable({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
+  return (
+    <section aria-labelledby={`rhythm-${title}`}>
+      <h2 id={`rhythm-${title}`} className="mb-4 flex items-baseline gap-2 type-section-title text-foreground">
+        {title}
+        {count !== undefined ? <span className="type-meta tabular-nums text-muted-foreground">{count}</span> : null}
+      </h2>
+      <div className="overflow-hidden rounded-surface bg-card">
+        <div className={cn(ROW_GRID, "h-10 bg-inlay px-5")}>
+          <span className="type-meta text-muted-foreground">Person</span>
+          <RhythmScale className="hidden md:block" />
+          <span className="type-meta text-muted-foreground">Next</span>
+          <span />
+        </div>
+        <ul className="divide-y divide-border">{children}</ul>
+      </div>
+    </section>
+  );
+}
+
+function RhythmRow({ row }: { row: OneOnOneRowDto }) {
+  return (
+    <li>
+      <Link href={`/one-on-ones/${row.seriesId}`} className={cn(ROW_GRID, "group min-h-16 px-5 py-3 hover:bg-inlay/50")}>
+        <span className="flex min-w-0 items-center gap-3">
+          <PersonInitials name={row.with.displayName} />
+          <span className="min-w-0">
+            <span className="block truncate type-label text-foreground">{row.with.displayName}</span>
+            <span className="block truncate type-meta text-muted-foreground">
+              {CADENCE_LABEL[row.cadence]}
+              {row.overdueActions > 0 ? (
+                <span className="text-destructive"> · {row.overdueActions} overdue</span>
+              ) : row.openActions > 0 ? (
+                ` · ${row.openActions} open`
+              ) : null}
+            </span>
+          </span>
+        </span>
+        <span className="hidden md:block">
+          <RhythmStrip beats={row.recent} label={`1:1s with ${row.with.displayName}`} />
+        </span>
+        <span>{row.nextMeetingAt ? <TimeBlock iso={row.nextMeetingAt} size="sm" /> : <span className="type-meta text-muted-foreground">Not set</span>}</span>
+        <ChevronRight className="size-4 text-muted-foreground transition-colors group-hover:text-foreground" aria-hidden />
+      </Link>
+    </li>
+  );
+}
+
+function StartRow({ person, onStart }: { person: OneOnOnePersonDto; onStart: () => void }) {
+  return (
+    <li className={cn(ROW_GRID, "min-h-16 px-5 py-3")}>
+      <span className="flex min-w-0 items-center gap-3">
+        <PersonInitials name={person.displayName} className="opacity-70" />
+        <span className="min-w-0">
+          <span className="block truncate type-label text-foreground">{person.displayName}</span>
+          {person.jobTitle ? <span className="block truncate type-meta text-muted-foreground">{person.jobTitle}</span> : null}
+        </span>
+      </span>
+      <span className="hidden type-meta text-muted-foreground md:block">Not meeting yet</span>
+      <Button size="sm" variant="outline" onClick={onStart} className="justify-self-start">
+        <Plus className="size-4" data-icon="inline-start" /> Start 1:1s
+      </Button>
+      <span />
+    </li>
+  );
+}
+
+function EndedLine({ rows }: { rows: OneOnOneRowDto[] }) {
+  return (
+    <ul className="space-y-1.5">
+      {rows.map((row) => (
+        <li key={row.seriesId} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <StatusBadge tone="muted">Ended</StatusBadge>
+          <span className="type-body-secondary text-muted-foreground">
+            {row.with.displayName}
+            {row.endedAt ? ` · ended ${formatDay(row.endedAt)}` : ""}
+          </span>
+          <Link href={`/one-on-ones/${row.seriesId}`} className="type-meta text-foreground hover:underline">
+            Show history
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// ── Sidebar ────────────────────────────────────────────────────────────────────
+
+function ManagerCard({ row }: { row: OneOnOneRowDto }) {
+  return (
+    <>
+      <Link href={`/one-on-ones/${row.seriesId}`} className="group mt-3 flex items-center gap-3 rounded-surface bg-card px-4 py-3 hover:bg-inlay/60">
+        <PersonInitials name={row.with.displayName} size="lg" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate type-label text-foreground">{row.with.displayName}</span>
+          <span className="block truncate type-meta text-muted-foreground">
+            {row.nextMeetingAt ? `${timeBlock(row.nextMeetingAt).day} ${timeBlock(row.nextMeetingAt).time}` : "Not scheduled"} · {CADENCE_LABEL[row.cadence].toLowerCase()}
+          </span>
+        </span>
+        <ChevronRight className="size-4 text-muted-foreground group-hover:text-foreground" aria-hidden />
+      </Link>
+      {row.agendaCount > 0 ? (
+        <p className="mt-2.5 type-meta text-muted-foreground">{row.agendaCount} on the agenda</p>
+      ) : null}
+    </>
+  );
+}
+
+function OwedActions({ actions }: { actions: OneOnOneOwedActionDto[] }) {
+  if (actions.length === 0) return <p className="mt-3 type-body-secondary text-muted-foreground">Nothing open</p>;
+  return (
+    <ul className="mt-3.5 space-y-3">
+      {actions.slice(0, 5).map((action) => (
+        <li key={action.actionId}>
+          <Link href={`/one-on-ones/${action.seriesId}`} className="group flex items-start gap-2.5">
+            <span className="mt-0.5 size-4 shrink-0 rounded-detail border border-input" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block type-body text-foreground group-hover:underline">{action.text}</span>
+              <span className="block type-meta text-muted-foreground">1:1 with {action.with.displayName}</span>
+            </span>
+            {action.dueDate ? (
+              <StatusBadge tone={action.overdue ? "danger" : "neutral"}>{action.overdue ? "Overdue" : formatDate(action.dueDate)}</StatusBadge>
+            ) : null}
+          </Link>
+        </li>
+      ))}
+      {actions.length > 5 ? <li className="type-meta text-muted-foreground">+{actions.length - 5} more</li> : null}
+    </ul>
+  );
+}
+
+function ThisWeek({ rows, managerSeriesId }: { rows: OneOnOneRowDto[]; managerSeriesId: string | null }) {
+  const sorted = [...rows].sort((a, b) => a.nextMeetingAt!.localeCompare(b.nextMeetingAt!));
+  return (
+    <ol className="mt-4">
+      {sorted.map((row, index) => {
+        const { day, time, today } = timeBlock(row.nextMeetingAt!);
+        const last = index === sorted.length - 1;
+        return (
+          <li key={row.seriesId} className="grid grid-cols-[4.5rem_1rem_minmax(0,1fr)] gap-3">
+            <span className="text-right">
+              <span className="block type-label text-foreground">{day}</span>
+              <span className="block type-meta tabular-nums text-muted-foreground">{time}</span>
+            </span>
+            <span className="flex flex-col items-center" aria-hidden>
+              <span className={cn("mt-1.5 size-2.5 rounded-full", today ? "bg-primary ring-4 ring-primary-tint" : "border-2 border-muted-foreground/50")} />
+              {last ? null : <span className="mt-1 w-px flex-1 bg-border" />}
+            </span>
+            <Link href={`/one-on-ones/${row.seriesId}`} className={cn("min-w-0 hover:underline", last ? "" : "pb-4")}>
+              <span className="block truncate type-label text-foreground">{row.with.displayName}</span>
+              <span className="block type-meta text-muted-foreground">
+                {row.seriesId === managerSeriesId ? "Your manager" : row.agendaCount > 0 ? `${row.agendaCount} on the agenda` : "Nothing on the agenda yet"}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+function OneOnOnesSkeleton() {
+  return (
+    <PageContainer width="wide">
+      <div role="status" aria-label="Loading your 1:1s">
+        <Skeleton className="h-9 w-24" />
+        <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_21rem]">
+          <div className="space-y-10">
+            <Skeleton className="h-56 w-full rounded-surface" />
+            <Skeleton className="h-72 w-full rounded-surface" />
+          </div>
+          <div className="space-y-4">
+            <Skeleton className="h-20 w-full rounded-surface" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+        </div>
+      </div>
+    </PageContainer>
+  );
+}

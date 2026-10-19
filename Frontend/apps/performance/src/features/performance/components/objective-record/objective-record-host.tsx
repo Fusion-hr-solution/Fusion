@@ -17,6 +17,7 @@ import { AlignedChildrenSection } from "./sections/aligned-children-section";
 import { AlignmentSection } from "./sections/alignment-section";
 import { ContributionSection } from "./sections/contribution-section";
 import { DescriptionSection } from "./sections/description-section";
+import { FeedbackSection } from "./sections/feedback-section";
 import { MeasurementSection } from "./sections/measurement-section";
 import { ProgressSection } from "./sections/progress-section";
 import { ObjectiveSummary } from "./sections/summary-section";
@@ -162,5 +163,7 @@ function renderSection(
       return <AlignedChildrenSection record={record} onOpen={open} />;
     case "contribution":
       return <ContributionSection record={record} />;
+    case "feedback":
+      return <FeedbackSection record={record} />;
   }
 }

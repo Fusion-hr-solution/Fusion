@@ -136,7 +136,8 @@ export type RecordSectionId =
   | "plan-weight"
   | "progress"
   | "aligned-children"
-  | "contribution";
+  | "contribution"
+  | "feedback";
 
 /** One row of the record's body: a section on its own, or two read side by side. */
 export type RecordSectionRow = RecordSectionId | readonly [RecordSectionId, RecordSectionId];
@@ -155,6 +156,8 @@ export function resolveSections(record: ObjectiveRecord): RecordSectionRow[] {
   if (record.isExecuting) rows.push("progress");
   if (record.kind !== "plan" && (record.children.length > 0 || record.source.alignedPlanObjectives.length > 0)) rows.push("aligned-children");
   if (record.progressSource === "Calculated") rows.push("contribution");
+  // Feedback about the objective (D-13): there's always an action for a person, the owner's or anyone else's.
+  if (record.source.canGiveFeedback || record.source.canAskForFeedback) rows.push("feedback");
   return rows;
 }
 

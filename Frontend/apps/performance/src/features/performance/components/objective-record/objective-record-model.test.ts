@@ -42,6 +42,8 @@ function detail(overrides: Partial<GoalDetailDto> = {}, nodeOverrides: Partial<G
     parent: node({ id: "parent-1", ownershipScope: "Company", title: "Grow the company", orgUnitName: null, parentObjectiveId: null }),
     children: [],
     alignedPlanObjectives: [],
+    canGiveFeedback: false,
+    canAskForFeedback: false,
     measurement: null,
     contribution: [],
     canEdit: false,

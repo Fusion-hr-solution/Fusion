@@ -10,7 +10,7 @@ import {
   ShellUserPanel,
   type ShellNavSection,
 } from "@repo/ds/shell";
-import { ADMIN_NAV, PRIMARY_NAV } from "@/data/sidebar-nav";
+import { ADMIN_NAV, CYCLE_FREE_ROUTES, PRIMARY_NAV, visiblePrimaryItems } from "@/data/sidebar-nav";
 import { resolvePerformanceWorkspaceAccessState } from "@/shell/performance-workspace-access";
 import { useSelectedCycleId, useWorkspaceContext } from "@/features/performance/api/use-workspace";
 import { withCycle } from "@/lib/performance-routes";
@@ -27,15 +27,10 @@ export function PerformanceSidebar() {
   const selectedCycleId = useSelectedCycleId();
   const carry = (section: ShellNavSection): ShellNavSection => ({
     ...section,
-    items: section.items.map((item) => ({ ...item, navigateHref: withCycle(item.href, selectedCycleId) })),
+    items: section.items.map((item) => ({ ...item, navigateHref: CYCLE_FREE_ROUTES.has(item.href) ? item.href : withCycle(item.href, selectedCycleId) })),
   });
 
-  const primaryItems = PRIMARY_NAV.items.filter((item) => {
-    if (item.href === "/plan") return destinations?.myPlan ?? false;
-    if (item.href === "/team") return destinations?.team ?? false;
-    if (item.href === "/reviews") return destinations?.reviews ?? false;
-    return true;
-  });
+  const primaryItems = visiblePrimaryItems(destinations);
 
   const sections: ShellNavSection[] = [carry({ ...PRIMARY_NAV, items: primaryItems })];
   if (destinations?.cycleAdmin) sections.push(carry(ADMIN_NAV));
