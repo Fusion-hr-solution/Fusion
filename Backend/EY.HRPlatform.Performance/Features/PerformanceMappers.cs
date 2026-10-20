@@ -13,6 +13,13 @@ public static class PerformanceMappers
     public static CycleSummaryDto ToSummary(PerformanceCycle cycle)
         => new(cycle.Id, cycle.Name, cycle.Description, cycle.StartDate, cycle.EndDate, cycle.PlanningDeadline, cycle.State, cycle.ActivatedAt) { Version = cycle.Version };
 
+    public static CycleSettingsDto ToDto(CycleSettings settings, IReadOnlyList<int> scale)
+    {
+        var bands = Calibration.CalibrationSessions.BandsFor(settings, scale);
+        var custom = settings.NineBoxLowTop == bands.LowTop && settings.NineBoxMidTop == bands.MidTop;
+        return ToDto(settings) with { NineBoxBands = new NineBoxBandsDto(bands.LowTop, bands.MidTop, custom) };
+    }
+
     public static CycleSettingsDto ToDto(CycleSettings settings)
         => new(
             settings.DefaultMeasurementMethod,

@@ -48,7 +48,8 @@ public sealed class ReviewSliceFourRelationalTests
                     'SelfAssessment', now(), now(), {1}, 'CoreManagerAtCycleStart', true, true, false, '2026-07-15', '2026-07-22');
                 """, cycleId, tenantId, scaleId, versionId, roundId, reviewId);
 
-            await migrator.MigrateAsync(migrations[current]);
+            // Up through this slice's migration and every later one, so the current model can read the rows.
+            await migrator.MigrateAsync();
             db.ChangeTracker.Clear();
             var round = await db.ReviewRounds.AsNoTracking().SingleAsync(r => r.Id == roundId);
             Assert.False(round.PeerInputEnabled);
@@ -67,7 +68,7 @@ public sealed class ReviewSliceFourRelationalTests
 
             await migrator.MigrateAsync(migrations[current - 1]);
             Assert.Equal(0, await CountTablesAsync(db));
-            await migrator.MigrateAsync(migrations[current]);
+            await migrator.MigrateAsync();
             Assert.Equal(8, await CountTablesAsync(db));
         }
         finally { await RelationalTests.DropDatabaseAsync(baseConnection, databaseName); }

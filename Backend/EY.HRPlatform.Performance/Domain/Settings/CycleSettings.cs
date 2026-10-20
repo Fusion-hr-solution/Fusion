@@ -47,6 +47,13 @@ public sealed class CycleSettings : PerformanceAggregate
     /// <summary>Days after release before an unacknowledged result is first reminded.</summary>
     public int AcknowledgementReminderDays { get; private set; } = 7;
 
+    /// <summary>
+    /// Nine-box performance bands (D-24) as the highest scale value of the low and middle bands.
+    /// Null means the default split for the scale. A calibration session copies them when it opens.
+    /// </summary>
+    public int? NineBoxLowTop { get; private set; }
+    public int? NineBoxMidTop { get; private set; }
+
     /// <summary>The tenant defaults, materialized the first time Settings is read.</summary>
     public static CycleSettings CreateDefault(Guid tenantId)
     {
@@ -91,6 +98,18 @@ public sealed class CycleSettings : PerformanceAggregate
         PeerInputDueDays = peerInputDueDays;
         ManagerAssessmentDueDays = managerAssessmentDueDays;
         AcknowledgementReminderDays = acknowledgementReminderDays;
+        MarkUpdated();
+    }
+
+    /// <summary>Sets the nine-box bands against the current scale; both null returns to the default.</summary>
+    public void UpdateNineBoxBands(int? lowTop, int? midTop, IReadOnlyList<int> scale)
+    {
+        if (lowTop is null != midTop is null)
+            throw new ArgumentException("Set both nine-box cut points or neither.", nameof(lowTop));
+        if (lowTop is int low && midTop is int middle) Calibration.NineBoxBands.Validate(low, middle, scale);
+        if (NineBoxLowTop == lowTop && NineBoxMidTop == midTop) return;
+        NineBoxLowTop = lowTop;
+        NineBoxMidTop = midTop;
         MarkUpdated();
     }
 

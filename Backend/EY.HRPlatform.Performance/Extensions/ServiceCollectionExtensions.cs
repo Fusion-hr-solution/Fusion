@@ -106,6 +106,14 @@ public static class ServiceCollectionExtensions
                     Window = TimeSpan.FromMinutes(1),
                     QueueLimit = 0,
                 }));
+            limiter.AddPolicy(ReviewDraftVersions.RateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+                $"{context.User.GetTenantId()}:{context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value}",
+                _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = ReviewDraftVersions.CallsPerMinute,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                }));
         });
 
         return services;

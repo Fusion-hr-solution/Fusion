@@ -46,6 +46,7 @@ public sealed class PerformanceReviewConfiguration : IEntityTypeConfiguration<Pe
         builder.Property(review => review.CloseReason).HasMaxLength(1000);
         builder.Property(review => review.State).HasConversion<string>().HasMaxLength(30).IsRequired();
         builder.Property(review => review.Potential).HasConversion<string>().HasMaxLength(20);
+        builder.Property(review => review.FinalPotential).HasConversion<string>().HasMaxLength(20);
         builder.Property(review => review.AcknowledgementComment).HasMaxLength(PerformanceReview.MaxAcknowledgementComment);
         builder.Navigation(review => review.Answers).HasField("_answers");
         builder.Navigation(review => review.PeerNominations).HasField("_peerNominations");

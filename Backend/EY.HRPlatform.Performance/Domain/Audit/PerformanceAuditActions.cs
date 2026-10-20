@@ -75,6 +75,9 @@ public static class PerformanceAuditActions
     public const string CalibrationFacilitatorsChanged = "Calibration.FacilitatorsChanged";
     public const string CalibrationSubjectChanged = "Calibration.SubjectChanged";
     public const string CalibrationFinalized = "Calibration.Finalized";
+    /// <summary>The reviewer rewrote the summary after calibration changed the rating. Never the text.</summary>
+    public const string ReviewSummaryRevised = "Review.SummaryRevised";
+    public const string ReviewSummaryChecked = "Review.SummaryChecked";
     /// <summary>One AI generation attempt. Counts and outcome only; never prompt, input or output text.</summary>
     public const string AiGenerated = "Ai.Generated";
 }

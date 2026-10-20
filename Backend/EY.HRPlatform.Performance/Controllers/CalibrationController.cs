@@ -71,7 +71,38 @@ public sealed class CalibrationController(IMediator mediator, IPerformanceAccess
         var hasGrant = policy.CanCalibrateReviews(User);
         if (!hasGrant) return CapabilityForbidden();
         return MapResult(await mediator.Send(new AdjustCalibrationSubjectCommand(roundId, reviewId, Actor, request.Rating, request.Rationale,
-            request.DiscussionState, request.ExpectedVersion, hasGrant), cancellationToken));
+            request.DiscussionState, request.ExpectedVersion, hasGrant, request.Potential), cancellationToken));
+    }
+
+    [HttpGet("distribution")]
+    public Task<ActionResult<ApiResponse<CalibrationDistributionViewDto>>> Distribution(Guid roundId, [FromQuery] CalibrationFilter filter,
+        CancellationToken cancellationToken) => View<CalibrationDistributionViewDto>(roundId, filter, null, cancellationToken);
+
+    [HttpGet("people")]
+    public Task<ActionResult<ApiResponse<CalibrationPeopleViewDto>>> People(Guid roundId, [FromQuery] CalibrationFilter filter,
+        CancellationToken cancellationToken) => View<CalibrationPeopleViewDto>(roundId, filter, null, cancellationToken);
+
+    [HttpGet("nine-box")]
+    public Task<ActionResult<ApiResponse<CalibrationNineBoxViewDto>>> NineBox(Guid roundId, [FromQuery] CalibrationFilter filter,
+        CancellationToken cancellationToken) => View<CalibrationNineBoxViewDto>(roundId, filter, null, cancellationToken);
+
+    [HttpGet("subjects/{reviewId:guid}")]
+    public Task<ActionResult<ApiResponse<CalibrationSubjectDetailDto>>> Subject(Guid roundId, Guid reviewId, CancellationToken cancellationToken)
+        => View<CalibrationSubjectDetailDto>(roundId, new CalibrationFilter(), reviewId, cancellationToken);
+
+    [HttpGet("finalize-preview")]
+    public Task<ActionResult<ApiResponse<CalibrationFinalizePreviewDto>>> FinalizePreview(Guid roundId, CancellationToken cancellationToken)
+        => View<CalibrationFinalizePreviewDto>(roundId, new CalibrationFilter(), null, cancellationToken);
+
+    [HttpGet("changes")]
+    public Task<ActionResult<ApiResponse<CalibrationChangesViewDto>>> Changes(Guid roundId, [FromQuery] CalibrationFilter filter,
+        CancellationToken cancellationToken) => View<CalibrationChangesViewDto>(roundId, filter, null, cancellationToken);
+
+    private async Task<ActionResult<ApiResponse<T>>> View<T>(Guid roundId, CalibrationFilter filter, Guid? reviewId, CancellationToken cancellationToken)
+    {
+        var hasGrant = policy.CanCalibrateReviews(User);
+        if (!hasGrant) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new GetCalibrationViewQuery<T>(roundId, Actor, filter, hasGrant, reviewId), cancellationToken));
     }
 
     [HttpPost("finalize")]

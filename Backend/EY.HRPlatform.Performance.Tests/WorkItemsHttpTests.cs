@@ -199,7 +199,7 @@ public sealed class WorkItemsHttpTests
         var scale = RatingScale.CreateDefault(tenant);
         var version = scale.CreateNextVersion(RatingScaleDefaults.Levels);
         round.Launch("{\"competencies\":[]}", version.Id, DateTime.UtcNow);
-        var session = CalibrationSession.Open(tenant, round, facilitator, DateTime.UtcNow);
+        var session = CalibrationSession.Open(tenant, round, facilitator, new NineBoxBands(2, 3), DateTime.UtcNow);
         await using (var db = world.Factory.Store.NewContext())
         {
             db.RatingScales.Add(scale); db.RatingScaleVersions.Add(version);

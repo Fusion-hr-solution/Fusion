@@ -28,7 +28,13 @@ public sealed record CycleSettingsDto(
     public int PeerInputDueDays { get; init; }
     public int ManagerAssessmentDueDays { get; init; }
     public int AcknowledgementReminderDays { get; init; }
+    /// <summary>The nine-box bands in force for the current scale; custom is false while the default applies.</summary>
+    public NineBoxBandsDto NineBoxBands { get; init; } = new(2, 3, false);
 }
+
+public sealed record NineBoxBandsDto(int LowTop, int MidTop, bool Custom);
+/// <summary>Both cut points, or both null to return to the default split.</summary>
+public sealed record NineBoxBandsRequest(int? LowTop, int? MidTop);
 
 public sealed record UpdateCycleSettingsRequest(
     MeasurementMethod DefaultMeasurementMethod,
@@ -50,6 +56,8 @@ public sealed record UpdateCycleSettingsRequest(
     public int? PeerInputDueDays { get; init; }
     public int? ManagerAssessmentDueDays { get; init; }
     public int? AcknowledgementReminderDays { get; init; }
+    /// <summary>Omitted keeps the current bands. A session already open keeps the bands it copied.</summary>
+    public NineBoxBandsRequest? NineBoxBands { get; init; }
 
     [System.Text.Json.Serialization.JsonRequired]
     public uint ExpectedVersion { get; init; }

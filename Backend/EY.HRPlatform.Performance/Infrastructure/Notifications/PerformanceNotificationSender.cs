@@ -84,6 +84,8 @@ public static class PerformanceNotificationRenderer
                     $"{who} declined to give peer input for {subject}.\n\nOpen the review: {workLink}"),
                 PerformanceNotificationKind.ReviewDueDateMoved => new("A review due date moved",
                     $"{work.Task ?? "A review task has a new due date"} ({work.ReviewRoundName}).\n\nOpen: {workLink}"),
+                PerformanceNotificationKind.CalibrationFinalized => new("Calibration finished",
+                    $"Calibration of {work.ReviewRoundName} is finished. {work.Task}\n\nOpen your team's reviews: {workLink}"),
                 PerformanceNotificationKind.ReviewReminder => new(ReminderSubject(work),
                     $"{ReminderSubject(work)} ({work.ReviewRoundName}).\n\nOpen: {workLink}"),
                 _ => new("A review was acknowledged",

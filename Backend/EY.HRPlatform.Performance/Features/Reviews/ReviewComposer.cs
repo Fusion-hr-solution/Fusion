@@ -88,8 +88,18 @@ public sealed record ReviewYearContextDto(Guid SubjectEmployeeId, int Feedback, 
 public sealed record ReviewLastResultDto(Guid ReviewId, string RoundName, int? Rating, string? Label, DateTime? FinalizedAt);
 public sealed record ReviewActivityDto(string Kind, DateTime At, string Text, string? Detail = null);
 
-/// <summary>Why a rating changed in calibration. Never projected to the review's subject.</summary>
-public sealed record ReviewCalibrationDto(bool SessionFinalized, int OriginalRating, int? CalibratedRating, string? Rationale);
+/// <summary>Why a rating or potential changed in calibration, and who changed it. Never projected to the review's subject.</summary>
+public sealed record ReviewCalibrationDto(bool SessionFinalized, int OriginalRating, int? CalibratedRating, string? Rationale)
+{
+    public ReviewPotential? OriginalPotential { get; init; }
+    public ReviewPotential? CalibratedPotential { get; init; }
+    public string? ChangedBy { get; init; }
+    public DateTime? ChangedAt { get; init; }
+    /// <summary>The reviewer may rewrite the summary until release because calibration changed the rating.</summary>
+    public bool CanReviseSummary { get; init; }
+    public DateTime? SummaryRevisedAt { get; init; }
+    public DateTime? SummaryCheckedAt { get; init; }
+}
 
 /// <summary>The live questions, potential and peer list before visibility; finalization freezes them.</summary>
 public sealed record ReviewExtras(IReadOnlyList<ReviewQuestionAnswerDto> Questions, ReviewPotential? Potential, ReviewPeersDto? Peers);
@@ -246,8 +256,18 @@ public sealed class GetPerformanceReviewHandler(PerformanceDbContext db)
         var session = await db.CalibrationSessions.AsNoTracking().FirstOrDefaultAsync(item => item.ReviewRoundId == review.ReviewRoundId, token);
         var calibrationSubject = session is null ? null : await db.CalibrationSubjects.AsNoTracking()
             .FirstOrDefaultAsync(item => item.SessionId == session.Id && item.ReviewId == review.Id, token);
+        var lastChange = calibrationSubject is null ? null : await db.CalibrationAdjustments.AsNoTracking()
+            .Where(item => item.SubjectId == calibrationSubject.Id).OrderByDescending(item => item.At).FirstOrDefaultAsync(token);
         var calibration = calibrationSubject is null ? null : new ReviewCalibrationDto(session!.State == CalibrationSessionState.Finalized,
-            calibrationSubject.OriginalRating, calibrationSubject.CalibratedRating, calibrationSubject.Rationale);
+            calibrationSubject.OriginalRating, calibrationSubject.CalibratedRating, calibrationSubject.Rationale)
+        {
+            OriginalPotential = calibrationSubject.OriginalPotential,
+            CalibratedPotential = calibrationSubject.CalibratedPotential,
+            ChangedBy = calibrationSubject.IsAdjusted || calibrationSubject.IsPotentialAdjusted ? lastChange?.ActorDisplayName : null,
+            ChangedAt = calibrationSubject.IsAdjusted || calibrationSubject.IsPotentialAdjusted ? lastChange?.At : null,
+            SummaryRevisedAt = review.SummaryRevisedAt,
+            SummaryCheckedAt = review.SummaryCheckedAt,
+        };
         // Facilitation is a seat on this round's open session with this review as a subject, plus the grant.
         var actor = query.Actor.CalibratorUserId is Guid calibrator && calibrationSubject is not null
             && session!.State == CalibrationSessionState.Open
@@ -257,6 +277,11 @@ public sealed class GetPerformanceReviewHandler(PerformanceDbContext db)
         if (!visibility.CanRead)
             return Result.Failure<PerformanceReviewDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.ReviewAssessmentForbidden,
                 "You do not have a relationship to this review."));
+        if (calibration is not null)
+            calibration = calibration with
+            {
+                CanReviseSummary = visibility.IsReviewer && review.State == PerformanceReviewState.ReadyToFinalize && review.CalibrationChangedRating,
+            };
 
         var plan = await db.EmployeePlans.AsNoTracking().FirstOrDefaultAsync(item => item.CycleId == review.CycleId
             && item.EmployeeId == review.SubjectEmployeeId && item.State == PlanLifecycleState.Approved, token);
@@ -341,7 +366,8 @@ public sealed class GetPerformanceReviewHandler(PerformanceDbContext db)
                 }).ToArray(),
                 peerQuestions.Select(q => q.Text).ToArray());
         }
-        return new ReviewExtras(questions, review.Potential, peers);
+        // After calibration the reviewer and HR read the settled potential; the manager's stays on the calibration block.
+        return new ReviewExtras(questions, review.FinalPotential ?? review.Potential, peers);
     }
 
     /// <summary>Feedback received by the person that the reader may see: shared, or manager-only addressed to them.</summary>

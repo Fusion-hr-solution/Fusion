@@ -44,10 +44,8 @@ public sealed class CalibrationTests
         Assert.True(opened.IsSuccess);
         Assert.Equal(Hr.UserId, Assert.Single(opened.Value.Facilitators).UserId);
         // A review already in calibration joins at open, with the manager's rating as its original.
-        var subject = Assert.Single(opened.Value.Subjects);
+        var subject = Assert.Single(await db2.CalibrationSubjects.AsNoTracking().ToListAsync());
         Assert.Equal((world.Reviews[0].Id, 4), (subject.ReviewId, subject.OriginalRating));
-        Assert.Equal("Snapshot org 0", subject.OrgUnitName);
-        Assert.Equal("Principal Engineer", subject.JobTitle);
         Assert.Equal(1, opened.Value.Counts.Outstanding);
 
         var second = await Open(db2).Handle(new(world.Round.Id, Hr, true), default);
@@ -221,7 +219,7 @@ public sealed class CalibrationTests
     private static async Task<SharedKernel.Results.Result<CalibrationSessionDto>> Finalize(PerformanceDbContext db, Seeded world, uint? expectedVersion = null)
     {
         var version = expectedVersion ?? await db.CalibrationSessions.AsNoTracking().Select(session => session.Version).SingleAsync();
-        return await new FinalizeCalibrationSessionHandler(db, new TestPerformanceAudit(db)).Handle(new(world.Round.Id, Hr, version, true), default);
+        return await new FinalizeCalibrationSessionHandler(db, new TestPerformanceAudit(db), new PerformanceNotifications(db)).Handle(new(world.Round.Id, Hr, version, true), default);
     }
 
     private static async Task SubmitManagerAsync(PerformanceDbContext db, PerformanceReview review, int rating)

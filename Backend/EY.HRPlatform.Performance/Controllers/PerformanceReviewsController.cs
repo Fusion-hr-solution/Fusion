@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Features.Ai;
 using EY.HRPlatform.Performance.Features.Reviews;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Features.Security.Policies;
@@ -7,6 +8,7 @@ using EY.HRPlatform.SharedKernel.Auth;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace EY.HRPlatform.Performance.Controllers;
 
@@ -26,9 +28,10 @@ public sealed class PerformanceReviewsController(IMediator mediator, IPerformanc
     [HttpGet("workspace")]
     public async Task<ActionResult<ApiResponse<ReviewsWorkspaceDto>>> Workspace(Guid? cycle, CancellationToken token)
     {
-        if (!policy.CanEnterPerformance(User) && !policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        if (!policy.CanEnterPerformance(User) && !policy.CanAdministerCycles(User) && !policy.CanCalibrateReviews(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new GetReviewsWorkspaceQuery(cycle, new ReviewsWorkspaceViewer(User.GetEmployeeId() ?? Guid.Empty,
-            policy.CanManageOwnParticipation(User), policy.CanReviewDirectReports(User), policy.CanAdministerCycles(User))), token));
+            policy.CanManageOwnParticipation(User), policy.CanReviewDirectReports(User), policy.CanAdministerCycles(User),
+            User.GetUserId(), policy.CanCalibrateReviews(User))), token));
     }
 
     [HttpGet("{reviewId:guid}")]
@@ -77,6 +80,30 @@ public sealed class PerformanceReviewsController(IMediator mediator, IPerformanc
         if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new SubmitManagerAssessmentCommand(reviewId, AssessmentActor(),
             request.ExpectedVersion, request.Summary, request.OverallRating, request.Items) { Potential = request.Potential, Answers = request.Answers }, token));
+    }
+
+    /// <summary>An AI draft for the review being written (W4, W5). Saves nothing; the client hides the block on any failure or 429.</summary>
+    [HttpPost("{reviewId:guid}/draft")]
+    [EnableRateLimiting(ReviewDraftVersions.RateLimitPolicy)]
+    public async Task<ActionResult<ApiResponse<ReviewDraftDto>>> Draft(Guid reviewId, [FromBody] ReviewDraftRequest request, CancellationToken token)
+    {
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new RunReviewDraftCommand(reviewId, request, AssessmentActor()), token));
+    }
+
+    [HttpPut("{reviewId:guid}/manager-summary")]
+    public async Task<ActionResult<ApiResponse<ReviewSummaryStateDto>>> ReviseSummary(Guid reviewId,
+        [FromBody] ReviseReviewSummaryRequest request, CancellationToken token)
+    {
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new ReviseReviewSummaryCommand(reviewId, AssessmentActor(), request.Summary, request.ExpectedVersion), token));
+    }
+
+    [HttpPost("{reviewId:guid}/summary-checked")]
+    public async Task<ActionResult<ApiResponse<ReviewSummaryStateDto>>> SummaryChecked(Guid reviewId, CancellationToken token)
+    {
+        if (!policy.CanEnterPerformance(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new MarkReviewSummaryCheckedCommand(reviewId, AssessmentActor()), token));
     }
 
     [HttpPost("{reviewId:guid}/finalize")]

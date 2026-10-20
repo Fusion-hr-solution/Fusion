@@ -55,13 +55,13 @@ public sealed class CalibrationRelationalTests
                 db.RatingScaleVersions.Add(version);
                 db.ReviewRounds.Add(round);
                 db.PerformanceReviews.AddRange(reviews);
-                var session = CalibrationSession.Open(tenantId, round, Hr, DateTime.UtcNow);
+                var session = CalibrationSession.Open(tenantId, round, Hr, new NineBoxBands(2, 3), DateTime.UtcNow);
                 db.CalibrationSessions.Add(session);
                 db.CalibrationSubjects.AddRange(reviews.Select(session.AddSubject));
                 await db.SaveChangesAsync();
                 (roundId, firstReview, secondReview) = (round.Id, reviews[0].Id, reviews[1].Id);
 
-                db.CalibrationSessions.Add(CalibrationSession.Open(tenantId, round, Hr, DateTime.UtcNow));
+                db.CalibrationSessions.Add(CalibrationSession.Open(tenantId, round, Hr, new NineBoxBands(2, 3), DateTime.UtcNow));
                 await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
             }
 
@@ -136,7 +136,7 @@ public sealed class CalibrationRelationalTests
                 db.RatingScaleVersions.Add(version);
                 db.ReviewRounds.Add(round);
                 db.PerformanceReviews.AddRange(reviews);
-                db.CalibrationSessions.Add(CalibrationSession.Open(tenantId, round, facilitator, DateTime.UtcNow));
+                db.CalibrationSessions.Add(CalibrationSession.Open(tenantId, round, facilitator, new NineBoxBands(2, 3), DateTime.UtcNow));
                 await db.SaveChangesAsync();
             }
 

@@ -112,8 +112,16 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("text");
 
+                    b.Property<string>("NewPotential")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<int>("NewRating")
                         .HasColumnType("integer");
+
+                    b.Property<string>("PreviousPotential")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<int>("PreviousRating")
                         .HasColumnType("integer");
@@ -205,6 +213,12 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("BandLowTop")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("BandMidTop")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -270,6 +284,10 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("CalibratedPotential")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<int?>("CalibratedRating")
                         .HasColumnType("integer");
 
@@ -281,6 +299,10 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("DiscussionState")
                         .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("OriginalPotential")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
@@ -2545,6 +2567,9 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<bool>("CalibrationChangedRating")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("CalibrationEnabled")
                         .HasColumnType("boolean");
 
@@ -2566,6 +2591,10 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("CycleId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("FinalPotential")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<int?>("FinalRating")
                         .HasColumnType("integer");
@@ -2669,6 +2698,15 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                     b.Property<string>("SubjectOrgUnitName")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)");
+
+                    b.Property<DateTime?>("SummaryCheckedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("SummaryRevisedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("SummaryRevisedByEmployeeId")
+                        .HasColumnType("uuid");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -3312,6 +3350,12 @@ namespace EY.HRPlatform.Performance.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(7);
+
+                    b.Property<int?>("NineBoxLowTop")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("NineBoxMidTop")
+                        .HasColumnType("integer");
 
                     b.Property<int>("PeerInputDueDays")
                         .ValueGeneratedOnAdd()

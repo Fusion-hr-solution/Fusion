@@ -14,6 +14,7 @@ public enum PerformanceNotificationKind
     FeedbackReceived, FeedbackForReport, FeedbackRequested, FeedbackRequestResponded,
     PraiseReceived, PraiseForReport,
     PeersNominated, PeerListApproved, PeerInputRequested, PeerDeclined, ReviewDueDateMoved, ReviewReminder, ReviewAcknowledged,
+    CalibrationFinalized,
 }
 
 /// <summary>
@@ -142,7 +143,8 @@ public sealed class PerformanceOutboxMessage : PerformanceChildEntity
     public static bool IsReviewWorkKind(PerformanceNotificationKind kind) => kind is PerformanceNotificationKind.PeersNominated
         or PerformanceNotificationKind.PeerListApproved or PerformanceNotificationKind.PeerInputRequested
         or PerformanceNotificationKind.PeerDeclined or PerformanceNotificationKind.ReviewDueDateMoved
-        or PerformanceNotificationKind.ReviewReminder or PerformanceNotificationKind.ReviewAcknowledged;
+        or PerformanceNotificationKind.ReviewReminder or PerformanceNotificationKind.ReviewAcknowledged
+        or PerformanceNotificationKind.CalibrationFinalized;
 
     /// <summary>
     /// A review-work notification. The caller gives the dedupe key: per transition for events,

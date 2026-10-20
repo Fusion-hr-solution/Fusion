@@ -91,7 +91,7 @@ public sealed class InAppNotificationTests
         var store = TestStore.ForNewTenant();
         var (round, _) = OpenReview(store.TenantId);
         var facilitator = new FacilitatorIdentity(Guid.NewGuid(), null, "QA Admin");
-        var session = CalibrationSession.Open(store.TenantId, round, facilitator, DateTime.UtcNow);
+        var session = CalibrationSession.Open(store.TenantId, round, facilitator, new NineBoxBands(2, 3), DateTime.UtcNow);
         await using (var db = store.NewContext())
         {
             new PerformanceNotifications(db).EnqueueCalibrationReady(session, "Year-end");

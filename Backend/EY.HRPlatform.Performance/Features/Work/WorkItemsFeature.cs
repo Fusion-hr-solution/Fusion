@@ -221,6 +221,17 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
             items.AddRange(lists.Select(r => new FusionWorkItemDto(Id("approve-peer-list", r.Id), Module, "approve-peer-list",
                 $"Review {r.SubjectDisplayName}'s peer list", LateContext(r.RoundName, r.Due, today), r.Due,
                 PerformanceNotificationTemplates.PeerListPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName))));
+
+            // Calibration changed the rating: the reviewer checks the summary still reads right before release.
+            var summaries = await (from review in db.PerformanceReviews.AsNoTracking()
+                                   join round in db.ReviewRounds.AsNoTracking() on review.ReviewRoundId equals round.Id
+                                   where review.ReviewerEmployeeId == me && review.State == PerformanceReviewState.ReadyToFinalize
+                                         && review.CalibrationChangedRating && review.SummaryRevisedAt == null && review.SummaryCheckedAt == null
+                                   orderby review.SubjectDisplayName
+                                   select new { review.Id, review.SubjectDisplayName, RoundName = round.Name }).ToListAsync(token);
+            items.AddRange(summaries.Select(r => new FusionWorkItemDto(Id("check-review-summary", r.Id), Module, "check-review-summary",
+                $"Check your summary for {r.SubjectDisplayName}", r.RoundName, null,
+                PerformanceNotificationTemplates.ReviewPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName))));
         }
     }
 

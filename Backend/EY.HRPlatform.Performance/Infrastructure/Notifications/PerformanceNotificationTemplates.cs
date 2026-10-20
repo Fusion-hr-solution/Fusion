@@ -104,6 +104,12 @@ public static class PerformanceNotificationTemplates
         => new("Calibration is ready", $"Every review in {roundName} has reached calibration", null,
             CalibrationPath(session.ReviewRoundId));
 
+    /// <summary>Counts only: who changed and why stay in the app.</summary>
+    public static PerformanceNotificationText ForCalibrationFinalized(string roundName, string counts)
+        => new("Calibration finished", $"{roundName} · {counts}", null, ReviewsPath);
+
+    public const string ReviewsPath = "/performance/reviews";
+
     public static string OneOnOnePath(Guid seriesId) => $"/performance/one-on-ones/{seriesId}";
     public static string FeedbackPath(Guid feedbackId) => $"/performance/feedback?feedback={feedbackId}";
     public static string FeedbackRequestPath(Guid requestId) => $"/performance/feedback/requests/{requestId}";

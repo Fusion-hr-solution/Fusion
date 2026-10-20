@@ -67,7 +67,7 @@ public sealed class CalibrationHttpTests
         var unnamed = factory.CreateAuthenticatedClient(permissions: Calibrator, userId: Guid.NewGuid());
 
         var opened = await Data(await facilitator.PostAsync(calibration, null));
-        var subjectVersion = opened.GetProperty("subjects")[0].GetProperty("version").GetUInt32();
+        var subjectVersion = (await People(facilitator, calibration)).Single().GetProperty("version").GetUInt32();
         // A named facilitator reads the review while it is in calibration; an unnamed holder cannot.
         var during = await Data(await facilitator.GetAsync(reviewPath));
         Assert.Equal(4, during.GetProperty("calibration").GetProperty("originalRating").GetInt32());
@@ -184,7 +184,7 @@ public sealed class CalibrationHttpTests
         // Adjusting their own review is refused whatever version is sent; others' reviews still adjust.
         Assert.Equal(HttpStatusCode.Forbidden, (await selfFacilitator.PutAsJsonAsync($"{calibration}/subjects/{world.Own}",
             new { rating = 5, rationale = "Self", discussionState = "Discussed", expectedVersion = 0 })).StatusCode);
-        var otherVersion = opened.GetProperty("subjects")[0].GetProperty("version").GetUInt32();
+        var otherVersion = (await People(selfFacilitator, calibration)).Single().GetProperty("version").GetUInt32();
         Assert.Equal(HttpStatusCode.OK, (await selfFacilitator.PutAsJsonAsync($"{calibration}/subjects/{world.Other}",
             new { rating = 3, rationale = "Peer outcomes", discussionState = "Discussed", expectedVersion = otherVersion })).StatusCode);
 
@@ -205,7 +205,7 @@ public sealed class CalibrationHttpTests
         Assert.Equal(HttpStatusCode.OK, (await selfFacilitator.PutAsJsonAsync($"{calibration}/facilitators",
             new { userIds = new[] { hr, plainId }, expectedVersion = session.GetProperty("version").GetUInt32() })).StatusCode);
         var plainFacilitator = factory.CreateAuthenticatedClient(permissions: Calibrator, userId: plainId);
-        Assert.Equal(2, (await Data(await plainFacilitator.GetAsync(calibration))).GetProperty("subjects").GetArrayLength());
+        Assert.Equal(2, (await People(plainFacilitator, calibration)).Length);
 
         // Finalizing seals every subject, but the response still omits the caller's own review.
         session = await Data(await selfFacilitator.GetAsync(calibration));
@@ -224,7 +224,6 @@ public sealed class CalibrationHttpTests
 
     private static void AssertOnlyOther(JsonElement session, TwoSubjects world)
     {
-        Assert.Equal(world.Other.ToString(), session.GetProperty("subjects").EnumerateArray().Single().GetProperty("reviewId").GetString());
         Assert.Equal(1, session.GetProperty("counts").GetProperty("subjects").GetInt32());
         var distribution = session.GetProperty("distribution").EnumerateArray().ToArray();
         Assert.Equal(1, distribution.Sum(level => level.GetProperty("original").GetInt32()));
@@ -276,6 +275,11 @@ public sealed class CalibrationHttpTests
         await db.SaveChangesAsync();
         return new(cycle.Id, round.Id, otherReview.Id, ownReview.Id, selfEmployee);
     }
+
+    /// <summary>Everyone the caller sees in the session's People view.</summary>
+    private static async Task<JsonElement[]> People(HttpClient client, string calibration)
+        => (await Data(await client.GetAsync($"{calibration}/people"))).GetProperty("groups").EnumerateArray()
+            .SelectMany(group => group.GetProperty("people").EnumerateArray()).ToArray();
 
     private static async Task<JsonElement> Data(HttpResponseMessage response)
     {

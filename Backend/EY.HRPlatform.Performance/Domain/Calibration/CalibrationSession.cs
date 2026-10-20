@@ -28,12 +28,17 @@ public sealed class CalibrationSession : PerformanceAggregate
     public Guid? FinalizedByUserId { get; private set; }
     public DateTime? FinalizedAt { get; private set; }
 
+    /// <summary>The nine-box bands copied from Settings when the session opened, so the grid never shifts mid-session.</summary>
+    public int BandLowTop { get; private set; }
+    public int BandMidTop { get; private set; }
+    public NineBoxBands Bands => new(BandLowTop, BandMidTop);
+
     /// <summary>When facilitators were told every review reached calibration; set once.</summary>
     public DateTime? ReadyNotifiedAt { get; private set; }
 
     public IReadOnlyList<CalibrationFacilitator> Facilitators => _facilitators;
 
-    public static CalibrationSession Open(Guid tenantId, ReviewRound round, FacilitatorIdentity opener, DateTime openedAt)
+    public static CalibrationSession Open(Guid tenantId, ReviewRound round, FacilitatorIdentity opener, NineBoxBands bands, DateTime openedAt)
     {
         ArgumentNullException.ThrowIfNull(round);
         if (round.State != ReviewRoundState.Active)
@@ -48,6 +53,8 @@ public sealed class CalibrationSession : PerformanceAggregate
             State = CalibrationSessionState.Open,
             OpenedByUserId = opener.UserId,
             OpenedAt = openedAt,
+            BandLowTop = bands.LowTop,
+            BandMidTop = bands.MidTop,
         };
         session._facilitators.Add(CalibrationFacilitator.Name(session, opener, opener.UserId, openedAt));
         return session;
@@ -75,7 +82,7 @@ public sealed class CalibrationSession : PerformanceAggregate
             throw new ArgumentException("Only reviews of this round can join its calibration.", nameof(review));
         if (review.State != PerformanceReviewState.Calibration || review.ManagerAssessment.OverallRating is not int original)
             throw new InvalidOperationException("Only a review with a submitted manager rating can join calibration.");
-        return CalibrationSubject.Create(this, review, original);
+        return CalibrationSubject.Create(this, review, original, review.Potential);
     }
 
     /// <summary>Records that facilitators were told; returns false when they already were.</summary>
@@ -130,7 +137,10 @@ public sealed class CalibrationFacilitator : PerformanceChildEntity
     }
 }
 
-/// <summary>One review under calibration. The original rating is the manager's submitted rating and never changes.</summary>
+/// <summary>
+/// One review under calibration. The original rating and potential are the manager's submitted values and never
+/// change; the calibrated ones exist only while they differ, and one reason covers both (D-23, D-24).
+/// </summary>
 public sealed class CalibrationSubject : PerformanceChildEntity
 {
     private CalibrationSubject() { }
@@ -139,45 +149,61 @@ public sealed class CalibrationSubject : PerformanceChildEntity
     public Guid ReviewId { get; private set; }
     public int OriginalRating { get; private set; }
     public int? CalibratedRating { get; private set; }
+    public ReviewPotential? OriginalPotential { get; private set; }
+    public ReviewPotential? CalibratedPotential { get; private set; }
     public string? Rationale { get; private set; }
     public CalibrationDiscussionState DiscussionState { get; private set; }
     public uint Version { get; private set; }
 
     public int CurrentRating => CalibratedRating ?? OriginalRating;
     public bool IsAdjusted => CalibratedRating is not null;
+    public ReviewPotential? CurrentPotential => CalibratedPotential ?? OriginalPotential;
+    public bool IsPotentialAdjusted => CalibratedPotential is not null;
 
-    internal static CalibrationSubject Create(CalibrationSession session, PerformanceReview review, int originalRating) => new()
+    internal static CalibrationSubject Create(CalibrationSession session, PerformanceReview review, int originalRating,
+        ReviewPotential? originalPotential) => new()
     {
         TenantId = session.TenantId,
         SessionId = session.Id,
         ReviewId = review.Id,
         OriginalRating = originalRating,
+        OriginalPotential = originalPotential,
         DiscussionState = CalibrationDiscussionState.NotDiscussed,
     };
 
     /// <summary>
-    /// Sets the subject's rating and discussion state. A rating that differs from the original
-    /// needs a rationale; returning to the original clears the calibrated rating. Returns the
-    /// history entry when the rating or its rationale changed.
+    /// Sets the subject's rating, potential (null leaves it as it is) and discussion state. A rating or
+    /// potential that differs from the manager's needs a reason; returning both to the manager's clears
+    /// the calibrated values and the reason. Returns the history entry when a value or the reason changed.
     /// </summary>
     public CalibrationAdjustment? Apply(CalibrationSession session, int rating, string? rationale,
-        CalibrationDiscussionState discussion, IReadOnlyCollection<int> scale, FacilitatorIdentity actor, DateTime at)
+        CalibrationDiscussionState discussion, IReadOnlyCollection<int> scale, FacilitatorIdentity actor, DateTime at,
+        ReviewPotential? potential = null)
     {
         session.RequireOpen();
         if (session.Id != SessionId) throw new ArgumentException("The subject belongs to another session.", nameof(session));
         if (!scale.Contains(rating)) throw new ArgumentException("The rating must be a level of this round's scale.", nameof(rating));
+        if (potential is { } value && (!Enum.IsDefined(value) || OriginalPotential is null))
+            throw new ArgumentException("This review has no potential to calibrate.", nameof(potential));
         var cleaned = string.IsNullOrWhiteSpace(rationale) ? null : rationale.Trim();
         if (cleaned is { Length: > 2000 }) throw new ArgumentException("A rationale cannot exceed 2,000 characters.", nameof(rationale));
         var calibrated = rating == OriginalRating ? (int?)null : rating;
-        if (calibrated is not null && cleaned is null)
-            throw new ArgumentException("Explain why this rating differs from the manager's.", nameof(rationale));
+        var nextPotential = potential ?? CurrentPotential;
+        var calibratedPotential = nextPotential == OriginalPotential ? null : nextPotential;
+        var differs = calibrated is not null || calibratedPotential is not null;
+        if (differs && cleaned is null)
+            throw new ArgumentException(calibrated is not null
+                ? "Explain why this rating differs from the manager's."
+                : "Explain why this potential differs from the manager's.", nameof(rationale));
 
         var previous = CurrentRating;
-        var nextRationale = calibrated is null ? null : cleaned;
+        var previousPotential = CurrentPotential;
+        var nextRationale = differs ? cleaned : null;
         CalibrationAdjustment? adjustment = null;
-        if (previous != rating || (calibrated is not null && nextRationale != Rationale))
-            adjustment = CalibrationAdjustment.Record(this, actor, previous, rating, cleaned, at);
+        if (previous != rating || previousPotential != nextPotential || (differs && nextRationale != Rationale))
+            adjustment = CalibrationAdjustment.Record(this, actor, previous, rating, previousPotential, nextPotential, cleaned, at);
         CalibratedRating = calibrated;
+        CalibratedPotential = calibratedPotential;
         Rationale = nextRationale;
         DiscussionState = discussion;
         MarkUpdated();
@@ -191,7 +217,7 @@ public sealed class CalibrationSubject : PerformanceChildEntity
     public void Seal() => MarkUpdated();
 }
 
-/// <summary>Append-only history of a subject's rating changes.</summary>
+/// <summary>Append-only history of a subject's rating and potential changes.</summary>
 public sealed class CalibrationAdjustment : PerformanceChildEntity
 {
     private CalibrationAdjustment() { }
@@ -204,10 +230,12 @@ public sealed class CalibrationAdjustment : PerformanceChildEntity
     public DateTime At { get; private set; }
     public int PreviousRating { get; private set; }
     public int NewRating { get; private set; }
+    public ReviewPotential? PreviousPotential { get; private set; }
+    public ReviewPotential? NewPotential { get; private set; }
     public string? Rationale { get; private set; }
 
-    internal static CalibrationAdjustment Record(CalibrationSubject subject, FacilitatorIdentity actor,
-        int previous, int next, string? rationale, DateTime at) => new()
+    internal static CalibrationAdjustment Record(CalibrationSubject subject, FacilitatorIdentity actor, int previous, int next,
+        ReviewPotential? previousPotential, ReviewPotential? nextPotential, string? rationale, DateTime at) => new()
     {
         TenantId = subject.TenantId,
         SessionId = subject.SessionId,
@@ -218,6 +246,8 @@ public sealed class CalibrationAdjustment : PerformanceChildEntity
         At = at,
         PreviousRating = previous,
         NewRating = next,
+        PreviousPotential = previousPotential,
+        NewPotential = nextPotential,
         Rationale = rationale,
     };
 }
