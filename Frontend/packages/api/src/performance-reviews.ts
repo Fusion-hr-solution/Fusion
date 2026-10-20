@@ -375,6 +375,13 @@ export interface ReviewsWorkspaceTeamRowDto {
   atRisk: number;
   feedback: number;
   praise: number;
+  /** The reviewer's own submitted rating and potential; after calibration, the outcome and whether the rating changed. */
+  managerRating: number | null;
+  managerPotential: ReviewPotential | null;
+  finalRating: number | null;
+  finalPotential: ReviewPotential | null;
+  calibrationChanged: boolean;
+  summaryToCheck: boolean;
 }
 export interface ReviewsWorkspaceRoundDto {
   roundId: string;
@@ -426,6 +433,24 @@ export interface ReviewsWorkspaceDto {
     finalizedAt: string | null;
     acknowledgedAt: string | null;
   }[];
+  /** Open calibration sessions the viewer facilitates, counted without their own review. */
+  sessions: ReviewsWorkspaceSessionDto[];
+}
+export interface ReviewsWorkspaceSessionDto { roundId: string; roundName: string; people: number; discussed: number; flags: number; outstanding: number }
+
+/** After a calibrated rating change: the reviewer's summary and whether they revised it or kept it. */
+export interface ReviewSummaryStateDto { reviewId: string; summary: string; summaryRevisedAt: string | null; summaryCheckedAt: string | null; version: number }
+
+export type ReviewDraftKind = "Summary" | "Question";
+export interface ReviewDraftSourceDto { kind: string; label: string; path: string | null; subjectVisible: boolean; excerpt: string }
+export interface ReviewDraftSentenceDto { text: string; sources: ReviewDraftSourceDto[] }
+/** An AI draft (W4, W5). Abstained means too little to draft from. Nothing is stored. */
+export interface ReviewDraftDto {
+  outcome: "Drafted" | "Abstained";
+  sentences: ReviewDraftSentenceDto[];
+  sourceCount: number;
+  privateSentenceCount: number;
+  sourceKinds: string[];
 }
 
 // ── Paths, keys and transport ────────────────────────────────────────────────────
@@ -443,6 +468,9 @@ export const reviewPaths = {
   approvePeers: (reviewId: string) => `/performance/reviews/${reviewId}/peers/approve`,
   peerSuggestions: (reviewId: string) => `/performance/reviews/${reviewId}/peer-suggestions`,
   peerRequest: (requestId: string) => `/performance/peer-requests/${requestId}`,
+  managerSummary: (reviewId: string) => `/performance/reviews/${reviewId}/manager-summary`,
+  summaryChecked: (reviewId: string) => `/performance/reviews/${reviewId}/summary-checked`,
+  draft: (reviewId: string) => `/performance/reviews/${reviewId}/draft`,
 } as const;
 
 export const reviewQueryKeys = {
@@ -497,6 +525,15 @@ export function createReviewsApi(client: ApiClient) {
       client.post<PeerRequestDto>(`${reviewPaths.peerRequest(requestId)}/send`, { answers }),
     declinePeerRequest: (requestId: string, note: string | null) =>
       client.post<PeerRequestDto>(`${reviewPaths.peerRequest(requestId)}/decline`, { note }),
+
+    // After calibration
+    reviseSummary: (reviewId: string, summary: string, expectedVersion: number) =>
+      client.put<ReviewSummaryStateDto>(reviewPaths.managerSummary(reviewId), { summary, expectedVersion }),
+    markSummaryChecked: (reviewId: string) => client.post<ReviewSummaryStateDto>(reviewPaths.summaryChecked(reviewId), {}),
+
+    // AI draft: the summary, or one manager question
+    draft: (reviewId: string, kind: ReviewDraftKind, questionId?: string | null) =>
+      client.post<ReviewDraftDto>(reviewPaths.draft(reviewId), { kind, questionId: questionId ?? null }),
   };
 }
 

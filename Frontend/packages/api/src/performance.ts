@@ -96,7 +96,13 @@ export interface CycleSettingsDto {
   peerInputDueDays: number;
   managerAssessmentDueDays: number;
   acknowledgementReminderDays: number;
+  /** Nine-box bands in force for the current scale (D-24); custom is false while the default split applies. */
+  nineBoxBands: NineBoxBandsDto;
 }
+
+export interface NineBoxBandsDto { lowTop: number; midTop: number; custom: boolean }
+/** Both cut points, or both null to return to the default. Bands equal to those in force change nothing. */
+export interface NineBoxBandsRequest { lowTop: number | null; midTop: number | null }
 
 export interface RatingScaleLevelDto { value: number; label: string; description: string | null }
 export interface RatingScaleDto { version: number; scaleVersion: number; levels: RatingScaleLevelDto[] }
@@ -564,6 +570,14 @@ export interface ReviewCalibrationDto {
   originalRating: number;
   calibratedRating: number | null;
   rationale: string | null;
+  originalPotential: ReviewPotential | null;
+  calibratedPotential: ReviewPotential | null;
+  changedBy: string | null;
+  changedAt: string | null;
+  /** The reviewer may rewrite the summary until release because calibration changed the rating. */
+  canReviseSummary: boolean;
+  summaryRevisedAt: string | null;
+  summaryCheckedAt: string | null;
 }
 
 export type CalibrationSessionState = "Open" | "Finalized";
@@ -602,6 +616,8 @@ export interface CalibrationAdjustmentDto {
   previousRating: number;
   newRating: number;
   rationale: string | null;
+  previousPotential: ReviewPotential | null;
+  newPotential: ReviewPotential | null;
 }
 
 export interface CalibrationSubjectDto {
@@ -619,6 +635,16 @@ export interface CalibrationSubjectDto {
   discussionState: CalibrationDiscussionState;
   version: number;
   history: CalibrationAdjustmentDto[];
+  originalPotential: ReviewPotential | null;
+  currentPotential: ReviewPotential | null;
+  potentialAdjusted: boolean;
+}
+
+/** A stale change: the subject as it stands and who changed it last (409 `Calibration.Conflict`). */
+export interface CalibrationConflictDto {
+  current: CalibrationSubjectDto;
+  changedBy: string | null;
+  changedAt: string | null;
 }
 
 export interface CalibrationOutstandingReviewDto {
@@ -641,9 +667,117 @@ export interface CalibrationSessionDto {
   counts: CalibrationCountsDto;
   ratingScale: RatingScaleLevelDto[];
   distribution: CalibrationDistributionDto[];
-  subjects: CalibrationSubjectDto[];
   outstanding: CalibrationOutstandingReviewDto[];
+  /** Present on reads of the session: the header of the three views. */
+  header: CalibrationHeaderDto | null;
 }
+
+/** A filter option; for a manager, flagged when their ratings sit far from the session's. */
+export interface CalibrationOptionDto { id: string; name: string; count: number; flagged: boolean }
+export interface CalibrationOutstandingGroupDto { reviewerId: string; reviewerName: string; count: number; people: string[] }
+export interface CalibrationHeaderDto {
+  people: number;
+  discussed: number;
+  ratingChanged: number;
+  potentialChanged: number;
+  flags: number;
+  flaggedNotDiscussed: number;
+  outstanding: number;
+  potentialEnabled: boolean;
+  bandLowTop: number;
+  bandMidTop: number;
+  outstandingByReviewer: CalibrationOutstandingGroupDto[];
+  units: CalibrationOptionDto[];
+  managers: CalibrationOptionDto[];
+}
+
+/** Filters shared by every view; all optional. */
+export interface CalibrationFilter {
+  unit?: string | null;
+  manager?: string | null;
+  flagged?: boolean;
+  notDiscussed?: boolean;
+  q?: string | null;
+}
+
+export type CalibrationFlagKind = "RatingVsObjectives" | "MovedSinceLastCycle";
+/** Facts behind a person flag; the client words it. */
+export interface CalibrationFlagDto { kind: CalibrationFlagKind; attainment: number | null; moved: number | null; cycle: string | null }
+export interface CalibrationPersonDto {
+  reviewId: string;
+  name: string;
+  jobTitle: string | null;
+  unit: string | null;
+  reviewerId: string;
+  reviewerName: string;
+  originalRating: number;
+  currentRating: number;
+  originalPotential: ReviewPotential | null;
+  currentPotential: ReviewPotential | null;
+  attainment: number | null;
+  lastResult: { rating: number; cycleName: string } | null;
+  flags: CalibrationFlagDto[];
+  discussed: boolean;
+  version: number;
+}
+export interface CalibrationLevelDto { value: number; label: string; original: number; current: number }
+export interface CalibrationManagerDto {
+  reviewerId: string;
+  reviewerName: string;
+  reviews: number;
+  originalMix: number[];
+  currentMix: number[];
+  originalAverage: number;
+  currentAverage: number;
+  delta: number;
+  lenient: boolean;
+}
+export interface CalibrationDistributionViewDto {
+  levels: CalibrationLevelDto[];
+  sessionAverage: number;
+  currentAverage: number;
+  managers: CalibrationManagerDto[];
+}
+export interface CalibrationGroupDto { value: number; label: string; count: number; originalCount: number; people: CalibrationPersonDto[] }
+export interface CalibrationPeopleViewDto { groups: CalibrationGroupDto[]; total: number }
+export interface CalibrationCellPersonDto { reviewId: string; name: string; currentRating: number; moved: boolean; version: number }
+/** Band 0 is the low band, 2 the top. */
+export interface CalibrationCellDto { band: 0 | 1 | 2; potential: ReviewPotential; people: CalibrationCellPersonDto[] }
+export interface CalibrationNineBoxViewDto { bandLowTop: number; bandMidTop: number; cells: CalibrationCellDto[] }
+export interface CalibrationObjectiveDto { id: string; title: string; weight: number | null; progress: number | null; status: ObjectiveStatus | null }
+export interface CalibrationSubjectDetailDto {
+  person: CalibrationPersonDto;
+  objectives: CalibrationObjectiveDto[];
+  managerSummary: string | null;
+  rationale: string | null;
+  history: CalibrationAdjustmentDto[];
+  reviewer: CalibrationManagerDto | null;
+  scale: RatingScaleLevelDto[];
+}
+export interface CalibrationFinalizePreviewDto {
+  people: number;
+  ratingsUp: number;
+  ratingsDown: number;
+  potentialUp: number;
+  potentialDown: number;
+  notDiscussed: number;
+  flaggedNotDiscussed: { reviewId: string; name: string; flags: CalibrationFlagDto[] }[];
+  outstanding: number;
+  reviewers: number;
+}
+export interface CalibrationChangeDto {
+  reviewId: string;
+  name: string;
+  reviewerName: string;
+  originalRating: number;
+  finalRating: number;
+  originalPotential: ReviewPotential | null;
+  finalPotential: ReviewPotential | null;
+  reason: string | null;
+  changedBy: string | null;
+  changedAt: string | null;
+}
+export interface CalibrationChangesViewDto { levels: CalibrationLevelDto[]; changes: CalibrationChangeDto[]; finalizedAt: string | null }
 
 export interface CalibrationRoundDto {
   reviewRoundId: string;
@@ -661,6 +795,8 @@ export interface AdjustCalibrationSubjectRequest {
   rationale: string | null;
   discussionState: CalibrationDiscussionState;
   expectedVersion: number;
+  /** Omitted leaves potential as it is. */
+  potential?: ReviewPotential | null;
 }
 
 export interface PerformanceReviewMutationDto {
@@ -1808,6 +1944,8 @@ export const performancePaths = {
   calibrationSubject: (roundId: string, reviewId: string) =>
     `/performance/review-rounds/${roundId}/calibration/subjects/${reviewId}`,
   calibrationFinalize: (roundId: string) => `/performance/review-rounds/${roundId}/calibration/finalize`,
+  calibrationView: (roundId: string, view: "distribution" | "people" | "nine-box" | "finalize-preview" | "changes") =>
+    `/performance/review-rounds/${roundId}/calibration/${view}`,
   personSummary: (employeeId: string) => `/performance/people/${employeeId}/summary`,
   acknowledgeStatus: (cycleId: string, objectiveId: string) =>
     `/performance/cycles/${cycleId}/objectives/${objectiveId}/status/acknowledge`,
@@ -1871,6 +2009,10 @@ export const performanceQueryKeys = {
   review: (reviewId: string) => [...performanceQueryKeys.all(), "review", reviewId] as const,
   calibrationRounds: (cycleId: string) => [...performanceQueryKeys.all(), "calibration-rounds", cycleId] as const,
   calibration: (roundId: string) => [...performanceQueryKeys.all(), "calibration", roundId] as const,
+  calibrationView: (roundId: string, view: string, filter?: CalibrationFilter) =>
+    [...performanceQueryKeys.all(), "calibration", roundId, view, filter ?? {}] as const,
+  calibrationSubject: (roundId: string, reviewId: string) =>
+    [...performanceQueryKeys.all(), "calibration", roundId, "subject", reviewId] as const,
   calibrationCandidates: (roundId: string) => [...performanceQueryKeys.all(), "calibration-candidates", roundId] as const,
   personSummary: (employeeId: string, cycleId?: string | null) =>
     [...performanceQueryKeys.all(), "person-summary", employeeId, cycleId ?? "default"] as const,
@@ -1879,11 +2021,23 @@ export const performanceQueryKeys = {
 } as const;
 
 /** Performance Cycle & Goals transport. UI state and cache behavior remain feature-owned. */
+/** Only the filters that are set travel as query parameters. */
+function calibrationParams(filter?: CalibrationFilter): Record<string, string> | undefined {
+  if (!filter) return undefined;
+  const params: Record<string, string> = {};
+  if (filter.unit) params.unit = filter.unit;
+  if (filter.manager) params.manager = filter.manager;
+  if (filter.flagged) params.flagged = "true";
+  if (filter.notDiscussed) params.notDiscussed = "true";
+  if (filter.q?.trim()) params.q = filter.q.trim();
+  return Object.keys(params).length > 0 ? params : undefined;
+}
+
 export function createPerformanceApi(client: ApiClient) {
   return {
     getSettings: (signal?: AbortSignal) =>
       client.get<CycleSettingsDto>(performancePaths.settings(), { signal }),
-    updateSettings: (request: CycleSettingsDto & { expectedVersion: number }) =>
+    updateSettings: (request: Omit<CycleSettingsDto, "nineBoxBands"> & { nineBoxBands?: NineBoxBandsRequest; expectedVersion: number }) =>
       client.put<CycleSettingsDto>(performancePaths.settings(), request),
     ratingScale: (signal?: AbortSignal) => client.get<RatingScaleDto>(performancePaths.ratingScale(), { signal }),
     updateRatingScale: (request: UpdateRatingScaleRequest) =>
@@ -1955,6 +2109,18 @@ export function createPerformanceApi(client: ApiClient) {
       client.put<CalibrationSubjectDto>(performancePaths.calibrationSubject(roundId, reviewId), request),
     finalizeCalibration: (roundId: string, expectedVersion: number) =>
       client.post<CalibrationSessionDto>(performancePaths.calibrationFinalize(roundId), { expectedVersion }),
+    getCalibrationDistribution: (roundId: string, filter?: CalibrationFilter, signal?: AbortSignal) =>
+      client.get<CalibrationDistributionViewDto>(performancePaths.calibrationView(roundId, "distribution"), { params: calibrationParams(filter), signal }),
+    getCalibrationPeople: (roundId: string, filter?: CalibrationFilter, signal?: AbortSignal) =>
+      client.get<CalibrationPeopleViewDto>(performancePaths.calibrationView(roundId, "people"), { params: calibrationParams(filter), signal }),
+    getCalibrationNineBox: (roundId: string, filter?: CalibrationFilter, signal?: AbortSignal) =>
+      client.get<CalibrationNineBoxViewDto>(performancePaths.calibrationView(roundId, "nine-box"), { params: calibrationParams(filter), signal }),
+    getCalibrationSubject: (roundId: string, reviewId: string, signal?: AbortSignal) =>
+      client.get<CalibrationSubjectDetailDto>(performancePaths.calibrationSubject(roundId, reviewId), { signal }),
+    getCalibrationFinalizePreview: (roundId: string, signal?: AbortSignal) =>
+      client.get<CalibrationFinalizePreviewDto>(performancePaths.calibrationView(roundId, "finalize-preview"), { signal }),
+    getCalibrationChanges: (roundId: string, filter?: CalibrationFilter, signal?: AbortSignal) =>
+      client.get<CalibrationChangesViewDto>(performancePaths.calibrationView(roundId, "changes"), { params: calibrationParams(filter), signal }),
     createCycle: (request: CreateCycleRequest) =>
       client.post<CycleSummaryDto>(performancePaths.createCycle(), request),
     updateCycle: (id: string, request: UpdateCycleRequest) =>
