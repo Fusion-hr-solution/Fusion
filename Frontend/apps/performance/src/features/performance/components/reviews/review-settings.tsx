@@ -10,7 +10,7 @@ import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { AsyncButton, StatusBadge } from "@repo/ds/shell";
 import { PersonInitials } from "@repo/performance-ui";
 import { ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from "@/lib/icons";
-import { useUpdateSettings } from "../../api/use-performance";
+import { useRatingScale, useUpdateSettings } from "../../api/use-performance";
 import { useReviewQuestionCommands, useReviewQuestions } from "../../api/use-review-work";
 import { ContentUnavailable } from "../content-unavailable";
 import { SectionHeading } from "./review-parts";
@@ -19,7 +19,8 @@ const AUDIENCE_LABEL: Record<ReviewQuestionAudience, string> = { Person: "The pe
 const AUDIENCES: ReviewQuestionAudience[] = ["Person", "Manager", "Peer"];
 
 /**
- * Settings › Reviews (board 17): the tenant's question library by audience, and the due-date defaults new rounds copy.
+ * Settings › Reviews (board 17): the tenant's question library by audience, the due-date defaults new rounds copy, and the
+ * nine-box bands a calibration session copies when it opens.
  * Plain until the settings redesign (B-071).
  */
 export function ReviewSettings({ settings }: { settings: CycleSettingsDto }) {
@@ -27,6 +28,7 @@ export function ReviewSettings({ settings }: { settings: CycleSettingsDto }) {
     <div className="mt-12 space-y-10">
       <QuestionLibrary />
       <DueDateDefaults settings={settings} />
+      <NineBoxBands settings={settings} />
     </div>
   );
 }
@@ -180,6 +182,50 @@ function DueDateDefaults({ settings }: { settings: CycleSettingsDto }) {
           </AsyncButton>
         </div>
       ) : null}
+    </section>
+  );
+}
+
+/** Where the nine-box splits the rating scale (D-24): two cut points, each band at least one level. */
+function NineBoxBands({ settings }: { settings: CycleSettingsDto }) {
+  const update = useUpdateSettings();
+  const scale = useRatingScale();
+  const [bands, setBands] = useState({ lowTop: settings.nineBoxBands.lowTop, midTop: settings.nineBoxBands.midTop });
+  const levels = scale.data?.levels ?? [];
+  if (levels.length < 3) return null;
+  const top = levels[levels.length - 1]!.value;
+  const changed = bands.lowTop !== settings.nineBoxBands.lowTop || bands.midTop !== settings.nineBoxBands.midTop;
+  const valid = bands.lowTop >= levels[0]!.value && bands.lowTop < bands.midTop && bands.midTop < top;
+  const range = (from: number, to: number) => from === to ? String(from) : `${from}–${to}`;
+  const save = (nineBoxBands: { lowTop: number | null; midTop: number | null }, message: string) =>
+    void update.mutateAsync({ ...settings, nineBoxBands, expectedVersion: settings.version })
+      .then(() => toast.success(message))
+      .catch((error) => toast.error(error instanceof Error ? error.message : "The bands couldn't be saved."));
+  return (
+    <section aria-labelledby="bands-heading" className="max-w-xl">
+      <SectionHeading id="bands-heading" title="Nine-box bands" aside={settings.nineBoxBands.custom ? "Custom" : "Default"} />
+      <div className="divide-y divide-border rounded-surface bg-card">
+        {([["lowTop", "Low band ends at"], ["midTop", "Middle band ends at"]] as const).map(([key, label]) => (
+          <label key={key} className="flex items-center gap-3 px-5 py-3">
+            <span className="flex-1 type-label text-foreground">{label}</span>
+            <NativeSelect value={String(bands[key])} aria-label={label} className="w-56"
+              onChange={(event) => setBands({ ...bands, [key]: Number(event.target.value) })}>
+              {levels.slice(0, -1).map((level) => <NativeSelectOption key={level.value} value={String(level.value)}>{level.value} · {level.label}</NativeSelectOption>)}
+            </NativeSelect>
+          </label>
+        ))}
+        <p className="px-5 py-3 type-body tabular-nums text-foreground" aria-live="polite">
+          {valid ? `${range(levels[0]!.value, bands.lowTop)} · ${range(bands.lowTop + 1, bands.midTop)} · ${range(bands.midTop + 1, top)}` : "Each band needs at least one level"}
+        </p>
+      </div>
+      <div className="mt-3 flex justify-end gap-2">
+        {settings.nineBoxBands.custom && !changed ? (
+          <Button variant="outline" disabled={update.isLoading} onClick={() => save({ lowTop: null, midTop: null }, "Default bands restored.")}>Use the default</Button>
+        ) : null}
+        {changed ? (
+          <AsyncButton pending={update.isLoading} disabled={!valid} onClick={() => save(bands, "Nine-box bands saved.")}>Save bands</AsyncButton>
+        ) : null}
+      </div>
     </section>
   );
 }

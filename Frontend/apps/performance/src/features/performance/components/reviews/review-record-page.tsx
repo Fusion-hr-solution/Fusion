@@ -28,6 +28,8 @@ import { RecordCycleScope, useWorkspaceContext } from "../../api/use-workspace";
 import { ContentUnavailable } from "../content-unavailable";
 import { PerformancePageHeading } from "../performance-page-heading";
 import { measurementSummary } from "../../lib";
+import { CalibratedOutcome } from "./calibrated-outcome";
+import { ReviewDraftBlock } from "./review-draft";
 import { ColleaguePicker } from "../conversations/colleague-picker";
 import { objectiveHref, roundHref, withCycle } from "@/lib/performance-routes";
 import { DueChip, LevelCards, POTENTIAL_COPY, ProgressRing, SectionHeading, SegmentRating, StageTrack, dayLabel, dueIn, type Step } from "./review-parts";
@@ -319,6 +321,7 @@ function SelfAssessmentWriter({ record }: { record: PerformanceReviewDto }) {
       <section className="mt-10" aria-labelledby="overall-heading">
         <SectionHeading id="overall-heading" title="Your overall view" />
         <div className="space-y-3 rounded-surface bg-card p-5">
+          <ReviewDraftBlock reviewId={record.id} lens="self" subject={first(record.subjectDisplayName)} value={draft.summary} onInsert={draft.setSummary} />
           <LevelCards label="Your overall rating" levels={record.ratingScale} value={draft.overall} onChange={draft.setOverall} />
           <Textarea aria-label="Your summary" className="min-h-24 type-narrative" placeholder="Sum up your year in a few sentences" maxLength={4000}
             aria-invalid={draft.missing?.summary || undefined} value={draft.summary} onChange={(e) => draft.setSummary(e.target.value)} />
@@ -639,6 +642,7 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
         <StageTrack className="min-w-[28rem] flex-1" label="Review stages" steps={reviewSteps(record, "reviewer")} />
         <YearChips record={record} />
       </section>
+      {record.lens === "Reviewer" ? <CalibratedOutcome record={record} /> : null}
       {record.acknowledgement ? (
         <p className="mt-4 rounded-surface bg-card px-5 py-3 type-body text-foreground">
           {subject} acknowledged this {dayLabel(record.acknowledgement.at.slice(0, 10))}{record.acknowledgement.comment ? `: “${record.acknowledgement.comment}”` : "."}
@@ -736,7 +740,11 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
               <ul className="divide-y divide-border rounded-surface bg-card">
                 {managerQuestions.map((q) => (
                   <li key={q.questionId} className="p-5">
-                    <label htmlFor={`m-${q.questionId}`} className="type-label text-foreground">{q.text}</label>
+                    <div className="flex items-start justify-between gap-3">
+                      <label htmlFor={`m-${q.questionId}`} className="type-label text-foreground">{q.text}</label>
+                      {editable ? <ReviewDraftBlock reviewId={record.id} kind="Question" questionId={q.questionId} lens="manager" subject={subject}
+                        value={draft.answers[q.questionId] ?? ""} onInsert={(text) => draft.setAnswer(q.questionId, text)} className="shrink-0" /> : null}
+                    </div>
                     {editable ? (
                       <Textarea id={`m-${q.questionId}`} className="mt-2 min-h-20 type-narrative" maxLength={4000}
                         aria-invalid={draft.missing?.questions.includes(q.questionId) || undefined}
@@ -751,6 +759,7 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
           <section className="mt-10" aria-labelledby="m-overall">
             <SectionHeading id="m-overall" title="Overall" aside={record.selfAssessment?.overallRating ? `${subject}'s view: ${levelLabel(record.ratingScale, record.selfAssessment.overallRating)}` : undefined} />
             <div className="space-y-3 rounded-surface bg-card p-5">
+              {editable ? <ReviewDraftBlock reviewId={record.id} lens="manager" subject={subject} value={draft.summary} onInsert={draft.setSummary} /> : null}
               <LevelCards label="Your overall rating" levels={record.ratingScale} value={draft.overall} theirs={record.selfAssessment?.overallRating}
                 disabled={!editable} onChange={editable ? draft.setOverall : undefined} />
               {editable ? (

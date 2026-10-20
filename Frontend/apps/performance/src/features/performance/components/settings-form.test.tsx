@@ -27,6 +27,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const settings: CycleSettingsDto = {
   version: 3,
+  nineBoxBands: { lowTop: 2, midTop: 3, custom: false },
   defaultMeasurementMethod: "NumericTarget",
   suggestedObjectiveCountMin: 3,
   suggestedObjectiveCountMax: 6,

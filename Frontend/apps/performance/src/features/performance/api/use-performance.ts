@@ -11,7 +11,6 @@ import {
   type CreateCycleRequest,
   type CreateOrganizationalObjectiveRequest,
   type CreateStrategicObjectiveRequest,
-  type CycleSettingsDto,
   type CompetencyDto,
   type CreateCompetencyRequest,
   type UpdateCompetencyRequest,
@@ -578,7 +577,7 @@ export function useDeleteDraftCycle(cycleId: string) {
 
 export function useUpdateSettings() {
   const { performance } = useApis();
-  return usePerformanceMutation((request: CycleSettingsDto & { expectedVersion: number }) => performance.updateSettings(request), {
+  return usePerformanceMutation((request: Parameters<typeof performance.updateSettings>[0]) => performance.updateSettings(request), {
     invalidateQueries: [{ queryKey: performanceQueryKeys.settings() }],
   });
 }

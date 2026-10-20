@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
-import type { ReviewsWorkspaceDto, ReviewsWorkspaceOwnDto, ReviewsWorkspaceRoundDto, ReviewsWorkspaceTeamRowDto } from "@repo/api";
+import type { ReviewsWorkspaceDto, ReviewsWorkspaceOwnDto, ReviewsWorkspaceRoundDto, ReviewsWorkspaceSessionDto, ReviewsWorkspaceTeamRowDto } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { PageContainer, StatusBadge } from "@repo/ds/shell";
@@ -15,7 +15,7 @@ import { useDownloadReviewPdf, useReviewsWorkspace } from "../../api/use-review-
 import { ContentUnavailable } from "../content-unavailable";
 import { PerformancePageHeading } from "../performance-page-heading";
 import { formatDate, formatDateRange } from "../../lib";
-import { newReviewRoundHref, peerRequestHref, reviewHref, roundHref, withCycle } from "@/lib/performance-routes";
+import { calibrationHref, newReviewRoundHref, peerRequestHref, reviewHref, roundHref, withCycle } from "@/lib/performance-routes";
 import { CountTile, DueChip, SectionHeading, StageTrack, dayLabel, dueIn, type Step } from "./review-parts";
 import { PeerListDrawer } from "./peer-list-drawer";
 
@@ -65,6 +65,7 @@ function Workspace({ data }: { data: ReviewsWorkspaceDto }) {
       />
 
       <div className="space-y-10">
+        {data.sessions.map((session) => <SessionLead key={session.roundId} session={session} cycleId={data.cycleId} />)}
         {lead === "round" && running ? <RunningRoundCard round={running} cycleId={data.cycleId} cycleEnd={data.cycleEnd} /> : null}
         {lead === "firstRound" ? <FirstRoundCard data={data} /> : null}
         {lead === "ready" ? <ReadyForYou row={ready[0]!} cycleId={data.cycleId} /> : null}
@@ -339,13 +340,27 @@ function TeamRow({ row, cycleId, primary }: { row: ReviewsWorkspaceTeamRowDto; c
             </StepCell>}
       </td>
       <td className="px-3 py-3.5">
-        {row.reviewStep === "Waiting" ? <span className="type-body-secondary text-muted-foreground">After {name}</span>
+        {row.state === "Calibration" ? (
+          <StepCell state="current">In calibration<p className="type-meta text-muted-foreground">You rated {row.managerRating ?? "–"}</p></StepCell>
+        ) : row.state === "ReadyToFinalize" && row.finalRating !== null ? (
+          <StepCell state="done">
+            {row.calibrationChanged ? (
+              <span className="inline-flex items-center gap-1.5 font-medium text-primary-ink">
+                <span className="tabular-nums text-muted-foreground line-through">{row.managerRating}</span>
+                <ArrowRight className="size-3.5" aria-hidden /><span className="tabular-nums">{row.finalRating}</span>
+              </span>
+            ) : <span className="tabular-nums">Final {row.finalRating}</span>}
+            <p className="type-meta text-muted-foreground">{row.calibrationChanged ? "Changed in calibration" : "Calibrated"}</p>
+          </StepCell>
+        ) : row.reviewStep === "Waiting" ? <span className="type-body-secondary text-muted-foreground">After {name}</span>
           : row.reviewStep === "ReadyToWrite" || row.reviewStep === "Writing" ? <StepCell state={late ? "late" : "current"}><span className="font-medium text-primary">{row.reviewStep === "Writing" ? "Writing" : "Ready to write"}</span>{late ? <p className="type-meta text-destructive">{dueIn(row.dueDate)}</p> : null}</StepCell>
           : row.reviewStep === "Closed" ? <span className="type-body-secondary text-muted-foreground">Closed</span>
           : <StepCell state="done">{row.reviewStep === "Released" ? "Released" : "Submitted"}</StepCell>}
       </td>
       <td className="px-5 py-3.5 text-right">
-        {row.nextAction === "WriteReview" ? (
+        {row.summaryToCheck ? (
+          <Button size="sm" asChild><Link href={href}>Check summary</Link></Button>
+        ) : row.nextAction === "WriteReview" ? (
           <Button size="sm" variant={primary ? "default" : "outline"} asChild><Link href={href}>Write review</Link></Button>
         ) : row.nextAction === "ApprovePeers" ? (
           <Button size="sm" variant="outline" asChild><Link href={`/reviews?${new URLSearchParams({ ...(cycleId ? { cycle: cycleId } : {}), peers: row.reviewId }).toString()}`} scroll={false}>Review list</Link></Button>
@@ -354,6 +369,33 @@ function TeamRow({ row, cycleId, primary }: { row: ReviewsWorkspaceTeamRowDto; c
         )}
       </td>
     </tr>
+  );
+}
+
+// ── Calibration a facilitator holds (board 11) ─────────────────────────────────────
+
+function SessionLead({ session, cycleId }: { session: ReviewsWorkspaceSessionDto; cycleId: string | null }) {
+  const discussed = session.people === 0 ? 0 : Math.round((session.discussed / session.people) * 100);
+  return (
+    <section aria-labelledby={`session-${session.roundId}`} className="rounded-surface bg-card p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="type-eyebrow text-muted-foreground">Calibration</p>
+          <h2 id={`session-${session.roundId}`} className="mt-1 type-section-title text-foreground">{session.roundName}</h2>
+        </div>
+        <Button asChild><Link href={withCycle(calibrationHref(session.roundId), cycleId)}>Open the session<ArrowRight className="size-4" aria-hidden /></Link></Button>
+      </div>
+      <dl className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4">
+        <div>
+          <dt className="type-eyebrow text-muted-foreground">Discussed</dt>
+          <dd className="mt-1 type-metric tabular-nums text-foreground">{session.discussed}<span className="ml-1.5 type-meta text-muted-foreground">of {session.people}</span></dd>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-inlay" aria-hidden><div className="h-full rounded-full bg-success" style={{ width: `${discussed}%` }} /></div>
+        </div>
+        <div><dt className="type-eyebrow text-muted-foreground">People</dt><dd className="mt-1 type-metric tabular-nums text-foreground">{session.people}</dd></div>
+        <div><dt className="type-eyebrow text-muted-foreground">Flags</dt><dd className="mt-1 type-metric tabular-nums text-foreground">{session.flags}</dd></div>
+        <div><dt className="type-eyebrow text-muted-foreground">With managers</dt><dd className="mt-1 type-metric tabular-nums text-foreground">{session.outstanding}</dd></div>
+      </dl>
+    </section>
   );
 }
 

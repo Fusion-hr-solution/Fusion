@@ -34,6 +34,7 @@ vi.mock("../../api/use-performance", () => ({
   useApis: () => ({ performance: { getReviewRound: vi.fn() } }),
   useCompetencies: () => ({ data: [] }),
   useUpdateSettings: () => ({ mutateAsync: m.updateSettings, isLoading: false }),
+  useRatingScale: () => ({ data: { version: 1, scaleVersion: 1, levels: [1, 2, 3, 4, 5].map((value) => ({ value, label: `L${value}`, description: null })) } }),
 }));
 vi.mock("../../api/use-reviews", () => ({
   useReviewRound: () => ({ data: m.round, isLoading: false, error: null, refetch: vi.fn() }),
@@ -214,7 +215,24 @@ describe("Settings › Reviews (board 17)", () => {
     planAlignmentPolicy: "AtLeastOneConnected", defaultSelfAssessmentEnabled: true, defaultObjectiveRatingsEnabled: true, defaultCalibrationEnabled: false,
     evidenceRetentionMonths: 36, aiAssistanceEnabled: true, defaultOneOnOneCadence: "EveryTwoWeeks",
     selfAssessmentDueDays: 14, peerInputDueDays: 14, managerAssessmentDueDays: 7, acknowledgementReminderDays: 7,
+    nineBoxBands: { lowTop: 2, midTop: 3, custom: false },
   } as CycleSettingsDto;
+
+  it("sets nine-box bands so each holds a level, and returns to the default", async () => {
+    m.updateSettings.mockResolvedValue(undefined);
+    const { unmount } = render(<ReviewSettings settings={settings} />);
+    expect(screen.getByText("1–2 · 3 · 4–5")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Low band ends at"), { target: { value: "3" } });
+    expect(screen.getByText("Each band needs at least one level")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Middle band ends at"), { target: { value: "4" } });
+    expect(screen.getByText("1–3 · 4 · 5")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Save bands" }));
+    await waitFor(() => expect(m.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ nineBoxBands: { lowTop: 3, midTop: 4 }, expectedVersion: 3 })));
+    unmount();
+    render(<ReviewSettings settings={{ ...settings, nineBoxBands: { lowTop: 3, midTop: 4, custom: true } }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Use the default" }));
+    await waitFor(() => expect(m.updateSettings).toHaveBeenLastCalledWith(expect.objectContaining({ nineBoxBands: { lowTop: null, midTop: null } })));
+  });
 
   it("adds a question, archives a used one, deletes an unused one and saves due-date defaults", async () => {
     m.questions = [

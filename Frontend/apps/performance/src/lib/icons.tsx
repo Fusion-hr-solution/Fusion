@@ -47,6 +47,7 @@ import {
   CornerLeftUpIcon,
   DashboardSpeed02Icon,
   DashboardSquare01Icon,
+  GridViewIcon,
   Delete02Icon,
   DragDropVerticalIcon,
   Edit02Icon,
@@ -251,6 +252,7 @@ export const Sparkles = icon(SparklesIcon, "Sparkles");
 // Organization direction views.
 export const MapView = icon(HierarchySquare01Icon, "MapView");
 export const ListView = icon(ListViewIcon, "ListView");
+export const NineBox = icon(GridViewIcon, "NineBox");
 
 // Conversations: navigation for 1:1s and Feedback, and the four praise reactions.
 export const OneOnOnes = icon(Chatting01Icon, "OneOnOnes");

@@ -8,7 +8,7 @@ import { ReviewRecordPage } from "./review-record-page";
 const mocks = vi.hoisted(() => ({
   record: null as PerformanceReviewDto | null,
   saveSelf: vi.fn(), submitSelf: vi.fn(), saveManager: vi.fn(), submitManager: vi.fn(), close: vi.fn(),
-  acknowledge: vi.fn(), moveReview: vi.fn(),
+  acknowledge: vi.fn(), moveReview: vi.fn(), draft: vi.fn(), revise: vi.fn(), keep: vi.fn(), ai: true,
 }));
 vi.mock("next/navigation", () => ({ useParams: () => ({ reviewId: "review-1" }) }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -40,7 +40,7 @@ vi.mock("@repo/performance-ui", async (original) => {
 });
 vi.mock("../../api/use-workspace", () => ({
   RecordCycleScope: ({ children }: React.PropsWithChildren) => children,
-  useWorkspaceContext: () => ({ data: { selected: { id: "cycle-1" } }, isLoading: false, error: null, refetch: vi.fn() }),
+  useWorkspaceContext: () => ({ data: { selected: { id: "cycle-1" }, capabilities: { aiAssistance: mocks.ai } }, isLoading: false, error: null, refetch: vi.fn() }),
 }));
 vi.mock("../../api/use-reviews", () => ({
   useReview: () => ({ data: mocks.record, isLoading: false, error: null, refetch: vi.fn() }),
@@ -57,6 +57,8 @@ vi.mock("../../api/use-review-work", () => ({
   useDownloadReviewPdf: () => vi.fn(),
   usePeerCommands: () => ({ nominate: { mutateAsync: vi.fn(), isLoading: false } }),
   useScheduleCommands: () => ({ moveReview: { mutateAsync: mocks.moveReview, isLoading: false } }),
+  useReviewsApi: () => ({ draft: mocks.draft }),
+  useSummaryRevision: () => ({ revise: { mutateAsync: mocks.revise, isLoading: false, error: null }, keep: { mutateAsync: mocks.keep, isLoading: false, error: null } }),
 }));
 
 const scale = [1, 2, 3, 4, 5].map((value) => ({ value, label: ["Below", "Developing", "Meets", "Exceeds", "Outstanding"][value - 1]!, description: null }));
@@ -90,6 +92,7 @@ function review(overrides: Partial<PerformanceReviewDto>): PerformanceReviewDto 
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.ai = true;
   mocks.record = review({});
   for (const fn of [mocks.saveSelf, mocks.submitSelf, mocks.saveManager, mocks.submitManager]) fn.mockResolvedValue({ id: "review-1", state: "ManagerAssessment", dueDate: null, version: 3 });
   mocks.acknowledge.mockResolvedValue({ at: "2099-09-29T10:00:00Z", comment: null });
@@ -173,5 +176,91 @@ describe("HR's view (board 14)", () => {
     expect(screen.getByText("Review opened")).toBeTruthy();
     expect(screen.getByRole("button", { name: /Move due date/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Close without a result/ })).toBeTruthy();
+  });
+});
+
+const drafted = {
+  outcome: "Drafted" as const, sourceCount: 5, privateSentenceCount: 1, sourceKinds: ["objective", "feedback"],
+  sentences: [
+    { text: "Aicha moved regression testing to a nightly suite.", sources: [{ kind: "objective", label: "Automate the regression suite · 92%", path: "/performance/cycles/c/objectives/o", subjectVisible: true, excerpt: "Objective" }] },
+    { text: "Hand-offs ran late twice.", sources: [{ kind: "feedback", label: "Fares · feedback 2 Mar", path: null, subjectVisible: false, excerpt: "Manager-only" }] },
+  ],
+};
+
+describe("AI drafts (boards 12, 13, 16)", () => {
+  const writing = () => review({
+    lens: "Reviewer", state: "ManagerAssessment", canEditSelfAssessment: false, canEditManagerAssessment: true,
+    selfAssessment: { summary: "My year", overallRating: 4, savedAt: null, submittedAt: "2099-09-08T10:00:00Z" },
+    managerAssessment: { summary: "", overallRating: null, savedAt: null, submittedAt: null },
+  });
+
+  it("drafts the summary with its sources, marks what Aicha can't see, and inserts plain text with undo", async () => {
+    mocks.record = writing();
+    mocks.draft.mockResolvedValue(drafted);
+    render(<ReviewRecordPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Draft from Aicha's year" }));
+    expect(await screen.findByText("Aicha moved regression testing to a nightly suite.")).toBeTruthy();
+    expect(mocks.draft).toHaveBeenCalledWith("review-1", "Summary", undefined);
+    expect(screen.getByText("1 sentence uses sources Aicha can't see")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Fares · feedback 2 Mar, not visible to Aicha" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Insert" }));
+    expect((screen.getByLabelText("Your summary") as HTMLTextAreaElement).value)
+      .toBe("Aicha moved regression testing to a nightly suite. Hand-offs ran late twice.");
+    fireEvent.click(screen.getByRole("button", { name: /Undo/ }));
+    expect((screen.getByLabelText("Your summary") as HTMLTextAreaElement).value).toBe("");
+  });
+
+  it("drafts one manager question on request", async () => {
+    mocks.record = writing();
+    mocks.draft.mockResolvedValue(drafted);
+    render(<ReviewRecordPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Draft" }));
+    await waitFor(() => expect(mocks.draft).toHaveBeenCalledWith("review-1", "Question", "q-manager"));
+  });
+
+  it("says when there is too little to draft from, and hides on failure or with AI off", async () => {
+    mocks.record = writing();
+    mocks.draft.mockResolvedValueOnce({ ...drafted, outcome: "Abstained", sentences: [] }).mockRejectedValueOnce(new Error("unavailable"));
+    const { unmount } = render(<ReviewRecordPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Draft from Aicha's year" }));
+    expect(await screen.findByText("Too little to draft from yet")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Close the draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Draft from Aicha's year" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Draft from Aicha's year" })).toBeNull());
+    unmount();
+    mocks.ai = false;
+    render(<ReviewRecordPage />);
+    expect(screen.queryByRole("button", { name: "Draft from Aicha's year" })).toBeNull();
+  });
+
+  it("gives the person a starter in their own voice", async () => {
+    mocks.draft.mockResolvedValue({ ...drafted, privateSentenceCount: 0, sentences: [drafted.sentences[0]!] , sourceCount: 4 });
+    render(<ReviewRecordPage />);
+    fireEvent.click(screen.getByRole("button", { name: "Start from your year" }));
+    expect(await screen.findByText("4 sources you can see")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Use as my starting point" }));
+    expect((screen.getByLabelText("Your summary") as HTMLTextAreaElement).value).toBe("Aicha moved regression testing to a nightly suite.");
+  });
+});
+
+describe("after calibration (board 15)", () => {
+  it("shows the reviewer the outcome and reason, and reopens only the summary", async () => {
+    mocks.record = review({
+      lens: "Reviewer", state: "ReadyToFinalize", canEditSelfAssessment: false, calibrationEnabled: true,
+      managerAssessment: { summary: "Went beyond the role this year.", overallRating: 4, savedAt: null, submittedAt: "2099-09-20T10:00:00Z" },
+      calibration: { sessionFinalized: true, originalRating: 4, calibratedRating: 3, rationale: "Beyond the role once; the rest met it.",
+        originalPotential: null, calibratedPotential: null, changedBy: "Khaled Sassi", changedAt: "2099-09-24T10:00:00Z",
+        canReviseSummary: true, summaryRevisedAt: null, summaryCheckedAt: null },
+    });
+    mocks.revise.mockResolvedValue({});
+    mocks.keep.mockResolvedValue({});
+    render(<ReviewRecordPage />);
+    expect(screen.getByText("You gave 4 · Exceeds")).toBeTruthy();
+    expect(screen.getByText("Beyond the role once; the rest met it.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Keep as is" }));
+    await waitFor(() => expect(mocks.keep).toHaveBeenCalled());
+    fireEvent.change(screen.getByLabelText("Your summary"), { target: { value: "Met the role, and went beyond it once." } });
+    fireEvent.click(screen.getByRole("button", { name: /Save summary/ }));
+    await waitFor(() => expect(mocks.revise).toHaveBeenCalledWith({ summary: "Met the role, and went beyond it once.", expectedVersion: 2 }));
   });
 });
