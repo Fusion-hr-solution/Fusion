@@ -8,7 +8,11 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { ApiError } from "@repo/api";
+import { ApiError, type FusionNavigationViewer } from "@repo/api";
+import { FusionViewerProvider, type FusionViewerState } from "@repo/api/react";
+import { getSidebarAccountLabel } from "./account-label";
+import { resolveFusionAttentionModules } from "./customer-workspace-access";
+import { canAccessOwnCoreProfile } from "./roles";
 import type { AuthState, AuthUser, LoginRequest, RegisterRequest } from "./types";
 import {
   AUTH_STORAGE_EVENT,
@@ -217,7 +221,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [user, accessToken, refreshTokenValue, isLoading, login, register, logout],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  // The Fusion sidebar's renderers read the viewer from here, including
+  // `@repo/ui`'s, which can't import this package.
+  const viewer = useMemo<FusionViewerState>(
+    () => ({ viewer: user ? toNavigationViewer(user) : null, isLoading }),
+    [user, isLoading],
+  );
+
+  return (
+    <AuthContext.Provider value={value}>
+      <FusionViewerProvider value={viewer}>{children}</FusionViewerProvider>
+    </AuthContext.Provider>
+  );
+}
+
+function toNavigationViewer(user: AuthUser): FusionNavigationViewer {
+  return {
+    userId: user.userId,
+    tenantId: user.tenantId,
+    fullName: user.fullName,
+    employeeId: user.employeeId ?? null,
+    accountLabel: getSidebarAccountLabel(user),
+    moduleEntitlements: user.moduleEntitlements,
+    enterableModules: resolveFusionAttentionModules(user),
+    canOpenOwnProfile: canAccessOwnCoreProfile(user),
+  };
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────

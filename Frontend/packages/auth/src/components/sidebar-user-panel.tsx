@@ -11,39 +11,18 @@ import {
   Home,
 } from "lucide-react";
 import { useAuth } from "../auth-context";
+import { getSidebarAccountLabel } from "../account-label";
 import {
   canAccessOwnCoreProfile,
   canSeeCoreSettingsNavigation,
-  PLATFORM_ADMIN_ROLE,
 } from "../roles";
-import type { AuthUser } from "../types";
 
 interface SidebarUserPanelProps {
   collapsed: boolean;
 }
 
-export function getSidebarAccountLabel(user: AuthUser): string {
-  if (user.roles.includes(PLATFORM_ADMIN_ROLE)) {
-    return "Platform Admin";
-  }
-
-  const administratorProfile = user.accessProfiles.find(
-    (profile) => profile.name === "Tenant Administrator"
-  );
-  if (administratorProfile) {
-    return administratorProfile.name;
-  }
-
-  if (!user.employeeId) {
-    return "Account";
-  }
-
-  return user.accessProfiles.length > 1
-    ? `${user.accessProfiles[0]?.name ?? "Access profile"} +${
-        user.accessProfiles.length - 1
-      }`
-    : user.accessProfiles[0]?.name ?? user.roles?.[0] ?? "Employee";
-}
+// Defined beside the auth context, which also needs it for the Fusion sidebar's viewer.
+export { getSidebarAccountLabel };
 
 export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
   const { isAuthenticated, user, logout, isLoading } = useAuth();
