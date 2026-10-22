@@ -1,9 +1,11 @@
 // @vitest-environment happy-dom
-import { render, screen } from "@testing-library/react";
+import { render as baseRender, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import type { AuthUser } from "@repo/auth";
-import type { FusionWorkItem } from "@repo/api";
+import type { FusionUpcoming, FusionWorkItem, PersonPerformanceSummaryDto } from "@repo/api";
 import { FusionHome } from "./fusion-home";
 
 type ModuleState = { key: string; label: string; status: "loading" | "ready" | "error" };
@@ -15,7 +17,20 @@ const mocks = vi.hoisted(() => ({
   praise: { data: undefined as unknown, error: null as Error | null },
   praiseEnabled: [] as boolean[],
   react: vi.fn(),
+  upcoming: { items: [] as FusionUpcoming[], modules: [] as ModuleState[] },
+  card: { jobTitle: "QA Automation Engineer", orgUnitName: "Consulting A" } as { jobTitle: string | null; orgUnitName: string | null } | null,
+  summary: null as PersonPerformanceSummaryDto | null,
 }));
+
+vi.mock("@repo/api", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  createPerformanceApi: () => ({ getPersonSummary: async () => mocks.summary }),
+}));
+
+function render(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return baseRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+}
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/", useRouter: () => ({ push: vi.fn() }) }));
 
@@ -40,6 +55,25 @@ vi.mock("@repo/api/query", () => ({
   },
   useReactToPraise: () => ({ mutate: mocks.react, isLoading: false }),
   useCompanyValues: () => ({ data: [] }),
+  useFusionUpcoming: () => ({
+    ...mocks.upcoming,
+    isLoading: false,
+    failedModules: mocks.upcoming.modules.filter((module) => module.status === "error"),
+  }),
+  useMyCard: () => ({ data: mocks.card ? { displayName: "Nour Ben Ali", ...mocks.card } : undefined }),
+  useFusionNavigation: () => ({
+    pending: false,
+    tenantName: "Carthage Digital Group",
+    homeCount: mocks.work.items.length,
+    modules: [
+      { key: "core", label: "Core HR", description: "People and organization", href: "/core", count: 1 },
+      { key: "performance", label: "Performance", description: "Goals, conversations and reviews", href: "/performance", count: 2 },
+      { key: "learning", label: "Learning", description: "Training and sessions", href: "/learning" },
+    ],
+    sectionCounts: {},
+    recent: [],
+    person: { name: "Nour Ben Ali", detail: "QA Automation Engineer", detailPending: false },
+  }),
   useFusionNotifications: () => ({
     items: [],
     unreadCount: 0,
@@ -77,6 +111,8 @@ describe("FusionHome", () => {
     mocks.praise = { data: { items: [], next: null }, error: null };
     mocks.praiseEnabled = [];
     mocks.react.mockClear();
+    mocks.upcoming = { items: [], modules: [{ key: "performance", label: "Performance", status: "ready" }] };
+    mocks.summary = null;
   });
   afterEach(() => cleanup());
 
@@ -98,11 +134,90 @@ describe("FusionHome", () => {
     expect(mocks.requested).toEqual(["core", "performance"]);
   });
 
-  it("says nothing needs the person when there is no work", () => {
+  it("says nothing needs the person and nothing is scheduled when there is neither", () => {
     mocks.work = { modules: ready, items: [] };
     render(<FusionHome />);
     expect(screen.getByText("Nothing needs you right now")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "No work and nothing scheduled in the next two weeks" })).toBeTruthy();
+    expect(screen.getByText("Nothing is scheduled in the next two weeks")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Also needs you" })).toBeNull();
+  });
+
+  it("with no work, leads with the next moment", () => {
+    mocks.work = { modules: ready, items: [] };
+    const at = new Date(Date.now() + 2 * 86_400_000);
+    const date = `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, "0")}-${String(at.getDate()).padStart(2, "0")}`;
+    mocks.upcoming.items = [{ id: "m1", module: "performance", kind: "one-on-one", title: "1:1 with Mariam Gharbi", context: "2 on the agenda",
+      date, at: at.toISOString(), href: "/performance/one-on-ones/s1" }];
+    render(<FusionHome />);
+    expect(screen.getByText(/Nothing needs you today/)).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "1:1 with Mariam Gharbi" })).toBeTruthy();
+    // The featured moment isn't repeated in the next two weeks.
+    expect(screen.getByText("Nothing is scheduled in the next two weeks")).toBeTruthy();
+  });
+
+  it("leads with overdue work, reads it late, and lists dated work and moments for two weeks", () => {
+    const day = (offset: number) => {
+      const d = new Date(Date.now() + offset * 86_400_000);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    };
+    mocks.work = {
+      modules: ready,
+      items: [
+        { id: "late", module: "performance", kind: "manager-assessment", title: "Assess Omar", dueOn: day(-1), href: "/performance/reviews/3" },
+        { id: "feedback", module: "performance", kind: "feedback-request", title: "Feedback for Rim", dueOn: day(5), href: "/performance/feedback/requests/r" },
+      ],
+    };
+    mocks.upcoming.items = [{ id: "plans", module: "performance", kind: "plans-due", title: "Plans due", date: day(10), href: "/performance/plan" }];
+    render(<FusionHome />);
+    expect(screen.getByRole("heading", { level: 2, name: "Assess Omar" })).toBeTruthy();
+    expect(screen.getByText("day late")).toBeTruthy();
+    const agenda = screen.getByRole("heading", { name: "Next two weeks" }).parentElement!;
+    const entries = Array.from(agenda.querySelectorAll("a")).map((a) => a.textContent ?? "");
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toContain("Feedback for Rim due");
+    expect(entries[1]).toContain("Plans due");
+  });
+
+  it("names the day and the person's job and unit under the greeting", () => {
+    mocks.work = { modules: ready, items: [] };
+    render(<FusionHome />);
+    expect(screen.getByText(/· QA Automation Engineer, Consulting A$/)).toBeTruthy();
+  });
+
+  it("shows the person's year: a draft plan with who approves it", async () => {
+    mocks.work = { modules: ready, items: [] };
+    mocks.summary = {
+      employeeId: "e", displayName: "Nour Ben Ali", jobTitle: null, orgUnitName: null, stableEmployeeKey: null, relation: "Self",
+      currentCycle: {
+        cycleId: "c", cycleName: "FY2027 Cycle", cycleState: "Active", phase: "Planning", isParticipant: true, planId: "p",
+        planStatus: "Draft", overallProgress: null, planHref: "/performance/plan",
+        objectives: [
+          { objectiveId: "o1", number: 1, title: "A", alignedTo: null, weight: 40, progress: null, href: "#", status: null },
+          { objectiveId: "o2", number: 2, title: "B", alignedTo: null, weight: 30, progress: null, href: "#", status: null },
+        ],
+        reviewerName: "Mariam Gharbi", weightTotal: 70, lastUpdateAt: null,
+      },
+      reviews: null, development: null, praise: null, feedback: null, oneOnOne: null,
+    } as PersonPerformanceSummaryDto;
+    render(<FusionHome />);
+    expect(await screen.findByText("Your plan is a draft")).toBeTruthy();
+    expect(screen.getByText("2 objectives · weights at 70%")).toBeTruthy();
+    expect(screen.getByText("Mariam Gharbi approves it")).toBeTruthy();
+  });
+
+  it("shows no year for someone outside the current cycle", async () => {
+    mocks.work = { modules: ready, items: [] };
+    mocks.summary = {
+      employeeId: "e", displayName: "Nour Ben Ali", jobTitle: null, orgUnitName: null, stableEmployeeKey: null, relation: "Self",
+      currentCycle: { cycleId: "c", cycleName: "FY2027 Cycle", cycleState: "Active", phase: "Planning", isParticipant: false,
+        planId: null, planStatus: null, overallProgress: null, planHref: null, objectives: [] },
+      reviews: null, development: null, praise: null, feedback: null, oneOnOne: null,
+    } as PersonPerformanceSummaryDto;
+    render(<FusionHome />);
+    await screen.findByRole("heading", { name: "Praise" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(screen.queryByRole("heading", { name: "Your year" })).toBeNull();
   });
 
   it("keeps Performance's work when Core HR fails, and says so in one line", () => {
@@ -129,7 +244,7 @@ describe("FusionHome", () => {
       data: {
         next: null,
         items: [{
-          id: "p1", author: { id: "a", name: "Amine Jaziri" }, recipients: [{ id: "n", name: "Nour Ben Ali" }],
+          id: "p1", author: { id: "a", name: "Amine Jaziri" }, recipients: [{ id: "e", name: "Nour Ben Ali" }],
           value: { id: "v", name: "Ownership" }, message: "You ran the cut-over with zero downtime.", givenAt: "2026-10-17T08:00:00Z",
           reactions: [{ kind: "Celebrate", count: 1, mine: false }], canDelete: false,
         }],
@@ -140,6 +255,8 @@ describe("FusionHome", () => {
     expect(screen.getByRole("heading", { name: "Praise" })).toBeTruthy();
     expect(screen.getByText("Ownership")).toBeTruthy();
     expect(screen.getByRole("link", { name: "Give praise" }).getAttribute("href")).toBe("/performance/feedback?tab=praise&compose=praise");
+    expect(screen.getByText("To you")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /All praise/ }).getAttribute("href")).toBe("/performance/feedback?tab=praise");
     screen.getByRole("button", { name: "Celebrate, 1" }).click();
     expect(mocks.react).toHaveBeenCalledWith({ praiseId: "p1", kind: "Celebrate", add: true });
   });
@@ -158,5 +275,23 @@ describe("FusionHome", () => {
     render(<FusionHome />);
     expect(screen.queryByRole("heading", { name: "Praise" })).toBeNull();
     expect(mocks.praiseEnabled.every((enabled) => !enabled)).toBe(true);
+    // One column: no side column without a second job.
+    expect(screen.queryByRole("complementary", { name: "Your year and praise" })).toBeNull();
+  });
+
+  it("lists the person's modules with their waiting work in the sidebar, Home first", () => {
+    mocks.user = employee;
+    mocks.work = { modules: ready, items: [] };
+    render(<FusionHome />);
+    const nav = screen.getByRole("complementary", { name: "Fusion navigation" });
+    const links = Array.from(nav.querySelectorAll("a")).map((link) => [link.textContent, link.getAttribute("href")]);
+    expect(links).toEqual([
+      ["Home", "/"],
+      ["Core HR1", "/core"],
+      ["Performance2", "/performance"],
+      ["Learning", "/learning"],
+    ]);
+    expect(nav.textContent).toContain("Carthage Digital Group");
+    expect(nav.textContent).toContain("QA Automation Engineer");
   });
 });

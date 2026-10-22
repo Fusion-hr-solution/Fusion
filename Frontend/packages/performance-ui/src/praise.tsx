@@ -20,6 +20,8 @@ export interface PraiseCardProps {
   pendingReaction?: PraiseReactionKind | null;
   /** The praise wall reads the message in the human voice; compact lists keep the system voice. */
   reading?: boolean;
+  /** The viewer's employee id: praise naming them is marked as addressed to them. */
+  viewerEmployeeId?: string | null;
 }
 
 /** "2 h ago", "Yesterday", then a short date: recent praise reads as recent. */
@@ -40,7 +42,8 @@ export function praiseTime(iso: string, now: Date = new Date()): string {
  * One praise, led by the people praised: their faces and names, then who gave it and when, the message, the value
  * in its own hue, and the reactions. In a list the message clamps and opens the drawer for the rest.
  */
-export function PraiseCard({ praise, reactionIcons, onReact, onOpen, pendingReaction, reading = false }: PraiseCardProps) {
+export function PraiseCard({ praise, reactionIcons, onReact, onOpen, pendingReaction, reading = false, viewerEmployeeId }: PraiseCardProps) {
+  const toViewer = Boolean(viewerEmployeeId) && praise.recipients.some((r) => r.id === viewerEmployeeId);
   const recipients = joinNames(praise.recipients.map((r) => r.name));
   const author = praise.author.name ?? "A colleague";
   const message = (
@@ -57,6 +60,9 @@ export function PraiseCard({ praise, reactionIcons, onReact, onOpen, pendingReac
           </p>
         </div>
       </header>
+      {toViewer ? (
+        <span className="self-start rounded-detail bg-primary/15 px-2 py-0.5 type-meta font-semibold text-primary">To you</span>
+      ) : null}
       {onOpen ? (
         <button type="button" onClick={onOpen} className="block w-full rounded-control text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           {message}
