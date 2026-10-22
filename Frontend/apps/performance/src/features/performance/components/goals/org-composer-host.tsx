@@ -36,10 +36,10 @@ export type ComposerState =
  * Resolves the modal's inputs on open — the parent (for create) or the full draft and its parent (for
  * edit) — and owns the goal mutations the surface-agnostic composer reports through. The composer knows
  * nothing about who opened it; this host binds it to the canonical organizational-objective mutations so
- * any surface (Organization Goals, Team Performance) creates and edits the *same* objective resource.
+ * any surface (Organization Goals, My Team) creates and edits the *same* objective resource.
  *
  * `onFocusParent` lets a surface that has a drill/reveal concept (Organization Goals) light up the parent
- * branch after a mutation; surfaces without one (Team Performance) pass a no-op and simply let query
+ * branch after a mutation; surfaces without one (My Team) pass a no-op and simply let query
  * invalidation refresh their view.
  */
 export function OrgComposerHost({

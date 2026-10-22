@@ -42,7 +42,7 @@ export function CycleContextBar({
 }) {
   // The planning deadline is guidance only while planning is still open; once it has passed (or the
   // Cycle is not running) it drops out rather than showing a stale date.
-  const showPlanningDeadline = cycle.state === "Active" && cycle.planningDeadline >= todayIso();
+  const showPlanningDeadline = cycle.state === "Active" && phase !== "Review" && cycle.planningDeadline >= todayIso();
 
   return (
     <div className={cn("flex min-w-0 items-center gap-x-2.5 text-sm", className)}>

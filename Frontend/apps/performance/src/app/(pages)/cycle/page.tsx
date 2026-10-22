@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { PageContainer, PagePermissionNotice } from "@repo/ds/shell";
 import { CycleSurfaceSkeleton } from "@/features/performance/components/cycle-setup/setup-skeletons";
@@ -10,6 +10,8 @@ import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
 import { ClosureSection, CloseCycleAction } from "@/features/performance/components/cycle/cycle-closure";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { MilestoneRail } from "@/features/performance/components/milestone-rail";
+import { CycleInsights } from "@/features/performance/components/cycle/cycle-insights";
+import { cn } from "@repo/ds/lib/utils";
 
 /**
  * The durable Cycle surface — the established (Active/Closed) Cycle, read-only. A Draft is still
@@ -20,6 +22,19 @@ const PHASE_LABEL = { Planning: "Planning", Execution: "Execution", Review: "Rev
 
 export default function CyclePage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  // Status and Insights share the record's address; the view and the Insights unit live in the URL.
+  const view = params.get("view") === "insights" ? "insights" : "status";
+  const unitId = params.get("unit");
+  const go = (changes: Record<string, string | null>) => {
+    const next = new URLSearchParams(params.toString());
+    for (const [key, value] of Object.entries(changes)) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
+    router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+  };
   const context = useWorkspaceContext();
   const canAdminister = context.data?.capabilities.administers ?? false;
   const detail = useCurrentCycle(canAdminister);
@@ -59,20 +74,41 @@ export default function CyclePage() {
   const isActive = cycleDetail.cycle.state === "Active";
 
   return (
-    <PageContainer>
+    <PageContainer width={view === "insights" ? "wide" : undefined}>
       <PerformancePageHeading
         title={cycleDetail.cycle.name}
         description={isActive ? PHASE_LABEL[cycleDetail.phase ?? "Planning"] : "Closed"}
         actions={isActive ? <CloseCycleAction detail={cycleDetail} closure={closure.data} /> : null}
       />
-      <div className="space-y-8">
-        <MilestoneRail milestones={cycleDetail.milestones} />
-        {closure.error ? (
-          <ContentUnavailable error={closure.error} onRetry={closure.refetch} subject="Closure readiness" />
-        ) : (
-          <ClosureSection closure={closure.data} loading={closure.isLoading} />
-        )}
+      <div role="tablist" aria-label="Cycle views" className="mb-8 flex gap-6 border-b border-border">
+        {(["status", "insights"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={view === tab}
+            onClick={() => go({ view: tab === "insights" ? "insights" : null, unit: tab === "insights" ? unitId : null })}
+            className={cn(
+              "-mb-px border-b-2 px-0.5 pb-3 type-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              view === tab ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {tab === "status" ? "Status" : "Insights"}
+          </button>
+        ))}
       </div>
+      {view === "insights" ? (
+        <CycleInsights cycleId={cycleDetail.cycle.id} unitId={unitId} onUnit={(unit) => go({ unit })} />
+      ) : (
+        <div className="space-y-8">
+          <MilestoneRail milestones={cycleDetail.milestones} />
+          {closure.error ? (
+            <ContentUnavailable error={closure.error} onRetry={closure.refetch} subject="Closure readiness" />
+          ) : (
+            <ClosureSection closure={closure.data} loading={closure.isLoading} />
+          )}
+        </div>
+      )}
     </PageContainer>
   );
 }

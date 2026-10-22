@@ -1,59 +1,99 @@
-import type { OverviewDestinationDto, OverviewSectionDto } from "@repo/api";
-import { calibrationHref, objectiveHref, planHref, roundHref, withCycle } from "@/lib/performance-routes";
+import type { OverviewYearDto, YearDateDto } from "@repo/api";
 
 /**
- * Overview is an attention-and-resume surface served as one projection: the server decides which
- * sections apply (capabilities and recorded responsibility, never a persona) and states their facts.
- * What remains here is where each section resumes — a typed destination turned into a route that keeps
- * the section's Cycle.
+ * Overview is one server projection (performance-overview): the year, then rows in a fixed order, each with its
+ * facts and the exact place it resumes. What remains here is wording and turning server paths into this app's routes.
  */
-export function overviewHref(destination: OverviewDestinationDto): string {
-  const cycleId = destination.cycleId;
-  switch (destination.workspace) {
-    case "MyPlan":
-      return withCycle("/plan", cycleId);
-    case "Team":
-      return withCycle("/team", cycleId);
-    case "TeamNeedsReview":
-      return withCycle("/team?view=needs-review", cycleId);
-    case "CycleAdmin":
-      return withCycle("/cycle", cycleId);
-    case "CycleSetup":
-      return withCycle("/cycle/setup", cycleId);
-    case "CycleCreate":
-      return withCycle("/cycle/setup/details", cycleId);
-    case "OrganizationDirection":
-      return withCycle("/goals", cycleId);
-    case "Plan":
-      return cycleId && destination.planId ? planHref({ cycleId, planId: destination.planId }) : withCycle("/team", cycleId);
-    case "Objective":
-      return cycleId && destination.objectiveId
-        ? objectiveHref({ cycleId, objectiveId: destination.objectiveId })
-        : withCycle("/goals", cycleId);
-    case "Reviews":
-      return withCycle("/reviews", cycleId);
-    case "ReviewRound":
-      return destination.reviewRoundId ? withCycle(roundHref(destination.reviewRoundId), cycleId) : withCycle("/reviews", cycleId);
-    case "Calibration":
-      return destination.reviewRoundId ? withCycle(calibrationHref(destination.reviewRoundId), cycleId) : withCycle("/reviews", cycleId);
-  }
+const BASE = "/performance";
+
+/** A server path ("/performance/reviews/1") as a route inside this app ("/reviews/1"). */
+export function appHref(href: string): string {
+  return href === BASE ? "/" : href.startsWith(`${BASE}/`) || href.startsWith(`${BASE}?`) ? href.slice(BASE.length) : href;
 }
 
 export const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
-type SectionOf<K extends OverviewSectionDto["kind"]> = Extract<OverviewSectionDto, { kind: K }>;
-
-/** One rendered block: the team's planning and execution read as one "Your team" section. */
-export type OverviewBlock =
-  | { kind: "team"; planning: SectionOf<"teamPlanning">; execution?: SectionOf<"teamExecution"> }
-  | Exclude<OverviewSectionDto, { kind: "teamPlanning" | "teamExecution" }>;
-
-/** The projection's sections in server order, as the blocks Overview renders. */
-export function arrangeOverview(sections: OverviewSectionDto[]): OverviewBlock[] {
-  const execution = sections.find((s): s is SectionOf<"teamExecution"> => s.kind === "teamExecution");
-  return sections.flatMap((section): OverviewBlock[] => {
-    if (section.kind === "teamExecution") return [];
-    if (section.kind === "teamPlanning") return [{ kind: "team", planning: section, execution }];
-    return [section];
-  });
+function localDate(iso: string): Date {
+  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
+  return new Date(y!, (m ?? 1) - 1, d ?? 1);
 }
+
+const DAY = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short" });
+const RANGE_DAY = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+
+/** "Sat 31 Oct". */
+export function day(iso: string): string {
+  return DAY.format(localDate(iso)).replace(",", "");
+}
+
+/** "1 Oct – 31 Oct". */
+export function dayRange(start: string, end: string): string {
+  return `${RANGE_DAY.format(localDate(start))} – ${RANGE_DAY.format(localDate(end))}`;
+}
+
+/** Whole days from today to an ISO date or instant (negative once past). */
+export function daysFrom(iso: string, now: Date = new Date()): number {
+  const target = localDate(iso);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+}
+
+/** "today", "yesterday", "6 days ago". */
+export function ago(iso: string, now: Date = new Date()): string {
+  const days = -daysFrom(iso, now);
+  return days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+}
+
+export const firstName = (name: string | null | undefined) => name?.trim().split(/\s+/)[0] ?? "";
+
+const DATE_LABEL: Record<YearDateDto["kind"], string> = {
+  "plans-due": "Plans due",
+  "self-due": "Self-assessment due",
+  "peers-due": "Peer input due",
+  "reviews-due": "Your reviews are due",
+  "managers-due": "Manager reviews due",
+  "cycle-end": "Year ends",
+  "cycle-start": "Planned start",
+};
+
+/** The year band's heading: the phase and what's left of it, and the next date in words. */
+export function yearHeadline(year: OverviewYearDto, cycleName: string): { phase: string; left: string | null; next: string | null } {
+  if (year.state === "Closed") {
+    return { phase: `${cycleName} is closed`, left: null, next: year.closedAt ? `Closed ${day(year.closedAt)}` : null };
+  }
+  if (year.state === "Draft") {
+    const planning = year.dates.find((d) => d.kind === "plans-due");
+    return {
+      phase: "Draft",
+      left: null,
+      next: `Planned start ${day(year.start)}${planning ? ` · planning by ${day(planning.date)}` : ""}`,
+    };
+  }
+  // A manager-review date that has passed with reviews still late is the administrator's news.
+  const lateManagers = year.dates.find((d) => d.kind === "managers-due" && daysFrom(d.date) < 0 && (d.count ?? 0) > 0);
+  const next = lateManagers
+    ? `Manager reviews were due ${day(lateManagers.date)} · ${lateManagers.count} late`
+    : year.next
+      ? `${DATE_LABEL[year.next.kind]} ${day(year.next.date)}`
+      : null;
+  const left = year.daysLeft === null ? null : year.daysLeft === 0 ? "today" : plural(year.daysLeft, "day") + " left";
+  return { phase: year.currentPhase ?? "", left, next };
+}
+
+/** Plan state words for chips and rows. */
+export const PLAN_WORD: Record<string, string> = {
+  NotStarted: "Not started",
+  Draft: "Drafting",
+  ReturnedForChanges: "Returned",
+  Submitted: "Submitted",
+  Approved: "Approved",
+};
+
+/** Review stage words for the reviews-you-write chips. */
+export const REVIEW_CHIP: Record<string, string> = {
+  ready: "Ready",
+  readyPeers: "Ready · peers to approve",
+  peersToApprove: "Peers to approve",
+  selfAssessment: "Writing their own",
+  submitted: "Submitted",
+};

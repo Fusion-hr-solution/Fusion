@@ -29,7 +29,7 @@ import {
 import { useApiMutation, useApiQuery, useApiQueryClient, type UseApiMutationOptions } from "@repo/api/query";
 import { recoverPerformanceFailure } from "./performance-failure";
 import { useSelectedCycleId, useWorkspaceContext } from "./use-workspace";
-import type { YourPeopleQuery } from "@repo/api";
+import type { InsightsPeopleQuery, YourPeopleQuery } from "@repo/api";
 import type { CloseCycleRequest, CycleDetailDto } from "@repo/api";
 
 type RequestDraft<T> = Omit<T, "expectedVersion">;
@@ -277,6 +277,38 @@ export function useYourPeople(cycleId: string | null, query: YourPeopleQuery, en
     performanceQueryKeys.yourPeople(cycleId ?? "none", query),
     (signal) => performance.getYourPeople(cycleId as string, query, signal),
     { enabled: Boolean(cycleId) && enabled, placeholderData: (previous) => previous }
+  );
+}
+
+
+/** The released results of the caller's own team; empty until a round's results are released. */
+export function useTeamResults(cycleId: string | null, enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.teamResults(cycleId ?? "none"),
+    (signal) => performance.getTeamResults(cycleId as string, signal),
+    { enabled: Boolean(cycleId) && enabled }
+  );
+}
+
+
+/** Cycle › Insights for cycle administrators, scoped to one org unit and its sub-units when given. */
+export function useInsights(cycleId: string | null, unitId: string | null, enabled = true) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.insights(cycleId ?? "none", unitId),
+    (signal) => performance.getInsights(cycleId as string, unitId, signal),
+    { enabled: Boolean(cycleId) && enabled, placeholderData: (previous) => previous }
+  );
+}
+
+/** The people behind one Insights figure, a server page at a time. */
+export function useInsightsPeople(cycleId: string | null, query: InsightsPeopleQuery | null) {
+  const { performance } = useApis();
+  return useApiQuery(
+    performanceQueryKeys.insightsPeople(cycleId ?? "none", query ?? { metric: "people" }),
+    (signal) => performance.getInsightsPeople(cycleId as string, query as InsightsPeopleQuery, signal),
+    { enabled: Boolean(cycleId) && query !== null, placeholderData: (previous) => previous }
   );
 }
 

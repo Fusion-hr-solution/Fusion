@@ -1,67 +1,53 @@
 import { describe, expect, it } from "vitest";
-import type { OverviewSectionDto } from "@repo/api";
-import { arrangeOverview, overviewHref } from "./overview-model";
+import type { OverviewYearDto } from "@repo/api";
+import { appHref, day, plural, yearHeadline } from "./overview-model";
 
-const cycleId = "c-1";
-const destination = { workspace: "Team" as const, cycleId };
-const planning: OverviewSectionDto = {
-  kind: "teamPlanning",
-  people: 6,
-  awaitingDecision: 1,
-  notStarted: 1,
-  draft: 1,
-  returned: 1,
-  submitted: 1,
-  approved: 2,
-  destination,
+const planning: OverviewYearDto = {
+  state: "Active",
+  start: "2026-10-01",
+  end: "2027-09-30",
+  today: "2026-10-20",
+  phases: [
+    { name: "Planning", start: "2026-10-01", end: "2026-10-31", state: "Current", estimated: false },
+    { name: "Execution", start: "2026-11-01", end: "2027-08-31", state: "Upcoming", estimated: true },
+    { name: "Review", start: "2027-09-01", end: "2027-09-30", state: "Upcoming", estimated: true },
+  ],
+  currentPhase: "Planning",
+  dates: [{ kind: "plans-due", date: "2026-10-31" }, { kind: "cycle-end", date: "2027-09-30" }],
+  next: { kind: "plans-due", date: "2026-10-31" },
+  daysLeft: 11,
+  closedAt: null,
 };
-const execution: OverviewSectionDto = {
-  kind: "teamExecution",
-  approved: 2,
-  approvedReporting: 1,
-  peopleWithOverdue: 1,
-  peopleWithoutRecentUpdate: 0,
-  destination,
-};
-const none: OverviewSectionDto = { kind: "noCycle", create: null };
 
-describe("overviewHref", () => {
-  it("keeps the section's Cycle on workspace destinations", () => {
-    expect(overviewHref({ workspace: "MyPlan", cycleId })).toBe("/plan?cycle=c-1");
-    expect(overviewHref({ workspace: "TeamNeedsReview", cycleId })).toBe("/team?view=needs-review&cycle=c-1");
-    expect(overviewHref({ workspace: "OrganizationDirection", cycleId })).toBe("/goals?cycle=c-1");
-    expect(overviewHref({ workspace: "CycleAdmin", cycleId })).toBe("/cycle?cycle=c-1");
-  });
-
-  it("addresses records by their own identity", () => {
-    expect(overviewHref({ workspace: "Plan", cycleId, planId: "p-1" })).toBe("/cycles/c-1/plans/p-1");
-    expect(overviewHref({ workspace: "Objective", cycleId, objectiveId: "o-1" })).toBe("/cycles/c-1/objectives/o-1");
-  });
-
-  it("sends Cycle creation and setup to the setup flow", () => {
-    expect(overviewHref({ workspace: "CycleCreate", cycleId: null })).toBe("/cycle/setup/details");
-    expect(overviewHref({ workspace: "CycleSetup", cycleId })).toBe("/cycle/setup?cycle=c-1");
-  });
-
-  it("routes review work to Reviews and operations to their round", () => {
-    expect(overviewHref({ workspace: "Reviews", cycleId })).toBe("/reviews?cycle=c-1");
-    expect(overviewHref({ workspace: "ReviewRound", cycleId, reviewRoundId: "r-1" })).toBe("/reviews/rounds/r-1?cycle=c-1");
-    expect(overviewHref({ workspace: "Calibration", cycleId, reviewRoundId: "r-1" })).toBe("/reviews/rounds/r-1/calibration?cycle=c-1");
+describe("appHref", () => {
+  it("turns server paths into this app's routes and leaves others alone", () => {
+    expect(appHref("/performance/reviews/1")).toBe("/reviews/1");
+    expect(appHref("/performance/plan?cycle=c")).toBe("/plan?cycle=c");
+    expect(appHref("/performance")).toBe("/");
+    expect(appHref("/team?cycle=c")).toBe("/team?cycle=c");
   });
 });
 
-describe("arrangeOverview", () => {
-  it("reads team planning and execution as one team block in server order", () => {
-    const blocks = arrangeOverview([planning, execution, none]);
-    expect(blocks.map((b) => b.kind)).toEqual(["team", "noCycle"]);
-    expect(blocks[0]).toMatchObject({ kind: "team", planning, execution });
+describe("yearHeadline", () => {
+  it("names the phase, the days left and the next date", () => {
+    expect(yearHeadline(planning, "FY2027")).toEqual({ phase: "Planning", left: "11 days left", next: "Plans due Sat 31 Oct" });
   });
 
-  it("keeps a team block without execution before any plan is approved", () => {
-    expect(arrangeOverview([planning])).toEqual([{ kind: "team", planning, execution: undefined }]);
+  it("states a closed cycle without days left", () => {
+    expect(yearHeadline({ ...planning, state: "Closed", currentPhase: null, next: null, daysLeft: null, closedAt: "2027-09-30T12:00:00Z" }, "FY2027"))
+      .toEqual({ phase: "FY2027 is closed", left: null, next: "Closed Thu 30 Sept" });
   });
 
-  it("passes every other section through unchanged", () => {
-    expect(arrangeOverview([none])).toEqual([none]);
+  it("leads with late manager reviews once their date has passed", () => {
+    const review = { ...planning, dates: [{ kind: "managers-due" as const, date: "2020-09-22", count: 24 }], next: { kind: "cycle-end" as const, date: "2027-09-30" } };
+    expect(yearHeadline(review, "FY2027").next).toBe("Manager reviews were due Tue 22 Sept · 24 late");
+  });
+});
+
+describe("wording", () => {
+  it("counts in plain words", () => {
+    expect(plural(1, "plan")).toBe("1 plan");
+    expect(plural(3, "person", "people")).toBe("3 people");
+    expect(day("2026-10-31")).toBe("Sat 31 Oct");
   });
 });

@@ -887,7 +887,7 @@ function AlignmentEditor({
               Standalone team objective
             </span>
             <span className="mt-0.5 block text-xs leading-snug text-muted-foreground">
-              Keep this objective within Team Performance without an upstream
+              Keep this objective within My Team without an upstream
               link.
             </span>
           </span>

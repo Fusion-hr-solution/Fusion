@@ -1,31 +1,32 @@
 "use client";
 
 import { Fragment } from "react";
+import type { OverviewRowDto } from "@repo/api";
 import { PageContainer, PageSkeleton } from "@repo/ds/shell";
 import { ContentUnavailable } from "@/features/performance/components/content-unavailable";
 import { PerformancePageHeading } from "@/features/performance/components/performance-page-heading";
 import { useOverview, useWorkspaceContext } from "@/features/performance/api/use-workspace";
-import { formatDate } from "@/features/performance/lib";
-import { arrangeOverview, type OverviewBlock } from "@/features/performance/components/overview/overview-model";
-import { CalibrationSection, MyReviewSection, ReviewOperationSection, TeamReviewsSection } from "@/features/performance/components/overview/review-sections";
+import { YearBand } from "@/features/performance/components/overview/year-band";
 import {
-  MyPlanSection, MyRequestsSection,
-  TeamDirectionSection,
-  TeamSection,
-} from "@/features/performance/components/overview/personal-sections";
-import {
-  ClosedCycleSection,
-  CycleOperationSection,
-  CycleStatusSection,
-  DirectionSection,
-  NoCycleSection,
-  SetupSection,
-} from "@/features/performance/components/overview/organization-sections";
+  ConversationsRow,
+  CycleRow,
+  DevelopmentRow,
+  DirectionRow,
+  InputOwedRow,
+  NextCycleRow,
+  NoCycleRow,
+  NotParticipantRow,
+  OwnPlanRow,
+  OwnReviewRow,
+  ReviewsYouWriteRow,
+  TeamRow,
+} from "@/features/performance/components/overview/overview-rows";
 
 /**
- * Overview: what state Performance is in, what needs this person, and where to go next. The server
- * composes the sections from the person's capabilities and recorded responsibility in the selected
- * Cycle; this page only renders them, and each one ends in a workspace or a record.
+ * Overview: where the year stands, then one row per responsibility in a fixed order (the cycle, your team or the
+ * reviews you write, your own review and plan, input you owe, development, conversations, organization direction).
+ * The server composes the rows from the person's capabilities and recorded responsibility; each ends in a workspace
+ * or record.
  */
 export default function OverviewPage() {
   const context = useWorkspaceContext();
@@ -38,55 +39,49 @@ export default function OverviewPage() {
   }
   if (!overview.data) return <PageSkeleton rows={4} label="Loading Overview" />;
 
-  const { cycle, phase, sections } = overview.data;
+  const { cycle, year, rows } = overview.data;
   const cycleId = cycle?.id ?? "";
+  const writesReviews = rows.some((row) => row.kind === "reviewsYouWrite");
 
-  const render = (block: OverviewBlock) => {
-    switch (block.kind) {
-      case "myPlan":
-        return <MyPlanSection section={block} />;
-      case "myReview":
-        return <MyReviewSection section={block} />;
-      case "myRequests":
-        return <MyRequestsSection section={block} />;
-      case "teamReviews":
-        return <TeamReviewsSection section={block} />;
-      case "reviewOperation":
-        return <ReviewOperationSection section={block} />;
-      case "calibration":
-        return <CalibrationSection section={block} />;
+  const render = (row: OverviewRowDto) => {
+    switch (row.kind) {
+      case "nextCycle":
+        return <NextCycleRow row={row} />;
+      case "cycle":
+        return <CycleRow row={row} />;
       case "team":
-        return <TeamSection planning={block.planning} execution={block.execution} />;
-      case "teamDirection":
-        return <TeamDirectionSection section={block} cycleId={cycleId} />;
-      case "cycleOperation":
-        return <CycleOperationSection section={block} />;
+        return <TeamRow row={row} cycleId={cycleId} quietAfterReviews={writesReviews} />;
+      case "reviewsYouWrite":
+        return <ReviewsYouWriteRow row={row} />;
+      case "ownReview":
+        return <OwnReviewRow row={row} own={writesReviews} />;
+      case "inputOwed":
+        return <InputOwedRow row={row} />;
+      case "ownPlan":
+        return <OwnPlanRow row={row} />;
+      case "development":
+        return <DevelopmentRow row={row} />;
+      case "conversations":
+        return <ConversationsRow row={row} />;
       case "direction":
-        return <DirectionSection section={block} cycleId={cycleId} />;
-      case "setupReadiness":
-        return <SetupSection section={block} />;
-      case "closedCycle":
-        return <ClosedCycleSection section={block} />;
+        return <DirectionRow row={row} cycleId={cycleId} />;
+      case "notParticipant":
+        return <NotParticipantRow row={row} />;
       case "noCycle":
-        return <NoCycleSection section={block} />;
-      case "cycleStatus":
-        return <CycleStatusSection section={block} />;
+        return <NoCycleRow row={row} />;
     }
   };
 
   return (
     <PageContainer>
-      <PerformancePageHeading
-        title="Overview"
-        size="display"
-        // The cycle bar above names the cycle and its planning deadline; once planning has closed it
-        // goes quiet, so the phase is stated here instead of repeated.
-        description={cycle && phase === "Execution" ? `Execution until ${formatDate(cycle.endDate)}` : undefined}
-      />
-      <div className="mt-8 max-w-4xl space-y-8">
-        {arrangeOverview(sections).map((block, index) => (
-          <Fragment key={`${block.kind}-${index}`}>{render(block)}</Fragment>
-        ))}
+      <PerformancePageHeading title="Overview" size="display" />
+      <div className="mt-8 max-w-5xl space-y-8">
+        {year && cycle ? <YearBand year={year} cycleName={cycle.name} /> : null}
+        <div className="[&>section:first-child]:border-t-0">
+          {rows.map((row, index) => (
+            <Fragment key={`${row.kind}-${index}`}>{render(row)}</Fragment>
+          ))}
+        </div>
       </div>
     </PageContainer>
   );

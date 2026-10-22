@@ -518,7 +518,7 @@ function StandaloneCard({
         <Info className="mt-0.5 size-4 shrink-0 text-info" aria-hidden />
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">
-            Standalone objectives stay in Team Performance
+            Standalone objectives stay in My Team
           </p>
           <p className="text-xs text-muted-foreground">
             They appear in Organization Goals once aligned.

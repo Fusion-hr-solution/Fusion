@@ -1,103 +1,220 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight } from "@/lib/icons";
+import type { OverviewChipDto } from "@repo/api";
+import { ArrowRight, Check, ChevronRight } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import { Skeleton } from "@repo/ds/components/ui/skeleton";
 import { cn } from "@repo/ds/lib/utils";
+import { PersonInitials } from "@repo/performance-ui";
+import { appHref } from "./overview-model";
 
 /**
- * One Overview section: an eyebrow, the one action it leads to, and a short body. Sections are unframed
- * and separated by a hairline, so the page reads as one ranked list of situations rather than a grid of
- * tiles; emphasis is reserved for the section that actually needs the person.
+ * One Overview row: a label column (what it is about, a short fact and where its workspace is) and the facts beside
+ * it, like a receipt. Rows are unframed and separated by a hairline so the page reads as one ranked list.
  */
-export function OverviewSection({
+export function OverviewRow({
   label,
-  action,
-  attention,
+  sub,
+  link,
   children,
 }: {
   label: string;
-  action?: ReactNode;
-  /** This section needs the person now: its headline carries the accent marker. */
-  attention?: boolean;
+  sub?: ReactNode;
+  link?: { href: string; label: string };
   children: ReactNode;
 }) {
   return (
-    <section
-      aria-label={label}
-      data-attention={attention ? "" : undefined}
-      className="group/section border-t border-border/70 pt-6 first:border-t-0 first:pt-0"
-    >
-      <div className="flex min-h-9 items-center justify-between gap-4">
-        <h2 className="type-eyebrow text-muted-foreground">{label}</h2>
-        {action}
+    <section aria-label={label} className="grid gap-4 border-t border-border py-7 md:grid-cols-[188px_minmax(0,1fr)] md:gap-7">
+      <div className="space-y-1 pt-0.5">
+        <h2 className="type-panel-title text-foreground">{label}</h2>
+        {sub ? <p className="type-meta text-muted-foreground">{sub}</p> : null}
+        {link ? (
+          <Link href={appHref(link.href)} className="mt-3 inline-flex items-center gap-1 type-label text-foreground hover:text-primary">
+            {link.label}
+            <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+          </Link>
+        ) : null}
       </div>
-      <div className="mt-2">{children}</div>
+      <div className="min-w-0">{children}</div>
     </section>
   );
 }
 
-/** The section's statement — what is true right now — with the accent marker when it needs the person. */
-export function Headline({ children, attention, muted }: { children: ReactNode; attention?: boolean; muted?: boolean }) {
+export type Tone = "attention" | "ok" | "risk" | "off" | "quiet";
+
+const DOT: Record<Tone, string | null> = {
+  attention: "bg-primary",
+  ok: "bg-success",
+  risk: "bg-warning",
+  off: "bg-destructive",
+  quiet: null,
+};
+
+/** What the row says right now: one statement, with its dot when it needs the person or reports a state. */
+export function Headline({ children, tone = "quiet", action }: { children: ReactNode; tone?: Tone; action?: ReactNode }) {
   return (
-    <p className={cn("type-section-title flex items-center gap-2.5", muted ? "text-muted-foreground" : "text-foreground")}>
-      {attention ? <span className="size-2 shrink-0 rounded-full bg-primary" aria-hidden /> : null}
-      {children}
-    </p>
+    <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+      <p className={cn("flex min-w-0 items-center gap-2.5 type-section-title", tone === "quiet" ? "text-foreground/80" : "text-foreground")}>
+        {DOT[tone] ? <span className={cn("size-2 shrink-0 rounded-full", DOT[tone])} aria-hidden /> : null}
+        <span className="min-w-0">{children}</span>
+      </p>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
   );
 }
 
-export type Fact = { label: ReactNode; tone?: "default" | "attention" | "critical" };
+/** The row's one action: primary when the row needs the person, outline otherwise. */
+export function RowAction({ href, children, primary }: { href: string; children: ReactNode; primary?: boolean }) {
+  return (
+    <Button asChild variant={primary ? "default" : "outline"}>
+      <Link href={appHref(href)}>
+        {children}
+        {primary ? <ArrowRight className="size-4" data-icon="inline-end" aria-hidden /> : null}
+      </Link>
+    </Button>
+  );
+}
 
-/** Supporting facts in one quiet line; a fact that needs action carries a dot, never a pill. */
-export function Facts({ facts }: { facts: (Fact | null | false)[] }) {
+export type Fact = { label: ReactNode; tone?: Tone };
+
+/** Supporting facts in one line; a fact with a state carries its dot. */
+export function Facts({ facts, className }: { facts: (Fact | null | false | undefined)[]; className?: string }) {
   const shown = facts.filter((fact): fact is Fact => Boolean(fact));
   if (shown.length === 0) return null;
   return (
-    <ul className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+    <ul className={cn("mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 type-body-secondary text-muted-foreground", className)}>
       {shown.map((fact, index) => (
         <li key={index} className="inline-flex items-center gap-1.5">
-          {fact.tone === "attention" ? <span className="size-1.5 rounded-full bg-primary" aria-hidden /> : null}
-          {fact.tone === "critical" ? <span className="size-1.5 rounded-full bg-destructive" aria-hidden /> : null}
-          <span className={cn(fact.tone === "critical" && "text-destructive", fact.tone === "attention" && "text-foreground")}>
-            {fact.label}
-          </span>
+          {fact.tone && DOT[fact.tone] ? <span className={cn("size-2 rounded-full", DOT[fact.tone])} aria-hidden /> : null}
+          <span>{fact.label}</span>
         </li>
       ))}
     </ul>
   );
 }
 
-/** Where a section leads. Primary when the section needs the person, a quiet link otherwise. */
-export function SectionAction({ href, children, primary }: { href: string; children: ReactNode; primary?: boolean }) {
+/** A number set in bold within a fact. */
+export const N = ({ children }: { children: ReactNode }) => <b className="font-semibold tabular-nums text-foreground">{children}</b>;
+
+/** Up to six people as chips with their state, those who need the viewer marked. Never a roster. */
+export function Chips({ chips, word }: { chips: OverviewChipDto[]; word: (chip: OverviewChipDto) => string }) {
+  if (chips.length === 0) return null;
   return (
-    <Button asChild size="sm" variant={primary ? "default" : "ghost"} className={primary ? undefined : "-mr-2 text-muted-foreground hover:text-foreground"}>
-      <Link href={href}>
-        {children}
-        <ArrowRight className="size-3.5" data-icon="inline-end" aria-hidden />
-      </Link>
-    </Button>
+    <ul className="mt-4 flex flex-wrap gap-2" aria-label="People">
+      {chips.map((chip) => {
+        const body = (
+          <>
+            <PersonInitials name={chip.name} size="sm" />
+            <span className="min-w-0">
+              <span className="block truncate type-label text-foreground">{chip.name}</span>
+              <span className={cn("block truncate type-meta", chip.needsYou ? "text-primary" : "text-muted-foreground")}>{word(chip)}</span>
+            </span>
+          </>
+        );
+        const className = cn(
+          "flex items-center gap-2.5 rounded-control py-1.5 pr-3 pl-1.5",
+          chip.needsYou
+            ? "bg-primary/10 ring-1 ring-inset ring-primary/50"
+            : chip.state === "NotStarted"
+              ? "border border-dashed border-border"
+              : "bg-card ring-1 ring-inset ring-border",
+        );
+        return (
+          <li key={chip.employeeId}>
+            {chip.href ? (
+              <Link href={appHref(chip.href)} className={cn(className, "transition-colors hover:bg-inlay")}>{body}</Link>
+            ) : (
+              <span className={className}>{body}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
-/** A single progress line: track, fill in the objective's tone, and the figure. Missing reads as missing. */
-export function ProgressLine({ value, has, fillClass = "bg-primary", className }: { value: number; has: boolean; fillClass?: string; className?: string }) {
+/** A short framed list of records, each row opening one. */
+export function MiniList({ children, label }: { children: ReactNode; label?: string }) {
+  return (
+    <ul aria-label={label} className="mt-4 divide-y divide-border overflow-hidden rounded-surface bg-card ring-1 ring-inset ring-border">
+      {children}
+    </ul>
+  );
+}
+
+export function MiniItem({ href, title, sub, trailing }: { href: string; title: ReactNode; sub?: ReactNode; trailing?: ReactNode }) {
+  return (
+    <li>
+      <Link href={appHref(href)} className="group flex items-center gap-4 px-4 py-3 transition-colors hover:bg-inlay">
+        <span className="min-w-0 flex-1">
+          <span className="block truncate type-label text-foreground">{title}</span>
+          {sub ? <span className="block truncate type-meta text-muted-foreground">{sub}</span> : null}
+        </span>
+        {trailing}
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
+      </Link>
+    </li>
+  );
+}
+
+/** A single progress line: track, fill and figure. Missing reads as missing. */
+export function ProgressLine({ value, has, className }: { value: number; has: boolean; className?: string }) {
   const clamped = Math.max(0, Math.min(100, value));
   return (
-    <div className={cn("flex items-center gap-3", className)}>
-      <span className="relative h-1.5 min-w-16 flex-1 overflow-hidden rounded-full bg-muted-foreground/20">
-        {has ? <span className={cn("absolute inset-y-0 left-0 rounded-full", fillClass)} style={{ width: `${clamped}%` }} /> : null}
+    <span className={cn("flex items-center gap-3", className)}>
+      <span className="relative h-1.5 min-w-16 flex-1 overflow-hidden rounded-full bg-inlay">
+        {has ? <span className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${clamped}%` }} /> : null}
       </span>
-      <span className={cn("w-10 shrink-0 text-right text-sm font-medium tabular-nums", has ? "text-foreground" : "text-muted-foreground")}>
+      <span className={cn("w-10 shrink-0 text-right type-label tabular-nums", has ? "text-foreground" : "text-muted-foreground")}>
         {has ? `${Math.round(value)}%` : "—"}
       </span>
+    </span>
+  );
+}
+
+/** A segmented bar of counts (states or statuses), each segment sized by its count. */
+export function SegmentBar({ segments, label }: { segments: { count: number; className: string }[]; label: string }) {
+  const total = segments.reduce((sum, s) => sum + s.count, 0);
+  if (total === 0) return null;
+  return (
+    <div role="img" aria-label={label} className="mt-4 flex h-2 gap-[3px]">
+      {segments.filter((s) => s.count > 0).map((s, i) => (
+        <span key={i} className={cn("min-w-1.5 rounded-full", s.className)} style={{ width: `${(s.count / total) * 100}%` }} />
+      ))}
     </div>
   );
 }
 
-export function SectionSkeleton() {
+/** A path of steps (where a review or a setup stands). */
+export function StepsStrip({ steps }: { steps: { label: string; detail?: string | null; state: "done" | "current" | "upcoming" }[] }) {
   return (
-    <div className="space-y-2" aria-hidden>
+    <ol className="mt-5 flex items-start" aria-label="Where this stands">
+      {steps.map((step, index) => (
+        <li key={`${step.label}-${index}`} className="relative min-w-0 flex-1 pr-3">
+          {index < steps.length - 1 ? (
+            <span aria-hidden className={cn("absolute top-3 right-1 left-8 h-px", step.state === "done" ? "bg-success" : "bg-border")} />
+          ) : null}
+          <span
+            className={cn(
+              "relative grid size-6 place-items-center rounded-detail text-[11px] font-bold ring-1 ring-inset",
+              step.state === "done" && "bg-success text-background ring-success",
+              step.state === "current" && "bg-primary/15 text-primary ring-primary",
+              step.state === "upcoming" && "bg-inlay text-muted-foreground ring-border",
+            )}
+          >
+            {step.state === "done" ? <Check className="size-3.5" aria-hidden /> : index + 1}
+          </span>
+          <span className={cn("mt-2 block truncate type-label", step.state === "current" ? "text-primary" : "text-foreground")}>{step.label}</span>
+          {step.detail ? <span className="block truncate type-meta text-muted-foreground">{step.detail}</span> : null}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export function RowSkeleton() {
+  return (
+    <div className="space-y-2 border-t border-border py-7" aria-hidden>
       <Skeleton className="h-5 w-64 max-w-full" />
       <Skeleton className="h-4 w-80 max-w-full" />
     </div>
