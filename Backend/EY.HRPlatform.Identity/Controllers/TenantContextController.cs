@@ -12,7 +12,7 @@ namespace EY.HRPlatform.Identity.Controllers;
 
 [ApiController]
 [Route("api/identity/tenant-context")]
-[Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
+[Authorize]
 public class TenantContextController(
     ITenantContext tenantContext,
     AppIdentityDbContext dbContext) : ControllerBase
@@ -45,6 +45,7 @@ public class TenantContextController(
     }
 
     [HttpGet("organization-status")]
+    [Authorize(Roles = $"{PlatformRole.PlatformAdmin},{PlatformRole.HRAdmin}")]
     [ProducesResponseType(typeof(ApiResponse<TenantOperationalStatusDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<TenantOperationalStatusDto>), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ApiResponse<TenantOperationalStatusDto>>> GetOrganizationStatus(
@@ -65,8 +66,9 @@ public class TenantContextController(
     }
 
     /// <summary>
-    /// Lightweight tenant summary for the tenant-context banner — returns name and status.
-    /// Available to any authorized user with a resolved tenant context.
+    /// Lightweight summary of the caller's own tenant (name and status): the Fusion sidebar's brand line.
+    /// Any signed-in member may read it; the tenant comes only from their token's membership claim, never
+    /// from the request, so it can't name another tenant.
     /// </summary>
     [HttpGet("tenant-summary")]
     [ProducesResponseType(typeof(ApiResponse<TenantSummaryDto>), StatusCodes.Status200OK)]
