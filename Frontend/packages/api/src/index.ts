@@ -24,3 +24,4 @@ export * from "./performance";
 export * from "./performance-conversations";
 export * from "./performance-reviews";
 export * from "./fusion-attention";
+export * from "./fusion-navigation";

@@ -23,6 +23,32 @@ export interface FusionWorkItem {
   href: string;
   /** The person the work concerns, when it isn't the viewer. */
   subject?: { displayName: string } | null;
+  /** Module navigation path the item is counted under in the sidebar, e.g. `/performance/team`. */
+  section?: string | null;
+  /** The path the work belongs to, so the home can show where it stands. */
+  steps?: FusionWorkStep[] | null;
+}
+
+export interface FusionWorkStep {
+  label: string;
+  detail?: string | null;
+  state: "done" | "current" | "upcoming";
+}
+
+/** Something dated that isn't work: a 1:1, a deadline, a cycle's end. */
+export interface FusionUpcoming {
+  id: string;
+  module: FusionAttentionModuleKey;
+  kind: string;
+  title: string;
+  context?: string | null;
+  /** ISO date (`yyyy-mm-dd`). */
+  date: string;
+  /** ISO UTC instant when the moment has a time. */
+  at?: string | null;
+  href: string;
+  /** Work-item kinds this moment summarizes on its date; the home doesn't list those items again. */
+  covers?: string[] | null;
 }
 
 /** Something that happened for the person. Text and path are frozen when it's created. */
@@ -69,7 +95,7 @@ export interface FusionAttentionModule {
   apiBase: string;
   /** Tenant module entitlement the module requires. */
   entitlement: string;
-  serves: { work: boolean; notifications: boolean };
+  serves: { work: boolean; notifications: boolean; upcoming: boolean };
 }
 
 /**
@@ -82,14 +108,14 @@ export const FUSION_ATTENTION_MODULES: readonly FusionAttentionModule[] = [
     label: "Core HR",
     apiBase: "/corehr",
     entitlement: "CoreHR",
-    serves: { work: true, notifications: false },
+    serves: { work: true, notifications: false, upcoming: false },
   },
   {
     key: "performance",
     label: "Performance",
     apiBase: "/performance",
     entitlement: "Performance",
-    serves: { work: true, notifications: true },
+    serves: { work: true, notifications: true, upcoming: true },
   },
 ];
 
@@ -101,6 +127,7 @@ export function getFusionAttentionModule(key: FusionAttentionModuleKey): FusionA
 
 export const fusionAttentionPaths = {
   work: (key: FusionAttentionModuleKey) => `${getFusionAttentionModule(key).apiBase}/work`,
+  upcoming: (key: FusionAttentionModuleKey) => `${getFusionAttentionModule(key).apiBase}/upcoming`,
   notifications: (key: FusionAttentionModuleKey) => `${getFusionAttentionModule(key).apiBase}/notifications`,
   markRead: (key: FusionAttentionModuleKey) => `${getFusionAttentionModule(key).apiBase}/notifications/read`,
 };
@@ -108,6 +135,8 @@ export const fusionAttentionPaths = {
 export const fusionAttentionQueryKeys = {
   all: () => ["fusion-attention"] as const,
   work: (key: FusionAttentionModuleKey) => [...fusionAttentionQueryKeys.all(), "work", key] as const,
+  upcoming: (key: FusionAttentionModuleKey, days: number) =>
+    [...fusionAttentionQueryKeys.all(), "upcoming", key, days] as const,
   notifications: (key: FusionAttentionModuleKey) =>
     [...fusionAttentionQueryKeys.all(), "notifications", key] as const,
 };
@@ -116,6 +145,8 @@ export function createFusionAttentionApi(client: ApiClient) {
   return {
     getWork: (key: FusionAttentionModuleKey, signal?: AbortSignal) =>
       client.get<FusionWorkItem[]>(fusionAttentionPaths.work(key), { signal }),
+    getUpcoming: (key: FusionAttentionModuleKey, days: number, signal?: AbortSignal) =>
+      client.get<FusionUpcoming[]>(fusionAttentionPaths.upcoming(key), { signal, params: { days } }),
     getNotifications: (
       key: FusionAttentionModuleKey,
       request: FusionNotificationPageRequest = {},

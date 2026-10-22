@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { PropsWithChildren } from "react";
-import { orderWorkItems, useFusionNotifications, useFusionWork } from "../query/useFusionAttention";
-import type { FusionAttentionApi, FusionNotificationPage, FusionWorkItem } from "../fusion-attention";
+import { orderWorkItems, useFusionNotifications, useFusionUpcoming, useFusionWork } from "../query/useFusionAttention";
+import type { FusionAttentionApi, FusionNotificationPage, FusionUpcoming, FusionWorkItem } from "../fusion-attention";
 import { ApiError } from "../types";
 
 function wrapper() {
@@ -38,6 +38,7 @@ function fakeApi(overrides: Partial<FusionAttentionApi> = {}): FusionAttentionAp
     getWork: vi.fn(async (key) => (key === "core" ? [work("c1", "core")] : [work("p1", "performance", "2026-10-20")])),
     getNotifications: vi.fn(async () => page("performance", ["n1", "n2"], ["n1", "n2"])),
     markNotificationsRead: vi.fn(async () => ({ unreadCount: 0 })),
+    getUpcoming: vi.fn(async () => [] as FusionUpcoming[]),
     ...overrides,
   };
 }
@@ -129,5 +130,39 @@ describe("useFusionNotifications", () => {
     expect(api.markNotificationsRead).toHaveBeenCalledWith("performance", { all: true });
     await waitFor(() => expect(result.current.unreadCount).toBe(0));
     expect(result.current.items.every((item) => item.readAt)).toBe(true);
+  });
+});
+
+function moment(id: string, date: string, at: string | null = null): FusionUpcoming {
+  return { id, module: "performance", kind: "one-on-one", title: id, date, at, href: "/performance/one-on-ones/s" };
+}
+
+describe("useFusionUpcoming", () => {
+  it("asks only modules that serve moments, for the window, earliest first", async () => {
+    const api = fakeApi({
+      getUpcoming: vi.fn(async () => [
+        moment("plans-due", "2026-10-31"),
+        moment("1:1 late", "2026-10-22", "2026-10-22T14:00:00Z"),
+        moment("1:1 early", "2026-10-22", "2026-10-22T09:00:00Z"),
+      ]),
+    });
+    const { result } = renderHook(() => useFusionUpcoming(["core", "performance"], { api }), { wrapper: wrapper() });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(api.getUpcoming).toHaveBeenCalledTimes(1);
+    expect(api.getUpcoming).toHaveBeenCalledWith("performance", 14, expect.anything());
+    expect(result.current.items.map((item) => item.id)).toEqual(["1:1 early", "1:1 late", "plans-due"]);
+  });
+
+  it("asks nothing without an entitled module that serves moments", () => {
+    const api = fakeApi();
+    renderHook(() => useFusionUpcoming(["core"], { api }), { wrapper: wrapper() });
+    expect(api.getUpcoming).not.toHaveBeenCalled();
+  });
+
+  it("names a failing module and keeps nothing from it", async () => {
+    const api = fakeApi({ getUpcoming: vi.fn(async () => Promise.reject(new ApiError(503, "Unavailable", ["down"], null))) });
+    const { result } = renderHook(() => useFusionUpcoming(["performance"], { api }), { wrapper: wrapper() });
+    await waitFor(() => expect(result.current.failedModules.map((m) => m.key)).toEqual(["performance"]));
+    expect(result.current.items).toEqual([]);
   });
 });

@@ -22,8 +22,10 @@ export {
 } from "./useApiMutation";
 export {
   FUSION_NOTIFICATION_POLL_MS,
+  FUSION_UPCOMING_DAYS,
   orderWorkItems,
   useFusionNotifications,
+  useFusionUpcoming,
   useFusionWork,
   type FusionModuleLoadStatus,
   type FusionModuleState,
@@ -36,3 +38,10 @@ export {
   type ReactToPraiseArgs,
   type UsePraiseOptions,
 } from "./usePraise";
+export {
+  useFusionNavigation,
+  useMyCard,
+  type FusionNavigationModule,
+  type FusionNavigationState,
+  type UseFusionNavigationOptions,
+} from "./useFusionNavigation";

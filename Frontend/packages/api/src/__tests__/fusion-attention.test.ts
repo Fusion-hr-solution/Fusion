@@ -20,13 +20,14 @@ function fakeClient(): ApiClient & { get: ReturnType<typeof vi.fn>; post: Return
 describe("FUSION_ATTENTION_MODULES", () => {
   it("lists Core HR for work only and Performance for work and notifications", () => {
     expect(FUSION_ATTENTION_MODULES.map((m) => [m.key, m.entitlement, m.serves])).toEqual([
-      ["core", "CoreHR", { work: true, notifications: false }],
-      ["performance", "Performance", { work: true, notifications: true }],
+      ["core", "CoreHR", { work: true, notifications: false, upcoming: false }],
+      ["performance", "Performance", { work: true, notifications: true, upcoming: true }],
     ]);
   });
 
   it("builds each module's endpoints under its gateway prefix", () => {
     expect(fusionAttentionPaths.work("core")).toBe("/corehr/work");
+    expect(fusionAttentionPaths.upcoming("performance")).toBe("/performance/upcoming");
     expect(fusionAttentionPaths.notifications("performance")).toBe("/performance/notifications");
     expect(fusionAttentionPaths.markRead("performance")).toBe("/performance/notifications/read");
   });

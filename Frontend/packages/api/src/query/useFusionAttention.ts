@@ -11,6 +11,7 @@ import {
   type FusionAttentionModuleKey,
   type FusionNotification,
   type FusionNotificationPage,
+  type FusionUpcoming,
   type FusionWorkItem,
 } from "../fusion-attention";
 import { createPlatformApiClient } from "../platform";
@@ -38,7 +39,7 @@ function useAttentionApi(api?: FusionAttentionApi): FusionAttentionApi {
 
 function modulesServing(
   keys: readonly FusionAttentionModuleKey[],
-  contract: "work" | "notifications",
+  contract: "work" | "notifications" | "upcoming",
 ): FusionAttentionModule[] {
   return FUSION_ATTENTION_MODULES.filter((module) => keys.includes(module.key) && module.serves[contract]);
 }
@@ -101,6 +102,51 @@ export function useFusionWork(
     refetch: async () => {
       await Promise.all(results.map((result) => result.refetch()));
     },
+  };
+}
+
+/** The home's agenda window and the contract's ceiling. */
+export const FUSION_UPCOMING_DAYS = 14;
+
+/**
+ * The signed-in person's upcoming moments across the given modules for the next `days`, earliest first, one
+ * query per module so a failing module never hides the others. Modules that don't serve moments are skipped.
+ */
+export function useFusionUpcoming(
+  modules: readonly FusionAttentionModuleKey[],
+  options: UseFusionAttentionOptions & { days?: number } = {},
+) {
+  const api = useAttentionApi(options.api);
+  const days = options.days ?? FUSION_UPCOMING_DAYS;
+  const serving = modulesServing(modules, "upcoming");
+  const results = useQueries({
+    queries: serving.map((module) => ({
+      queryKey: fusionAttentionQueryKeys.upcoming(module.key, days),
+      queryFn: ({ signal }: { signal: AbortSignal }) => api.getUpcoming(module.key, days, signal),
+      enabled: options.enabled ?? true,
+      refetchOnWindowFocus: true,
+      retry: false,
+    })),
+  });
+
+  const states: FusionModuleState[] = serving.map((module, index) => ({
+    key: module.key,
+    label: module.label,
+    status: statusOf(results[index]!),
+  }));
+  const items = results
+    .flatMap((result) => result.data ?? [])
+    .sort((a: FusionUpcoming, b: FusionUpcoming) => {
+      const left = a.at ?? `${a.date}T23:59:59Z`;
+      const right = b.at ?? `${b.date}T23:59:59Z`;
+      return a.date !== b.date ? (a.date < b.date ? -1 : 1) : left < right ? -1 : left > right ? 1 : 0;
+    });
+
+  return {
+    items,
+    modules: states,
+    isLoading: states.some((state) => state.status === "loading"),
+    failedModules: states.filter((state) => state.status === "error"),
   };
 }
 
