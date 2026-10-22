@@ -63,6 +63,7 @@ import { WorkerProfile } from "./worker-profile/worker-profile";
 import { PerformanceRecordView, RecordViewSwitcher } from "./record-views";
 import { WorkerProfileSkeleton } from "./worker-profile/worker-profile-skeleton";
 import { fromPeopleProfile } from "./worker-profile/worker-profile-view";
+import { useRecentRecord } from "@repo/api/react";
 
 function isoDay(value: string): string {
   return value.length >= 10 ? value.slice(0, 10) : value;
@@ -113,6 +114,12 @@ export default function PeopleProfileWorkspace({
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [showResult, setShowResult] = useState(Boolean(established));
   useBreadcrumbLabel(employeeKey, profile.data?.identity.displayName);
+  useRecentRecord(
+    "core",
+    profile.data
+      ? { label: profile.data.identity.displayName, kind: "Person", href: `/core/people/${encodeURIComponent(employeeKey)}` }
+      : null,
+  );
 
   useEffect(() => {
     if (profile.data && established) headingRef.current?.focus();

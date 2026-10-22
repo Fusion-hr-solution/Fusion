@@ -1,20 +1,15 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { BrainCircuit, Home, User } from "lucide-react";
-import {
-  FUSION_MODULES,
-  filterModulesByEntitlement,
-  ModuleSidebar,
-  ShellUserPanel,
-} from "@repo/ds/shell";
+import { User } from "lucide-react";
+import { useFusionNavigation } from "@repo/api/query";
+import { FusionSidebar, sectionPaths } from "@repo/ds/shell";
 import {
   useAuth,
   canViewWorkforceAccess,
   canViewCoreOrganization,
   canSeeCoreSettingsNavigation,
   canViewTenantAdministration,
-  getSidebarAccountLabel,
 } from "@repo/auth";
 import { PEOPLE_NAV, ADMIN_NAV } from "@/data/sidebar-nav";
 import {
@@ -65,35 +60,30 @@ export function CoreSidebar() {
       ]
     : [{ ...PEOPLE_NAV, items: peopleItems }];
 
-  const roleLabel = user ? getSidebarAccountLabel(user) : undefined;
+  const navigation = useFusionNavigation("core", sectionPaths("/core", visibleSections));
 
   return (
-    <ModuleSidebar
-      brandTitle="EY Core HR"
-      brandSubtitle="Workforce system of record"
-      brandIcon={BrainCircuit}
+    <FusionSidebar
+      tenantName={navigation.tenantName}
+      homeCount={navigation.homeCount}
+      modules={navigation.modules}
+      currentModuleKey="core"
+      basePath="/core"
       activePath={activePath}
       sections={visibleSections}
+      sectionCounts={navigation.sectionCounts}
       pending={isAuthLoading}
-      modules={filterModulesByEntitlement(FUSION_MODULES, user?.moduleEntitlements ?? [])}
-      currentModuleKey="core"
-      userPanel={(collapsed) => (
-        <ShellUserPanel
-          collapsed={collapsed}
-          pending={isAuthLoading}
-          name={user?.fullName}
-          secondaryLabel={roleLabel}
-          links={[
-            // Raw anchors → include basePath explicitly. "Home" goes to the platform shell.
-            ...(canSeeMyProfile ? [{ label: "My profile", href: "/core/profile", icon: User }] : []),
-            { label: "Fusion home", href: "/", icon: Home },
-          ]}
-          onSignOut={async () => {
-            await logout();
-            window.location.href = "/auth/signin";
-          }}
-        />
-      )}
+      recent={navigation.recent}
+      person={{
+        ...navigation.person,
+        pending: isAuthLoading,
+        // Raw anchor, so the basePath is explicit.
+        links: canSeeMyProfile ? [{ label: "My profile", href: "/core/profile", icon: User }] : [],
+        onSignOut: async () => {
+          await logout();
+          window.location.href = "/auth/signin";
+        },
+      }}
     />
   );
 }

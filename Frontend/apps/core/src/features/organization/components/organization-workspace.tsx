@@ -112,6 +112,7 @@ import {
   UnitFormPanel,
   UpcomingChangesSheet,
 } from "./organization-surfaces";
+import { useRecentRecord } from "@repo/api/react";
 
 const EMPTY_REVEAL: ReadonlySet<string> = new Set();
 
@@ -676,6 +677,18 @@ export default function OrganizationWorkspace() {
     if (rootId) select(rootId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model, hierarchy.isFetching, urlState.selectedId]);
+
+  // The root opens by default, so only units the person moved to count as opened.
+  const openedUnit =
+    model && urlState.selectedId && !model.roots.includes(urlState.selectedId)
+      ? model.byId.get(urlState.selectedId)
+      : undefined;
+  useRecentRecord(
+    "core",
+    openedUnit
+      ? { label: openedUnit.name, kind: "Org unit", href: `/core/organization?unit=${encodeURIComponent(openedUnit.id)}` }
+      : null,
+  );
 
   function select(id: string) {
     if (model) dispatchLocal({ type: "reveal", model, id });
