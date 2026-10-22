@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using EY.HRPlatform.Performance.Domain.Conversations;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -7,6 +8,7 @@ using EY.HRPlatform.Performance.Domain.Population;
 using EY.HRPlatform.Performance.Domain.Reviews;
 using EY.HRPlatform.Performance.Domain.Settings;
 using EY.HRPlatform.Performance.Tests.TestHelpers;
+using EY.HRPlatform.Performance.Features.Overview;
 using EY.HRPlatform.Performance.Features.Settings;
 using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.EntityFrameworkCore;
@@ -14,9 +16,9 @@ using Microsoft.EntityFrameworkCore;
 namespace EY.HRPlatform.Performance.Tests;
 
 /// <summary>
-/// Overview is one projection composed from capabilities and recorded responsibility (performance-overview):
-/// every capability mix × Cycle state yields the union of its sections, counts stay within responsibility,
-/// and no section carries an averaged progress figure.
+/// Overview is one projection composed from capabilities and recorded responsibility (performance-overview): the year,
+/// then rows in a fixed order. Every capability mix × Cycle state yields the union of its rows, counts stay within
+/// responsibility, and no row carries an averaged figure.
 /// </summary>
 public sealed class OverviewHttpTests
 {
@@ -110,11 +112,6 @@ public sealed class OverviewHttpTests
         new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
         new(PerformancePermissions.CycleManage, PermissionScopes.Tenant),
     ];
-    private static readonly EffectivePermissionGrant[] Calibrator =
-    [
-        new(PerformancePermissions.CycleView, PermissionScopes.DirectReports),
-        new(PerformancePermissions.ReviewCalibrate, PermissionScopes.Tenant),
-    ];
 
     private static (Func<Arranged, Guid?> Who, EffectivePermissionGrant[] Grants) As(string who) => who switch
     {
@@ -125,20 +122,24 @@ public sealed class OverviewHttpTests
         _ => (f => f.Lina, [.. Reviewer, .. Admin]),
     };
 
-    private static async Task<JsonElement> OverviewAsync(Arranged f, string who)
+    private static async Task<JsonElement> OverviewAsync(Arranged f, string who, Guid? cycleId = null)
     {
         var (employee, grants) = As(who);
         using var client = f.Factory.CreateAuthenticatedClient(employeeId: employee(f), permissions: grants);
-        using var response = await client.GetAsync("/api/performance/overview");
+        using var response = await client.GetAsync(cycleId is null ? "/api/performance/overview" : $"/api/performance/overview?cycleId={cycleId}");
         Assert.Equal(200, (int)response.StatusCode);
         return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("data");
     }
 
-    private static string[] Kinds(JsonElement overview)
-        => overview.GetProperty("sections").EnumerateArray().Select(s => s.GetProperty("kind").GetString()!).ToArray();
+    private static async Task<JsonElement> OverviewAsync(HttpClient client, Guid? cycleId = null)
+        => (await (await client.GetAsync(cycleId is null ? "/api/performance/overview" : $"/api/performance/overview?cycleId={cycleId}"))
+            .Content.ReadFromJsonAsync<JsonElement>()).GetProperty("data");
 
-    private static JsonElement Section(JsonElement overview, string kind)
-        => overview.GetProperty("sections").EnumerateArray().Single(s => s.GetProperty("kind").GetString() == kind);
+    private static string[] Kinds(JsonElement overview)
+        => overview.GetProperty("rows").EnumerateArray().Select(s => s.GetProperty("kind").GetString()!).ToArray();
+
+    private static JsonElement Row(JsonElement overview, string kind)
+        => overview.GetProperty("rows").EnumerateArray().Single(s => s.GetProperty("kind").GetString() == kind);
 
     [Theory]
     [InlineData(State.None, "employee", "noCycle")]
@@ -147,21 +148,21 @@ public sealed class OverviewHttpTests
     [InlineData(State.None, "mixed", "noCycle")]
     [InlineData(State.Draft, "employee", "noCycle")]
     [InlineData(State.Draft, "reviewer", "noCycle")]
-    [InlineData(State.Draft, "admin", "setupReadiness")]
-    [InlineData(State.Draft, "mixed", "setupReadiness")]
-    [InlineData(State.Planning, "employee", "myPlan,direction")]
-    [InlineData(State.Planning, "reviewer", "teamPlanning,direction")]
-    [InlineData(State.Planning, "admin", "cycleOperation,direction")]
-    [InlineData(State.Planning, "mixed", "teamPlanning,teamDirection,cycleOperation,direction")]
-    [InlineData(State.Execution, "employee", "myPlan,myReview,direction")]
-    [InlineData(State.Execution, "reviewer", "teamPlanning,teamExecution,teamReviews,direction")]
-    [InlineData(State.Execution, "admin", "cycleOperation,reviewOperation,direction")]
-    [InlineData(State.Execution, "mixed", "teamPlanning,teamExecution,teamDirection,teamReviews,cycleOperation,reviewOperation,direction")]
-    [InlineData(State.Closed, "employee", "closedCycle")]
-    [InlineData(State.Closed, "reviewer", "closedCycle")]
-    [InlineData(State.Closed, "admin", "closedCycle")]
-    [InlineData(State.Closed, "mixed", "closedCycle")]
-    public async Task Sections_are_the_union_of_what_applies(State state, string who, string expected)
+    [InlineData(State.Draft, "admin", "cycle")]
+    [InlineData(State.Draft, "mixed", "cycle")]
+    [InlineData(State.Planning, "employee", "ownPlan,direction")]
+    [InlineData(State.Planning, "reviewer", "team,notParticipant,direction")]
+    [InlineData(State.Planning, "admin", "cycle,direction")]
+    [InlineData(State.Planning, "mixed", "cycle,team,notParticipant,direction")]
+    [InlineData(State.Execution, "employee", "ownReview,ownPlan,direction")]
+    [InlineData(State.Execution, "reviewer", "reviewsYouWrite,notParticipant,team,direction")]
+    [InlineData(State.Execution, "admin", "cycle,direction")]
+    [InlineData(State.Execution, "mixed", "cycle,reviewsYouWrite,notParticipant,team,direction")]
+    [InlineData(State.Closed, "employee", "direction")]
+    [InlineData(State.Closed, "reviewer", "team,notParticipant,direction")]
+    [InlineData(State.Closed, "admin", "nextCycle,cycle,direction")]
+    [InlineData(State.Closed, "mixed", "nextCycle,cycle,team,notParticipant,direction")]
+    public async Task Rows_are_the_union_of_what_applies_in_a_fixed_order(State state, string who, string expected)
     {
         var f = await ArrangeAsync(state);
         await using var _ = f.Factory;
@@ -169,18 +170,74 @@ public sealed class OverviewHttpTests
         var overview = await OverviewAsync(f, who);
 
         Assert.Equal(expected.Split(','), Kinds(overview));
-        // No section anywhere carries an averaged progress figure.
+        // No row anywhere carries an averaged figure.
         Assert.DoesNotContain("average", overview.GetRawText(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task Direction_resumes_into_the_map_and_disappears_without_published_direction()
+    public async Task The_year_shows_the_phase_and_counts_down_to_the_viewers_next_date()
     {
         var f = await ArrangeAsync(State.Planning);
         await using var _ = f.Factory;
 
-        var direction = Section(await OverviewAsync(f, "employee"), "direction");
-        Assert.Equal("OrganizationDirection", direction.GetProperty("destination").GetProperty("workspace").GetString());
+        var year = (await OverviewAsync(f, "employee")).GetProperty("year");
+        Assert.Equal("Planning", year.GetProperty("currentPhase").GetString());
+        Assert.Equal("plans-due", year.GetProperty("next").GetProperty("kind").GetString());
+        Assert.Equal(20, year.GetProperty("daysLeft").GetInt32());
+        var phases = year.GetProperty("phases").EnumerateArray().ToArray();
+        Assert.Equal(["Planning", "Execution", "Review"], phases.Select(p => p.GetProperty("name").GetString()));
+        Assert.Equal("Current", phases[0].GetProperty("state").GetString());
+        Assert.True(phases[2].GetProperty("estimated").GetBoolean());
+    }
+
+    [Fact]
+    public async Task A_running_round_makes_review_the_current_phase()
+    {
+        var f = await ArrangeAsync(State.Execution);
+        await using var _ = f.Factory;
+
+        var overview = await OverviewAsync(f, "employee");
+        Assert.Equal("Review", overview.GetProperty("phase").GetString());
+        Assert.Equal("Review", overview.GetProperty("year").GetProperty("currentPhase").GetString());
+    }
+
+    [Fact]
+    public void A_round_launched_before_planning_closes_starts_review_that_day_with_no_execution()
+    {
+        var tenant = Guid.NewGuid();
+        var start = Today.AddDays(-20);
+        var cycle = PerformanceCycle.CreateDraft(tenant, "FY2027", start, Today.AddMonths(11), Today.AddDays(10)).Activated();
+        var round = ReviewRound.CreateDraft(tenant, cycle, "Year-end", start, cycle.EndDate, true, false, false);
+        round.UpdateDraft(cycle, "Year-end", start, cycle.EndDate, true, false, false, Today.AddDays(5), Today.AddDays(15), "[]");
+        round.Launch("{\"competencies\":[]}", Guid.NewGuid(), DateTime.UtcNow.AddDays(-1));
+
+        var year = GetOverviewHandler.Year(cycle, [round], round, [], Today);
+
+        Assert.Equal(["Planning", "Review"], year.Phases.Select(p => p.Name));
+        Assert.Equal(Today.AddDays(-2), year.Phases[0].End);
+        Assert.Equal(Today.AddDays(-1), year.Phases[1].Start);
+        Assert.Equal("Review", year.CurrentPhase);
+    }
+
+    [Fact]
+    public async Task A_closed_cycle_has_every_phase_done_and_no_next_date()
+    {
+        var f = await ArrangeAsync(State.Closed);
+        await using var _ = f.Factory;
+
+        var year = (await OverviewAsync(f, "employee")).GetProperty("year");
+        Assert.All(year.GetProperty("phases").EnumerateArray(), p => Assert.Equal("Done", p.GetProperty("state").GetString()));
+        Assert.Equal(JsonValueKind.Null, year.GetProperty("next").ValueKind);
+        Assert.NotEqual(JsonValueKind.Null, year.GetProperty("closedAt").ValueKind);
+    }
+
+    [Fact]
+    public async Task Direction_disappears_without_published_direction()
+    {
+        var f = await ArrangeAsync(State.Planning);
+        await using var _ = f.Factory;
+
+        Assert.Equal(1, Row(await OverviewAsync(f, "employee"), "direction").GetProperty("count").GetInt32());
 
         await using (var db = f.Factory.Store.NewContext())
         {
@@ -199,8 +256,8 @@ public sealed class OverviewHttpTests
         var f = await ArrangeAsync(State.None);
         await using var _ = f.Factory;
 
-        Assert.Equal("CycleCreate", Section(await OverviewAsync(f, "admin"), "noCycle").GetProperty("create").GetProperty("workspace").GetString());
-        Assert.Equal(JsonValueKind.Null, Section(await OverviewAsync(f, "employee"), "noCycle").GetProperty("create").ValueKind);
+        Assert.True(Row(await OverviewAsync(f, "admin"), "noCycle").GetProperty("canCreate").GetBoolean());
+        Assert.False(Row(await OverviewAsync(f, "employee"), "noCycle").GetProperty("canCreate").GetBoolean());
     }
 
     [Fact]
@@ -209,111 +266,137 @@ public sealed class OverviewHttpTests
         var planning = await ArrangeAsync(State.Planning);
         await using (planning.Factory)
         {
-            var draft = Section(await OverviewAsync(planning, "employee"), "myPlan");
+            var draft = Row(await OverviewAsync(planning, "employee"), "ownPlan");
             Assert.Equal("Draft", draft.GetProperty("standing").GetString());
-            Assert.Equal(JsonValueKind.Null, draft.GetProperty("execution").ValueKind);
+            Assert.Equal(JsonValueKind.Null, draft.GetProperty("progress").ValueKind);
+            Assert.Equal(1, draft.GetProperty("objectives").GetInt32());
         }
 
         var executing = await ArrangeAsync(State.Execution);
         await using (executing.Factory)
         {
-            var execution = Section(await OverviewAsync(executing, "employee"), "myPlan").GetProperty("execution");
-            Assert.Equal(40m, execution.GetProperty("planProgress").GetDecimal());
-            Assert.Equal(1, execution.GetProperty("overdueObjectiveCount").GetInt32());
-            Assert.Equal(1, execution.GetProperty("reportingCount").GetInt32());
+            var plan = Row(await OverviewAsync(executing, "employee"), "ownPlan");
+            Assert.Equal(40m, plan.GetProperty("progress").GetDecimal());
+            Assert.Equal(1, plan.GetProperty("status").GetProperty("noStatus").GetInt32());
+            Assert.StartsWith("/performance/plan?cycle=", plan.GetProperty("href").GetString());
         }
     }
 
     [Fact]
-    public async Task Team_counts_cover_only_recorded_responsibility()
+    public async Task Team_facts_cover_only_recorded_responsibility()
     {
-        var f = await ArrangeAsync(State.Execution);
+        var f = await ArrangeAsync(State.Planning);
         await using var _ = f.Factory;
 
-        var planning = Section(await OverviewAsync(f, "reviewer"), "teamPlanning");
-        var execution = Section(await OverviewAsync(f, "reviewer"), "teamExecution");
+        var team = Row(await OverviewAsync(f, "reviewer"), "team");
+        Assert.Equal(2, team.GetProperty("people").GetInt32());
+        var plans = team.GetProperty("plans");
+        Assert.Equal(2, plans.GetProperty("drafting").GetInt32() + plans.GetProperty("notStarted").GetInt32());
+        Assert.Equal(2, team.GetProperty("chips").GetArrayLength());
 
-        Assert.Equal(2, planning.GetProperty("people").GetInt32());
-        Assert.Equal(1, planning.GetProperty("notStarted").GetInt32());
-        Assert.Equal(1, planning.GetProperty("approved").GetInt32());
-        Assert.Equal(1, execution.GetProperty("peopleWithOverdue").GetInt32());
-
-        // Someone else holding the same grant but no recorded responsibility gets no team sections.
+        // Someone else holding the same grant but no recorded responsibility gets no team row.
         using var stranger = f.Factory.CreateAuthenticatedClient(employeeId: Guid.NewGuid(), permissions: Reviewer);
-        var other = (await (await stranger.GetAsync("/api/performance/overview")).Content.ReadFromJsonAsync<JsonElement>()).GetProperty("data");
-        Assert.DoesNotContain("teamPlanning", Kinds(other));
+        Assert.DoesNotContain("team", Kinds(await OverviewAsync(stranger)));
     }
 
     [Fact]
-    public async Task Review_sections_follow_subject_reviewer_and_administrator_responsibility()
+    public async Task Review_rows_follow_subject_reviewer_and_administrator_responsibility()
     {
         var f = await ArrangeAsync(State.Execution);
         await using var _ = f.Factory;
 
-        var personal = Section(await OverviewAsync(f, "employee"), "myReview");
-        Assert.Equal("ManagerAssessment", personal.GetProperty("openState").GetString());
-        Assert.NotEqual(JsonValueKind.Null, personal.GetProperty("openReviewId").ValueKind);
+        var own = Row(await OverviewAsync(f, "employee"), "ownReview");
+        Assert.Equal("ManagerAssessment", own.GetProperty("state").GetString());
+        Assert.Equal("Mid-year", own.GetProperty("roundName").GetString());
 
-        var team = Section(await OverviewAsync(f, "reviewer"), "teamReviews");
-        Assert.Equal(1, team.GetProperty("assessmentsReady").GetInt32());
+        var writing = Row(await OverviewAsync(f, "reviewer"), "reviewsYouWrite");
+        Assert.Equal(2, writing.GetProperty("total").GetInt32());
+        Assert.Equal(1, writing.GetProperty("ready").GetInt32());
+        Assert.Equal(1, writing.GetProperty("submitted").GetInt32());
+        Assert.Equal("Nour", writing.GetProperty("firstReadyName").GetString());
 
-        var operation = Section(await OverviewAsync(f, "admin"), "reviewOperation");
-        Assert.Equal("Mid-year", operation.GetProperty("reviewRoundName").GetString());
-        Assert.Equal(1, operation.GetProperty("readyToFinalize").GetInt32());
-        Assert.Equal("ReviewRound", operation.GetProperty("destination").GetProperty("workspace").GetString());
+        var review = Row(await OverviewAsync(f, "admin"), "cycle").GetProperty("review");
+        Assert.Equal("Mid-year", review.GetProperty("roundName").GetString());
+        Assert.Equal(1, review.GetProperty("managerSubmitted").GetInt32());
+        Assert.Equal(2, review.GetProperty("managerTotal").GetInt32());
     }
 
     [Fact]
-    public async Task Calibration_overview_is_available_to_a_calibrator_who_can_open_then_only_to_a_facilitator()
+    public async Task The_cycle_row_states_the_facts_of_its_phase()
     {
-        var f = await ArrangeAsync(State.Execution, calibration: true);
-        await using var _ = f.Factory;
-        var userId = Guid.NewGuid();
-        using var client = f.Factory.CreateAuthenticatedClient(employeeId: f.Lina, permissions: Calibrator, userId: userId);
+        var planning = await ArrangeAsync(State.Planning);
+        await using (planning.Factory)
+        {
+            var row = Row(await OverviewAsync(planning, "admin"), "cycle");
+            Assert.Equal(2, row.GetProperty("participants").GetInt32());
+            var plans = row.GetProperty("planning").GetProperty("plans");
+            Assert.Equal(1, plans.GetProperty("drafting").GetInt32());
+            Assert.Equal(1, plans.GetProperty("notStarted").GetInt32());
+            var unit = Assert.Single(row.GetProperty("planning").GetProperty("furthestBehind").EnumerateArray());
+            Assert.Equal("Learning", unit.GetProperty("name").GetString());
+            Assert.Equal(JsonValueKind.Null, row.GetProperty("execution").ValueKind);
+        }
 
-        var before = await (await client.GetAsync($"/api/performance/overview?cycleId={f.CycleId}"))
-            .Content.ReadFromJsonAsync<JsonElement>();
-        var section = Section(before.GetProperty("data"), "calibration");
-        Assert.Equal(1, section.GetProperty("subjects").GetInt32());
-        Assert.Equal(0, section.GetProperty("discussed").GetInt32());
-        Assert.Equal(1, section.GetProperty("remaining").GetInt32());
-        Assert.Equal(1, section.GetProperty("outstanding").GetInt32());
-        Assert.Equal(JsonValueKind.Null, section.GetProperty("sessionState").ValueKind);
-        Assert.Equal("Calibration", section.GetProperty("destination").GetProperty("workspace").GetString());
-        Assert.Equal(f.ReviewRoundId, section.GetProperty("destination").GetProperty("reviewRoundId").GetGuid());
-
-        using var opened = await client.PostAsync($"/api/performance/review-rounds/{f.ReviewRoundId}/calibration", content: null);
-        Assert.Equal(200, (int)opened.StatusCode);
-        var after = await (await client.GetAsync($"/api/performance/overview?cycleId={f.CycleId}"))
-            .Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("Open", Section(after.GetProperty("data"), "calibration").GetProperty("sessionState").GetString());
-
-        using var other = f.Factory.CreateAuthenticatedClient(employeeId: f.Lina, permissions: Calibrator);
-        var otherOverview = await (await other.GetAsync($"/api/performance/overview?cycleId={f.CycleId}"))
-            .Content.ReadFromJsonAsync<JsonElement>();
-        Assert.DoesNotContain("calibration", Kinds(otherOverview.GetProperty("data")));
+        var executing = await ArrangeAsync(State.Execution);
+        await using (executing.Factory)
+        {
+            var execution = Row(await OverviewAsync(executing, "admin"), "cycle").GetProperty("execution");
+            Assert.Equal(1, execution.GetProperty("approvedPlans").GetInt32());
+            Assert.Equal(1, execution.GetProperty("neverApproved").GetInt32());
+            Assert.Equal(1, execution.GetProperty("status").GetProperty("noStatus").GetInt32());
+        }
     }
 
     [Fact]
-    public async Task Review_results_are_scoped_to_the_selected_cycle_and_closed_cycles_link_to_them()
+    public async Task Someone_outside_the_population_is_told_so_with_when_it_was_set()
+    {
+        var f = await ArrangeAsync(State.Planning);
+        await using var _ = f.Factory;
+        using var client = f.Factory.CreateAuthenticatedClient(employeeId: Guid.NewGuid(), permissions: Employee);
+        var overview = await OverviewAsync(client);
+
+        var row = Row(overview, "notParticipant");
+        Assert.Equal("FY2027", row.GetProperty("cycleName").GetString());
+        Assert.NotEqual(JsonValueKind.Null, row.GetProperty("populationSetAt").ValueKind);
+        Assert.DoesNotContain("ownPlan", Kinds(overview));
+    }
+
+    [Fact]
+    public async Task Conversations_show_without_any_cycle()
+    {
+        var f = await ArrangeAsync(State.None);
+        await using var _ = f.Factory;
+        await using (var db = f.Factory.Store.NewContext())
+        {
+            var now = DateTime.UtcNow;
+            var (series, meeting) = OneOnOneSeries.Start(f.Factory.Store.TenantId, f.Lina, f.Nour, OneOnOneCadence.Weekly, f.Lina,
+                now.AddDays(2), now, "Lina", "Nour");
+            db.OneOnOneSeries.Add(series);
+            db.OneOnOneMeetings.Add(meeting);
+            await db.SaveChangesAsync();
+        }
+
+        var overview = await OverviewAsync(f, "employee");
+        Assert.Equal(["noCycle", "conversations"], Kinds(overview));
+        var meetingFact = Assert.Single(Row(overview, "conversations").GetProperty("meetings").EnumerateArray());
+        Assert.Equal("Lina", meetingFact.GetProperty("with").GetString());
+    }
+
+    [Fact]
+    public async Task A_released_result_shows_in_its_own_cycle_and_the_reviewer_counts_only_after_release()
     {
         var f = await ArrangeAsync(State.Execution);
         await using var _ = f.Factory;
         var oldCycleId = await AddClosedFinalizedReviewAsync(f.Factory, f.Nour, f.Lina);
-        using var client = f.Factory.CreateAuthenticatedClient(employeeId: f.Nour, permissions: Employee);
 
-        var selected = await (await client.GetAsync($"/api/performance/overview?cycleId={f.CycleId}"))
-            .Content.ReadFromJsonAsync<JsonElement>();
-        var myReview = Section(selected.GetProperty("data"), "myReview");
-        Assert.Equal(0, myReview.GetProperty("finalizedReviewCount").GetInt32());
-        Assert.Equal(JsonValueKind.Null, myReview.GetProperty("resultReviewId").ValueKind);
+        var closed = await OverviewAsync(f, "employee", oldCycleId);
+        var result = Row(closed, "ownReview").GetProperty("result");
+        Assert.Equal(RatingScaleDefaults.Levels[0].Value, result.GetProperty("level").GetInt32());
+        Assert.Equal(RatingScaleDefaults.Levels[0].Label, result.GetProperty("label").GetString());
+        Assert.Equal(JsonValueKind.Null, Row(await OverviewAsync(f, "employee", f.CycleId), "ownReview").GetProperty("result").ValueKind);
 
-        var closed = await (await client.GetAsync($"/api/performance/overview?cycleId={oldCycleId}"))
-            .Content.ReadFromJsonAsync<JsonElement>();
-        var closedCycle = Section(closed.GetProperty("data"), "closedCycle");
-        Assert.Equal(1, closedCycle.GetProperty("finalizedReviewCount").GetInt32());
-        Assert.Equal("Reviews", closedCycle.GetProperty("reviews").GetProperty("workspace").GetString());
-        Assert.Equal(oldCycleId, closedCycle.GetProperty("reviews").GetProperty("cycleId").GetGuid());
+        Assert.Equal(1, Row(await OverviewAsync(f, "reviewer", oldCycleId), "team").GetProperty("results").GetProperty("released").GetInt32());
+        Assert.Equal(JsonValueKind.Null, Row(await OverviewAsync(f, "reviewer", f.CycleId), "team").GetProperty("results").ValueKind);
     }
 
     private static async Task<Guid> AddClosedFinalizedReviewAsync(PerformanceApiFactory factory, Guid subjectId, Guid reviewerId)
@@ -360,17 +443,14 @@ public sealed class OverviewHttpTests
         Assert.True(capabilities.GetProperty("hasReviewWork").GetBoolean());
         Assert.False(capabilities.GetProperty("isResponsibleReviewer").GetBoolean());
 
-        var overview = await (await client.GetAsync($"/api/performance/overview?cycleId={f.CycleId}"))
-            .Content.ReadFromJsonAsync<JsonElement>();
-        var sections = overview.GetProperty("data").GetProperty("sections");
-        Assert.Contains(sections.EnumerateArray(), section => section.GetProperty("kind").GetString() == "teamReviews");
-        Assert.DoesNotContain(sections.EnumerateArray(), section => section.GetProperty("kind").GetString() == "teamPlanning");
-        var reviews = sections.EnumerateArray().Single(section => section.GetProperty("kind").GetString() == "teamReviews");
-        Assert.Equal(1, reviews.GetProperty("assessmentsReady").GetInt32());
+        var rows = await OverviewAsync(client, f.CycleId);
+        Assert.Contains("reviewsYouWrite", Kinds(rows));
+        Assert.DoesNotContain("team", Kinds(rows));
+        Assert.Equal(1, Row(rows, "reviewsYouWrite").GetProperty("ready").GetInt32());
     }
 
     [Fact]
-    public async Task A_review_denied_by_detail_is_absent_from_work_history_and_overview_counts()
+    public async Task A_review_denied_by_detail_is_absent_from_work_history_and_overview()
     {
         var f = await ArrangeAsync(State.Execution);
         await using var _ = f.Factory;
@@ -390,9 +470,7 @@ public sealed class OverviewHttpTests
             .ReadFromJsonAsync<JsonElement>();
         Assert.Empty(history.GetProperty("data").EnumerateArray());
 
-        var overview = await (await stranger.GetAsync($"/api/performance/overview?cycleId={f.CycleId}")).Content
-            .ReadFromJsonAsync<JsonElement>();
-        Assert.DoesNotContain("teamReviews", Kinds(overview.GetProperty("data")));
+        Assert.DoesNotContain("reviewsYouWrite", Kinds(await OverviewAsync(stranger, f.CycleId)));
     }
 
     [Fact]
@@ -401,13 +479,11 @@ public sealed class OverviewHttpTests
         var f = await ArrangeAsync(State.Closed);
         await using var _ = f.Factory;
 
-        var admin = Section(await OverviewAsync(f, "admin"), "closedCycle");
-        var employee = Section(await OverviewAsync(f, "employee"), "closedCycle");
-
-        Assert.Equal(1, admin.GetProperty("approvedCount").GetInt32());
-        Assert.Equal("CycleCreate", admin.GetProperty("next").GetProperty("workspace").GetString());
-        Assert.Equal(JsonValueKind.Null, employee.GetProperty("next").ValueKind);
-        Assert.Equal(40m, employee.GetProperty("myPlanProgress").GetDecimal());
+        var admin = await OverviewAsync(f, "admin");
+        Assert.Equal(JsonValueKind.Null, Row(admin, "nextCycle").GetProperty("cycleId").ValueKind);
+        Assert.Equal(1, Row(admin, "cycle").GetProperty("approvedPlans").GetInt32());
+        Assert.Equal(0, Row(admin, "cycle").GetProperty("closed").GetProperty("released").GetInt32());
+        Assert.DoesNotContain("nextCycle", Kinds(await OverviewAsync(f, "employee")));
     }
 
     [Fact]

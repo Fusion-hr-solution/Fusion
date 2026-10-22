@@ -86,6 +86,7 @@ public sealed class ConversationsFrameHttpTests
             new { id = Guid.NewGuid(), question = "How did the launch go?", inviteeEmployeeIds = new[] { w.Nour, w.Karim }, dueDate = Today.AddDays(5) }));
         var requestId = ask.GetProperty("id").GetGuid();
         var item = Assert.Single(await WorkAsync(w, w.Nour), i => i.GetProperty("kind").GetString() == "feedback-request");
+        Assert.Equal("/performance/feedback", item.GetProperty("section").GetString());
         Assert.Equal("Feedback for Leila Baccouche", item.GetProperty("title").GetString());
         Assert.Equal($"/performance/feedback/requests/{requestId}", item.GetProperty("href").GetString());
 
@@ -104,6 +105,7 @@ public sealed class ConversationsFrameHttpTests
         await DataAsync(await w.As(w.Karim, Manager).PostAsJsonAsync($"/api/performance/one-on-ones/{seriesId}/actions",
             new { id = Guid.NewGuid(), text = "Later", ownerEmployeeId = w.Nour, dueDate = Today.AddDays(14) }));
         var action = Assert.Single(await WorkAsync(w, w.Nour), i => i.GetProperty("kind").GetString() == "one-on-one-action");
+        Assert.Equal("/performance/one-on-ones", action.GetProperty("section").GetString());
         Assert.Equal("Send the draft", action.GetProperty("title").GetString());
         Assert.Equal($"/performance/one-on-ones/{seriesId}", action.GetProperty("href").GetString());
 

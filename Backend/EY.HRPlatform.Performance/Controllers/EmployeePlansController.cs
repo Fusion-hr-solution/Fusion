@@ -113,6 +113,14 @@ public sealed class EmployeePlansController(IMediator mediator, IPerformanceAcce
             new GetYourPeopleQuery(cycleId, Actor, filter, search, page, pageSize), cancellationToken));
     }
 
+    /// <summary>The released results of the caller's own recorded team in this cycle; empty before release.</summary>
+    [HttpGet("team/results")]
+    public async Task<ActionResult<ApiResponse<TeamResultsDto>>> TeamResults(Guid cycleId, CancellationToken cancellationToken)
+    {
+        if (!policy.CanReviewDirectReports(User) && !policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new GetTeamResultsQuery(cycleId, Actor), cancellationToken));
+    }
+
     [HttpGet("plans/{planId:guid}")]
     public async Task<ActionResult<ApiResponse<EmployeePlanDto>>> PlanDetail(Guid cycleId, Guid planId, CancellationToken cancellationToken)
     {

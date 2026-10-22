@@ -767,7 +767,31 @@ public sealed record TeamRosterMemberDto(
     RosterUpdateRequestDto? UpdateRequest = null,
     // The caller is this Approved plan's responsible reviewer in an Active Cycle.
     bool CanRequestUpdate = false,
-    RosterReviewDto? Review = null);
+    RosterReviewDto? Review = null,
+    // What needs the manager in this phase (see YourPeoplePageDto.Groups) and the phase's facts.
+    string? Group = null,
+    RosterPhaseFactsDto? Facts = null);
+
+/// <summary>Why a person needs their manager during execution: `planWaiting`, `offTrack`, `atRisk`, `noUpdate`, `openRequest` or `notApproved`.</summary>
+public sealed record RosterAttentionDto(string Kind, Guid? ObjectiveId, string? ObjectiveTitle, string? Reason, DateTime? Since, int? Days);
+
+public sealed record RosterPlanningFactsDto(int Objectives, int AlignedToTeam);
+
+public sealed record RosterExecutionFactsDto(StatusMixDto Status, RosterAttentionDto? Attention, DateTime? LastUpdateAt);
+
+/// <summary>Peer input of one review: asked and answered, or a proposed list waiting for the manager, or none chosen yet.</summary>
+public sealed record RosterPeersDto(bool Enabled, int Asked, int Answered, int Proposed, bool WaitingForYou);
+
+/// <summary>Review facts: the person's self-assessment (`submitted`, `writing`, `notStarted`, `off`), peers, and the manager's own review (`submitted`, `draftSaved`, `notStarted`).</summary>
+public sealed record RosterReviewFactsDto(string SelfState, DateTime? SelfSubmittedAt, DateOnly? SelfDue, RosterPeersDto Peers,
+    string YourReview, DateTime? YourDraftSavedAt);
+
+/// <summary>A released result: the final level, the manager's own when calibration changed it, acknowledgement and open growth goals.</summary>
+public sealed record RosterClosedFactsDto(Guid ReviewId, int Level, string Label, int? YourLevel, DateTime? AcknowledgedAt,
+    bool AcknowledgedWithComment, int OpenGrowthGoals);
+
+public sealed record RosterPhaseFactsDto(RosterPlanningFactsDto? Planning, RosterExecutionFactsDto? Execution,
+    RosterReviewFactsDto? Review, RosterClosedFactsDto? Closed);
 
 public sealed record RosterReviewDto(Guid ReviewId, PerformanceReviewState State, DateOnly? DueDate);
 
@@ -814,7 +838,50 @@ public sealed record YourPeoplePageDto(
     int MatchCount,
     int TotalCount,
     YourPeopleCountsDto Counts,
-    TeamStandingDto Standing);
+    TeamStandingDto Standing,
+    // `Planning`, `Execution`, `Review` or `Closed`: which groups and facts the entries carry.
+    string Phase = "Planning",
+    IReadOnlyList<RosterGroupCountDto>? Groups = null,
+    TeamPhaseSummaryDto? Summary = null);
+
+/// <summary>A group of Your People in the order the page shows them, with how many people it holds overall.</summary>
+public sealed record RosterGroupCountDto(string Key, int Count);
+
+/// <summary>The header facts of My Team for the phase, over the whole responsibility (unaffected by search and paging).</summary>
+public sealed record TeamPhaseSummaryDto(
+    StatusMixDto? Status,
+    int UpdatedIn30Days,
+    int Approved,
+    string? RoundName,
+    int SelfSubmitted,
+    int SelfTotal,
+    DateOnly? SelfDue,
+    IReadOnlyList<string> PeerListsToApprove,
+    int ReviewsSubmitted,
+    int ReviewsReady,
+    int ReviewsTotal,
+    DateOnly? ReviewsDue,
+    string? FirstReadyName,
+    Guid? FirstReadyReviewId,
+    DateTime? ReleasedAt);
+
+public sealed record TeamResultPersonDto(Guid EmployeeId, string Name);
+public sealed record TeamResultLevelDto(int Value, string Label, int Count, IReadOnlyList<TeamResultPersonDto> People);
+public sealed record TeamCalibrationChangeDto(Guid EmployeeId, string Name, int From, int To);
+
+/// <summary>
+/// The released results of the caller's own recorded team in a cycle (D-R2): people per final level, acknowledgement,
+/// calibration changes and open growth goals. Empty before release; never another team; no averages.
+/// </summary>
+public sealed record TeamResultsDto(
+    Guid CycleId,
+    int Released,
+    DateTime? ReleasedAt,
+    IReadOnlyList<TeamResultLevelDto> Levels,
+    int Acknowledged,
+    IReadOnlyList<string> NotAcknowledged,
+    IReadOnlyList<TeamCalibrationChangeDto> CalibrationChanges,
+    int OpenGrowthGoals);
 
 /// <summary>
 /// The caller's whole responsibility in this Cycle, unaffected by search or view: plan states as a distribution,

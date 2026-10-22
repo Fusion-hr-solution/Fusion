@@ -330,6 +330,7 @@ public sealed class ObjectiveStatusTests
         var w = await ArrangeAsync();
         Assert.True((await SubmitAsync(w, w.ManualId, CheckIn(30m, ObjectiveStatus.OffTrack, "Blocked"))).IsSuccess);
         var item = Assert.Single(await WorkAsync(w, w.Lina), i => i.Kind == "objective-status");
+        Assert.Equal("/performance/team", item.Section);
         Assert.Equal("Nour Trabelsi's objective is off track", item.Title);
         Assert.Equal("Integrate the vendor API", item.Context);
         Assert.Equal($"/performance/cycles/{w.CycleId}/objectives/{w.ManualId}", item.Href);

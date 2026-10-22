@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Features.Cycles;
+using EY.HRPlatform.Performance.Features.Insights;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Features.Security.Policies;
 using EY.HRPlatform.Performance.Models;
@@ -46,6 +47,24 @@ public sealed class CyclesController(IMediator mediator, IPerformanceAccessPolic
     {
         if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
         return MapResult(await mediator.Send(new ActivateCycleCommand(cycleId, version.ExpectedVersion), cancellationToken));
+    }
+
+    /// <summary>Cycle › Insights: organization-wide counts by unit and manager, for cycle administrators only.</summary>
+    [HttpGet("{cycleId:guid}/insights")]
+    public async Task<ActionResult<ApiResponse<InsightsDto>>> Insights(Guid cycleId, [FromQuery] Guid? unitId, CancellationToken cancellationToken)
+    {
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new GetInsightsQuery(cycleId, unitId), cancellationToken));
+    }
+
+    /// <summary>The people behind one Insights figure, paged.</summary>
+    [HttpGet("{cycleId:guid}/insights/people")]
+    public async Task<ActionResult<ApiResponse<InsightsPeoplePageDto>>> InsightsPeople(
+        Guid cycleId, [FromQuery] string metric, [FromQuery] Guid? unitId, [FromQuery] Guid? managerId, [FromQuery] int? level,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 25, CancellationToken cancellationToken = default)
+    {
+        if (!policy.CanAdministerCycles(User)) return CapabilityForbidden();
+        return MapResult(await mediator.Send(new GetInsightsPeopleQuery(cycleId, metric, unitId, managerId, level, page, pageSize), cancellationToken));
     }
 
     [HttpGet("{cycleId:guid}/closure")]

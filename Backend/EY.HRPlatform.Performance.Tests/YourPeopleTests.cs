@@ -136,10 +136,12 @@ public sealed class YourPeopleTests
 
         var page = await PageAsync(f);
 
+        // Execution: everyone needs the manager — a plan to decide first, then no update in 30 days, then plans never approved.
         Assert.Equal(
-            ["Sami Submitted", "Alya Approved", "Badr Approved", "Rhea Returned", "Dina Draft", "Nadia NotStarted"],
+            ["Sami Submitted", "Alya Approved", "Badr Approved", "Dina Draft", "Nadia NotStarted", "Rhea Returned"],
             Names(page));
         Assert.True(page.Items[0].CanReview);
+        Assert.Equal("planWaiting", page.Items[0].Facts?.Execution?.Attention?.Kind);
     }
 
     [Fact]
@@ -153,7 +155,7 @@ public sealed class YourPeopleTests
         Assert.Equal(["Sami Submitted"], Names(needsReview));
         Assert.Equal(1, needsReview.MatchCount);
         Assert.Equal(6, needsReview.TotalCount);
-        Assert.Equal(["Rhea Returned", "Dina Draft", "Nadia NotStarted"], Names(planning));
+        Assert.Equal(["Dina Draft", "Nadia NotStarted", "Rhea Returned"], Names(planning));
         Assert.Equal(new YourPeopleCountsDto(NeedsReview: 1, Planning: 3, Approved: 2, NoProgress: 2), planning.Counts);
     }
 
@@ -177,7 +179,7 @@ public sealed class YourPeopleTests
 
         var second = await PageAsync(f, page: 2, pageSize: 2);
 
-        Assert.Equal(["Badr Approved", "Rhea Returned"], Names(second));
+        Assert.Equal(["Badr Approved", "Dina Draft"], Names(second));
         Assert.Equal(6, second.MatchCount);
         Assert.Equal(2, second.PageSize);
     }

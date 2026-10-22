@@ -107,7 +107,8 @@ public sealed class CalibrationOutcomeTests
         using var mariam = factory.CreateAuthenticatedClient(employeeId: tarek.ReviewerEmployeeId, permissions: Reviewer);
         var work = await Data(await mariam.GetAsync("/api/performance/work"));
         Assert.Contains(work.EnumerateArray(), item => item.GetProperty("kind").GetString() == "check-review-summary"
-            && item.GetProperty("title").GetString() == "Check your summary for Tarek Ayari");
+            && item.GetProperty("title").GetString() == "Check your summary for Tarek Ayari"
+            && item.GetProperty("section").GetString() == "/performance/reviews");
 
         // Unchanged rating: nothing reopens.
         var faresVersion = await VersionAsync(factory, fares.Id);

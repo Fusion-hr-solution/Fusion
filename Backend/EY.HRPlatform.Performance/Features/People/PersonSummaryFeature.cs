@@ -30,9 +30,21 @@ public sealed record PersonSummaryObjectiveDto(Guid ObjectiveId, int Number, str
 }
 public sealed record PersonSummaryCycleDto(Guid CycleId, string CycleName, CycleLifecycleState CycleState, CyclePhase? Phase,
     bool IsParticipant, Guid? PlanId, RosterPlanStatus? PlanStatus, decimal? OverallProgress, string? PlanHref,
-    IReadOnlyList<PersonSummaryObjectiveDto> Objectives);
+    IReadOnlyList<PersonSummaryObjectiveDto> Objectives)
+{
+    /// <summary>Who decides the plan: its recorded reviewer, else the participant's manager.</summary>
+    public string? ReviewerName { get; init; }
+    /// <summary>The plan's allocated weight; null for a private Draft.</summary>
+    public decimal? WeightTotal { get; init; }
+    /// <summary>The latest check-in on an approved objective.</summary>
+    public DateTime? LastUpdateAt { get; init; }
+}
 public sealed record PersonSummaryCurrentReviewDto(Guid ReviewId, string ReviewRoundName, PerformanceReviewState State,
-    DateOnly? DueDate, bool SelfAssessmentEnabled, bool CalibrationEnabled, string Href);
+    DateOnly? DueDate, bool SelfAssessmentEnabled, bool CalibrationEnabled, string Href)
+{
+    /// <summary>Who writes the manager assessment: who holds the review once the self-assessment is in.</summary>
+    public string? ReviewerName { get; init; }
+}
 public sealed record PersonSummaryReviewResultDto(Guid ReviewId, string CycleName, string ReviewRoundName,
     string? FinalRatingLabel, DateTime? FinalizedAt, string Href);
 public sealed record PersonSummaryDevelopmentGoalDto(string Title, string? CompetencyName,
@@ -216,8 +228,9 @@ public sealed class GetPersonSummaryHandler(PerformanceDbContext db, ICoreWorkfo
         PersonRelation relation, CancellationToken token)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var phase = CycleDetailComposer.PhaseOf(cycle, today);
-        var participates = await db.Participants.AsNoTracking().AnyAsync(p => p.CycleId == cycle.Id && p.EmployeeId == employeeId, token);
+        var phase = await CycleDetailComposer.PhaseAsync(db, cycle, today, token);
+        var participant = await db.Participants.AsNoTracking().FirstOrDefaultAsync(p => p.CycleId == cycle.Id && p.EmployeeId == employeeId, token);
+        var participates = participant is not null;
         if (!participates)
             return new(cycle.Id, cycle.Name, cycle.State, phase, false, null, null, null, null, []);
 
@@ -242,7 +255,12 @@ public sealed class GetPersonSummaryHandler(PerformanceDbContext db, ICoreWorkfo
                 o.ParentObjectiveId is Guid parent && parents.TryGetValue(parent, out var title) ? title : null,
                 o.PlanWeight,
                 approved && o.HasProgress ? Math.Min(o.DerivedProgress, 100m) : null,
-                PerformanceNotificationTemplates.ObjectivePath(cycle.Id, o.Id)) { Status = approved ? o.CurrentStatus : null }).ToList());
+                PerformanceNotificationTemplates.ObjectivePath(cycle.Id, o.Id)) { Status = approved ? o.CurrentStatus : null }).ToList())
+        {
+            ReviewerName = plan?.ResponsibleManagerName ?? participant!.ManagerDisplayName,
+            WeightTotal = plan is null || privateDraft ? null : objectives.Sum(o => o.PlanWeight ?? 0m),
+            LastUpdateAt = approved ? objectives.Select(o => o.LastCheckInAt).Where(d => d is not null).Max() : null,
+        };
     }
 
     /// <summary>
@@ -257,7 +275,7 @@ public sealed class GetPersonSummaryHandler(PerformanceDbContext db, ICoreWorkfo
                                 && review.State != PerformanceReviewState.Finalized && review.State != PerformanceReviewState.Closed
                              orderby review.OpenedAt descending
                              select new { review.Id, RoundName = round.Name, review.State, review.CurrentStageDueDate,
-                                 review.SelfAssessmentEnabled, review.CalibrationEnabled })
+                                 review.SelfAssessmentEnabled, review.CalibrationEnabled, review.ReviewerDisplayName })
             .FirstOrDefaultAsync(token);
         var history = await (from review in db.PerformanceReviews.AsNoTracking()
                              join round in db.ReviewRounds.AsNoTracking() on review.ReviewRoundId equals round.Id
@@ -269,7 +287,8 @@ public sealed class GetPersonSummaryHandler(PerformanceDbContext db, ICoreWorkfo
             .ToListAsync(token);
         return new(
             current is null ? null : new(current.Id, current.RoundName, current.State, current.CurrentStageDueDate,
-                current.SelfAssessmentEnabled, current.CalibrationEnabled, PerformanceNotificationTemplates.ReviewPath(current.Id)),
+                current.SelfAssessmentEnabled, current.CalibrationEnabled, PerformanceNotificationTemplates.ReviewPath(current.Id))
+                { ReviewerName = current.ReviewerDisplayName },
             history.Select(r => new PersonSummaryReviewResultDto(r.Id, r.CycleName, r.RoundName,
                 ReviewHistoryRating.Label(r.FinalizedSnapshotJson, r.FinalRating), r.FinalizedAt,
                 PerformanceNotificationTemplates.ReviewPath(r.Id))).ToList());

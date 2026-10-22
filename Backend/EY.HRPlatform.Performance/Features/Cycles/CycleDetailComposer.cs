@@ -46,6 +46,8 @@ public static class CycleDetailComposer
         var planningCompleted = !cycle.IsDraft && participantCount > 0 && approvedCount >= participantCount;
         var milestones = BuildMilestones(cycle, publishedStrategyCount > 0, populationConfirmed, planningCompleted, today);
 
+        var phase = await PhaseAsync(db, cycle, today, cancellationToken);
+
         return new CycleDetailDto(
             PerformanceMappers.ToSummary(cycle),
             readiness,
@@ -56,7 +58,7 @@ public static class CycleDetailComposer
             participantCount,
             otherActiveExists)
         {
-            Phase = PhaseOf(cycle, today),
+            Phase = phase,
         };
     }
 
@@ -68,6 +70,16 @@ public static class CycleDetailComposer
         => !cycle.IsActive ? null
             : today <= cycle.PlanningDeadline ? CyclePhase.Planning
             : CyclePhase.Execution;
+
+    /// <summary>The phase every surface shows: <see cref="PhaseOf"/>, and Review while a round of the cycle runs, whatever the date.</summary>
+    public static async Task<CyclePhase?> PhaseAsync(PerformanceDbContext db, PerformanceCycle cycle, DateOnly today, CancellationToken cancellationToken)
+    {
+        var phase = PhaseOf(cycle, today);
+        if (phase is not null && await db.ReviewRounds.AsNoTracking()
+                .AnyAsync(round => round.CycleId == cycle.Id && round.State == Domain.Reviews.ReviewRoundState.Active, cancellationToken))
+            phase = CyclePhase.Review;
+        return phase;
+    }
 
     public static async Task<IReadOnlyList<string>> ResolveBlockersAsync(PerformanceDbContext db, PerformanceCycle cycle, CancellationToken cancellationToken)
     {

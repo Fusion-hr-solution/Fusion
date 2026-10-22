@@ -36,10 +36,9 @@ public sealed class UpdateRequestHttpTests
         Assert.Equal(HttpStatusCode.Forbidden, (await nourClient.PostAsJsonAsync(requests, new { objectiveId })).StatusCode);
 
         var overview = await Data(await nourClient.GetAsync($"/api/performance/overview?cycleId={cycleId}"));
-        var attention = overview.GetProperty("sections").EnumerateArray().Single(section => section.GetProperty("kind").GetString() == "myRequests");
-        var item = attention.GetProperty("requests")[0];
-        Assert.Equal("Objective", item.GetProperty("destination").GetProperty("workspace").GetString());
-        Assert.Equal(objectiveId.ToString(), item.GetProperty("destination").GetProperty("objectiveId").GetString());
+        var plan = overview.GetProperty("rows").EnumerateArray().Single(row => row.GetProperty("kind").GetString() == "ownPlan");
+        Assert.Equal(1, plan.GetProperty("openRequests").GetInt32());
+        Assert.Equal($"/performance/cycles/{cycleId}/objectives/{objectiveId}?mode=record", plan.GetProperty("firstRequestHref").GetString());
 
         var progress = await Data(await nourClient.GetAsync($"/api/performance/cycles/{cycleId}/objectives/{objectiveId}/progress"));
         var recorded = await nourClient.PostAsJsonAsync($"/api/performance/cycles/{cycleId}/objectives/{objectiveId}/progress", new
@@ -53,7 +52,8 @@ public sealed class UpdateRequestHttpTests
         var row = roster.GetProperty("items").EnumerateArray().Single();
         Assert.Equal("Satisfied", row.GetProperty("updateRequest").GetProperty("state").GetString());
         var nourAfter = await Data(await nourClient.GetAsync($"/api/performance/overview?cycleId={cycleId}"));
-        Assert.DoesNotContain(nourAfter.GetProperty("sections").EnumerateArray(), section => section.GetProperty("kind").GetString() == "myRequests");
+        var planAfter = nourAfter.GetProperty("rows").EnumerateArray().Single(row => row.GetProperty("kind").GetString() == "ownPlan");
+        Assert.Equal(0, planAfter.GetProperty("openRequests").GetInt32());
     }
 
     [Fact]

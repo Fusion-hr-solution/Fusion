@@ -106,10 +106,11 @@ public sealed class GetWorkspaceContextHandler(PerformanceDbContext db, Performa
         };
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var phase = selected is null ? null : await CycleDetailComposer.PhaseAsync(db, selected, today, cancellationToken);
         return new WorkspaceContextDto(
             visible.Select(PerformanceMappers.ToSummary).ToList(),
             selected is null ? null : PerformanceMappers.ToSummary(selected),
-            selected is null ? null : CycleDetailComposer.PhaseOf(selected, today),
+            phase,
             capabilities,
             destinations);
     }

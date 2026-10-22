@@ -82,6 +82,7 @@ public sealed class WorkItemsHttpTests
         Assert.Equal("performance", item.GetProperty("module").GetString());
         Assert.Equal(world.Cycle.PlanningDeadline.ToString("yyyy-MM-dd"), item.GetProperty("dueOn").GetString());
         Assert.Equal("/performance/plan", item.GetProperty("href").GetString());
+        Assert.Equal("/performance/plan", item.GetProperty("section").GetString());
         Assert.StartsWith("performance:plan-write:", item.GetProperty("id").GetString());
     }
 
@@ -94,6 +95,7 @@ public sealed class WorkItemsHttpTests
         var item = Assert.Single(await WorkAsync(world.Factory.CreateAuthenticatedClient(employeeId: world.Sami, permissions: Employee)));
         Assert.Equal("plan-revise", Kind(item));
         Assert.Equal("Revise your plan", item.GetProperty("title").GetString());
+        Assert.Equal("/performance/plan", item.GetProperty("section").GetString());
     }
 
     [Fact]
@@ -106,6 +108,7 @@ public sealed class WorkItemsHttpTests
         Assert.Equal("Review Sami's plan", decision.GetProperty("title").GetString());
         Assert.Equal("Sami", decision.GetProperty("subject").GetProperty("displayName").GetString());
         Assert.Equal($"/performance/cycles/{world.Cycle.Id}/plans/{world.SamiPlan.Id}", decision.GetProperty("href").GetString());
+        Assert.Equal("/performance/team", decision.GetProperty("section").GetString());
 
         await DecideAsync(world, plan => plan.Approve(world.Lina));
         Assert.DoesNotContain(await WorkAsync(lina), item => Kind(item) == "plan-decision");
@@ -133,6 +136,7 @@ public sealed class WorkItemsHttpTests
         Assert.Equal("update-request", Kind(item));
         Assert.Equal("Update progress on Ship the playbook", item.GetProperty("title").GetString());
         Assert.Equal($"/performance/cycles/{world.Cycle.Id}/objectives/{objectiveId}?mode=record", item.GetProperty("href").GetString());
+        Assert.Equal("/performance/plan", item.GetProperty("section").GetString());
     }
 
     [Fact]
@@ -164,6 +168,7 @@ public sealed class WorkItemsHttpTests
         var self = Assert.Single(await WorkAsync(nour), item => Kind(item) == "self-assessment");
         Assert.Equal(Today.AddDays(5).ToString("yyyy-MM-dd"), self.GetProperty("dueOn").GetString());
         Assert.Equal($"/performance/reviews/{review.Id}", self.GetProperty("href").GetString());
+        Assert.Equal("/performance/reviews", self.GetProperty("section").GetString());
         Assert.DoesNotContain(await WorkAsync(lina), item => Kind(item) == "manager-assessment");
 
         await using (var db = world.Factory.Store.NewContext())
@@ -175,6 +180,7 @@ public sealed class WorkItemsHttpTests
         Assert.DoesNotContain(await WorkAsync(nour), item => Kind(item) == "self-assessment");
         var manager = Assert.Single(await WorkAsync(lina), item => Kind(item) == "manager-assessment");
         Assert.Equal("Assess Nour", manager.GetProperty("title").GetString());
+        Assert.Equal("/performance/reviews", manager.GetProperty("section").GetString());
         Assert.DoesNotContain(await WorkAsync(admin), item => Kind(item) == "round-finalize");
 
         await using (var db = world.Factory.Store.NewContext())
@@ -186,6 +192,7 @@ public sealed class WorkItemsHttpTests
         var finalize = Assert.Single(await WorkAsync(admin), item => Kind(item) == "round-finalize");
         Assert.Equal("Finalize Mid-year", finalize.GetProperty("title").GetString());
         Assert.Equal($"/performance/reviews/rounds/{round.Id}", finalize.GetProperty("href").GetString());
+        Assert.Equal("/performance/reviews", finalize.GetProperty("section").GetString());
     }
 
     [Fact]
@@ -208,6 +215,7 @@ public sealed class WorkItemsHttpTests
         }
         var item = Assert.Single(await WorkAsync(world.Factory.CreateAuthenticatedClient(userId: facilitator.UserId, permissions: Facilitator)));
         Assert.Equal("calibration", Kind(item));
+        Assert.Equal("/performance/reviews", item.GetProperty("section").GetString());
         Assert.Equal($"/performance/reviews/rounds/{round.Id}/calibration", item.GetProperty("href").GetString());
         Assert.Empty(await WorkAsync(world.Factory.CreateAuthenticatedClient(userId: Guid.NewGuid(), permissions: Facilitator)));
     }

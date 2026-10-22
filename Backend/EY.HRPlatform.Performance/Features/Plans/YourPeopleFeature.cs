@@ -158,27 +158,87 @@ public sealed class GetYourPeopleHandler(PerformanceDbContext db, ICoreWorkforce
         var cycle = await Db.Cycles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == request.CycleId, cancellationToken);
         if (cycle is null) return Result.Failure<YourPeoplePageDto>(PerformanceErrors.NotFound("Cycle", request.CycleId));
 
-        var activeRoundId = await Db.ReviewRounds.AsNoTracking()
+        var activeRound = await Db.ReviewRounds.AsNoTracking()
             .Where(round => round.CycleId == cycle.Id && round.State == ReviewRoundState.Active)
-            .Select(round => (Guid?)round.Id)
             .FirstOrDefaultAsync(cancellationToken);
-        var members = await YourPeople.LoadMembersAsync(Db, Workforce, cycle, request.Actor, cancellationToken, activeRoundId);
+        var me = request.Actor.CallerEmployeeId;
+        // Recorded responsibility only, and never the caller themselves, even when someone else reviews them.
+        var loaded = (await YourPeople.LoadMembersAsync(Db, Workforce, cycle, request.Actor, cancellationToken, activeRound?.Id))
+            .Where(m => m.EmployeeId != me).ToList();
+        var phase = TeamPhaseFacts.PhaseOf(cycle, activeRound, DateOnly.FromDateTime(DateTime.UtcNow));
+        var composed = await TeamPhaseFacts.ComposeAsync(Db, cycle, me, phase, activeRound, loaded, cancellationToken);
+        var members = composed.Members;
+        var groups = TeamPhaseFacts.Groups[phase];
+
         var search = request.Search?.Trim();
         var searched = string.IsNullOrEmpty(search)
             ? members
             : members.Where(m => $"{m.EmployeeName} {m.JobTitle}".Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
 
-        var matching = YourPeople.Ordered(searched.Where(m => YourPeople.Matches(m, request.Filter))).ToList();
+        var matching = searched.Where(m => YourPeople.Matches(m, request.Filter))
+            .OrderBy(m => Array.IndexOf(groups, m.Group))
+            .ThenBy(m => phase == TeamPhaseFacts.Execution ? TeamPhaseFacts.Severity(m) : 0)
+            // Waiting plans: the oldest submission first; everyone else by name.
+            .ThenBy(m => phase == TeamPhaseFacts.Planning && m.Group == "waiting" ? m.ActivityAt ?? DateTime.MaxValue : DateTime.MinValue)
+            .ThenBy(m => m.EmployeeName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
         var pageSize = Math.Clamp(request.PageSize, 1, YourPeople.MaxPageSize);
         var page = Math.Max(1, request.Page);
         var items = matching.Skip((page - 1) * pageSize).Take(pageSize).ToList();
 
         int Count(YourPeopleFilter f) => searched.Count(m => YourPeople.Matches(m, f));
         return Result.Success(new YourPeoplePageDto(
-            cycle.Id, activeRoundId is not null, items, page, pageSize, matching.Count, members.Count,
+            cycle.Id, activeRound is not null, items, page, pageSize, matching.Count, members.Count,
             new YourPeopleCountsDto(
                 Count(YourPeopleFilter.NeedsReview), Count(YourPeopleFilter.Planning),
                 Count(YourPeopleFilter.Approved), Count(YourPeopleFilter.NoProgress)),
-            YourPeople.Standing(members, DateTime.UtcNow)));
+            YourPeople.Standing(members, DateTime.UtcNow),
+            phase,
+            groups.Select(g => new RosterGroupCountDto(g, members.Count(m => m.Group == g))).Where(g => g.Count > 0).ToList(),
+            composed.Summary));
+    }
+}
+
+public sealed record GetTeamResultsQuery(Guid CycleId, PlanActorContext Actor) : IQuery<Result<TeamResultsDto>>;
+
+/// <summary>
+/// The released results of the caller's own recorded team (performance-team-workspace, D-R2): final levels with the
+/// people at each, acknowledgement, calibration changes and open growth goals. Only reviews the caller is the
+/// recorded reviewer of, only once released, never the caller's own; empty before release. No averages.
+/// </summary>
+public sealed class GetTeamResultsHandler(PerformanceDbContext db) : IQueryHandler<GetTeamResultsQuery, Result<TeamResultsDto>>
+{
+    public async Task<Result<TeamResultsDto>> Handle(GetTeamResultsQuery request, CancellationToken cancellationToken)
+    {
+        if (!await db.Cycles.AsNoTracking().AnyAsync(c => c.Id == request.CycleId, cancellationToken))
+            return Result.Failure<TeamResultsDto>(PerformanceErrors.NotFound("Cycle", request.CycleId));
+        var me = request.Actor.CallerEmployeeId;
+        if (me == Guid.Empty)
+            return Result.Success(new TeamResultsDto(request.CycleId, 0, null, [], 0, [], [], 0));
+
+        var released = await TeamPhaseFacts.ReleasedAsync(db, request.CycleId, me, cancellationToken);
+        if (released.Count == 0)
+            return Result.Success(new TeamResultsDto(request.CycleId, 0, null, [], 0, [], [], 0));
+
+        var scale = released.OrderByDescending(r => r.FinalizedAt).First().Scale;
+        var values = scale.Select(l => (l.Value, l.Label))
+            .Concat(released.Select(r => (Value: r.FinalRating, r.Label))).DistinctBy(l => l.Value).OrderBy(l => l.Value);
+        var openGoals = await TeamPhaseFacts.OpenGoalsAsync(db, request.CycleId, released.Select(r => r.SubjectEmployeeId).ToList(), cancellationToken);
+        return Result.Success(new TeamResultsDto(
+            request.CycleId,
+            released.Count,
+            released.Max(r => r.FinalizedAt),
+            values.Select(level =>
+            {
+                var people = released.Where(r => r.FinalRating == level.Value).OrderBy(r => r.SubjectDisplayName)
+                    .Select(r => new TeamResultPersonDto(r.SubjectEmployeeId, r.SubjectDisplayName)).ToList();
+                return new TeamResultLevelDto(level.Value, level.Label, people.Count, people);
+            }).ToList(),
+            released.Count(r => r.AcknowledgedAt is not null),
+            released.Where(r => r.AcknowledgedAt is null).Select(r => r.SubjectDisplayName).OrderBy(n => n).ToList(),
+            released.Where(r => r.CalibrationChangedRating && r.ManagerRating is int from && from != r.FinalRating)
+                .OrderBy(r => r.SubjectDisplayName)
+                .Select(r => new TeamCalibrationChangeDto(r.SubjectEmployeeId, r.SubjectDisplayName, r.ManagerRating!.Value, r.FinalRating)).ToList(),
+            openGoals.Values.Sum()));
     }
 }

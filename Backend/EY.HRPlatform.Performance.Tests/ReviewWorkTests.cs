@@ -84,16 +84,19 @@ public sealed class ReviewWorkTests
         await world.LaunchAsync(round);
         var aicha = world.ReviewOf(round, world.Aicha);
 
-        Assert.Contains(await WorkAsync(world.As(world.Aicha)), i => i.GetProperty("kind").GetString() == "nominate-peers");
+        Assert.Contains(await WorkAsync(world.As(world.Aicha)), i => i.GetProperty("kind").GetString() == "nominate-peers"
+            && i.GetProperty("section").GetString() == "/performance/reviews");
         await Data(await world.As(world.Aicha).PutAsJsonAsync($"/api/performance/reviews/{aicha}/peers",
             new { expectedVersion = Version(world, aicha), employeeIds = new[] { world.Leila.EmployeeId } }));
         Assert.DoesNotContain(await WorkAsync(world.As(world.Aicha)), i => i.GetProperty("kind").GetString() == "nominate-peers");
         var approve = Assert.Single(await WorkAsync(world.As(world.Mariam)), i => i.GetProperty("kind").GetString() == "approve-peer-list");
+        Assert.Equal("/performance/reviews", approve.GetProperty("section").GetString());
         Assert.Equal("Review Aicha Ben Ali's peer list", approve.GetProperty("title").GetString());
 
         await Data(await world.As(world.Mariam).PostAsJsonAsync($"/api/performance/reviews/{aicha}/peers/approve",
             new { expectedVersion = Version(world, aicha), employeeIds = new[] { world.Leila.EmployeeId } }));
         var input = Assert.Single(await WorkAsync(world.As(world.Leila)), i => i.GetProperty("kind").GetString() == "peer-input");
+        Assert.Equal("/performance/reviews", input.GetProperty("section").GetString());
         Assert.Equal("Peer input for Aicha Ben Ali", input.GetProperty("title").GetString());
         Assert.Equal(Today.AddDays(14).ToString("yyyy-MM-dd"), input.GetProperty("dueOn").GetString());
         Assert.StartsWith("/performance/reviews/peer-requests/", input.GetProperty("href").GetString());
@@ -126,7 +129,8 @@ public sealed class ReviewWorkTests
         await Data(await world.As(world.Mariam).PostAsJsonAsync($"/api/performance/reviews/{aicha}/manager-assessment",
             new { expectedVersion = Version(world, aicha), summary = "A strong year.", overallRating = 4 }));
         await Data(await world.Admin.PostAsJsonAsync($"/api/performance/reviews/{aicha}/finalize", new { expectedVersion = Version(world, aicha) }));
-        Assert.Contains(await WorkAsync(world.As(world.Aicha)), i => i.GetProperty("kind").GetString() == "acknowledge-result");
+        Assert.Contains(await WorkAsync(world.As(world.Aicha)), i => i.GetProperty("kind").GetString() == "acknowledge-result"
+            && i.GetProperty("section").GetString() == "/performance/reviews");
         await Data(await world.As(world.Aicha).PostAsJsonAsync($"/api/performance/reviews/{aicha}/acknowledge", new { comment = (string?)null }));
         Assert.DoesNotContain(await WorkAsync(world.As(world.Aicha)), i => i.GetProperty("kind").GetString() == "acknowledge-result");
     }

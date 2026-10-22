@@ -62,6 +62,16 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
 
     private static string Id(string kind, Guid resourceId) => $"{Module}:{kind}:{resourceId}";
 
+    /// <summary>The sidebar destination each item is counted under: the workspace where that kind of work lives.</summary>
+    internal static class Sections
+    {
+        public const string Plan = "/performance/plan";
+        public const string Team = "/performance/team";
+        public const string Reviews = "/performance/reviews";
+        public const string Feedback = "/performance/feedback";
+        public const string OneOnOnes = "/performance/one-on-ones";
+    }
+
     /// <summary>A participant in planning whose plan isn't submitted, or came back returned.</summary>
     private async Task PlanningAsync(PerformanceCycle cycle, Guid employeeId, DateOnly today, List<FusionWorkItemDto> items, CancellationToken token)
     {
@@ -74,6 +84,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
         if (plan is not null && plan.State != PlanLifecycleState.Draft) return;
         var returned = plan?.Decisions.OrderBy(d => d.DecidedAt).LastOrDefault()?.Kind == PlanDecisionKind.Returned;
         var open = plan?.OpenChangeRequests.Count ?? 0;
+        var reviewer = plan?.ResponsibleManagerName ?? participant.ManagerDisplayName;
         items.Add(new(Id(returned ? "plan-revise" : "plan-write", plan?.Id ?? participant.Id), Module,
             returned ? "plan-revise" : "plan-write",
             returned ? "Revise your plan" : "Write your plan",
@@ -81,7 +92,8 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
                 : open == 1 ? "1 change to address"
                 : open > 1 ? $"{open} changes to address"
                 : "Your reviewer asked for changes",
-            cycle.PlanningDeadline, "/performance/plan"));
+            cycle.PlanningDeadline, "/performance/plan", Section: Sections.Plan,
+            Steps: WorkSteps.Plan(returned, open, reviewer)));
     }
 
     /// <summary>Submitted plans waiting for the caller's decision as their responsible reviewer.</summary>
@@ -94,7 +106,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
             .ToListAsync(token);
         items.AddRange(plans.Select(p => new FusionWorkItemDto(Id("plan-decision", p.Id), Module, "plan-decision",
             $"Review {p.EmployeeDisplayName}'s plan", "Waiting for your decision", null,
-            PerformanceNotificationTemplates.PlanPath(cycle.Id, p.Id), new FusionWorkSubjectDto(p.EmployeeDisplayName))));
+            PerformanceNotificationTemplates.PlanPath(cycle.Id, p.Id), new FusionWorkSubjectDto(p.EmployeeDisplayName), Sections.Team)));
     }
 
     /// <summary>
@@ -115,7 +127,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
         items.AddRange(flagged.Select(o => new FusionWorkItemDto(Id("objective-status", o.Id), Module, "objective-status",
             $"{o.EmployeeDisplayName}'s objective is {(o.CurrentStatus == ObjectiveStatus.OffTrack ? "off track" : "at risk")}",
             o.Title, null, PerformanceNotificationTemplates.ObjectivePath(cycle.Id, o.Id),
-            new FusionWorkSubjectDto(o.EmployeeDisplayName))));
+            new FusionWorkSubjectDto(o.EmployeeDisplayName), Sections.Team)));
     }
 
     /// <summary>Open update requests addressed to the caller: one objective opens in record mode, the plan opens the plan.</summary>
@@ -133,7 +145,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
             $"{r.RequestedByName} asked for an update", null,
             r.ObjectiveId is Guid objectiveId
                 ? PerformanceNotificationTemplates.ObjectivePath(cycle.Id, objectiveId, record: true)
-                : PerformanceNotificationTemplates.PlanPath(cycle.Id, r.PlanId))));
+                : PerformanceNotificationTemplates.PlanPath(cycle.Id, r.PlanId), Section: Sections.Plan)));
     }
 
     /// <summary>Feedback the caller was asked for and hasn't answered or declined, while the request is open. Not cycle-bound.</summary>
@@ -144,7 +156,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
                 && r.Invitees.Any(i => i.EmployeeId == employeeId && i.Status == Domain.Conversations.FeedbackInviteeStatus.Waiting))
             .OrderBy(r => r.DueDate).ToListAsync(token);
         items.AddRange(waiting.Select(r => new FusionWorkItemDto(Id("feedback-request", r.Id), Module, "feedback-request",
-            $"Feedback for {r.RequesterName}", r.Question, r.DueDate, PerformanceNotificationTemplates.FeedbackRequestPath(r.Id))));
+            $"Feedback for {r.RequesterName}", r.Question, r.DueDate, PerformanceNotificationTemplates.FeedbackRequestPath(r.Id), Section: Sections.Feedback)));
     }
 
     /// <summary>The caller's open 1:1 action items in an active series, once due within three days or overdue. Not cycle-bound.</summary>
@@ -161,7 +173,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
             .ToListAsync(token);
         items.AddRange(due.Select(a => new FusionWorkItemDto(Id("one-on-one-action", a.ActionId), Module, "one-on-one-action", a.Text,
             $"1:1 with {(a.ManagerEmployeeId == employeeId ? a.ReportName : a.ManagerName)}", a.DueDate,
-            PerformanceNotificationTemplates.OneOnOnePath(a.SeriesId))));
+            PerformanceNotificationTemplates.OneOnOnePath(a.SeriesId), Section: Sections.OneOnOnes)));
     }
 
     /// <summary>The round name, and how late the task is once past its current due date.</summary>
@@ -187,7 +199,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
                                         && review.PeersNominatedAt == null && review.PeerListApprovedAt == null
                                   select new { review.Id, review.SelfAssessmentDueDate, RoundName = round.Name }).ToListAsync(token);
             items.AddRange(nominate.Select(r => new FusionWorkItemDto(Id("nominate-peers", r.Id), Module, "nominate-peers",
-                "Choose colleagues for peer input", r.RoundName, r.SelfAssessmentDueDate, PerformanceNotificationTemplates.ReviewPath(r.Id))));
+                "Choose colleagues for peer input", r.RoundName, r.SelfAssessmentDueDate, PerformanceNotificationTemplates.ReviewPath(r.Id), Section: Sections.Reviews)));
 
             var asked = await (from request in db.PeerRequests.AsNoTracking()
                                join round in db.ReviewRounds.AsNoTracking() on request.ReviewRoundId equals round.Id
@@ -196,7 +208,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
                                select new { request.Id, request.SubjectDisplayName, request.DueDate, RoundName = round.Name }).ToListAsync(token);
             items.AddRange(asked.Select(r => new FusionWorkItemDto(Id("peer-input", r.Id), Module, "peer-input",
                 $"Peer input for {r.SubjectDisplayName}", LateContext(r.RoundName, r.DueDate, today), r.DueDate,
-                PerformanceNotificationTemplates.PeerRequestPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName))));
+                PerformanceNotificationTemplates.PeerRequestPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName), Sections.Reviews)));
 
             var unacknowledged = await (from review in db.PerformanceReviews.AsNoTracking()
                                         join round in db.ReviewRounds.AsNoTracking() on review.ReviewRoundId equals round.Id
@@ -205,7 +217,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
                                         orderby review.FinalizedAt descending
                                         select new { review.Id, RoundName = round.Name }).ToListAsync(token);
             items.AddRange(unacknowledged.Select(r => new FusionWorkItemDto(Id("acknowledge-result", r.Id), Module, "acknowledge-result",
-                "Read and acknowledge your review", r.RoundName, null, PerformanceNotificationTemplates.ReviewPath(r.Id))));
+                "Read and acknowledge your review", r.RoundName, null, PerformanceNotificationTemplates.ReviewPath(r.Id), Section: Sections.Reviews)));
         }
         if (actor.ReviewsReports)
         {
@@ -220,7 +232,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
                 .ToListAsync(token);
             items.AddRange(lists.Select(r => new FusionWorkItemDto(Id("approve-peer-list", r.Id), Module, "approve-peer-list",
                 $"Review {r.SubjectDisplayName}'s peer list", LateContext(r.RoundName, r.Due, today), r.Due,
-                PerformanceNotificationTemplates.PeerListPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName))));
+                PerformanceNotificationTemplates.PeerListPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName), Sections.Reviews)));
 
             // Calibration changed the rating: the reviewer checks the summary still reads right before release.
             var summaries = await (from review in db.PerformanceReviews.AsNoTracking()
@@ -231,7 +243,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
                                    select new { review.Id, review.SubjectDisplayName, RoundName = round.Name }).ToListAsync(token);
             items.AddRange(summaries.Select(r => new FusionWorkItemDto(Id("check-review-summary", r.Id), Module, "check-review-summary",
                 $"Check your summary for {r.SubjectDisplayName}", r.RoundName, null,
-                PerformanceNotificationTemplates.ReviewPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName))));
+                PerformanceNotificationTemplates.ReviewPath(r.Id), new FusionWorkSubjectDto(r.SubjectDisplayName), Sections.Reviews)));
         }
     }
 
@@ -248,7 +260,13 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
                                 || (review.State == PerformanceReviewState.ManagerAssessment && review.ReviewerEmployeeId == me
                                     && review.ManagerAssessment.SubmittedAt == null))
                          orderby review.CurrentStageDueDate, review.SubjectDisplayName
-                         select new { review.Id, review.State, review.SubjectDisplayName, review.CurrentStageDueDate, RoundName = round.Name })
+                         select new
+                         {
+                             review.Id, review.State, review.SubjectDisplayName, review.ReviewerDisplayName, review.CurrentStageDueDate,
+                             review.SelfAssessmentEnabled, review.CalibrationEnabled, RoundName = round.Name,
+                             SelfDue = review.SelfAssessmentDueDate ?? round.SelfAssessmentDueDate,
+                             ManagerDue = review.ManagerAssessmentDueDate ?? round.ManagerAssessmentDueDate,
+                         })
             .ToListAsync(token);
         foreach (var review in due)
         {
@@ -259,7 +277,10 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
                 self ? "Complete your self-assessment" : $"Assess {review.SubjectDisplayName}",
                 LateContext(review.RoundName, review.CurrentStageDueDate, today), review.CurrentStageDueDate,
                 PerformanceNotificationTemplates.ReviewPath(review.Id),
-                self ? null : new FusionWorkSubjectDto(review.SubjectDisplayName)));
+                self ? null : new FusionWorkSubjectDto(review.SubjectDisplayName), Sections.Reviews,
+                self
+                    ? WorkSteps.SelfAssessment(review.ReviewerDisplayName, review.SelfDue, review.ManagerDue, review.CalibrationEnabled)
+                    : WorkSteps.ManagerAssessment(review.SubjectDisplayName, review.SelfAssessmentEnabled, review.ManagerDue, review.CalibrationEnabled)));
         }
     }
 
@@ -275,7 +296,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
             .ToListAsync(token);
         items.AddRange(sessions.Select(s => new FusionWorkItemDto(Id("calibration", s.Id), Module, "calibration",
             $"Calibrate {s.RoundName}", "Calibration session open", null,
-            PerformanceNotificationTemplates.CalibrationPath(s.ReviewRoundId))));
+            PerformanceNotificationTemplates.CalibrationPath(s.ReviewRoundId), Section: Sections.Reviews)));
     }
 
     /// <summary>Active rounds whose remaining reviews are all ready to finalize.</summary>
@@ -287,6 +308,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
             {
                 round.Id,
                 round.Name,
+                round.CalibrationEnabled,
                 Ready = db.PerformanceReviews.Count(r => r.ReviewRoundId == round.Id && r.State == PerformanceReviewState.ReadyToFinalize),
                 Pending = db.PerformanceReviews.Count(r => r.ReviewRoundId == round.Id
                     && r.State != PerformanceReviewState.ReadyToFinalize && r.State != PerformanceReviewState.Finalized
@@ -296,6 +318,6 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
         items.AddRange(rounds.Where(r => r.Ready > 0 && r.Pending == 0).Select(r => new FusionWorkItemDto(
             Id("round-finalize", r.Id), Module, "round-finalize", $"Finalize {r.Name}",
             r.Ready == 1 ? "1 review is ready to finalize" : $"{r.Ready} reviews are ready to finalize", null,
-            PerformanceNotificationTemplates.RoundPath(r.Id))));
+            PerformanceNotificationTemplates.RoundPath(r.Id), Section: Sections.Reviews, Steps: WorkSteps.RoundRelease(r.CalibrationEnabled))));
     }
 }
