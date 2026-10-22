@@ -46,6 +46,7 @@ import {
   toInstant,
 } from "./one-on-one-lib";
 import { SOURCE_LABEL, SourceWell } from "./one-on-one-parts";
+import { useRecentRecord } from "@repo/api/react";
 
 /** The app's own routes drop the basePath the server's hrefs carry. */
 const appHref = (href: string) => href.replace(/^\/performance/, "");
@@ -70,6 +71,7 @@ function SeriesView({ series }: { series: OneOnOneSeriesDto }) {
   const isManager = series.viewerRole === "Manager";
   const other = isManager ? series.report : series.manager;
   const me = isManager ? series.manager : series.report;
+  useRecentRecord("performance", { label: `1:1 with ${other.displayName}`, kind: "1:1", href: `/performance/one-on-ones/${series.id}` });
   const upcoming = series.upcoming;
   const names: Names = new Map([
     [series.manager.employeeId, series.manager.displayName],

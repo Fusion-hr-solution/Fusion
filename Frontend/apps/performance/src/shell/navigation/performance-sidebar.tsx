@@ -1,15 +1,11 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Home, BarChart3, User } from "@/lib/icons";
+import { User } from "@/lib/icons";
+import { useFusionNavigation } from "@repo/api/query";
+import { useFusionViewer } from "@repo/api/react";
 import { useAuth } from "@repo/auth";
-import {
-  FUSION_MODULES,
-  filterModulesByEntitlement,
-  ModuleSidebar,
-  ShellUserPanel,
-  type ShellNavSection,
-} from "@repo/ds/shell";
+import { FusionSidebar, sectionPaths, type ShellNavSection } from "@repo/ds/shell";
 import { ADMIN_NAV, CYCLE_FREE_ROUTES, PRIMARY_NAV, visiblePrimaryItems } from "@/data/sidebar-nav";
 import { resolvePerformanceWorkspaceAccessState } from "@/shell/performance-workspace-access";
 import { useSelectedCycleId, useWorkspaceContext } from "@/features/performance/api/use-workspace";
@@ -41,33 +37,30 @@ export function PerformanceSidebar() {
 function SidebarFrame({ sections, pending }: { sections: ShellNavSection[]; pending: boolean }) {
   const pathname = usePathname();
   const activePath = pathname.replace(/^\/performance/, "") || "/";
-  const { user, logout, isLoading: isAuthLoading } = useAuth();
+  const { logout, isLoading: isAuthLoading } = useAuth();
+  const { viewer } = useFusionViewer();
+  const navigation = useFusionNavigation("performance", sectionPaths("/performance", sections));
   return (
-    <ModuleSidebar
-      brandTitle="EY Performance"
-      brandSubtitle="Workspace"
-      brandIcon={BarChart3}
+    <FusionSidebar
+      tenantName={navigation.tenantName}
+      homeCount={navigation.homeCount}
+      modules={navigation.modules}
+      currentModuleKey="performance"
+      basePath="/performance"
       activePath={activePath}
       sections={sections}
+      sectionCounts={navigation.sectionCounts}
       pending={pending}
-      modules={filterModulesByEntitlement(FUSION_MODULES, user?.moduleEntitlements ?? [])}
-      currentModuleKey="performance"
-      userPanel={(collapsed) => (
-        <ShellUserPanel
-          collapsed={collapsed}
-          pending={isAuthLoading}
-          name={user?.fullName}
-          secondaryLabel={user?.roles?.[0]}
-          links={[
-            { label: "My profile", href: "/core/profile", icon: User },
-            { label: "Platform home", href: "/", icon: Home },
-          ]}
-          onSignOut={async () => {
-            await logout();
-            window.location.href = "/auth/signin";
-          }}
-        />
-      )}
+      recent={navigation.recent}
+      person={{
+        ...navigation.person,
+        pending: isAuthLoading,
+        links: viewer?.canOpenOwnProfile ? [{ label: "My profile", href: "/core/profile", icon: User }] : [],
+        onSignOut: async () => {
+          await logout();
+          window.location.href = "/auth/signin";
+        },
+      }}
     />
   );
 }

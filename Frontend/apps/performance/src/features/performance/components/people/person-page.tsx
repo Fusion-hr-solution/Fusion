@@ -12,6 +12,7 @@ import { REACTION_ICONS } from "../conversations/reaction-icons";
 import { FeedbackComposer } from "../conversations/composers";
 import { useState } from "react";
 import { PerformancePageHeading } from "../performance-page-heading";
+import { useRecentRecord } from "@repo/api/react";
 
 const BASE_PATH = "/performance";
 
@@ -35,6 +36,10 @@ export function PersonPage({ employeeId }: { employeeId: string }) {
   const summary = usePersonSummary(employeeId);
   const [giving, setGiving] = useState(false);
   const person = summary.data;
+  useRecentRecord(
+    "performance",
+    person?.displayName ? { label: person.displayName, kind: "Person", href: `/performance/people/${employeeId}` } : null,
+  );
   const coreRecord = person?.stableEmployeeKey && canEnterCoreHr(user) ? `/core/people/${person.stableEmployeeKey}` : null;
   const context = [person?.jobTitle, person?.orgUnitName].filter(Boolean);
 

@@ -33,6 +33,7 @@ import { ReviewDraftBlock } from "./review-draft";
 import { ColleaguePicker } from "../conversations/colleague-picker";
 import { objectiveHref, roundHref, withCycle } from "@/lib/performance-routes";
 import { DueChip, LevelCards, POTENTIAL_COPY, ProgressRing, SectionHeading, SegmentRating, StageTrack, dayLabel, dueIn, type Step } from "./review-parts";
+import { useRecentRecord } from "@repo/api/react";
 
 /**
  * One review as a page (D12): the person writing (board 08), what they sent (09), their released result (13); the reviewer
@@ -42,6 +43,16 @@ export function ReviewRecordPage() {
   const { reviewId } = useParams<{ reviewId: string }>();
   const context = useWorkspaceContext();
   const review = useReview(reviewId, Boolean(context.data));
+  useRecentRecord(
+    "performance",
+    review.data
+      ? {
+          label: `${review.data.subjectDisplayName}'s review`,
+          kind: review.data.reviewRoundName,
+          href: `/performance/reviews/${review.data.id}`,
+        }
+      : null,
+  );
   if (context.isLoading || (context.data && review.isLoading)) return <PageSkeleton rows={7} width="wide" label="Loading review" />;
   if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
   if (review.error) return <ContentUnavailable error={review.error} onRetry={review.refetch} subject="Review" />;

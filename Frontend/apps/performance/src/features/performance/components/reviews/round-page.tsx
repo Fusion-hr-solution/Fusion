@@ -23,6 +23,7 @@ import { formatDateRange } from "../../lib";
 import { calibrationHref, reviewHref, withCycle } from "@/lib/performance-routes";
 import { CountTile, DueChip, SectionHeading, dayLabel } from "./review-parts";
 import { RoundSetup } from "./round-setup";
+import { useRecentRecord } from "@repo/api/react";
 
 /** One round's page in each state (boards 04–07): setup while Draft, monitoring while running, the outcome once closed. */
 export function RoundPage() {
@@ -30,6 +31,10 @@ export function RoundPage() {
   const context = useWorkspaceContext();
   const isAdmin = context.data?.capabilities.administers ?? false;
   const query = useReviewRound(roundId, isAdmin);
+  useRecentRecord(
+    "performance",
+    query.data ? { label: query.data.name, kind: "Review round", href: `/performance/reviews/rounds/${query.data.id}` } : null,
+  );
   if (context.isLoading || (isAdmin && query.isLoading)) return <PageSkeleton rows={7} width="wide" label="Loading the round" />;
   if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
   if (!isAdmin) return <PagePermissionNotice title="Administration only" description="Review rounds are run by Performance administrators." />;

@@ -8,6 +8,7 @@ import { ContentUnavailable } from "../content-unavailable";
 import { MyPlanWorkspace } from "./my-plan-workspace";
 import { PlanReview } from "./plan-review";
 import { PlanPageSkeleton } from "./plan-skeleton";
+import { useRecentRecord } from "@repo/api/react";
 
 /**
  * One plan, addressed by its own Cycle. The owner sees their plan workspace for that Cycle; the
@@ -19,6 +20,17 @@ export function PlanRecordPage({ cycleId, planId }: { cycleId: string; planId: s
   const canRead = Boolean(context.data);
   const cycle = useCycle(canRead ? cycleId : null);
   const plan = usePlanDetail(canRead ? cycleId : null, planId);
+  // Someone else's plan is a record people return to; your own lives at My Plan.
+  useRecentRecord(
+    "performance",
+    plan.data && !plan.data.isOwner
+      ? {
+          label: plan.data.employee.name ? `${plan.data.employee.name}'s plan` : "Plan",
+          kind: `${plan.data.cycleName} plan`,
+          href: `/performance/cycles/${cycleId}/plans/${planId}`,
+        }
+      : null,
+  );
 
   if (context.isLoading || (canRead && (cycle.isLoading || plan.isLoading))) return <PlanPageSkeleton />;
   if (context.error || performanceFailure(cycle.error).unavailable || performanceFailure(plan.error).unavailable) {

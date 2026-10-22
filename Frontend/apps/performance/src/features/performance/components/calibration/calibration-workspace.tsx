@@ -31,11 +31,18 @@ import { SessionAction, SessionStats, SessionTitle, SessionToolbar } from "./cal
 import { ChangesView, DistributionView, PeopleView } from "./calibration-views";
 import { FinalizeDialog } from "./finalize-dialog";
 import { NineBoxView, type NineBoxMove } from "./nine-box";
+import { useRecentRecord } from "@repo/api/react";
 
 export function CalibrationWorkspacePage({ roundId }: { roundId: string }) {
   const context = useWorkspaceContext();
   const canCalibrate = context.data?.capabilities.canCalibrate ?? false;
   const session = useCalibrationSession(roundId, canCalibrate);
+  useRecentRecord(
+    "performance",
+    session.data
+      ? { label: session.data.reviewRoundName, kind: "Calibration", href: `/performance/reviews/rounds/${roundId}/calibration` }
+      : null,
+  );
   const mutations = useCalibrationMutations(roundId, session.data?.cycleId ?? context.data?.selected?.id ?? null);
 
   if (context.isLoading || (canCalibrate && session.isLoading)) return <PageSkeleton rows={7} width="wide" label="Loading calibration" />;
