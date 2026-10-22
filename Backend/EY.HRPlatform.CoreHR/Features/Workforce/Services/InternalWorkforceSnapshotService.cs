@@ -303,16 +303,18 @@ public sealed class InternalWorkforceSnapshotService(CoreHRDbContext dbContext) 
             return [];
         }
 
-        var activeEmployeeIds = (await dbContext.Employments
+        // The current employment's start, so consumers can say when someone joined (e.g. after a population was set).
+        var employmentStartByEmployee = (await dbContext.Employments
                 .AsNoTracking()
                 .Where(employment => employeeIds.Contains(employment.EmployeeId)
                     && employment.Status == EmploymentStatus.Active
                     && employment.EffectiveFrom <= asOf
                     && (employment.EffectiveTo == null || asOf < employment.EffectiveTo))
-                .Select(employment => employment.EmployeeId)
-                .Distinct()
+                .Select(employment => new { employment.EmployeeId, employment.EffectiveFrom })
                 .ToListAsync(cancellationToken))
-            .ToHashSet();
+            .GroupBy(employment => employment.EmployeeId)
+            .ToDictionary(group => group.Key, group => group.Max(employment => employment.EffectiveFrom));
+        var activeEmployeeIds = employmentStartByEmployee.Keys.ToHashSet();
 
         var assignments = await dbContext.WorkAssignments
             .AsNoTracking()
@@ -407,7 +409,8 @@ public sealed class InternalWorkforceSnapshotService(CoreHRDbContext dbContext) 
                                 manager.Id,
                                 BuildDisplayName(manager),
                                 activeManagerIds.Contains(manager.Id))
-                            : null);
+                            : null,
+                    employmentStartByEmployee.TryGetValue(employee.Id, out var started) ? DateOnly.FromDateTime(started) : null);
             })
             .ToList();
     }

@@ -21,20 +21,20 @@ public static class CoreWorkItems
         {
             if (!readiness.Organization.IsReady)
                 items.Add(Item("setup-organization", tenantId, "Finish setting up your organization",
-                    "Fusion needs a published organization", "/core/organization"));
+                    "Fusion needs a published organization", "/core/organization", "/core/organization"));
             if (WorkforceContext(readiness.Workforce) is { } context)
-                items.Add(Item("setup-workforce", tenantId, "Finish setting up your workforce", context, "/core/people"));
+                items.Add(Item("setup-workforce", tenantId, "Finish setting up your workforce", context, "/core/people", "/core/people"));
         }
         if (access is not null)
         {
             if (access.NotInvitedCount > 0)
                 items.Add(Item("access-not-invited", tenantId,
                     $"{People(access.NotInvitedCount)} {(access.NotInvitedCount == 1 ? "doesn't" : "don't")} have Fusion access yet",
-                    "Workforce access", "/core/workforce-access"));
+                    "Workforce access", "/core/workforce-access", "/core/workforce-access"));
             if (access.NeedsReviewCount > 0)
                 items.Add(Item("access-needs-review", tenantId,
                     $"{People(access.NeedsReviewCount)} {(access.NeedsReviewCount == 1 ? "needs" : "need")} an access review",
-                    "Workforce access", "/core/workforce-access"));
+                    "Workforce access", "/core/workforce-access", "/core/workforce-access"));
         }
         return items;
     }
@@ -52,6 +52,7 @@ public static class CoreWorkItems
 
     private static string People(int count) => count == 1 ? "1 person" : $"{count} people";
 
-    private static FusionWorkItemDto Item(string kind, Guid tenantId, string title, string? context, string href)
-        => new($"{Module}:{kind}:{tenantId}", Module, kind, title, context, null, href);
+    /// <param name="section">The sidebar destination the item is counted under: where the work is done.</param>
+    private static FusionWorkItemDto Item(string kind, Guid tenantId, string title, string? context, string href, string section)
+        => new($"{Module}:{kind}:{tenantId}", Module, kind, title, context, null, href, Section: section);
 }

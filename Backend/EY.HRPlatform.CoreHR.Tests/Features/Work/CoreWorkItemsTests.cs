@@ -37,6 +37,7 @@ public sealed class CoreWorkItemsTests
         Assert.Equal($"core:setup-organization:{TenantId}", item.Id);
         Assert.Equal("core", item.Module);
         Assert.Equal("/core/organization", item.Href);
+        Assert.Equal("/core/organization", item.Section);
     }
 
     [Fact]
@@ -46,6 +47,7 @@ public sealed class CoreWorkItemsTests
         Assert.Equal("setup-workforce", item.Kind);
         Assert.Equal("3 people without a current assignment", item.Context);
         Assert.Equal("/core/people", item.Href);
+        Assert.Equal("/core/people", item.Section);
     }
 
     [Fact]
@@ -58,6 +60,7 @@ public sealed class CoreWorkItemsTests
         var items = CoreWorkItems.Compose(TenantId, null, Access(12, needsReview: 1));
         Assert.Equal(["12 people don't have Fusion access yet", "1 person needs an access review"], items.Select(i => i.Title));
         Assert.All(items, item => Assert.Equal("/core/workforce-access", item.Href));
+        Assert.All(items, item => Assert.Equal("/core/workforce-access", item.Section));
     }
 
     // ── Controller: permissions and tenant ──────────────────────────────────
