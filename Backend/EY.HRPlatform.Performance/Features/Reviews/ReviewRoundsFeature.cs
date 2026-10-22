@@ -1,5 +1,6 @@
 using System.Text.Json;
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Population;
@@ -177,10 +178,10 @@ internal static class ReviewRoundReads
         ReviewReadinessResolver.Resolution? readiness = null;
         if (round.State == ReviewRoundState.Draft)
         {
-            try { readiness = await ReviewReadinessResolver.ResolveAsync(subjects, workforce, DateTime.UtcNow, token); }
+            try { readiness = await ReviewReadinessResolver.ResolveAsync(subjects, workforce, PerformanceClock.UtcNow, token); }
             catch (HttpRequestException) when (tolerateCore) { }
         }
-        return await ReviewRoundComposer.ComposeAsync(db, workforce, round, subjects, readiness, DateOnly.FromDateTime(DateTime.UtcNow), token);
+        return await ReviewRoundComposer.ComposeAsync(db, workforce, round, subjects, readiness, PerformanceClock.Today, token);
     }
 }
 
@@ -206,7 +207,7 @@ public sealed class GetEligibleReviewersHandler(PerformanceDbContext db, ICoreWo
         if (round is null) return Result.Failure<IReadOnlyList<EligibleReviewerDto>>(PerformanceErrors.NotFound("ReviewRound", request.RoundId));
         try
         {
-            var asOf = DateTime.UtcNow;
+            var asOf = PerformanceClock.UtcNow;
             var people = await workforce.GetAllActiveAsOfAsync(asOf, cancellationToken);
             return Result.Success<IReadOnlyList<EligibleReviewerDto>>(people
                 .Where(person => person.IsActive)
@@ -249,7 +250,7 @@ public sealed class UpdateReviewRoundHandler(PerformanceDbContext db, IPerforman
                 new ReviewRoundDueDates(request.SelfAssessmentDueDate,
                     request.PeerInputDueDate is not null || request.PeerInputDueDateSet ? request.PeerInputDueDate : round.PeerInputDueDate,
                     request.ManagerAssessmentDueDate),
-                JsonSerializer.Serialize(competencies), DateOnly.FromDateTime(DateTime.UtcNow));
+                JsonSerializer.Serialize(competencies), PerformanceClock.Today);
             if (request.QuestionIds is { } questionIds)
             {
                 var unique = questionIds.Distinct().ToArray();
@@ -320,7 +321,7 @@ public sealed class UpdateReviewRoundPopulationHandler(PerformanceDbContext db, 
             .Distinct()
             .ToArray();
         IReadOnlyList<WorkforceSnapshot> reviewers;
-        try { reviewers = await workforce.ResolveAsync(DateTime.UtcNow, reviewerIds, cancellationToken); }
+        try { reviewers = await workforce.ResolveAsync(PerformanceClock.UtcNow, reviewerIds, cancellationToken); }
         catch (HttpRequestException) { return Result.Failure<IReadOnlyList<ReviewRoundSubjectDto>>(PerformanceErrors.CoreUnavailable()); }
         var reviewerById = reviewers.ToDictionary(p => p.EmployeeId);
         var changed = false;
@@ -398,7 +399,7 @@ public sealed class LaunchReviewRoundHandler(PerformanceDbContext db, ITenantCon
         var included = subjects.Where(s => !s.IsExcluded).ToList();
         if (included.Count == 0)
             return Result.Failure<ReviewRoundLaunchDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.ReviewRoundPopulationEmpty, "A review round needs at least one included subject."));
-        var now = DateTime.UtcNow;
+        var now = PerformanceClock.UtcNow;
         var launchDay = DateOnly.FromDateTime(now);
         ReviewReadinessResolver.Resolution readiness;
         try { readiness = await ReviewReadinessResolver.ResolveAsync(included, workforce, now, cancellationToken); }
@@ -500,7 +501,7 @@ public sealed class GetReviewRoundStatusHandler(PerformanceDbContext db)
         var round = await db.ReviewRounds.AsNoTracking().FirstOrDefaultAsync(r => r.Id == request.RoundId, cancellationToken);
         if (round is null) return Result.Failure<ReviewRoundStatusDto>(PerformanceErrors.NotFound("ReviewRound", request.RoundId));
         var reviews = await db.PerformanceReviews.AsNoTracking().Where(r => r.ReviewRoundId == round.Id).ToListAsync(cancellationToken);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
         var counts = Enum.GetValues<PerformanceReviewState>().Select(state => new ReviewStageCountDto(state, reviews.Count(r => r.State == state))).ToArray();
         var open = reviews.Where(r => r.State != PerformanceReviewState.Closed).ToArray();
         var levels = round.RatingScaleVersionId is Guid versionId

@@ -14,7 +14,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 namespace EY.HRPlatform.Performance.Tests.TestHelpers;
 
 /// <summary>Hosts the real HTTP/JWT/tenant pipeline without a listening socket or external data.</summary>
-public sealed class PerformanceApiFactory : WebApplicationFactory<Program>
+/// <param name="environment">The host environment; Development turns on the demo clock (performance-demo-clock).</param>
+public sealed class PerformanceApiFactory(string environment = "Testing") : WebApplicationFactory<Program>
 {
     public TestStore Store { get; } = TestStore.ForNewTenant();
     public FakeCoreWorkforceClient Core { get; } = new();
@@ -24,7 +25,7 @@ public sealed class PerformanceApiFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseEnvironment("Testing");
+        builder.UseEnvironment(environment);
         builder.UseSetting("Jwt:Secret", PerformanceTestJwt.Secret);
         builder.UseSetting("Jwt:Issuer", PerformanceTestJwt.Issuer);
         builder.UseSetting("Jwt:Audience", PerformanceTestJwt.Audience);

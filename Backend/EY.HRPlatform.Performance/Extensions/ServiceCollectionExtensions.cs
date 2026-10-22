@@ -125,6 +125,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
         services.AddScoped<TenantSaveChangesInterceptor>();
         services.AddScoped<AuditAppendOnlyInterceptor>();
+        services.AddSingleton<DemoClockStampInterceptor>();
         return services;
     }
 
@@ -143,7 +144,10 @@ public static class ServiceCollectionExtensions
             var tenantInterceptor = sp.GetService<TenantSaveChangesInterceptor>()
                 ?? throw new InvalidOperationException(
                     "TenantSaveChangesInterceptor is not registered. Ensure AddPerformanceMultitenancy() is called.");
-            options.AddInterceptors(tenantInterceptor, sp.GetRequiredService<AuditAppendOnlyInterceptor>());
+            options.AddInterceptors(
+                tenantInterceptor,
+                sp.GetRequiredService<AuditAppendOnlyInterceptor>(),
+                sp.GetRequiredService<DemoClockStampInterceptor>());
         });
 
         services.AddHealthChecks()

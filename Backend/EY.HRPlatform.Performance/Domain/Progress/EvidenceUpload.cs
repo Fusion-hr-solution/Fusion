@@ -34,7 +34,7 @@ public sealed class EvidenceUpload : PerformanceAggregate
     {
         if (ObjectiveId != objectiveId || UploaderEmployeeId != uploaderEmployeeId || ClaimedAt is not null)
             throw new ArgumentException("This upload is unavailable for this progress update. Attach the file again.");
-        ClaimedAt = DateTime.UtcNow;
+        ClaimedAt = PerformanceClock.UtcNow;
         MarkUpdated();
     }
 }

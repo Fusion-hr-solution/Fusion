@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Features.Ai;
 using EY.HRPlatform.Performance.Infrastructure.Ai;
@@ -105,7 +106,7 @@ public sealed class GetWorkspaceContextHandler(PerformanceDbContext db, Performa
             Feedback = true,
         };
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
         var phase = selected is null ? null : await CycleDetailComposer.PhaseAsync(db, selected, today, cancellationToken);
         return new WorkspaceContextDto(
             visible.Select(PerformanceMappers.ToSummary).ToList(),

@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Reviews;
 using EY.HRPlatform.Performance.Features.Failures;
@@ -85,7 +86,7 @@ public sealed class MoveRoundDueDateHandler(PerformanceDbContext db, IPerformanc
         catch (ArgumentException ex) { return Result.Failure<ReviewDueDateMoveDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.ReviewDueDateInvalid, ex.Message)); }
         catch (InvalidOperationException ex) { return Result.Failure<ReviewDueDateMoveDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.ReviewRoundNotActive, ex.Message)); }
 
-        var now = DateTime.UtcNow;
+        var now = PerformanceClock.UtcNow;
         var reviews = await db.PerformanceReviews.Where(r => r.ReviewRoundId == round.Id
             && r.State != PerformanceReviewState.Finalized && r.State != PerformanceReviewState.Closed).ToListAsync(token);
         var told = new List<(PerformanceReview Review, Guid Recipient, string Type, Guid Resource, string Href)>();
@@ -153,7 +154,7 @@ public sealed class MoveReviewDueDateHandler(PerformanceDbContext db, IPerforman
         catch (InvalidOperationException ex) { return Result.Failure<ReviewDueDateMoveDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.ReviewNotOpen, ex.Message)); }
 
         var move = ReviewDueDateMove.Create(round, review, stage, from, command.Request.DueDate, command.Request.Reason,
-            command.Actor.EmployeeId, command.Actor.Name, DateTime.UtcNow, 1);
+            command.Actor.EmployeeId, command.Actor.Name, PerformanceClock.UtcNow, 1);
         db.ReviewDueDateMoves.Add(move);
         var href = PerformanceNotificationTemplates.ReviewPath(review.Id);
         // The person and their reviewer both hear about it, whichever of them owns the task.

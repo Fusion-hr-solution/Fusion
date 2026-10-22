@@ -177,7 +177,7 @@ public sealed class DevelopmentGoal : PerformanceChildEntity
     internal void MarkCarriedTo(Guid cycleId)
     {
         CarriedToCycleId = cycleId;
-        CarriedAt = DateTime.UtcNow;
+        CarriedAt = PerformanceClock.UtcNow;
         MarkUpdated();
     }
 

@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Settings;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Features.Security.Policies;
@@ -244,7 +245,7 @@ public static class PlansComposer
             : [];
 
         var overdueObjectives = standing.OverdueObjectiveCount;
-        var now = DateTime.UtcNow;
+        var now = PerformanceClock.UtcNow;
         var withoutRecentUpdate = status == RosterPlanStatus.Approved
             ? objectives.Count(o => o.DerivedProgress < 100m && ExecutionFacts.LacksRecentUpdate(o, plan.ApprovedAt ?? now, now))
             : 0;

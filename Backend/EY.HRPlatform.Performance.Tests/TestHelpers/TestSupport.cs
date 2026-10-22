@@ -36,7 +36,7 @@ public sealed class TestStore(Guid tenantId)
     {
         var options = new DbContextOptionsBuilder<PerformanceDbContext>()
             .UseInMemoryDatabase(_name, _root)
-            .AddInterceptors(new TenantSaveChangesInterceptor(tenant), new AuditAppendOnlyInterceptor())
+            .AddInterceptors(new TenantSaveChangesInterceptor(tenant), new AuditAppendOnlyInterceptor(), new DemoClockStampInterceptor())
             .Options;
         return new PerformanceDbContext(options, tenant);
     }
@@ -54,25 +54,33 @@ public sealed class FakeCoreWorkforceClient : ICoreWorkforceClient
     public Dictionary<Guid, WorkforceSnapshot> ById { get; } = [];
     public Dictionary<Guid, WorkforceOrgUnitContext> OrgUnits { get; } = [];
     public DateTime? LastAsOf { get; private set; }
+    /// <summary>Every as-of date asked, in order.</summary>
+    public List<DateTime> AsOfs { get; } = [];
+
+    private void Record(DateTime asOf)
+    {
+        LastAsOf = asOf;
+        AsOfs.Add(asOf);
+    }
 
     public Task<IReadOnlyList<WorkforceOrgUnitContext>> ResolveOrgUnitsAsync(
         DateTime asOf, IReadOnlyCollection<Guid> orgUnitIds, CancellationToken cancellationToken)
     {
-        LastAsOf = asOf;
+        Record(asOf);
         return Task.FromResult<IReadOnlyList<WorkforceOrgUnitContext>>(
             orgUnitIds.Where(OrgUnits.ContainsKey).Select(id => OrgUnits[id]).ToList());
     }
 
     public Task<IReadOnlyList<WorkforceSnapshot>> GetAllActiveAsOfAsync(DateTime asOf, CancellationToken cancellationToken)
     {
-        LastAsOf = asOf;
+        Record(asOf);
         return Task.FromResult<IReadOnlyList<WorkforceSnapshot>>(AllActive.ToList());
     }
 
     public Task<IReadOnlyList<WorkforceSnapshot>> GetByScopeAsync(
         DateTime asOf, IReadOnlyCollection<Guid> orgUnitIds, bool includeDescendants, CancellationToken cancellationToken)
     {
-        LastAsOf = asOf;
+        Record(asOf);
         var inScope = AllActive
             .Where(snapshot => snapshot.OrgUnit is not null && orgUnitIds.Contains(snapshot.OrgUnit.OrgUnitId))
             .ToList();
@@ -92,7 +100,7 @@ public sealed class FakeCoreWorkforceClient : ICoreWorkforceClient
         DateTime asOf, IReadOnlyCollection<Guid> managerEmployeeIds, CancellationToken cancellationToken)
     {
         ThrowIfUnavailable();
-        LastAsOf = asOf;
+        Record(asOf);
         var managers = managerEmployeeIds.ToHashSet();
         return Task.FromResult<IReadOnlyList<WorkforceSnapshot>>(ById.Values
             .Where(snapshot => snapshot.IsActive && snapshot.Manager is not null && managers.Contains(snapshot.Manager.EmployeeId))
@@ -106,7 +114,7 @@ public sealed class FakeCoreWorkforceClient : ICoreWorkforceClient
     {
         ThrowIfUnavailable();
         SearchCalls++;
-        LastAsOf = asOf;
+        Record(asOf);
         return Task.FromResult<IReadOnlyList<WorkforceSnapshot>>(ById.Values
             .Where(snapshot => snapshot.IsActive && snapshot.DisplayName.Contains(term, StringComparison.OrdinalIgnoreCase))
             .OrderBy(snapshot => snapshot.DisplayName, StringComparer.OrdinalIgnoreCase)
@@ -118,7 +126,7 @@ public sealed class FakeCoreWorkforceClient : ICoreWorkforceClient
         DateTime asOf, IReadOnlyCollection<Guid> employeeIds, CancellationToken cancellationToken)
     {
         ThrowIfUnavailable();
-        LastAsOf = asOf;
+        Record(asOf);
         var resolved = employeeIds
             .Where(ById.ContainsKey)
             .Select(id => ById[id])

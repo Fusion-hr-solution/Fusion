@@ -49,7 +49,7 @@ public sealed class ActivationSnapshot : PerformanceChildEntity
         {
             TenantId = tenantId,
             CycleId = cycleId,
-            CapturedAt = DateTime.UtcNow,
+            CapturedAt = PerformanceClock.UtcNow,
             CycleName = cycleName,
             StartDate = startDate,
             EndDate = endDate,

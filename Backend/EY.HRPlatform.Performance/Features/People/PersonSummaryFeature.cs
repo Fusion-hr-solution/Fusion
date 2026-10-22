@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Progress;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
@@ -100,7 +101,7 @@ public sealed class GetPersonSummaryHandler(PerformanceDbContext db, ICoreWorkfo
         WorkforceSnapshot? person;
         try
         {
-            person = (await workforce.ResolveAsync(DateTime.UtcNow, [query.EmployeeId], token))
+            person = (await workforce.ResolveAsync(PerformanceClock.UtcNow, [query.EmployeeId], token))
                 .SingleOrDefault(p => p.EmployeeId == query.EmployeeId);
         }
         catch (HttpRequestException) { return Result.Failure<PersonPerformanceSummaryDto>(PerformanceErrors.CoreUnavailable()); }
@@ -227,7 +228,7 @@ public sealed class GetPersonSummaryHandler(PerformanceDbContext db, ICoreWorkfo
     private async Task<PersonSummaryCycleDto> CycleSectionAsync(PerformanceCycle cycle, Guid employeeId, EmployeePlan? plan,
         PersonRelation relation, CancellationToken token)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
         var phase = await CycleDetailComposer.PhaseAsync(db, cycle, today, token);
         var participant = await db.Participants.AsNoTracking().FirstOrDefaultAsync(p => p.CycleId == cycle.Id && p.EmployeeId == employeeId, token);
         var participates = participant is not null;

@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Features.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Evidence;
 using EY.HRPlatform.Performance.Domain.Notifications;
@@ -47,14 +48,14 @@ public sealed class PerformanceNotificationDispatcher(PerformanceDbContext db, I
                 else
                 {
                     await sender.SendAsync(message, email, cancellationToken);
-                    message.MarkDispatched(DateTime.UtcNow);
+                    message.MarkDispatched(PerformanceClock.UtcNow);
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception ex)
             {
                 // Persist the error category, never provider exception text containing addresses or content.
-                message.Fail(DateTime.UtcNow, ex.GetType().Name);
+                message.Fail(PerformanceClock.UtcNow, ex.GetType().Name);
             }
         }
         await db.SaveChangesAsync(cancellationToken);
@@ -67,10 +68,10 @@ public sealed class PerformanceBackgroundWorker(IServiceScopeFactory scopeFactor
     EY.HRPlatform.Performance.Features.Reviews.ReviewReminderScanner reminders)
     : BackgroundService
 {
-    private DateTime _nextReminderScan = DateTime.UtcNow;
-    private DateTime _nextEvidenceSweep = DateTime.UtcNow;
-    private DateTime _nextOneOnOneReconciliation = DateTime.UtcNow;
-    private DateTime _nextNotificationPurge = DateTime.UtcNow;
+    private DateTime _nextReminderScan = PerformanceClock.UtcNow;
+    private DateTime _nextEvidenceSweep = PerformanceClock.UtcNow;
+    private DateTime _nextOneOnOneReconciliation = PerformanceClock.UtcNow;
+    private DateTime _nextNotificationPurge = PerformanceClock.UtcNow;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -80,27 +81,27 @@ public sealed class PerformanceBackgroundWorker(IServiceScopeFactory scopeFactor
             try
             {
                 await ProcessBatchAsync(stoppingToken);
-                if (DateTime.UtcNow >= _nextEvidenceSweep)
+                if (PerformanceClock.UtcNow >= _nextEvidenceSweep)
                 {
-                    await sweeper.SweepAsync(DateTime.UtcNow, stoppingToken);
-                    _nextEvidenceSweep = DateTime.UtcNow.AddHours(1);
+                    await sweeper.SweepAsync(PerformanceClock.UtcNow, stoppingToken);
+                    _nextEvidenceSweep = PerformanceClock.UtcNow.AddHours(1);
                 }
-                if (DateTime.UtcNow >= _nextOneOnOneReconciliation)
+                if (PerformanceClock.UtcNow >= _nextOneOnOneReconciliation)
                 {
                     // Set first: a Core outage shouldn't turn this into a retry every tick.
-                    _nextOneOnOneReconciliation = DateTime.UtcNow.AddMinutes(15);
-                    await oneOnOnes.ReconcileAsync(DateTime.UtcNow, stoppingToken);
+                    _nextOneOnOneReconciliation = PerformanceClock.UtcNow.AddMinutes(15);
+                    await oneOnOnes.ReconcileAsync(PerformanceClock.UtcNow, stoppingToken);
                 }
-                if (DateTime.UtcNow >= _nextReminderScan)
+                if (PerformanceClock.UtcNow >= _nextReminderScan)
                 {
                     // Hourly; the dedupe key keeps reruns and restarts to one reminder per task per day.
-                    _nextReminderScan = DateTime.UtcNow.AddHours(1);
-                    await reminders.ScanAsync(DateTime.UtcNow, stoppingToken);
+                    _nextReminderScan = PerformanceClock.UtcNow.AddHours(1);
+                    await reminders.ScanAsync(PerformanceClock.UtcNow, stoppingToken);
                 }
-                if (DateTime.UtcNow >= _nextNotificationPurge)
+                if (PerformanceClock.UtcNow >= _nextNotificationPurge)
                 {
-                    await retention.PurgeAsync(DateTime.UtcNow, stoppingToken);
-                    _nextNotificationPurge = DateTime.UtcNow.AddDays(1);
+                    await retention.PurgeAsync(PerformanceClock.UtcNow, stoppingToken);
+                    _nextNotificationPurge = PerformanceClock.UtcNow.AddDays(1);
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
@@ -119,11 +120,11 @@ public sealed class PerformanceBackgroundWorker(IServiceScopeFactory scopeFactor
             await using var scope = scopeFactory.CreateAsyncScope();
             var db = scope.ServiceProvider.GetRequiredService<PerformanceDbContext>();
             await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-            var message = await PerformanceOutboxClaim.NextAsync(db, DateTime.UtcNow, cancellationToken);
+            var message = await PerformanceOutboxClaim.NextAsync(db, PerformanceClock.UtcNow, cancellationToken);
             if (message is null) break;
             scope.ServiceProvider.GetRequiredService<TenantContext>().SetTenant(message.TenantId);
             var dispatcher = scope.ServiceProvider.GetRequiredService<PerformanceNotificationDispatcher>();
-            await dispatcher.DispatchAsync(message, DateTime.UtcNow, cancellationToken);
+            await dispatcher.DispatchAsync(message, PerformanceClock.UtcNow, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
         }
     }

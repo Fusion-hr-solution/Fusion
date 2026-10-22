@@ -122,7 +122,7 @@ public sealed class EmployeePlan : PerformanceAggregate
                 : "At least one objective must connect to strategic direction.");
 
         State = PlanLifecycleState.Submitted;
-        SubmittedAt = DateTime.UtcNow;
+        SubmittedAt = PerformanceClock.UtcNow;
         RecordDecision(PlanDecisionKind.Submitted, actorEmployeeId, null);
         MarkUpdated();
     }
@@ -177,7 +177,7 @@ public sealed class EmployeePlan : PerformanceAggregate
             ?? throw new KeyNotFoundException("That change request is not part of this plan.");
         if (ActiveReturn?.ChangeRequests.Contains(request) != true)
             throw new InvalidOperationException("Change requests can be addressed only while the plan is back with you after that return.");
-        var changed = request.Address(reply, DateTime.UtcNow);
+        var changed = request.Address(reply, PerformanceClock.UtcNow);
         if (changed) MarkUpdated();
         return changed;
     }
@@ -186,7 +186,7 @@ public sealed class EmployeePlan : PerformanceAggregate
     public PlanChangeRequest? ObjectiveRemoved(Guid objectiveId)
     {
         var request = OpenChangeRequests.FirstOrDefault(item => item.ObjectiveId == objectiveId);
-        if (request is null || !request.ObjectiveWasRemoved(DateTime.UtcNow)) return null;
+        if (request is null || !request.ObjectiveWasRemoved(PerformanceClock.UtcNow)) return null;
         MarkUpdated();
         return request;
     }
@@ -198,7 +198,7 @@ public sealed class EmployeePlan : PerformanceAggregate
             throw new InvalidOperationException("Only a Submitted plan can be approved.");
 
         State = PlanLifecycleState.Approved;
-        ApprovedAt = DateTime.UtcNow;
+        ApprovedAt = PerformanceClock.UtcNow;
         ApprovalKind = PlanApprovalKind.Normal;
         ApprovedByEmployeeId = managerEmployeeId;
         RecordDecision(PlanDecisionKind.Approved, managerEmployeeId, null);
@@ -218,7 +218,7 @@ public sealed class EmployeePlan : PerformanceAggregate
             throw new ArgumentException("An exceptional approval requires a recorded reason.", nameof(reason));
 
         State = PlanLifecycleState.Approved;
-        ApprovedAt = DateTime.UtcNow;
+        ApprovedAt = PerformanceClock.UtcNow;
         ApprovalKind = PlanApprovalKind.Exceptional;
         ApprovedByEmployeeId = administratorEmployeeId;
         RecordDecision(PlanDecisionKind.ApprovedExceptionally, administratorEmployeeId, reason);

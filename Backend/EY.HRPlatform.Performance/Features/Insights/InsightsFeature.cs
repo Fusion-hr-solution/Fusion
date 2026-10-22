@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -140,10 +141,10 @@ internal static class InsightsData
         {
             if (populationUnits.Count > 0)
             {
-                contexts = await workforce.ResolveOrgUnitsAsync(DateTime.UtcNow, populationUnits, token);
+                contexts = await workforce.ResolveOrgUnitsAsync(PerformanceClock.UtcNow, populationUnits, token);
                 var ancestors = contexts.SelectMany(c => c.AncestorOrgUnitIds).Distinct().Except(populationUnits).ToList();
                 if (ancestors.Count > 0)
-                    contexts = [.. contexts, .. await workforce.ResolveOrgUnitsAsync(DateTime.UtcNow, ancestors, token)];
+                    contexts = [.. contexts, .. await workforce.ResolveOrgUnitsAsync(PerformanceClock.UtcNow, ancestors, token)];
             }
         }
         catch (HttpRequestException)
@@ -181,8 +182,8 @@ public sealed class GetInsightsHandler(PerformanceDbContext db, ICoreWorkforceCl
         var people = data.People.Where(p => InsightsData.InScope(p, scope)).ToList();
 
         var cycle = data.Cycle;
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var since = DateTime.UtcNow.AddDays(-InsightsData.RecentDays);
+        var today = PerformanceClock.Today;
+        var since = PerformanceClock.UtcNow.AddDays(-InsightsData.RecentDays);
         var execution = cycle.State == CycleLifecycleState.Closed || today > cycle.PlanningDeadline;
         var reviews = data.Round is not null && people.Any(p => p.Review is not null);
 
@@ -297,8 +298,8 @@ public sealed class GetInsightsPeopleHandler(PerformanceDbContext db, ICoreWorkf
         if (data is null) return Result.Failure<InsightsPeoplePageDto>(PerformanceErrors.NotFound("Cycle", request.CycleId));
         var (scope, _, _) = await InsightsData.ScopeAsync(workforce, data.People, request.UnitId, cancellationToken);
 
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var since = DateTime.UtcNow.AddDays(-InsightsData.RecentDays);
+        var today = PerformanceClock.Today;
+        var since = PerformanceClock.UtcNow.AddDays(-InsightsData.RecentDays);
         bool Matches(InsightsData.Person p) => request.Metric switch
         {
             "people" => true,

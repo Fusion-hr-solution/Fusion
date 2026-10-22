@@ -104,7 +104,7 @@ public sealed class ReviewRound : PerformanceAggregate
             new ReviewRoundComponents(selfAssessmentEnabled, PeerInputEnabled && selfAssessmentEnabled, objectiveRatingsEnabled,
                 QuestionsEnabled, PotentialEnabled, calibrationEnabled),
             new ReviewRoundDueDates(selfAssessmentDueDate, PeerInputDueDate, managerAssessmentDueDate), competencyIdsJson,
-            DateOnly.FromDateTime(DateTime.UtcNow));
+            PerformanceClock.Today);
 
     public void UpdateDraft(PerformanceCycle cycle, string name, DateOnly periodStart, DateOnly periodEnd,
         ReviewRoundComponents components, ReviewRoundDueDates dueDates, string competencyIdsJson, DateOnly plannedLaunch)

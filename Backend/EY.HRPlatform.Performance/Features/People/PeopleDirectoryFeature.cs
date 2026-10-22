@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Infrastructure.Core;
 using EY.HRPlatform.SharedKernel.CQRS;
 using EY.HRPlatform.SharedKernel.Results;
@@ -24,7 +25,7 @@ public sealed class SearchPeopleDirectoryHandler(ICoreWorkforceClient workforce)
     {
         var term = query.Search?.Trim() ?? string.Empty;
         if (term.Length < MinTermLength) return Result.Success<IReadOnlyList<DirectoryPersonDto>>([]);
-        var found = await workforce.SearchAsync(DateTime.UtcNow, term.Length > 100 ? term[..100] : term, MaxResults, token);
+        var found = await workforce.SearchAsync(PerformanceClock.UtcNow, term.Length > 100 ? term[..100] : term, MaxResults, token);
         return Result.Success<IReadOnlyList<DirectoryPersonDto>>(found.Where(p => p.IsActive).Take(MaxResults)
             .Select(p => new DirectoryPersonDto(p.EmployeeId, p.DisplayName, p.JobTitle, p.OrgUnit?.Name)).ToList());
     }

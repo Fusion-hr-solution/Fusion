@@ -64,7 +64,7 @@ public sealed class PerformanceOutboxMessage : PerformanceChildEntity
             ResourceType = "EmployeePlan", ResourceId = planId,
             Payload = JsonSerializer.Serialize(payload),
             DedupeKey = $"{kind}:{planId:N}:{transitionId:N}:{recipientEmployeeId:N}",
-            NextAttemptAt = DateTime.UtcNow,
+            NextAttemptAt = PerformanceClock.UtcNow,
         };
     }
 
@@ -84,7 +84,7 @@ public sealed class PerformanceOutboxMessage : PerformanceChildEntity
             ResourceType = "PerformanceReview", ResourceId = reviewId,
             Payload = JsonSerializer.Serialize(payload),
             DedupeKey = $"{kind}:{reviewId:N}:{transitionId:N}:{recipientEmployeeId:N}",
-            NextAttemptAt = DateTime.UtcNow,
+            NextAttemptAt = PerformanceClock.UtcNow,
         };
     }
 
@@ -108,7 +108,7 @@ public sealed class PerformanceOutboxMessage : PerformanceChildEntity
             ResourceType = resourceType, ResourceId = payload.ResourceId,
             Payload = JsonSerializer.Serialize(payload),
             DedupeKey = $"{kind}:{payload.ResourceId:N}:{transitionId:N}:{recipientEmployeeId:N}",
-            NextAttemptAt = DateTime.UtcNow,
+            NextAttemptAt = PerformanceClock.UtcNow,
         };
     }
 
@@ -136,7 +136,7 @@ public sealed class PerformanceOutboxMessage : PerformanceChildEntity
             ResourceType = resourceType, ResourceId = payload.ResourceId,
             Payload = JsonSerializer.Serialize(payload),
             DedupeKey = $"{kind}:{payload.ResourceId:N}:{transitionId:N}:{recipientEmployeeId:N}",
-            NextAttemptAt = DateTime.UtcNow,
+            NextAttemptAt = PerformanceClock.UtcNow,
         };
     }
 
@@ -164,7 +164,7 @@ public sealed class PerformanceOutboxMessage : PerformanceChildEntity
             ResourceType = resourceType, ResourceId = resourceId,
             Payload = JsonSerializer.Serialize(payload),
             DedupeKey = dedupeKey,
-            NextAttemptAt = DateTime.UtcNow,
+            NextAttemptAt = PerformanceClock.UtcNow,
         };
     }
 
@@ -185,7 +185,7 @@ public sealed class PerformanceOutboxMessage : PerformanceChildEntity
             ResourceType = "CalibrationSession", ResourceId = payload.SessionId,
             Payload = JsonSerializer.Serialize(payload),
             DedupeKey = $"{PerformanceNotificationKind.CalibrationReady}:{payload.SessionId:N}:{recipientUserId:N}",
-            NextAttemptAt = DateTime.UtcNow,
+            NextAttemptAt = PerformanceClock.UtcNow,
         };
         if (recipientEmployeeId is null || recipientEmployeeId == Guid.Empty) message.Skip("no-work-email");
         return message;

@@ -1,5 +1,6 @@
 using EY.HRPlatform.Performance.Domain.Audit;
 using EY.HRPlatform.Performance.Domain.Calibration;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Reviews;
 using EY.HRPlatform.Performance.Domain.Settings;
@@ -93,7 +94,7 @@ internal static class CalibrationSessions
         IPerformanceNotifications notifications, CancellationToken token)
     {
         if (session.ReadyNotifiedAt is not null || await OutstandingAsync(db, session.ReviewRoundId, token) > 0) return;
-        if (!session.MarkReadyNotified(DateTime.UtcNow)) return;
+        if (!session.MarkReadyNotified(PerformanceClock.UtcNow)) return;
         var roundName = await db.ReviewRounds.Where(round => round.Id == session.ReviewRoundId).Select(round => round.Name).SingleAsync(token);
         notifications.EnqueueCalibrationReady(session, roundName);
     }
@@ -113,7 +114,7 @@ internal static class CalibrationSessions
         var session = await FindAsync(db, roundId, token);
         if (session is null) return;
         await db.Entry(session).ReloadAsync(token);
-        if (session.State != CalibrationSessionState.Open || !session.MarkReadyNotified(DateTime.UtcNow)) return;
+        if (session.State != CalibrationSessionState.Open || !session.MarkReadyNotified(PerformanceClock.UtcNow)) return;
         var roundName = await db.ReviewRounds.Where(round => round.Id == roundId).Select(round => round.Name).SingleAsync(token);
         notifications.EnqueueCalibrationReady(session, roundName);
         try { await db.SaveChangesAsync(token); }
@@ -287,7 +288,7 @@ public sealed class OpenCalibrationSessionHandler(PerformanceDbContext db, IPerf
                 "This review round has no rating scale to calibrate against."));
         var settings = await db.CycleSettings.AsNoTracking().FirstOrDefaultAsync(token);
         CalibrationSession session;
-        try { session = CalibrationSession.Open(round.TenantId, round, command.Actor, CalibrationSessions.BandsFor(settings, scale), DateTime.UtcNow); }
+        try { session = CalibrationSession.Open(round.TenantId, round, command.Actor, CalibrationSessions.BandsFor(settings, scale), PerformanceClock.UtcNow); }
         catch (InvalidOperationException ex)
         {
             return Result.Failure<CalibrationSessionDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.CalibrationNotAvailable, ex.Message));
@@ -339,7 +340,7 @@ public sealed class SetCalibrationFacilitatorsHandler(PerformanceDbContext db, I
         try
         {
             session.ReplaceFacilitators(command.UserIds.Select(id => new FacilitatorIdentity(id, capable[id].EmployeeId, capable[id].DisplayName)).ToArray(),
-                command.Actor.UserId, DateTime.UtcNow);
+                command.Actor.UserId, PerformanceClock.UtcNow);
         }
         catch (ArgumentException ex)
         {
@@ -382,7 +383,7 @@ public sealed class AdjustCalibrationSubjectHandler(PerformanceDbContext db, IPe
         try
         {
             adjustment = subject.Apply(session, command.Rating, command.Rationale, command.DiscussionState,
-                await CalibrationSessions.ScaleValuesAsync(db, round, token), command.Actor, DateTime.UtcNow, command.Potential);
+                await CalibrationSessions.ScaleValuesAsync(db, round, token), command.Actor, PerformanceClock.UtcNow, command.Potential);
         }
         catch (InvalidOperationException ex)
         {
@@ -442,7 +443,7 @@ public sealed class FinalizeCalibrationSessionHandler(PerformanceDbContext db, I
             subject.Seal();
             calibrated.Add(review);
         }
-        session.Finalize(command.Actor.UserId, DateTime.UtcNow);
+        session.Finalize(command.Actor.UserId, PerformanceClock.UtcNow);
         // Each reviewer hears the outcome is in, with counts only (D-23): who changed and why stay in the app.
         foreach (var team in calibrated.GroupBy(review => review.ReviewerEmployeeId))
         {

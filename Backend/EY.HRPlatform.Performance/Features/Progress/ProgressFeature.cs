@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Infrastructure.Evidence;
 using EY.HRPlatform.Performance.Domain.Audit;
 using EY.HRPlatform.Performance.Infrastructure.Audit;
@@ -95,7 +96,7 @@ public sealed class ResolveEvidenceFileHandler(PerformanceDbContext db, ICoreWor
         {
             var retentionMonths = await db.CycleSettings.Select(settings => (int?)settings.EvidenceRetentionMonths)
                 .FirstOrDefaultAsync(cancellationToken) ?? 36;
-            if (EvidenceRetentionPolicy.IsExpired(closedAt, retentionMonths, DateTime.UtcNow))
+            if (EvidenceRetentionPolicy.IsExpired(closedAt, retentionMonths, PerformanceClock.UtcNow))
                 return Result.Failure<EvidenceFileRef>(PerformanceErrors.NotFound("Evidence", request.EvidenceId));
         }
         var viewer = await (caller ?? new PerformanceViewer(db, workforce)).ForCycleAsync(cycle, request.Actor.ToGoalActor(), cancellationToken);

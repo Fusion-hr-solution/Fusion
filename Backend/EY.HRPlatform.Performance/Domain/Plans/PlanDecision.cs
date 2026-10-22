@@ -29,7 +29,7 @@ public sealed class PlanDecision : PerformanceChildEntity
             Kind = kind,
             ActorEmployeeId = actorEmployeeId,
             Feedback = string.IsNullOrWhiteSpace(feedback) ? null : feedback.Trim(),
-            DecidedAt = DateTime.UtcNow,
+            DecidedAt = PerformanceClock.UtcNow,
         };
 
     internal void AttachTo(Guid planId) => PlanId = planId;

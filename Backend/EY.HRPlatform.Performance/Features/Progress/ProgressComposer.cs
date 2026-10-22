@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Features.Security;
 using EY.HRPlatform.Performance.Features.Security.Policies;
 using EY.HRPlatform.Performance.Domain.Objectives;
@@ -77,7 +78,7 @@ public static class ProgressComposer
         var names = new Dictionary<Guid, string>();
         if (authorIds.Count > 0)
         {
-            var snapshots = await workforce.ResolveAsync(DateTime.UtcNow, authorIds, cancellationToken);
+            var snapshots = await workforce.ResolveAsync(PerformanceClock.UtcNow, authorIds, cancellationToken);
             foreach (var snapshot in snapshots) names[snapshot.EmployeeId] = snapshot.DisplayName;
         }
 

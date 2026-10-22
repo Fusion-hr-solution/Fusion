@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Development;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -126,7 +127,7 @@ public abstract class DevelopmentHandlerBase(PerformanceDbContext db, ICoreWorkf
             // The current Core HR manager reads; Core owns the reporting line.
             try
             {
-                var person = (await workforce.ResolveAsync(DateTime.UtcNow, [employeeId], token)).SingleOrDefault(p => p.EmployeeId == employeeId);
+                var person = (await workforce.ResolveAsync(PerformanceClock.UtcNow, [employeeId], token)).SingleOrDefault(p => p.EmployeeId == employeeId);
                 canRead = DevelopmentPolicy.CanRead(viewer, employeeId, reviewer, person?.Manager?.EmployeeId);
             }
             catch (HttpRequestException) { return Result.Failure<Context>(PerformanceErrors.CoreUnavailable()); }
@@ -395,7 +396,7 @@ public sealed class DismissDevelopmentCarryOverHandler(PerformanceDbContext db, 
         if (Guard(context, command.ExpectedVersion) is { } refused) return refused;
 
         var plan = EnsurePlan(context);
-        if (plan.DismissCarryOver(DateTime.UtcNow))
+        if (plan.DismissCarryOver(PerformanceClock.UtcNow))
             audit.Record(plan.TenantId, "DevelopmentPlan", plan.Id, context.Cycle.Id, PerformanceAuditActions.DevelopmentCarryOverDismissed,
                 new { before = new { dismissed = false }, after = new { dismissed = true }, employeeId = plan.EmployeeId });
         return await SaveAsync(command.Viewer, command.CycleId, command.EmployeeId, token);

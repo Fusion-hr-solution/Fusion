@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Infrastructure.Ai;
 using EY.HRPlatform.Performance.Domain.Conversations;
 using EY.HRPlatform.Performance.Domain.Cycles;
@@ -62,7 +63,7 @@ public sealed class GetOverviewHandler(PerformanceDbContext db, PerformanceViewe
         var cycle = await db.Cycles.AsNoTracking().FirstAsync(c => c.Id == ctx.Selected.Id, cancellationToken);
         var rounds = await db.ReviewRounds.AsNoTracking().Where(r => r.CycleId == cycle.Id).ToListAsync(cancellationToken);
         var active = rounds.Where(r => r.State == ReviewRoundState.Active).OrderByDescending(r => r.LaunchedAt).FirstOrDefault();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
         var dates = new List<YearDateDto>();
 
         if (cycle.State == CycleLifecycleState.Draft)
@@ -239,7 +240,7 @@ public sealed class GetOverviewHandler(PerformanceDbContext db, PerformanceViewe
         {
             var approvedIds = approved.Select(p => p.Id).ToList();
             var objectives = await ObjectivesAsync(approvedIds, cancellationToken);
-            var recent = DateTime.UtcNow.AddDays(-RecentDays);
+            var recent = PerformanceClock.UtcNow.AddDays(-RecentDays);
             var updatedPlans = objectives.Where(o => o.LastCheckInAt >= recent).Select(o => o.PlanId).ToHashSet();
             var approvedByEmployee = approved.ToDictionary(p => p.EmployeeId, p => p.Id);
             var behind = units
@@ -362,7 +363,7 @@ public sealed class GetOverviewHandler(PerformanceDbContext db, PerformanceViewe
             .ToList();
 
         var objectives = await ObjectivesAsync(approvedPlanIds, cancellationToken);
-        var recent = DateTime.UtcNow.AddDays(-RecentDays);
+        var recent = PerformanceClock.UtcNow.AddDays(-RecentDays);
         var updatedPlans = objectives.Where(o => o.LastCheckInAt >= recent).Select(o => o.PlanId).ToHashSet();
         var stale = approved.Where(m => !updatedPlans.Contains(m.PlanId!.Value)).Select(m => m.EmployeeName ?? "Someone").ToList();
 
@@ -536,7 +537,7 @@ public sealed class GetOverviewHandler(PerformanceDbContext db, PerformanceViewe
 
         var standing = PlansComposer.Classify(plan, objectives, today);
         var returned = standing.Status == RosterPlanStatus.ReturnedForChanges ? plan!.Decisions.OrderBy(d => d.DecidedAt).Last() : null;
-        var now = DateTime.UtcNow;
+        var now = PerformanceClock.UtcNow;
         var executing = standing.Status == RosterPlanStatus.Approved;
         var stale = executing
             ? objectives.Where(o => o.DerivedProgress < 100m && ExecutionFacts.LacksRecentUpdate(o, plan!.ApprovedAt ?? now, now)).ToList()
@@ -598,7 +599,7 @@ public sealed class GetOverviewHandler(PerformanceDbContext db, PerformanceViewe
     private async Task<ConversationsRowDto?> ConversationsAsync(Guid me, CancellationToken cancellationToken)
     {
         if (me == Guid.Empty) return null;
-        var now = DateTime.UtcNow;
+        var now = PerformanceClock.UtcNow;
         var today = DateOnly.FromDateTime(now);
         var meetings = await (from meeting in db.OneOnOneMeetings.AsNoTracking()
                               join series in db.OneOnOneSeries.AsNoTracking() on meeting.SeriesId equals series.Id

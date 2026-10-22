@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Notifications;
 using EY.HRPlatform.Performance.Domain.Audit;
@@ -176,7 +177,7 @@ public sealed class GetCyclePlanSummaryHandler(PerformanceDbContext db)
                 .Where(o => o.CycleId == cycle.Id && o.EmployeePlanId != null)
                 .ToListAsync(cancellationToken))
             .ToLookup(o => o.EmployeePlanId!.Value);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
 
         var standings = participants
             .Select(employeeId => planByEmployee.GetValueOrDefault(employeeId))

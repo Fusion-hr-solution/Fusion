@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Conversations;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -236,7 +237,7 @@ public sealed class RunReviewDraftHandler(
 
         if (!await PerformanceAiAccess.IsAvailableAsync(db, ai, token)) return Result.Failure<ReviewDraftDto>(PerformanceErrors.AiUnavailable());
         var feature = lens == DraftLens.Manager ? ReviewDraftVersions.ManagerFeature : ReviewDraftVersions.SelfFeature;
-        var sources = await ReviewDraftSources.CompileAsync(db, review, round, lens, DateTime.UtcNow, token);
+        var sources = await ReviewDraftSources.CompileAsync(db, review, round, lens, PerformanceClock.UtcNow, token);
         var started = Stopwatch.GetTimestamp();
         if (sources.Count < ReviewDraftVersions.MinimumSources)
         {

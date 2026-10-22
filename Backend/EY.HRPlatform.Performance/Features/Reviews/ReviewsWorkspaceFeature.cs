@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Conversations;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
@@ -89,7 +90,7 @@ public sealed class GetReviewsWorkspaceHandler(PerformanceDbContext db) : IQuery
         }
         else cycle = await db.Cycles.AsNoTracking().Where(c => c.State != CycleLifecycleState.Draft)
             .OrderByDescending(c => c.State == CycleLifecycleState.Active).ThenByDescending(c => c.StartDate).FirstOrDefaultAsync(token);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
         var rounds = cycle is null ? [] : await db.ReviewRounds.AsNoTracking().Where(r => r.CycleId == cycle.Id).OrderBy(r => r.CreatedAt).ToListAsync(token);
         var launched = rounds.Where(r => r.State != ReviewRoundState.Draft).ToDictionary(r => r.Id);
         var cycleReviews = cycle is null ? [] : await db.PerformanceReviews.AsNoTracking().Where(r => r.CycleId == cycle.Id).ToListAsync(token);

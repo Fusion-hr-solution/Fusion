@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Calibration;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Plans;
 using EY.HRPlatform.Performance.Domain.Progress;
@@ -34,7 +35,7 @@ public sealed class GetWorkItemsHandler(PerformanceDbContext db)
     {
         var actor = query.Actor;
         var items = new List<FusionWorkItemDto>();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
         var cycle = await db.Cycles.AsNoTracking().Where(c => c.State == CycleLifecycleState.Active)
             .OrderByDescending(c => c.StartDate).FirstOrDefaultAsync(token);
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.SharedKernel.Domain;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 
@@ -33,7 +34,7 @@ public sealed class PerformanceAuditEntry : BaseEntity, ITenantEntity
         return new PerformanceAuditEntry
         {
             TenantId = tenantId,
-            OccurredAt = DateTime.UtcNow,
+            OccurredAt = PerformanceClock.UtcNow,
             ActorEmployeeId = actorEmployeeId,
             ActorSubject = actorSubject,
             ResourceType = resourceType,

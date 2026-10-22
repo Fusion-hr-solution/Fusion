@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Development;
 using EY.HRPlatform.Performance.Domain.Objectives;
@@ -47,7 +48,7 @@ public static class TeamPhaseFacts
     public static async Task<Composed> ComposeAsync(PerformanceDbContext db, PerformanceCycle cycle, Guid me, string phase,
         ReviewRound? activeRound, IReadOnlyList<TeamRosterMemberDto> members, CancellationToken cancellationToken)
     {
-        var now = DateTime.UtcNow;
+        var now = PerformanceClock.UtcNow;
         return phase switch
         {
             Planning => await PlanningAsync(db, cycle, me, members, cancellationToken),

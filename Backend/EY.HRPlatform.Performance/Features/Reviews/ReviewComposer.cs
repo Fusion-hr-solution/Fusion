@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Calibration;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Conversations;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Reviews;
@@ -378,7 +379,7 @@ public sealed class GetPerformanceReviewHandler(PerformanceDbContext db)
 
     private async Task<ReviewScheduleStateDto> ScheduleAsync(PerformanceReview review, ReviewRound round, bool administrator, CancellationToken token)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
         var sent = administrator
             ? await db.Notifications.AsNoTracking().Where(n => n.Kind == PerformanceNotificationKind.ReviewReminder && n.ResourceId == review.Id)
                 .OrderBy(n => n.OccurredAt).Select(n => n.OccurredAt).ToListAsync(token)

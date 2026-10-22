@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Features.Goals;
 using EY.HRPlatform.Performance.Infrastructure.Core;
@@ -41,7 +42,7 @@ public sealed class PerformanceViewer(PerformanceDbContext db, ICoreWorkforceCli
     private async Task<CurrentLine> LoadLineAsync(CancellationToken cancellationToken)
     {
         if (EmployeeId is not Guid me || me == Guid.Empty) return CurrentLine.None;
-        var now = DateTime.UtcNow;
+        var now = PerformanceClock.UtcNow;
         var self = (await workforce.ResolveAsync(now, [me], cancellationToken)).SingleOrDefault(s => s.EmployeeId == me);
         var reports = await workforce.GetDirectReportsAsync(now, [me], cancellationToken);
         return new CurrentLine(self, reports.Where(r => r.EmployeeId != me).ToList());

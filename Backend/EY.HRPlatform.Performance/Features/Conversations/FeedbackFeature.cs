@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Conversations;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Notifications;
@@ -177,7 +178,7 @@ public sealed class FeedbackReader(PerformanceDbContext db, PerformanceViewer vi
         {
             var competency = await db.Competencies.FirstOrDefaultAsync(c => c.Id == competencyKey && c.State == CompetencyState.Active, token);
             if (competency is null) return Result.Failure<FeedbackSubject>(PerformanceErrors.Validation(invalidCode, "Choose an active competency."));
-            competency.MarkUsed(DateTime.UtcNow);
+            competency.MarkUsed(PerformanceClock.UtcNow);
             return Result.Success(new FeedbackSubject(FeedbackSubjectKind.Competency, CompetencyId: competency.Id));
         }
         if (objectiveId is not Guid objectiveKey) return Result.Success(FeedbackSubject.None);
@@ -228,7 +229,7 @@ public sealed class GiveFeedbackHandler(PerformanceDbContext db, ICoreWorkforceC
         if (request.ReceiverEmployeeId == me)
             return Result.Failure<FeedbackDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.FeedbackInvalid, "Give feedback to someone else."));
 
-        var people = await workforce.ResolveAsync(DateTime.UtcNow, [request.ReceiverEmployeeId, me], token);
+        var people = await workforce.ResolveAsync(PerformanceClock.UtcNow, [request.ReceiverEmployeeId, me], token);
         var receiver = people.FirstOrDefault(p => p.EmployeeId == request.ReceiverEmployeeId);
         var author = people.FirstOrDefault(p => p.EmployeeId == me);
         if (receiver is not { IsActive: true } || author is null)
@@ -244,7 +245,7 @@ public sealed class GiveFeedbackHandler(PerformanceDbContext db, ICoreWorkforceC
         try
         {
             feedback = FeedbackEntity.Give(request.Id, tenant.TenantId, me, author.DisplayName, receiver.EmployeeId, receiver.DisplayName,
-                request.Visibility, manager?.EmployeeId, manager?.DisplayName, subject.Value, request.Message, DateTime.UtcNow);
+                request.Visibility, manager?.EmployeeId, manager?.DisplayName, subject.Value, request.Message, PerformanceClock.UtcNow);
         }
         catch (FeedbackNoManagerException ex)
         {
@@ -352,7 +353,7 @@ public abstract class FeedbackRequestHandlerBase(PerformanceDbContext db, Perfor
         var competencies = request.CompetencyId is Guid c
             ? await db.Competencies.AsNoTracking().Where(x => x.Id == c).ToDictionaryAsync(x => x.Id, x => x.Name, token)
             : new Dictionary<Guid, string>();
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
         var open = request.State == FeedbackRequestState.Open;
         var answerIds = request.Invitees.Select(i => i.FeedbackId).OfType<Guid>().ToList();
         var answers = await db.Feedback.AsNoTracking().Where(f => answerIds.Contains(f.Id)).OrderBy(f => f.SentAt).ToListAsync(token);
@@ -391,7 +392,7 @@ public sealed class AskForFeedbackHandler(PerformanceDbContext db, ICoreWorkforc
         if (wanted.Count is 0 or > FeedbackRequest.MaxInvitees)
             return Invalid($"Ask 1 to {FeedbackRequest.MaxInvitees} colleagues.");
         if (wanted.Contains(me)) return Invalid("Ask colleagues other than yourself.");
-        var people = await workforce.ResolveAsync(DateTime.UtcNow, [.. wanted, me], token);
+        var people = await workforce.ResolveAsync(PerformanceClock.UtcNow, [.. wanted, me], token);
         var requester = people.FirstOrDefault(p => p.EmployeeId == me);
         var invitees = wanted.Select(id => people.FirstOrDefault(p => p.EmployeeId == id)).ToList();
         if (requester is null || invitees.Any(i => i is not { IsActive: true }))
@@ -406,7 +407,7 @@ public sealed class AskForFeedbackHandler(PerformanceDbContext db, ICoreWorkforc
         try
         {
             created = FeedbackRequest.Ask(request.Id, tenant.TenantId, me, requester.DisplayName, request.Question, subject.Value, request.DueDate,
-                invitees.Select(i => (i!.EmployeeId, i.DisplayName)).ToList(), DateOnly.FromDateTime(DateTime.UtcNow), DateTime.UtcNow);
+                invitees.Select(i => (i!.EmployeeId, i.DisplayName)).ToList(), PerformanceClock.Today, PerformanceClock.UtcNow);
         }
         catch (ArgumentException ex) { return Invalid(ex.Message); }
         Db.FeedbackRequests.Add(created);
@@ -437,7 +438,7 @@ public sealed class ListFeedbackRequestsHandler(PerformanceDbContext db, Perform
     public async Task<Result<FeedbackRequestsDto>> Handle(ListFeedbackRequestsQuery query, CancellationToken token)
     {
         var me = query.Actor.EmployeeId;
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
         var toAnswer = await db.FeedbackRequests.AsNoTracking().Where(r => r.Invitees.Any(i => i.EmployeeId == me)).ToListAsync(token);
         var mine = await db.FeedbackRequests.AsNoTracking().Where(r => r.RequesterEmployeeId == me).ToListAsync(token);
 
@@ -495,7 +496,7 @@ public sealed class AnswerFeedbackRequestHandler(PerformanceDbContext db, ICoreW
             return Result.Failure<FeedbackRequestDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.FeedbackRequestClosed, "This request is closed."));
 
         // The answer is shared feedback to the requester, addressed to their manager now.
-        var people = await workforce.ResolveAsync(DateTime.UtcNow, [request.RequesterEmployeeId], token);
+        var people = await workforce.ResolveAsync(PerformanceClock.UtcNow, [request.RequesterEmployeeId], token);
         var requester = people.FirstOrDefault(p => p.EmployeeId == request.RequesterEmployeeId);
         var manager = requester?.Manager is { IsActive: true } m ? m : null;
         FeedbackEntity answer;
@@ -503,8 +504,8 @@ public sealed class AnswerFeedbackRequestHandler(PerformanceDbContext db, ICoreW
         {
             answer = FeedbackEntity.Give(command.Request.FeedbackId, request.TenantId, me, invitee.Name, request.RequesterEmployeeId,
                 request.RequesterName, FeedbackVisibility.Shared, manager?.EmployeeId, manager?.DisplayName, request.Subject,
-                command.Request.Message, DateTime.UtcNow, request.Id);
-            request.RecordAnswer(me, answer.Id, DateTime.UtcNow);
+                command.Request.Message, PerformanceClock.UtcNow, request.Id);
+            request.RecordAnswer(me, answer.Id, PerformanceClock.UtcNow);
         }
         catch (ArgumentException ex)
         {
@@ -538,7 +539,7 @@ public sealed class DeclineFeedbackRequestHandler(PerformanceDbContext db, Perfo
         var invitee = request?.InviteeFor(me);
         if (request is null || invitee is null) return NotFound(command.RequestId);
         if (invitee.Status != FeedbackInviteeStatus.Waiting) return await ProjectAsync(request.Id, command.Actor, token);
-        try { request.Decline(me, command.Request.Reason, DateTime.UtcNow); }
+        try { request.Decline(me, command.Request.Reason, PerformanceClock.UtcNow); }
         catch (InvalidOperationException ex)
         {
             return Result.Failure<FeedbackRequestDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.FeedbackRequestClosed, ex.Message));
@@ -577,7 +578,7 @@ public sealed class CloseFeedbackRequestHandler(PerformanceDbContext db, Perform
                     "Only the person who asked closes the request."))
                 : NotFound(command.RequestId);
         }
-        if (request.Close(command.Actor.EmployeeId, DateTime.UtcNow))
+        if (request.Close(command.Actor.EmployeeId, PerformanceClock.UtcNow))
         {
             audit.Record(request.TenantId, "FeedbackRequest", request.Id, request.CycleId, PerformanceAuditActions.FeedbackRequestClosed,
                 new { reason = request.CloseReason.ToString() });

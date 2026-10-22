@@ -91,7 +91,7 @@ public sealed class PopulationDefinition : PerformanceAggregate
     {
         GuardDraft();
         IsConfirmed = true;
-        ConfirmedAt = DateTime.UtcNow;
+        ConfirmedAt = PerformanceClock.UtcNow;
         MarkUpdated();
     }
 

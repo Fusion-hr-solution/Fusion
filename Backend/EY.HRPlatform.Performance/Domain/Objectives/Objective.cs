@@ -191,7 +191,7 @@ public sealed class Objective : PerformanceAggregate
             throw new InvalidOperationException("A weighted-milestones objective's weights must total 100% before it can be published.");
 
         State = ObjectiveLifecycleState.Published;
-        PublishedAt = DateTime.UtcNow;
+        PublishedAt = PerformanceClock.UtcNow;
         MarkUpdated();
     }
 
@@ -203,7 +203,7 @@ public sealed class Objective : PerformanceAggregate
         if (State != ObjectiveLifecycleState.Published)
             throw new InvalidOperationException("Only a Published objective can be archived.");
         State = ObjectiveLifecycleState.Archived;
-        ArchivedAt = DateTime.UtcNow;
+        ArchivedAt = PerformanceClock.UtcNow;
         MarkUpdated();
     }
 
@@ -390,7 +390,7 @@ public sealed class Objective : PerformanceAggregate
         if (!allChildrenHavePublishedBaseline)
             throw new InvalidOperationException("Every contributing child must be published before the calculation baseline can lock.");
 
-        ContributionBaselineLockedAt = DateTime.UtcNow;
+        ContributionBaselineLockedAt = PerformanceClock.UtcNow;
         MarkUpdated();
     }
 
@@ -515,7 +515,7 @@ public sealed class Objective : PerformanceAggregate
         RequireDirectMethod(MeasurementMethod.ManualPercentage);
         if (value is < 0m or > 100m) throw new ArgumentOutOfRangeException(nameof(value), "Enter a percentage between 0 and 100.");
         CurrentPercentage = value;
-        LastProgressAt = DateTime.UtcNow;
+        LastProgressAt = PerformanceClock.UtcNow;
         MarkUpdated();
     }
 
@@ -524,7 +524,7 @@ public sealed class Objective : PerformanceAggregate
     {
         RequireDirectMethod(MeasurementMethod.NumericTarget);
         CurrentActual = actual;
-        LastProgressAt = DateTime.UtcNow;
+        LastProgressAt = PerformanceClock.UtcNow;
         MarkUpdated();
     }
 
@@ -537,7 +537,7 @@ public sealed class Objective : PerformanceAggregate
             if (Measurement is null || !Measurement.ToggleMilestone(milestoneId, completed))
                 throw new ArgumentException("That milestone is not part of this objective.", nameof(changes));
         }
-        LastProgressAt = DateTime.UtcNow;
+        LastProgressAt = PerformanceClock.UtcNow;
         MarkUpdated();
     }
 

@@ -94,7 +94,7 @@ public sealed class PerformanceCycle : PerformanceAggregate
 
         ActivationSnapshot = snapshot;
         State = CycleLifecycleState.Active;
-        ActivatedAt = DateTime.UtcNow;
+        ActivatedAt = PerformanceClock.UtcNow;
         ActiveTenantSlot = TenantId;
         MarkUpdated();
     }
@@ -127,7 +127,7 @@ public sealed class PerformanceCycle : PerformanceAggregate
             throw new InvalidOperationException("Only an Active Cycle can be closed.");
 
         State = CycleLifecycleState.Closed;
-        ClosedAt = DateTime.UtcNow;
+        ClosedAt = PerformanceClock.UtcNow;
         ActiveTenantSlot = null;
         MarkUpdated();
     }

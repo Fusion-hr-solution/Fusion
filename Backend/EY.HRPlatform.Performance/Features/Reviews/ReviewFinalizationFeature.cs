@@ -1,6 +1,7 @@
 using System.Text.Json;
 using EY.HRPlatform.Performance.Domain.Audit;
 using EY.HRPlatform.Performance.Domain.Calibration;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Reviews;
 using EY.HRPlatform.Performance.Features.Calibration;
@@ -46,7 +47,7 @@ internal static class ReviewFinalization
         if (!composed.IsSuccess) throw new InvalidOperationException("The review snapshot could not be composed.");
         var snapshot = JsonSerializer.Serialize(new
         {
-            capturedAt = DateTime.UtcNow,
+            capturedAt = PerformanceClock.UtcNow,
             review = new { review.Id, review.CycleId, review.ReviewRoundId, round.Name, round.PeriodStart, round.PeriodEnd,
                 review.SubjectEmployeeId, review.SubjectDisplayName, review.ReviewerEmployeeId, review.ReviewerDisplayName,
                 review.SubjectJobTitle, review.SubjectOrgUnitId, review.SubjectOrgUnitName,
@@ -65,7 +66,7 @@ internal static class ReviewFinalization
             finalRating,
             finalRatingSource = source,
         });
-        var now = DateTime.UtcNow;
+        var now = PerformanceClock.UtcNow;
         if (!review.Finalize(snapshot, finalRating, source, now)) return null;
         audit.Record(review.TenantId, "PerformanceReview", review.Id, review.CycleId,
             PerformanceAuditActions.ReviewFinalized,
@@ -167,8 +168,8 @@ public sealed class CloseReviewHandler(PerformanceDbContext db, IPerformanceAudi
         var before = review.State;
         try
         {
-            review.CloseAdministratively(command.Reason, DateTime.UtcNow);
-            await PeerRequestClosure.CloseOpenAsync(db, review.Id, DateTime.UtcNow, token);
+            review.CloseAdministratively(command.Reason, PerformanceClock.UtcNow);
+            await PeerRequestClosure.CloseOpenAsync(db, review.Id, PerformanceClock.UtcNow, token);
         }
         catch (InvalidOperationException ex) { return Result.Failure<PerformanceReviewMutationDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.ReviewFinalizationInvalid, ex.Message)); }
         catch (ArgumentException ex) { return Result.Failure<PerformanceReviewMutationDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.ReviewFinalizationInvalid, ex.Message)); }

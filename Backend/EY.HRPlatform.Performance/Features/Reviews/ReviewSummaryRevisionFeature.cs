@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Reviews;
 using EY.HRPlatform.Performance.Features.Failures;
 using EY.HRPlatform.Performance.Features.Security.Policies;
@@ -49,7 +50,7 @@ public sealed class ReviseReviewSummaryHandler(PerformanceDbContext db, IPerform
         var review = loaded.Value;
         if (VersionGuard.Check(review, command.ExpectedVersion) is { } stale) return Result.Failure<ReviewSummaryStateDto>(stale);
         bool changed;
-        try { changed = review.ReviseSummaryAfterCalibration(command.Actor.EmployeeId, command.Summary, DateTime.UtcNow); }
+        try { changed = review.ReviseSummaryAfterCalibration(command.Actor.EmployeeId, command.Summary, PerformanceClock.UtcNow); }
         catch (InvalidOperationException ex) { return Result.Failure<ReviewSummaryStateDto>(ReviewSummaryRevision.NotRevisable(ex.Message)); }
         catch (ArgumentException ex)
         {
@@ -72,7 +73,7 @@ public sealed class MarkReviewSummaryCheckedHandler(PerformanceDbContext db, IPe
         if (loaded.IsFailure) return Result.Failure<ReviewSummaryStateDto>(loaded.Error);
         var review = loaded.Value;
         bool changed;
-        try { changed = review.MarkSummaryChecked(command.Actor.EmployeeId, DateTime.UtcNow); }
+        try { changed = review.MarkSummaryChecked(command.Actor.EmployeeId, PerformanceClock.UtcNow); }
         catch (InvalidOperationException ex) { return Result.Failure<ReviewSummaryStateDto>(ReviewSummaryRevision.NotRevisable(ex.Message)); }
         if (!changed) return Result.Success(ReviewSummaryRevision.ToDto(review));
         audit.Record(review.TenantId, "PerformanceReview", review.Id, review.CycleId, PerformanceAuditActions.ReviewSummaryChecked,

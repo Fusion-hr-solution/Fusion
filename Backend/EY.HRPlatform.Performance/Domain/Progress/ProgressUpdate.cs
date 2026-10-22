@@ -108,7 +108,7 @@ public sealed class ProgressUpdate : PerformanceAggregate
             Status = status,
             ContextNote = string.IsNullOrWhiteSpace(context) ? null : context.Trim(),
             IsCorrection = isCorrection,
-            RecordedAt = DateTime.UtcNow,
+            RecordedAt = PerformanceClock.UtcNow,
         };
     }
 

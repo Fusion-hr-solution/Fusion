@@ -14,7 +14,7 @@ public abstract class PerformanceAggregate : AggregateRoot, ITenantEntity
     public uint Version { get; private set; }
 
     public void Touch() => MarkUpdated();
-    protected void MarkUpdated() => UpdatedAt = DateTime.UtcNow;
+    protected void MarkUpdated() => UpdatedAt = PerformanceClock.UtcNow;
 }
 
 /// <summary>
@@ -26,5 +26,5 @@ public abstract class PerformanceChildEntity : BaseEntity, ITenantEntity
 {
     public Guid TenantId { get; protected set; }
 
-    protected void MarkUpdated() => UpdatedAt = DateTime.UtcNow;
+    protected void MarkUpdated() => UpdatedAt = PerformanceClock.UtcNow;
 }

@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Reviews;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -71,8 +72,8 @@ internal static class ReviewAssessmentCommands
             if (itemError is not null) return Result.Failure<PerformanceReviewMutationDto>(itemError);
             var answerError = await ApplyAnswersAsync(db, review, input.Answers, self, token);
             if (answerError is not null) return Result.Failure<PerformanceReviewMutationDto>(answerError);
-            if (self) review.SaveSelfAssessment(actor.EmployeeId, input.Summary, DateTime.UtcNow, input.OverallRating);
-            else review.SaveManagerAssessment(actor.EmployeeId, input.Summary, input.OverallRating, DateTime.UtcNow, input.Potential);
+            if (self) review.SaveSelfAssessment(actor.EmployeeId, input.Summary, PerformanceClock.UtcNow, input.OverallRating);
+            else review.SaveManagerAssessment(actor.EmployeeId, input.Summary, input.OverallRating, PerformanceClock.UtcNow, input.Potential);
             audit.Record(review.TenantId, "PerformanceReview", review.Id, review.CycleId,
                 self ? PerformanceAuditActions.ReviewSelfAssessmentSaved : PerformanceAuditActions.ReviewManagerAssessmentSaved,
                 new { before = new { state = review.State.ToString() }, after = new { state = review.State.ToString(), summaryLength = input.Summary?.Length ?? 0, overallRating = self ? null : input.OverallRating } });
@@ -109,8 +110,8 @@ internal static class ReviewAssessmentCommands
                         MissingMessage(missing), missing));
             }
             var changed = self
-                ? review.SubmitSelfAssessment(actor.EmployeeId, input.Summary, input.OverallRating, DateTime.UtcNow)
-                : review.SubmitManagerAssessment(actor.EmployeeId, input.Summary, input.OverallRating, DateTime.UtcNow, input.Potential);
+                ? review.SubmitSelfAssessment(actor.EmployeeId, input.Summary, input.OverallRating, PerformanceClock.UtcNow)
+                : review.SubmitManagerAssessment(actor.EmployeeId, input.Summary, input.OverallRating, PerformanceClock.UtcNow, input.Potential);
             if (!changed) return Result.Success(ToDto(review));
             audit.Record(review.TenantId, "PerformanceReview", review.Id, review.CycleId,
                 self ? PerformanceAuditActions.ReviewSelfAssessmentSubmitted : PerformanceAuditActions.ReviewManagerAssessmentSubmitted,
@@ -123,7 +124,7 @@ internal static class ReviewAssessmentCommands
             else
             {
                 // Peer input closes with the manager assessment, in the same transaction (D3).
-                await PeerRequestClosure.CloseOpenAsync(db, review.Id, DateTime.UtcNow, token);
+                await PeerRequestClosure.CloseOpenAsync(db, review.Id, PerformanceClock.UtcNow, token);
                 if (review.State == PerformanceReviewState.Calibration)
                     await CalibrationSessions.JoinAsync(db, review, notifications, token);
             }

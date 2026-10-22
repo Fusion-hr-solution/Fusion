@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Infrastructure.Audit;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -23,7 +24,7 @@ public sealed record DeleteDraftCycleCommand(Guid CycleId, uint ExpectedVersion)
 /// </summary>
 public static class CycleClosureComposer
 {
-    public static DateOnly Today() => DateOnly.FromDateTime(DateTime.UtcNow);
+    public static DateOnly Today() => PerformanceClock.Today;
 
     public static async Task<CycleClosureDto> ComposeAsync(PerformanceDbContext db, PerformanceCycle cycle, CancellationToken cancellationToken)
     {
@@ -148,7 +149,7 @@ public sealed class CloseCycleHandler(PerformanceDbContext db, IPerformanceAudit
                 new { participant.EmployeeId, before = (string?)null, after = participant.ClosureExceptionReason });
         audit.Record(cycle.TenantId, "Cycle", cycle.Id, cycle.Id, PerformanceAuditActions.CycleClosed,
             new { before = "Active", after = "Closed", cycle.EarlyCloseReason, exceptionCount = unresolved.Count });
-        await EY.HRPlatform.Performance.Features.Plans.UpdateRequests.CloseOpenAsync(db, audit, cycle.Id, DateTime.UtcNow, cancellationToken);
+        await EY.HRPlatform.Performance.Features.Plans.UpdateRequests.CloseOpenAsync(db, audit, cycle.Id, PerformanceClock.UtcNow, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
         return await CycleDetailComposer.ComposeAsync(db, cycle, cancellationToken);
     }

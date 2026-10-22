@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Features.Failures;
 using EY.HRPlatform.Performance.Features.Goals;
 using EY.HRPlatform.Performance.Features.Security;
@@ -45,7 +46,7 @@ public sealed class AcknowledgeObjectiveStatusHandler(PerformanceDbContext db, I
 
         try
         {
-            if (objective.AcknowledgeStatus(command.Actor.CallerEmployeeId, DateTime.UtcNow))
+            if (objective.AcknowledgeStatus(command.Actor.CallerEmployeeId, PerformanceClock.UtcNow))
                 audit.Record(objective.TenantId, "Objective", objective.Id, cycle.Id, PerformanceAuditActions.ObjectiveStatusAcknowledged,
                     new { before = new { acknowledged = false }, after = new { acknowledged = true },
                         status = objective.CurrentStatus?.ToString(), since = objective.StatusSince });

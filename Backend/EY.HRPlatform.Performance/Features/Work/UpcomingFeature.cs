@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Conversations;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Reviews;
@@ -32,7 +33,7 @@ public sealed class GetUpcomingHandler(PerformanceDbContext db)
             return Result.Failure<IReadOnlyList<FusionUpcomingDto>>(
                 PerformanceErrors.Validation("Upcoming.Invalid", $"Choose between 1 and {MaxDays} days."));
         var actor = query.Actor;
-        var now = DateTime.UtcNow;
+        var now = PerformanceClock.UtcNow;
         var today = DateOnly.FromDateTime(now);
         var horizon = today.AddDays(query.Days);
         var items = new List<FusionUpcomingDto>();

@@ -593,7 +593,7 @@ public sealed class RelationalTests
         return new PerformanceDbContext(
             new DbContextOptionsBuilder<PerformanceDbContext>()
                 .UseNpgsql(connectionString)
-                .AddInterceptors([new TenantSaveChangesInterceptor(tenant), new AuditAppendOnlyInterceptor(), .. extra])
+                .AddInterceptors([new TenantSaveChangesInterceptor(tenant), new AuditAppendOnlyInterceptor(), new DemoClockStampInterceptor(), .. extra])
                 .Options,
             tenant);
     }

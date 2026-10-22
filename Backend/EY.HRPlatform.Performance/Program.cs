@@ -94,6 +94,8 @@ app.UseSerilogRequestLogging();
 app.UseInternalServiceBodyBuffering();
 
 app.UseAuthentication();
+// Development-only simulated request time; refused elsewhere (performance-demo-clock).
+app.UseMiddleware<DemoClockMiddleware>();
 app.UseAuthorization();
 // Entitlement checks use signed claims. Deny missing customer authority before tenant resolution.
 app.UseMiddleware<TenantResolutionMiddleware>();

@@ -1,4 +1,5 @@
 using System.Globalization;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.SharedKernel.CQRS;
@@ -57,7 +58,7 @@ public sealed class GetNotificationsHandler(PerformanceDbContext db)
 {
     public async Task<Result<FusionNotificationPageDto>> Handle(GetNotificationsQuery query, CancellationToken token)
     {
-        var now = DateTime.UtcNow;
+        var now = PerformanceClock.UtcNow;
         var own = NotificationFeed.Own(db, query.Recipient, now).AsNoTracking();
         var limit = Math.Clamp(query.Limit ?? NotificationFeed.MaxPageSize, 1, NotificationFeed.MaxPageSize);
         var page = own;
@@ -76,7 +77,7 @@ public sealed class MarkNotificationsReadHandler(PerformanceDbContext db)
 {
     public async Task<Result<MarkNotificationsReadResultDto>> Handle(MarkNotificationsReadCommand command, CancellationToken token)
     {
-        var now = DateTime.UtcNow;
+        var now = PerformanceClock.UtcNow;
         var own = NotificationFeed.Own(db, command.Recipient, now);
         // Ids that aren't the caller's simply don't match: the answer never reveals whether they exist.
         var targets = command.All

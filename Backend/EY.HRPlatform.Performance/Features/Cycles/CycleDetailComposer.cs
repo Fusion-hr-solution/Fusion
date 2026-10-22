@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
@@ -42,7 +43,7 @@ public static class CycleDetailComposer
         var readiness = new LaunchReadinessDto(canActivate, areas, blockers);
         var approvedCount = await db.EmployeePlans.AsNoTracking()
             .CountAsync(p => p.CycleId == cycle.Id && p.State == Domain.Plans.PlanLifecycleState.Approved, cancellationToken);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
         var planningCompleted = !cycle.IsDraft && participantCount > 0 && approvedCount >= participantCount;
         var milestones = BuildMilestones(cycle, publishedStrategyCount > 0, populationConfirmed, planningCompleted, today);
 

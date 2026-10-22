@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Conversations;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Objectives;
@@ -59,7 +60,7 @@ internal static class PeerInput
     {
         if (ids.Count == 0) return Result.Success<IReadOnlyList<(Guid, string)>>([]);
         IReadOnlyList<WorkforceSnapshot> people;
-        try { people = await workforce.ResolveAsync(DateTime.UtcNow, ids.Distinct().ToArray(), token); }
+        try { people = await workforce.ResolveAsync(PerformanceClock.UtcNow, ids.Distinct().ToArray(), token); }
         catch (HttpRequestException) { return Result.Failure<IReadOnlyList<(Guid, string)>>(PerformanceErrors.CoreUnavailable()); }
         var byId = people.Where(p => p.IsActive).ToDictionary(p => p.EmployeeId);
         if (ids.Any(id => !byId.ContainsKey(id)))
@@ -77,7 +78,7 @@ internal static class PeerInput
         var questions = await db.ReviewQuestionSnapshots.AsNoTracking()
             .Where(q => q.ReviewRoundId == request.ReviewRoundId && q.Audience == ReviewQuestionAudience.Peer)
             .OrderBy(q => q.SortOrder).ToListAsync(token);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
         return new PeerRequestDto(request.Id, request.SubjectEmployeeId, request.SubjectDisplayName, round.Name, request.DueDate,
             request.State == PeerRequestState.Open ? ReviewReminderSchedule.DaysLate(request.DueDate, today) : 0, request.State,
             questions.Select(q => new PeerRequestQuestionDto(q.Id, q.SortOrder, q.Text,
@@ -109,7 +110,7 @@ public sealed class NominatePeersHandler(PerformanceDbContext db, ICoreWorkforce
         if (resolved.IsFailure) return Result.Failure<ReviewPeersDto>(resolved.Error);
         var before = review.PeerNominations.ToList();
         bool first;
-        try { first = review.NominatePeers(command.ActorEmployeeId, resolved.Value, DateTime.UtcNow); }
+        try { first = review.NominatePeers(command.ActorEmployeeId, resolved.Value, PerformanceClock.UtcNow); }
         catch (ArgumentException ex) { return Result.Failure<ReviewPeersDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PeerInputInvalid, ex.Message)); }
         catch (InvalidOperationException ex) { return Result.Failure<ReviewPeersDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.PeerInputNotOpen, ex.Message)); }
         db.PeerNominations.RemoveRange(before.Where(item => !review.PeerNominations.Contains(item)));
@@ -147,7 +148,7 @@ public sealed class ApprovePeerListHandler(PerformanceDbContext db, ICoreWorkfor
         var resolved = await PeerInput.ResolvePeersAsync(workforce, command.Request.EmployeeIds, token);
         if (resolved.IsFailure) return Result.Failure<ReviewPeersDto>(resolved.Error);
         var before = review.PeerNominations.ToList();
-        var now = DateTime.UtcNow;
+        var now = PerformanceClock.UtcNow;
         PeerListDecision decision;
         try { decision = review.ApprovePeerList(command.ActorEmployeeId, resolved.Value, now); }
         catch (ArgumentException ex) { return Result.Failure<ReviewPeersDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PeerInputInvalid, ex.Message)); }
@@ -227,7 +228,7 @@ public sealed class GetPeerSuggestionsHandler(PerformanceDbContext db, ICoreWork
         var candidates = feedback.Concat(praiseGiven).Concat(praiseReceived).Concat(sharing).Where(id => !excluded.Contains(id)).Distinct().ToArray();
         if (candidates.Length == 0) return Result.Success<IReadOnlyList<PeerSuggestionDto>>([]);
         IReadOnlyList<WorkforceSnapshot> people;
-        try { people = await workforce.ResolveAsync(DateTime.UtcNow, candidates, token); }
+        try { people = await workforce.ResolveAsync(PerformanceClock.UtcNow, candidates, token); }
         catch (HttpRequestException) { return Result.Failure<IReadOnlyList<PeerSuggestionDto>>(PerformanceErrors.CoreUnavailable()); }
         return Result.Success<IReadOnlyList<PeerSuggestionDto>>(people.Where(p => p.IsActive)
             .Select(p => new PeerSuggestionDto(p.EmployeeId, p.DisplayName, p.JobTitle, p.OrgUnit?.Name, sharing.Contains(p.EmployeeId),
@@ -276,7 +277,7 @@ public sealed class SendPeerAnswersHandler(PerformanceDbContext db, IPerformance
             return Result.Failure<PeerRequestDto>(PeerInput.NotFound(command.RequestId));
         var before = request.Answers.ToList();
         bool changed;
-        try { changed = request.Send(command.ActorEmployeeId, PeerInput.Answers(command.Request), await PeerInput.QuestionIdsAsync(db, request, token), DateTime.UtcNow); }
+        try { changed = request.Send(command.ActorEmployeeId, PeerInput.Answers(command.Request), await PeerInput.QuestionIdsAsync(db, request, token), PerformanceClock.UtcNow); }
         catch (PeerAnswersMissingException ex)
         {
             return Result.Failure<PeerRequestDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PeerRequestInvalid, ex.Message,
@@ -306,7 +307,7 @@ public sealed class DeclinePeerRequestHandler(PerformanceDbContext db, IPerforma
             return Result.Failure<PeerRequestDto>(PeerInput.NotFound(command.RequestId));
         var before = request.Answers.ToList();
         bool changed;
-        try { changed = request.Decline(command.ActorEmployeeId, command.Request.Note, DateTime.UtcNow); }
+        try { changed = request.Decline(command.ActorEmployeeId, command.Request.Note, PerformanceClock.UtcNow); }
         catch (PeerRequestClosedException ex) { return Result.Failure<PeerRequestDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.PeerRequestClosed, ex.Message)); }
         catch (ArgumentException ex) { return Result.Failure<PeerRequestDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.PeerRequestInvalid, ex.Message)); }
         catch (InvalidOperationException ex) { return Result.Failure<PeerRequestDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.PeerRequestAnswered, ex.Message)); }

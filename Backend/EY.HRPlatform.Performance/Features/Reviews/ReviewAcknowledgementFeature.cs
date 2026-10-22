@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Reviews;
 using EY.HRPlatform.Performance.Features.Failures;
@@ -25,7 +26,7 @@ public sealed class AcknowledgeReviewHandler(PerformanceDbContext db, IPerforman
         var review = await db.PerformanceReviews.FirstOrDefaultAsync(r => r.Id == command.ReviewId, token);
         if (review is null) return Result.Failure<ReviewAcknowledgementDto>(PerformanceErrors.NotFound("PerformanceReview", command.ReviewId));
         bool changed;
-        try { changed = review.Acknowledge(command.ActorEmployeeId, command.Comment, DateTime.UtcNow); }
+        try { changed = review.Acknowledge(command.ActorEmployeeId, command.Comment, PerformanceClock.UtcNow); }
         catch (UnauthorizedAccessException)
         {
             return Result.Failure<ReviewAcknowledgementDto>(PerformanceErrors.Forbidden(PerformanceErrors.Codes.ReviewAssessmentForbidden,

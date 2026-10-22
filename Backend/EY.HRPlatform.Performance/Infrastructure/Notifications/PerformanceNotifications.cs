@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Calibration;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Progress;
@@ -132,6 +133,6 @@ public sealed class PerformanceNotifications(PerformanceDbContext db) : IPerform
     {
         if (db.OutboxMessages.Local.Any(m => m.TenantId == message.TenantId && m.DedupeKey == message.DedupeKey)) return;
         db.OutboxMessages.Add(message);
-        db.Notifications.Add(PerformanceNotification.For(message, recipientUserId, text, DateTime.UtcNow));
+        db.Notifications.Add(PerformanceNotification.For(message, recipientUserId, text, PerformanceClock.UtcNow));
     }
 }

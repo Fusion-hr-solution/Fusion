@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Conversations;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Notifications;
@@ -314,7 +315,7 @@ public abstract class OneOnOneHandlerBase(PerformanceDbContext db, ICoreWorkforc
         if (!OneOnOnePolicy.CanWrite(series, viewer.EmployeeId, viewer.ReviewsReports))
             return Fail(PerformanceErrors.Forbidden(PerformanceErrors.Codes.OneOnOneForbidden, "Only the two people in a 1:1 change it."));
         IReadOnlyList<WorkforceSnapshot> people;
-        try { people = await workforce.ResolveAsync(DateTime.UtcNow, [series.ReportEmployeeId, series.ManagerEmployeeId], token); }
+        try { people = await workforce.ResolveAsync(PerformanceClock.UtcNow, [series.ReportEmployeeId, series.ManagerEmployeeId], token); }
         catch (HttpRequestException) { return Fail(PerformanceErrors.CoreUnavailable()); }
         if (EndReasonFor(series, people) is not OneOnOneEndReason reason) return null;
 
@@ -339,7 +340,7 @@ public abstract class OneOnOneHandlerBase(PerformanceDbContext db, ICoreWorkforc
     /// <summary>Ends the series, marks its upcoming meeting not held, and audits it. The caller saves.</summary>
     protected async Task EndAsync(OneOnOneSeries series, OneOnOneEndReason reason, CancellationToken token)
     {
-        if (!series.End(reason, DateTime.UtcNow)) return;
+        if (!series.End(reason, PerformanceClock.UtcNow)) return;
         foreach (var upcoming in await db.OneOnOneMeetings.Where(m => m.SeriesId == series.Id && m.State == OneOnOneMeetingState.Upcoming).ToListAsync(token))
             upcoming.MarkNotHeld();
         audit?.Record(series.TenantId, "OneOnOneSeries", series.Id, null, PerformanceAuditActions.OneOnOneEnded,
@@ -362,7 +363,7 @@ public abstract class OneOnOneHandlerBase(PerformanceDbContext db, ICoreWorkforc
         var me = viewer.EmployeeId;
 
         IReadOnlyList<WorkforceSnapshot>? people = null;
-        try { people = await workforce.ResolveAsync(DateTime.UtcNow, [series.ManagerEmployeeId, series.ReportEmployeeId], token); }
+        try { people = await workforce.ResolveAsync(PerformanceClock.UtcNow, [series.ManagerEmployeeId, series.ReportEmployeeId], token); }
         catch (HttpRequestException) { /* Stored names and state stand in while Core HR is down. */ }
         var lineEnded = series.IsActive && people is not null && EndReasonFor(series, people) is not null;
         var ended = !series.IsActive || lineEnded;
@@ -374,7 +375,7 @@ public abstract class OneOnOneHandlerBase(PerformanceDbContext db, ICoreWorkforc
             .Where(n => meetingIds.Contains(n.MeetingId) && n.AuthorEmployeeId == me)
             .ToDictionaryAsync(n => n.MeetingId, token);
         var byId = meetings.ToDictionary(m => m.Id);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
         var upcoming = ended ? null : meetings.FirstOrDefault(m => m.State == OneOnOneMeetingState.Upcoming);
 
         IReadOnlyList<OneOnOneSuggestionDto> suggestions = [];
@@ -415,7 +416,7 @@ public abstract class OneOnOneHandlerBase(PerformanceDbContext db, ICoreWorkforc
         return Result.Success(new OneOnOneSeriesDto(series.Id, series.Version,
             Person(series.ManagerEmployeeId, series.ManagerName, people), Person(series.ReportEmployeeId, series.ReportName, people),
             me == series.ManagerEmployeeId ? "Manager" : "Report", series.Cadence, series.StartedAt, series.StartedByEmployeeId,
-            ended, series.EndedAt ?? (lineEnded ? DateTime.UtcNow : null), series.EndReason ?? (lineEnded ? EndReasonFor(series, people!) : null),
+            ended, series.EndedAt ?? (lineEnded ? PerformanceClock.UtcNow : null), series.EndReason ?? (lineEnded ? EndReasonFor(series, people!) : null),
             upcoming is null ? null : Meeting(upcoming),
             meetings.Where(m => m.Id != upcoming?.Id && m.State != OneOnOneMeetingState.Upcoming).Select(Meeting).ToList(),
             open.Count, open.Count(a => a.DueDate is DateOnly due && due < today),
@@ -482,7 +483,7 @@ public sealed class GetOneOnOnesHandler(PerformanceDbContext db, PerformanceView
 
         var series = await OneOnOnePolicy.Readable(db.OneOnOneSeries.AsNoTracking(), me).ToListAsync(token);
         var ids = series.Select(s => s.Id).ToList();
-        var windowStart = DateTime.UtcNow - OneOnOneRhythm.LookBack;
+        var windowStart = PerformanceClock.UtcNow - OneOnOneRhythm.LookBack;
         var meetings = (await db.OneOnOneMeetings.AsNoTracking()
                 .Where(m => ids.Contains(m.SeriesId) && (m.State == OneOnOneMeetingState.Upcoming || m.ScheduledAt >= windowStart))
                 .Select(m => new { m.Id, m.SeriesId, m.ScheduledAt, m.State, AgendaCount = m.Agenda.Count })
@@ -492,7 +493,7 @@ public sealed class GetOneOnOnesHandler(PerformanceDbContext db, PerformanceView
             .Where(m => ids.Contains(m.SeriesId) && m.State == OneOnOneMeetingState.Completed)
             .GroupBy(m => m.SeriesId).Select(g => new { g.Key, At = g.Max(m => m.CompletedAt) })
             .ToDictionaryAsync(x => x.Key, x => x.At, token);
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
         var settings = await db.CycleSettings.AsNoTracking().FirstOrDefaultAsync(token);
         var managerId = line?.ManagerEmployeeId;
         var reports = line?.DirectReports.ToDictionary(r => r.EmployeeId) ?? [];
@@ -580,7 +581,7 @@ public sealed class StartOneOnOneHandler(PerformanceDbContext db, ICoreWorkforce
         try
         {
             (series, var first) = OneOnOneSeries.Start(tenantId, managerId, reportId, cadence, me, command.Request.FirstMeetingAt,
-                DateTime.UtcNow, managerName, reportName);
+                PerformanceClock.UtcNow, managerName, reportName);
             if (await FirstAgendaAsync(first, reportId, command, token) is { } refused) return refused;
             Db.OneOnOneSeries.Add(series);
             Db.OneOnOneMeetings.Add(first);
@@ -605,7 +606,7 @@ public sealed class StartOneOnOneHandler(PerformanceDbContext db, ICoreWorkforce
         if (items.Count > MaxFirstAgenda)
             return Fail(PerformanceErrors.Validation(PerformanceErrors.Codes.OneOnOneInvalid, $"Start with up to {MaxFirstAgenda} talking points."));
         var offered = items.Any(i => i.SourceKind is not null)
-            ? await new OneOnOneSuggestions(Db).ForAsync(reportId, command.Viewer, DateTime.UtcNow - OneOnOneSuggestions.FirstMeetingLookBack,
+            ? await new OneOnOneSuggestions(Db).ForAsync(reportId, command.Viewer, PerformanceClock.UtcNow - OneOnOneSuggestions.FirstMeetingLookBack,
                 ReportIdsFor(command.Viewer, reportId), token)
             : [];
         foreach (var item in items)
@@ -642,7 +643,7 @@ public sealed class GetOneOnOneStartHandler(PerformanceDbContext db, ICoreWorkfo
                 "You already have 1:1s together.", new { seriesId = existing.Id }));
 
         var suggestions = await new OneOnOneSuggestions(Db).ForAsync(reportId, query.Viewer,
-            DateTime.UtcNow - OneOnOneSuggestions.FirstMeetingLookBack, ReportIdsFor(query.Viewer, reportId), token);
+            PerformanceClock.UtcNow - OneOnOneSuggestions.FirstMeetingLookBack, ReportIdsFor(query.Viewer, reportId), token);
         var cadence = (await Db.CycleSettings.AsNoTracking().FirstOrDefaultAsync(token))?.DefaultOneOnOneCadence ?? OneOnOneCadence.EveryTwoWeeks;
         return Result.Success(new OneOnOneStartDto(with, cadence, suggestions));
     }
@@ -679,7 +680,7 @@ public sealed class RescheduleOneOnOneHandler(PerformanceDbContext db, ICoreWork
         if (await GuardWriteAsync(series, command.Viewer, token) is { } refused) return refused;
         if (VersionGuard.Check(meeting, command.Request.ExpectedVersion) is { } stale) return Fail(stale);
         var before = meeting.ScheduledAt;
-        try { meeting.Reschedule(command.Request.ScheduledAt, DateTime.UtcNow); }
+        try { meeting.Reschedule(command.Request.ScheduledAt, PerformanceClock.UtcNow); }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException) { return Invalid(ex); }
         if (meeting.ScheduledAt != before)
         {
@@ -708,7 +709,7 @@ public sealed class CompleteOneOnOneHandler(PerformanceDbContext db, ICoreWorkfo
         if (VersionGuard.Check(meeting, command.Request.ExpectedVersion) is { } stale) return Fail(stale);
         try
         {
-            var next = meeting.Complete(series, command.Viewer.EmployeeId, DateTime.UtcNow);
+            var next = meeting.Complete(series, command.Viewer.EmployeeId, PerformanceClock.UtcNow);
             if (next is not null)
             {
                 Db.OneOnOneMeetings.Add(next);
@@ -757,7 +758,7 @@ public sealed class SetAgendaItemDiscussedHandler(PerformanceDbContext db, ICore
     {
         if (await MeetingAsync(command.MeetingId, command.Viewer, token) is not ({ } meeting, { } series)) return NotFound(command.MeetingId);
         if (await GuardWriteAsync(series, command.Viewer, token) is { } refused) return refused;
-        try { meeting.SetDiscussed(command.ItemId, command.Discussed, DateTime.UtcNow); }
+        try { meeting.SetDiscussed(command.ItemId, command.Discussed, PerformanceClock.UtcNow); }
         catch (Exception ex) when (ex is InvalidOperationException or KeyNotFoundException) { return Invalid(ex); }
         return await SaveAsync(series.Id, command.Viewer, token);
     }
@@ -882,7 +883,7 @@ public sealed class SetActionDoneHandler(PerformanceDbContext db, ICoreWorkforce
         var upcoming = await Db.OneOnOneMeetings.AsNoTracking()
             .FirstOrDefaultAsync(m => m.SeriesId == series.Id && m.State == OneOnOneMeetingState.Upcoming, token);
         if (upcoming is null) return SeriesEnded();
-        try { series.SetActionDone(command.ActionId, command.Done, upcoming.Id, DateTime.UtcNow); }
+        try { series.SetActionDone(command.ActionId, command.Done, upcoming.Id, PerformanceClock.UtcNow); }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or KeyNotFoundException) { return Invalid(ex); }
         return await SaveAsync(series.Id, command.Viewer, token);
     }

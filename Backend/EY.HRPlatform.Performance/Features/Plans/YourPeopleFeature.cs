@@ -1,3 +1,4 @@
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Cycles;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -104,7 +105,7 @@ public static class YourPeople
             .ToListAsync(cancellationToken);
 
         var graph = await GoalsComposer.LoadGraphAsync(db, workforce, cycle, cancellationToken, new CycleViewer(actor.ToGoalActor(), null));
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PerformanceClock.Today;
 
         var requests = await (from request in db.UpdateRequests.AsNoTracking()
                               where request.CycleId == cycle.Id && request.RequestedByEmployeeId == caller
@@ -165,7 +166,7 @@ public sealed class GetYourPeopleHandler(PerformanceDbContext db, ICoreWorkforce
         // Recorded responsibility only, and never the caller themselves, even when someone else reviews them.
         var loaded = (await YourPeople.LoadMembersAsync(Db, Workforce, cycle, request.Actor, cancellationToken, activeRound?.Id))
             .Where(m => m.EmployeeId != me).ToList();
-        var phase = TeamPhaseFacts.PhaseOf(cycle, activeRound, DateOnly.FromDateTime(DateTime.UtcNow));
+        var phase = TeamPhaseFacts.PhaseOf(cycle, activeRound, PerformanceClock.Today);
         var composed = await TeamPhaseFacts.ComposeAsync(Db, cycle, me, phase, activeRound, loaded, cancellationToken);
         var members = composed.Members;
         var groups = TeamPhaseFacts.Groups[phase];
@@ -192,7 +193,7 @@ public sealed class GetYourPeopleHandler(PerformanceDbContext db, ICoreWorkforce
             new YourPeopleCountsDto(
                 Count(YourPeopleFilter.NeedsReview), Count(YourPeopleFilter.Planning),
                 Count(YourPeopleFilter.Approved), Count(YourPeopleFilter.NoProgress)),
-            YourPeople.Standing(members, DateTime.UtcNow),
+            YourPeople.Standing(members, PerformanceClock.UtcNow),
             phase,
             groups.Select(g => new RosterGroupCountDto(g, members.Count(m => m.Group == g))).Where(g => g.Count > 0).ToList(),
             composed.Summary));

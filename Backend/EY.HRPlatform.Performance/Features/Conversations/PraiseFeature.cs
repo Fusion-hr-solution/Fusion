@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Conversations;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Settings;
@@ -150,7 +151,7 @@ public sealed class GivePraiseHandler(PerformanceDbContext db, ICoreWorkforceCli
         var value = await db.Competencies.FirstOrDefaultAsync(c => c.Id == request.CompetencyId && c.State == CompetencyState.Active, token);
         if (value is null) return Invalid("Choose one of the company's values.");
 
-        var people = await workforce.ResolveAsync(DateTime.UtcNow, [.. wanted, me], token);
+        var people = await workforce.ResolveAsync(PerformanceClock.UtcNow, [.. wanted, me], token);
         var author = people.FirstOrDefault(p => p.EmployeeId == me);
         var recipients = wanted.Select(id => people.FirstOrDefault(p => p.EmployeeId == id)).ToList();
         if (author is null || recipients.Any(r => r is not { IsActive: true }))
@@ -161,10 +162,10 @@ public sealed class GivePraiseHandler(PerformanceDbContext db, ICoreWorkforceCli
         try
         {
             praise = Praise.Give(request.Id, tenant.TenantId, me, author.DisplayName, value.Id, request.Message,
-                recipients.Select(r => (r!.EmployeeId, r.DisplayName)).ToList(), DateTime.UtcNow);
+                recipients.Select(r => (r!.EmployeeId, r.DisplayName)).ToList(), PerformanceClock.UtcNow);
         }
         catch (ArgumentException ex) { return Invalid(ex.Message); }
-        value.MarkUsed(DateTime.UtcNow);
+        value.MarkUsed(PerformanceClock.UtcNow);
         db.Praise.Add(praise);
         audit.Record(praise.TenantId, "Praise", praise.Id, null, PerformanceAuditActions.PraiseGiven,
             new { authorEmployeeId = me, recipientEmployeeIds = wanted, competencyId = value.Id });
@@ -228,7 +229,7 @@ public sealed class DeletePraiseHandler(PerformanceDbContext db, IPerformanceAud
         if (!PraisePolicy.CanDelete(praise, me, command.Actor.IsAdministrator))
             return Result.Failure(PerformanceErrors.Forbidden(PerformanceErrors.Codes.PraiseDeleteForbidden, "Only its author or HR removes praise."));
         var role = me != Guid.Empty && praise.AuthorEmployeeId == me ? PraiseDeletedBy.Author : PraiseDeletedBy.Administrator;
-        praise.Delete(me, role, DateTime.UtcNow);
+        praise.Delete(me, role, PerformanceClock.UtcNow);
         audit.Record(praise.TenantId, "Praise", praise.Id, null, PerformanceAuditActions.PraiseDeleted,
             new { deletedBy = role.ToString(), authorEmployeeId = praise.AuthorEmployeeId });
         try { await db.SaveChangesAsync(token); }
@@ -244,7 +245,7 @@ public sealed class GetPraiseSummaryHandler(PerformanceDbContext db) : IQueryHan
     public async Task<Result<PraiseSummaryDto>> Handle(GetPraiseSummaryQuery query, CancellationToken token)
     {
         var me = query.EmployeeId;
-        var since = DateTime.UtcNow.AddDays(-WindowDays);
+        var since = PerformanceClock.UtcNow.AddDays(-WindowDays);
         var praise = PraisePolicy.Readable(db.Praise.AsNoTracking());
         var counts = await praise.Where(p => p.GivenAt >= since).GroupBy(p => p.CompetencyId)
             .Select(g => new { Id = g.Key, Count = g.Count() }).ToListAsync(token);

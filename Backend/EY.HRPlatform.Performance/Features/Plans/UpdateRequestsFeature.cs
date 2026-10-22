@@ -1,4 +1,5 @@
 using EY.HRPlatform.Performance.Domain.Audit;
+using EY.HRPlatform.Performance.Domain.Common;
 using EY.HRPlatform.Performance.Domain.Notifications;
 using EY.HRPlatform.Performance.Domain.Objectives;
 using EY.HRPlatform.Performance.Domain.Plans;
@@ -139,7 +140,7 @@ public sealed class CreateUpdateRequestHandler(PerformanceDbContext db, IPerform
         if (existing is not null) return Result.Success(UpdateRequests.ToDto(existing, objective?.Title));
 
         UpdateRequest request;
-        try { request = UpdateRequest.Create(plan, objective, caller, command.ActorName, command.Note, DateTime.UtcNow); }
+        try { request = UpdateRequest.Create(plan, objective, caller, command.ActorName, command.Note, PerformanceClock.UtcNow); }
         catch (InvalidOperationException ex) { return Result.Failure<UpdateRequestDto>(PerformanceErrors.InvalidState(PerformanceErrors.Codes.UpdateRequestNotAllowed, ex.Message)); }
         catch (ArgumentException ex) { return Result.Failure<UpdateRequestDto>(PerformanceErrors.Validation(PerformanceErrors.Codes.UpdateRequestInvalid, ex.Message)); }
         catch (UnauthorizedAccessException) { return Result.Failure<UpdateRequestDto>(UpdateRequests.NotReviewer()); }
@@ -210,7 +211,7 @@ public sealed class WithdrawUpdateRequestHandler(PerformanceDbContext db, IPerfo
             return Result.Failure<UpdateRequestDto>(stale);
         try
         {
-            if (request.Withdraw(DateTime.UtcNow))
+            if (request.Withdraw(PerformanceClock.UtcNow))
             {
                 audit.Record(request.TenantId, "UpdateRequest", request.Id, request.CycleId, PerformanceAuditActions.UpdateRequestWithdrawn,
                     new { before = UpdateRequestState.Open.ToString(), after = request.State.ToString() });
