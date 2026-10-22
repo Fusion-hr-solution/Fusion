@@ -1,6 +1,6 @@
 "use client";
 
-import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
+import { Fragment, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import type { Column, RowData } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -81,6 +81,11 @@ export interface DataTableProps<TData extends RowData> {
   canClickRow?: (row: TData) => boolean;
   /** Below this width the table scrolls inside its frame instead of squeezing its columns. */
   minWidth?: string;
+  /**
+   * Rows arrive already ordered by group; a header band opens each run of rows sharing a group key.
+   * Grouping is the data's order, never a client-side regrouping.
+   */
+  rowGroup?: (row: TData) => { key: string; label: ReactNode } | null | undefined;
   className?: string;
 }
 
@@ -105,6 +110,7 @@ export function DataTable<TData extends RowData>({
   onRowClick,
   canClickRow,
   minWidth,
+  rowGroup,
   className,
 }: DataTableProps<TData>) {
   const { table } = model;
@@ -298,11 +304,25 @@ export function DataTable<TData extends RowData>({
                   </td>
                 </tr>
               ) : (
-                rows.map((row) => {
+                rows.map((row, index) => {
                   const isClickable = clickable(row.original);
+                  const group = rowGroup?.(row.original);
+                  const opensGroup =
+                    group && (index === 0 || rowGroup?.(rows[index - 1]!.original)?.key !== group.key);
                   return (
+                    <Fragment key={row.id}>
+                    {opensGroup ? (
+                      <tr className="border-b border-border bg-inlay">
+                        <th
+                          scope="colgroup"
+                          colSpan={columns.length}
+                          className={cn("h-9 text-left text-xs font-semibold text-foreground", INSET)}
+                        >
+                          {group.label}
+                        </th>
+                      </tr>
+                    ) : null}
                     <tr
-                      key={row.id}
                       data-clickable={isClickable || undefined}
                       className={cn(
                         "group/row border-b border-border transition-colors last:border-0 hover:bg-muted/40",
@@ -341,6 +361,7 @@ export function DataTable<TData extends RowData>({
                         );
                       })}
                     </tr>
+                    </Fragment>
                   );
                 })
               )}

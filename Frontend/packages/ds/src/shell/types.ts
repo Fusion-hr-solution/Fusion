@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 /** A single navigation destination within a module. `href` is module-relative (basePath is prepended). */
 export interface ShellNavItem {
@@ -65,4 +65,57 @@ export interface ModuleSidebarProps {
    * rows in the nav area while keeping the real brand header and footer.
    */
   pending?: boolean;
+}
+
+/** A module in the Fusion sidebar's switcher or, on Home, its module list. `href` is absolute. */
+export interface FusionSidebarModule {
+  key: string;
+  label: string;
+  description?: string;
+  /** Defaults to the module's icon in `FUSION_MODULE_ICONS`. */
+  icon?: LucideIcon;
+  href: string;
+  /** Waiting work in the module; absent when it serves none or hasn't answered. */
+  count?: number;
+}
+
+/** A record the person opened recently in the current module. `href` is absolute. */
+export interface FusionSidebarRecord {
+  label: string;
+  kind: string;
+  href: string;
+}
+
+export interface FusionSidebarPerson {
+  name?: string | null;
+  /** Job title, else the account type in plain words. */
+  detail?: string | null;
+  /** The job title is still resolving. */
+  detailPending?: boolean;
+  /** The session is still restoring. */
+  pending?: boolean;
+  links?: { label: string; href: string; icon: ComponentType<{ className?: string }> }[];
+  onSignOut?: () => void;
+}
+
+export interface FusionSidebarProps {
+  tenantName?: string | null;
+  /** All of the person's waiting work; absent until a module answers. */
+  homeCount?: number;
+  /** The modules the person can enter, in sidebar order. */
+  modules: FusionSidebarModule[];
+  /** The module being shown. Omitted on the Fusion home, where the modules are listed instead. */
+  currentModuleKey?: string;
+  /** The app's basePath (e.g. "/performance"): turns item hrefs into the absolute paths counts are keyed by. */
+  basePath?: string;
+  /** Current path within the module, for active state. */
+  activePath: string;
+  /** The module's own sections, exactly as the module decides them. */
+  sections?: ShellNavSection[];
+  /** Waiting work per absolute navigation path. */
+  sectionCounts?: Record<string, number>;
+  /** Sections not known yet: stable placeholders in their place. */
+  pending?: boolean;
+  recent?: FusionSidebarRecord[];
+  person: FusionSidebarPerson;
 }

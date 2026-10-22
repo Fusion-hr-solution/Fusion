@@ -2,16 +2,17 @@ import {
   BarChart3,
   BookOpen,
   BrainCircuit,
+  Briefcase,
   Handshake,
   UsersRound,
   Video,
+  type LucideIcon,
 } from "lucide-react";
 import type { ShellModule } from "./types";
 
 /**
- * The full set of Fusion platform modules for the sidebar module switcher.
- * Mirrors @repo/ui's DEFAULT_MODULES so Core/Performance show the same cross-module
- * navigation the other apps do. Cross-module links are full-page navigations (separate apps).
+ * The Fusion modules as the Platform console's provisioning catalogue lists them. Tenant navigation reads
+ * the shared registry in `@repo/api` (`FUSION_MODULE_REGISTRY`) and draws it with {@link FUSION_MODULE_ICONS}.
  */
 export const FUSION_MODULES: ShellModule[] = [
   { key: "core", label: "Core HR", description: "Workforce & organization", icon: BrainCircuit, href: "/core" },
@@ -22,30 +23,12 @@ export const FUSION_MODULES: ShellModule[] = [
   { key: "interview", label: "Interview", description: "Candidate assessments", icon: Video, href: "/interview" },
 ];
 
-/**
- * Modules whose visibility this feature governs through tenant entitlements.
- * The remaining modules are owned by other teams and are deliberately untouched:
- * they are not provisionable here, so filtering them would hide navigation on
- * data this feature does not own.
- */
-const ENTITLEMENT_GOVERNED_MODULES: Record<string, string> = {
-  core: "CoreHR",
-  performance: "Performance",
+/** The Fusion sidebar's icon for each module of the shared registry, by module key. */
+export const FUSION_MODULE_ICONS: Record<string, LucideIcon> = {
+  core: BrainCircuit,
+  performance: BarChart3,
+  learning: BookOpen,
+  recruitment: Briefcase,
+  onboarding: Handshake,
+  interview: Video,
 };
-
-/**
- * Hides Core HR and Performance when the tenant has no entitlement for them.
- *
- * This is visibility only. It removes a door the user cannot open, so the
- * navigation tells the truth; the backend boundary is what actually refuses the
- * request, and direct entry is gated separately.
- */
-export function filterModulesByEntitlement(
-  modules: ShellModule[],
-  moduleEntitlements: readonly string[],
-): ShellModule[] {
-  return modules.filter((module) => {
-    const required = ENTITLEMENT_GOVERNED_MODULES[module.key];
-    return required === undefined || moduleEntitlements.includes(required);
-  });
-}

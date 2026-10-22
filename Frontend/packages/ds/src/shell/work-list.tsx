@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "../lib/utils";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
-import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
 
 export interface WorkListItem {
@@ -14,6 +13,8 @@ export interface WorkListItem {
   dueOn?: string | null;
   href: string;
   subject?: { displayName: string } | null;
+  /** The path the work belongs to, when its module composes one. */
+  steps?: { label: string; detail?: string | null; state: "done" | "current" | "upcoming" }[] | null;
 }
 
 export interface WorkListModule {
@@ -46,60 +47,16 @@ export function daysUntil(dueOn: string, today: Date): number {
 
 export function dueLabel(dueOn: string, today: Date): string {
   const days = daysUntil(dueOn, today);
-  if (days < -1) return `${-days} days overdue`;
-  if (days === -1) return "1 day overdue";
+  if (days < -1) return `${-days} days late`;
+  if (days === -1) return "1 day late";
   if (days === 0) return "Due today";
   if (days === 1) return "Due tomorrow";
   return `${days} days left`;
 }
 
-/** The one item that matters most: the earliest due, or the first (newest) when none is due. */
-export function selectFeaturedWork<T extends WorkListItem>(items: readonly T[]): T | null {
-  const dated = items.filter((item) => item.dueOn);
-  if (dated.length > 0) {
-    return dated.reduce((earliest, item) => (item.dueOn! < earliest.dueOn! ? item : earliest));
-  }
-  return items[0] ?? null;
-}
-
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).slice(0, 2);
   return parts.map((part) => part[0]?.toUpperCase() ?? "").join("") || "?";
-}
-
-export interface WorkFocusProps {
-  item: WorkListItem;
-  moduleLabel: string;
-  today?: Date;
-  renderLink?: RenderWorkLink;
-}
-
-/** The featured work item: its module, title, how long is left, and the one action that opens it. */
-export function WorkFocus({ item, moduleLabel, today, renderLink = defaultLink }: WorkFocusProps) {
-  const reference = today ?? new Date();
-  const days = item.dueOn ? daysUntil(item.dueOn, reference) : null;
-  return (
-    <section aria-label="Most important" className="flex flex-col gap-5 rounded-surface bg-card p-6 sm:flex-row sm:items-end sm:justify-between">
-      <div className="min-w-0 space-y-1.5">
-        <p className="type-eyebrow text-muted-foreground">{moduleLabel}</p>
-        <h2 className="type-section-title text-foreground">{item.title}</h2>
-        {item.context ? <p className="type-body-secondary text-muted-foreground">{item.context}</p> : null}
-      </div>
-      <div className="flex shrink-0 items-end gap-6">
-        {days !== null && item.dueOn ? (
-          <div className="text-right">
-            <p className={cn("type-metric", days < 0 ? "text-warning" : "text-foreground")}>
-              {days < 0 ? -days : days}
-            </p>
-            <p className="type-meta text-muted-foreground">
-              {days < 0 ? (days === -1 ? "day overdue" : "days overdue") : days === 1 ? "day left" : "days left"}
-            </p>
-          </div>
-        ) : null}
-        <Button asChild>{renderLink({ href: item.href, className: "", children: "Open" })}</Button>
-      </div>
-    </section>
-  );
 }
 
 export interface WorkListProps {

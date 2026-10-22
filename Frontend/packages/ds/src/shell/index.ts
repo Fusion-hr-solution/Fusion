@@ -2,7 +2,8 @@
 // (sidebar, app frame, and page-layout kit).
 
 export { ModuleSidebar } from "./module-sidebar";
-export { FUSION_MODULES, filterModulesByEntitlement } from "./modules";
+export { FusionSidebar, sectionPaths } from "./fusion-sidebar";
+export { FUSION_MODULE_ICONS, FUSION_MODULES } from "./modules";
 export { ShellUserPanel } from "./shell-user-panel";
 export type {
   ShellUserPanelProps,
@@ -73,6 +74,10 @@ export type {
   ShellNavSection,
   ShellModule,
   ModuleSidebarProps,
+  FusionSidebarModule,
+  FusionSidebarPerson,
+  FusionSidebarProps,
+  FusionSidebarRecord,
 } from "./types";
 export { NotificationBell, relativeStamp } from "./notification-bell";
 export type {
@@ -80,17 +85,7 @@ export type {
   NotificationBellModule,
   NotificationBellProps,
 } from "./notification-bell";
-export {
-  WorkFocus,
-  WorkList,
-  daysUntil,
-  dueLabel,
-  selectFeaturedWork,
-} from "./work-list";
-export type {
-  RenderWorkLink,
-  WorkFocusProps,
-  WorkListItem,
-  WorkListModule,
-  WorkListProps,
-} from "./work-list";
+export { WorkList, daysUntil, dueLabel } from "./work-list";
+export type { RenderWorkLink, WorkListItem, WorkListModule, WorkListProps } from "./work-list";
+export { HomeAgenda, LeadFocus, agendaEntries, momentDay, selectLead, shortDay } from "./home";
+export type { HomeAgendaProps, HomeLead, HomeMoment, HomeWorkItem, LeadFocusProps } from "./home";
