@@ -22,7 +22,8 @@ public sealed record WorkspaceGrants(
     bool ManagesOrgObjectives,
     bool Participates,
     bool CanCalibrate,
-    string? AggregateViewScope);
+    string? AggregateViewScope,
+    bool ViewsSettings = false);
 
 public sealed record GetWorkspaceContextQuery(Guid? CycleId, WorkspaceGrants Grants) : IQuery<Result<WorkspaceContextDto>>;
 
@@ -101,7 +102,7 @@ public sealed class GetWorkspaceContextHandler(PerformanceDbContext db, Performa
             Team: reviewer,
             Reviews: hasReviews,
             CycleAdmin: grants.Administers,
-            Settings: grants.Administers)
+            Settings: grants.ViewsSettings)
         {
             OneOnOnes = await HasOneOnOnesAsync(employeeId, cancellationToken),
             Feedback = true,

@@ -2,7 +2,33 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Check, ChevronsUpDown, Home, Lock, LogOut, PanelLeftClose } from "lucide-react";
+import {
+  ArrowLeft,
+  Award,
+  BarChart3,
+  Bell,
+  Building2,
+  Check,
+  ChevronsUpDown,
+  Eye,
+  FileCheck2,
+  History,
+  Home,
+  ListChecks,
+  Lock,
+  LogOut,
+  Mail,
+  MessageSquare,
+  MessageSquareText,
+  PanelLeftClose,
+  Settings,
+  ShieldCheck,
+  SlidersHorizontal,
+  Sparkles,
+  Target,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "../lib/utils";
 import {
   DropdownMenu,
@@ -16,7 +42,51 @@ import { Skeleton } from "../components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../components/ui/tooltip";
 import { FUSION_MODULE_ICONS } from "./modules";
 import type { ShellUserPanelLink } from "./shell-user-panel";
-import type { FusionSidebarModule, FusionSidebarProps, ShellNavItem, ShellNavSection } from "./types";
+import type {
+  FusionSidebarModule,
+  FusionSidebarProps,
+  FusionSidebarSettings,
+  FusionSidebarSettingsGroup,
+  ShellNavItem,
+  ShellNavSection,
+} from "./types";
+
+/** Where Fusion Settings opens: Preferences, served by the shell. */
+const SETTINGS_HREF = "/settings";
+
+/**
+ * The page "Back to …" returns to, kept for the browser session: the key `@repo/api`'s `readSettingsReturn`
+ * reads. Settings pages themselves are never kept.
+ */
+const SETTINGS_RETURN_KEY = "fusion.settings.back";
+const SETTINGS_PATH = /^(\/core|\/performance)?\/settings(\/|$|\?)/;
+
+function rememberReturn() {
+  try {
+    const path = `${window.location.pathname}${window.location.search}`;
+    if (!SETTINGS_PATH.test(path)) window.sessionStorage.setItem(SETTINGS_RETURN_KEY, path);
+  } catch {
+    // A convenience only: without it, Back goes Home.
+  }
+}
+
+/** Each settings section's mark: same section, same icon wherever it is listed. */
+const SETTINGS_SECTION_ICONS: Record<string, LucideIcon> = {
+  preferences: SlidersHorizontal,
+  notifications: Bell,
+  company: Building2,
+  "employee-fields": ListChecks,
+  roles: ShieldCheck,
+  invitations: Mail,
+  "change-history": History,
+  "rating-scale": BarChart3,
+  competencies: Award,
+  "review-questions": MessageSquareText,
+  reviews: FileCheck2,
+  planning: Target,
+  conversations: MessageSquare,
+  "ai-and-data": Sparkles,
+};
 
 function isItemActive(activePath: string, item: ShellNavItem): boolean {
   if (item.exact || item.href === "/") return activePath === item.href;
@@ -103,6 +173,8 @@ function ModuleMark({ module, emphasis }: { module: Pick<FusionSidebarModule, "k
  * `useFusionNavigation` in `@repo/api/query`. Below 1024px, or on request, it collapses to an icon rail.
  */
 export function FusionSidebar({
+  mode = "module",
+  settings,
   tenantName,
   homeCount,
   modules,
@@ -116,8 +188,14 @@ export function FusionSidebar({
   person,
 }: FusionSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const onHome = !currentModuleKey;
-  const current = modules.find((module) => module.key === currentModuleKey);
+  const inSettings = mode === "settings" && settings !== undefined;
+  const onHome = !currentModuleKey && !inSettings;
+  const current = inSettings ? undefined : modules.find((module) => module.key === currentModuleKey);
+
+  useEffect(() => {
+    // Every page outside Settings is where "Back to …" may need to return.
+    if (!inSettings) rememberReturn();
+  }, [inSettings, activePath]);
 
   useEffect(() => {
     // At tablet widths a full navigation column turns a record into a narrow reading pane; the rail keeps
@@ -226,6 +304,15 @@ export function FusionSidebar({
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 pb-3">
+          {inSettings ? (
+            <SettingsNavigation
+              settings={settings}
+              activePath={absolutePath(basePath, activePath)}
+              basePath={basePath}
+              collapsed={collapsed}
+            />
+          ) : (
+          <>
           {/* Home, always first */}
           {withTooltip(
             collapsed,
@@ -320,6 +407,8 @@ export function FusionSidebar({
                 </div>
               ) : null}
             </>
+          )}
+          </>
           )}
         </nav>
 
@@ -473,7 +562,13 @@ function PersonPanel({
             </DropdownMenuItem>
           );
         })}
-        {links.length > 0 && onSignOut ? <DropdownMenuSeparator /> : null}
+        <DropdownMenuItem asChild>
+          <a href={SETTINGS_HREF} onClick={rememberReturn} className="flex items-center gap-2.5">
+            <Settings className="size-4" />
+            Settings
+          </a>
+        </DropdownMenuItem>
+        {onSignOut ? <DropdownMenuSeparator /> : null}
         {onSignOut ? (
           <DropdownMenuItem onSelect={onSignOut} className="flex items-center gap-2.5">
             <LogOut className="size-4" />
@@ -482,5 +577,141 @@ function PersonPanel({
         ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/** Settings mode: the way back, then each group with its sections (fusion-settings). */
+function SettingsNavigation({
+  settings,
+  activePath,
+  basePath,
+  collapsed,
+}: {
+  settings: FusionSidebarSettings;
+  activePath: string;
+  basePath: string;
+  collapsed: boolean;
+}) {
+  const backLabel = `Back to ${settings.back.label}`;
+  // The open section is the one whose address matches most of the path: Preferences (`/settings`) is not current on
+  // Notifications (`/settings/notifications`).
+  const current = settings.groups
+    .flatMap((group) => group.sections)
+    .filter((section) => activePath === section.path || activePath.startsWith(`${section.path}/`))
+    .sort((a, b) => b.path.length - a.path.length)[0]?.path;
+  return (
+    <>
+      {withTooltip(
+        collapsed,
+        backLabel,
+        <a
+          href={settings.back.href}
+          aria-label={collapsed ? backLabel : undefined}
+          className={cn(rowClass(false, collapsed), "font-semibold text-foreground")}
+        >
+          <ArrowLeft className="size-4 shrink-0" />
+          {!collapsed ? <span className="flex-1 truncate">{backLabel}</span> : null}
+        </a>,
+      )}
+
+      <div className="mx-1 my-2.5 h-px bg-border" />
+
+      {settings.groups.map((group, index) => (
+        <SettingsGroup
+          key={group.key}
+          group={group}
+          first={index === 0}
+          currentPath={current}
+          basePath={basePath}
+          collapsed={collapsed}
+        />
+      ))}
+    </>
+  );
+}
+
+function SettingsGroup({
+  group,
+  first,
+  currentPath,
+  basePath,
+  collapsed,
+}: {
+  group: FusionSidebarSettingsGroup;
+  first: boolean;
+  currentPath: string | undefined;
+  basePath: string;
+  collapsed: boolean;
+}) {
+  return (
+    <div className={cn(!first && "mt-2")} role="group" aria-label={group.viewOnly ? `${group.label}, view only` : group.label}>
+      {!collapsed ? (
+        <p className="flex items-center gap-1.5 px-2.5 pt-3 pb-1.5 type-eyebrow text-muted-foreground/70">
+          {group.label}
+          {group.viewOnly ? <Eye aria-label="View only" className="size-3.5" /> : null}
+        </p>
+      ) : !first ? (
+        <div className="mx-2 my-2 h-px bg-border" />
+      ) : null}
+      {group.status === "loading" ? (
+        <div aria-busy aria-label={`Loading ${group.label}`} className="flex flex-col gap-0.5">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className={cn("flex items-center gap-3 px-2.5 py-2", collapsed && "justify-center")}>
+              <Skeleton className="size-4 shrink-0 rounded-detail" />
+              {!collapsed ? <Skeleton className="h-4 flex-1" /> : null}
+            </div>
+          ))}
+        </div>
+      ) : group.status === "error" ? (
+        withTooltip(
+          collapsed,
+          `${group.label} didn't load`,
+          <div className={cn("flex items-start gap-3 px-2.5 py-2 text-sm text-muted-foreground", collapsed && "justify-center")}>
+            <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
+            {!collapsed ? (
+              <span className="flex flex-col items-start">
+                <span>Didn&apos;t load</span>
+                {group.retry ? (
+                  <button
+                    type="button"
+                    onClick={group.retry}
+                    className="rounded-detail font-semibold text-foreground outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Try again
+                  </button>
+                ) : null}
+              </span>
+            ) : null}
+          </div>,
+        )
+      ) : (
+        <ul className="flex flex-col gap-0.5">
+          {group.sections.map((section) => {
+            const active = section.path === currentPath;
+            const Icon = SETTINGS_SECTION_ICONS[section.id] ?? Settings;
+            const content = (
+              <span className={rowClass(active, collapsed)}>
+                <ActiveMark active={active} />
+                <Icon className="size-4 shrink-0" />
+                {!collapsed ? <span className="flex-1 truncate">{section.label}</span> : null}
+              </span>
+            );
+            const label = collapsed ? section.label : undefined;
+            const sameApp = basePath !== "" && section.path.startsWith(`${basePath}/`);
+            const link = sameApp ? (
+              <Link href={section.path.slice(basePath.length)} aria-label={label} aria-current={active ? "page" : undefined}>
+                {content}
+              </Link>
+            ) : (
+              // Another module, or the shell: a document load, as with the module switcher.
+              <a href={section.path} aria-label={label} aria-current={active ? "page" : undefined}>
+                {content}
+              </a>
+            );
+            return <li key={section.path}>{withTooltip(collapsed, section.label, link)}</li>;
+          })}
+        </ul>
+      )}
+    </div>
   );
 }

@@ -66,9 +66,9 @@ public class TenantContextController(
     }
 
     /// <summary>
-    /// Lightweight summary of the caller's own tenant (name and status): the Fusion sidebar's brand line.
-    /// Any signed-in member may read it; the tenant comes only from their token's membership claim, never
-    /// from the request, so it can't name another tenant.
+    /// Lightweight summary of the caller's own tenant (name, status, industry, locale and time zone): the Fusion
+    /// sidebar's brand line and Settings › Company. Any signed-in member may read it; the tenant comes only from
+    /// their token's membership claim, never from the request, so it can't name another tenant.
     /// </summary>
     [HttpGet("tenant-summary")]
     [ProducesResponseType(typeof(ApiResponse<TenantSummaryDto>), StatusCodes.Status200OK)]
@@ -89,6 +89,9 @@ public class TenantContextController(
             tenant.Slug,
             TenantOperationalStatus.For(tenant),
             tenant.IsActive,
-            tenant.IsArchived)));
+            tenant.IsArchived,
+            tenant.Industry,
+            tenant.Locale,
+            tenant.TimeZone)));
     }
 }

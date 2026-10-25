@@ -7,7 +7,6 @@ export interface FieldConfigDto {
 
 export interface BrandingSettingsDto {
   logoUrl: string | null;
-  primaryColor: string | null;
 }
 
 export interface SelfServiceSettingsDto {
@@ -31,7 +30,6 @@ export interface FieldConfigInputDto {
 
 export interface BrandingSettingsInputDto {
   logoUrl?: string | null;
-  primaryColor?: string | null;
 }
 
 export interface SelfServiceSettingsInputDto {
@@ -61,34 +59,6 @@ export interface UpdateTenantSettingsRequest {
   provisioning?: ProvisioningSettingsInputDto | null;
 }
 
-export type SettingsSectionGroupDto = "foundation" | "module" | string;
-export type SettingsSectionStatusDto = "ready" | "attention" | "disabled" | string;
-
-export interface SettingsSectionDto {
-  id: string;
-  moduleId: string;
-  group: SettingsSectionGroupDto;
-  label: string;
-  description: string;
-  enabled: boolean;
-  status: SettingsSectionStatusDto;
-  statusLabel: string;
-  owner: string;
-  auditNamespace: string;
-  order: number;
-  canView: boolean;
-  canManage: boolean;
-  requiredViewCapabilities: string[];
-  requiredManageCapabilities: string[];
-}
-
-export interface SettingsHealthItemDto {
-  sectionId: string;
-  severity: "ready" | "attention" | "blocked" | string;
-  label: string;
-  detail: string;
-}
-
 export interface SettingsAuditEventDto {
   id: string;
   occurredAt: string;
@@ -102,12 +72,6 @@ export interface SettingsAuditEventDto {
   beforeJson: string | null;
   afterJson: string | null;
   correlationId: string | null;
-}
-
-export interface SettingsOverviewDto {
-  sections: SettingsSectionDto[];
-  health: SettingsHealthItemDto[];
-  recentSensitiveChanges: SettingsAuditEventDto[];
 }
 
 export interface OrganizationSettingsDto {
@@ -134,8 +98,6 @@ export interface ProvisioningSettingsResponseDto {
 
 export const tenantSettingsPaths = {
   current: () => "/corehr/settings",
-  sections: () => "/corehr/settings/sections",
-  overview: () => "/corehr/settings/overview",
   organization: () => "/corehr/settings/organization",
   peopleData: () => "/corehr/settings/people-data",
   provisioning: () => "/corehr/settings/provisioning",
@@ -145,8 +107,6 @@ export const tenantSettingsPaths = {
 export const tenantSettingsQueryKeys = {
   all: () => ["tenantSettings"] as const,
   current: () => [...tenantSettingsQueryKeys.all(), "current"] as const,
-  sections: () => [...tenantSettingsQueryKeys.all(), "sections"] as const,
-  overview: () => [...tenantSettingsQueryKeys.all(), "overview"] as const,
   organization: () => [...tenantSettingsQueryKeys.all(), "organization"] as const,
   peopleData: () => [...tenantSettingsQueryKeys.all(), "people-data"] as const,
   provisioning: () => [...tenantSettingsQueryKeys.all(), "provisioning"] as const,

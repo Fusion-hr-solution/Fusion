@@ -1,8 +1,23 @@
 "use client";
 
 import { useMemo } from "react";
-import type { FieldConfigDto, TenantSettingsDto } from "@repo/api";
-import { useTenantSettings } from "@/features/settings/api/use-tenant-settings";
+import type { FieldConfigDto, FieldVisibility } from "@repo/api";
+import { useFieldVisibility } from "@repo/api/query";
+
+/** Where a field policy comes from: Settings › Employee fields, or the field-visibility read every member may call. */
+export interface EmployeeFieldPolicySource {
+  employeeFieldConfig: Partial<Record<string, FieldConfigDto>>;
+}
+
+/** HR always sees every field, so the read carries no `visible`; it is true wherever a policy is applied. */
+export function fieldPolicySource(visibility: FieldVisibility | undefined): EmployeeFieldPolicySource | null {
+  if (!visibility) return null;
+  return {
+    employeeFieldConfig: Object.fromEntries(
+      Object.entries(visibility.fields).map(([key, rule]) => [key, { visible: true, ...rule }])
+    ),
+  };
+}
 
 export type EmployeeFieldKey =
   | "firstName"
@@ -165,7 +180,7 @@ export const PREPARED_EMPLOYEE_FIELD_DEFINITIONS =
   EMPLOYEE_FIELD_DEFINITIONS.filter((field) => field.surface === "prepared");
 
 export function buildEmployeeFieldConfigDraft(
-  settings?: TenantSettingsDto | null
+  settings?: EmployeeFieldPolicySource | null
 ): EmployeeFieldConfigMap {
   return EMPLOYEE_FIELD_DEFINITIONS.reduce((config, field) => {
     const nextConfig =
@@ -204,7 +219,7 @@ export function buildEmployeeFieldConfigInput(config: EmployeeFieldConfigMap) {
 }
 
 export function getEmployeeFieldPolicy(
-  settings?: TenantSettingsDto | null,
+  settings?: EmployeeFieldPolicySource | null,
   audience: EmployeeFieldAudience = "hrAdmin"
 ): EmployeeFieldPolicyState {
   const config = buildEmployeeFieldConfigDraft(settings);
@@ -245,7 +260,7 @@ export function getEmployeeFieldPolicy(
 }
 
 export function getEmployeeFieldVisibility(
-  settings?: TenantSettingsDto | null,
+  settings?: EmployeeFieldPolicySource | null,
   audience: EmployeeFieldAudience = "hrAdmin"
 ): EmployeeFieldVisibility {
   const policy = getEmployeeFieldPolicy(settings, audience);
@@ -263,11 +278,11 @@ export function useEmployeeFieldPolicy(
   enabled: boolean,
   audience: EmployeeFieldAudience = "hrAdmin"
 ): EmployeeFieldPolicyState {
-  const { data: settings } = useTenantSettings(enabled);
+  const { data: visibility } = useFieldVisibility({ enabled });
 
   return useMemo(
-    () => getEmployeeFieldPolicy(settings, audience),
-    [audience, settings]
+    () => getEmployeeFieldPolicy(fieldPolicySource(visibility), audience),
+    [audience, visibility]
   );
 }
 

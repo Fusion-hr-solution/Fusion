@@ -22,7 +22,7 @@ public sealed class ConversationsFrameHttpTests
         [new(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self), new(PerformancePermissions.CycleView, PermissionScopes.DirectReports)];
     private static readonly EffectivePermissionGrant[] Admin =
         [new(PerformancePermissions.CycleView, PermissionScopes.Tenant), new(PerformancePermissions.CycleManage, PermissionScopes.Tenant),
-         new(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self)];
+         new(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self), new(PerformancePermissions.SettingsManage, PermissionScopes.Tenant)];
 
     private sealed record World(PerformanceApiFactory Factory, Guid Amira, Guid Karim, Guid Nour, Guid Leila, Guid Loner, Guid Ownership)
     {

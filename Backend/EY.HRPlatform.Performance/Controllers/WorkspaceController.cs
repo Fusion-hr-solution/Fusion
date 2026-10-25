@@ -27,7 +27,8 @@ public sealed class WorkspaceController(IMediator mediator, IPerformanceAccessPo
             policy.CanManageOrganizationalObjectives(User),
             policy.CanManageOwnParticipation(User),
             policy.CanCalibrateReviews(User),
-            policy.AggregateViewScope(User));
+            policy.AggregateViewScope(User),
+            policy.CanViewSettings(User));
         return MapResult(await mediator.Send(new GetWorkspaceContextQuery(cycleId, grants), cancellationToken));
     }
 
@@ -49,5 +50,6 @@ public sealed class WorkspaceController(IMediator mediator, IPerformanceAccessPo
         policy.CanManageOrganizationalObjectives(User),
         policy.CanManageOwnParticipation(User),
         policy.CanCalibrateReviews(User),
-        policy.AggregateViewScope(User));
+        policy.AggregateViewScope(User),
+        policy.CanViewSettings(User));
 }

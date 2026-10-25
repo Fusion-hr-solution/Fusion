@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Shield } from "@/lib/icons";
+import { Settings2, Shield } from "@/lib/icons";
 import { canAccessPlatform, useAuth } from "@repo/auth";
 import { ModuleSidebar, ShellUserPanel } from "@repo/ds/shell";
 import { PLATFORM_NAV } from "@/data/sidebar-nav";
@@ -28,7 +28,8 @@ export function PlatformSidebar() {
           pending={isLoading}
           name={user?.fullName}
           secondaryLabel={user?.roles?.[0]}
-          links={[]}
+          // Fusion Settings (Preferences only for a platform administrator) is served by the shell.
+          links={[{ label: "Settings", href: "/settings", icon: Settings2 }]}
           onSignOut={async () => {
             await logout();
             window.location.assign(buildShellUrl("/auth/signin"));

@@ -1,31 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { cn } from "../lib/utils";
 
 const LOCALES = ["en", "fr"] as const;
-type Locale = (typeof LOCALES)[number];
+export type FusionLocale = (typeof LOCALES)[number];
 const STORAGE_KEY = "fusion_locale";
 
 /**
- * Front-only language switcher (EN/FR). Persists a preference but does not yet drive real i18n
- * in Core/Performance — present for parity with the platform's other modules.
+ * The language kept on this device (EN/FR), in localStorage and the `fusion_locale` cookie every Fusion app reads.
+ * Front-only: it does not yet drive real translation.
  */
-export function LanguageSwitcher({ className }: { className?: string }) {
-  const [locale, setLocale] = useState<Locale>("en");
+export function useFusionLocale(): [FusionLocale, (next: FusionLocale) => void, boolean] {
+  const [locale, setLocale] = useState<FusionLocale>("en");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     try {
-      const stored = window.localStorage.getItem(STORAGE_KEY) as Locale | null;
+      const stored = window.localStorage.getItem(STORAGE_KEY) as FusionLocale | null;
       if (stored && LOCALES.includes(stored)) setLocale(stored);
     } catch {
       /* ignore */
     }
   }, []);
 
-  function switchTo(next: Locale) {
+  const choose = useCallback((next: FusionLocale) => {
     setLocale(next);
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
@@ -33,7 +33,14 @@ export function LanguageSwitcher({ className }: { className?: string }) {
     } catch {
       /* ignore */
     }
-  }
+  }, []);
+
+  return [locale, choose, mounted];
+}
+
+/** Compact EN/FR switcher. Fusion's apps choose language in Settings › Preferences; kept for other hosts. */
+export function LanguageSwitcher({ className }: { className?: string }) {
+  const [locale, switchTo, mounted] = useFusionLocale();
 
   return (
     <div

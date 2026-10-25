@@ -15,8 +15,16 @@ public interface IPerformanceAccessPolicyService
     /// <summary>Can enter Performance at all (any breadth of the view capability).</summary>
     bool CanEnterPerformance(ClaimsPrincipal user);
 
-    /// <summary>Tenant performance administration: settings, cycle lifecycle, population.</summary>
+    /// <summary>Tenant performance administration: cycle lifecycle, population.</summary>
     bool CanAdministerCycles(ClaimsPrincipal user);
+
+    /// <summary>
+    /// Can read Performance settings: either settings grant, or cycle administration (it reads the defaults a cycle needs).
+    /// </summary>
+    bool CanViewSettings(ClaimsPrincipal user);
+
+    /// <summary>Can change Performance settings.</summary>
+    bool CanManageSettings(ClaimsPrincipal user);
 
     /// <summary>Can facilitate review calibration; session membership is checked separately.</summary>
     bool CanCalibrateReviews(ClaimsPrincipal user);
@@ -48,6 +56,14 @@ public sealed class PerformanceAccessPolicyService : IPerformanceAccessPolicySer
 
     public bool CanAdministerCycles(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.CycleManage, PermissionScopes.Tenant);
+
+    public bool CanViewSettings(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.SettingsView, PermissionScopes.Tenant)
+            || CanManageSettings(user)
+            || CanAdministerCycles(user);
+
+    public bool CanManageSettings(ClaimsPrincipal user)
+        => user.HasCorePermission(PerformancePermissions.SettingsManage, PermissionScopes.Tenant);
 
     public bool CanCalibrateReviews(ClaimsPrincipal user)
         => user.HasCorePermission(PerformancePermissions.ReviewCalibrate, PermissionScopes.Tenant);

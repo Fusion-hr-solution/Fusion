@@ -11,8 +11,9 @@ export type {
 } from "./shell-user-panel";
 export { AppShell } from "./app-shell";
 export type { AppShellProps } from "./app-shell";
-export { ThemeProvider, ThemeToggle } from "./theme";
-export { LanguageSwitcher } from "./language-switcher";
+export { ThemeProvider, ThemeToggle, useTheme } from "./theme";
+export { LanguageSwitcher, useFusionLocale } from "./language-switcher";
+export type { FusionLocale } from "./language-switcher";
 export { TopBar } from "./top-bar";
 export type { TopBarProps } from "./top-bar";
 export { AppBreadcrumb } from "./app-breadcrumb";
@@ -78,6 +79,9 @@ export type {
   FusionSidebarPerson,
   FusionSidebarProps,
   FusionSidebarRecord,
+  FusionSidebarSettings,
+  FusionSidebarSettingsGroup,
+  FusionSidebarSettingsSection,
 } from "./types";
 export { NotificationBell, relativeStamp } from "./notification-bell";
 export type {
@@ -89,3 +93,25 @@ export { WorkList, daysUntil, dueLabel } from "./work-list";
 export type { RenderWorkLink, WorkListItem, WorkListModule, WorkListProps } from "./work-list";
 export { HomeAgenda, LeadFocus, agendaEntries, momentDay, selectLead, shortDay } from "./home";
 export type { HomeAgendaProps, HomeLead, HomeMoment, HomeWorkItem, LeadFocusProps } from "./home";
+export {
+  LastChange,
+  SettingsBlock,
+  SettingsBreadcrumb,
+  SettingsPage,
+  SettingsRow,
+  SettingsRows,
+  SettingsSaveBar,
+  SettingsSaved,
+  SettingsSkeleton,
+  SettingsValue,
+  ViewOnlyBadge,
+  settingsWhen,
+} from "./settings";
+export type {
+  SettingsBlockProps,
+  SettingsConflict,
+  SettingsLastChangeValue,
+  SettingsPageProps,
+  SettingsRowProps,
+  SettingsSaveBarProps,
+} from "./settings";

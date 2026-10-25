@@ -28,7 +28,6 @@ public static class TenantSettingsMerger
             Branding = new BrandingSettings
             {
                 LogoUrl = overrides.Branding?.LogoUrl ?? defaults.Branding.LogoUrl,
-                PrimaryColor = overrides.Branding?.PrimaryColor ?? defaults.Branding.PrimaryColor
             },
             SelfService = new SelfServiceSettings(
                 overrides.SelfService?.CanEditPreferredName ?? defaults.SelfService.CanEditPreferredName,
@@ -70,7 +69,7 @@ public static class TenantSettingsMerger
     }
 
     private sealed record FieldConfigOverrides(bool? Visible, bool? Required, bool? VisibleToEmployee, bool? VisibleToManager);
-    private sealed record BrandingSettingsOverrides(string? LogoUrl, string? PrimaryColor);
+    private sealed record BrandingSettingsOverrides(string? LogoUrl);
     private sealed record SelfServiceSettingsOverrides(bool? CanEditPreferredName, bool? CanEditPhone);
     private sealed record ProvisioningSettingsOverrides(Guid? DefaultAccessProfileId, int? InviteExpiryDays, int? ResendCooldownHours, string? PendingInviteBehavior);
 }

@@ -9,9 +9,4 @@ public sealed record BrandingSettings
     /// URL to the tenant's logo image. Null means use platform default.
     /// </summary>
     public string? LogoUrl { get; init; }
-
-    /// <summary>
-    /// Primary brand color in hex format.
-    /// </summary>
-    public string PrimaryColor { get; init; } = "#1a365d";
 }

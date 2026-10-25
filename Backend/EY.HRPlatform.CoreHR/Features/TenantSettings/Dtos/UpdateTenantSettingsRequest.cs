@@ -22,9 +22,10 @@ public sealed record FieldConfigInput(
 );
 
 /// <summary>
-/// Input type for branding settings with nullable properties for partial updates.
+/// Input type for branding settings with nullable properties for partial updates. There is no brand colour
+/// (B-071 D9): a colour an older client sends is dropped by the JSON reader.
 /// </summary>
-public sealed record BrandingSettingsInput(string? LogoUrl, string? PrimaryColor);
+public sealed record BrandingSettingsInput(string? LogoUrl);
 
 public sealed record SelfServiceSettingsInput(
     bool? CanEditPreferredName,

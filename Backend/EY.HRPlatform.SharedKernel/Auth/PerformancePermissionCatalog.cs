@@ -21,8 +21,8 @@ public static class PerformancePermissions
     public const string CycleView = "performance.cycle.view";
 
     /// <summary>
-    /// Tenant performance administration: settings, cycle create/activate/close,
-    /// population, governed corrections, and exceptional plan approval.
+    /// Tenant performance administration: cycle create/activate/close, population, governed
+    /// corrections, and exceptional plan approval. Also reads the settings defaults a cycle needs.
     /// </summary>
     public const string CycleManage = "performance.cycle.manage";
 
@@ -47,8 +47,14 @@ public static class PerformancePermissions
     /// <summary>Facilitate rating calibration in named review-round sessions.</summary>
     public const string ReviewCalibrate = "performance.review.calibrate";
 
+    /// <summary>Read the tenant's Performance settings (rating scale, competencies, questions, defaults).</summary>
+    public const string SettingsView = "performance.settings.view";
+
+    /// <summary>Change the tenant's Performance settings.</summary>
+    public const string SettingsManage = "performance.settings.manage";
+
     public static readonly ReadOnlyCollection<string> All =
-        Array.AsReadOnly([CycleView, CycleManage, StrategyPublish, ObjectiveSelfManage, ObjectiveOrgManage, ReviewCalibrate]);
+        Array.AsReadOnly([CycleView, CycleManage, StrategyPublish, ObjectiveSelfManage, ObjectiveOrgManage, ReviewCalibrate, SettingsView, SettingsManage]);
 }
 
 /// <summary>
@@ -74,7 +80,7 @@ public static class PerformancePermissionCatalog
                 "Administer Performance cycles",
                 Group,
                 [PermissionScopes.Tenant],
-                "Tenant performance administration: settings, cycle create/activate/close, population, and exceptional plan approval."),
+                "Tenant performance administration: cycle create/activate/close, population, and exceptional plan approval."),
             new(
                 PerformancePermissions.StrategyPublish,
                 "Publish strategic direction",
@@ -99,5 +105,17 @@ public static class PerformancePermissionCatalog
                 Group,
                 [PermissionScopes.Tenant],
                 "Facilitate rating calibration for review rounds where you are named."),
+            new(
+                PerformancePermissions.SettingsView,
+                "View Performance settings",
+                Group,
+                [PermissionScopes.Tenant],
+                "See the rating scale, competencies, review questions and the company's Performance defaults."),
+            new(
+                PerformancePermissions.SettingsManage,
+                "Manage Performance settings",
+                Group,
+                [PermissionScopes.Tenant],
+                "Change the rating scale, competencies, review questions and the company's Performance defaults."),
         ]);
 }

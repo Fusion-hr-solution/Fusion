@@ -2,11 +2,11 @@
 
 import { usePathname } from "next/navigation";
 import { User } from "@/lib/icons";
-import { useFusionNavigation } from "@repo/api/query";
+import { useFusionNavigation, useFusionSettings, useSettingsReturn } from "@repo/api/query";
 import { useFusionViewer } from "@repo/api/react";
 import { useAuth } from "@repo/auth";
 import { FusionSidebar, sectionPaths, type ShellNavSection } from "@repo/ds/shell";
-import { ADMIN_NAV, CYCLE_FREE_ROUTES, PRIMARY_NAV, visiblePrimaryItems } from "@/data/sidebar-nav";
+import { ADMIN_NAV, CYCLE_FREE_ROUTES, PRIMARY_NAV, visibleAdminItems, visiblePrimaryItems } from "@/data/sidebar-nav";
 import { resolvePerformanceWorkspaceAccessState } from "@/shell/performance-workspace-access";
 import { useSelectedCycleId, useWorkspaceContext } from "@/features/performance/api/use-workspace";
 import { withCycle } from "@/lib/performance-routes";
@@ -29,7 +29,8 @@ export function PerformanceSidebar() {
   const primaryItems = visiblePrimaryItems(destinations);
 
   const sections: ShellNavSection[] = [carry({ ...PRIMARY_NAV, items: primaryItems })];
-  if (destinations?.cycleAdmin) sections.push(carry(ADMIN_NAV));
+  const adminItems = visibleAdminItems(destinations);
+  if (adminItems.length > 0) sections.push(carry({ ...ADMIN_NAV, items: adminItems }));
 
   return <SidebarFrame sections={sections} pending={isAuthLoading || (entitled && context.isLoading)} />;
 }
@@ -40,8 +41,14 @@ function SidebarFrame({ sections, pending }: { sections: ShellNavSection[]; pend
   const { logout, isLoading: isAuthLoading } = useAuth();
   const { viewer } = useFusionViewer();
   const navigation = useFusionNavigation("performance", sectionPaths("/performance", sections));
+  // Inside Settings the same sidebar switches to settings mode (fusion-settings).
+  const inSettings = activePath === "/settings" || activePath.startsWith("/settings/");
+  const settings = useFusionSettings({ enabled: inSettings });
+  const back = useSettingsReturn();
   return (
     <FusionSidebar
+      mode={inSettings ? "settings" : "module"}
+      settings={inSettings ? { back, groups: settings.groups } : undefined}
       tenantName={navigation.tenantName}
       homeCount={navigation.homeCount}
       modules={navigation.modules}

@@ -32,12 +32,26 @@ public static class PerformanceOutboxClaim
 public sealed class PerformanceNotificationDispatcher(PerformanceDbContext db, ITenantContext tenant,
     ICoreWorkforceClient workforce, IPerformanceNotificationSender sender, IOptions<PerformanceNotificationOptions> options)
 {
+    /// <summary>The recipient turned email off for the kind's group. The in-app notification already exists.</summary>
+    public const string RecipientOptedOut = "RecipientOptedOut";
+
+    /// <summary>Deadline reminders are always emailed; any other group follows the recipient's choice (B-071 D8).</summary>
+    private async Task<bool> OptedOutAsync(PerformanceOutboxMessage message, CancellationToken cancellationToken)
+    {
+        var group = NotificationGroups.Of(message.Kind);
+        if (NotificationGroups.IsLocked(group) || message.RecipientEmployeeId == Guid.Empty) return false;
+        var preference = await db.NotificationPreferences.AsNoTracking()
+            .FirstOrDefaultAsync(row => row.RecipientEmployeeId == message.RecipientEmployeeId, cancellationToken);
+        return preference is not null && !preference.EmailsGroup(group);
+    }
+
     public async Task DispatchAsync(PerformanceOutboxMessage message, DateTime now, CancellationToken cancellationToken)
     {
         if (!tenant.IsResolved || tenant.TenantId != message.TenantId)
             throw new InvalidOperationException("Notification dispatch requires the message's tenant context.");
         if (!message.IsPending || message.NextAttemptAt > now) return;
         if (!options.Value.Enabled) message.Skip("disabled");
+        else if (await OptedOutAsync(message, cancellationToken)) message.Skip(RecipientOptedOut);
         else
         {
             try

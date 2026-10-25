@@ -45,3 +45,16 @@ export {
   type FusionNavigationState,
   type UseFusionNavigationOptions,
 } from "./useFusionNavigation";
+export {
+  useFieldVisibility,
+  useFusionSettings,
+  useNotificationPreferences,
+  useSettingsConflictSaver,
+  useSettingsReturn,
+  useSettingsSections,
+  useUpdateNotificationPreferences,
+  type FusionSettingsGroup,
+  type FusionSettingsGroupStatus,
+  type SettingsConflictSaver,
+  type UseFusionSettingsOptions,
+} from "./useFusionSettings";

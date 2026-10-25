@@ -9,3 +9,5 @@ export {
   useRecentRecords,
 } from "./fusion-viewer";
 export type { FusionViewerState } from "./fusion-viewer";
+export { countChanges, isConflict, useStagedSettings } from "./useStagedSettings";
+export type { StagedSettings, UseStagedSettingsOptions } from "./useStagedSettings";

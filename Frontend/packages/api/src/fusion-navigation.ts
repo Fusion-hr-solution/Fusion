@@ -203,10 +203,14 @@ export interface CoreMeCardDto {
   orgUnitName: string | null;
 }
 
-/** The caller's own tenant, from Identity. Only the fields the sidebar reads. */
+/** The caller's own tenant, from Identity: the sidebar's brand line and Settings › Company's facts. */
 export interface FusionTenantSummaryDto {
   tenantId: string;
   name: string;
+  slug?: string;
+  industry?: string | null;
+  locale?: string;
+  timeZone?: string;
 }
 
 export const fusionNavigationPaths = {

@@ -18,7 +18,7 @@ public sealed class SettingsHttpTests
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
 
         using var admin = factory.CreateAuthenticatedClient(permissions:
-            [new(PerformancePermissions.CycleManage, PermissionScopes.Tenant), new(PerformancePermissions.CycleView, PermissionScopes.Tenant)]);
+            [new(PerformancePermissions.CycleManage, PermissionScopes.Tenant), new(PerformancePermissions.CycleView, PermissionScopes.Tenant), new(PerformancePermissions.SettingsManage, PermissionScopes.Tenant)]);
         using var initialResponse = await admin.GetAsync("/api/performance/settings");
         Assert.Equal(HttpStatusCode.OK, initialResponse.StatusCode);
         using var initialJson = JsonDocument.Parse(await initialResponse.Content.ReadAsStringAsync());
@@ -60,7 +60,7 @@ public sealed class SettingsHttpTests
         Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
 
         using var tenantB = factory.CreateAuthenticatedClient(tenantId: Guid.NewGuid(), permissions:
-            [new(PerformancePermissions.CycleManage, PermissionScopes.Tenant), new(PerformancePermissions.CycleView, PermissionScopes.Tenant)]);
+            [new(PerformancePermissions.CycleManage, PermissionScopes.Tenant), new(PerformancePermissions.CycleView, PermissionScopes.Tenant), new(PerformancePermissions.SettingsManage, PermissionScopes.Tenant)]);
         using var otherTenantResponse = await tenantB.GetAsync("/api/performance/settings");
         Assert.Equal(HttpStatusCode.OK, otherTenantResponse.StatusCode);
         using var otherTenantJson = JsonDocument.Parse(await otherTenantResponse.Content.ReadAsStringAsync());

@@ -2,11 +2,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CycleSettingsDto, PeerRequestDto, PerformanceReviewDto, ReviewQuestionDto, ReviewRoundDto } from "@repo/api";
+import type { PeerRequestDto, PerformanceReviewDto, ReviewQuestionDto, ReviewRoundDto } from "@repo/api";
 import { RoundPage } from "./round-page";
 import { PeerListDrawer } from "./peer-list-drawer";
 import { PeerRequestPage } from "./peer-request-page";
-import { ReviewSettings } from "./review-settings";
 
 const m = vi.hoisted(() => ({
   round: null as ReviewRoundDto | null,
@@ -206,53 +205,5 @@ describe("Peer input page (board 11)", () => {
     fireEvent.change(screen.getByLabelText(/Why you're declining/), { target: { value: "Haven't worked together since March" } });
     fireEvent.click(screen.getByRole("button", { name: "Decline request" }));
     await waitFor(() => expect(m.decline).toHaveBeenCalledWith("Haven't worked together since March"));
-  });
-});
-
-describe("Settings › Reviews (board 17)", () => {
-  const settings = {
-    version: 3, defaultMeasurementMethod: "NumericTarget", suggestedObjectiveCountMin: 3, suggestedObjectiveCountMax: 6, planningDeadlineOffsetDays: 30,
-    planAlignmentPolicy: "AtLeastOneConnected", defaultSelfAssessmentEnabled: true, defaultObjectiveRatingsEnabled: true, defaultCalibrationEnabled: false,
-    evidenceRetentionMonths: 36, aiAssistanceEnabled: true, defaultOneOnOneCadence: "EveryTwoWeeks",
-    selfAssessmentDueDays: 14, peerInputDueDays: 14, managerAssessmentDueDays: 7, acknowledgementReminderDays: 7,
-    nineBoxBands: { lowTop: 2, midTop: 3, custom: false },
-  } as CycleSettingsDto;
-
-  it("sets nine-box bands so each holds a level, and returns to the default", async () => {
-    m.updateSettings.mockResolvedValue(undefined);
-    const { unmount } = render(<ReviewSettings settings={settings} />);
-    expect(screen.getByText("1–2 · 3 · 4–5")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Low band ends at"), { target: { value: "3" } });
-    expect(screen.getByText("Each band needs at least one level")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Middle band ends at"), { target: { value: "4" } });
-    expect(screen.getByText("1–3 · 4 · 5")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Save bands" }));
-    await waitFor(() => expect(m.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ nineBoxBands: { lowTop: 3, midTop: 4 }, expectedVersion: 3 })));
-    unmount();
-    render(<ReviewSettings settings={{ ...settings, nineBoxBands: { lowTop: 3, midTop: 4, custom: true } }} />);
-    fireEvent.click(screen.getByRole("button", { name: "Use the default" }));
-    await waitFor(() => expect(m.updateSettings).toHaveBeenLastCalledWith(expect.objectContaining({ nineBoxBands: { lowTop: null, midTop: null } })));
-  });
-
-  it("adds a question, archives a used one, deletes an unused one and saves due-date defaults", async () => {
-    m.questions = [
-      { id: "q1", text: "What are you most proud of this year?", audience: "Person", sortOrder: 0, state: "Active", firstUsedAt: "2099-01-01T00:00:00Z", version: 2 },
-      { id: "q2", text: "How did they support the team?", audience: "Manager", sortOrder: 0, state: "Active", firstUsedAt: null, version: 1 },
-    ];
-    m.archive.mockResolvedValue(undefined);
-    m.remove.mockResolvedValue(undefined);
-    m.updateSettings.mockResolvedValue(undefined);
-    render(<ReviewSettings settings={settings} />);
-    fireEvent.click(screen.getByRole("button", { name: /Add question/ }));
-    fireEvent.change(screen.getByLabelText("New question"), { target: { value: "What did a setback teach you?" } });
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
-    await waitFor(() => expect(m.createQuestion).toHaveBeenCalledWith({ text: "What did a setback teach you?", audience: "Person" }));
-    fireEvent.click(screen.getByRole("button", { name: "Archive" }));
-    expect(m.archive).toHaveBeenCalledWith({ id: "q1", version: 2 });
-    fireEvent.click(screen.getByRole("button", { name: "Delete: How did they support the team?" }));
-    expect(m.remove).toHaveBeenCalledWith({ id: "q2", version: 1 });
-    fireEvent.change(screen.getByLabelText(/Manager assessment default/), { target: { value: "10" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save due dates" }));
-    await waitFor(() => expect(m.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ managerAssessmentDueDays: 10, expectedVersion: 3 })));
   });
 });

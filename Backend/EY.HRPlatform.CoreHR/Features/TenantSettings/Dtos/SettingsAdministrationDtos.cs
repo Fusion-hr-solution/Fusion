@@ -1,5 +1,16 @@
 namespace EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 
+/// <summary>Core HR's section ids in Fusion Settings, which are also their page addresses under `/core/settings`.</summary>
+public static class CoreSettingsSectionIds
+{
+    public const string Company = "company";
+    public const string EmployeeFields = "employee-fields";
+    public const string Roles = "roles";
+    public const string Invitations = "invitations";
+    public const string ChangeHistory = "change-history";
+}
+
+/// <summary>The section ids recorded on <c>SettingsAuditEvent</c>, kept so existing history still attributes.</summary>
 public static class SettingsSectionIds
 {
     public const string Overview = "overview";
@@ -10,34 +21,6 @@ public static class SettingsSectionIds
     public const string Provisioning = "provisioning";
     public const string Governance = "governance";
 }
-
-public sealed record SettingsSectionDto(
-    string Id,
-    string ModuleId,
-    string Group,
-    string Label,
-    string Description,
-    bool Enabled,
-    string Status,
-    string StatusLabel,
-    string Owner,
-    string AuditNamespace,
-    int Order,
-    bool CanView,
-    bool CanManage,
-    IReadOnlyList<string> RequiredViewCapabilities,
-    IReadOnlyList<string> RequiredManageCapabilities);
-
-public sealed record SettingsHealthItemDto(
-    string SectionId,
-    string Severity,
-    string Label,
-    string Detail);
-
-public sealed record SettingsOverviewDto(
-    IReadOnlyList<SettingsSectionDto> Sections,
-    IReadOnlyList<SettingsHealthItemDto> Health,
-    IReadOnlyList<SettingsAuditEventDto> RecentSensitiveChanges);
 
 public sealed record OrganizationSettingsDto(
     uint? Version,
@@ -71,3 +54,11 @@ public sealed record SettingsAuditEventDto(
     string? BeforeJson,
     string? AfterJson,
     string? CorrelationId);
+
+/// <summary>How one employee field is treated on profiles. HR always sees every field.</summary>
+public sealed record FieldVisibilityRuleDto(bool Required, bool VisibleToEmployee, bool VisibleToManager);
+
+/// <summary>The field policy profiles read (B-071 D9): per-field visibility and what employees edit themselves.</summary>
+public sealed record FieldVisibilityDto(
+    IReadOnlyDictionary<string, FieldVisibilityRuleDto> Fields,
+    SelfServiceSettings SelfService);

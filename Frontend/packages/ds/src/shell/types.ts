@@ -98,7 +98,37 @@ export interface FusionSidebarPerson {
   onSignOut?: () => void;
 }
 
+/** A settings section in the settings-mode sidebar. `path` is absolute. */
+export interface FusionSidebarSettingsSection {
+  id: string;
+  label: string;
+  path: string;
+  access: "view" | "manage";
+}
+
+/** A group of the settings-mode sidebar: You, or one module. */
+export interface FusionSidebarSettingsGroup {
+  key: string;
+  label: string;
+  status: "loading" | "ready" | "error";
+  sections: FusionSidebarSettingsSection[];
+  /** Every section is view-only: the group label carries the view-only mark. */
+  viewOnly?: boolean;
+  retry?: () => void;
+}
+
+/** What the sidebar shows while Settings is open (fusion-settings). */
+export interface FusionSidebarSettings {
+  /** "Back to <label>": the page the person came from, or Home. */
+  back: { href: string; label: string };
+  groups: FusionSidebarSettingsGroup[];
+}
+
 export interface FusionSidebarProps {
+  /** "settings" swaps the switcher, sections and Recent for the settings groups and a way back. */
+  mode?: "module" | "settings";
+  /** Required in settings mode. */
+  settings?: FusionSidebarSettings;
   tenantName?: string | null;
   /** All of the person's waiting work; absent until a module answers. */
   homeCount?: number;

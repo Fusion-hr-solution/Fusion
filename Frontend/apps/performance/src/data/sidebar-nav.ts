@@ -24,7 +24,7 @@ export const PRIMARY_NAV: ShellNavSection = {
 /** Routes reached in context rather than from the sidebar; listed so labels still resolve. */
 export const CONTEXTUAL_ROUTES = [{ label: "Organization direction", href: "/goals", icon: GitBranch }];
 
-/** Administration: shown only to Cycle administrators, kept out of the primary rail. */
+/** Administration, kept out of the primary rail: Cycle for cycle administrators, Settings for whoever can view it. */
 export const ADMIN_NAV: ShellNavSection = {
   title: "Administration",
   items: [
@@ -42,6 +42,10 @@ const DESTINATION_OF: Record<string, keyof WorkspaceDestinationsDto> = {
   "/reviews": "reviews",
 };
 
+export function visibleAdminItems(destinations: WorkspaceDestinationsDto | undefined): ShellNavSection["items"] {
+  return ADMIN_NAV.items.filter((item) => (item.href === "/cycle" ? destinations?.cycleAdmin : destinations?.settings) ?? false);
+}
+
 export function visiblePrimaryItems(destinations: WorkspaceDestinationsDto | undefined): ShellNavSection["items"] {
   return PRIMARY_NAV.items.filter((item) => {
     const key = DESTINATION_OF[item.href];
@@ -50,5 +54,5 @@ export function visiblePrimaryItems(destinations: WorkspaceDestinationsDto | und
 }
 
 /** Destinations that belong to people, not cycles: the cycle switcher never follows into them. */
-export const CYCLE_FREE_ROUTES: ReadonlySet<string> = new Set(["/one-on-ones", "/feedback"]);
+export const CYCLE_FREE_ROUTES: ReadonlySet<string> = new Set(["/one-on-ones", "/feedback", "/settings"]);
 

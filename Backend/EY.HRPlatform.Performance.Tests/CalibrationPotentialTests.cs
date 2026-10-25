@@ -52,7 +52,8 @@ public sealed class CalibrationPotentialTests
     {
         await using var factory = new PerformanceApiFactory();
         using var admin = factory.CreateAuthenticatedClient(permissions:
-            [new(PerformancePermissions.CycleManage, PermissionScopes.Tenant), new(PerformancePermissions.CycleView, PermissionScopes.Tenant)]);
+            [new(PerformancePermissions.CycleManage, PermissionScopes.Tenant), new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
+             new(PerformancePermissions.SettingsManage, PermissionScopes.Tenant)]);
         var settings = await ReviewQuestionLibraryTests.ReadDataAsync(await admin.GetAsync("/api/performance/settings"));
         var bands = settings.GetProperty("nineBoxBands");
         Assert.Equal((2, 3, false), (bands.GetProperty("lowTop").GetInt32(), bands.GetProperty("midTop").GetInt32(), bands.GetProperty("custom").GetBoolean()));

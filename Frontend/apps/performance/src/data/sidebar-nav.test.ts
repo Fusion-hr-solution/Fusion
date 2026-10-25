@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { WorkspaceDestinationsDto } from "@repo/api";
-import { visiblePrimaryItems } from "./sidebar-nav";
+import { visibleAdminItems, visiblePrimaryItems } from "./sidebar-nav";
 
 const none: WorkspaceDestinationsDto = {
   overview: true, myPlan: false, team: false, reviews: false, cycleAdmin: false, settings: false, oneOnOnes: false, feedback: false,
@@ -19,5 +19,13 @@ describe("primary navigation", () => {
 
   it("shows nothing but Overview before the context loads", () => {
     expect(visiblePrimaryItems(undefined).map((i) => i.label)).toEqual(["Overview"]);
+  });
+});
+
+describe("administration", () => {
+  it("shows Settings to whoever can view it and Cycle only to cycle administrators", () => {
+    expect(visibleAdminItems(none)).toEqual([]);
+    expect(visibleAdminItems({ ...none, settings: true }).map((i) => i.label)).toEqual(["Settings"]);
+    expect(visibleAdminItems({ ...none, settings: true, cycleAdmin: true }).map((i) => i.label)).toEqual(["Cycle", "Settings"]);
   });
 });

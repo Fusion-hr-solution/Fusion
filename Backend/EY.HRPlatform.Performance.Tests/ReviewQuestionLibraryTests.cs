@@ -13,7 +13,8 @@ namespace EY.HRPlatform.Performance.Tests;
 public sealed class ReviewQuestionLibraryTests
 {
     private static readonly EffectivePermissionGrant[] Admin =
-        [new(PerformancePermissions.CycleManage, PermissionScopes.Tenant), new(PerformancePermissions.CycleView, PermissionScopes.Tenant)];
+        [new(PerformancePermissions.CycleManage, PermissionScopes.Tenant), new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
+         new(PerformancePermissions.SettingsManage, PermissionScopes.Tenant)];
 
     [Fact]
     public void Question_text_is_bounded_and_archived_questions_are_read_only()

@@ -113,6 +113,9 @@ import {
   UserMinus01Icon,
   UserRemove01Icon,
   ViewIcon,
+  Archive02Icon,
+  ArrowDown02Icon,
+  ArrowUp02Icon,
 } from "@hugeicons/core-free-icons";
 
 // `strokeWidth` also takes a string so these stay assignable wherever `@repo/ds` expects a Lucide icon.
@@ -152,6 +155,9 @@ export const Loader2 = icon(Loading03Icon, "Loader2");
 export const LoaderCircle = Loader2;
 
 // Navigation and direction
+export const Archive = icon(Archive02Icon, "Archive");
+export const ArrowDown = icon(ArrowDown02Icon, "ArrowDown");
+export const ArrowUp = icon(ArrowUp02Icon, "ArrowUp");
 export const ChevronRight = icon(ArrowRight01Icon, "ChevronRight");
 export const ChevronLeft = icon(ArrowLeft01Icon, "ChevronLeft");
 export const ChevronDown = icon(ArrowDown01Icon, "ChevronDown");

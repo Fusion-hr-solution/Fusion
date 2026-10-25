@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { User } from "lucide-react";
-import { useFusionNavigation } from "@repo/api/query";
+import { useFusionNavigation, useFusionSettings, useSettingsReturn } from "@repo/api/query";
 import { FusionSidebar, sectionPaths } from "@repo/ds/shell";
 import {
   useAuth,
@@ -61,9 +61,15 @@ export function CoreSidebar() {
     : [{ ...PEOPLE_NAV, items: peopleItems }];
 
   const navigation = useFusionNavigation("core", sectionPaths("/core", visibleSections));
+  // Inside Settings the same sidebar switches to settings mode (fusion-settings).
+  const inSettings = activePath === "/settings" || activePath.startsWith("/settings/");
+  const settings = useFusionSettings({ enabled: inSettings });
+  const back = useSettingsReturn();
 
   return (
     <FusionSidebar
+      mode={inSettings ? "settings" : "module"}
+      settings={inSettings ? { back, groups: settings.groups } : undefined}
       tenantName={navigation.tenantName}
       homeCount={navigation.homeCount}
       modules={navigation.modules}

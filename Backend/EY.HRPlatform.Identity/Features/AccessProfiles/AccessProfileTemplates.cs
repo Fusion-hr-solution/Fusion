@@ -147,6 +147,8 @@ public static class AccessProfileTemplates
                 new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
                 new(PerformancePermissions.CycleManage, PermissionScopes.Tenant),
                 new(PerformancePermissions.ReviewCalibrate, PermissionScopes.Tenant),
+                new(PerformancePermissions.SettingsView, PermissionScopes.Tenant),
+                new(PerformancePermissions.SettingsManage, PermissionScopes.Tenant),
             ],
             ["org-admin"] =
             [
@@ -154,6 +156,8 @@ public static class AccessProfileTemplates
                 new(PerformancePermissions.CycleManage, PermissionScopes.Tenant),
                 new(PerformancePermissions.StrategyPublish, PermissionScopes.Tenant),
                 new(PerformancePermissions.ReviewCalibrate, PermissionScopes.Tenant),
+                new(PerformancePermissions.SettingsView, PermissionScopes.Tenant),
+                new(PerformancePermissions.SettingsManage, PermissionScopes.Tenant),
             ],
         };
 

@@ -4,6 +4,7 @@ import {
   PageHeader,
   PageLoading,
   PageSkeleton,
+  SettingsSkeleton,
 } from "@repo/ds/shell";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -228,18 +229,14 @@ export function OrgChartPageSkeleton() {
   );
 }
 
+/** A settings section: the centred column of Fusion Settings, its title and rows still loading. */
 export function SettingsPageSkeleton() {
   return (
-    <PageContainer width="wide" className="space-y-6">
-      <PageHeader
-        title="Settings"
-        description={<Skeleton className="h-4 w-80 max-w-full" />}
-      />
-      <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <Skeleton className="h-96 rounded-surface" />
-        <Skeleton className="h-136 rounded-surface" />
-      </div>
-    </PageContainer>
+    <div className="mx-auto w-full max-w-[760px] px-6 pt-10 pb-16">
+      <Skeleton className="mb-3 h-9 w-56" />
+      <Skeleton className="mb-8 h-4 w-60" />
+      <SettingsSkeleton />
+    </div>
   );
 }
 
@@ -347,7 +344,7 @@ export function getRoutePageSkeleton(corePath: string): ReactNode {
     return <ImportAttemptSkeleton stage={step === "match" || step === "review" ? step : null} />;
   }
   if (corePath === "/organization" || corePath === "/org-chart") return <OrgChartPageSkeleton />;
-  if (corePath === "/settings") return <SettingsPageSkeleton />;
+  if (corePath === "/settings" || corePath.startsWith("/settings/")) return <SettingsPageSkeleton />;
   if (corePath === "/access/profiles")
     return <TitledPageLoading title="Access profiles" rows={4} label="Opening access profile settings" />;
   if (corePath === "/access/activity") return <ActivityLogPageSkeleton />;

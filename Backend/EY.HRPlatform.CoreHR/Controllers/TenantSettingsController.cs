@@ -4,6 +4,7 @@ using EY.HRPlatform.CoreHR.Features.TenantSettings.Queries.GetTenantSettings;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.SharedKernel.Api;
+using EY.HRPlatform.SharedKernel.Multitenancy;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -17,36 +18,36 @@ public class TenantSettingsController(
     ISender sender,
     ICoreAccessPolicyService accessPolicy,
     ISettingsSectionRegistry sectionRegistry,
-    ISettingsAuditService auditService) : ControllerBase
+    ISettingsAuditService auditService,
+    ITenantContext tenantContext) : ControllerBase
 {
+    /// <summary>The caller's Core HR settings sections (B-071 D1): empty when they can view none.</summary>
     [HttpGet("sections")]
-    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<SettingsSectionDto>>), StatusCodes.Status200OK)]
-    public ActionResult<ApiResponse<IReadOnlyList<SettingsSectionDto>>> GetSections()
+    [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<FusionSettingsSectionDto>>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<FusionSettingsSectionDto>>>> GetSections(CancellationToken cancellationToken)
     {
-        var sections = sectionRegistry.GetVisibleSections(User);
-        return Ok(ApiResponse<IReadOnlyList<SettingsSectionDto>>.Success(sections));
+        var sections = await sectionRegistry.GetSectionsAsync(User, cancellationToken);
+        return Ok(ApiResponse<IReadOnlyList<FusionSettingsSectionDto>>.Success(sections));
     }
 
-    [HttpGet("overview")]
-    [ProducesResponseType(typeof(ApiResponse<SettingsOverviewDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<ApiResponse<SettingsOverviewDto>>> GetOverview(CancellationToken cancellationToken)
+    /// <summary>
+    /// The field policy every profile applies (B-071 D9): who sees each employee field and what employees edit
+    /// themselves. Any signed-in member of the tenant may read it; nothing else from settings is included.
+    /// </summary>
+    [HttpGet("field-visibility")]
+    [ProducesResponseType(typeof(ApiResponse<FieldVisibilityDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetFieldVisibility(CancellationToken cancellationToken)
     {
-        var sections = sectionRegistry.GetVisibleSections(User);
-        if (sections.Count == 0)
+        if (!tenantContext.IsResolved || tenantContext.TenantId == Guid.Empty)
         {
             return Forbid();
         }
 
-        IReadOnlyList<SettingsAuditEventDto> auditEvents = accessPolicy.CanViewGovernanceSettings(User)
-            ? await auditService.GetRecentAsync(5, cancellationToken)
-            : [];
-
-        var overview = new SettingsOverviewDto(
-            sections,
-            BuildHealth(sections),
-            auditEvents);
-
-        return Ok(ApiResponse<SettingsOverviewDto>.Success(overview));
+        var settings = await GetSettingsAsync(cancellationToken);
+        var fields = settings.EmployeeFieldConfig.ToDictionary(
+            field => field.Key,
+            field => new FieldVisibilityRuleDto(field.Value.Required, field.Value.VisibleToEmployee, field.Value.VisibleToManager));
+        return Ok(ApiResponse<FieldVisibilityDto>.Success(new FieldVisibilityDto(fields, settings.SelfService)));
     }
 
     /// <summary>
@@ -302,7 +303,7 @@ public class TenantSettingsController(
             "en-US",
             "UTC",
             settings.Branding,
-            settings.Branding.LogoUrl is null && settings.Branding.PrimaryColor == TenantSettingsDto.Defaults.Branding.PrimaryColor);
+            settings.Branding.LogoUrl is null);
 
     private static PeopleDataSettingsDto MapPeopleData(TenantSettingsDto settings)
         => new(
@@ -316,30 +317,6 @@ public class TenantSettingsController(
             settings.Version,
             settings.Provisioning,
             ["Access bulk invitations", "Pending invite refresh", "Default profile selection"]);
-
-    private static IReadOnlyList<SettingsHealthItemDto> BuildHealth(IReadOnlyList<SettingsSectionDto> sections)
-    {
-        var health = new List<SettingsHealthItemDto>();
-        if (sections.All(section => section.Id != SettingsSectionIds.Governance))
-        {
-            health.Add(new SettingsHealthItemDto(
-                SettingsSectionIds.Governance,
-                "attention",
-                "Governance visibility is limited",
-                "No audit reader capability is active for this actor."));
-        }
-
-        if (sections.Count == 0)
-        {
-            health.Add(new SettingsHealthItemDto(
-                SettingsSectionIds.Overview,
-                "blocked",
-                "No settings capabilities",
-                "This actor cannot administer tenant settings."));
-        }
-
-        return health;
-    }
 
     private static IEnumerable<string> ResolveMutatedSections(UpdateTenantSettingsRequest request)
     {

@@ -19,7 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    // next-themes sets the appearance class on <html> before hydration (Settings › Preferences).
+    <html lang="en" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground font-sans antialiased">
         <Suspense fallback={null}>
           <PageProgressBar />

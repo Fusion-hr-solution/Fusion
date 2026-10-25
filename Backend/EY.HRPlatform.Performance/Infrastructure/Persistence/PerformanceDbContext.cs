@@ -43,6 +43,7 @@ public sealed class PerformanceDbContext : DbContext
     public DbSet<PerformanceOutboxMessage> OutboxMessages => Set<PerformanceOutboxMessage>();
     public DbSet<PerformanceNotification> Notifications => Set<PerformanceNotification>();
     public DbSet<PerformanceAuditEntry> AuditEntries => Set<PerformanceAuditEntry>();
+    public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
 
     public DbSet<PerformanceCycle> Cycles => Set<PerformanceCycle>();
     public DbSet<CycleSettings> CycleSettings => Set<CycleSettings>();
@@ -109,6 +110,8 @@ public sealed class PerformanceDbContext : DbContext
         modelBuilder.Entity<PerformanceNotification>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
         modelBuilder.Entity<PerformanceAuditEntry>()
+            .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
+        modelBuilder.Entity<NotificationPreference>()
             .HasQueryFilter(e => CurrentTenantId != Guid.Empty && e.TenantId == CurrentTenantId);
 
         // Fail-closed tenant filter on every root: an unresolved tenant returns no rows.

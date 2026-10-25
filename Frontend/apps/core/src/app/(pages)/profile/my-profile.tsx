@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Pencil, User } from "lucide-react";
+import { useFieldVisibility } from "@repo/api/query";
 import { canEnterPerformance, useAuth } from "@repo/auth";
 import { notFound } from "next/navigation";
 import {
@@ -22,7 +23,6 @@ import {
   PageHeader,
 } from "@repo/ds/shell";
 import { toast } from "sonner";
-import { useTenantSettings } from "@/features/settings/api/use-tenant-settings";
 import { WorkerProfile } from "@/features/people/components/worker-profile/worker-profile";
 import {
   PerformanceRecordView,
@@ -52,7 +52,8 @@ export function MyProfile({
   const canViewProfile = !!employeeId;
   const [editing, setEditing] = useState(false);
 
-  const { data: settings } = useTenantSettings(canViewProfile);
+  // The field policy every member may read (fusion-settings): no settings permission needed.
+  const { data: settings } = useFieldVisibility({ enabled: canViewProfile });
 
   const {
     data: details,

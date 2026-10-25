@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using EY.HRPlatform.CoreHR.Exceptions;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
@@ -14,7 +13,6 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
     CoreHRDbContext dbContext,
     ITenantContext tenantContext) : ICommandHandler<UpdateTenantSettingsCommand, Result<TenantSettingsDto>>
 {
-    private static readonly Regex HexColorPattern = HexColorRegex();
     private static readonly HashSet<string> KnownFieldNames = TenantSettingsDto.DefaultEmployeeFieldConfig.Keys.ToHashSet();
     private static readonly HashSet<string> CoreIdentityFields = ["firstName", "lastName", "email"];
     private static readonly HashSet<string> OperationallyRequiredFields = ["firstName", "lastName", "hireDate"];
@@ -69,8 +67,6 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
                     throw new ArgumentException($"'{fieldName}' is operationally required and cannot be made optional.");
             }
         }
-        if (request.Branding?.PrimaryColor is not null && !HexColorPattern.IsMatch(request.Branding.PrimaryColor))
-            throw new ArgumentException("PrimaryColor must be a valid hex color (e.g., #1a365d).");
         if (request.Branding?.LogoUrl is not null && !Uri.TryCreate(request.Branding.LogoUrl, UriKind.Absolute, out _))
             throw new ArgumentException("LogoUrl must be a valid absolute URL.");
         if (request.Provisioning?.InviteExpiryDays is < 1 or > 90)
@@ -78,7 +74,4 @@ public sealed partial class UpdateTenantSettingsCommandHandler(
         if (request.Provisioning?.ResendCooldownHours is < 0 or > 720)
             throw new ArgumentException("ResendCooldownHours must be between 0 and 720.");
     }
-
-    [GeneratedRegex("^#[0-9A-Fa-f]{6}$")]
-    private static partial Regex HexColorRegex();
 }

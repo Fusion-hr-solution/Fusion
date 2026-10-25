@@ -50,7 +50,6 @@ public static class TenantSettingsOverrideBuilder
         {
             var existing = root["branding"]?.AsObject() ?? new JsonObject();
             if (branding.LogoUrl is not null) existing["logoUrl"] = branding.LogoUrl;
-            if (branding.PrimaryColor is not null) existing["primaryColor"] = branding.PrimaryColor;
             if (existing.Count > 0) root["branding"] = existing;
         }
 

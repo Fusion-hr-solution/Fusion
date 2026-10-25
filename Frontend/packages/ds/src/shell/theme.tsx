@@ -38,7 +38,10 @@ const THEME_OPTIONS = [
   { value: "dark", label: "Dark", icon: Moon },
 ] as const;
 
-/** Light / System / Dark switcher for the top bar. */
+/** The device's appearance choice ("light", "dark" or "system"), shared by every Fusion app through next-themes. */
+export { useTheme };
+
+/** Light / System / Dark switcher. Fusion's apps choose appearance in Settings › Preferences; kept for other hosts. */
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);

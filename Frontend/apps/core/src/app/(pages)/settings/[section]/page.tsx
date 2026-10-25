@@ -1,0 +1,33 @@
+"use client";
+
+import { use } from "react";
+import { CoreSettingsSectionHost } from "@/features/settings/section-host";
+import { ChangeHistorySettings } from "@/features/settings/sections/change-history";
+import { CompanySettings } from "@/features/settings/sections/company";
+import { EmployeeFieldsSettings } from "@/features/settings/sections/employee-fields";
+import { InvitationsSettings } from "@/features/settings/sections/invitations";
+import { RolesSettings } from "@/features/settings/sections/roles";
+
+/** One Core HR settings section, shown once the server says the person may see it. */
+export default function SettingsSectionPage({ params }: { params: Promise<{ section: string }> }) {
+  const { section: id } = use(params);
+  return (
+    <CoreSettingsSectionHost
+      id={id}
+      render={(section) => {
+        switch (section.id) {
+          case "company":
+            return <CompanySettings section={section} />;
+          case "employee-fields":
+            return <EmployeeFieldsSettings section={section} />;
+          case "roles":
+            return <RolesSettings section={section} />;
+          case "invitations":
+            return <InvitationsSettings section={section} />;
+          default:
+            return <ChangeHistorySettings section={section} />;
+        }
+      }}
+    />
+  );
+}

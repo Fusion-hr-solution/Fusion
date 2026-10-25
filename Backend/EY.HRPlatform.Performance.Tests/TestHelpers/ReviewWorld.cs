@@ -70,7 +70,8 @@ public sealed class ReviewWorld : IAsyncDisposable
             new(PerformancePermissions.ObjectiveSelfManage, PermissionScopes.Self),
             new(PerformancePermissions.CycleView, PermissionScopes.DirectReports),
         };
-        if (admin) grants.AddRange([new(PerformancePermissions.CycleManage, PermissionScopes.Tenant), new(PerformancePermissions.CycleView, PermissionScopes.Tenant)]);
+        if (admin) grants.AddRange([new(PerformancePermissions.CycleManage, PermissionScopes.Tenant), new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
+            new(PerformancePermissions.SettingsManage, PermissionScopes.Tenant)]);
         var client = Factory.CreateAuthenticatedClient(employeeId: person.EmployeeId, permissions: grants);
         _clients[person.EmployeeId] = client;
         return client;

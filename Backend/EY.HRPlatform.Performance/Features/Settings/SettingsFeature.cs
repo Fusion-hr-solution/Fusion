@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EY.HRPlatform.Performance.Domain.Audit;
 using EY.HRPlatform.Performance.Infrastructure.Audit;
 using EY.HRPlatform.Performance.Features.Failures;
@@ -133,7 +134,11 @@ public sealed class UpdateCycleSettingsHandler(PerformanceDbContext db, ITenantC
             settings.NineBoxMidTop,
         };
         if (!Equals(before, after))
-            audit.Record(settings.TenantId, "CycleSettings", settings.Id, null, PerformanceAuditActions.SettingsChanged, new { before, after });
+        {
+            // The touched sections are recorded so each section reports its own last change (D6).
+            var sections = SettingsSections.Touched(JsonSerializer.SerializeToElement(before), JsonSerializer.SerializeToElement(after));
+            audit.Record(settings.TenantId, "CycleSettings", settings.Id, null, PerformanceAuditActions.SettingsChanged, new { sections, before, after });
+        }
         await db.SaveChangesAsync(cancellationToken);
         return PerformanceMappers.ToDto(settings, scale);
     }

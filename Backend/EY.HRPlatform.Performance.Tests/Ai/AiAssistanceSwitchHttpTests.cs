@@ -12,7 +12,8 @@ namespace EY.HRPlatform.Performance.Tests.Ai;
 public sealed class AiAssistanceSwitchHttpTests
 {
     private static readonly EffectivePermissionGrant[] Admin =
-        [new(PerformancePermissions.CycleManage, PermissionScopes.Tenant), new(PerformancePermissions.CycleView, PermissionScopes.Tenant)];
+        [new(PerformancePermissions.CycleManage, PermissionScopes.Tenant), new(PerformancePermissions.CycleView, PermissionScopes.Tenant),
+         new(PerformancePermissions.SettingsManage, PermissionScopes.Tenant)];
 
     [Fact]
     public async Task Switch_is_on_by_default_persists_is_audited_and_survives_older_clients()

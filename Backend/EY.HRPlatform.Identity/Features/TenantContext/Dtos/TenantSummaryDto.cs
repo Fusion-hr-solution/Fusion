@@ -6,4 +6,7 @@ public sealed record TenantSummaryDto(
     string Slug,
     string OperationalStatus,
     bool IsActive,
-    bool IsArchived);
+    bool IsArchived,
+    string? Industry = null,
+    string? Locale = null,
+    string? TimeZone = null);

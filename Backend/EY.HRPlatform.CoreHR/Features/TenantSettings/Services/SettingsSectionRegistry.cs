@@ -1,159 +1,94 @@
 using System.Security.Claims;
 using EY.HRPlatform.CoreHR.Features.Security;
 using EY.HRPlatform.CoreHR.Features.TenantSettings.Dtos;
-using EY.HRPlatform.SharedKernel.Auth;
+using EY.HRPlatform.CoreHR.Infrastructure.Persistence;
+using EY.HRPlatform.SharedKernel.Api;
+using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.CoreHR.Features.TenantSettings.Services;
 
+/// <summary>
+/// Core HR's settings sections in Fusion Settings (B-071 D1): what the caller may open, with each section's last
+/// change. The list is advisory; every read and write re-checks its own permission.
+/// </summary>
 public interface ISettingsSectionRegistry
 {
-    IReadOnlyList<SettingsSectionDto> GetVisibleSections(ClaimsPrincipal user);
+    /// <summary>The sections the caller can view, in order, without last changes.</summary>
+    IReadOnlyList<FusionSettingsSectionDto> GetVisibleSections(ClaimsPrincipal user);
+
+    Task<IReadOnlyList<FusionSettingsSectionDto>> GetSectionsAsync(ClaimsPrincipal user, CancellationToken cancellationToken);
 }
 
-public sealed class SettingsSectionRegistry(ICoreAccessPolicyService accessPolicy) : ISettingsSectionRegistry
+public sealed class SettingsSectionRegistry(ICoreAccessPolicyService accessPolicy, CoreHRDbContext dbContext) : ISettingsSectionRegistry
 {
-    public IReadOnlyList<SettingsSectionDto> GetVisibleSections(ClaimsPrincipal user)
-        => AllSections
-            .Select(section => section with
-            {
-                CanView = section.Id switch
-                {
-                    SettingsSectionIds.Overview => accessPolicy.CanViewSettings(user),
-                    SettingsSectionIds.Organization => accessPolicy.CanViewOrganizationSettings(user),
-                    SettingsSectionIds.PeopleData => accessPolicy.CanViewPeopleDataSettings(user),
-                    SettingsSectionIds.Structure => accessPolicy.CanViewStructureSettings(user),
-                    SettingsSectionIds.AccessPermissions => accessPolicy.CanViewAccessProfiles(user),
-                    SettingsSectionIds.Provisioning => accessPolicy.CanViewProvisioningSettings(user),
-                    SettingsSectionIds.Governance => accessPolicy.CanViewGovernanceSettings(user),
-                    _ => false,
-                },
-                CanManage = section.Id switch
-                {
-                    SettingsSectionIds.Organization => accessPolicy.CanManageOrganizationSettings(user),
-                    SettingsSectionIds.PeopleData => accessPolicy.CanManagePeopleDataSettings(user),
-                    SettingsSectionIds.Structure => accessPolicy.CanManageStructureSettings(user),
-                    SettingsSectionIds.AccessPermissions => accessPolicy.CanManageAccessProfiles(user),
-                    SettingsSectionIds.Provisioning => accessPolicy.CanManageProvisioningSettings(user),
-                    _ => false,
-                },
-            })
-            .Where(section => section.Enabled && section.CanView)
-            .OrderBy(section => section.Order)
+    private const string Someone = "Someone";
+
+    /// <summary>
+    /// One section: its audit section id (null when Core records no settings changes for it), and how its view and
+    /// manage access are decided. A section with no manage rule is read-only for everyone.
+    /// </summary>
+    private sealed record Section(
+        string Id,
+        string Label,
+        string? AuditSectionId,
+        Func<ICoreAccessPolicyService, ClaimsPrincipal, bool> CanView,
+        Func<ICoreAccessPolicyService, ClaimsPrincipal, bool>? CanManage);
+
+    private static readonly IReadOnlyList<Section> All =
+    [
+        new(CoreSettingsSectionIds.Company, "Company", SettingsSectionIds.Organization,
+            (policy, user) => policy.CanViewOrganizationSettings(user), (policy, user) => policy.CanManageOrganizationSettings(user)),
+        new(CoreSettingsSectionIds.EmployeeFields, "Employee fields", SettingsSectionIds.PeopleData,
+            (policy, user) => policy.CanViewPeopleDataSettings(user), (policy, user) => policy.CanManagePeopleDataSettings(user)),
+        new(CoreSettingsSectionIds.Roles, "Roles", SettingsSectionIds.AccessPermissions,
+            (policy, user) => policy.CanViewAccessProfiles(user), (policy, user) => policy.CanManageAccessProfiles(user)),
+        new(CoreSettingsSectionIds.Invitations, "Invitations", SettingsSectionIds.Provisioning,
+            (policy, user) => policy.CanViewProvisioningSettings(user), (policy, user) => policy.CanManageProvisioningSettings(user)),
+        new(CoreSettingsSectionIds.ChangeHistory, "Change history", null,
+            (policy, user) => policy.CanViewGovernanceSettings(user), null),
+    ];
+
+    public IReadOnlyList<FusionSettingsSectionDto> GetVisibleSections(ClaimsPrincipal user)
+        => All
+            .Select((section, index) => (section, index))
+            .Where(item => item.section.CanView(accessPolicy, user))
+            .Select(item => new FusionSettingsSectionDto(
+                item.section.Id,
+                item.section.Label,
+                item.index + 1,
+                $"/core/settings/{item.section.Id}",
+                item.section.CanManage?.Invoke(accessPolicy, user) == true ? FusionSettingsSectionDto.Manage : FusionSettingsSectionDto.View,
+                null))
             .ToList();
 
-    private static readonly IReadOnlyList<SettingsSectionDto> AllSections =
-    [
-        new(
-            SettingsSectionIds.Overview,
-            "core",
-            "foundation",
-            "Overview",
-            "Visible administration areas, setup health, and recent sensitive changes.",
-            true,
-            "ready",
-            "Core",
-            "Core",
-            "core.settings.overview",
-            0,
-            false,
-            false,
-            [CorePermissions.SettingsGovernanceView],
-            []),
-        new(
-            SettingsSectionIds.Organization,
-            "core",
-            "foundation",
-            "Organization",
-            "Tenant display defaults and branding.",
-            true,
-            "ready",
-            "Core",
-            "Core",
-            "core.settings.organization",
-            10,
-            false,
-            false,
-            [CorePermissions.SettingsOrganizationView],
-            [CorePermissions.SettingsOrganizationManage]),
-        new(
-            SettingsSectionIds.PeopleData,
-            "core",
-            "foundation",
-            "People data",
-            "Employee field schema, visibility, required rules, and self-service policy.",
-            true,
-            "ready",
-            "Core",
-            "Core",
-            "core.settings.people-data",
-            20,
-            false,
-            false,
-            [CorePermissions.SettingsPeopleDataView],
-            [CorePermissions.SettingsPeopleDataManage]),
-        new(
-            SettingsSectionIds.Structure,
-            "core",
-            "foundation",
-            "Organization structure",
-            "Org-unit schema and hierarchy governance with operational handoff to Setup and Org Chart.",
-            true,
-            "ready",
-            "Core",
-            "Core",
-            "core.settings.structure",
-            30,
-            false,
-            false,
-            [CorePermissions.SettingsStructureView],
-            [CorePermissions.SettingsStructureManage]),
-        new(
-            SettingsSectionIds.AccessPermissions,
-            "identity",
-            "foundation",
-            "Access & permissions",
-            "Permission catalog and access profile definitions. Assignments remain in Access.",
-            true,
-            "ready",
-            "Identity",
-            "Identity",
-            "identity.access-profiles",
-            40,
-            false,
-            false,
-            [CorePermissions.AccessProfilesView],
-            [CorePermissions.AccessProfilesManageV2]),
-        new(
-            SettingsSectionIds.Provisioning,
-            "core",
-            "foundation",
-            "Provisioning",
-            "Invite defaults, default access profile behavior, expiry, and resend policy.",
-            true,
-            "ready",
-            "Core",
-            "Core",
-            "core.settings.provisioning",
-            50,
-            false,
-            false,
-            [CorePermissions.SettingsProvisioningView],
-            [CorePermissions.SettingsProvisioningManage]),
-        new(
-            SettingsSectionIds.Governance,
-            "core",
-            "foundation",
-            "Governance",
-            "Sensitive settings history and audit details.",
-            true,
-            "ready",
-            "Core",
-            "Core",
-            "core.settings.governance",
-            60,
-            false,
-            false,
-            [CorePermissions.SettingsGovernanceView],
-            []),
-    ];
+    public async Task<IReadOnlyList<FusionSettingsSectionDto>> GetSectionsAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        var visible = GetVisibleSections(user);
+        if (visible.Count == 0) return visible;
+
+        var auditIds = All.Select(section => section.AuditSectionId).OfType<string>().ToArray();
+        var latest = (await dbContext.SettingsAuditEvents.AsNoTracking()
+                .Where(auditEvent => auditIds.Contains(auditEvent.SectionId))
+                .GroupBy(auditEvent => auditEvent.SectionId)
+                .Select(group => group.OrderByDescending(auditEvent => auditEvent.OccurredAt)
+                    .Select(auditEvent => new { auditEvent.SectionId, auditEvent.OccurredAt, auditEvent.ActorName })
+                    .First())
+                .ToListAsync(cancellationToken))
+            .ToDictionary(change => change.SectionId);
+        var setUpAt = await dbContext.TenantSettings.AsNoTracking()
+            .Select(settings => (DateTime?)settings.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return visible.Select(section =>
+        {
+            var auditId = All.Single(item => item.Id == section.Id).AuditSectionId;
+            var change = auditId is not null && latest.TryGetValue(auditId, out var found)
+                ? new FusionSettingsLastChangeDto(found.OccurredAt, ActorName(found.ActorName))
+                : null;
+            return section with { LastChange = change, SetUpAt = auditId is null or SettingsSectionIds.AccessPermissions ? null : setUpAt };
+        }).ToList();
+    }
+
+    private static string ActorName(string recorded)
+        => string.IsNullOrWhiteSpace(recorded) || recorded == "Unknown" || recorded.Contains('@') ? Someone : recorded;
 }
