@@ -110,7 +110,7 @@ export function LaunchHero({
               )}
             </span>
             <div className="min-w-0">
-              <p className="type-eyebrow text-amber-400">
+              <p className="type-meta text-amber-400">
                 {ready ? "Ready to launch" : "Not ready to launch"}
               </p>
               <h2 className="type-page-title mt-1 text-white sm:type-display">{detail.cycle.name}</h2>

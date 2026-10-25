@@ -19,6 +19,7 @@ export function PerformancePageHeading({
   eyebrow,
   back,
   leading,
+  status,
   className,
   size = "default",
 }: {
@@ -29,6 +30,8 @@ export function PerformancePageHeading({
   back?: { href: string; label: string };
   /** What the page is about, set before the title (a record's people). */
   leading?: ReactNode;
+  /** A state badge beside the title, outside the heading so it keeps its own type and the title its accessible name. */
+  status?: ReactNode;
   className?: string;
   size?: "default" | "display";
 }) {
@@ -48,7 +51,14 @@ export function PerformancePageHeading({
           {leading ? <div className="shrink-0">{leading}</div> : null}
           <div className="min-w-0">
             {eyebrow ? <div className="mb-1">{eyebrow}</div> : null}
-            <h1 className={cn(size === "display" ? "type-display" : "type-page-title", "text-foreground")}>{title}</h1>
+            {status ? (
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className={cn(size === "display" ? "type-display" : "type-page-title", "text-foreground")}>{title}</h1>
+                {status}
+              </div>
+            ) : (
+              <h1 className={cn(size === "display" ? "type-display" : "type-page-title", "text-foreground")}>{title}</h1>
+            )}
             {description ? (
               typeof description === "string" ? (
                 <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">

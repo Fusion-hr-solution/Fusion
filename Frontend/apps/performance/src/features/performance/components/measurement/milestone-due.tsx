@@ -1,4 +1,5 @@
 import { cn } from "@repo/ds/lib/utils";
+import { formatDate } from "@repo/ds/lib/dates";
 
 type DatedMilestone = { dueDate: string | null; isCompleted: boolean };
 
@@ -16,13 +17,7 @@ export function isMilestoneOverdue(milestone: DatedMilestone, today: string = to
 
 /** "15 Nov", with the year once it is not the current one. */
 export function formatMilestoneDue(dueDate: string): string {
-  const [y, m, d] = dueDate.split("-").map(Number);
-  const date = new Date(y!, (m ?? 1) - 1, d ?? 1);
-  return date.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    ...(date.getFullYear() === new Date().getFullYear() ? {} : { year: "numeric" }),
-  });
+  return formatDate(dueDate);
 }
 
 /** The open milestones that are overdue, and the next one still ahead — the two date facts surfaces summarise. */

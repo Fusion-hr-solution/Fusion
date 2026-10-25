@@ -133,7 +133,7 @@ function formatISODate(date: Date): string {
 }
 
 function formatOne(date: Date, withYear = true): string {
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     ...(withYear ? { year: "numeric" } : {}),

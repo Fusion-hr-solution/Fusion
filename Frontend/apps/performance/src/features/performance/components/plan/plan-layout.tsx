@@ -89,7 +89,7 @@ export function SidebarSection({
 }) {
   return (
     <section className={cn("border-t border-border py-6 first:border-t-0 first:pt-0 last:pb-0", className)}>
-      {label ? <h2 className="type-eyebrow text-muted-foreground">{label}</h2> : null}
+      {label ? <h2 className="type-meta text-muted-foreground">{label}</h2> : null}
       {children}
     </section>
   );

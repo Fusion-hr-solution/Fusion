@@ -60,7 +60,7 @@ export function ByMonth<T>({ items, at, render }: { items: readonly T[]; at: (it
     <div className="space-y-8">
       {groups.map((group) => (
         <section key={group.key} className="grid gap-3 md:grid-cols-[6rem_minmax(0,1fr)] md:gap-5">
-          <h3 className="type-eyebrow text-muted-foreground md:pt-5">{group.label}</h3>
+          <h3 className="type-meta text-muted-foreground md:pt-5">{group.label}</h3>
           <ul className="space-y-3">{group.items.map(render)}</ul>
         </section>
       ))}
@@ -82,7 +82,7 @@ export function DueBlock({ date, overdue }: { date: string; overdue: boolean }) 
         overdue ? "bg-destructive/12 text-destructive" : days <= 3 ? "bg-primary-tint text-primary-ink ring-1 ring-primary-ring" : "bg-inlay text-foreground",
       )}
     >
-      <span className="type-eyebrow">{overdue ? "Overdue" : "Due"}</span>
+      <span className="type-meta">{overdue ? "Overdue" : "Due"}</span>
       <span className="type-label tabular-nums">{label}</span>
     </span>
   );

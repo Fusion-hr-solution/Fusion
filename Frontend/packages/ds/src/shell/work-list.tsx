@@ -15,6 +15,8 @@ export interface WorkListItem {
   subject?: { displayName: string } | null;
   /** The path the work belongs to, when its module composes one. */
   steps?: { label: string; detail?: string | null; state: "done" | "current" | "upcoming" }[] | null;
+  /** What the item's button does; "Open" when the module doesn't say. */
+  actionLabel?: string | null;
 }
 
 export interface WorkListModule {

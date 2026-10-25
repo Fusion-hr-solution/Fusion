@@ -73,6 +73,21 @@ public sealed class ReviewWorkTests
         Assert.Equal(JsonValueKind.Null, peer.GetProperty("own").ValueKind);
         var context = await Data(await world.As(world.Leila).GetAsync($"/api/performance/context?cycleId={world.Cycle.Id}"));
         Assert.True(context.GetProperty("destinations").GetProperty("reviews").GetBoolean());
+
+        // Reviews stays in the navigation on a cycle with no round yet: review work in any cycle keeps it (B-069 S-02).
+        var later = EY.HRPlatform.Performance.Domain.Cycles.PerformanceCycle.CreateDraft(world.Factory.Store.TenantId, "FY2028",
+            world.Cycle.EndDate.AddDays(1), world.Cycle.EndDate.AddYears(1), world.Cycle.EndDate.AddDays(31)).Activated();
+        await using (var db = world.Factory.Store.NewContext())
+        {
+            db.Cycles.Add(later);
+            await db.SaveChangesAsync();
+        }
+        foreach (var who in new[] { world.Leila, world.Mariam })
+        {
+            var elsewhere = await Data(await world.As(who).GetAsync($"/api/performance/context?cycleId={later.Id}"));
+            Assert.True(elsewhere.GetProperty("destinations").GetProperty("reviews").GetBoolean());
+            Assert.False(elsewhere.GetProperty("capabilities").GetProperty("hasReviewWork").GetBoolean());
+        }
     }
 
     [Fact]

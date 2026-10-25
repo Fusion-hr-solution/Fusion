@@ -183,7 +183,7 @@ function toCalendarDate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-const AS_OF_FORMAT = new Intl.DateTimeFormat(undefined, {
+const AS_OF_FORMAT = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
   year: "numeric",

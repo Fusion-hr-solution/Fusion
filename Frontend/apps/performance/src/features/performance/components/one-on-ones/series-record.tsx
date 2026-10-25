@@ -11,6 +11,7 @@ import {
   type OneOnOnePersonDto,
   type OneOnOneSeriesDto,
   type OneOnOneSuggestionDto,
+  type RosterPlanStatus,
 } from "@repo/api";
 import { Button } from "@repo/ds/components/ui/button";
 import { Checkbox } from "@repo/ds/components/ui/checkbox";
@@ -572,7 +573,7 @@ function MeetingDetail({ series, meeting, names, bare = false }: { series: OneOn
     <div className={cn("grid gap-8 md:grid-cols-2", !bare && "rounded-surface bg-card p-6")}>
       <div className="min-w-0 space-y-6">
         <div>
-          <p className="type-eyebrow text-muted-foreground">Talked about</p>
+          <p className="type-meta text-muted-foreground">Talked about</p>
           {meeting.agenda.length === 0 ? (
             <p className="mt-2 type-body-secondary text-muted-foreground">No talking points</p>
           ) : (
@@ -589,7 +590,7 @@ function MeetingDetail({ series, meeting, names, bare = false }: { series: OneOn
         </div>
         {meeting.actions.length > 0 ? (
           <div>
-            <p className="type-eyebrow text-muted-foreground">Actions</p>
+            <p className="type-meta text-muted-foreground">Actions</p>
             <ul className="mt-2.5 space-y-2">
               {meeting.actions.map((action) => (
                 <li key={action.id} className="flex items-center gap-2.5">
@@ -608,7 +609,7 @@ function MeetingDetail({ series, meeting, names, bare = false }: { series: OneOn
         ) : (
           <>
             <div>
-              <p className="type-eyebrow text-muted-foreground">Notes</p>
+              <p className="type-meta text-muted-foreground">Notes</p>
               {meeting.sharedNotes ? (
                 <p className="mt-2.5 type-narrative whitespace-pre-wrap text-foreground">{meeting.sharedNotes}</p>
               ) : (
@@ -617,7 +618,7 @@ function MeetingDetail({ series, meeting, names, bare = false }: { series: OneOn
             </div>
             {meeting.privateNote.text ? (
               <div>
-                <p className="type-eyebrow text-muted-foreground">Only you</p>
+                <p className="type-meta text-muted-foreground">Only you</p>
                 <p className="mt-2.5 type-body whitespace-pre-wrap text-foreground">{meeting.privateNote.text}</p>
               </div>
             ) : null}
@@ -677,6 +678,14 @@ function Mark({ on }: { on: boolean }) {
 
 // ── Sidebar ────────────────────────────────────────────────────────────────────
 
+const UNSHARED_PLAN: Record<RosterPlanStatus, string> = {
+  NotStarted: "No plan yet",
+  Draft: "Plan in draft",
+  ReturnedForChanges: "Plan returned for changes",
+  Submitted: "Plan waiting for approval",
+  Approved: "No objectives",
+};
+
 function SeriesSidebar({ series, onCadence }: { series: OneOnOneSeriesDto; onCadence: (cadence: OneOnOneCadence) => void }) {
   const report = series.report;
   const isManager = series.viewerRole === "Manager";
@@ -707,8 +716,15 @@ function SeriesSidebar({ series, onCadence }: { series: OneOnOneSeriesDto; onCad
             <div className="mt-3.5 flex items-center gap-4">
               <PlanDial cycle={cycle} />
               <div className="min-w-0">
-                <p className="type-label text-foreground">{cycle.objectives.length} objective{cycle.objectives.length === 1 ? "" : "s"}</p>
-                {atRisk > 0 ? <p className="type-meta text-primary-ink">{atRisk} at risk</p> : <p className="type-meta text-muted-foreground">None at risk</p>}
+                {cycle.objectives.length > 0 ? (
+                  <>
+                    <p className="type-label text-foreground">{cycle.objectives.length} objective{cycle.objectives.length === 1 ? "" : "s"}</p>
+                    {atRisk > 0 ? <p className="type-meta text-primary-ink">{atRisk} at risk</p> : <p className="type-meta text-muted-foreground">None at risk</p>}
+                  </>
+                ) : (
+                  // A plan not put forward yet shows no objectives to anyone else: say where it stands, not "0 objectives".
+                  <p className="type-label text-foreground">{UNSHARED_PLAN[cycle.planStatus ?? "NotStarted"]}</p>
+                )}
                 {cycle.planHref ? (
                   <Link href={appHref(cycle.planHref)} className="mt-1 inline-block type-meta text-foreground hover:underline">
                     Open {isManager ? "their" : "your"} plan

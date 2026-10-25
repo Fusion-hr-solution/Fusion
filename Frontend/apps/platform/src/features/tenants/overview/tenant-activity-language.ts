@@ -126,7 +126,7 @@ export function activityNarrative(entry: TenantActivityEntry): ActivityNarrative
 export function activityTimestamp(occurredAt: string, now: Date = new Date()): string {
   const at = new Date(occurredAt);
 
-  const time = at.toLocaleTimeString(undefined, {
+  const time = at.toLocaleTimeString("en-GB", {
     hour: "numeric",
     minute: "2-digit",
   });
@@ -136,7 +136,7 @@ export function activityTimestamp(occurredAt: string, now: Date = new Date()): s
   if (days === 0) return `Today at ${time}`;
   if (days === 1) return `Yesterday at ${time}`;
 
-  return at.toLocaleDateString(undefined, {
+  return at.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: at.getFullYear() === now.getFullYear() ? undefined : "numeric",

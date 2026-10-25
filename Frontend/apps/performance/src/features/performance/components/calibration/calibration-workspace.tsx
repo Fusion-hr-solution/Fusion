@@ -201,7 +201,7 @@ function OpenSession({ roundId, cycleId, mutations }: { roundId: string; cycleId
       <h1 className="type-display text-foreground">Open calibration</h1>
       {managerStage ? (
         <section aria-label="Manager reviews" className="mt-6 rounded-surface bg-card p-5">
-          <p className="type-eyebrow text-muted-foreground">Manager reviews in</p>
+          <p className="type-meta text-muted-foreground">Manager reviews in</p>
           <p className="mt-2 flex items-baseline gap-1.5">
             <span className="type-metric tabular-nums text-foreground">{managerStage.done}</span>
             <span className="type-meta tabular-nums text-muted-foreground">of {managerStage.total}</span>

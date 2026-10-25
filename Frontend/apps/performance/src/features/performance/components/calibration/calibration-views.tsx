@@ -121,7 +121,7 @@ export function DistributionView({ view, onManager }: { view: CalibrationDistrib
           <div className="overflow-x-auto rounded-surface bg-card">
             <table className="w-full min-w-[44rem] text-left">
               <thead>
-                <tr className="border-b border-border type-eyebrow text-muted-foreground">
+                <tr className="border-b border-border type-meta text-muted-foreground">
                   <th className="px-5 py-3 font-medium">Manager</th>
                   <th className="px-3 py-3 font-medium">People</th>
                   <th className="px-3 py-3 font-medium">Their ratings, now</th>
@@ -227,7 +227,7 @@ export function PeopleView({ view, top, lenient, onOpen }: {
     <div className="overflow-x-auto rounded-surface bg-card">
       <table className="w-full min-w-[60rem] text-left">
         <thead>
-          <tr className="border-b border-border type-eyebrow text-muted-foreground">
+          <tr className="border-b border-border type-meta text-muted-foreground">
             <th className="px-4 py-3 font-medium">Person</th>
             <th className="px-3 py-3 font-medium">Manager</th>
             <th className="px-3 py-3 font-medium">Rating</th>

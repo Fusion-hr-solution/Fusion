@@ -52,15 +52,19 @@ public sealed class GetUpcomingHandler(PerformanceDbContext db)
 
     private static string Id(string kind, object key) => $"{Module}:{kind}:{key}";
 
-    /// <summary>The caller's next meetings in active series, with what's waiting on the agenda.</summary>
+    /// <summary>
+    /// The caller's meetings in active series from the start of today, with what's waiting on the agenda. A meeting whose
+    /// day has passed without being completed is owed work instead (work items), not an upcoming moment.
+    /// </summary>
     private async Task OneOnOnesAsync(Guid me, DateTime now, DateOnly horizon, List<FusionUpcomingDto> items, CancellationToken token)
     {
+        var dayStart = DateOnly.FromDateTime(now).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var until = horizon.AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var meetings = await (from meeting in db.OneOnOneMeetings.AsNoTracking()
                               join series in db.OneOnOneSeries.AsNoTracking() on meeting.SeriesId equals series.Id
                               where (series.ManagerEmployeeId == me || series.ReportEmployeeId == me) && series.EndedAt == null
                                     && meeting.State == OneOnOneMeetingState.Upcoming
-                                    && meeting.ScheduledAt >= now && meeting.ScheduledAt < until
+                                    && meeting.ScheduledAt >= dayStart && meeting.ScheduledAt < until
                               select new
                               {
                                   meeting.Id, meeting.ScheduledAt, SeriesId = series.Id,

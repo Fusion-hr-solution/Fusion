@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { TeamResultsDto, TeamRosterMemberDto, YourPeoplePageDto } from "@repo/api";
 import { DEFAULT_PEOPLE_QUERY, YourPeople, leadAction } from "./your-people";
 import { TeamResultsPanel, teamSubtitle } from "./team-summary";
+import { formatDate } from "@repo/ds/lib/dates";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => "/team", useSearchParams: () => new URLSearchParams() }));
 vi.mock("next/link", async () => {
@@ -110,7 +111,7 @@ describe("Your People", () => {
       peerListsToApprove: [], reviewsSubmitted: 0, reviewsReady: 0, reviewsTotal: 0, reviewsDue: null, firstReadyName: null,
       firstReadyReviewId: null, releasedAt: "2027-09-28T09:00:00Z",
     };
-    expect(teamSubtitle(page({ phase: "Closed", totalCount: 6, summary }))).toBe("6 people · Year-end review released Tue 28 Sept");
+    expect(teamSubtitle(page({ phase: "Closed", totalCount: 6, summary }))).toBe(`6 people · Year-end review released ${formatDate("2027-09-28", { weekday: true })}`);
   });
 });
 

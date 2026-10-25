@@ -144,7 +144,7 @@ function DrawerBody({ detail, readOnly, potentialEnabled, mutations, onClose }: 
 
         <section aria-label="Objectives" className="overflow-hidden rounded-surface bg-card">
           <div className="flex items-baseline justify-between gap-3 border-b border-border px-4 py-3">
-            <p className="type-eyebrow text-muted-foreground">Objectives{weighted !== null ? ` · weighted ${weighted}%` : ""}</p>
+            <p className="type-meta text-muted-foreground">Objectives{weighted !== null ? ` · weighted ${weighted}%` : ""}</p>
             <p className="type-meta text-muted-foreground">
               {person.lastResult ? `${person.lastResult.cycleName} · ${person.lastResult.rating} ${ratingLabel(person.lastResult.rating)}` : "No earlier result"}
             </p>

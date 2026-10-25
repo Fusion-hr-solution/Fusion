@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { EmployeePlanDto, PlanDecisionDto, PlanObjectiveDto } from "@repo/api";
 import { PlanRail } from "./plan-rail";
+import { formatDate } from "@repo/ds/lib/dates";
 
 vi.mock("@repo/auth", () => ({ useAuth: () => ({ user: { employeeId: "karim" } }) }));
 vi.mock("../../api/use-workforce-me", () => ({ useWorkforceMe: () => ({ data: null }) }));
@@ -49,7 +50,7 @@ describe("PlanRail", () => {
     rail(null);
     expect(sections()).toEqual(ORDER);
     expect(screen.getByText("Not started")).toBeTruthy();
-    expect(screen.getByText(/Oct 31, 2026|31 Oct 2026/)).toBeTruthy();
+    expect(screen.getByText(new RegExp(formatDate("2026-10-31")))).toBeTruthy();
   });
 
   it("shows the checks while drafting, with no progress figure", () => {

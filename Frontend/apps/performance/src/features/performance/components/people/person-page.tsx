@@ -44,7 +44,7 @@ export function PersonPage({ employeeId }: { employeeId: string }) {
   const context = [person?.jobTitle, person?.orgUnitName].filter(Boolean);
 
   return (
-    <PageContainer>
+    <PageContainer width="wide">
       {person ? (
         <PerformancePageHeading
           title={person.displayName ?? "Person"}

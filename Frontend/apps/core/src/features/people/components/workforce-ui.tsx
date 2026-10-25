@@ -221,7 +221,7 @@ export function PersonRelationship({
   className?: string;
 }) {
   return (
-    <div className={cn("border-l-2 border-primary/60 pl-4", className)}>
+    <div className={className}>
       <p className="type-eyebrow text-muted-foreground">{label}</p>
       {name ? (
         <div className="mt-2">
@@ -317,7 +317,7 @@ export function formatWorkforceDate(
   const iso = value.length <= 10 ? `${value}T00:00:00Z` : value;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: options?.month ?? "short",
     year: "numeric",

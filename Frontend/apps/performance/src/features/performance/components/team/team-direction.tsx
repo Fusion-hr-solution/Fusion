@@ -300,7 +300,7 @@ function StrategicDirection({
             <span className="flex size-8 items-center justify-center rounded-control border border-primary-ring bg-primary-tint text-primary-ink">
               <Target className="size-4" aria-hidden />
             </span>
-            <p className="type-eyebrow text-primary-ink">Next team objective</p>
+            <p className="type-meta text-primary-ink">Next team objective</p>
           </div>
           <div className="mt-2.5">
             <h3 className="text-lg font-semibold tracking-tight text-foreground">
@@ -393,7 +393,7 @@ function DirectionCard({
           <span className="flex size-8 items-center justify-center rounded-control border border-primary-ring bg-primary-tint text-primary-ink">
             <Target className="size-4" aria-hidden />
           </span>
-          <p className="type-eyebrow text-primary-ink">Selected direction</p>
+          <p className="type-meta text-primary-ink">Selected direction</p>
         </div>
         <StatusBadge tone={STATE_TONE[node.state]} dot>
           {STATE_LABEL[node.state]}

@@ -83,7 +83,10 @@ describe("DevelopmentSection", () => {
   it("offers last cycle's open goals and brings over the chosen ones", async () => {
     state.query.data = plan({ goals: [], room: 5, carryOver: { fromCycleId: "old", fromCycleName: "FY2026", goals: [goal({ id: "old1" }), goal({ id: "old2", title: "Learn Rust" })] } });
     render(<DevelopmentSection cycleId="c" employeeId="nour" />);
-    expect(screen.getByText("2 open goals")).toBeTruthy();
+    expect(screen.getByText("2 open goals from FY2026")).toBeTruthy();
+    // The offer stands in for the empty state; adding a new goal moves to the section heading.
+    expect(screen.queryByText("No development goals yet")).toBeNull();
+    expect(screen.getByRole("button", { name: /Add goal/ })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Bring over" }));
     fireEvent.click(screen.getByRole("checkbox", { name: /Learn Rust/ }));
     await act(async () => {

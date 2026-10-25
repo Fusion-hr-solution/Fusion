@@ -18,13 +18,13 @@ export default function PlanPage() {
 
   if (context.isLoading) return <PlanPageSkeleton empty />;
   if (context.error && !performanceFailure(context.error).unavailable) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;
-  if (context.error) return <PagePermissionNotice title="No plan for your account" description="A performance plan is available to employees included in an active cycle." />;
-  if (!canParticipate) {
+  // Not a participant of the selected cycle (B-069): one precise line; the cycle switcher above offers the others.
+  if (context.error || !canParticipate) {
+    const selected = context.data?.selected?.name ?? null;
     return (
-      <PagePermissionNotice
-        title="No plan for your account"
-        description="A performance plan is available to employees included in an active cycle."
-      />
+      <PageContainer>
+        <PagePermissionNotice title={selected ? `You're not part of ${selected}` : "You're not part of a performance cycle"} />
+      </PageContainer>
     );
   }
   if (detail.isLoading) return <PlanPageSkeleton empty />;
@@ -33,10 +33,7 @@ export default function PlanPage() {
   if (!cycle || cycle.state === "Draft") {
     return (
       <PageContainer>
-        <PagePermissionNotice
-          title="No cycle yet"
-          description="Your plan opens once your organization activates a performance cycle."
-        />
+        <PagePermissionNotice title="No performance cycle yet" />
       </PageContainer>
     );
   }

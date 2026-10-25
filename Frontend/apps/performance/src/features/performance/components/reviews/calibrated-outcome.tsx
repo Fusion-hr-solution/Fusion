@@ -27,7 +27,7 @@ export function CalibratedOutcome({ record }: { record: PerformanceReviewDto }) 
   const label = (value: number) => record.ratingScale.find((level) => level.value === value)?.label ?? String(value);
   return (
     <section aria-labelledby="calibration-outcome" className="mt-6 rounded-surface bg-card p-6">
-      <p id="calibration-outcome" className="type-eyebrow text-muted-foreground">After calibration</p>
+      <p id="calibration-outcome" className="type-meta text-muted-foreground">After calibration</p>
       <div className="mt-3 flex flex-wrap items-center gap-x-8 gap-y-4">
         <div className="flex items-center gap-3">
           <span className={cn("flex size-12 items-center justify-center rounded-control type-metric tabular-nums",

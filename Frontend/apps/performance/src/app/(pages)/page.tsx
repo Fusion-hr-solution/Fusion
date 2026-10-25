@@ -15,6 +15,7 @@ import {
   InputOwedRow,
   NextCycleRow,
   NoCycleRow,
+  StartConversationsRow,
   NotParticipantRow,
   OwnPlanRow,
   OwnReviewRow,
@@ -73,7 +74,7 @@ export default function OverviewPage() {
   };
 
   return (
-    <PageContainer>
+    <PageContainer width="wide">
       <PerformancePageHeading title="Overview" size="display" />
       <div className="mt-8 max-w-5xl space-y-8">
         {year && cycle ? <YearBand year={year} cycleName={cycle.name} /> : null}
@@ -81,6 +82,8 @@ export default function OverviewPage() {
           {rows.map((row, index) => (
             <Fragment key={`${row.kind}-${index}`}>{render(row)}</Fragment>
           ))}
+          {/* No cycle and nothing booked yet: 1:1s still start without one (board 16). */}
+          {rows.some((row) => row.kind === "noCycle") && !rows.some((row) => row.kind === "conversations") ? <StartConversationsRow /> : null}
         </div>
       </div>
     </PageContainer>

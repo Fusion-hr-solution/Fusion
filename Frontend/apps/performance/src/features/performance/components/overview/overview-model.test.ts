@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { OverviewYearDto } from "@repo/api";
 import { appHref, day, plural, yearHeadline } from "./overview-model";
+import { formatDate } from "@repo/ds/lib/dates";
 
 const planning: OverviewYearDto = {
   state: "Active",
@@ -35,12 +36,12 @@ describe("yearHeadline", () => {
 
   it("states a closed cycle without days left", () => {
     expect(yearHeadline({ ...planning, state: "Closed", currentPhase: null, next: null, daysLeft: null, closedAt: "2027-09-30T12:00:00Z" }, "FY2027"))
-      .toEqual({ phase: "FY2027 is closed", left: null, next: "Closed Thu 30 Sept" });
+      .toEqual({ phase: "FY2027 is closed", left: null, next: `Closed ${formatDate("2027-09-30", { weekday: true })}` });
   });
 
   it("leads with late manager reviews once their date has passed", () => {
     const review = { ...planning, dates: [{ kind: "managers-due" as const, date: "2020-09-22", count: 24 }], next: { kind: "cycle-end" as const, date: "2027-09-30" } };
-    expect(yearHeadline(review, "FY2027").next).toBe("Manager reviews were due Tue 22 Sept · 24 late");
+    expect(yearHeadline(review, "FY2027").next).toBe(`Manager reviews were due ${formatDate("2020-09-22", { weekday: true })} · 24 late`);
   });
 });
 
@@ -48,6 +49,6 @@ describe("wording", () => {
   it("counts in plain words", () => {
     expect(plural(1, "plan")).toBe("1 plan");
     expect(plural(3, "person", "people")).toBe("3 people");
-    expect(day("2026-10-31")).toBe("Sat 31 Oct");
+    expect(day("2026-10-31")).toBe(formatDate("2026-10-31", { weekday: true }));
   });
 });

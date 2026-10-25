@@ -162,7 +162,7 @@ public sealed class GetPersonSummaryHandler(PerformanceDbContext db, ICoreWorkfo
         var items = await new EY.HRPlatform.Performance.Features.Conversations.FeedbackReader(db, new Security.PerformanceViewer(db, workforce))
             .ProjectAsync(latest, reader, token);
         return new PersonSummaryFeedbackDto(items, await received.CountAsync(token),
-            self ? "/performance/feedback" : "/performance/feedback?view=team");
+            self ? "/performance/feedback" : "/performance/feedback?tab=team");
     }
 
     private async Task<PersonSummaryOneOnOneDto?> OneOnOneAsync(Guid employeeId, Guid me, CancellationToken token)

@@ -48,7 +48,7 @@ export function PlanRecordPage({ cycleId, planId }: { cycleId: string; planId: s
   }
 
   return (
-    <PageContainer className="max-w-7xl">
+    <PageContainer width="wide">
       <PlanReview cycle={cycle.data.cycle} planId={planId} />
     </PageContainer>
   );

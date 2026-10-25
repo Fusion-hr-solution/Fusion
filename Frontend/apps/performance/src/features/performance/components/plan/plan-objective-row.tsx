@@ -49,7 +49,6 @@ import {
  * serves the manager's read-only review (no menu) and a locked plan's progress (a track appears).
  */
 export function PlanObjectiveRow({
-  index,
   objective,
   alignmentScope,
   showProgress = false,
@@ -63,7 +62,6 @@ export function PlanObjectiveRow({
   executionAside,
   footer,
 }: {
-  index: number;
   objective: PlanObjectiveDto;
   /** Resolved scope label of the aligned parent (e.g. "Talent Pod"); falls back to the parent title. */
   alignmentScope?: string;
@@ -117,18 +115,7 @@ export function PlanObjectiveRow({
     >
       {/* Top line: identity + weight + actions. */}
       <div className="flex items-start gap-4">
-        {/* The number takes the objective's type colour: amber when aligned, blue when standalone. */}
-        <span
-          className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-control border text-base font-semibold tabular-nums",
-            objective.isAligned
-              ? "border-primary-ring bg-primary-tint text-primary-ink"
-              : "border-info/25 bg-info/[0.06] text-info"
-          )}
-        >
-          {String(index + 1).padStart(2, "0")}
-        </span>
-
+        {/* Objectives aren't a sequence: no numbered marker (DESIGN §9); the alignment line below tells them apart. */}
         <div className="min-w-0 flex-1">
           {onViewDetails ? (
             <button
@@ -258,7 +245,7 @@ export function PlanObjectiveRow({
           </MetaCell>
         </dl>
         <div className="shrink-0 text-right">
-          <p className="type-eyebrow text-muted-foreground/70">Weight</p>
+          <p className="type-meta text-muted-foreground/70">Weight</p>
           <p
             className={cn(
               "mt-1 text-lg font-semibold tabular-nums leading-none",
@@ -407,7 +394,7 @@ function ExecutionState({
 
   return (
     <div className="min-w-0 flex-1">
-      <p className="type-eyebrow text-muted-foreground/70">{label}</p>
+      <p className="type-meta text-muted-foreground/70">{label}</p>
       {method === "WeightedMilestones" && measurement ? (
         // Same segments as the Milestones fact above (sized by weight); completed ones fill.
         <div className="mt-2 flex h-2.5 w-full gap-1" aria-hidden>
@@ -460,7 +447,7 @@ function MetaCell({
 }) {
   return (
     <div className="min-w-0 sm:px-5 sm:first:pl-0">
-      <dt className="flex items-center gap-1.5 type-eyebrow text-muted-foreground/70">
+      <dt className="flex items-center gap-1.5 type-meta text-muted-foreground/70">
         <Icon className="size-4 shrink-0" aria-hidden />
         {label}
       </dt>
@@ -480,7 +467,6 @@ function formatObjectiveDuration(
   return formatDateRange(start, end, { omitYear: sameYear });
 }
 
-const shortDay = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short" });
 
 /**
  * The objective's window drawn on its cycle: the track is the cycle, the fill is when this objective
@@ -511,7 +497,7 @@ function CycleWindow({
     <span className="flex items-center gap-2 tabular-nums" title={label}>
       <span className="sr-only">{label}</span>
       <span className="text-xs text-muted-foreground" aria-hidden>
-        {shortDay.format(day(start))}
+        {formatDate(start.slice(0, 10))}
       </span>
       <span className="relative h-1.5 w-20 shrink-0 rounded-full bg-muted-foreground/10" aria-hidden>
         {/* The window, neutral so it never reads as progress: time already spent is solid, the rest faint. */}
@@ -533,7 +519,7 @@ function CycleWindow({
         ) : null}
       </span>
       <span className="text-xs text-muted-foreground" aria-hidden>
-        {shortDay.format(day(end))}
+        {formatDate(end.slice(0, 10))}
       </span>
     </span>
   );

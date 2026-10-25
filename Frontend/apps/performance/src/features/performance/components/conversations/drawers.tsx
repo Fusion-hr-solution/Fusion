@@ -35,7 +35,7 @@ function DrawerFrame({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-[34rem]">
         <div className="px-7 pt-6 pb-2">
-          <SheetTitle className="type-eyebrow text-muted-foreground">{title}</SheetTitle>
+          <SheetTitle className="type-meta text-muted-foreground">{title}</SheetTitle>
           <SheetDescription className="sr-only">{title}</SheetDescription>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-7 pt-4 pb-8">{children}</div>

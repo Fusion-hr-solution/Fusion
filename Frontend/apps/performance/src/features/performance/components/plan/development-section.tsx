@@ -56,8 +56,8 @@ export function DevelopmentSection({ cycleId, employeeId }: { cycleId: string; e
         label="Development"
         count={plan && plan.goals.length > 0 ? plan.goals.length : undefined}
         action={
-          // The empty state carries the first Add itself.
-          plan?.canEdit && plan.room > 0 && plan.goals.length > 0 ? (
+          // The empty state carries the first Add itself; with an offer to bring goals over, Add sits here instead.
+          plan?.canEdit && plan.room > 0 && (plan.goals.length > 0 || plan.carryOver) ? (
             <Button size="sm" variant="outline" onClick={() => setComposer({})}>
               <Plus className="size-4" data-icon="inline-start" /> Add goal
             </Button>
@@ -71,7 +71,7 @@ export function DevelopmentSection({ cycleId, employeeId }: { cycleId: string; e
         ) : (
           <div className="space-y-3">
             {plan.carryOver ? <CarryOverOffer plan={plan} cycleId={cycleId} employeeId={employeeId} /> : null}
-            {plan.goals.length === 0 ? (
+            {plan.goals.length === 0 && plan.carryOver ? null : plan.goals.length === 0 ? (
               <div className="flex flex-col items-center rounded-surface border border-dashed border-border px-6 py-8 text-center">
                 <p className="text-sm font-medium text-foreground">No development goals yet</p>
                 {plan.canEdit ? (
@@ -253,10 +253,11 @@ function CarryOverOffer({ plan, cycleId, employeeId }: { plan: DevelopmentPlanDt
   const count = offer.goals.length;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-surface border border-primary-ring bg-primary-tint px-4 py-3">
-      <p className="min-w-0 flex-1 text-sm text-foreground">
-        <span className="font-semibold">{count} open goal{count === 1 ? "" : "s"}</span> from {offer.fromCycleName}
-      </p>
+    <div className="flex flex-wrap items-center gap-3 rounded-surface bg-card px-4 py-3">
+      <div className="min-w-0 flex-1">
+        <p className="type-label text-foreground">{count} open goal{count === 1 ? "" : "s"} from {offer.fromCycleName}</p>
+        <p className="truncate type-meta text-muted-foreground">{offer.goals.map((goal) => goal.title).join(", ")}</p>
+      </div>
       <Button
         variant="ghost"
         size="sm"

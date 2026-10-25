@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PageContainer } from "@repo/ds/shell";
@@ -42,6 +42,11 @@ export default function MyTeamPage() {
   const people = useYourPeople(cycle?.id ?? null, peopleQuery, canReview);
   const phase = people.data?.phase;
   const results = useTeamResults(cycle?.id ?? null, canReview && (phase === "Review" || phase === "Closed"));
+  // The plan filter only exists in Planning and Execution: a link's filter must not keep applying, hidden, in a round.
+  const filterHidden = phase !== undefined && phase !== "Planning" && phase !== "Execution";
+  useEffect(() => {
+    if (filterHidden && peopleQuery.filter !== DEFAULT_PEOPLE_QUERY.filter) setPeopleQuery((query) => ({ ...query, filter: DEFAULT_PEOPLE_QUERY.filter }));
+  }, [filterHidden, peopleQuery.filter]);
 
   if (context.isLoading || detail.isLoading) return <TeamPageSkeleton />;
   if (context.error) return <ContentUnavailable error={context.error} onRetry={context.refetch} subject="Performance workspace" />;

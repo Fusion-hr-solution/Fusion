@@ -67,7 +67,7 @@ function StatusMixLine({ plan }: { plan: EmployeePlanDto }) {
   return (
     <p className="mt-3 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
       {mix.onTrack > 0 ? <MixItem dot="bg-success" label={`${mix.onTrack} on track`} /> : null}
-      {mix.atRisk > 0 ? <MixItem dot="bg-primary" label={`${mix.atRisk} at risk`} /> : null}
+      {mix.atRisk > 0 ? <MixItem dot="bg-warning" label={`${mix.atRisk} at risk`} /> : null}
       {mix.offTrack > 0 ? <MixItem dot="bg-destructive" label={`${mix.offTrack} off track`} /> : null}
       {mix.notReported > 0 ? <MixItem dot="bg-muted-foreground/40" label={`${mix.notReported} not reported`} /> : null}
     </p>
@@ -127,7 +127,8 @@ function ObjectiveProgressRing({ plan, complete }: { plan: EmployeePlanDto; comp
               strokeLinecap="butt"
               strokeDasharray={`${visible} ${c - visible}`}
               strokeDashoffset={-s.start}
-              className={s.aligned ? "stroke-primary" : "stroke-info"}
+              // Progress is the fill (amber, DESIGN §2); status lives in the legend below, so the two never share a colour.
+              className="stroke-primary"
             />
           );
         })}

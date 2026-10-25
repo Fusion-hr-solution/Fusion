@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Check } from "lucide-react";
 import { cn } from "../lib/utils";
+import { formatDate } from "../lib/dates";
 import { Button } from "../components/ui/button";
 import { daysUntil, type RenderWorkLink, type WorkListItem, type WorkListModule } from "./work-list";
 
@@ -58,7 +59,6 @@ export function selectLead<T extends HomeWorkItem>(work: readonly T[], moments: 
   return next ? { kind: "moment", moment: next } : null;
 }
 
-const DATE = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short" });
 const TIME = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
 const WEEKDAY = new Intl.DateTimeFormat("en-GB", { weekday: "short" });
 
@@ -67,9 +67,9 @@ function localDate(isoDate: string): Date {
   return new Date(y!, (m ?? 1) - 1, d ?? 1);
 }
 
-/** "Sat 31 Oct". */
+/** "Sat 31 Oct" (the year outside this year). */
 export function shortDay(isoDate: string): string {
-  return DATE.format(localDate(isoDate)).replace(",", "");
+  return formatDate(isoDate, { weekday: true });
 }
 
 function Steps({ steps }: { steps: NonNullable<WorkListItem["steps"]> }) {
@@ -147,7 +147,7 @@ export function LeadFocus({ lead, moduleLabel, today, renderLink = defaultLink }
         </div>
         <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           {item.steps?.length ? <div className="min-w-0 flex-1"><Steps steps={item.steps} /></div> : <span />}
-          <Button asChild className="shrink-0">{renderLink({ href: item.href, className: "", children: "Open" })}</Button>
+          <Button asChild className="shrink-0">{renderLink({ href: item.href, className: "", children: item.actionLabel ?? "Open" })}</Button>
         </div>
       </section>
     );
@@ -177,7 +177,7 @@ export function LeadFocus({ lead, moduleLabel, today, renderLink = defaultLink }
             </p>
           </div>
           <Button asChild variant="outline" className="shrink-0">
-            {renderLink({ href: moment.href, className: "", children: "Open" })}
+            {renderLink({ href: moment.href, className: "", children: moment.kind === "one-on-one" ? "Open the 1:1" : "View" })}
           </Button>
         </div>
       </section>

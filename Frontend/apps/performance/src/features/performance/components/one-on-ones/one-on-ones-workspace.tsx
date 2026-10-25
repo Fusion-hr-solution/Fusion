@@ -40,7 +40,6 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
   const next = active.filter((r) => r.nextMeetingAt).sort((a, b) => a.nextMeetingAt!.localeCompare(b.nextMeetingAt!))[0] ?? null;
   const hasTeam = data.reports.length > 0 || data.startWithReports.length > 0;
   const thisWeek = active.filter((r) => r.nextMeetingAt && new Date(r.nextMeetingAt).getTime() - Date.now() < WEEK_MS);
-  const openActions = active.reduce((sum, r) => sum + r.openActions, 0);
 
   // Nobody to meet: say why in one line.
   if (!data.withManager && !data.startWithManager && !hasTeam && data.ended.length === 0) {
@@ -54,11 +53,8 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
     );
   }
 
-  const summary = [
-    hasTeam ? `${data.reports.length + data.startWithReports.length} ${data.reports.length + data.startWithReports.length === 1 ? "person" : "people"}` : null,
-    thisWeek.length > 0 ? `${thisWeek.length} this week` : null,
-    openActions > 0 ? `${openActions} open action${openActions === 1 ? "" : "s"}` : null,
-  ].filter(Boolean).join(" · ");
+  // Each fact is said once: the hero is the next meeting, the side panel what isn't already in the main column.
+  const heroIsManagerSeries = next !== null && next === data.withManager;
 
   const main = (
     <div className="space-y-10">
@@ -75,7 +71,7 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
             <StartRow key={option.with.employeeId} person={option.with} onStart={() => setStarting(option.with)} />
           ))}
         </RhythmTable>
-      ) : data.withManager ? (
+      ) : data.withManager && !heroIsManagerSeries ? (
         <RhythmTable title="With your manager">
           <RhythmRow row={data.withManager} />
         </RhythmTable>
@@ -90,7 +86,7 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
 
   const sidebar = (
     <>
-      {hasTeam ? (
+      {hasTeam && !heroIsManagerSeries ? (
         <SidebarSection label="With your manager">
           {data.withManager ? (
             <ManagerCard row={data.withManager} />
@@ -115,7 +111,7 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
       <SidebarSection label={`Actions you owe${data.myActions.length > 0 ? ` · ${data.myActions.length}` : ""}`}>
         <OwedActions actions={data.myActions} />
       </SidebarSection>
-      {thisWeek.length > 0 ? (
+      {hasTeam && thisWeek.length > 0 ? (
         <SidebarSection label="This week">
           <ThisWeek rows={thisWeek} managerSeriesId={data.withManager?.seriesId ?? null} />
         </SidebarSection>
@@ -125,7 +121,7 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
 
   return (
     <PageContainer width="wide">
-      <PerformancePageHeading title="1:1s" description={summary || undefined} />
+      <PerformancePageHeading title="1:1s" />
       <div className="mt-6">
         <PlanDocument main={main} sidebar={data.startWithManager && !hasTeam && !data.withManager ? undefined : sidebar} />
       </div>
@@ -162,7 +158,7 @@ function NextUp({ row, isManager }: { row: OneOnOneRowDto; isManager: boolean })
       <div className="flex flex-wrap items-start gap-5">
         <TimeBlock iso={row.nextMeetingAt!} size="lg" />
         <div className="min-w-0 flex-1">
-          <p className="type-eyebrow text-primary-ink">Next up · {howSoon(row.nextMeetingAt!)}</p>
+          <p className="type-meta text-primary-ink">Next up · {howSoon(row.nextMeetingAt!)}</p>
           <div className="mt-2 flex items-center gap-3">
             <PersonInitials name={row.with.displayName} size="lg" />
             <div className="min-w-0">
@@ -182,7 +178,7 @@ function NextUp({ row, isManager }: { row: OneOnOneRowDto; isManager: boolean })
 
       <div className="mt-5 grid gap-6 border-t border-primary-ring pt-5 md:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <div className="min-w-0">
-          <p className="type-eyebrow text-muted-foreground">On the agenda{row.agendaCount > 0 ? ` · ${row.agendaCount}` : ""}</p>
+          <p className="type-meta text-muted-foreground">On the agenda{row.agendaCount > 0 ? ` · ${row.agendaCount}` : ""}</p>
           {series.isLoading ? (
             <div className="mt-3 space-y-2"><Skeleton className="h-5 w-3/4" /><Skeleton className="h-5 w-1/2" /></div>
           ) : agenda.length === 0 ? (
@@ -200,7 +196,7 @@ function NextUp({ row, isManager }: { row: OneOnOneRowDto; isManager: boolean })
           )}
         </div>
         <div className="min-w-0">
-          <p className="type-eyebrow text-muted-foreground">{row.lastMetAt ? `Since you met · ${shortDay(row.lastMetAt)}` : "Ready to discuss"}</p>
+          <p className="type-meta text-muted-foreground">{row.lastMetAt ? `Since you met · ${shortDay(row.lastMetAt)}` : "Ready to discuss"}</p>
           {series.isLoading ? (
             <Skeleton className="mt-3 h-7 w-2/3" />
           ) : counts.size === 0 && row.overdueActions === 0 ? (
@@ -293,7 +289,7 @@ function StartRow({ person, onStart }: { person: OneOnOnePersonDto; onStart: () 
         </span>
       </span>
       <span className="hidden type-meta text-muted-foreground md:block">Not meeting yet</span>
-      <Button size="sm" variant="outline" onClick={onStart} className="justify-self-start">
+      <Button size="sm" variant="ghost" onClick={onStart} className="justify-self-start">
         <Plus className="size-4" data-icon="inline-start" /> Start 1:1s
       </Button>
       <span />

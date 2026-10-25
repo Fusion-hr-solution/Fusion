@@ -1,17 +1,14 @@
 import type { ReactNode } from "react";
 import type { RatingScaleLevelDto, ReviewPotential } from "@repo/api";
 import { cn } from "@repo/ds/lib/utils";
+import { formatDate } from "@repo/ds/lib/dates";
 import { Check, Clock } from "@/lib/icons";
 
 // The slice 4 review language (approved canvas, B-070): stage tracks, count tiles, segment ratings, level cards and dials.
 
-const SHORT_DAY = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" });
-
-/** A date-only value as the boards say it: "Wed 15 Sep". */
+/** A date-only value as the boards say it: "Wed 15 Sept" (the year outside this year). */
 export function dayLabel(value: string | null | undefined): string {
-  if (!value) return "";
-  const date = new Date(`${value.slice(0, 10)}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? value : SHORT_DAY.format(date);
+  return formatDate(value?.slice(0, 10), { weekday: true, fallback: "" });
 }
 
 /** Whole days from today to a date-only value (negative when past). */
@@ -103,7 +100,7 @@ export function CountTile({
   const share = typeof value === "number" && total ? Math.min(100, Math.round((value / total) * 100)) : null;
   return (
     <div className={cn("rounded-surface bg-card p-5", className)}>
-      <p className="type-eyebrow text-muted-foreground">{label}</p>
+      <p className="type-meta text-muted-foreground">{label}</p>
       <p className="mt-2 flex items-baseline gap-1.5">
         <span className="type-metric text-foreground">{value}</span>
         {total !== undefined ? <span className="type-meta tabular-nums text-muted-foreground">/ {total}</span> : null}
@@ -248,7 +245,7 @@ export function SectionHeading({ title, count, aside, id }: { title: string; cou
 export function Fact({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
     <div className={cn("min-w-0", className)}>
-      <p className="type-eyebrow text-muted-foreground">{label}</p>
+      <p className="type-meta text-muted-foreground">{label}</p>
       <div className="mt-1 type-body text-foreground">{children}</div>
     </div>
   );

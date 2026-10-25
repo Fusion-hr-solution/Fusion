@@ -19,7 +19,7 @@ export function SummaryDevelopment({ development, renderLink }: { development: P
         <h2 id="summary-development-heading" className="type-section-title text-foreground">
           Development
         </h2>
-        {renderLink({ href: development.href, className: "type-label text-primary-ink hover:underline", children: "Open development" })}
+        {renderLink({ href: development.href, className: "type-label text-foreground hover:underline", children: "Open development" })}
       </div>
       {development.goals.length === 0 ? (
         <p className="type-body-secondary text-muted-foreground">No development goals yet</p>

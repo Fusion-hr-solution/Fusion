@@ -274,12 +274,12 @@ function AddFilter({
 
 // ── An active filter, as a sentence ─────────────────────────────────────────────
 
-const DATE_FORMAT = new Intl.DateTimeFormat(undefined, {
+const DATE_FORMAT = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   day: "numeric",
   year: "numeric",
 });
-const DATE_FORMAT_SHORT = new Intl.DateTimeFormat(undefined, {
+const DATE_FORMAT_SHORT = new Intl.DateTimeFormat("en-GB", {
   month: "short",
   day: "numeric",
 });

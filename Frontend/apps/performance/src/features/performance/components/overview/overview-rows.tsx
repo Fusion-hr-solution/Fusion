@@ -3,7 +3,9 @@
 import type { GoalNodeDto, OverviewRow as Row, UnitShareDto } from "@repo/api";
 import Link from "next/link";
 import { cn } from "@repo/ds/lib/utils";
-import { ChevronRight } from "@/lib/icons";
+import { PersonInitials } from "@repo/performance-ui";
+import { Check, ChevronRight } from "@/lib/icons";
+import { useOneOnOnes } from "../../api/use-conversations";
 import { calibrationHref, roundHref, withCycle } from "@/lib/performance-routes";
 import { useObjectiveRecord } from "../objective-record/use-objective-record";
 import { LaunchReadiness } from "../launch-readiness";
@@ -56,18 +58,29 @@ export function NextCycleRow({ row }: { row: Row<"nextCycle"> }) {
         <Headline tone="attention" action={<RowAction href="/cycle/setup/details" primary>Create the next cycle</RowAction>}>
           No next cycle yet
         </Headline>
-        <Facts facts={[{ label: "Open growth goals are offered for carry-over once it starts" }]} />
       </OverviewRow>
     );
   }
-  const next = setupStepHref(earliestIncompleteStep(deriveSetupState(row.setup)));
+  const state = deriveSetupState(row.setup);
+  const next = setupStepHref(earliestIncompleteStep(state), row.cycleId);
+  // Ready to launch: the decision is activation, and the checklist has nothing left to say.
+  const ready = state.readyToLaunch;
+  const startPassed = row.plannedStart !== null && daysFrom(row.plannedStart) <= 0;
   return (
     <OverviewRow label="Next cycle" sub={`${row.name} · Draft`} link={{ href: withCycle("/cycle/setup", row.cycleId), label: "Cycle" }}>
-      <Headline tone="attention" action={<RowAction href={next} primary>Continue setup</RowAction>}>Set up {row.name}</Headline>
-      {row.plannedStart ? <Facts facts={[{ label: `Planned start ${day(row.plannedStart)}` }]} /> : null}
-      <div className="mt-4 max-w-3xl">
-        <LaunchReadiness readiness={row.setup.launchReadiness} />
-      </div>
+      <Headline tone="attention" action={<RowAction href={next} primary>{ready ? "Review and activate" : "Continue setup"}</RowAction>}>
+        {ready ? `${row.name} is ready to activate` : `Set up ${row.name}`}
+      </Headline>
+      {row.plannedStart ? (
+        <Facts facts={[startPassed
+          ? { label: `Planned start ${day(row.plannedStart)} has passed`, tone: "attention" }
+          : { label: `Planned start ${day(row.plannedStart)}` }]} />
+      ) : null}
+      {ready ? null : (
+        <div className="mt-4 max-w-3xl">
+          <LaunchReadiness readiness={row.setup.launchReadiness} />
+        </div>
+      )}
     </OverviewRow>
   );
 }
@@ -503,13 +516,12 @@ export function OwnPlanRow({ row }: { row: Row<"ownPlan"> }) {
   }
 
   const draft = row.standing === "Draft";
-  const range = row.minObjectives && row.maxObjectives ? `${row.minObjectives} to ${row.maxObjectives} objectives needed` : null;
+  const range = row.minObjectives && row.maxObjectives ? `${row.minObjectives} to ${row.maxObjectives} objectives suggested` : null;
   return (
     <OverviewRow label="Your plan" sub={row.planningOpen ? `Due ${day(row.planningDeadline)}` : undefined} link={link}>
       <Headline tone="attention" action={<RowAction href={row.href} primary>{draft ? "Continue your plan" : "Start your plan"}</RowAction>}>
         {draft ? "Your plan is a draft" : "Write your plan"}
       </Headline>
-      {row.reviewerName ? <p className="mt-1 type-body-secondary text-muted-foreground">{row.reviewerName} approves it once you submit.</p> : null}
       {draft ? (
         <Facts
           facts={[
@@ -561,21 +573,24 @@ const TIME = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digi
 export function ConversationsRow({ row }: { row: Row<"conversations"> }) {
   const soon = row.meetings[0] ? daysFrom(row.meetings[0].at) : null;
   return (
-    <OverviewRow label="Conversations" sub={soon !== null && soon <= 7 ? "This week" : undefined} link={{ href: "/one-on-ones", label: "1:1s" }}>
+    <OverviewRow label="Conversations" sub={soon !== null && soon >= 0 && soon <= 7 ? "This week" : undefined} link={{ href: "/one-on-ones", label: "1:1s" }}>
       <div className="grid gap-6 sm:grid-cols-2">
         {row.meetings.map((m, index) => {
           const days = daysFrom(m.at);
+          // A meeting stays the series' next until it's completed, so a passed one is overdue rather than gone.
+          const overdue = days < 0;
           return (
             <Link key={m.seriesId} href={appHref(m.href)} className="flex items-center gap-4 rounded-control transition-colors hover:bg-card">
               <span className={cn("grid w-14 shrink-0 place-items-center rounded-inset py-1.5 ring-1 ring-inset",
-                index === 0 ? "bg-primary/10 text-primary ring-primary/40" : "bg-inlay text-muted-foreground ring-border")}>
+                overdue ? "bg-destructive/10 text-destructive ring-destructive/40"
+                  : index === 0 ? "bg-primary/10 text-primary ring-primary/40" : "bg-inlay text-muted-foreground ring-border")}>
                 <span className="type-eyebrow">{WEEKDAY.format(new Date(m.at))}</span>
                 <span className="type-panel-title tabular-nums">{TIME.format(new Date(m.at))}</span>
               </span>
               <span className="min-w-0">
                 <span className="block truncate type-label text-foreground">1:1 with {m.with}</span>
                 <span className="block truncate type-meta text-muted-foreground">
-                  {[days === 0 ? "Today" : days === 1 ? "Tomorrow" : `In ${days} days`,
+                  {[overdue ? `Overdue since ${day(m.at.slice(0, 10))}` : days === 0 ? "Today" : days === 1 ? "Tomorrow" : `In ${days} days`,
                     m.agenda ? `${m.agenda} on the agenda` : null, m.openActions ? plural(m.openActions, "open action") : null].filter(Boolean).join(" · ")}
                 </span>
               </span>
@@ -594,7 +609,7 @@ export function ConversationsRow({ row }: { row: Row<"conversations"> }) {
                   : `${row.owed.title}${row.owed.due ? ` · was due ${day(row.owed.due)}` : ""}`}
               </span>
             </span>
-            <RowAction href={row.owed.href}>{row.owed.kind === "feedback-request" ? "Answer" : "Open"}</RowAction>
+            <RowAction href={row.owed.href}>{row.owed.kind === "feedback-request" ? "Answer" : "Open the 1:1"}</RowAction>
           </div>
         ) : null}
       </div>
@@ -611,21 +626,22 @@ export function DirectionRow({ row, cycleId }: { row: Row<"direction">; cycleId:
       sub={row.final ? "Final results" : plural(row.count, "company objective")}
       link={{ href: withCycle("/goals", cycleId), label: "Open the map" }}
     >
-      <ul className="divide-y divide-border overflow-hidden rounded-surface bg-card ring-1 ring-inset ring-border">
+      {/* Unframed like every other row; a track only once the objective has measured progress. */}
+      <ul className="divide-y divide-border">
         {row.objectives.map((node: GoalNodeDto) => (
           <li key={node.id}>
             <button
               type="button"
               onClick={() => record.open({ cycleId, objectiveId: node.id })}
-              className="group flex w-full items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-inlay focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="group flex w-full items-center gap-4 rounded-control py-3 text-left transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="min-w-0 flex-1">
                 <span className="block truncate type-label text-foreground">{node.title}</span>
                 <span className="block truncate type-meta text-muted-foreground">
-                  Company · {node.childCount} aligned{node.accountablePersonName ? ` · ${node.accountablePersonName}` : ""}
+                  {plural(node.childCount, "aligned objective")}{node.accountablePersonName ? `, owned by ${node.accountablePersonName}` : ""}
                 </span>
               </span>
-              <ProgressLine value={node.derivedProgress} has={node.hasProgress} className="hidden w-44 shrink-0 sm:flex" />
+              {node.hasProgress ? <ProgressLine value={node.derivedProgress} has className="hidden w-44 shrink-0 sm:flex" /> : null}
               <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden />
             </button>
           </li>
@@ -648,12 +664,73 @@ export function NotParticipantRow({ row }: { row: Row<"notParticipant"> }) {
 }
 
 export function NoCycleRow({ row }: { row: Row<"noCycle"> }) {
+  const readiness = row.readiness;
   return (
-    <OverviewRow label="Performance">
-      <Headline action={row.canCreate ? <RowAction href="/cycle/setup/details" primary>Create a cycle</RowAction> : undefined}>
+    <OverviewRow label="Performance cycle" link={row.canCreate ? { href: "/cycle", label: "Cycle" } : undefined}>
+      <Headline action={row.canCreate ? <RowAction href="/cycle/setup/details" primary>Set up a cycle</RowAction> : undefined}>
         No performance cycle yet
       </Headline>
-      {!row.canCreate ? <p className="mt-1 type-body-secondary text-muted-foreground">Your 1:1s and feedback work without one.</p> : null}
+      {readiness ? (
+        // What the first cycle would start from (board 16): checked when ready, marked when it needs a look.
+        <ul className="mt-4 max-w-3xl divide-y divide-border">
+          {readiness.workforceAvailable ? (
+            <>
+              <ReadinessLine ok={readiness.units > 0} title={`${plural(readiness.units, "unit")} with people in Core HR`} />
+              <ReadinessLine
+                ok={readiness.withManager === readiness.people}
+                title={`${readiness.withManager} of ${plural(readiness.people, "person", "people")} have a manager`}
+                detail={readiness.withoutManager.length > 0
+                  ? `${readiness.withoutManager.join(", ")}${readiness.people - readiness.withManager > readiness.withoutManager.length ? " and others" : ""} would be left out`
+                  : undefined}
+              />
+            </>
+          ) : (
+            <ReadinessLine ok={false} title="Core HR couldn't be read" detail="People and managers show once it's back" />
+          )}
+          <ReadinessLine ok={readiness.ratingLevels > 0 && readiness.competencies > 0} title="Rating scale and competencies" detail={`${plural(readiness.ratingLevels, "level")}, ${plural(readiness.competencies, "competency", "competencies")}`}
+            href={row.canCreate ? "/settings" : undefined} />
+        </ul>
+      ) : null}
+    </OverviewRow>
+  );
+}
+
+function ReadinessLine({ ok, title, detail, href }: { ok: boolean; title: string; detail?: string; href?: string }) {
+  return (
+    <li className="flex items-center gap-3 py-3">
+      <span aria-hidden className={cn("grid size-5 shrink-0 place-items-center rounded-detail", ok ? "bg-success text-background" : "ring-1 ring-inset ring-warning")}>
+        {ok ? <Check className="size-3.5" /> : null}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block type-label text-foreground">{title}<span className="sr-only">{ok ? " (ready)" : " (needs a look)"}</span></span>
+        {detail ? <span className="block type-meta text-muted-foreground">{detail}</span> : null}
+      </span>
+      {href ? <Link href={href} className="type-meta text-muted-foreground hover:text-foreground">Settings</Link> : null}
+    </li>
+  );
+}
+
+/** With no cycle, conversations still work: the people this person can start 1:1s with (board 16). */
+export function StartConversationsRow() {
+  const oneOnOnes = useOneOnOnes();
+  const people = [
+    ...(oneOnOnes.data?.startWithManager ? [oneOnOnes.data.startWithManager.with] : []),
+    ...(oneOnOnes.data?.startWithReports.map((option) => option.with) ?? []),
+  ];
+  if (people.length === 0) return null;
+  return (
+    <OverviewRow label="Conversations" link={{ href: "/one-on-ones", label: "1:1s" }}>
+      <Headline>Start your 1:1s</Headline>
+      <ul className="mt-3 flex flex-wrap gap-2">
+        {people.slice(0, 6).map((person) => (
+          <li key={person.employeeId}>
+            <Link href="/one-on-ones" className="flex items-center gap-2.5 rounded-control bg-card px-3 py-2 hover:bg-inlay">
+              <PersonInitials name={person.displayName} size="sm" />
+              <span className="type-label text-foreground">{person.displayName}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </OverviewRow>
   );
 }

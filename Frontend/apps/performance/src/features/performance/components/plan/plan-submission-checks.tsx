@@ -20,7 +20,7 @@ export function PlanSubmissionChecks({ readiness, bare = false }: { readiness: P
   const passedCount = checks.length - failed.length;
   const allPassed = failed.length === 0;
 
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   const Wrapper = bare ? BareSection : SidebarSection;
   return (
@@ -37,7 +37,6 @@ export function PlanSubmissionChecks({ readiness, bare = false }: { readiness: P
                 <p className="text-sm font-medium text-foreground">
                   {passedCount} check{passedCount === 1 ? "" : "s"} passed
                 </p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Your plan meets all requirements.</p>
               </div>
             </div>
             <Button

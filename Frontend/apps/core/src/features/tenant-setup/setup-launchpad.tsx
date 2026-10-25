@@ -588,11 +588,6 @@ function RecommendationPanel({ entry }: { entry: ComposedCapability }) {
       aria-labelledby="recommended-destination-heading"
       className="relative overflow-hidden rounded-surface border border-primary/40 bg-primary/[0.06] p-6 shadow-raised sm:p-7"
     >
-      {/* A quiet brand seam anchoring the one active step, not a decorative glow. */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0 left-0 w-1 bg-primary"
-      />
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 gap-5">
           <span className="flex size-12 shrink-0 items-center justify-center rounded-control bg-primary-tint text-primary-ink ring-1 ring-inset ring-primary-ring">

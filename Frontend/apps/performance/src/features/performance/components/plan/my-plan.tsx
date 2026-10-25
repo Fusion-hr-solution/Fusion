@@ -338,12 +338,11 @@ function ObjectiveLedger({
         </div>
       ) : (
         <div className="space-y-3">
-          {plan.objectives.map((objective, index) => (
+          {plan.objectives.map((objective) => (
             // On a locked plan the row grows an execution band (progress ring, latest reported value,
             // Update progress) while the baseline above it stays read-only.
             <PlanObjectiveRow
               key={objective.id}
-              index={index}
               objective={objective}
               cycle={cycle}
               alignmentScope={scopeFor(objective)}

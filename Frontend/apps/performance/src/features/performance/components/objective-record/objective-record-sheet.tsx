@@ -2,6 +2,9 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
+import { useAuth } from "@repo/auth";
+import { ArrowLeft } from "@/lib/icons";
+import { planHref, withCycle } from "@/lib/performance-routes";
 import { PageContainer } from "@repo/ds/shell";
 import { Button } from "@repo/ds/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from "@repo/ds/components/ui/sheet";
@@ -45,7 +48,6 @@ export function ObjectiveRecordSheet({
   actions,
   task,
   presentation = "sheet",
-  cycleName,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -55,33 +57,39 @@ export function ObjectiveRecordSheet({
   actions: (record: ObjectiveRecord) => ReactNode;
   task?: ReactNode;
   presentation?: "sheet" | "page";
-  cycleName?: string;
 }) {
   const accent = ACCENT[state.status === "ready" ? state.record.accent : "primary"];
+  const { user } = useAuth();
 
   if (presentation === "page") {
+    const record = state.status === "ready" ? state.record : null;
+    const back = record ? recordBack(record, user?.employeeId ?? null) : null;
+    // Document + sidebar: what happens to the objective reads down the main column; what defines it (measure,
+    // window, weight) and what you can do sit beside it.
+    const main = record ? resolveSections(record).flatMap((row) => (typeof row === "string" ? [row] : [...row])).filter((id) => id !== "facts") : [];
     return (
-      <PageContainer>
+      <PageContainer width="wide">
         <article className={cn("space-y-6", accent.className)} style={accent.style}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <Link href="/" className="type-meta text-muted-foreground hover:text-foreground">Overview</Link>
-            <span className="type-meta text-muted-foreground">{cycleName}</span>
-          </div>
-          {state.status === "ready" ? (
+          {back ? (
+            <Link href={back.href} className="inline-flex items-center gap-1.5 type-meta text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="size-4" aria-hidden />
+              {back.label}
+            </Link>
+          ) : null}
+          {record ? (
             <>
-              <header className="border-b border-border pb-6">{header(state.record)}</header>
+              <header className="border-b border-border pb-6">{header(record)}</header>
               {task ?? (
-                <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
-                  <div className="min-w-0 space-y-5">
-                    {resolveSections(state.record).map((row) => (
-                      <div key={typeof row === "string" ? row : row.join("+")} className={typeof row === "string" ? undefined : "grid gap-5 sm:grid-cols-2"}>
-                        {(typeof row === "string" ? [row] : row).map((id) => (
-                          <div key={id}>{renderSection(id, state.record, { paired: false })}</div>
-                        ))}
-                      </div>
+                <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_20rem]">
+                  <div className="min-w-0 space-y-8">
+                    {main.map((id) => (
+                      <div key={id}>{renderSection(id, record, { paired: false })}</div>
                     ))}
                   </div>
-                  <aside className="min-w-0 lg:sticky lg:top-6">{actions(state.record)}</aside>
+                  <aside className="min-w-0 space-y-6 lg:sticky lg:top-6">
+                    {renderSection("facts", record, { paired: false })}
+                    {actions(record)}
+                  </aside>
                 </div>
               )}
             </>
@@ -147,6 +155,19 @@ export function ObjectiveRecordSheet({
       </SheetContent>
     </Sheet>
   );
+}
+
+/** Where a directly opened record leads back to: the plan it belongs to, else the direction it's part of. */
+function recordBack(record: ObjectiveRecord, viewerEmployeeId: string | null): { href: string; label: string } {
+  const plan = record.source.plan;
+  if (record.kind === "plan" && plan) {
+    const own = viewerEmployeeId !== null && plan.owner.id === viewerEmployeeId;
+    return {
+      href: own ? withCycle("/plan", record.ref.cycleId) : planHref({ cycleId: record.ref.cycleId, planId: plan.planId }),
+      label: own ? "My Plan" : `${plan.owner.name ?? "Their"}'s plan`,
+    };
+  }
+  return { href: withCycle("/goals", record.ref.cycleId), label: "Organization direction" };
 }
 
 function RecordLoading() {

@@ -159,12 +159,12 @@ export function actorLabel(actorName: string): string | null {
   return trimmed.length === 0 || trimmed === UNRESOLVED_ACTOR ? null : trimmed;
 }
 
-const DAY = new Intl.DateTimeFormat(undefined, {
+const DAY = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
   year: "numeric",
 });
-const MOMENT = new Intl.DateTimeFormat(undefined, {
+const MOMENT = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
   month: "short",
   hour: "numeric",

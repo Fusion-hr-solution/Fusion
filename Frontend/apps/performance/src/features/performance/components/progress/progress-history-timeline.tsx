@@ -188,7 +188,7 @@ function ExpandedDetail({
 
       {evidence.length > 0 ? (
         <div className={cn(note && "border-t border-border/70 pt-3")}>
-          <p className="type-eyebrow text-muted-foreground">Evidence ({evidence.length})</p>
+          <p className="type-meta text-muted-foreground">Evidence ({evidence.length})</p>
           <ul className="mt-1 divide-y divide-border/70">
             {evidence.map((item) => (
               <EvidenceRow key={item.id} item={item} onOpenFile={onOpenFile} opening={openingFileId === item.id} />

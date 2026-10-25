@@ -151,8 +151,9 @@ const DirectionNode = memo(function DirectionNode({
         <span className="flex items-center justify-between gap-2">
           <span
             className={cn(
-              "type-eyebrow truncate",
-              company ? "text-primary-ink" : "text-muted-foreground"
+              "type-meta truncate",
+              // A category label, not a state: the same quiet tone for every scope (amber stays for "yours").
+              company ? "text-foreground" : "text-muted-foreground"
             )}
           >
             {scopeLabel(node)}

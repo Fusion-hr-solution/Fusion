@@ -292,7 +292,6 @@ function Marker({ tone }: { tone: StepTone }) {
   if (tone === "current") {
     return (
       <span className="relative flex size-5 shrink-0 items-center justify-center">
-        <span className="absolute inset-0 rounded-full bg-primary/40 animate-ping" style={{ animationDuration: "1.2s" }} aria-hidden />
         <span className="relative size-2.5 rounded-full bg-primary ring-4 ring-primary/12" />
       </span>
     );

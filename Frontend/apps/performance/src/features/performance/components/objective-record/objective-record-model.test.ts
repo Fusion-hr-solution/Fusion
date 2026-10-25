@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GoalDetailDto, GoalNodeDto } from "@repo/api";
-import { mapFocusFor, resolveSections, toObjectiveRecord, todayMarker, windowLength } from "./objective-record-model";
+import { mapFocusFor, resolveSections, toObjectiveRecord } from "./objective-record-model";
 import { parseObjectiveMode, parseObjectiveRef, withObjectiveRef } from "./objective-ref";
 
 function node(overrides: Partial<GoalNodeDto> = {}): GoalNodeDto {
@@ -109,8 +109,7 @@ describe("toObjectiveRecord", () => {
 describe("resolveSections", () => {
   it("shows only what has something true to say", () => {
     expect(resolveSections(toObjectiveRecord(detail({ parent: null }, { state: "Draft", parentObjectiveId: null })))).toEqual([
-      "measurement",
-      "timeline",
+      "facts",
     ]);
   });
 
@@ -121,8 +120,7 @@ describe("resolveSections", () => {
     expect(resolveSections(record)).toEqual([
       "description",
       "alignment",
-      "measurement",
-      "timeline",
+      "facts",
       "progress",
       "aligned-children",
       "contribution",
@@ -136,26 +134,14 @@ describe("resolveSections", () => {
     expect(resolveSections(record)).toContain("aligned-children");
   });
 
-  it("pairs the timeline with plan weight and holds progress until the plan is approved", () => {
+  it("holds progress until the plan is approved", () => {
     const record = toObjectiveRecord(
       detail(
         { plan: { planId: "plan-1", planState: "Submitted", planWeight: 40, owner: { id: "p-2", name: "Sami" }, canRequestUpdate: false } },
         { ownershipScope: "Employee" }
       )
     );
-    expect(resolveSections(record)).toEqual(["alignment", "measurement", ["timeline", "plan-weight"]]);
-  });
-});
-
-describe("window helpers", () => {
-  it("marks today only inside the window", () => {
-    expect(todayMarker("2026-01-01", "2026-12-31", new Date(2026, 5, 1))).toEqual({ date: "2026-06-01", label: "Today" });
-    expect(todayMarker("2026-01-01", "2026-12-31", new Date(2027, 0, 2))).toBeNull();
-  });
-
-  it("states the window in plain units", () => {
-    expect(windowLength("2026-01-01", "2026-01-30")).toBe("30 days");
-    expect(windowLength("2026-01-01", "2026-12-31")).toBe("12 months");
+    expect(resolveSections(record)).toEqual(["alignment", "facts"]);
   });
 });
 

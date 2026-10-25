@@ -150,10 +150,10 @@ function ReviewHeading({ plan, actions }: { plan: EmployeePlanDto; actions?: Rea
           <AvatarFallback>{initials(plan.employee.name)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0">
-          <h1 className="inline-flex flex-wrap items-center gap-2.5 type-page-title text-foreground">
-            {plan.employee.name ?? "Employee"}
+          <div className="flex flex-wrap items-center gap-2.5">
+            <h1 className="type-page-title text-foreground">{plan.employee.name ?? "Employee"}</h1>
             <ReviewStateBadge plan={plan} />
-          </h1>
+          </div>
           <p className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-muted-foreground">
             {plan.orgUnitName ? (
               <span className="inline-flex items-center gap-1.5">
@@ -230,12 +230,11 @@ function ObjectiveLedgerReadOnly({
       summary={plan.isLocked ? undefined : <PlanWeightStrip segments={plan.objectives.map((o) => ({ weight: o.planWeight ?? 0, aligned: o.isAligned }))} />}
     >
       <div className="space-y-3">
-        {plan.objectives.map((objective, index) => (
+        {plan.objectives.map((objective) => (
           // On an approved plan the row grows its execution band (current value + progress) — read-only,
           // with no Update progress: recording is the owner's, gated away here.
           <PlanObjectiveRow
             key={objective.id}
-            index={index}
             objective={objective}
             cycle={cycle}
             alignmentScope={scopeFor(objective)}

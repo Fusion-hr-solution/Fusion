@@ -7,6 +7,7 @@ using EY.HRPlatform.Performance.Domain.Progress;
 using EY.HRPlatform.Performance.Domain.Reviews;
 using EY.HRPlatform.Performance.Domain.Settings;
 using EY.HRPlatform.Performance.Features.Failures;
+using EY.HRPlatform.Performance.Features.Progress;
 using EY.HRPlatform.Performance.Infrastructure.Persistence;
 using EY.HRPlatform.Performance.Models;
 using EY.HRPlatform.SharedKernel.CQRS;
@@ -197,12 +198,13 @@ public sealed class GetReviewsWorkspaceHandler(PerformanceDbContext db) : IQuery
     {
         var periodFrom = (round?.PeriodStart ?? cycle.StartDate).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
         var periodTo = (round?.PeriodEnd ?? cycle.EndDate).AddDays(1).ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc);
-        var plan = await db.EmployeePlans.AsNoTracking().FirstOrDefaultAsync(p => p.CycleId == cycle.Id && p.EmployeeId == me
-            && p.State == PlanLifecycleState.Approved, token);
+        // The plan's objectives in any state; progress only once it's approved, weighted like everywhere else.
+        var plan = await db.EmployeePlans.AsNoTracking().FirstOrDefaultAsync(p => p.CycleId == cycle.Id && p.EmployeeId == me, token);
         var objectives = plan is null ? [] : await db.Objectives.AsNoTracking()
             .Where(o => o.EmployeePlanId == plan.Id && o.State != ObjectiveLifecycleState.Archived).ToListAsync(token);
-        var withProgress = objectives.Where(o => o.HasProgress).ToList();
-        return new ReviewsWorkspaceYearDto(withProgress.Count == 0 ? null : decimal.Round(withProgress.Average(o => o.DerivedProgress), 2), objectives.Count,
+        var progress = plan?.State == PlanLifecycleState.Approved && objectives.Any(o => o.HasProgress)
+            ? ProgressCalc.PlanProgress(objectives) : (decimal?)null;
+        return new ReviewsWorkspaceYearDto(progress, objectives.Count,
             await db.Feedback.AsNoTracking().CountAsync(f => f.ReceiverEmployeeId == me && f.Visibility == FeedbackVisibility.Shared
                 && f.SentAt >= periodFrom && f.SentAt < periodTo, token),
             await (from recipient in db.PraiseRecipients.AsNoTracking()

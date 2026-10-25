@@ -75,7 +75,7 @@ export function PeerListDrawer({ reviewId, open, onOpenChange }: { reviewId: str
             <div className="flex items-start gap-4 px-7 pt-6 pb-5">
               <PersonInitials name={subject} size="lg" />
               <div className="min-w-0">
-                <p className="type-eyebrow text-muted-foreground">Peers for {subject}&apos;s review</p>
+                <p className="type-meta text-muted-foreground">Peers for {subject}&apos;s review</p>
                 <SheetTitle className="mt-1 type-page-title text-foreground">
                   {peers?.nominatedAt ? `${first} asked ${peers.people.length} ${peers.people.length === 1 ? "colleague" : "colleagues"}` : `Choose colleagues for ${first}`}
                 </SheetTitle>
@@ -137,7 +137,7 @@ export function PeerListDrawer({ reviewId, open, onOpenChange }: { reviewId: str
 
               {canApprove && offered.length ? (
                 <section aria-labelledby="suggested-heading">
-                  <h3 id="suggested-heading" className="mb-2 type-eyebrow text-muted-foreground">Suggested from {first}&apos;s year</h3>
+                  <h3 id="suggested-heading" className="mb-2 type-meta text-muted-foreground">Suggested from {first}&apos;s year</h3>
                   <ul className="space-y-2">
                     {offered.map((suggestion) => (
                       <li key={suggestion.employeeId} className="flex items-center gap-3">

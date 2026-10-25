@@ -74,7 +74,7 @@ export default function CyclePage() {
   const isActive = cycleDetail.cycle.state === "Active";
 
   return (
-    <PageContainer width={view === "insights" ? "wide" : undefined}>
+    <PageContainer width="wide">
       <PerformancePageHeading
         title={cycleDetail.cycle.name}
         description={isActive ? PHASE_LABEL[cycleDetail.phase ?? "Planning"] : "Closed"}

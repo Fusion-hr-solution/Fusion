@@ -27,6 +27,8 @@ export interface FusionWorkItem {
   section?: string | null;
   /** The path the work belongs to, so the home can show where it stands. */
   steps?: FusionWorkStep[] | null;
+  /** What the work's button does ("Review plan"); the home says "Open" when a module doesn't say. */
+  actionLabel?: string | null;
 }
 
 export interface FusionWorkStep {

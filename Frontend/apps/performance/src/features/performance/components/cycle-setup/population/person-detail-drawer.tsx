@@ -95,7 +95,7 @@ export function PersonDetailDrawer({
               ) : null}
 
               <div>
-                <p className="type-eyebrow text-muted-foreground">Eligibility</p>
+                <p className="type-meta text-muted-foreground">Eligibility</p>
                 <ul className="mt-2 space-y-2">
                   <Check_ ok={!has("InactiveEmployment")} label="Active employment" />
                   <Check_ ok={!has("NoPrimaryAssignment")} label="Primary assignment" />
@@ -142,7 +142,7 @@ export function PersonDetailDrawer({
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
-      <p className="type-eyebrow text-muted-foreground">{label}</p>
+      <p className="type-meta text-muted-foreground">{label}</p>
       <p className="mt-1 type-body text-foreground">{children}</p>
     </div>
   );

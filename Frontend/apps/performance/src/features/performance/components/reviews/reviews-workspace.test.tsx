@@ -120,7 +120,8 @@ describe("Reviews workspace", () => {
     state.data = workspace({ year: { planProgress: 74, objectives: 2, feedback: 7, praise: 3, oneOnOnes: 4 } });
     const { unmount } = render(<ReviewsWorkspace />);
     expect(screen.getByText("No review yet in FY2027.")).toBeTruthy();
-    expect(screen.getByText("Your year so far")).toBeTruthy();
+    // No review this cycle: no year figures; the page says so and keeps past results.
+    expect(screen.queryByText("Your year so far")).toBeNull();
     unmount();
 
     state.data = workspace({ notIncluded: { roundId: "round-1", roundName: "Year-end review", reason: "Joined 12 Jul" } });

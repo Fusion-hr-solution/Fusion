@@ -18,10 +18,9 @@ import { AlignmentSection } from "./sections/alignment-section";
 import { ContributionSection } from "./sections/contribution-section";
 import { DescriptionSection } from "./sections/description-section";
 import { FeedbackSection } from "./sections/feedback-section";
-import { MeasurementSection } from "./sections/measurement-section";
+import { ObjectiveFactsSection } from "./sections/measurement-section";
 import { ProgressSection } from "./sections/progress-section";
 import { ObjectiveSummary } from "./sections/summary-section";
-import { PlanWeightSection, TimelineSection } from "./sections/window-sections";
 import { useObjectiveRecord } from "./use-objective-record";
 import { RecordRequestBand, RequestUpdateAction } from "../update-requests/update-requests";
 
@@ -71,7 +70,6 @@ export function ObjectiveRecordHost({ reference, presentation = "sheet" }: { ref
     <>
       <ObjectiveRecordSheet
         presentation={presentation}
-        cycleName={cycle.data?.cycle.name}
         open={openRef !== null}
         onOpenChange={(next) => {
           if (!next) close();
@@ -151,12 +149,8 @@ function renderSection(
       return <DescriptionSection record={record} />;
     case "alignment":
       return <AlignmentSection record={record} onOpen={open} />;
-    case "measurement":
-      return <MeasurementSection measurement={record.measurement} progressSource={record.progressSource} />;
-    case "timeline":
-      return <TimelineSection record={record} compact={options.paired} />;
-    case "plan-weight":
-      return <PlanWeightSection record={record} />;
+    case "facts":
+      return <ObjectiveFactsSection record={record} />;
     case "progress":
       return <ProgressSection record={record} onRecord={record.can.updateProgress ? startRecording : undefined} />;
     case "aligned-children":

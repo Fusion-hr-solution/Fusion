@@ -10,6 +10,7 @@ using EY.HRPlatform.Performance.Domain.Settings;
 using EY.HRPlatform.Performance.Tests.TestHelpers;
 using EY.HRPlatform.Performance.Features.Overview;
 using EY.HRPlatform.Performance.Features.Settings;
+using EY.HRPlatform.Performance.Infrastructure.Core;
 using EY.HRPlatform.SharedKernel.Auth;
 using Microsoft.EntityFrameworkCore;
 
@@ -188,6 +189,50 @@ public sealed class OverviewHttpTests
         Assert.Equal(["Planning", "Execution", "Review"], phases.Select(p => p.GetProperty("name").GetString()));
         Assert.Equal("Current", phases[0].GetProperty("state").GetString());
         Assert.True(phases[2].GetProperty("estimated").GetBoolean());
+    }
+
+    [Fact]
+    public async Task With_no_cycle_administrators_see_what_the_first_cycle_would_start_from()
+    {
+        var f = await ArrangeAsync(State.None);
+        await using var _ = f.Factory;
+        var unit = new WorkforceOrgSnapshot(Guid.NewGuid(), "Learning");
+        var ceo = new WorkforceSnapshot(Guid.NewGuid(), "E-1", "Sami Ben Youssef", "Sami Ben Youssef", null, "CEO", true, unit, null);
+        f.Factory.Core.AllActive.Add(ceo);
+        f.Factory.Core.AllActive.Add(new WorkforceSnapshot(Guid.NewGuid(), "E-2", "Nour", "Nour", null, null, true, unit,
+            new WorkforceManagerSnapshot(ceo.EmployeeId, ceo.DisplayName, true)));
+
+        var admin = Assert.Single((await OverviewAsync(f, "admin")).GetProperty("rows").EnumerateArray());
+        var readiness = admin.GetProperty("readiness");
+        Assert.True(readiness.GetProperty("workforceAvailable").GetBoolean());
+        Assert.Equal(2, readiness.GetProperty("people").GetInt32());
+        Assert.Equal(1, readiness.GetProperty("withManager").GetInt32());
+        Assert.Equal(["Sami Ben Youssef"], readiness.GetProperty("withoutManager").EnumerateArray().Select(n => n.GetString()));
+        Assert.Equal(1, readiness.GetProperty("units").GetInt32());
+        Assert.Equal(RatingScaleDefaults.Levels.Count, readiness.GetProperty("ratingLevels").GetInt32());
+
+        // Readiness is administration's: an employee gets the row without it.
+        var employee = Assert.Single((await OverviewAsync(f, "employee")).GetProperty("rows").EnumerateArray());
+        Assert.Equal(JsonValueKind.Null, employee.GetProperty("readiness").ValueKind);
+    }
+
+    [Fact]
+    public async Task The_planning_deadline_stops_being_your_date_once_your_part_is_done()
+    {
+        var f = await ArrangeAsync(State.Planning);
+        await using var _ = f.Factory;
+        await using (var db = f.Factory.Store.NewContext())
+        {
+            var plan = await db.EmployeePlans.SingleAsync(p => p.EmployeeId == f.Nour);
+            db.Entry(plan).Property(p => p.State).CurrentValue = PlanLifecycleState.Submitted;
+            await db.SaveChangesAsync();
+        }
+
+        // Nour's plan is submitted: the next date that concerns her is the end of the year.
+        Assert.Equal("cycle-end", (await OverviewAsync(f, "employee")).GetProperty("year").GetProperty("next").GetProperty("kind").GetString());
+        // Lina still has plans to approve (Nour's waits, Sami has none): the deadline stays hers, and the administrator's.
+        Assert.Equal("plans-due", (await OverviewAsync(f, "reviewer")).GetProperty("year").GetProperty("next").GetProperty("kind").GetString());
+        Assert.Equal("plans-due", (await OverviewAsync(f, "admin")).GetProperty("year").GetProperty("next").GetProperty("kind").GetString());
     }
 
     [Fact]

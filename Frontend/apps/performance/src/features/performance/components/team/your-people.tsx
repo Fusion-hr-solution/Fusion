@@ -190,7 +190,7 @@ function ObjectivesCell({ member }: { member: TeamRosterMemberDto }) {
       ? member.objectiveProgress.reduce((sum, o) => sum + o.weight, 0)
       : (member.allocatedWeight ?? 0);
   return (
-    <span className="text-sm tabular-nums text-foreground">
+    <span className="whitespace-nowrap text-sm tabular-nums text-foreground">
       {planning.objectives} · weights {Math.round(weight)}%
     </span>
   );
@@ -279,7 +279,8 @@ function AttentionCell({ member }: { member: TeamRosterMemberDto }) {
         <span className={cn("mt-1.5 size-2 shrink-0 rounded-full", DOT[line.tone])} aria-hidden />
         <span className="min-w-0">{line.title}</span>
       </p>
-      {line.detail ? <p className="mt-0.5 pl-4 text-xs text-muted-foreground">{line.detail}</p> : null}
+      {/* The owner's reason, clamped to two lines: the full text is on the objective. */}
+      {line.detail ? <p className="mt-0.5 line-clamp-2 pl-4 text-xs text-muted-foreground" title={line.detail}>{line.detail}</p> : null}
     </div>
   );
 }

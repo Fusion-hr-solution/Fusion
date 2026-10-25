@@ -424,7 +424,7 @@ function SubjectCard({
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <p
               className={cn(
-                "type-eyebrow",
+                "type-meta",
                 own ? "text-primary-ink" : "text-muted-foreground"
               )}
             >
@@ -560,12 +560,8 @@ function DirectionStrip({
       ? companyEyebrow(orgName)
       : `${node.orgUnitName ?? "Organizational"} objective`;
   return (
-    <div className="relative overflow-hidden rounded-surface border border-border bg-card p-3.5 pl-4 sm:p-4 sm:pl-5">
-      <span
-        aria-hidden
-        className="absolute inset-y-0 left-0 w-1 bg-primary/25"
-      />
-      <p className="type-eyebrow mb-1.5 text-muted-foreground/80">Aligned to</p>
+    <div className="rounded-surface border border-border bg-card p-3.5 sm:p-4">
+      <p className="type-meta mb-1.5 text-muted-foreground/80">Aligned to</p>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <span
           aria-hidden
@@ -574,7 +570,7 @@ function DirectionStrip({
           <ScopeMark className="size-4.5" muted />
         </span>
         <div className="min-w-0">
-          <p className="type-eyebrow text-primary/80">{eyebrow}</p>
+          <p className="type-meta text-muted-foreground">{eyebrow}</p>
           <button
             type="button"
             onClick={() => onInspect(node.id)}
@@ -821,7 +817,7 @@ function ObjectiveRow({
               <p className="max-w-[9rem] truncate text-xs font-medium text-foreground">
                 {node.accountablePersonName}
               </p>
-              <p className="type-eyebrow text-muted-foreground/70">Accountable</p>
+              <p className="type-meta text-muted-foreground/70">Accountable</p>
             </div>
           </div>
         ) : null}
@@ -960,7 +956,7 @@ function GroupHeader({
             {label}
           </h2>
         ) : (
-          <p className="type-eyebrow text-muted-foreground">{label}</p>
+          <p className="type-meta text-muted-foreground">{label}</p>
         )}
         {description ? (
           <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
@@ -1019,7 +1015,7 @@ function ContextHeader({
         {initials(title)}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="type-eyebrow text-muted-foreground">{eyebrow}</p>
+        <p className="type-meta text-muted-foreground">{eyebrow}</p>
         <div className="mt-1 flex items-center gap-2.5">
           <h2 className="truncate text-2xl font-semibold tracking-tight text-foreground">
             {title}
@@ -1226,7 +1222,7 @@ function DirectionSelector({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="type-eyebrow mr-1 text-muted-foreground">
+      <span className="type-meta mr-1 text-muted-foreground">
         Align under
       </span>
       {directions.map((direction) => {
@@ -1271,7 +1267,7 @@ function NoPublishedDirection({
             </div>
 
             <div className="min-w-0">
-              <p className="type-eyebrow text-muted-foreground">Company direction</p>
+              <p className="type-meta text-muted-foreground">Company direction</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
                 Establish company direction
               </h2>
@@ -1397,7 +1393,7 @@ function Fact({
 }) {
   return (
     <div className="min-w-0">
-      <dt className="type-eyebrow text-muted-foreground/70">{label}</dt>
+      <dt className="type-meta text-muted-foreground/70">{label}</dt>
       <dd className="mt-1.5">{children}</dd>
     </div>
   );
@@ -1486,7 +1482,7 @@ function ProgressFact({
   if (spacious) {
     return (
       <div className="min-w-56 flex-1">
-        <dt className="type-eyebrow text-muted-foreground/70">{label}</dt>
+        <dt className="type-meta text-muted-foreground/70">{label}</dt>
         <dd className="mt-1.5">{content}</dd>
       </div>
     );

@@ -91,7 +91,12 @@ describe("LeadFocus", () => {
     expect(screen.getByText(/Nothing needs you today/)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "1:1 with Mariam Gharbi" })).toBeInTheDocument();
     expect(screen.getByText(/In 2 days · 2 on the agenda/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/performance/one-on-ones/s1");
+    expect(screen.getByRole("link", { name: "Open the 1:1" })).toHaveAttribute("href", "/performance/one-on-ones/s1");
+  });
+
+  it("names the lead's action when the module says what it does", () => {
+    render(<LeadFocus lead={{ kind: "work", item: { ...lateReviews, actionLabel: "Write the review" } }} moduleLabel={label} today={today} />);
+    expect(screen.getByRole("link", { name: "Write the review" })).toHaveAttribute("href", lateReviews.href);
   });
 
   it("states that nothing needs the person and nothing is scheduled", () => {

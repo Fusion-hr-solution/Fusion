@@ -106,7 +106,7 @@ function formatISODate(date: Date): string {
 }
 
 function formatDisplay(date: Date): string {
-  return date.toLocaleDateString(undefined, {
+  return date.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",

@@ -293,7 +293,7 @@ function GoalsWorkspace() {
   const hasDirection = map.data?.nodes.some((node) => node.kind === "Company") ?? false;
 
   return (
-    <PageContainer width={listing ? undefined : "wide"}>
+    <PageContainer width="wide">
       <PerformancePageHeading
         title="Organization direction"
         back={{ href: "/", label: "Overview" }}

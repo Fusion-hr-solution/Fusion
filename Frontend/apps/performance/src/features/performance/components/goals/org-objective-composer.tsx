@@ -520,7 +520,7 @@ export function OrgObjectiveComposer({
                     ? {
                         content: (
                           <span className="flex min-w-0 flex-col">
-                            <span className="type-eyebrow text-muted-foreground">
+                            <span className="type-meta text-muted-foreground">
                               {suggestedParent.ownershipScope === "Company"
                                 ? "Company strategy"
                                 : (suggestedParent.orgUnitName ??

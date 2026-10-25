@@ -132,7 +132,7 @@ export function PlanEmptySkeleton() {
 /** Page-level loading: the heading and subtitle, then the surface skeleton (`empty` for My Plan). */
 export function PlanPageSkeleton({ empty = false }: { empty?: boolean }) {
   return (
-    <PageContainer className="max-w-7xl">
+    <PageContainer width="wide">
       <div className="mb-6 space-y-2.5">
         <Skeleton className="h-8 w-44" />
         <Skeleton className="h-4 w-40" />

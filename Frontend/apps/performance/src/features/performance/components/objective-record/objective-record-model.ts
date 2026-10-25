@@ -131,9 +131,7 @@ export function directionScopeLabel(node: Pick<GoalNodeDto, "ownershipScope" | "
 export type RecordSectionId =
   | "description"
   | "alignment"
-  | "measurement"
-  | "timeline"
-  | "plan-weight"
+  | "facts"
   | "progress"
   | "aligned-children"
   | "contribution"
@@ -151,43 +149,13 @@ export function resolveSections(record: ObjectiveRecord): RecordSectionRow[] {
   const rows: RecordSectionRow[] = [];
   if (record.description) rows.push("description");
   if (record.parent) rows.push("alignment");
-  rows.push("measurement");
-  rows.push(record.planWeight != null ? (["timeline", "plan-weight"] as const) : "timeline");
+  rows.push("facts");
   if (record.isExecuting) rows.push("progress");
   if (record.kind !== "plan" && (record.children.length > 0 || record.source.alignedPlanObjectives.length > 0)) rows.push("aligned-children");
   if (record.progressSource === "Calculated") rows.push("contribution");
   // Feedback about the objective (D-13): there's always an action for a person, the owner's or anyone else's.
   if (record.source.canGiveFeedback || record.source.canAskForFeedback) rows.push("feedback");
   return rows;
-}
-
-/** Today on the objective's window, only while the window is running. */
-export function todayMarker(start: string, end: string, now = new Date()): { date: string; label: string } | null {
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  return today >= start.slice(0, 10) && today <= end.slice(0, 10) ? { date: today, label: "Today" } : null;
-}
-
-/** The window's length in plain units: days under two months, months otherwise. */
-export function windowLength(start: string, end: string): string {
-  const days = Math.round((Date.parse(end) - Date.parse(start)) / 86_400_000) + 1;
-  if (!Number.isFinite(days) || days <= 0) return "Objective window";
-  if (days < 60) return `${days} days`;
-  return `${Math.round(days / 30.44)} months`;
-}
-
-/** How this objective's progress is read, stated from its measurement method. */
-export function measurementSubtitle(measurement: MeasurementDto | null, source?: ObjectiveProgressSource): string {
-  if (source === "Calculated") return "Rolled up from the objectives that contribute to it.";
-  switch (measurement?.method) {
-    case "NumericTarget":
-      return "Tracked against a numeric target.";
-    case "WeightedMilestones":
-      return "Tracked across weighted milestones.";
-    case "ManualPercentage":
-      return "Progress is updated manually during the cycle.";
-    default:
-      return "How progress is measured this cycle.";
-  }
 }
 
 export function measureLabel(measurement: MeasurementDto | null): string {

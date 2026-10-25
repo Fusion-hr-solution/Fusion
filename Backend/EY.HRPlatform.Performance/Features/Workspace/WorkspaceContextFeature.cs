@@ -64,21 +64,22 @@ public sealed class GetWorkspaceContextHandler(PerformanceDbContext db, Performa
         var canReviewReports = grants.AggregateViewScope is "DirectReports" or "OrgUnit" or "Tenant";
         var reviewer = canReviewReports && responsibilities.ReviewedEmployeeIds.Count > 0;
         var employeeId = viewer.EmployeeId ?? Guid.Empty;
-        var hasReviewRelationship = selected is not null
+        // Reviews is a destination for anyone with review work in any cycle (B-069 S-02), so past results stay reachable
+        // while the selected cycle has no round yet; only HasReviewWork is about the selected cycle.
+        var hasReviewRelationship = employeeId != Guid.Empty
             && await ReviewPolicy.Readable(db.PerformanceReviews.AsNoTracking(),
                 new ReviewActor(employeeId, grants.Administers, CanReviewReports: canReviewReports))
-                .AnyAsync(review => review.CycleId == selected.Id, cancellationToken);
+                .AnyAsync(cancellationToken);
         var hasReviewWork = selected is not null && employeeId != Guid.Empty
             && await ReviewPolicy.Readable(db.PerformanceReviews.AsNoTracking(),
                 new ReviewActor(employeeId, grants.Administers, CanReviewReports: canReviewReports))
                 .AnyAsync(review => review.CycleId == selected.Id && review.ReviewerEmployeeId == employeeId, cancellationToken);
-        // A calibrator has review work wherever a launched round of this Cycle uses calibration.
-        var calibrates = selected is not null && grants.CanCalibrate && await db.ReviewRounds.AsNoTracking()
-            .AnyAsync(round => round.CycleId == selected.Id && round.CalibrationEnabled
-                && round.State != Domain.Reviews.ReviewRoundState.Draft, cancellationToken);
+        // A calibrator has review work wherever a launched round uses calibration.
+        var calibrates = grants.CanCalibrate && await db.ReviewRounds.AsNoTracking()
+            .AnyAsync(round => round.CalibrationEnabled && round.State != Domain.Reviews.ReviewRoundState.Draft, cancellationToken);
         // A colleague asked for peer input has review work too: their request lives in Reviews (D-18).
-        var hasPeerRequest = selected is not null && employeeId != Guid.Empty && grants.Participates
-            && await db.PeerRequests.AsNoTracking().AnyAsync(request => request.CycleId == selected.Id && request.PeerEmployeeId == employeeId, cancellationToken);
+        var hasPeerRequest = employeeId != Guid.Empty && grants.Participates
+            && await db.PeerRequests.AsNoTracking().AnyAsync(request => request.PeerEmployeeId == employeeId, cancellationToken);
         var hasReviews = selected is not null && (grants.Administers || hasReviewRelationship || calibrates || hasPeerRequest);
         var orgRead = grants.AggregateViewScope is "DirectReports" or "OrgUnit" or "Tenant";
 

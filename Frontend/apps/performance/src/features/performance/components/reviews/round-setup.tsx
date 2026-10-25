@@ -213,7 +213,7 @@ export function RoundSetup({ round }: { round: ReviewRoundDto }) {
 
       <aside className="lg:sticky lg:top-6 lg:self-start">
         <div className="rounded-surface bg-card p-5">
-          <p className="type-eyebrow text-muted-foreground">{readiness?.ready ? "Ready to launch" : "Launch"}</p>
+          <p className="type-meta text-muted-foreground">{readiness?.ready ? "Ready to launch" : "Launch"}</p>
           <ul className="mt-3 space-y-2.5">
             <ReadyLine ok>Period inside the cycle</ReadyLine>
             <ReadyLine ok={!readiness?.issues.some((i) => i === "NoQuestions" || i === "NoPeerQuestions" || i === "NoCompetencies")}>

@@ -43,13 +43,13 @@ export function PlanApprovedStatus({
   const detail =
     perspective === "reviewer"
       ? approvedByViewer
-        ? `You approved ${whose} plan${administrative ? " as administrator" : ""}. It is now the locked baseline.`
+        ? `You approved ${whose} plan${administrative ? " as administrator" : ""}`
         : approver || administrative
-          ? `${by}. It is now the locked baseline.`
-          : "It is now the locked baseline."
+          ? by
+          : ""
       : approver || administrative
-        ? `${by}. This is now your locked baseline.`
-        : "This is now your locked baseline.";
+        ? by
+        : "";
 
   return (
       <div className="flex items-start gap-3.5">
@@ -65,7 +65,7 @@ export function PlanApprovedStatus({
               </time>
             ) : null}
           </p>
-          <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{detail}</p>
+          {detail ? <p className="mt-0.5 text-sm leading-snug text-muted-foreground">{detail}</p> : null}
         </div>
       </div>
   );

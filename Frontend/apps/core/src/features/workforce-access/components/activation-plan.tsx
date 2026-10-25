@@ -237,7 +237,7 @@ export function ActivationPlan({
 
   if (candidates.error) {
     return (
-      <div className="border-l-2 border-danger bg-danger/5 px-5 py-4">
+      <div className="rounded-surface bg-danger/10 px-5 py-4">
         <p className="type-label">The activation plan could not be prepared</p>
         <p className="mt-1 type-meta text-muted-foreground">
           Account state may have changed. Return to the workforce and try again.
@@ -441,14 +441,11 @@ function PlanSection({
   const expansionStep = planGroupExpansionStep(group.kind);
 
   return (
-    <section
-      className={cn(
-        group.kind === "attention" && "border-l-2 border-warning pl-4"
-      )}
-    >
+    <section>
       <div className="border-b pb-3">
         <div>
           <h3 className="type-label text-foreground">
+            {group.kind === "attention" ? <AttentionMark /> : null}
             {group.title}{" "}
             <span className="ml-1 tabular-nums text-muted-foreground">
               {group.people.length}
@@ -816,7 +813,7 @@ function DecisionSummary({
 
   return (
     <aside
-      className="order-first border-l-2 border-foreground pl-5 lg:order-none lg:sticky lg:top-20"
+      className="order-first rounded-surface bg-card p-5 lg:order-none lg:sticky lg:top-20"
       aria-label="Activation decision summary"
     >
       <p className="type-eyebrow text-muted-foreground">On confirmation</p>
@@ -1051,10 +1048,11 @@ function ReceiptGroup({
   const expansionStep = receiptGroupExpansionStep(attention);
 
   return (
-    <section className={cn(attention && "border-l-2 border-warning pl-4")}>
+    <section>
       <div className="flex items-baseline justify-between gap-4 border-b pb-3">
         <div>
           <h3 className="type-label">
+            {attention ? <AttentionMark /> : null}
             {title}{" "}
             <span className="ml-1 text-muted-foreground">{items.length}</span>
           </h3>
@@ -1121,4 +1119,9 @@ export function receiptGroupInitialLimit(
 
 export function receiptGroupExpansionStep(attention: boolean): number {
   return attention ? 10 : 20;
+}
+
+/** A group that needs a decision, marked by a warning dot before its title (DESIGN §9: a mark, never a side stripe). */
+function AttentionMark() {
+  return <span aria-label="Needs attention" role="img" className="mr-2 inline-block size-2 rounded-full bg-warning align-middle" />;
 }

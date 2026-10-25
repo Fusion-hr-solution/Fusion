@@ -63,7 +63,7 @@ export function ValueDial({
     <div className="rounded-surface border border-border bg-popover p-4 dark:bg-card">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <label htmlFor={id} className="type-eyebrow text-muted-foreground">
+          <label htmlFor={id} className="type-meta text-muted-foreground">
             {label}
           </label>
           <p

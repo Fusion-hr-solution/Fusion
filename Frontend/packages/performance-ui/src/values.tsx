@@ -5,12 +5,14 @@ import { cn } from "@repo/ds";
 /**
  * Company values (active competencies) keep one identity hue each, wherever they appear: the chip on praise and
  * feedback, the "what we celebrate" bars, the composer's choices. Hues follow the catalogue's order (by name), so a
- * catalogue of five never repeats one; an archived value falls back to a hue from its id.
+ * catalogue of five never repeats one; an archived value falls back to a hue from its id. Until the catalogue is known
+ * a value is neutral (tone 0), so a hue never shows and then changes.
  */
-export type ValueTone = 1 | 2 | 3 | 4 | 5;
+export type ValueTone = 0 | 1 | 2 | 3 | 4 | 5;
 
 export function valueTone(id: string, catalogue?: readonly { id: string }[]): ValueTone {
-  const index = catalogue?.findIndex((value) => value.id === id) ?? -1;
+  if (!catalogue) return 0;
+  const index = catalogue.findIndex((value) => value.id === id);
   if (index >= 0) return ((index % 5) + 1) as ValueTone;
   let hash = 0;
   for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
@@ -25,6 +27,7 @@ export function useValueTones(): (id: string) => ValueTone {
 
 /** Full class names per tone, so Tailwind sees every one. */
 export const VALUE_TONE: Record<ValueTone, { text: string; chip: string; fill: string; selected: string }> = {
+  0: { text: "text-muted-foreground", chip: "bg-inlay text-muted-foreground border-border", fill: "bg-muted-foreground/40", selected: "bg-inlay border-border text-foreground" },
   1: { text: "text-identity-1", chip: "bg-identity-1/12 text-identity-1 border-identity-1/30", fill: "bg-identity-1", selected: "bg-identity-1/14 border-identity-1/45 text-identity-1" },
   2: { text: "text-identity-2", chip: "bg-identity-2/12 text-identity-2 border-identity-2/30", fill: "bg-identity-2", selected: "bg-identity-2/14 border-identity-2/45 text-identity-2" },
   3: { text: "text-identity-3", chip: "bg-identity-3/12 text-identity-3 border-identity-3/30", fill: "bg-identity-3", selected: "bg-identity-3/14 border-identity-3/45 text-identity-3" },

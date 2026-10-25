@@ -9,6 +9,8 @@
  * on every parent, so they are reserved for state variants (hover:, data-*:), which this does not match.
  * Typography: only the semantic type-* roles defined in packages/ds (a misspelt role silently
  * falls back to body text).
+ * Dates: never in the browser's own locale (`toLocaleDateString(undefined, …)`), which made one page say
+ * "Oct 20, 2026" and the next "20 Oct"; format through `@repo/ds/lib/dates`.
  * See the radius, surface and type blocks in packages/ds/src/styles/tokens.css and DESIGN.md.
  */
 const RAW_RADIUS =
@@ -30,6 +32,7 @@ const UNKNOWN_TYPE_ROLE = `/(^|\\s|:|!)type-(?!(${TYPE_ROLES.join("|")})(\\s|$))
 const radiusMessage = "Use a radius role: rounded-control / surface / inset / nested / detail / full.";
 const typeMessage =
   "Unknown type role. Use type-display / page-title / section-title / subsection-title / panel-title / body / body-secondary / narrative / label / meta / eyebrow / metric / code.";
+const dateMessage = "Format dates with @repo/ds/lib/dates (formatDate, formatDateTime, formatDateRange, formatRelative), not the browser's locale.";
 const toneMessage =
   "Use a surface tone: bg-section / bg-card / bg-inlay (bg-popover in overlays). Translucent neutrals are for state variants only.";
 
@@ -44,6 +47,8 @@ module.exports = {
       { selector: `TemplateElement[value.raw=${TRANSLUCENT_TONE}]`, message: toneMessage },
       { selector: `:not(JSXAttribute[name.name=/^(id|htmlFor|name)$/]) > Literal[value=${UNKNOWN_TYPE_ROLE}]`, message: typeMessage },
       { selector: `TemplateElement[value.raw=${UNKNOWN_TYPE_ROLE}]`, message: typeMessage },
+      { selector: "CallExpression[callee.property.name=/^toLocale(Date|Time)String$/][arguments.0.type='Identifier'][arguments.0.name='undefined']", message: dateMessage },
+      { selector: "NewExpression[callee.object.name='Intl'][callee.property.name='DateTimeFormat'][arguments.0.type='Identifier'][arguments.0.name='undefined']", message: dateMessage },
     ],
   },
 };

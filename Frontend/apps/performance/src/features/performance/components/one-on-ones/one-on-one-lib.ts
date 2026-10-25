@@ -1,4 +1,5 @@
 import type { OneOnOneCadence } from "@repo/api";
+import { formatDate } from "@repo/ds/lib/dates";
 
 export const CADENCE_LABEL: Record<OneOnOneCadence, string> = {
   Weekly: "Weekly",
@@ -72,11 +73,9 @@ export function defaultFirstMeeting(now: Date = new Date()): { date: string; tim
   return { date: localDate(next), time: "10:00" };
 }
 
-/** The local day of an instant, in the app's short date form ("17 Oct 2026"). For date-only values use `formatDate`. */
+/** The local day of an instant ("17 Oct", "17 Oct 2025"). */
 export function formatDay(iso: string | null | undefined): string {
-  if (!iso) return "";
-  const at = new Date(iso);
-  return Number.isNaN(at.getTime()) ? "" : at.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  return formatDate(iso, { fallback: "" });
 }
 
 /** The next `count` meetings after `fromIso` on a series' rhythm, as the server schedules them. */
@@ -125,9 +124,9 @@ export function howSoon(iso: string, now: Date = new Date()): string {
   return `in ${days} days`;
 }
 
-/** "17 Oct", the short day used inside rows. */
+/** "17 Oct", the short day used inside rows; the year shows outside this year, so a past date never reads as coming. */
 export function shortDay(iso: string | Date): string {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return formatDate(iso);
 }
 
 /** The rhythm window the workspace draws: six weeks back (what the server sends), three weeks ahead. */

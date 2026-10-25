@@ -26,6 +26,7 @@ import {
   ButtonGroupText,
 } from "@repo/ds/components/ui/button-group";
 import { Calendar } from "@repo/ds/components/ui/calendar";
+import { formatDate } from "@repo/ds/lib/dates";
 import { Input } from "@repo/ds/components/ui/input";
 import {
   Popover,
@@ -332,13 +333,7 @@ function MilestoneDueDate({
     selected ??
     parseLocalDate(previous) ??
     ((!minDate || today >= minDate) && (!maxDate || today <= maxDate) ? today : minDate);
-  const display = selected?.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    ...(selected.getFullYear() === new Date().getFullYear()
-      ? {}
-      : { year: "numeric" }),
-  });
+  const display = selected ? formatDate(selected) : undefined;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

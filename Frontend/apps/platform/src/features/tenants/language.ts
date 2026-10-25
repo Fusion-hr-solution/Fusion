@@ -179,7 +179,7 @@ let dateFormat: Intl.DateTimeFormat | undefined;
 let dateTimeFormat: Intl.DateTimeFormat | undefined;
 
 export function formatDate(value: string): string {
-  dateFormat ??= new Intl.DateTimeFormat(undefined, {
+  dateFormat ??= new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -188,7 +188,7 @@ export function formatDate(value: string): string {
 }
 
 export function formatDateTime(value: string): string {
-  dateTimeFormat ??= new Intl.DateTimeFormat(undefined, {
+  dateTimeFormat ??= new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",

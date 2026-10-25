@@ -15,6 +15,7 @@ import { useCurrentCycle } from "@/features/performance/api/use-performance";
 import { useWorkspaceContext } from "@/features/performance/api/use-workspace";
 import { formatDateRange } from "@/features/performance/lib";
 import { isCycleAddress, withCycle } from "@/lib/performance-routes";
+import { CYCLE_FREE_ROUTES } from "@/data/sidebar-nav";
 
 const STATE_LABEL: Record<CycleSummaryDto["state"], string> = { Draft: "In setup", Active: "Active", Closed: "Closed" };
 
@@ -30,6 +31,9 @@ export function PerformanceCycleContext() {
   const detail = useCurrentCycle();
   const context = useWorkspaceContext();
   const cycle = detail.data?.cycle ?? null;
+  // 1:1s and Feedback belong to people, not cycles (S-07): no cycle context to show or switch there.
+  const path = pathname.replace(/^\/performance/, "") || "/";
+  if ([...CYCLE_FREE_ROUTES].some((route) => path === route || path.startsWith(`${route}/`))) return null;
 
   if (context.isLoading || detail.isLoading) {
     return <Skeleton className="h-5 w-72 max-w-full" aria-hidden />;
@@ -42,7 +46,6 @@ export function PerformanceCycleContext() {
   if (cycles.length < 2) return bar;
 
   const select = (id: string) => {
-    const path = pathname.replace(/^\/performance/, "") || "/";
     const workspace = isCycleAddress(path) ? "/" : path;
     router.push(withCycle(workspace, id));
   };

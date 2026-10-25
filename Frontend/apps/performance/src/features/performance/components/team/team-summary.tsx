@@ -65,18 +65,6 @@ function statusSegments(s: StatusMixDto): Segment[] {
   ];
 }
 
-function Stat({ label, value, detail }: { label: string; value: ReactNode; detail?: ReactNode }) {
-  return (
-    <div className="min-w-0 border-border sm:border-l sm:pl-8 sm:first:border-l-0 sm:first:pl-0">
-      <p className="type-meta text-muted-foreground">{label}</p>
-      <p className="mt-1 flex items-baseline gap-1.5 text-foreground">
-        <span className="font-display text-3xl font-semibold tabular-nums leading-none">{value}</span>
-        {detail ? <span className="truncate type-body-secondary text-muted-foreground">{detail}</span> : null}
-      </p>
-    </div>
-  );
-}
-
 export function TeamSummary({ data }: { data: YourPeoplePageDto }) {
   const { standing, summary } = data;
   if (data.phase === "Planning") {
@@ -106,21 +94,25 @@ export function TeamSummary({ data }: { data: YourPeoplePageDto }) {
     );
   }
   if (data.phase === "Review" && summary) {
+    // The same strip as Planning and Execution: the manager's reviews as a breakdown, the rest as facts beside it.
     const peers = summary.peerListsToApprove;
+    const waiting = Math.max(0, summary.reviewsTotal - summary.reviewsSubmitted - summary.reviewsReady);
     return (
-      <div className="grid gap-6 sm:grid-cols-3">
-        <Stat
-          label="Self-assessments in"
-          value={summary.selfSubmitted}
-          detail={`of ${summary.selfTotal}${summary.selfDue ? ` · due ${day(summary.selfDue)}` : ""}`}
-        />
-        <Stat label="Peer lists to approve" value={peers.length} detail={peers.length > 0 ? peers.map((n) => n.split(/\s+/)[0]).join(", ") : null} />
-        <Stat
-          label="Your reviews submitted"
-          value={summary.reviewsSubmitted}
-          detail={`of ${summary.reviewsTotal}${summary.reviewsReady > 0 ? ` · ${summary.reviewsReady} ready to write` : ""}`}
-        />
-      </div>
+      <Breakdown
+        title="Your reviews"
+        segments={[
+          { count: summary.reviewsSubmitted, label: "submitted", bar: "bg-success", dot: "bg-success" },
+          { count: summary.reviewsReady, label: "ready to write", bar: "bg-primary", dot: "bg-primary" },
+          { count: waiting, label: "waiting on them", bar: "bg-muted-foreground/60", dot: "bg-muted-foreground/60" },
+        ]}
+        trailing={
+          <>
+            <b className="font-semibold tabular-nums text-foreground">{summary.selfSubmitted}</b> of {summary.selfTotal} self-assessments in
+            {summary.selfDue ? ` · due ${day(summary.selfDue)}` : ""}
+            {peers.length > 0 ? ` · ${peers.length} peer ${peers.length === 1 ? "list" : "lists"} to approve` : ""}
+          </>
+        }
+      />
     );
   }
   return null;

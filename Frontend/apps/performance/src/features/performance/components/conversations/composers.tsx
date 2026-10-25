@@ -214,7 +214,7 @@ export function FeedbackComposer({
     <Dialog open onOpenChange={(open) => { if (!open && !give.isLoading) onClose(); }}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] w-[min(40rem,calc(100vw-2rem))] max-w-none sm:max-w-none gap-0 overflow-y-auto p-0">
         <DialogHeader className="px-6 pt-6">
-          <DialogTitle className="type-eyebrow text-muted-foreground">Give feedback</DialogTitle>
+          <DialogTitle className="type-meta text-muted-foreground">Give feedback</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 px-6 pt-4 pb-6">
           {receiver && !changing ? (
@@ -309,7 +309,7 @@ export function RequestComposer({ objective, onClose, onSent }: { objective?: Fi
     <Dialog open onOpenChange={(open) => { if (!open && !ask.isLoading) onClose(); }}>
       <DialogContent className="max-h-[calc(100dvh-2rem)] w-[min(40rem,calc(100vw-2rem))] max-w-none sm:max-w-none gap-0 overflow-y-auto p-0">
         <DialogHeader className="px-6 pt-6">
-          <DialogTitle className="type-eyebrow text-muted-foreground">Ask for feedback</DialogTitle>
+          <DialogTitle className="type-meta text-muted-foreground">Ask for feedback</DialogTitle>
         </DialogHeader>
         <div className="space-y-6 px-6 pt-4 pb-6">
           <Field label="Your question" htmlFor="request-question" meta={<Count value={question} max={QUESTION_MAX} />}>
@@ -395,7 +395,7 @@ export function PraiseComposer({ initialValue, onClose }: { initialValue?: strin
       <DialogContent className="max-h-[calc(100dvh-2rem)] w-[min(60rem,calc(100vw-2rem))] max-w-none sm:max-w-none gap-0 overflow-y-auto p-0 md:grid md:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-6 p-6">
           <DialogHeader>
-            <DialogTitle className="type-eyebrow text-muted-foreground">Give praise</DialogTitle>
+            <DialogTitle className="type-meta text-muted-foreground">Give praise</DialogTitle>
           </DialogHeader>
           <Field label="Who" htmlFor="praise-people" meta={<span className="type-meta tabular-nums text-muted-foreground">{people.length} / {MAX_RECIPIENTS}</span>}>
             <ColleaguesPicker id="praise-people" value={people} onChange={setPeople} max={MAX_RECIPIENTS} exclude={user?.employeeId ? [user.employeeId] : []} />
@@ -436,7 +436,7 @@ export function PraiseComposer({ initialValue, onClose }: { initialValue?: strin
           {give.error ? <p className="type-body text-destructive" role="alert">{give.error.message}</p> : null}
         </div>
         <div className="flex flex-col gap-4 border-t border-border p-6 md:border-t-0 md:border-l">
-          <p className="type-eyebrow text-muted-foreground">Everyone will see</p>
+          <p className="type-meta text-muted-foreground">Everyone will see</p>
           <div aria-hidden className={cn(!ready && "opacity-80")}>
             <PraiseCard praise={preview} reactionIcons={REACTION_ICONS} reading />
           </div>

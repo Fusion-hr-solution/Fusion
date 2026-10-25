@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OneOnOneMeetingDto, OneOnOneRowDto, OneOnOneSeriesDto, OneOnOnesDto } from "@repo/api";
 import { OneOnOnesWorkspace } from "./one-on-ones-workspace";
 import { SeriesRecord } from "./series-record";
+import { formatDate } from "@repo/ds/lib/dates";
 
 const command = () => ({ mutate: vi.fn(), mutateAsync: vi.fn(async () => ({})), isLoading: false, error: null });
 const state = vi.hoisted(() => ({
@@ -80,6 +81,19 @@ describe("1:1s workspace", () => {
     expect(screen.getByRole("dialog").textContent).toContain("1:1s with Rim Mahjoub");
   });
 
+  it("shows an employee's one series once: the next meeting, not a second table or week list", () => {
+    state.list = list({
+      withManager: row({ seriesId: "s3", with: karim, nextMeetingAt: soon }),
+      myActions: [{ seriesId: "s3", actionId: "a1", text: "Send the estimate", with: karim, dueDate: "2020-01-01", overdue: true }],
+    });
+    render(<OneOnOnesWorkspace />);
+    expect(screen.getByRole("heading", { name: "Karim Haddad", level: 2 })).toBeTruthy();
+    expect(screen.queryByText("With your manager")).toBeNull();
+    expect(screen.queryByText("This week")).toBeNull();
+    expect(screen.queryByText(/open action/)).toBeNull();
+    expect(screen.getByText("Send the estimate")).toBeTruthy();
+  });
+
   it("lists the actions the caller owes across series", () => {
     state.list = list({
       reports: [row()],
@@ -131,7 +145,7 @@ describe("series record", () => {
       meetingId: "m1",
       request: expect.objectContaining({ sourceKind: "Objective", sourceId: "o1" }),
     });
-    expect(screen.getByText("From 25 Dec")).toBeTruthy();
+    expect(screen.getByText(`From ${formatDate("2029-12-25")}`)).toBeTruthy();
   });
 
   it("keeps the private note under its own label, apart from the shared notes", () => {

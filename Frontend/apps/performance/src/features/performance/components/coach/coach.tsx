@@ -59,7 +59,7 @@ export function CoachSuggestion({
         aria-hidden
       />
       <div className="min-w-0 flex-1">
-        <p className="type-eyebrow text-primary-ink">Suggested {label}</p>
+        <p className="type-meta text-primary-ink">Suggested {label}</p>
         <div className="mt-0.5 text-sm text-foreground">{children}</div>
       </div>
       <div className="flex shrink-0 items-center gap-1">

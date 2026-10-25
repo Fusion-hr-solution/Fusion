@@ -407,7 +407,7 @@ export function PlanGoalComposer({
               <span className="text-lg font-semibold tabular-nums leading-none text-primary-ink">
                 {pct(existing)}%
               </span>
-              <span className="type-eyebrow text-muted-foreground">
+              <span className="type-meta text-muted-foreground">
                 allocated
               </span>
             </div>
@@ -864,7 +864,7 @@ function TargetSummary({ target }: { target: AlignmentTargetDto }) {
   const lineage = lineageLabel(target);
   return (
     <span className="flex min-w-0 flex-col gap-0.5">
-      <span className="type-eyebrow text-muted-foreground">{scope}</span>
+      <span className="type-meta text-muted-foreground">{scope}</span>
       <span className="font-semibold text-foreground">{target.title}</span>
       {lineage ? (
         <span className="text-xs text-muted-foreground">{lineage}</span>

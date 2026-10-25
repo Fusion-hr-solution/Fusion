@@ -109,7 +109,7 @@ describe("Feedback workspace", () => {
   });
 
   it("marks manager-only feedback in the team view and opens the drawer from a deep link", () => {
-    state.params = new URLSearchParams("view=team&feedback=f1");
+    state.params = new URLSearchParams("tab=team&feedback=f1");
     state.feedback = [feedback({ visibility: "ManagerOnly", addressedManager: { id: "me", name: "Karim Haddad" } })];
     render(<FeedbackWorkspace />);
     expect(screen.getAllByText(/Manager only/).length).toBeGreaterThan(0);

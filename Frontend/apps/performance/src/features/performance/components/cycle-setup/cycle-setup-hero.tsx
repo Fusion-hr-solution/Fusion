@@ -37,7 +37,7 @@ export function CycleSetupHero() {
 
       <div className="relative grid gap-8 p-7 lg:gap-12 lg:p-9">
         <div>
-          <p className="type-eyebrow text-amber-400/90">Higher performance, together</p>
+          <p className="type-meta text-amber-400/90">Higher performance, together</p>
           <h2 className="type-display mt-2 max-w-xl text-white">Set the stage for performance</h2>
           <p className="type-body mt-3 max-w-xl text-zinc-300">
             Bring your people, goals, and growth into one cycle. A few clear steps and your

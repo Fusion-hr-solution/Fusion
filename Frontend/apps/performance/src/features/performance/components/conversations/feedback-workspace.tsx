@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger } from "@repo/ds/components/ui/tabs";
 import { PageContainer, StatusBadge } from "@repo/ds/shell";
 import { cn } from "@repo/ds/lib/utils";
 import { AvatarStack, PersonInitials, PraiseList, VALUE_TONE, ValueChip, useValueTones } from "@repo/performance-ui";
-import { Check, ChevronRight, MessageSquare, Send, Star, Target } from "@/lib/icons";
+import { ChevronRight, MessageSquare, Send, Star, Target } from "@/lib/icons";
 import {
   useCompanyValues,
   useFeedbackList,
@@ -31,9 +31,8 @@ import { FeedbackComposer, PraiseComposer, RequestComposer, type FixedObjective 
 import { ByMonth, DueBlock, SubjectChip, firstName } from "./conversation-parts";
 import { FeedbackDrawer, PraiseDrawer } from "./drawers";
 import { REACTION_ICONS } from "./reaction-icons";
-import { Segmented } from "./segmented";
 
-type Tab = "received" | "given" | "requests" | "praise";
+type Tab = "received" | "given" | "requests" | "praise" | "team";
 const TABS: readonly { value: Tab; label: string }[] = [
   { value: "received", label: "Received" },
   { value: "given", label: "Given" },
@@ -54,12 +53,15 @@ export function FeedbackWorkspace() {
   const params = useSearchParams();
   const feedbackId = params.get("feedback");
   const praiseId = params.get("praise");
-  const tab: Tab = TABS.find((t) => t.value === params.get("tab"))?.value ?? (praiseId ? "praise" : "received");
+  const requestedTab = TABS.find((t) => t.value === params.get("tab"))?.value ?? (params.get("tab") === "team" ? "team" : null);
   const [composing, setComposing] = useState<Composing>(params.get("compose") === "praise" ? { kind: "praise" } : null);
   const summary = useFeedbackSummary();
   const oneOnOnes = useOneOnOnes();
   const managesPeople = (oneOnOnes.data?.reports.length ?? 0) + (oneOnOnes.data?.startWithReports.length ?? 0) > 0;
   const toAnswer = summary.data?.toAnswer ?? 0;
+  // Feedback about a manager's people is its own tab, beside theirs, for those who manage people.
+  const tabs = managesPeople ? [...TABS, { value: "team" as const, label: "Your team" }] : TABS;
+  const tab: Tab = requestedTab === "team" && !managesPeople ? "received" : (requestedTab ?? (praiseId ? "praise" : "received"));
 
   const update = (next: Record<string, string | null>) => {
     const query = new URLSearchParams(params.toString());
@@ -88,7 +90,7 @@ export function FeedbackWorkspace() {
       />
       <Tabs value={tab} onValueChange={(value) => update({ tab: value, feedback: null, praise: null })} className="mt-4">
         <TabsList aria-label="Feedback">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <TabsTrigger key={t.value} value={t.value} className="gap-1.5 px-3">
               {t.label}
               {t.value === "requests" && toAnswer > 0 ? (
@@ -102,17 +104,16 @@ export function FeedbackWorkspace() {
         {tab === "received" ? (
           <ReceivedTab
             summary={summary.data}
-            managesPeople={managesPeople}
-            team={params.get("view") === "team" && managesPeople}
-            onTeam={(team) => update({ view: team ? "team" : null })}
             onOpen={(id) => update({ feedback: id })}
             onAsk={ask}
             onAnswer={() => update({ tab: "requests" })}
           />
+        ) : tab === "team" ? (
+          <FeedbackFeed view="team" onOpen={(id) => update({ feedback: id })} empty={<EmptyLine text="No feedback about your team yet" />} />
         ) : tab === "given" ? (
           <FeedbackFeed view="given" onOpen={(id) => update({ feedback: id })} empty={<EmptyLine text="You haven't given feedback yet" />} />
         ) : tab === "requests" ? (
-          <RequestsTab onAsk={() => ask()} />
+          <RequestsTab />
         ) : (
           <PraiseTab
             employeeId={params.get("employee")}
@@ -147,25 +148,17 @@ function EmptyLine({ text, action }: { text: string; action?: ReactNode }) {
 
 function ReceivedTab({
   summary,
-  managesPeople,
-  team,
-  onTeam,
   onOpen,
   onAsk,
   onAnswer,
 }: {
   summary: FeedbackSummaryDto | undefined;
-  managesPeople: boolean;
-  team: boolean;
-  onTeam: (team: boolean) => void;
   onOpen: (id: string) => void;
   onAsk: (objective?: FixedObjective) => void;
   onAnswer: () => void;
 }) {
   const askFirst = summary?.askAbout[0];
-  const empty = team ? (
-    <EmptyLine text="No feedback about your team yet" />
-  ) : askFirst ? (
+  const empty = askFirst ? (
     <div className="flex flex-wrap items-center gap-4 rounded-surface bg-card px-5 py-4">
       <span className="grid size-10 shrink-0 place-items-center rounded-control border border-primary-ring bg-primary-tint text-primary-ink" aria-hidden>
         <MessageSquare className="size-4" />
@@ -184,18 +177,10 @@ function ReceivedTab({
 
   return (
     <div className="space-y-6">
-      {managesPeople ? (
-        <Segmented
-          label="Whose feedback"
-          value={team ? "team" : "you"}
-          onChange={(value) => onTeam(value === "team")}
-          options={[{ value: "you", label: "You" }, { value: "team", label: "Your team" }]}
-        />
-      ) : null}
-      {!team && summary && summary.received > 0 ? <ReceivedBand summary={summary} onAnswer={onAnswer} /> : null}
+      {summary && summary.received > 0 ? <ReceivedBand summary={summary} onAnswer={onAnswer} /> : null}
       <PlanDocument
-        main={<FeedbackFeed key={team ? "team" : "received"} view={team ? "team" : "received"} onOpen={onOpen} empty={empty} />}
-        sidebar={!team && summary && (summary.received > 0 || summary.given > 0) ? <ReceivedSidebar summary={summary} onAsk={onAsk} /> : undefined}
+        main={<FeedbackFeed view="received" onOpen={onOpen} empty={empty} />}
+        sidebar={summary && (summary.received > 0 || summary.given > 0) ? <ReceivedSidebar summary={summary} onAsk={onAsk} /> : undefined}
       />
     </div>
   );
@@ -217,11 +202,12 @@ function ReceivedBand({ summary, onAnswer }: { summary: FeedbackSummaryDto; onAn
         </div>
       </div>
       <div className="min-w-0 space-y-2.5">
-        <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full" aria-hidden>
+        {/* A share needs at least two parts; one subject is just its line below. */}
+        {summary.subjects.length > 1 ? <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full" aria-hidden>
           {summary.subjects.map((s) => (
             <span key={`${s.kind}-${s.objectiveId ?? s.competencyId ?? "none"}`} className={cn("h-full first:rounded-l-full last:rounded-r-full", fill(s))} style={{ width: `${(s.count / total) * 100}%` }} />
           ))}
-        </div>
+        </div> : null}
         <ul className="flex flex-wrap gap-x-4 gap-y-1">
           {summary.subjects.slice(0, 5).map((s) => (
             <li key={`${s.kind}-${s.objectiveId ?? s.competencyId ?? "none"}`} className="flex min-w-0 items-center gap-1.5 type-meta text-muted-foreground">
@@ -280,7 +266,7 @@ function ReceivedSidebar({ summary, onAsk }: { summary: FeedbackSummaryDto; onAs
           </ul>
         </SidebarSection>
       ) : null}
-      <SidebarSection label="Given by you">
+      {summary.given > 0 || (praise.data?.given ?? 0) > 0 ? <SidebarSection label="Given by you">
         <div className="mt-3.5 flex gap-8">
           <div>
             <p className="type-metric text-foreground">{summary.given}</p>
@@ -293,7 +279,7 @@ function ReceivedSidebar({ summary, onAsk }: { summary: FeedbackSummaryDto; onAs
             </div>
           ) : null}
         </div>
-      </SidebarSection>
+      </SidebarSection> : null}
     </>
   );
 }
@@ -397,7 +383,7 @@ export function FeedbackCard({
 
 // ── Requests ───────────────────────────────────────────────────────────────────
 
-function RequestsTab({ onAsk }: { onAsk: () => void }) {
+function RequestsTab() {
   const requests = useFeedbackRequests();
   if (requests.error) return <ContentUnavailable error={requests.error} onRetry={requests.refetch} subject="Feedback requests" />;
   if (!requests.data) return <FeedSkeleton />;
@@ -414,13 +400,9 @@ function RequestsTab({ onAsk }: { onAsk: () => void }) {
       <section aria-labelledby="asked-of-you">
         <h2 id="asked-of-you" className="mb-4 type-section-title text-foreground">Asked of you</h2>
         {waiting.length === 0 ? (
-          <div className="flex items-center gap-3">
-            <span className="grid size-9 place-items-center rounded-control bg-success-subtle text-success" aria-hidden><Check className="size-4" /></span>
-            <div>
-              <p className="type-label text-foreground">Nothing to answer</p>
-              {lastAnswered ? <p className="type-meta text-muted-foreground">Last answered for {lastAnswered.requester.name}</p> : null}
-            </div>
-          </div>
+          <p className="type-body-secondary text-muted-foreground">
+            Nothing to answer{lastAnswered ? ` · last answered for ${lastAnswered.requester.name}` : ""}
+          </p>
         ) : (
           <ul className="space-y-3">{waiting.map((row) => <AskedOfYou key={row.id} row={row} />)}</ul>
         )}
@@ -433,7 +415,7 @@ function RequestsTab({ onAsk }: { onAsk: () => void }) {
           </h2>
         </div>
         {mineOpen.length === 0 ? (
-          <EmptyLine text="No open requests" action={<Button size="sm" variant="outline" onClick={onAsk}>Ask for feedback</Button>} />
+          <p className="type-body-secondary text-muted-foreground">No open requests</p>
         ) : (
           <ul className="divide-y divide-border overflow-hidden rounded-surface bg-card">{mineOpen.map((row) => <YourRequest key={row.id} row={row} />)}</ul>
         )}
@@ -634,7 +616,8 @@ function GivePraiseBar({ onGive }: { onGive: (value?: string) => void }) {
 
 function PraiseSidebar({ summary }: { summary: PraiseSummaryDto }) {
   const toneOf = useValueTones();
-  const top = summary.values[0]?.count ?? 0;
+  // Each value's share of the window's praise, so three values praised once each read as thirds, not three full bars.
+  const total = summary.values.reduce((sum, value) => sum + value.count, 0);
   return (
     <>
       {summary.values.length > 0 ? (
@@ -647,7 +630,7 @@ function PraiseSidebar({ summary }: { summary: PraiseSummaryDto }) {
                   <span className="type-meta tabular-nums text-muted-foreground">{value.count}</span>
                 </div>
                 <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-inlay" aria-hidden>
-                  <span className={cn("block h-full rounded-full", VALUE_TONE[toneOf(value.id)].fill)} style={{ width: `${top ? (value.count / top) * 100 : 0}%` }} />
+                  <span className={cn("block h-full rounded-full", VALUE_TONE[toneOf(value.id)].fill)} style={{ width: `${total ? (value.count / total) * 100 : 0}%` }} />
                 </div>
               </li>
             ))}

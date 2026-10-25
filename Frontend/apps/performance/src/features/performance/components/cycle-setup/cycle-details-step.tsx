@@ -315,7 +315,7 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
           </div>
 
           <div className="mt-auto border-t border-border/70 pt-5">
-            <p className="type-eyebrow text-muted-foreground">Up next</p>
+            <p className="type-meta text-muted-foreground">Up next</p>
             <ul className="mt-3 space-y-2.5">
               <UpNext icon={Users} step={2} label="Population" caption="Choose who takes part" />
               <UpNext icon={Flag} step={3} label="Review & launch" caption="Confirm and go live" />

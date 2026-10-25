@@ -332,6 +332,17 @@ export interface NextMeetingDto {
   href: string;
 }
 
+/** What a first cycle would start from (administrators, board 16); workforce facts are empty when Core HR was down. */
+export interface NoCycleReadinessDto {
+  workforceAvailable: boolean;
+  people: number;
+  withManager: number;
+  withoutManager: string[];
+  units: number;
+  ratingLevels: number;
+  competencies: number;
+}
+
 export interface OwedConversationDto {
   kind: "feedback-request" | "overdue-action";
   title: string;
@@ -463,7 +474,7 @@ export type OverviewRowDto =
   | { kind: "conversations"; meetings: NextMeetingDto[]; owed: OwedConversationDto | null }
   | { kind: "direction"; count: number; objectives: GoalNodeDto[]; final: boolean }
   | { kind: "notParticipant"; cycleName: string; joined: string | null; populationSetAt: string | null }
-  | { kind: "noCycle"; canCreate: boolean };
+  | { kind: "noCycle"; canCreate: boolean; readiness: NoCycleReadinessDto | null };
 
 export type OverviewRowKind = OverviewRowDto["kind"];
 export type OverviewRow<K extends OverviewRowKind> = Extract<OverviewRowDto, { kind: K }>;

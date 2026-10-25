@@ -274,7 +274,7 @@ export default function WorkforceAccessWorkspace() {
       />
 
       {cohort ? (
-        <div className="flex items-center justify-between gap-4 border-l-2 border-primary bg-primary/5 px-4 py-3">
+        <div className="flex items-center justify-between gap-4 rounded-surface bg-card px-4 py-3">
           <div>
             <p className="type-label">Imported cohort</p>
             <p className="type-meta text-muted-foreground">

@@ -88,7 +88,7 @@ export function FinalizeDialog({ session, roundId, open, mutations, onClose, onO
 function Fact({ label, value, detail }: { label: string; value: number; detail: string }) {
   return (
     <div className="rounded-control bg-inlay px-3.5 py-3">
-      <p className="type-eyebrow text-muted-foreground">{label}</p>
+      <p className="type-meta text-muted-foreground">{label}</p>
       <p className="mt-1 type-metric tabular-nums text-foreground">{value}</p>
       <p className="type-meta text-muted-foreground">{detail}</p>
     </div>

@@ -1,7 +1,7 @@
 import type { PersonSummaryCycleDto } from "@repo/api";
 import { cn } from "@repo/ds";
 import { ObjectiveStatusBadge } from "./objective-status";
-import { percent, type RenderSummaryLink } from "./summary-lib";
+import { percent, weightPercent, type RenderSummaryLink } from "./summary-lib";
 
 /**
  * The plan's objectives in Performance's own language: a numbered tile in the objective's type colour
@@ -17,7 +17,7 @@ export function SummaryObjectives({ cycle, renderLink }: { cycle: PersonSummaryC
         {cycle.planHref
           ? renderLink({
               href: cycle.planHref,
-              className: "type-label text-primary-ink hover:underline",
+              className: "type-label text-foreground hover:underline",
               children: "Open plan",
             })
           : null}
@@ -37,14 +37,6 @@ export function SummaryObjectives({ cycle, renderLink }: { cycle: PersonSummaryC
                   className: "group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted",
                   children: (
                     <>
-                      <span
-                        className={cn(
-                          "flex size-9 shrink-0 items-center justify-center rounded-control border type-label tabular-nums",
-                          aligned ? "border-primary-ring bg-primary-tint text-primary-ink" : "border-info-subtle bg-info-subtle text-info",
-                        )}
-                      >
-                        {String(objective.number).padStart(2, "0")}
-                      </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate type-body font-medium text-foreground group-hover:underline">
                           {objective.title}
@@ -55,7 +47,7 @@ export function SummaryObjectives({ cycle, renderLink }: { cycle: PersonSummaryC
                       </span>
                       {objective.weight !== null ? (
                         <span className="w-12 shrink-0 text-right type-meta tabular-nums text-muted-foreground">
-                          {percent(objective.weight)}%
+                          {weightPercent(objective.weight)}%
                         </span>
                       ) : null}
                       <span className="flex w-28 shrink-0 items-center gap-2">

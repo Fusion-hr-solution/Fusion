@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { PerformanceReviewState, PersonSummaryCurrentReviewDto, RosterPlanStatus } from "@repo/api";
+import { formatDate as formatSharedDate } from "@repo/ds/lib/dates";
 
 /**
  * Renders a link. Performance passes `next/link`; Core HR passes a plain anchor, because Performance
@@ -37,12 +38,18 @@ export function stepLabel(step: ReviewStep): string {
 }
 
 /** Whole percents unless the figure carries decimals. */
-export function percent(value: number): string {
+/** A plan weight keeps one decimal, so weights like 33.3 still add up to 100. */
+export function weightPercent(value: number): string {
   const rounded = Math.round(value * 10) / 10;
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
+/** Progress as a whole percentage, rounded like every other plan figure in Fusion (38, never 37.9). */
+export function percent(value: number): string {
+  return String(Math.round(value));
+}
+
+/** A calendar date in Fusion's one date grammar ("21 Sept", "21 Sept 2025"). */
 export function formatDate(iso: string): string {
-  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
-  return new Date(y!, (m ?? 1) - 1, d ?? 1).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  return formatSharedDate(iso.slice(0, 10));
 }

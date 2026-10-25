@@ -15,6 +15,7 @@ using EY.HRPlatform.Performance.Features.Goals;
 using EY.HRPlatform.Performance.Features.Plans;
 using EY.HRPlatform.Performance.Features.Progress;
 using EY.HRPlatform.Performance.Features.Security;
+using EY.HRPlatform.Performance.Features.Settings;
 using EY.HRPlatform.Performance.Features.Security.Policies;
 using EY.HRPlatform.Performance.Features.Work;
 using EY.HRPlatform.Performance.Features.Workspace;
@@ -55,7 +56,7 @@ public sealed class GetOverviewHandler(PerformanceDbContext db, PerformanceViewe
 
         if (ctx.Selected is null)
         {
-            rows.Add(new NoCycleRowDto(caps.Administers));
+            rows.Add(new NoCycleRowDto(caps.Administers, caps.Administers ? await NoCycleReadinessAsync(cancellationToken) : null));
             if (await ConversationsAsync(me, cancellationToken) is { } none) rows.Add(none);
             return new OverviewDto(null, null, null, rows, ctx.Destinations);
         }
@@ -85,7 +86,7 @@ public sealed class GetOverviewHandler(PerformanceDbContext db, PerformanceViewe
                 dates.Add(new("managers-due", managersDue, review.ManagerTotal - review.ManagerSubmitted));
             if (cycle.State == CycleLifecycleState.Active && next is not null) rows.Add(next);
         }
-        if (cycle.State == CycleLifecycleState.Active && (caps.Participates || caps.Administers || caps.IsResponsibleReviewer))
+        if (cycle.State == CycleLifecycleState.Active && await PlansDueConcernsAsync(cycle, caps, me, cancellationToken))
             dates.Add(new("plans-due", cycle.PlanningDeadline));
 
         // Reviews you write lead during a round; the team then follows your own review (boards 14, 20).
@@ -132,6 +133,46 @@ public sealed class GetOverviewHandler(PerformanceDbContext db, PerformanceViewe
 
         dates.Add(new("cycle-end", cycle.EndDate));
         return new OverviewDto(ctx.Selected, ctx.Phase, Year(cycle, rounds, active, dates, today), rows, ctx.Destinations);
+    }
+
+    /// <summary>
+    /// The planning deadline is the viewer's date while it still asks something of them: administrators always; a
+    /// reviewer while someone they review has no approved plan; a participant until their own plan is submitted.
+    /// </summary>
+    private async Task<bool> PlansDueConcernsAsync(PerformanceCycle cycle, WorkspaceCapabilitiesDto caps, Guid me, CancellationToken cancellationToken)
+    {
+        if (caps.Administers) return true;
+        if (me == Guid.Empty) return false;
+        if (caps.Participates && !await db.EmployeePlans.AsNoTracking().AnyAsync(p => p.CycleId == cycle.Id && p.EmployeeId == me
+                && (p.State == PlanLifecycleState.Submitted || p.State == PlanLifecycleState.Approved), cancellationToken))
+            return true;
+        return caps.IsResponsibleReviewer && await db.Participants.AsNoTracking()
+            .Where(p => p.CycleId == cycle.Id && p.ManagerEmployeeId == me)
+            .AnyAsync(p => !db.EmployeePlans.Any(plan => plan.CycleId == cycle.Id && plan.EmployeeId == p.EmployeeId
+                && plan.State == PlanLifecycleState.Approved), cancellationToken);
+    }
+
+    /// <summary>What the first cycle would start from (board 16). Core HR being down leaves only the Performance facts.</summary>
+    private async Task<NoCycleReadinessDto> NoCycleReadinessAsync(CancellationToken cancellationToken)
+    {
+        var levels = RatingScaleDefaults.Levels.Count;
+        var scale = await db.RatingScales.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        if (scale?.CurrentVersionId is Guid versionId
+            && await db.RatingScaleVersions.AsNoTracking().FirstOrDefaultAsync(v => v.Id == versionId, cancellationToken) is { } version)
+            levels = version.Levels.Count;
+        var competencies = await db.Competencies.AsNoTracking().CountAsync(c => c.State == CompetencyState.Active, cancellationToken);
+        try
+        {
+            var people = await workforce.GetAllActiveAsOfAsync(PerformanceClock.Today.ToDateTime(TimeOnly.MinValue, DateTimeKind.Utc), cancellationToken);
+            var withoutManager = people.Where(p => p.Manager is null).OrderBy(p => p.DisplayName).ToList();
+            var units = people.Where(p => p.OrgUnit is not null).Select(p => p.OrgUnit!.OrgUnitId).Distinct().Count();
+            return new NoCycleReadinessDto(true, people.Count, people.Count - withoutManager.Count,
+                withoutManager.Take(3).Select(p => p.DisplayName).ToList(), units, levels, competencies);
+        }
+        catch (HttpRequestException)
+        {
+            return new NoCycleReadinessDto(false, 0, 0, [], 0, levels, competencies);
+        }
     }
 
     // ── The year ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -595,7 +636,10 @@ public sealed class GetOverviewHandler(PerformanceDbContext db, PerformanceViewe
             PerformanceNotificationTemplates.DevelopmentPath(cycle.Id, employeePlanId, me, forOwner: true));
     }
 
-    /// <summary>The next 1:1s (at most two) and one owed thing: a feedback request first, else an overdue action. No cycle needed.</summary>
+    /// <summary>
+    /// The next 1:1s (at most two; a series' next meeting stays next until it's completed, even once its day has passed) and
+    /// one owed thing: a feedback request first, else an overdue action. No cycle needed.
+    /// </summary>
     private async Task<ConversationsRowDto?> ConversationsAsync(Guid me, CancellationToken cancellationToken)
     {
         if (me == Guid.Empty) return null;
@@ -604,7 +648,7 @@ public sealed class GetOverviewHandler(PerformanceDbContext db, PerformanceViewe
         var meetings = await (from meeting in db.OneOnOneMeetings.AsNoTracking()
                               join series in db.OneOnOneSeries.AsNoTracking() on meeting.SeriesId equals series.Id
                               where (series.ManagerEmployeeId == me || series.ReportEmployeeId == me) && series.EndedAt == null
-                                    && meeting.State == OneOnOneMeetingState.Upcoming && meeting.ScheduledAt >= now
+                                    && meeting.State == OneOnOneMeetingState.Upcoming
                               orderby meeting.ScheduledAt
                               select new
                               {

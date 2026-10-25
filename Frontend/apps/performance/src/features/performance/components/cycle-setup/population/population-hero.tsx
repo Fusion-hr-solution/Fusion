@@ -18,7 +18,7 @@ export function PopulationHero() {
 
       <div className="relative flex items-center justify-between gap-8 p-6 lg:p-7">
         <div className="max-w-xl">
-          <p className="type-eyebrow text-amber-400/90">People · Power · Progress</p>
+          <p className="type-meta text-amber-400/90">People · Power · Progress</p>
           <h2 className="type-page-title mt-1.5 text-white">Build your cycle population</h2>
           <p className="type-body mt-2 max-w-lg text-zinc-300">
             Choose who takes part. Fusion validates eligibility, resolves reviewers, and flags

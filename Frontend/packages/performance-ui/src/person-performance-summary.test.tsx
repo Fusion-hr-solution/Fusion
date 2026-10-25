@@ -185,7 +185,7 @@ describe("PersonPerformanceSummary", () => {
           sentAt: "2026-10-03T08:00:00Z" },
       ],
       total: 1,
-      href: "/performance/feedback?view=team",
+      href: "/performance/feedback?tab=team",
     };
     render(
       <PersonPerformanceSummary

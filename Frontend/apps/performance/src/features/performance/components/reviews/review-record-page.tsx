@@ -255,7 +255,7 @@ function SelfAssessmentWriter({ record }: { record: PerformanceReviewDto }) {
   const late = (record.schedule?.daysLate ?? 0) > 0;
 
   return (
-    <div className="mx-auto max-w-4xl pb-24">
+    <div className="max-w-4xl pb-24">
       <SubjectHeading record={record} detail={`${record.periodStart.slice(0, 4)}–${record.periodEnd.slice(0, 4)} · ${record.reviewerDisplayName} reviews you${savedLabel(draft.savedAt, draft.saving) ? ` · ${savedLabel(draft.savedAt, draft.saving)}` : ""}`} />
 
       <section aria-label="Where your review stands" className="rounded-surface bg-card p-5">
@@ -270,8 +270,8 @@ function SelfAssessmentWriter({ record }: { record: PerformanceReviewDto }) {
         <section className="mt-10" aria-labelledby="objectives-heading">
           <SectionHeading id="objectives-heading" title="Objectives" count={objectives.length} aside="Progress and evidence from your plan" />
           <div className="space-y-4">
-            {objectives.map((item, index) => (
-              <ObjectiveCard key={item.itemId} record={record} item={item} index={index}>
+            {objectives.map((item) => (
+              <ObjectiveCard key={item.itemId} record={record} item={item}>
                 <div className="mt-4 border-t border-border pt-4">
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
                     <span className="type-label text-foreground">How it went</span>
@@ -401,12 +401,11 @@ function PeersAsked({ record }: { record: PerformanceReviewDto }) {
   );
 }
 
-function ObjectiveCard({ record, item, index, children }: { record: PerformanceReviewDto; item: ReviewItemAssessmentDto; index: number; children?: ReactNode }) {
+function ObjectiveCard({ record, item, children }: { record: PerformanceReviewDto; item: ReviewItemAssessmentDto; children?: ReactNode }) {
   const quote = item.feedback?.[0];
   return (
     <article className="rounded-surface bg-card p-5">
       <div className="flex items-start gap-4">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-primary-tint type-label tabular-nums text-primary">{String(index + 1).padStart(2, "0")}</span>
         <div className="min-w-0 flex-1">
           <Link href={objectiveHref({ cycleId: record.cycleId, objectiveId: item.itemId })} className="type-subsection-title text-foreground hover:underline">{item.title}</Link>
           <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-2 type-meta text-muted-foreground">
@@ -435,7 +434,7 @@ function SubmittedView({ record }: { record: PerformanceReviewDto }) {
   const questions = record.questions.filter((q) => q.audience === "Person" && q.selfAnswer);
   const reviewer = first(record.reviewerDisplayName);
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="max-w-4xl">
       <SubjectHeading record={record} />
       <section className="rounded-surface bg-card p-6">
         <div className="flex items-start gap-4">
@@ -451,9 +450,8 @@ function SubmittedView({ record }: { record: PerformanceReviewDto }) {
         <section className="mt-10" aria-labelledby="sent-heading">
           <SectionHeading id="sent-heading" title="What you sent" aside={<span className="inline-flex items-center gap-1"><Lock className="size-3.5" aria-hidden />Locked</span>} />
           <ul className="divide-y divide-border rounded-surface bg-card">
-            {objectives.map((item, index) => (
+            {objectives.map((item) => (
               <li key={item.itemId} className="flex items-center gap-4 px-5 py-3.5">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-primary-tint type-label tabular-nums text-primary">{String(index + 1).padStart(2, "0")}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block type-label text-foreground">{item.title}</span>
                   {item.selfReflection ? <span className="block truncate type-meta text-muted-foreground">“{item.selfReflection}”</span> : null}
@@ -513,15 +511,16 @@ function ReleasedView({ record }: { record: PerformanceReviewDto }) {
   const managerAnswers = record.questions.filter((q) => q.audience === "Manager" && q.managerAnswer);
   const reviewer = first(record.reviewerDisplayName);
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="max-w-4xl">
       <SubjectHeading record={record}
         detail={`Released ${dayLabel(record.finalizedAt?.slice(0, 10))} · reviewed by ${record.reviewerDisplayName}`}
         actions={<div className="flex items-center gap-2">
           {record.acknowledgement ? <StatusBadge tone="success" dot>Acknowledged</StatusBadge> : <StatusBadge tone="warning" dot>Not acknowledged</StatusBadge>}
           {record.canDownloadPdf ? <Button variant="outline" onClick={() => void download(record.id, `${record.reviewRoundName}.pdf`)}><Download className="size-4" aria-hidden />PDF</Button> : null}
         </div>} />
-      <section aria-label="Your result" className="rounded-surface border border-primary/40 bg-primary-tint p-6">
-        <p className="type-eyebrow text-primary">Your result</p>
+      {/* A result to read, not a decision: a plain card, with amber only on the level reached. */}
+      <section aria-label="Your result" className="rounded-surface bg-card p-6">
+        <p className="type-meta text-muted-foreground">Your result</p>
         <h2 className="mt-2 type-display text-foreground">{final}</h2>
         <div className="mt-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${record.ratingScale.length}, minmax(0, 1fr))` }} aria-hidden>
           {record.ratingScale.map((level) => (
@@ -543,9 +542,8 @@ function ReleasedView({ record }: { record: PerformanceReviewDto }) {
         <section className="mt-10" aria-labelledby="r-objectives">
           <SectionHeading id="r-objectives" title="Objectives" />
           <ul className="divide-y divide-border rounded-surface bg-card">
-            {objectives.map((item, index) => (
+            {objectives.map((item) => (
               <li key={item.itemId} className="flex items-center gap-4 px-5 py-3.5">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-control bg-primary-tint type-label tabular-nums text-primary">{String(index + 1).padStart(2, "0")}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block type-label text-foreground">{item.title}</span>
                   <span className="block truncate type-meta text-muted-foreground">
@@ -673,8 +671,8 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
             <section className="mt-6" aria-labelledby="m-objectives">
               <SectionHeading id="m-objectives" title="Objectives" count={record.objectiveRatingsEnabled ? `${objectives.filter((o) => draft.items[keyOf(o)]?.managerRating !== null).length} of ${objectives.length} rated` : objectives.length} />
               <div className="space-y-4">
-                {objectives.map((item, index) => (
-                  <ObjectiveCard key={item.itemId} record={record} item={item} index={index}>
+                {objectives.map((item) => (
+                  <ObjectiveCard key={item.itemId} record={record} item={item}>
                     <div className="mt-4 grid border-t border-border md:grid-cols-2">
                       <div className="py-4 md:pr-5">
                         <p className="mb-2 flex items-center justify-between gap-2 type-label text-foreground">
@@ -709,7 +707,7 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
               <SectionHeading id="m-competencies" title="Competencies" count={`${competencies.filter((c) => draft.items[keyOf(c)]?.managerRating !== null).length} of ${competencies.length}`} />
               <div className="overflow-x-auto rounded-surface bg-card">
                 <table className="w-full min-w-[48rem] text-left">
-                  <thead className="bg-inlay"><tr className="type-eyebrow text-muted-foreground">
+                  <thead className="bg-inlay"><tr className="type-meta text-muted-foreground">
                     <th scope="col" className="px-5 py-3 font-semibold">Competency</th>
                     <th scope="col" className="px-3 py-3 font-semibold">{subject}</th>
                     <th scope="col" className="px-3 py-3 font-semibold">You</th>
@@ -873,25 +871,25 @@ function AdministratorView({ record }: { record: PerformanceReviewDto }) {
           <StageTrack className="mt-4" label="Review stages" steps={reviewSteps(record, "subject").map((s) => ({ ...s, label: s.label.replace("Your self-assessment", "Self-assessment").replace("Your result", "Released") }))} />
           <div className="mt-5 grid gap-3 border-t border-border pt-4 sm:grid-cols-3">
             <div className="rounded-control bg-inlay p-3">
-              <p className="type-eyebrow text-muted-foreground">Peers</p>
+              <p className="type-meta text-muted-foreground">Peers</p>
               {peers?.people.length ? (
                 <p className="mt-1.5 flex items-center gap-2"><AvatarStack names={peers.people.map((p) => p.displayName)} size="xs" />
                   <span className="type-label tabular-nums">{peers.people.filter((p) => p.state === "Answered").length} of {peers.people.length}</span></p>
               ) : <p className="mt-1.5 type-meta text-muted-foreground">{record.peerInputEnabled ? "None yet" : "Not asked"}</p>}
             </div>
             <div className="rounded-control bg-inlay p-3">
-              <p className="type-eyebrow text-muted-foreground">Reminders sent</p>
+              <p className="type-meta text-muted-foreground">Reminders sent</p>
               <p className="mt-1.5 type-body text-foreground"><strong className="tabular-nums">{record.schedule?.remindersSent.length ?? 0}</strong>
                 {record.schedule?.remindersSent.length ? <span className="type-meta text-muted-foreground"> · last {dayLabel(record.schedule.remindersSent.at(-1)!.slice(0, 10))}</span> : null}</p>
             </div>
             <div className="rounded-control bg-inlay p-3">
-              <p className="type-eyebrow text-muted-foreground">Next reminder</p>
+              <p className="type-meta text-muted-foreground">Next reminder</p>
               <p className="mt-1.5 type-body text-foreground">{record.schedule?.nextReminder ? <strong>{dayLabel(record.schedule.nextReminder)}</strong> : "None"}</p>
             </div>
           </div>
         </section>
         <section aria-labelledby="hr-activity" className="rounded-surface bg-card p-5">
-          <h2 id="hr-activity" className="mb-3 type-eyebrow text-muted-foreground">Activity</h2>
+          <h2 id="hr-activity" className="mb-3 type-meta text-muted-foreground">Activity</h2>
           <ol className="divide-y divide-border">
             {record.activity.map((entry, index) => (
               <li key={`${entry.kind}-${index}`} className="grid grid-cols-[6rem_minmax(0,1fr)] gap-3 py-2.5">

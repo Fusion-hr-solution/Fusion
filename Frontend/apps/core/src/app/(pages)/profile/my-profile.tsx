@@ -276,7 +276,7 @@ function EditMyDetailsDialog({
           ) : null}
           {error ? (
             <p
-              className="border-l-2 border-danger bg-danger/5 px-3 py-2 type-meta font-medium text-danger"
+              className="rounded-control bg-danger/10 px-3 py-2 type-meta font-medium text-danger"
               role="alert"
             >
               {error}

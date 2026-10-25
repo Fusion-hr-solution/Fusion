@@ -227,7 +227,9 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
   const levels = data.total.levels ?? [];
   const reviews = data.showsReviews;
   const execution = data.showsExecution && !reviews;
-  const rows = [...data.byUnit.map((row) => ({ row, total: false })), { row: data.total, total: true }];
+  // During reviews a unit with nobody in the round has nothing to show: leave it out rather than list "0 of 0".
+  const units = reviews ? data.byUnit.filter((row) => (row.reviews ?? 0) > 0) : data.byUnit;
+  const rows = [...units.map((row) => ({ row, total: false })), { row: data.total, total: true }];
   const drillFor = (row: InsightsRowDto, total: boolean) => (metric: InsightsMetric, extra?: Partial<Drill>) =>
     open(metric, row.name, total ? extra : { unitId: row.unitId, ...extra });
 

@@ -1,4 +1,5 @@
 import type { OverviewYearDto, YearDateDto } from "@repo/api";
+import { daysFromToday, formatDate, formatDateRange } from "@repo/ds/lib/dates";
 
 /**
  * Overview is one server projection (performance-overview): the year, then rows in a fixed order, each with its
@@ -13,29 +14,19 @@ export function appHref(href: string): string {
 
 export const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
-function localDate(iso: string): Date {
-  const [y, m, d] = iso.slice(0, 10).split("-").map(Number);
-  return new Date(y!, (m ?? 1) - 1, d ?? 1);
-}
-
-const DAY = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short" });
-const RANGE_DAY = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
-
-/** "Sat 31 Oct". */
+/** "Sat 31 Oct" (the year outside this year). */
 export function day(iso: string): string {
-  return DAY.format(localDate(iso)).replace(",", "");
+  return formatDate(iso.slice(0, 10), { weekday: true });
 }
 
 /** "1 Oct – 31 Oct". */
 export function dayRange(start: string, end: string): string {
-  return `${RANGE_DAY.format(localDate(start))} – ${RANGE_DAY.format(localDate(end))}`;
+  return formatDateRange(start, end, { omitYear: true });
 }
 
 /** Whole days from today to an ISO date or instant (negative once past). */
 export function daysFrom(iso: string, now: Date = new Date()): number {
-  const target = localDate(iso);
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+  return daysFromToday(iso.slice(0, 10), now) ?? 0;
 }
 
 /** "today", "yesterday", "6 days ago". */

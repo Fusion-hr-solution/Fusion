@@ -72,9 +72,9 @@ describe("Overview rows", () => {
     };
     render(<OwnPlanRow row={row} />);
     expect(screen.getByText("Your plan is a draft")).toBeTruthy();
-    expect(screen.getByText("Mariam Gharbi approves it once you submit.")).toBeTruthy();
+    expect(screen.queryByText(/approves it once you submit/)).toBeNull();
     expect(screen.getByText("2 objectives, both aligned")).toBeTruthy();
-    expect(screen.getByText("3 to 5 objectives needed")).toBeTruthy();
+    expect(screen.getByText("3 to 5 objectives suggested")).toBeTruthy();
     expect(screen.getByRole("link", { name: /Continue your plan/ }).getAttribute("href")).toBe("/plan?cycle=c");
   });
 

@@ -4,6 +4,7 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { InsightsDto, InsightsPeopleQuery, InsightsRowDto } from "@repo/api";
 import { CycleInsights, personFacts } from "./cycle-insights";
+import { formatDate } from "@repo/ds/lib/dates";
 
 vi.mock("next/link", async () => {
   const React = await import("react");
@@ -76,7 +77,7 @@ describe("Cycle Insights", () => {
     expect(screen.getByText("Final")).toBeTruthy();
     expect(screen.getByText("Results released")).toBeTruthy();
     expect(screen.getByRole("region", { name: "By manager" })).toBeTruthy();
-    expect(screen.getAllByText("11 after Wed 22 Sept")).toHaveLength(2);
+    expect(screen.getAllByText(`11 after ${formatDate("2027-09-22", { weekday: true })}`)).toHaveLength(2);
     expect(screen.queryByText(/average/i)).toBeNull();
   });
 
@@ -86,7 +87,7 @@ describe("Cycle Insights", () => {
     fireEvent.click(screen.getByRole("button", { name: "Not acknowledged in Consulting B" }));
     expect(state.peopleQueries.at(-1)).toMatchObject({ metric: "not-acknowledged", unitId: "u", page: 1 });
     expect(screen.getByText("Nadia Ferchichi").closest("a")?.getAttribute("href")).toBe("/reviews/r1");
-    expect(screen.getByText("Released Tue 28 Sept")).toBeTruthy();
+    expect(screen.getByText(`Released ${formatDate("2027-09-28", { weekday: true })}`)).toBeTruthy();
   });
 });
 

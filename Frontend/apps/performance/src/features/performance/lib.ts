@@ -4,6 +4,7 @@ import type {
   OperationalMilestone,
   ReadinessIssueCode,
 } from "@repo/api";
+import { formatDate as formatSharedDate, formatDateRange as formatSharedRange, formatDateTime as formatSharedDateTime, formatRelative } from "@repo/ds/lib/dates";
 
 export const MEASUREMENT_LABELS: Record<MeasurementMethod, string> = {
   ManualPercentage: "Manual percentage",
@@ -40,69 +41,24 @@ export function readinessIssueDetail(code: ReadinessIssueCode, eligibilityDate: 
   }
 }
 
+/** A calendar date in Fusion's one date grammar ("20 Oct", "20 Oct 2025"). */
 export function formatDate(value: string | null | undefined): string {
-  if (!value) return "—";
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  return formatSharedDate(value);
 }
 
-/**
- * A date range with shared parts said once ("Mar 3 – 28, 2026", "Jan 1 – Dec 31, 2026"). Pass
- * `omitYear` where a surrounding context (the cycle) already establishes the year.
- */
+/** A date range with the shared year said once ("10 Oct – 9 Nov 2026"); `omitYear` where the cycle already gives it. */
 export function formatDateRange(start: string, end: string, options?: { omitYear?: boolean }): string {
-  const from = new Date(`${start}T00:00:00`);
-  const to = new Date(`${end}T00:00:00`);
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return `${formatDate(start)} – ${formatDate(end)}`;
-  return new Intl.DateTimeFormat(undefined, {
-    day: "numeric",
-    month: "short",
-    year: options?.omitYear ? undefined : "numeric",
-  }).formatRange(from, to);
+  return formatSharedRange(start, end, options);
 }
 
-/** A full ISO timestamp as a readable date and time, e.g. "5 Sep 2026, 3:24 PM". */
+/** A full ISO timestamp as a readable day and time ("Tue 20 Oct, 15:24"). */
 export function formatDateTime(value: string | null | undefined): string {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatSharedDateTime(value);
 }
 
-const DAY_MS = 86_400_000;
-
-/**
- * A timestamp as recency for scanning: relative within 30 days ("Just now", "12m ago", "3h ago",
- * "Yesterday", "4d ago"), then an absolute date ("30 Sep", with the year once it is not this year).
- * Pair it with `formatDateTime` for the exact time.
- */
+/** A timestamp as recency for scanning ("12 min ago", "Yesterday", "4 days ago", then the date). */
 export function formatRelativeTime(value: string | null | undefined, now: Date = new Date()): string {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  const elapsed = Math.max(0, now.getTime() - date.getTime());
-  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const days = Math.round((startOf(now) - startOf(date)) / DAY_MS);
-  if (days <= 0) {
-    const minutes = Math.floor(elapsed / 60_000);
-    if (minutes < 1) return "Just now";
-    if (minutes < 60) return `${minutes}m ago`;
-    return `${Math.floor(minutes / 60)}h ago`;
-  }
-  if (days === 1) return "Yesterday";
-  if (days < 30) return `${days}d ago`;
-  return date.toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "short",
-    ...(date.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }),
-  });
+  return formatRelative(value, now);
 }
 
 /**

@@ -105,7 +105,7 @@ export function SessionStats({ header }: { header: CalibrationHeaderDto }) {
 function Stat({ label, value, suffix, children }: { label: string; value: number; suffix?: string; children?: ReactNode }) {
   return (
     <div className="border-border p-5 [&:not(:first-child)]:md:border-l">
-      <dt className="type-eyebrow text-muted-foreground">{label}</dt>
+      <dt className="type-meta text-muted-foreground">{label}</dt>
       <dd className="mt-2 flex items-baseline gap-1.5">
         <span className="type-metric tabular-nums text-foreground">{value}</span>
         {suffix ? <span className="type-meta text-muted-foreground">{suffix}</span> : null}

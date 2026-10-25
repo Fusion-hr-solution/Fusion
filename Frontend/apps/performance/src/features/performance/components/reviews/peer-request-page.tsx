@@ -13,6 +13,7 @@ import { usePeerRequest, usePeerRequestCommands } from "../../api/use-review-wor
 import { ContentUnavailable } from "../content-unavailable";
 import { PerformancePageHeading } from "../performance-page-heading";
 import { DueChip, dayLabel } from "./review-parts";
+import { formatTime } from "@repo/ds/lib/dates";
 
 /**
  * A colleague's input on someone's review (R4b, board 11): one column, the questions as a page, who reads the answers.
@@ -79,7 +80,7 @@ function PeerRequestForm({ request }: { request: PeerRequestDto }) {
         <PerformancePageHeading
           back={{ href: "/reviews", label: "Reviews" }}
           leading={<PersonInitials name={request.subjectDisplayName} size="xl" />}
-          eyebrow={<span className="type-eyebrow text-muted-foreground">Input for a {request.reviewRoundName.toLowerCase()}</span>}
+          eyebrow={<span className="type-meta text-muted-foreground">Input for a {request.reviewRoundName.toLowerCase()}</span>}
           title={request.subjectDisplayName}
           actions={request.state === "Open" ? <DueChip date={request.dueDate} late={request.daysLate > 0} label={`Due ${dayLabel(request.dueDate)}`} />
             : <StatusBadge tone={request.state === "Answered" ? "success" : "muted"} dot>{request.state === "Answered" ? "Sent" : request.state}</StatusBadge>}
@@ -105,7 +106,7 @@ function PeerRequestForm({ request }: { request: PeerRequestDto }) {
           <ol className="mt-8 space-y-8">
             {request.questions.map((question, index) => (
               <li key={question.questionId}>
-                <p className="type-eyebrow text-muted-foreground">{index + 1} of {request.questions.length}</p>
+                <p className="type-meta text-muted-foreground">{index + 1} of {request.questions.length}</p>
                 <label htmlFor={`answer-${question.questionId}`} className="mt-1.5 block type-subsection-title text-foreground">{question.text}</label>
                 <Textarea
                   id={`answer-${question.questionId}`}
@@ -143,7 +144,7 @@ function PeerRequestForm({ request }: { request: PeerRequestDto }) {
               <div className="flex flex-wrap items-center gap-3">
                 <Button variant="ghost" onClick={() => setDeclining(true)}><Ban className="size-4" aria-hidden />Decline</Button>
                 <span className="ml-auto type-meta text-muted-foreground">
-                  {commands.save.isLoading ? "Saving…" : savedAt ? `Saved ${savedAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}` : null}
+                  {commands.save.isLoading ? "Saving…" : savedAt ? `Saved ${formatTime(savedAt)}` : null}
                 </span>
                 <AsyncButton pending={commands.send.isLoading} onClick={() => void send()}><Send className="size-4" aria-hidden />Send input</AsyncButton>
               </div>

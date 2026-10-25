@@ -192,7 +192,7 @@ function RoundRunning({ round }: { round: ReviewRoundDto }) {
         <div className="overflow-x-auto rounded-surface bg-card">
           <table className="w-full min-w-[52rem] text-left">
             <thead className="bg-inlay">
-              <tr className="type-eyebrow text-muted-foreground">
+              <tr className="type-meta text-muted-foreground">
                 <th scope="col" className="px-5 py-3 font-semibold">Team</th>
                 {round.selfAssessmentEnabled ? <th scope="col" className="px-3 py-3 font-semibold">Self</th> : null}
                 {round.peerInputEnabled ? <th scope="col" className="px-3 py-3 font-semibold">Peers</th> : null}
@@ -227,7 +227,7 @@ function RoundRunning({ round }: { round: ReviewRoundDto }) {
 
       <div className="grid gap-8 lg:grid-cols-3">
         <section aria-labelledby="reminders-heading">
-          <h2 id="reminders-heading" className="mb-3 type-eyebrow text-muted-foreground">Reminders</h2>
+          <h2 id="reminders-heading" className="mb-3 type-meta text-muted-foreground">Reminders</h2>
           <div className="rounded-surface bg-card p-5">
             {progress.nextReminder ? (
               <div className="flex gap-3">
@@ -242,11 +242,11 @@ function RoundRunning({ round }: { round: ReviewRoundDto }) {
           </div>
         </section>
         <section aria-labelledby="activity-heading">
-          <h2 id="activity-heading" className="mb-3 type-eyebrow text-muted-foreground">Round activity</h2>
+          <h2 id="activity-heading" className="mb-3 type-meta text-muted-foreground">Round activity</h2>
           <Activity round={round} />
         </section>
         <section aria-labelledby="config-heading">
-          <h2 id="config-heading" className="mb-3 type-eyebrow text-muted-foreground">Configuration · frozen at launch</h2>
+          <h2 id="config-heading" className="mb-3 type-meta text-muted-foreground">Configuration · frozen at launch</h2>
           <FrozenConfiguration round={round} />
         </section>
       </div>
@@ -348,7 +348,7 @@ function RoundClosed({ round }: { round: ReviewRoundDto }) {
 
       <div className="grid gap-8 lg:grid-cols-3">
         <section aria-labelledby="closed-heading">
-          <h2 id="closed-heading" className="mb-3 type-eyebrow text-muted-foreground">Closed without a result</h2>
+          <h2 id="closed-heading" className="mb-3 type-meta text-muted-foreground">Closed without a result</h2>
           {outcome.closedWithoutResult.length ? (
             <ul className="divide-y divide-border rounded-surface bg-card">
               {outcome.closedWithoutResult.map((closed) => (
@@ -366,7 +366,7 @@ function RoundClosed({ round }: { round: ReviewRoundDto }) {
           ) : <p className="type-body-secondary text-muted-foreground">None.</p>}
         </section>
         <section aria-labelledby="unack-heading">
-          <h2 id="unack-heading" className="mb-3 type-eyebrow text-muted-foreground">Not acknowledged yet · {outcome.notAcknowledged.length}</h2>
+          <h2 id="unack-heading" className="mb-3 type-meta text-muted-foreground">Not acknowledged yet · {outcome.notAcknowledged.length}</h2>
           {outcome.notAcknowledged.length ? (
             <div className="flex flex-wrap items-center gap-3">
               <AvatarStack names={outcome.notAcknowledged.map((p) => p.displayName)} size="sm" max={4} />
@@ -375,7 +375,7 @@ function RoundClosed({ round }: { round: ReviewRoundDto }) {
           ) : <p className="type-body-secondary text-muted-foreground">Everyone has acknowledged.</p>}
         </section>
         <section aria-labelledby="records-heading">
-          <h2 id="records-heading" className="mb-3 type-eyebrow text-muted-foreground">Records</h2>
+          <h2 id="records-heading" className="mb-3 type-meta text-muted-foreground">Records</h2>
           <RecordsTile released={outcome.released} />
         </section>
       </div>

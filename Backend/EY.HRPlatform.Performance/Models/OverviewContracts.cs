@@ -195,4 +195,12 @@ public sealed record DirectionRowDto(int Count, IReadOnlyList<GoalNodeDto> Objec
 public sealed record NotParticipantRowDto(string CycleName, DateOnly? Joined, DateTime? PopulationSetAt) : OverviewRowDto;
 
 /// <summary>Nothing has run yet: administrators may create a cycle.</summary>
-public sealed record NoCycleRowDto(bool CanCreate) : OverviewRowDto;
+public sealed record NoCycleRowDto(bool CanCreate, NoCycleReadinessDto? Readiness = null) : OverviewRowDto;
+
+/// <summary>
+/// What a first cycle would start from, for administrators (board 16): the people Core HR holds and who has a manager
+/// (someone without one would be left out), the units they sit in, and the rating scale and competencies a review would
+/// use. <paramref name="WorkforceAvailable"/> is false when Core HR couldn't be read; the Performance facts still show.
+/// </summary>
+public sealed record NoCycleReadinessDto(bool WorkforceAvailable, int People, int WithManager, IReadOnlyList<string> WithoutManager,
+    int Units, int RatingLevels, int Competencies);

@@ -1,21 +1,26 @@
 import type { PersonSummaryFeedbackDto, PersonSummaryOneOnOneDto, PersonSummaryPraiseDto, PraiseDto, PraiseReactionKind } from "@repo/api";
 import { StatusBadge } from "@repo/ds/shell";
+import { cn } from "@repo/ds";
+import { formatDateTime } from "@repo/ds/lib/dates";
 import { PraiseList, initials, type PraiseReactionIcons } from "./praise";
 import { formatDate, type RenderSummaryLink } from "./summary-lib";
 import { Avatar, AvatarFallback } from "@repo/ds/components/ui/avatar";
 
-const linkClass = "type-label text-primary-ink hover:underline";
+const linkClass = "type-label text-foreground hover:underline";
 
 /** The person's next 1:1 with the viewer; the server only sends it to the two people. */
 export function SummaryOneOnOne({ oneOnOne, renderLink }: { oneOnOne: PersonSummaryOneOnOneDto; renderLink: RenderSummaryLink }) {
   const next = oneOnOne.nextMeetingAt ? new Date(oneOnOne.nextMeetingAt) : null;
+  // The series' next meeting stays next until it's completed: once its day has passed, it's overdue.
+  const startOfToday = new Date(new Date().setHours(0, 0, 0, 0));
+  const overdue = next !== null && next < startOfToday;
   return (
     <section aria-label="1:1" className="flex flex-wrap items-center justify-between gap-3 rounded-surface bg-card px-5 py-4">
       <div className="min-w-0">
-        <p className="type-eyebrow text-muted-foreground">Next 1:1</p>
+        <p className={cn("type-meta", overdue ? "text-destructive" : "text-muted-foreground")}>{overdue ? "1:1 overdue" : "Next 1:1"}</p>
         <p className="type-body text-foreground">
           {next
-            ? next.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+            ? formatDateTime(next)
             : "Not scheduled"}
         </p>
       </div>
