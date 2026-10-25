@@ -157,3 +157,6 @@ opencode*.json
 
 # Windows accidental null redirection artifact
 nul
+
+# Language-server tool cache
+.lsmcp/
