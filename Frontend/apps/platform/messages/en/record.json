@@ -1,13 +1,15 @@
 {
   "status": {
     "active": "Active",
-    "deactivated": "Deactivated"
+    "deactivated": "Deactivated",
+    "archived": "Archived"
   },
   "menu": {
     "label": "Tenant actions",
     "copyId": "Copy tenant ID",
     "deactivate": "Deactivate tenant",
-    "reactivate": "Reactivate tenant"
+    "reactivate": "Reactivate tenant",
+    "archive": "Archive tenant"
   },
   "toast": {
     "reactivated": "Tenant reactivated",
@@ -15,13 +17,22 @@
     "reactivateFailed": "Couldn't reactivate the tenant",
     "deactivated": "Tenant deactivated",
     "deactivatedBody": "{name}'s users can no longer sign in to Fusion.",
-    "deactivateFailed": "Couldn't deactivate the tenant"
+    "deactivateFailed": "Couldn't deactivate the tenant",
+    "archived": "Tenant archived",
+    "archivedBody": "{name} has left the tenant list. Its users can no longer sign in.",
+    "archiveFailed": "Couldn't archive the tenant"
   },
   "deactivate": {
     "title": "Deactivate {name}?",
     "description": "Its users will no longer be able to sign in to Fusion. All tenant data is kept, and you can reactivate the tenant at any time.",
     "cancel": "Cancel",
     "pending": "Deactivating…"
+  },
+  "archive": {
+    "title": "Archive {name}?",
+    "description": "Its users lose access for good and it leaves the tenant list. Tenant data is kept. This can't be undone.",
+    "cancel": "Cancel",
+    "pending": "Archiving…"
   },
   "key": {
     "copied": "Tenant key copied",
@@ -35,12 +46,6 @@
     "access": "Access",
     "products": "Products",
     "activity": "Activity"
-  },
-  "identifier": {
-    "label": "Tenant ID",
-    "copied": "Tenant ID copied",
-    "copy": "Copy tenant ID {id}",
-    "copiedShort": "Copied"
   },
   "failure": {
     "notFound": "Tenant not found",
@@ -56,7 +61,9 @@
     "activeDescription": "This tenant is active and available to authorized users.",
     "deactivated": "Tenant is deactivated",
     "deactivatedDescription": "Customer users cannot currently access Fusion. Existing tenant data is retained.",
-    "reactivating": "Reactivating…"
+    "reactivating": "Reactivating…",
+    "archived": "Tenant is archived",
+    "archivedDescription": "Customer users can no longer access Fusion. Tenant data is kept."
   },
   "handoff": {
     "title": "Administrative handoff",
@@ -120,7 +127,7 @@
   "products": {
     "title": "Products",
     "description": "Product access for this tenant.",
-    "manage": "Manage products",
+    "view": "View products",
     "states": {
       "Included": "Included",
       "Enabled": "Enabled",
@@ -163,8 +170,81 @@
       "TenantDeactivated": "Customer access was disabled.",
       "TenantReactivated": "Customer access was restored.",
       "TenantProfileChanged": "The tenant profile was updated.",
+      "TenantArchived": "Customer access ended for good.",
       "failed": "The update did not complete.",
       "recorded": "An update was recorded."
+    },
+    "by": "By {name}",
+    "byPlatform": "By Fusion Platform"
+  },
+  "productsPage": {
+    "title": "Products",
+    "count": "{count} of {total} products in use",
+    "product": "Product",
+    "status": "Status",
+    "granted": "Granted",
+    "notGranted": "Not granted",
+    "byPerson": "By {name}, at provisioning",
+    "atProvisioning": "At provisioning"
+  },
+  "activityPage": {
+    "title": "Activity",
+    "count": "{count, plural, one {# event} other {# events}}",
+    "latest": "Latest {count} events",
+    "empty": "No activity recorded yet."
+  },
+  "access": {
+    "invitation": {
+      "title": "Initial administrator",
+      "role": "Tenant HR Administrator",
+      "none": "No administrator invitation on record.",
+      "sent": "Sent",
+      "accepted": "Accepted",
+      "expires": "Expires",
+      "expired": "Expired",
+      "lastDelivery": "Last delivery",
+      "delivery": "{outcome}, {date}",
+      "noDelivery": "No delivery recorded"
+    },
+    "administrators": {
+      "title": "Administrators",
+      "usable": "Can sign in",
+      "suspended": "Suspended",
+      "pending": "Pending invitations",
+      "failed": "Administrator access couldn't be read.",
+      "retry": "Retry",
+      "noneCanSignIn": "No administrator can sign in.",
+      "startRecovery": "Start recovery",
+      "recoverySent": "Recovery invitation sent",
+      "lastRecovery": "Latest recovery",
+      "recipient": "Recipient",
+      "started": "Started",
+      "invitation": "Invitation",
+      "status": {
+        "NotRequired": "Self-administered",
+        "AwaitingAdministratorActivation": "Awaiting administrator",
+        "Required": "Recovery required",
+        "Pending": "Recovery pending",
+        "Completed": "Recovered",
+        "Failed": "Recovery failed"
+      }
+    },
+    "recovery": {
+      "title": "Restore administration",
+      "description": "Sends a verified customer representative an invitation to become tenant administrator. Platform gets no access to the tenant's workspace or data.",
+      "email": "Verified recipient email",
+      "reference": "Verification reference (optional)",
+      "referencePlaceholder": "Support ticket, for example",
+      "acknowledge": "I confirm this recipient was verified with the customer.",
+      "cancel": "Cancel",
+      "send": "Send recovery invitation",
+      "problem": {
+        "notEligible": "This tenant has an administrator who can sign in again, so recovery no longer applies.",
+        "alreadyPending": "A recovery invitation is already pending.",
+        "existingAccount": "This email already belongs to a Fusion account.",
+        "invalid": "Enter a valid email and confirm the verification.",
+        "unexpected": "The recovery invitation couldn't be sent. Try again."
+      }
     }
   }
 }

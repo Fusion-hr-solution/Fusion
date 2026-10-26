@@ -1,4 +1,5 @@
-// Tenant record — Activity. Frame only for now; content pending redesign.
+import { TenantActivityDestination } from "@/features/tenants/record/activity-page";
+
 export default function TenantActivityPage() {
-  return null;
+  return <TenantActivityDestination />;
 }

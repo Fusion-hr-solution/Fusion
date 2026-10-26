@@ -31,6 +31,7 @@
     "TenantDeactivated": "Tenant deactivated",
     "TenantReactivated": "Tenant reactivated",
     "TenantProfileChanged": "Tenant profile updated",
+    "TenantArchived": "Tenant archived",
     "deliveryFailed": "Invitation delivery failed",
     "deliverySent": "Invitation sent",
     "unknown": "Tenant activity"
@@ -117,6 +118,10 @@
     "InvitationReissued": "A new administrator invitation was issued for {tenant}.",
     "BootstrapCompleted": "{tenant} completed administrator activation.",
     "ActivationRejected": "An activation attempt for {tenant} was rejected.",
+    "TenantDeactivated": "{tenant} was deactivated.",
+    "TenantReactivated": "{tenant} was reactivated.",
+    "TenantProfileChanged": "The profile of {tenant} was updated.",
+    "TenantArchived": "{tenant} was archived.",
     "unknown": "An update was recorded for {tenant}."
   },
   "timestamp": {

@@ -43,7 +43,9 @@ export function TenantProfile() {
     { label: t("name"), value: tenant.name },
     {
       label: t("industry"),
-      value: tenant.industry ? industryLabel(tenant.industry, sayProvisioning) : t("notSpecified"),
+      value: tenant.industry
+        ? industryLabel(tenant.industry, sayProvisioning)
+        : t("notSpecified"),
     },
     { label: t("timeZone"), value: tenant.timeZone },
     { label: t("locale"), value: localeLabel(tenant.locale, language) },
@@ -62,10 +64,12 @@ export function TenantProfile() {
             {t("title")}
           </h3>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-          <Pencil aria-hidden="true" />
-          {t("edit")}
-        </Button>
+        {tenant.isArchived ? null : (
+          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+            <Pencil aria-hidden="true" />
+            {t("edit")}
+          </Button>
+        )}
       </header>
 
       <dl className="mt-4 divide-y divide-border">
@@ -179,8 +183,12 @@ function RenameDialog({
 function localeLabel(locale: string, reader: string): string {
   const language = locale.split("-")[0] || locale;
   try {
-    const name = new Intl.DisplayNames([formatLocale(reader)], { type: "language" }).of(language);
-    return name ? name.charAt(0).toLocaleUpperCase(formatLocale(reader)) + name.slice(1) : locale;
+    const name = new Intl.DisplayNames([formatLocale(reader)], {
+      type: "language",
+    }).of(language);
+    return name
+      ? name.charAt(0).toLocaleUpperCase(formatLocale(reader)) + name.slice(1)
+      : locale;
   } catch {
     return locale;
   }

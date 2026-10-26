@@ -12,7 +12,9 @@ const BASE = "/identity/platform-admin/tenants";
 const client = createPlatformApiClient();
 
 /** Tenant statuses this feature defines. Nothing else is a tenant status. */
-export type TenantActivationStatus = "AwaitingAdministratorActivation" | "Active";
+export type TenantActivationStatus =
+  | "AwaitingAdministratorActivation"
+  | "Active";
 
 export type InvitationStateValue =
   | "Pending"
@@ -130,6 +132,8 @@ export interface TenantDetail {
    * Platform has deactivated it. Separate from administrator activation.
    */
   isActive: boolean;
+  /** Offboarded for good: inactive, out of the tenant list, no actions left. */
+  isArchived: boolean;
   administratorActivationStatus: TenantActivationStatus;
   locale: string;
   timeZone: string;
@@ -185,7 +189,8 @@ function overviewSearchParams(
   const search = query.search.trim();
   if (search) params.set("search", search);
 
-  for (const moduleId of grantableModules(query.modules)) params.append("module", moduleId);
+  for (const moduleId of grantableModules(query.modules))
+    params.append("module", moduleId);
 
   if (query.createdFrom) params.set("createdFrom", query.createdFrom);
   if (query.createdTo) params.set("createdTo", query.createdTo);
@@ -198,14 +203,19 @@ function overviewSearchParams(
  * rejects the rest. No tenant can hold a module that is never granted, so those are answered here:
  * they drop out of an "any of" selection, and a selection of only those matches nothing.
  */
-const GRANTABLE_MODULES = new Set<string>(["CoreHR", "Performance"] satisfies TenantModule[]);
+const GRANTABLE_MODULES = new Set<string>([
+  "CoreHR",
+  "Performance",
+] satisfies TenantModule[]);
 
 function grantableModules(modules: string[]): string[] {
   return modules.filter((id) => GRANTABLE_MODULES.has(id));
 }
 
 function matchesNothing(query: TenantOverviewQuery): boolean {
-  return query.modules.length > 0 && grantableModules(query.modules).length === 0;
+  return (
+    query.modules.length > 0 && grantableModules(query.modules).length === 0
+  );
 }
 
 function emptyPage(query: TenantOverviewQuery): TenantOverviewPage {
@@ -269,7 +279,9 @@ export interface ProvisionableModule {
 export function listProvisionableModules(
   signal?: AbortSignal
 ): Promise<ProvisionableModule[]> {
-  return client.get<ProvisionableModule[]>(`${BASE}/module-catalogue`, { signal });
+  return client.get<ProvisionableModule[]>(`${BASE}/module-catalogue`, {
+    signal,
+  });
 }
 
 /** The preview shown under the directory. Bounded by the service. */
@@ -302,11 +314,15 @@ function invitationPath(tenantId: string, invitationId: string): string {
 }
 
 export function resendInvitation(tenantId: string, invitationId: string) {
-  return client.post<string>(`${invitationPath(tenantId, invitationId)}/resend`);
+  return client.post<string>(
+    `${invitationPath(tenantId, invitationId)}/resend`
+  );
 }
 
 export function revokeInvitation(tenantId: string, invitationId: string) {
-  return client.post<string>(`${invitationPath(tenantId, invitationId)}/revoke`);
+  return client.post<string>(
+    `${invitationPath(tenantId, invitationId)}/revoke`
+  );
 }
 
 export function replaceInvitation(
@@ -314,18 +330,24 @@ export function replaceInvitation(
   invitationId: string,
   email: string
 ) {
-  return client.post<string>(`${invitationPath(tenantId, invitationId)}/replace`, {
-    email,
-  });
+  return client.post<string>(
+    `${invitationPath(tenantId, invitationId)}/replace`,
+    {
+      email,
+    }
+  );
 }
 
 export function reissueInvitation(tenantId: string, invitationId: string) {
-  return client.post<string>(`${invitationPath(tenantId, invitationId)}/reissue`);
+  return client.post<string>(
+    `${invitationPath(tenantId, invitationId)}/reissue`
+  );
 }
 
 /**
  * Tenant lifecycle. Deactivation removes customer access and is reversible;
- * neither call touches tenant business data.
+ * archival ends it for good and takes the tenant out of the list. None of these
+ * calls touches tenant business data.
  */
 export function deactivateTenant(tenantId: string) {
   return client.post<null>(`${BASE}/${tenantId}/deactivate`);
@@ -333,6 +355,10 @@ export function deactivateTenant(tenantId: string) {
 
 export function reactivateTenant(tenantId: string) {
   return client.post<null>(`${BASE}/${tenantId}/reactivate`);
+}
+
+export function archiveTenant(tenantId: string) {
+  return client.post<null>(`${BASE}/${tenantId}/archive`);
 }
 
 /** Renames the organization display name. The tenant key is unaffected. */
@@ -388,7 +414,6 @@ export function failureMessage(error: unknown): string | null {
   return error instanceof ApiError ? (error.errors[0] ?? null) : null;
 }
 
-
 // ── Administrative continuity and recovery ─────────────
 
 export type RecoveryStatusValue =
@@ -434,7 +459,9 @@ export function getTenantContinuityHealth(
   tenantId: string,
   signal?: AbortSignal
 ): Promise<TenantContinuityHealth> {
-  return client.get<TenantContinuityHealth>(`${BASE}/${tenantId}/access`, { signal });
+  return client.get<TenantContinuityHealth>(`${BASE}/${tenantId}/access`, {
+    signal,
+  });
 }
 
 export function initiateAdministratorRecovery(

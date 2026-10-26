@@ -1,4 +1,5 @@
-// Tenant record — Products. Frame only for now; content pending redesign.
+import { TenantProductsDestination } from "@/features/tenants/record/products-page";
+
 export default function TenantProductsPage() {
-  return null;
+  return <TenantProductsDestination />;
 }

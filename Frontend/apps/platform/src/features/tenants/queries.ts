@@ -9,6 +9,7 @@ import {
 import type { RecoveryAction } from "./api";
 import {
   ACTIVITY_PREVIEW_LIMIT,
+  archiveTenant,
   deactivateTenant,
   getTenant,
   getTenantContinuityHealth,
@@ -115,19 +116,22 @@ export function useProvisionTenant(
   );
 }
 
+const LIFECYCLE = {
+  deactivate: deactivateTenant,
+  reactivate: reactivateTenant,
+  archive: archiveTenant,
+};
+
 /**
  * The tenant lifecycle transition. Both outcomes — success and a stale-state
  * conflict — settle by refetching the record, so the page ends on the
- * authoritative Active/Deactivated state rather than on what was attempted.
+ * authoritative Active/Deactivated/Archived state rather than on what was
+ * attempted.
  */
-export function useTenantLifecycle(action: "deactivate" | "reactivate") {
-  return useApiMutation(
-    (tenantId: string) =>
-      action === "deactivate"
-        ? deactivateTenant(tenantId)
-        : reactivateTenant(tenantId),
-    { invalidateQueries: () => [{ queryKey: tenantKeys.all }] }
-  );
+export function useTenantLifecycle(action: keyof typeof LIFECYCLE) {
+  return useApiMutation((tenantId: string) => LIFECYCLE[action](tenantId), {
+    invalidateQueries: () => [{ queryKey: tenantKeys.all }],
+  });
 }
 
 /** Renames the organization display name, then refetches the affected record. */

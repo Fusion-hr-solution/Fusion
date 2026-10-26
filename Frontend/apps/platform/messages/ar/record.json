@@ -1,13 +1,15 @@
 {
   "status": {
     "active": "نشطة",
-    "deactivated": "معطّلة"
+    "deactivated": "معطّلة",
+    "archived": "مؤرشفة"
   },
   "menu": {
     "label": "إجراءات المؤسسة",
     "copyId": "نسخ معرّف المؤسسة",
     "deactivate": "تعطيل المؤسسة",
-    "reactivate": "إعادة تفعيل المؤسسة"
+    "reactivate": "إعادة تفعيل المؤسسة",
+    "archive": "أرشفة المؤسسة"
   },
   "toast": {
     "reactivated": "أُعيد تفعيل المؤسسة",
@@ -15,13 +17,22 @@
     "reactivateFailed": "تعذّرت إعادة تفعيل المؤسسة",
     "deactivated": "عُطّلت المؤسسة",
     "deactivatedBody": "لم يعد بإمكان مستخدمي {name} تسجيل الدخول إلى Fusion.",
-    "deactivateFailed": "تعذّر تعطيل المؤسسة"
+    "deactivateFailed": "تعذّر تعطيل المؤسسة",
+    "archived": "أُرشفت المؤسسة",
+    "archivedBody": "لم تعد {name} ضمن قائمة المؤسسات، ولم يعد بإمكان مستخدميها تسجيل الدخول.",
+    "archiveFailed": "تعذّرت أرشفة المؤسسة"
   },
   "deactivate": {
     "title": "تعطيل {name}؟",
     "description": "لن يتمكن مستخدموها من تسجيل الدخول إلى Fusion. تُحفظ كل بيانات المؤسسة، ويمكنك إعادة تفعيلها في أي وقت.",
     "cancel": "إلغاء",
     "pending": "جارٍ التعطيل…"
+  },
+  "archive": {
+    "title": "أرشفة {name}؟",
+    "description": "يفقد مستخدموها الوصول نهائيًا وتخرج من قائمة المؤسسات. تُحفظ بياناتها. لا يمكن التراجع عن ذلك.",
+    "cancel": "إلغاء",
+    "pending": "جارٍ الأرشفة…"
   },
   "key": {
     "copied": "نُسخ مفتاح المؤسسة",
@@ -35,12 +46,6 @@
     "access": "الوصول",
     "products": "المنتجات",
     "activity": "النشاط"
-  },
-  "identifier": {
-    "label": "معرّف المؤسسة",
-    "copied": "نُسخ معرّف المؤسسة",
-    "copy": "نسخ معرّف المؤسسة {id}",
-    "copiedShort": "تم النسخ"
   },
   "failure": {
     "notFound": "المؤسسة غير موجودة",
@@ -56,7 +61,9 @@
     "activeDescription": "هذه المؤسسة نشطة ومتاحة للمستخدمين المصرّح لهم.",
     "deactivated": "المؤسسة معطّلة",
     "deactivatedDescription": "لا يستطيع مستخدمو العميل الوصول إلى Fusion حاليًا. تُحفظ بيانات المؤسسة الحالية.",
-    "reactivating": "جارٍ إعادة التفعيل…"
+    "reactivating": "جارٍ إعادة التفعيل…",
+    "archived": "المؤسسة مؤرشفة",
+    "archivedDescription": "لم يعد بإمكان مستخدمي العميل الوصول إلى Fusion. تُحفظ بيانات المؤسسة."
   },
   "handoff": {
     "title": "نقل الإدارة",
@@ -120,7 +127,7 @@
   "products": {
     "title": "المنتجات",
     "description": "وصول هذه المؤسسة إلى المنتجات.",
-    "manage": "إدارة المنتجات",
+    "view": "عرض المنتجات",
     "states": {
       "Included": "مضمّن",
       "Enabled": "مفعّل",
@@ -163,8 +170,81 @@
       "TenantDeactivated": "عُطّل وصول العميل.",
       "TenantReactivated": "استُعيد وصول العميل.",
       "TenantProfileChanged": "حُدّث ملف المؤسسة.",
+      "TenantArchived": "انتهى وصول العميل نهائيًا.",
       "failed": "لم يكتمل التحديث.",
       "recorded": "سُجّل تحديث."
+    },
+    "by": "بواسطة {name}",
+    "byPlatform": "بواسطة Fusion Platform"
+  },
+  "productsPage": {
+    "title": "المنتجات",
+    "count": "{count} من {total} منتجات مستخدمة",
+    "product": "المنتج",
+    "status": "الحالة",
+    "granted": "تاريخ المنح",
+    "notGranted": "غير ممنوح",
+    "byPerson": "بواسطة {name} عند الإنشاء",
+    "atProvisioning": "عند الإنشاء"
+  },
+  "activityPage": {
+    "title": "النشاط",
+    "count": "{count, plural, zero {لا أحداث} one {حدث واحد} two {حدثان} few {# أحداث} many {# حدثًا} other {# حدث}}",
+    "latest": "آخر {count} حدثًا",
+    "empty": "لم يُسجّل أي نشاط بعد."
+  },
+  "access": {
+    "invitation": {
+      "title": "المسؤول الأول",
+      "role": "مسؤول الموارد البشرية للمؤسسة",
+      "none": "لا توجد دعوة مسؤول مسجّلة.",
+      "sent": "أُرسلت في",
+      "accepted": "قُبلت في",
+      "expires": "تنتهي في",
+      "expired": "انتهت في",
+      "lastDelivery": "آخر إرسال",
+      "delivery": "{outcome}، {date}",
+      "noDelivery": "لم يُسجَّل أي إرسال"
+    },
+    "administrators": {
+      "title": "المسؤولون",
+      "usable": "يمكنهم تسجيل الدخول",
+      "suspended": "موقوفون",
+      "pending": "دعوات معلّقة",
+      "failed": "تعذّرت قراءة وصول المسؤولين.",
+      "retry": "إعادة المحاولة",
+      "noneCanSignIn": "لا يمكن لأي مسؤول تسجيل الدخول.",
+      "startRecovery": "بدء الاستعادة",
+      "recoverySent": "أُرسلت دعوة الاستعادة",
+      "lastRecovery": "آخر استعادة",
+      "recipient": "المستلم",
+      "started": "بدأت في",
+      "invitation": "الدعوة",
+      "status": {
+        "NotRequired": "تُدار ذاتيًا",
+        "AwaitingAdministratorActivation": "بانتظار المسؤول",
+        "Required": "الاستعادة مطلوبة",
+        "Pending": "الاستعادة جارية",
+        "Completed": "تمت الاستعادة",
+        "Failed": "فشلت الاستعادة"
+      }
+    },
+    "recovery": {
+      "title": "استعادة الإدارة",
+      "description": "ترسل إلى ممثل موثَّق للعميل دعوة ليصبح مسؤول المؤسسة. لا تحصل المنصة على أي وصول إلى مساحة المؤسسة أو بياناتها.",
+      "email": "البريد الإلكتروني الموثَّق للمستلم",
+      "reference": "مرجع التحقق (اختياري)",
+      "referencePlaceholder": "تذكرة دعم مثلًا",
+      "acknowledge": "أؤكد أنه تم التحقق من هذا المستلم لدى العميل.",
+      "cancel": "إلغاء",
+      "send": "إرسال دعوة الاستعادة",
+      "problem": {
+        "notEligible": "لدى هذه المؤسسة مسؤول يمكنه تسجيل الدخول مجددًا، لذا لم تعد الاستعادة لازمة.",
+        "alreadyPending": "توجد دعوة استعادة معلّقة بالفعل.",
+        "existingAccount": "هذا البريد الإلكتروني مرتبط بحساب Fusion بالفعل.",
+        "invalid": "أدخل بريدًا إلكترونيًا صالحًا وأكّد التحقق.",
+        "unexpected": "تعذّر إرسال دعوة الاستعادة. حاول مرة أخرى."
+      }
     }
   }
 }

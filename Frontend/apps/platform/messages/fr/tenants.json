@@ -31,6 +31,7 @@
     "TenantDeactivated": "Organisation désactivée",
     "TenantReactivated": "Organisation réactivée",
     "TenantProfileChanged": "Profil de l’organisation modifié",
+    "TenantArchived": "Organisation archivée",
     "deliveryFailed": "Échec de l’envoi de l’invitation",
     "deliverySent": "Invitation envoyée",
     "unknown": "Activité de l’organisation"
@@ -117,6 +118,10 @@
     "InvitationReissued": "Une nouvelle invitation d’administrateur a été émise pour {tenant}.",
     "BootstrapCompleted": "{tenant} a terminé l’activation de son administrateur.",
     "ActivationRejected": "Une tentative d’activation pour {tenant} a été refusée.",
+    "TenantDeactivated": "{tenant} a été désactivée.",
+    "TenantReactivated": "{tenant} a été réactivée.",
+    "TenantProfileChanged": "Le profil de {tenant} a été mis à jour.",
+    "TenantArchived": "{tenant} a été archivée.",
     "unknown": "Une modification a été enregistrée pour {tenant}."
   },
   "timestamp": {

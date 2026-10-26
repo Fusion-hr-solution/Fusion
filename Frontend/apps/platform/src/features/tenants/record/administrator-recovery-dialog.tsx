@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Button,
   Checkbox,
@@ -45,6 +46,7 @@ export function AdministratorRecoveryDialog({
   const [problem, setProblem] = useState<string | null>(null);
 
   const initiate = useInitiateAdministratorRecovery();
+  const t = useTranslations("record.access.recovery");
 
   useEffect(() => {
     if (open) {
@@ -55,7 +57,8 @@ export function AdministratorRecoveryDialog({
     }
   }, [open]);
 
-  const canSubmit = email.trim().length > 0 && acknowledged && !initiate.isLoading;
+  const canSubmit =
+    email.trim().length > 0 && acknowledged && !initiate.isLoading;
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -74,29 +77,32 @@ export function AdministratorRecoveryDialog({
       onOpenChange(false);
     } catch (error) {
       // Same envelope shape as everywhere else: the type lives under details.code.
-      const details = error instanceof ApiError ? (error.details as { code?: unknown } | null) : null;
-      const code = typeof details?.code === "string" ? details.code
-        : error instanceof ApiError ? error.code : null;
+      const details =
+        error instanceof ApiError
+          ? (error.details as { code?: unknown } | null)
+          : null;
+      const code =
+        typeof details?.code === "string"
+          ? details.code
+          : error instanceof ApiError
+            ? error.code
+            : null;
 
       switch (code) {
         case "recovery-not-eligible":
-          setProblem(
-            "This tenant now has a usable Tenant Administrator, so recovery no longer applies."
-          );
+          setProblem(t("problem.notEligible"));
           break;
         case "recovery-already-pending":
-          setProblem("A recovery invitation is already pending for this tenant.");
+          setProblem(t("problem.alreadyPending"));
           break;
         case "existing-account":
-          setProblem(
-            "This email already belongs to a Fusion account and cannot be used for recovery."
-          );
+          setProblem(t("problem.existingAccount"));
           break;
         case "validation-failed":
-          setProblem("Enter a valid recipient email address and confirm the verification.");
+          setProblem(t("problem.invalid"));
           break;
         default:
-          setProblem("The recovery invitation could not be sent. Try again.");
+          setProblem(t("problem.unexpected"));
       }
     }
   }
@@ -106,16 +112,13 @@ export function AdministratorRecoveryDialog({
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>Initiate administrator recovery</DialogTitle>
-            <DialogDescription>
-              Recovery establishes customer-controlled Tenant Administrator access. It does not
-              grant Platform access to the tenant workspace or business data.
-            </DialogDescription>
+            <DialogTitle>{t("title")}</DialogTitle>
+            <DialogDescription>{t("description")}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="recovery-email">Verified recipient email address</Label>
+              <Label htmlFor="recovery-email">{t("email")}</Label>
               <Input
                 id="recovery-email"
                 type="email"
@@ -128,12 +131,12 @@ export function AdministratorRecoveryDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="recovery-reference">Verification reference (optional)</Label>
+              <Label htmlFor="recovery-reference">{t("reference")}</Label>
               <Input
                 id="recovery-reference"
                 value={reference}
                 maxLength={128}
-                placeholder="e.g. support ticket"
+                placeholder={t("referencePlaceholder")}
                 onChange={(event) => setReference(event.target.value)}
               />
             </div>
@@ -144,9 +147,11 @@ export function AdministratorRecoveryDialog({
                 checked={acknowledged}
                 onCheckedChange={(checked) => setAcknowledged(checked === true)}
               />
-              <Label htmlFor="recovery-acknowledged" className="text-sm font-normal leading-6">
-                I confirm the external customer verification process was completed for this
-                recipient.
+              <Label
+                htmlFor="recovery-acknowledged"
+                className="text-sm font-normal leading-6"
+              >
+                {t("acknowledge")}
               </Label>
             </div>
 
@@ -164,10 +169,14 @@ export function AdministratorRecoveryDialog({
               onClick={() => onOpenChange(false)}
               disabled={initiate.isLoading}
             >
-              Cancel
+              {t("cancel")}
             </Button>
-            <AsyncButton type="submit" pending={initiate.isLoading} disabled={!canSubmit}>
-              Send recovery invitation
+            <AsyncButton
+              type="submit"
+              pending={initiate.isLoading}
+              disabled={!canSubmit}
+            >
+              {t("send")}
             </AsyncButton>
           </DialogFooter>
         </form>

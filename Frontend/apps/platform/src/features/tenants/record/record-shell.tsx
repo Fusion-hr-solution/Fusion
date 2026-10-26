@@ -10,7 +10,15 @@ import {
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Ban, Check, Copy, MoreHorizontal, RotateCcw, SearchX } from "@/lib/icons";
+import {
+  Archive,
+  Ban,
+  Check,
+  Copy,
+  MoreHorizontal,
+  RotateCcw,
+  SearchX,
+} from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import {
   DropdownMenu,
@@ -38,7 +46,12 @@ import {
 } from "@repo/ds/components/ui/tooltip";
 import { toast } from "sonner";
 import { cn } from "@repo/ds/lib/utils";
-import { PageContainer, PageEmpty, PageError, StatusBadge } from "@repo/ds/shell";
+import {
+  PageContainer,
+  PageEmpty,
+  PageError,
+  StatusBadge,
+} from "@repo/ds/shell";
 import { failureKind, type TenantDetail } from "../api";
 import { useFailureDetail } from "../language";
 import { TenantMonogram } from "../overview/tenant-monogram";
@@ -91,7 +104,9 @@ const RecordContext = createContext<RecordValue | null>(null);
 export function useTenantRecord(): RecordValue {
   const value = useContext(RecordContext);
   if (!value) {
-    throw new Error("Tenant record destinations must render inside the record shell.");
+    throw new Error(
+      "Tenant record destinations must render inside the record shell."
+    );
   }
   return value;
 }
@@ -162,9 +177,8 @@ export function TenantRecordShell({
  * and deliberately square so it cannot be mistaken for a person's avatar.
  *
  * The header establishes only the resource: who it is, whether it is usable, and
- * its canonical key. The status shown is the tenant's lifecycle — an existing
- * tenant is Active until Platform deactivates it, a capability the record does
- * not model yet — and deliberately not the administrator's invitation state,
+ * its canonical key. The status shown is the tenant's lifecycle — Active,
+ * Deactivated or Archived — and deliberately not the administrator's invitation state,
  * which is a separate concern and belongs in the body. Provisioning facts,
  * created date, and internal id stay out of the header so it does not become a
  * fact sheet; they live in the Overview profile.
@@ -184,7 +198,11 @@ function RecordHeader({ tenant }: { tenant: TenantDetail }) {
             {tenant.name}
           </h1>
           <StatusBadge tone={tenant.isActive ? "success" : "neutral"} dot>
-            {tenant.isActive ? t("status.active") : t("status.deactivated")}
+            {tenant.isArchived
+              ? t("status.archived")
+              : tenant.isActive
+                ? t("status.active")
+                : t("status.deactivated")}
           </StatusBadge>
         </div>
 
@@ -201,26 +219,39 @@ function RecordHeader({ tenant }: { tenant: TenantDetail }) {
 /**
  * The record's overflow: tenant lifecycle only.
  *
- * An Active tenant can be deactivated; a deactivated one can be reactivated —
- * and nothing else lives here. Profile edits, product entitlements, and
+ * An Active tenant can be deactivated; a deactivated one can be reactivated;
+ * either can be archived, which offboards the customer for good. An archived
+ * tenant has nothing left to do. Profile edits, product entitlements, and
  * invitation recovery act on their own objects elsewhere; this menu governs the
  * single platform-owned state that has no home of its own.
  *
- * Deactivation removes customer access, so it is confirmed before it runs and
- * says plainly what it does and does not touch. Reactivation restores access
- * and needs no confirmation. Both settle by refetching the record, so the
- * header status reflects the authoritative outcome.
+ * Deactivation and archival remove customer access, so both are confirmed
+ * before they run and say plainly what they do and do not touch. Reactivation
+ * restores access and needs no confirmation. All settle by refetching the
+ * record, so the header status reflects the authoritative outcome.
  */
 function TenantLifecycleMenu({ tenant }: { tenant: TenantDetail }) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirming, setConfirming] = useState<"deactivate" | "archive" | null>(
+    null
+  );
   // Busy across the whole task, not just the request: the mutation invalidates
   // the record, and neither control should free up until that refetched result
   // has settled. `mutateAsync` resolves only after the awaited invalidation.
   const [running, setRunning] = useState(false);
   const deactivate = useTenantLifecycle("deactivate");
   const reactivate = useTenantLifecycle("reactivate");
+  const archive = useTenantLifecycle("archive");
   const t = useTranslations("record");
   const failureDetail = useFailureDetail();
+  // Held while the dialog closes, so its text does not switch mid-animation.
+  const [shown, setShown] = useState<"deactivate" | "archive">("deactivate");
+  const confirmed = shown === "archive" ? archive : deactivate;
+  const busy = running || confirmed.isLoading;
+
+  function ask(action: "deactivate" | "archive") {
+    setShown(action);
+    setConfirming(action);
+  }
 
   return (
     <>
@@ -246,80 +277,100 @@ function TenantLifecycleMenu({ tenant }: { tenant: TenantDetail }) {
             <Copy />
             {t("menu.copyId")}
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          {tenant.isActive ? (
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={() => setConfirmOpen(true)}
-            >
-              <Ban />
-              {t("menu.deactivate")}
-            </DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem
-              disabled={running || reactivate.isLoading}
-              onSelect={(event) => {
-                event.preventDefault();
-                setRunning(true);
-                void reactivate
-                  .mutateAsync(tenant.tenantId)
-                  .then(() =>
-                    toast.success(t("toast.reactivated"), {
-                      description: t("toast.reactivatedBody", { name: tenant.name }),
-                    })
-                  )
-                  .catch((error) =>
-                    toast.error(t("toast.reactivateFailed"), {
-                      description: failureDetail(error),
-                    })
-                  )
-                  .finally(() => setRunning(false));
-              }}
-            >
-              <RotateCcw />
-              {t("menu.reactivate")}
-            </DropdownMenuItem>
+          {tenant.isArchived ? null : (
+            <>
+              <DropdownMenuSeparator />
+              {tenant.isActive ? (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => ask("deactivate")}
+                >
+                  <Ban />
+                  {t("menu.deactivate")}
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  disabled={running || reactivate.isLoading}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    setRunning(true);
+                    void reactivate
+                      .mutateAsync(tenant.tenantId)
+                      .then(() =>
+                        toast.success(t("toast.reactivated"), {
+                          description: t("toast.reactivatedBody", {
+                            name: tenant.name,
+                          }),
+                        })
+                      )
+                      .catch((error) =>
+                        toast.error(t("toast.reactivateFailed"), {
+                          description: failureDetail(error),
+                        })
+                      )
+                      .finally(() => setRunning(false));
+                  }}
+                >
+                  <RotateCcw />
+                  {t("menu.reactivate")}
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => ask("archive")}
+              >
+                <Archive />
+                {t("menu.archive")}
+              </DropdownMenuItem>
+            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+      <AlertDialog
+        open={confirming !== null}
+        onOpenChange={(open) => (open ? undefined : setConfirming(null))}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("deactivate.title", { name: tenant.name })}</AlertDialogTitle>
-            <AlertDialogDescription>{t("deactivate.description")}</AlertDialogDescription>
+            <AlertDialogTitle>
+              {t(`${shown}.title`, { name: tenant.name })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(`${shown}.description`)}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={running || deactivate.isLoading}>
-              {t("deactivate.cancel")}
+            <AlertDialogCancel disabled={busy}>
+              {t(`${shown}.cancel`)}
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              disabled={running || deactivate.isLoading}
+              disabled={busy}
               onClick={(event) => {
                 event.preventDefault();
                 setRunning(true);
-                void deactivate
+                void confirmed
                   .mutateAsync(tenant.tenantId)
                   .then(() => {
-                    setConfirmOpen(false);
-                    toast.success(t("toast.deactivated"), {
-                      description: t("toast.deactivatedBody", { name: tenant.name }),
+                    setConfirming(null);
+                    toast.success(t(`toast.${shown}d`), {
+                      description: t(`toast.${shown}dBody`, {
+                        name: tenant.name,
+                      }),
                     });
                   })
                   .catch((error) => {
                     // The record refetches on settle; the dialog stays open so
                     // the operator sees the attempt did not take.
-                    toast.error(t("toast.deactivateFailed"), {
+                    toast.error(t(`toast.${shown}Failed`), {
                       description: failureDetail(error),
                     });
                   })
                   .finally(() => setRunning(false));
               }}
             >
-              {running || deactivate.isLoading
-                ? t("deactivate.pending")
-                : t("menu.deactivate")}
+              {busy ? t(`${shown}.pending`) : t(`menu.${shown}`)}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -362,10 +413,7 @@ function TenantKey({ slug }: { slug: string }) {
           >
             <span className="font-mono">{slug}</span>
             {copied ? (
-              <Check
-                aria-hidden="true"
-                className="size-3.5 text-success"
-              />
+              <Check aria-hidden="true" className="size-3.5 text-success" />
             ) : (
               <Copy
                 aria-hidden="true"
@@ -374,7 +422,9 @@ function TenantKey({ slug }: { slug: string }) {
             )}
           </button>
         </TooltipTrigger>
-        <TooltipContent>{copied ? t("copiedShort") : t("tooltip")}</TooltipContent>
+        <TooltipContent>
+          {copied ? t("copiedShort") : t("tooltip")}
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
@@ -439,65 +489,13 @@ function RecordNavigation({
   );
 }
 
-/**
- * The immutable identifier, shortened to stay out of the way and copied whole.
- * It is the record's canonical route key, so it has to be retrievable exactly —
- * reading it off the address bar is not something anyone should have to do.
- */
-export function TenantIdentifier({
-  tenantId,
-  showLabel = true,
+function RecordFailure({
+  error,
+  onRetry,
 }: {
-  tenantId: string;
-  /** Off where the surrounding row already names the field. */
-  showLabel?: boolean;
+  error: Error;
+  onRetry: () => void;
 }) {
-  const t = useTranslations("record.identifier");
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(tenantId);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard access can be refused; the full value stays in the tooltip.
-    }
-  }
-
-  const shortened = `${tenantId.slice(0, 8)}…${tenantId.slice(-4)}`;
-
-  return (
-    <TooltipProvider delayDuration={200}>
-      <span className="inline-flex items-center gap-1.5">
-        {showLabel ? <span>{t("label")}</span> : null}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={copy}
-              aria-label={copied ? t("copied") : t("copy", { id: tenantId })}
-              className="inline-flex min-h-7 min-w-7 items-center gap-1.5 rounded-control px-1 font-mono text-xs text-foreground transition-colors hover:text-primary-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring motion-reduce:transition-none"
-            >
-              {shortened}
-              {copied ? (
-                <Check
-                  aria-hidden="true"
-                  className="size-3.5 text-emerald-600 dark:text-emerald-400"
-                />
-              ) : (
-                <Copy aria-hidden="true" className="size-3.5" />
-              )}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>{copied ? t("copiedShort") : tenantId}</TooltipContent>
-        </Tooltip>
-      </span>
-    </TooltipProvider>
-  );
-}
-
-function RecordFailure({ error, onRetry }: { error: Error; onRetry: () => void }) {
   const t = useTranslations("record.failure");
   const common = useTranslations("tenants.common");
   const kind = failureKind(error);
@@ -549,7 +547,10 @@ function RecordSkeleton() {
 
       <div className="mb-6 flex gap-7 border-b border-border pb-3">
         {RECORD_DESTINATIONS.map((destination) => (
-          <Skeleton key={destination.segment || "overview"} className="h-4 w-20" />
+          <Skeleton
+            key={destination.segment || "overview"}
+            className="h-4 w-20"
+          />
         ))}
       </div>
 
@@ -597,9 +598,13 @@ function SkeletonCardHeader({
       <Skeleton className="size-8 shrink-0 rounded-control" />
       <div className="min-w-0 flex-1 space-y-1.5">
         <Skeleton className={cn("h-4", titleWidth)} />
-        {subtitleWidth ? <Skeleton className={cn("h-3.5", subtitleWidth)} /> : null}
+        {subtitleWidth ? (
+          <Skeleton className={cn("h-3.5", subtitleWidth)} />
+        ) : null}
       </div>
-      {action ? <Skeleton className="h-8 w-24 shrink-0 rounded-control" /> : null}
+      {action ? (
+        <Skeleton className="h-8 w-24 shrink-0 rounded-control" />
+      ) : null}
     </div>
   );
 }

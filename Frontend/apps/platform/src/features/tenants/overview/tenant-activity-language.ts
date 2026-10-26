@@ -40,6 +40,10 @@ const NARRATED_EVENTS = new Set([
   "InvitationReissued",
   "BootstrapCompleted",
   "ActivationRejected",
+  "TenantDeactivated",
+  "TenantReactivated",
+  "TenantProfileChanged",
+  "TenantArchived",
 ]);
 
 export function activityNarrative(
@@ -62,13 +66,17 @@ export function activityNarrative(
           // tenant and the outcome rather than disappearing from the history.
           "unknown";
 
-  const [before = "", after = ""] = words.say(`narrative.${key}`, { tenant: SLOT }).split(SLOT);
+  const [before = "", after = ""] = words
+    .say(`narrative.${key}`, { tenant: SLOT })
+    .split(SLOT);
 
   // The business specification already calls these rejected activation
   // attempts, so they read as failures whatever the stored outcome says.
   const isFailure =
     entry.eventType === "ActivationRejected" ||
-    (entry.eventType === "InvitationDeliveryAttempted" || key === "unknown" ? isFailed : false);
+    (entry.eventType === "InvitationDeliveryAttempted" || key === "unknown"
+      ? isFailed
+      : false);
 
   return { title, before, after, isFailure };
 }

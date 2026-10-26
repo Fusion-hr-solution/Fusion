@@ -47,35 +47,56 @@ export function RecentActivity() {
       </header>
 
       {entries.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          {t("empty")}
-        </p>
+        <p className="mt-4 text-sm text-muted-foreground">{t("empty")}</p>
       ) : (
-        <ol className="mt-4">
-          {entries.map((entry, index) => (
-            <ActivityRow
-              key={`${entry.eventType}-${entry.occurredAt}-${index}`}
-              entry={entry}
-              last={index === entries.length - 1}
-            />
-          ))}
-        </ol>
+        <ActivityTimeline entries={entries} className="mt-4" />
       )}
     </section>
+  );
+}
+
+/**
+ * The tenant's events as one connected sequence. The Overview shows a short
+ * tail with relative times; the Activity destination shows everything, with who
+ * acted and the exact moment.
+ */
+export function ActivityTimeline({
+  entries,
+  detailed = false,
+  className,
+}: {
+  entries: TenantHistoryEntry[];
+  detailed?: boolean;
+  className?: string;
+}) {
+  return (
+    <ol className={className}>
+      {entries.map((entry, index) => (
+        <ActivityRow
+          key={`${entry.eventType}-${entry.occurredAt}-${index}`}
+          entry={entry}
+          last={index === entries.length - 1}
+          detailed={detailed}
+        />
+      ))}
+    </ol>
   );
 }
 
 function ActivityRow({
   entry,
   last,
+  detailed,
 }: {
   entry: TenantHistoryEntry;
   last: boolean;
+  detailed: boolean;
 }) {
   const failed = isFailureOutcome(entry.outcome);
   const words = useTenantWords();
   const format = useFormat();
   const say = useSay("record.activity.describe");
+  const t = useTranslations("record.activity");
 
   return (
     <li className="flex gap-3">
@@ -101,17 +122,30 @@ function ActivityRow({
           >
             {words.eventTitle(entry.eventType, failed)}
           </p>
-          <time
-            dateTime={entry.occurredAt}
-            title={format.dateTime(entry.occurredAt, { year: "always" })}
-            className="shrink-0 text-xs text-muted-foreground"
-          >
-            {words.relative(entry.occurredAt)}
-          </time>
+          {detailed ? null : (
+            <time
+              dateTime={entry.occurredAt}
+              title={format.dateTime(entry.occurredAt, { year: "always" })}
+              className="shrink-0 text-xs text-muted-foreground"
+            >
+              {words.relative(entry.occurredAt)}
+            </time>
+          )}
         </div>
         <p className="mt-0.5 text-sm text-muted-foreground">
           {describe(entry.eventType, failed, say)}
         </p>
+        {detailed ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {entry.actorName?.trim()
+              ? t("by", { name: entry.actorName.trim() })
+              : t("byPlatform")}
+            <span aria-hidden="true"> · </span>
+            <time dateTime={entry.occurredAt}>
+              {format.dateTime(entry.occurredAt, { year: "always" })}
+            </time>
+          </p>
+        ) : null}
       </div>
     </li>
   );
@@ -133,6 +167,7 @@ const DESCRIBED_EVENTS = new Set([
   "TenantDeactivated",
   "TenantReactivated",
   "TenantProfileChanged",
+  "TenantArchived",
 ]);
 
 function describe(eventType: string, failed: boolean, say: Say): string {

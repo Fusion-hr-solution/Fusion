@@ -13,6 +13,7 @@ import {
   Agreement02Icon,
   AiBrain01Icon,
   Alert02Icon,
+  Archive02Icon,
   AlertCircleIcon,
   ArrowDown01Icon,
   ArrowLeft02Icon,
@@ -94,6 +95,7 @@ function icon(svg: IconSvgElement, name: string): Icon {
 export const Activity = icon(Activity01Icon, "Activity");
 export const AlertCircle = icon(AlertCircleIcon, "AlertCircle");
 export const AlertTriangle = icon(Alert02Icon, "AlertTriangle");
+export const Archive = icon(Archive02Icon, "Archive");
 export const ArrowLeft = icon(ArrowLeft02Icon, "ArrowLeft");
 export const ArrowRight = icon(ArrowRight02Icon, "ArrowRight");
 export const Ban = icon(UnavailableIcon, "Ban");

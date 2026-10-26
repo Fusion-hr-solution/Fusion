@@ -16,8 +16,16 @@ import {
 } from "@/lib/icons";
 import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";
-import type { RecoveryAction, TenantContinuityHealth, TenantDetail } from "../api";
-import { useFailureDetail, useTenantWords, type TenantWords } from "../language";
+import type {
+  RecoveryAction,
+  TenantContinuityHealth,
+  TenantDetail,
+} from "../api";
+import {
+  useFailureDetail,
+  useTenantWords,
+  type TenantWords,
+} from "../language";
 import { useInvitationRecovery, useTenantContinuityHealth } from "../queries";
 import { destinationHref } from "./record-routes";
 import { useTenantRecord } from "./record-shell";
@@ -41,7 +49,19 @@ export function AdminHandoff() {
   const { data: continuity } = useTenantContinuityHealth(tenant.tenantId);
   const say = useSay("record.handoff");
   const words = useTenantWords();
-  const view = resolveHandoff(tenant, continuity, say, words);
+  // An archived tenant can never be activated or recovered: nobody signing in
+  // is expected, not a continuity problem, so the card states where the handoff
+  // stopped and offers nothing.
+  const resolved = resolveHandoff(
+    tenant,
+    tenant.isArchived ? undefined : continuity,
+    say,
+    words
+  );
+  const view =
+    tenant.isArchived && resolved.action?.type !== "complete"
+      ? { ...resolved, action: null }
+      : resolved;
   const person = handoffPerson(tenant, continuity, say);
 
   return (
@@ -250,7 +270,11 @@ function resolveHandoff(
     const recipient = continuity?.latestRecoveryAttempt?.recipientEmail;
     return {
       description: say("recoveryPending.description"),
-      status: { label: say("recoveryPending.label"), icon: Clock, tone: "warning" },
+      status: {
+        label: say("recoveryPending.label"),
+        icon: Clock,
+        tone: "warning",
+      },
       meta: recipient ? say("recoveryPending.meta", { recipient }) : undefined,
       action: { type: "navigate", label: say("recoveryPending.action") },
     };
@@ -259,7 +283,11 @@ function resolveHandoff(
   if (tenant.administratorActivationStatus === "Active") {
     return {
       description: say("active.description"),
-      status: { label: say("active.label"), icon: CircleCheck, tone: "success" },
+      status: {
+        label: say("active.label"),
+        icon: CircleCheck,
+        tone: "success",
+      },
       meta: acceptedMeta(tenant, say, words),
       action: { type: "complete" },
     };
@@ -273,7 +301,11 @@ function resolveHandoff(
     if (invitation.state === "Pending" && failed) {
       return {
         description: say("deliveryFailed.description"),
-        status: { label: say("deliveryFailed.label"), icon: CircleAlert, tone: "danger" },
+        status: {
+          label: say("deliveryFailed.label"),
+          icon: CircleAlert,
+          tone: "danger",
+        },
         meta: invitation.lastDelivery
           ? say("deliveryFailed.meta", {
               date: words.dateTime(invitation.lastDelivery.attemptedAt),
@@ -287,7 +319,9 @@ function resolveHandoff(
       return {
         description: say("pending.description"),
         status: { label: say("pending.label"), icon: Mail, tone: "warning" },
-        meta: say("pending.meta", { ago: words.relative(invitation.createdAt) }),
+        meta: say("pending.meta", {
+          ago: words.relative(invitation.createdAt),
+        }),
         action: resend(tenant.tenantId, invitation.invitationId, words),
       };
     }
@@ -350,11 +384,17 @@ function resend(
 }
 
 /** The activation moment, read from the bootstrap history rather than invented. */
-function acceptedMeta(tenant: TenantDetail, say: Say, words: TenantWords): string | undefined {
+function acceptedMeta(
+  tenant: TenantDetail,
+  say: Say,
+  words: TenantWords
+): string | undefined {
   const completed = tenant.history.find(
     (entry) => entry.eventType === "BootstrapCompleted"
   );
-  return completed ? say("active.meta", { date: words.date(completed.occurredAt) }) : undefined;
+  return completed
+    ? say("active.meta", { date: words.date(completed.occurredAt) })
+    : undefined;
 }
 
 function handoffPerson(

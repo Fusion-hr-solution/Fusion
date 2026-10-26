@@ -4,9 +4,6 @@ import type { StatusTone } from "@repo/ds/shell";
 import { dateFormatter } from "@repo/ds/lib/dates";
 import { englishSay, useSay, type Say } from "@repo/ds/lib/say";
 import { englishMessages } from "@/i18n/messages";
-// The record surfaces use their own narrower tone vocabulary; StatusBlock takes
-// this one, not the design system's badge tones.
-import type { StatusTone as RecordStatusTone } from "./record/record-ui";
 import { failureMessage } from "./api";
 import type {
   DeliveryOutcomeValue,
@@ -48,10 +45,10 @@ export const TENANT_STATUS_TONE: Record<TenantActivationStatus, StatusTone> = {
  * asks for attention. Revocation and replacement were deliberate acts and settle
  * quietly into history.
  */
-export const INVITATION_TONE: Record<InvitationStateValue, RecordStatusTone> = {
-  Pending: "default",
-  Accepted: "positive",
-  Expired: "attention",
+export const INVITATION_TONE: Record<InvitationStateValue, StatusTone> = {
+  Pending: "info",
+  Accepted: "success",
+  Expired: "warning",
   Revoked: "muted",
   Superseded: "muted",
 };
@@ -78,7 +75,9 @@ export const MODULE_CATALOGUE: ModuleEntry[] = [
   { id: "Performance", label: "Performance", mandatory: false },
 ];
 
-export const MODULE_IDS: TenantModule[] = MODULE_CATALOGUE.map((entry) => entry.id);
+export const MODULE_IDS: TenantModule[] = MODULE_CATALOGUE.map(
+  (entry) => entry.id
+);
 
 const MODULE_LABEL: Record<TenantModule, string> = Object.fromEntries(
   MODULE_CATALOGUE.map((entry) => [entry.id, entry.label])
@@ -113,6 +112,7 @@ const TITLED_EVENTS = new Set([
   "TenantDeactivated",
   "TenantReactivated",
   "TenantProfileChanged",
+  "TenantArchived",
 ]);
 
 const RECOVERY_ACTIONS = new Set(["resend", "revoke", "replace", "reissue"]);
@@ -208,10 +208,13 @@ export function tenantWords(say: Say = sayTenantsInEnglish, locale = "en") {
       if (eventType === "InvitationDeliveryAttempted") {
         return say(failed ? "event.deliveryFailed" : "event.deliverySent");
       }
-      return say(TITLED_EVENTS.has(eventType) ? `event.${eventType}` : "event.unknown");
+      return say(
+        TITLED_EVENTS.has(eventType) ? `event.${eventType}` : "event.unknown"
+      );
     },
     /** Null actor means the platform acted; the interface says so rather than blank. */
-    eventActor: (actorName: string | null) => actorName?.trim() || "Fusion Platform",
+    eventActor: (actorName: string | null) =>
+      actorName?.trim() || "Fusion Platform",
     recovery: (action: string) =>
       RECOVERY_ACTIONS.has(action) ? say(`recovery.${action}`) : action,
     /** The behaviour does not exist yet. */
@@ -226,7 +229,9 @@ export function tenantWords(say: Say = sayTenantsInEnglish, locale = "en") {
      * useful fact.
      */
     relative: (value: string) => {
-      const seconds = Math.round((Date.now() - new Date(value).getTime()) / 1000);
+      const seconds = Math.round(
+        (Date.now() - new Date(value).getTime()) / 1000
+      );
       if (seconds < 45) return say("ago.moments");
       const minutes = Math.round(seconds / 60);
       if (minutes < 60) return say("ago.minutes", { count: minutes });
@@ -245,10 +250,14 @@ export type TenantWords = ReturnType<typeof tenantWords>;
  * A refusal in one line. The service words its refusals in English, so they read
  * as sent in English and as the screen's own line in other languages.
  */
-export function useFailureMessage(): (error: unknown, fallback: string) => string {
+export function useFailureMessage(): (
+  error: unknown,
+  fallback: string
+) => string {
   const locale = useLocale();
   return useCallback(
-    (error, fallback) => (locale === "en" ? (failureMessage(error) ?? fallback) : fallback),
+    (error, fallback) =>
+      locale === "en" ? (failureMessage(error) ?? fallback) : fallback,
     [locale]
   );
 }
@@ -256,7 +265,10 @@ export function useFailureMessage(): (error: unknown, fallback: string) => strin
 /** The service's own refusal, as a toast's optional detail: shown in English, left out in other languages. */
 export function useFailureDetail(): (error: unknown) => string | undefined {
   const failureMessage = useFailureMessage();
-  return useCallback((error) => failureMessage(error, "") || undefined, [failureMessage]);
+  return useCallback(
+    (error) => failureMessage(error, "") || undefined,
+    [failureMessage]
+  );
 }
 
 /** The tenant journey's words in the person's language. */

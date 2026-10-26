@@ -8,7 +8,6 @@ import {
   BrainCircuit,
   Handshake,
   Layers,
-  Settings2,
   UsersRound,
   Video,
   type LucideIcon,
@@ -23,9 +22,9 @@ import { useTenantRecord } from "./record-shell";
 /**
  * The tenant's product access.
  *
- * A summary of the platform-owned entitlements, not the place they are changed:
- * it shows every Fusion product and where this tenant stands on each, and hands
- * off to the Products destination for the actual management. Core HR is the
+ * A summary of the platform-owned entitlements: it shows every Fusion product
+ * and where this tenant stands on each, and hands off to the Products
+ * destination for when and by whom each was granted. Core HR is the
  * workforce foundation every tenant gets, so it reads as included rather than as
  * an entitlement someone chose; a product this tenant is entitled to is enabled,
  * and one it is not is disabled — access, not a missing feature.
@@ -45,15 +44,26 @@ interface ProductDefinition {
 }
 
 const PRODUCTS: ProductDefinition[] = [
-  { key: "core", label: "Core HR", icon: BrainCircuit, module: "CoreHR", mandatory: true },
-  { key: "performance", label: "Performance", icon: BarChart3, module: "Performance" },
+  {
+    key: "core",
+    label: "Core HR",
+    icon: BrainCircuit,
+    module: "CoreHR",
+    mandatory: true,
+  },
+  {
+    key: "performance",
+    label: "Performance",
+    icon: BarChart3,
+    module: "Performance",
+  },
   { key: "learning", label: "Learning", icon: BookOpen },
   { key: "recruitment", label: "Recruitment", icon: UsersRound },
   { key: "onboarding", label: "Onboarding", icon: Handshake },
   { key: "interview", label: "Interview", icon: Video },
 ];
 
-interface ProductRow {
+export interface ProductRow {
   key: string;
   label: string;
   /** Worded by `record.products.states`. */
@@ -62,14 +72,10 @@ interface ProductRow {
   icon: LucideIcon;
 }
 
-export function TenantProducts() {
-  const { tenant, query } = useTenantRecord();
-  const t = useTranslations("record.products");
-
-  const rows: ProductRow[] = PRODUCTS.map((product) => {
-    const enabled = product.module
-      ? tenant.modules.includes(product.module)
-      : false;
+/** Where the tenant stands on every Fusion product, in catalogue order. */
+export function productRows(modules: TenantModule[]): ProductRow[] {
+  return PRODUCTS.map((product) => {
+    const enabled = product.module ? modules.includes(product.module) : false;
     const state = product.mandatory
       ? "Included"
       : enabled
@@ -85,19 +91,33 @@ export function TenantProducts() {
       icon: product.icon,
     };
   });
+}
+
+export function TenantProducts() {
+  const { tenant, query } = useTenantRecord();
+  const t = useTranslations("record.products");
+  const rows = productRows(tenant.modules);
 
   return (
     <section className="rounded-surface border border-border bg-card p-5">
       <div className="flex flex-wrap items-center gap-3">
-        <Layers aria-hidden="true" className="size-8 shrink-0 text-muted-foreground" />
+        <Layers
+          aria-hidden="true"
+          className="size-8 shrink-0 text-muted-foreground"
+        />
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-foreground">{t("title")}</h3>
-          <p className="mt-0.5 text-sm text-muted-foreground">{t("description")}</p>
+          <h3 className="text-sm font-semibold text-foreground">
+            {t("title")}
+          </h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {t("description")}
+          </p>
         </div>
         <Button asChild variant="outline" size="sm">
-          <Link href={`${destinationHref(tenant.tenantId, "products")}${query}`}>
-            <Settings2 aria-hidden="true" />
-            {t("manage")}
+          <Link
+            href={`${destinationHref(tenant.tenantId, "products")}${query}`}
+          >
+            {t("view")}
           </Link>
         </Button>
       </div>
@@ -117,7 +137,9 @@ export function TenantProducts() {
             <span
               className={cn(
                 "min-w-0 flex-1 truncate text-sm font-medium",
-                row.state === "Disabled" ? "text-muted-foreground" : "text-foreground"
+                row.state === "Disabled"
+                  ? "text-muted-foreground"
+                  : "text-foreground"
               )}
             >
               {row.label}

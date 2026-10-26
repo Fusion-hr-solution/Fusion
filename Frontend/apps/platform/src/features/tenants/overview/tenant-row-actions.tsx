@@ -102,10 +102,12 @@ export function TenantRowActions({
             </Link>
           </DropdownMenuItem>
 
-          {/* Planned, and deliberately visible so the shape of the finished
-              menu is legible now. It cannot be triggered: the tenant record has
-              no addressable activity destination yet. */}
-          <NotConnectedItem icon={History} label={t("viewActivity")} />
+          <DropdownMenuItem asChild className="gap-2">
+            <Link href={`/tenants/${row.tenantId}/activity`}>
+              <History aria-hidden="true" className="size-4" />
+              {t("viewActivity")}
+            </Link>
+          </DropdownMenuItem>
 
           {recoveries.length > 0 || showsPlannedReplace ? (
             <DropdownMenuSeparator />
@@ -146,7 +148,10 @@ export function TenantRowActions({
               in this state. It is shown unavailable rather than omitted, so the
               gap stays visible instead of being rediscovered later. */}
           {showsPlannedReplace ? (
-            <NotConnectedItem icon={UserPen} label={words.recovery("replace")} />
+            <NotConnectedItem
+              icon={UserPen}
+              label={words.recovery("replace")}
+            />
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>

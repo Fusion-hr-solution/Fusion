@@ -1,13 +1,15 @@
 {
   "status": {
     "active": "Active",
-    "deactivated": "Désactivée"
+    "deactivated": "Désactivée",
+    "archived": "Archivée"
   },
   "menu": {
     "label": "Actions sur l’organisation",
     "copyId": "Copier l’ID de l’organisation",
     "deactivate": "Désactiver l’organisation",
-    "reactivate": "Réactiver l’organisation"
+    "reactivate": "Réactiver l’organisation",
+    "archive": "Archiver l’organisation"
   },
   "toast": {
     "reactivated": "Organisation réactivée",
@@ -15,13 +17,22 @@
     "reactivateFailed": "Impossible de réactiver l’organisation",
     "deactivated": "Organisation désactivée",
     "deactivatedBody": "Les utilisateurs de {name} ne peuvent plus se connecter à Fusion.",
-    "deactivateFailed": "Impossible de désactiver l’organisation"
+    "deactivateFailed": "Impossible de désactiver l’organisation",
+    "archived": "Organisation archivée",
+    "archivedBody": "{name} ne figure plus dans la liste des organisations. Ses utilisateurs ne peuvent plus se connecter.",
+    "archiveFailed": "Impossible d’archiver l’organisation"
   },
   "deactivate": {
     "title": "Désactiver {name} ?",
     "description": "Ses utilisateurs ne pourront plus se connecter à Fusion. Toutes les données de l’organisation sont conservées, et vous pourrez la réactiver à tout moment.",
     "cancel": "Annuler",
     "pending": "Désactivation…"
+  },
+  "archive": {
+    "title": "Archiver {name} ?",
+    "description": "Ses utilisateurs perdent définitivement l’accès et l’organisation quitte la liste. Ses données sont conservées. Cette action est irréversible.",
+    "cancel": "Annuler",
+    "pending": "Archivage…"
   },
   "key": {
     "copied": "Clé de l’organisation copiée",
@@ -35,12 +46,6 @@
     "access": "Accès",
     "products": "Produits",
     "activity": "Activité"
-  },
-  "identifier": {
-    "label": "ID de l’organisation",
-    "copied": "ID de l’organisation copié",
-    "copy": "Copier l’ID de l’organisation {id}",
-    "copiedShort": "Copié"
   },
   "failure": {
     "notFound": "Organisation introuvable",
@@ -56,7 +61,9 @@
     "activeDescription": "Cette organisation est active et accessible aux utilisateurs autorisés.",
     "deactivated": "L’organisation est désactivée",
     "deactivatedDescription": "Les utilisateurs du client ne peuvent pas accéder à Fusion pour le moment. Les données de l’organisation sont conservées.",
-    "reactivating": "Réactivation…"
+    "reactivating": "Réactivation…",
+    "archived": "L’organisation est archivée",
+    "archivedDescription": "Les utilisateurs du client ne peuvent plus accéder à Fusion. Les données de l’organisation sont conservées."
   },
   "handoff": {
     "title": "Transfert de l’administration",
@@ -120,7 +127,7 @@
   "products": {
     "title": "Produits",
     "description": "Accès aux produits pour cette organisation.",
-    "manage": "Gérer les produits",
+    "view": "Voir les produits",
     "states": {
       "Included": "Inclus",
       "Enabled": "Activé",
@@ -163,8 +170,81 @@
       "TenantDeactivated": "L’accès du client a été désactivé.",
       "TenantReactivated": "L’accès du client a été rétabli.",
       "TenantProfileChanged": "Le profil de l’organisation a été modifié.",
+      "TenantArchived": "L’accès du client a pris fin définitivement.",
       "failed": "La modification n’a pas abouti.",
       "recorded": "Une modification a été enregistrée."
+    },
+    "by": "Par {name}",
+    "byPlatform": "Par Fusion Platform"
+  },
+  "productsPage": {
+    "title": "Produits",
+    "count": "{count} produits sur {total} utilisés",
+    "product": "Produit",
+    "status": "Statut",
+    "granted": "Accordé le",
+    "notGranted": "Non accordé",
+    "byPerson": "Par {name}, à la création",
+    "atProvisioning": "À la création"
+  },
+  "activityPage": {
+    "title": "Activité",
+    "count": "{count, plural, one {# événement} other {# événements}}",
+    "latest": "Les {count} derniers événements",
+    "empty": "Aucune activité enregistrée pour l’instant."
+  },
+  "access": {
+    "invitation": {
+      "title": "Administrateur initial",
+      "role": "Administrateur RH de l’organisation",
+      "none": "Aucune invitation d’administrateur enregistrée.",
+      "sent": "Envoyée le",
+      "accepted": "Acceptée le",
+      "expires": "Expire le",
+      "expired": "Expirée le",
+      "lastDelivery": "Dernier envoi",
+      "delivery": "{outcome}, {date}",
+      "noDelivery": "Aucun envoi enregistré"
+    },
+    "administrators": {
+      "title": "Administrateurs",
+      "usable": "Peuvent se connecter",
+      "suspended": "Suspendus",
+      "pending": "Invitations en attente",
+      "failed": "Impossible de lire l’accès des administrateurs.",
+      "retry": "Réessayer",
+      "noneCanSignIn": "Aucun administrateur ne peut se connecter.",
+      "startRecovery": "Lancer la récupération",
+      "recoverySent": "Invitation de récupération envoyée",
+      "lastRecovery": "Dernière récupération",
+      "recipient": "Destinataire",
+      "started": "Lancée le",
+      "invitation": "Invitation",
+      "status": {
+        "NotRequired": "Autonome",
+        "AwaitingAdministratorActivation": "En attente de l’administrateur",
+        "Required": "Récupération requise",
+        "Pending": "Récupération en cours",
+        "Completed": "Récupérée",
+        "Failed": "Échec de la récupération"
+      }
+    },
+    "recovery": {
+      "title": "Rétablir l’administration",
+      "description": "Envoie à un représentant vérifié du client une invitation à devenir administrateur de l’organisation. La plateforme n’obtient aucun accès à l’espace ni aux données de l’organisation.",
+      "email": "E-mail vérifié du destinataire",
+      "reference": "Référence de vérification (facultatif)",
+      "referencePlaceholder": "Ticket de support, par exemple",
+      "acknowledge": "Je confirme que ce destinataire a été vérifié auprès du client.",
+      "cancel": "Annuler",
+      "send": "Envoyer l’invitation de récupération",
+      "problem": {
+        "notEligible": "Cette organisation a de nouveau un administrateur qui peut se connecter : la récupération ne s’applique plus.",
+        "alreadyPending": "Une invitation de récupération est déjà en attente.",
+        "existingAccount": "Cet e-mail appartient déjà à un compte Fusion.",
+        "invalid": "Saisissez un e-mail valide et confirmez la vérification.",
+        "unexpected": "L’invitation de récupération n’a pas pu être envoyée. Réessayez."
+      }
     }
   }
 }

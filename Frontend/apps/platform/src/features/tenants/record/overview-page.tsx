@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { CircleCheck, PowerOff } from "@/lib/icons";
+import { Archive, CircleCheck, PowerOff } from "@/lib/icons";
 import { toast } from "sonner";
 import { Button } from "@repo/ds/components/ui/button";
 import { cn } from "@repo/ds/lib/utils";
@@ -50,10 +50,10 @@ export function TenantOverviewDestination() {
 /**
  * Tenant lifecycle, stated plainly and always present.
  *
- * It carries exactly two states — active or deactivated — and nothing about the
- * administrator invitation or onboarding, which are separate concerns with their
- * own homes. A deactivated tenant is a calm, reversible state rather than an
- * error, so it reads in a muted tone and offers the one action that resolves it.
+ * It carries three states — active, deactivated or archived — and nothing about
+ * the administrator invitation or onboarding, which are separate concerns with
+ * their own homes. A deactivated tenant offers the one action that resolves it;
+ * an archived one is final and offers nothing.
  */
 function LifecycleBanner() {
   const { tenant } = useTenantRecord();
@@ -66,6 +66,27 @@ function LifecycleBanner() {
   const busy = reactivating || reactivate.isLoading;
   const t = useTranslations("record");
   const failureDetail = useFailureDetail();
+
+  if (tenant.isArchived) {
+    return (
+      <section
+        aria-label={t("lifecycle.label")}
+        className="flex items-center gap-4 rounded-surface border border-border bg-card px-5 py-4"
+      >
+        <BannerIcon tone="neutral">
+          <Archive className="size-5" aria-hidden="true" />
+        </BannerIcon>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-semibold text-foreground">
+            {t("lifecycle.archived")}
+          </h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {t("lifecycle.archivedDescription")}
+          </p>
+        </div>
+      </section>
+    );
+  }
 
   if (tenant.isActive) {
     return (
@@ -135,7 +156,7 @@ function BannerIcon({
   tone,
   children,
 }: {
-  tone: "success" | "destructive";
+  tone: "success" | "destructive" | "neutral";
   children: React.ReactNode;
 }) {
   return (
@@ -145,7 +166,9 @@ function BannerIcon({
         "flex size-10 shrink-0 items-center justify-center rounded-full",
         tone === "success"
           ? "bg-success/15 text-success"
-          : "bg-destructive/15 text-destructive"
+          : tone === "neutral"
+            ? "bg-muted text-muted-foreground"
+            : "bg-destructive/15 text-destructive"
       )}
     >
       {children}

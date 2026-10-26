@@ -60,6 +60,7 @@ export function aTenant(overrides: Partial<TenantDetail> = {}): TenantDetail {
     name: "Atlas Group",
     slug: "atlas-group",
     isActive: true,
+    isArchived: false,
     administratorActivationStatus: "AwaitingAdministratorActivation",
     locale: "en-GB",
     timeZone: "Europe/London",

@@ -31,6 +31,7 @@
     "TenantDeactivated": "عُطّلت المؤسسة",
     "TenantReactivated": "أُعيد تفعيل المؤسسة",
     "TenantProfileChanged": "حُدّث ملف المؤسسة",
+    "TenantArchived": "أُرشفت المؤسسة",
     "deliveryFailed": "فشل إرسال الدعوة",
     "deliverySent": "أُرسلت الدعوة",
     "unknown": "نشاط المؤسسة"
@@ -117,6 +118,10 @@
     "InvitationReissued": "صدرت دعوة مسؤول جديدة لـ{tenant}.",
     "BootstrapCompleted": "أكملت {tenant} تفعيل المسؤول.",
     "ActivationRejected": "رُفضت محاولة تفعيل لـ{tenant}.",
+    "TenantDeactivated": "عُطّلت {tenant}.",
+    "TenantReactivated": "أُعيد تفعيل {tenant}.",
+    "TenantProfileChanged": "حُدّث ملف {tenant}.",
+    "TenantArchived": "أُرشفت {tenant}.",
     "unknown": "سُجّل تحديث لـ{tenant}."
   },
   "timestamp": {
