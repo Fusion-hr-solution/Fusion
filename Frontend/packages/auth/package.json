@@ -5,11 +5,14 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./header": "./src/components/app-header.tsx"
+    "./header": "./src/components/app-header.tsx",
+    "./i18n": "./src/i18n.ts",
+    "./messages/en.json": "./src/messages/en.json",
+    "./messages/fr.json": "./src/messages/fr.json"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
-    "test": "vitest run",
+    "test": "node scripts/check-messages.cjs && vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "type-check": "tsc --noEmit"
@@ -17,9 +20,11 @@
   "dependencies": {
     "@repo/api": "workspace:*",
     "@repo/ds": "workspace:*",
+    "@repo/i18n": "workspace:*",
     "@repo/ui": "workspace:*",
     "lucide-react": "^0.469.0",
-    "next": "^15.1.0"
+    "next": "^15.1.0",
+    "next-intl": "^4.13.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",

@@ -1,6 +1,7 @@
 // Types
 export type {
   LoginRequest,
+  LoginFailure,
   RegisterRequest,
   RefreshTokenRequest,
   AuthResponse,
@@ -18,7 +19,9 @@ export {
   persistAuth,
   loadAuth,
   clearAuth,
+  saveLanguage,
 } from "./auth-service";
+export { useLanguage } from "./language";
 
 // Auth context & hook
 export { AuthProvider, useAuth } from "./auth-context";

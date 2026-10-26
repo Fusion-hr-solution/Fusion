@@ -1,3 +1,4 @@
+import { LOCALE_COOKIE, isLocale } from "@repo/i18n/config";
 import { createApiClient } from "./client";
 import { ApiError } from "./types";
 import type { ApiClient, ApiError as ApiErrorType, RequestOptions } from "./types";
@@ -32,6 +33,7 @@ interface BrowserStoredAuth {
     fullName: string;
     roles: string[];
     employeeId?: string | null;
+    language?: string;
     accessProfiles?: Array<{
       id: string;
       name: string;
@@ -58,6 +60,7 @@ interface RefreshResponse {
   fullName: string;
   roles: string[];
   employeeId?: string | null;
+  language?: string;
   accessProfiles?: Array<{
     id: string;
     name: string;
@@ -111,6 +114,7 @@ function persistBrowserAuth(auth: RefreshResponse): void {
       fullName: auth.fullName,
       roles: auth.roles,
       employeeId: auth.employeeId ?? null,
+      language: auth.language,
       accessProfiles: auth.accessProfiles ?? [],
       effectivePermissions: auth.effectivePermissions ?? [],
     },
@@ -118,7 +122,21 @@ function persistBrowserAuth(auth: RefreshResponse): void {
 
   localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(storedAuth));
   document.cookie = `${AUTH_COOKIE_NAME}=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+  persistLanguageCookie(auth.language);
   dispatchAuthStorageChanged();
+}
+
+/**
+ * Writes the person's language, as Identity resolved it, into the cookie every app's next-intl config reads.
+ * A missing or unsupported value leaves the cookie alone. Signing out keeps it, so the sign-in page stays in the
+ * last language.
+ */
+export function persistLanguageCookie(language: string | null | undefined): void {
+  if (!isBrowser() || !isLocale(language)) {
+    return;
+  }
+
+  document.cookie = `${LOCALE_COOKIE}=${language}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
 }
 
 function clearBrowserAuth(): void {

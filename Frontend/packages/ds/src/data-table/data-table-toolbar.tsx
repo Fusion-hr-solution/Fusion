@@ -2,6 +2,7 @@
 
 import type { RowData } from "@tanstack/react-table";
 import { Search, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   InputGroup,
   InputGroupAddon,
@@ -18,7 +19,7 @@ import type { DataTableModel } from "./use-data-table";
 
 export function DataTableSearch<TData extends RowData>({
   model,
-  placeholder = "Search…",
+  placeholder,
   label,
   className,
 }: {
@@ -28,7 +29,9 @@ export function DataTableSearch<TData extends RowData>({
   label?: string;
   className?: string;
 }) {
+  const t = useTranslations("ds.table");
   const { value, setValue } = model.search;
+  const hint = placeholder ?? t("search");
   return (
     <InputGroup className={cn("w-full", className)}>
       <InputGroupAddon>
@@ -44,15 +47,15 @@ export function DataTableSearch<TData extends RowData>({
             setValue("");
           }
         }}
-        placeholder={placeholder}
-        aria-label={label ?? placeholder.replace(/…$/, "")}
+        placeholder={hint}
+        aria-label={label ?? hint.replace(/…$/, "")}
         className="[&::-webkit-search-cancel-button]:hidden"
       />
       {value ? (
         <InputGroupAddon align="inline-end">
           <InputGroupButton
             size="icon-xs"
-            aria-label="Clear search"
+            aria-label={t("clearSearch")}
             onClick={() => setValue("")}
           >
             <X aria-hidden />

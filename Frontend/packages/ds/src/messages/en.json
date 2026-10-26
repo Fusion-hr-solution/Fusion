@@ -1,0 +1,188 @@
+{
+  "ds": {
+    "settings": {
+      "title": "Settings",
+      "back": "Back to {place}",
+      "place": {
+        "home": "Home",
+        "platformConsole": "Platform console"
+      },
+      "you": "You",
+      "preferences": "Preferences",
+      "notifications": "Notifications",
+      "viewOnly": "View only",
+      "groupViewOnly": "{group}, view only",
+      "loadingGroup": "Loading {group}",
+      "groupDidNotLoad": "{group} didn't load",
+      "didNotLoad": "Didn't load",
+      "tryAgain": "Try again",
+      "saved": "Saved",
+      "sections": {
+        "preferences": "Preferences",
+        "notifications": "Notifications",
+        "company": "Company",
+        "employee-fields": "Employee fields",
+        "roles": "Roles",
+        "invitations": "Invitations",
+        "change-history": "Change history",
+        "rating-scale": "Rating scale",
+        "competencies": "Competencies",
+        "review-questions": "Review questions",
+        "reviews": "Reviews",
+        "planning": "Planning",
+        "conversations": "Conversations",
+        "ai-and-data": "AI and data"
+      },
+      "changedBy": "<b>{actor}</b> changed it {when}",
+      "setUp": "Set up {when}",
+      "when": {
+        "now": "just now",
+        "minutes": "{count} min ago",
+        "hours": "{count} h ago",
+        "yesterday": "yesterday",
+        "on": "on {date}"
+      },
+      "loading": "Loading settings",
+      "unsavedChanges": "Unsaved changes",
+      "changes": "{count, plural, one {# change} other {# changes}}",
+      "conflictBy": "{actor} saved {section} {when}.",
+      "conflictSomeone": "Someone saved this section after you opened it.",
+      "conflictReload": "Reload to see their version; your change is lost.",
+      "reload": "Reload",
+      "discard": "Discard",
+      "save": "Save",
+      "breadcrumb": "Breadcrumb"
+    },
+    "relative": {
+      "now": "Just now",
+      "minutes": "{count} min ago",
+      "hours": "{count} h ago",
+      "yesterday": "Yesterday",
+      "days": "{count, plural, one {# day ago} other {# days ago}}"
+    },
+    "sidebar": {
+      "navigation": "Fusion navigation",
+      "expand": "Expand sidebar",
+      "collapse": "Collapse sidebar",
+      "home": "Home",
+      "modules": "Modules",
+      "recent": "Recent",
+      "switchModule": "Switch module",
+      "switchModuleCurrent": "Switch module, current: {module}",
+      "currentModule": "Current module",
+      "loadingNavigation": "Loading navigation",
+      "loadingAccount": "Loading account",
+      "signIn": "Sign in",
+      "settings": "Settings",
+      "signOut": "Sign out",
+      "moduleDescriptions": {
+        "core": "People and organization",
+        "performance": "Goals, conversations and reviews",
+        "learning": "Training and sessions",
+        "recruitment": "Hiring pipeline",
+        "onboarding": "New-hire journeys",
+        "interview": "Candidate assessments"
+      },
+      "myProfile": "My profile"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "trigger": "{count, plural, =0 {Notifications} other {Notifications, # unread}}",
+      "markAllRead": "Mark all read",
+      "filterByModule": "Filter by module",
+      "all": "All",
+      "empty": "No notifications yet",
+      "unread": "Unread",
+      "moduleFailed": "{module} notifications couldn't be loaded",
+      "stamp": {
+        "now": "now",
+        "minutes": "{count}m",
+        "hours": "{count}h",
+        "yesterday": "Yesterday"
+      }
+    },
+    "work": {
+      "empty": "Nothing needs you right now",
+      "loadingModule": "Loading {module} work",
+      "moduleFailed": "{module} work couldn't be loaded",
+      "due": {
+        "late": "{count, plural, one {# day late} other {# days late}}",
+        "today": "Due today",
+        "tomorrow": "Due tomorrow",
+        "left": "{count, plural, one {# day left} other {# days left}}"
+      },
+      "open": "Open"
+    },
+    "home": {
+      "whereThisStands": "Where this stands",
+      "stepDone": " (done)",
+      "stepNow": " (now)",
+      "mostImportant": "Most important",
+      "next": "Next",
+      "leadUnit": {
+        "late": "{count, plural, one {day late} other {days late}}",
+        "today": "due today",
+        "left": "{count, plural, one {day left} other {days left}}"
+      },
+      "dueOn": "Due {date}",
+      "nothingToday": "Nothing needs you today",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "inDays": "{count, plural, one {In # day} other {In # days}}",
+      "openOneOnOne": "Open the 1:1",
+      "view": "View",
+      "nothingNow": "Nothing needs you right now",
+      "nothingScheduledLead": "No work and nothing scheduled in the next two weeks",
+      "nothingScheduled": "Nothing is scheduled in the next two weeks",
+      "agendaDue": "{title} due",
+      "datesFailed": "{module}'s dates couldn't be loaded"
+    },
+    "states": {
+      "loading": "Loading",
+      "loadingList": "Loading list",
+      "loadingPage": "Loading page",
+      "tryAgain": "Try again"
+    },
+    "breadcrumb": {
+      "details": "Details"
+    },
+    "password": {
+      "show": "Show characters",
+      "hide": "Hide characters",
+      "strength": "Password strength",
+      "met": " — met",
+      "notMet": " — not yet met"
+    },
+    "invitation": {
+      "loading": "Loading invitation"
+    },
+    "table": {
+      "search": "Search…",
+      "clearSearch": "Clear search",
+      "noResults": "No matches",
+      "row": "row",
+      "rows": "rows",
+      "range": "<strong>{from}–{to}</strong> of {total} {noun}",
+      "rowsPerPage": "Rows per page",
+      "pagination": "Pagination",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "page": "Page {page}",
+      "addFilter": "Add filter",
+      "filter": "Filter",
+      "filterBy": "Filter by…",
+      "active": "Active",
+      "all": "All",
+      "is": "is",
+      "isAnyOf": "is any of",
+      "between": "between",
+      "after": "after",
+      "before": "before",
+      "editFilter": "{field} {operator} {value}. Edit",
+      "removeFilter": "Remove {field} filter",
+      "clear": "Clear",
+      "clearFilters": "Clear filters",
+      "noOptions": "No results"
+    }
+  }
+}

@@ -1,0 +1,188 @@
+{
+  "ds": {
+    "settings": {
+      "title": "Paramètres",
+      "back": "Retour à {place}",
+      "place": {
+        "home": "l’accueil",
+        "platformConsole": "la console Platform"
+      },
+      "you": "Vous",
+      "preferences": "Préférences",
+      "notifications": "Notifications",
+      "viewOnly": "Lecture seule",
+      "groupViewOnly": "{group}, lecture seule",
+      "loadingGroup": "Chargement de {group}",
+      "groupDidNotLoad": "{group} n’a pas pu être chargé",
+      "didNotLoad": "Échec du chargement",
+      "tryAgain": "Réessayer",
+      "saved": "Enregistré",
+      "sections": {
+        "preferences": "Préférences",
+        "notifications": "Notifications",
+        "company": "Entreprise",
+        "employee-fields": "Champs collaborateur",
+        "roles": "Rôles",
+        "invitations": "Invitations",
+        "change-history": "Historique des modifications",
+        "rating-scale": "Échelle de notation",
+        "competencies": "Compétences",
+        "review-questions": "Questions d’évaluation",
+        "reviews": "Évaluations",
+        "planning": "Planification",
+        "conversations": "Échanges",
+        "ai-and-data": "IA et données"
+      },
+      "changedBy": "Dernière modification par <b>{actor}</b> {when}",
+      "setUp": "Configuré {when}",
+      "when": {
+        "now": "à l’instant",
+        "minutes": "il y a {count} min",
+        "hours": "il y a {count} h",
+        "yesterday": "hier",
+        "on": "le {date}"
+      },
+      "loading": "Chargement des paramètres",
+      "unsavedChanges": "Modifications non enregistrées",
+      "changes": "{count, plural, one {# modification} other {# modifications}}",
+      "conflictBy": "{actor} a enregistré « {section} » {when}.",
+      "conflictSomeone": "Quelqu’un a enregistré cette section après son ouverture.",
+      "conflictReload": "Rechargez pour voir sa version ; votre modification sera perdue.",
+      "reload": "Recharger",
+      "discard": "Annuler",
+      "save": "Enregistrer",
+      "breadcrumb": "Fil d’Ariane"
+    },
+    "relative": {
+      "now": "À l’instant",
+      "minutes": "Il y a {count} min",
+      "hours": "Il y a {count} h",
+      "yesterday": "Hier",
+      "days": "{count, plural, one {Il y a # jour} other {Il y a # jours}}"
+    },
+    "sidebar": {
+      "navigation": "Navigation Fusion",
+      "expand": "Déplier la barre latérale",
+      "collapse": "Replier la barre latérale",
+      "home": "Accueil",
+      "modules": "Modules",
+      "recent": "Récents",
+      "switchModule": "Changer de module",
+      "switchModuleCurrent": "Changer de module, actuel : {module}",
+      "currentModule": "Module actuel",
+      "loadingNavigation": "Chargement de la navigation",
+      "loadingAccount": "Chargement du compte",
+      "signIn": "Se connecter",
+      "settings": "Paramètres",
+      "signOut": "Se déconnecter",
+      "moduleDescriptions": {
+        "core": "Collaborateurs et organisation",
+        "performance": "Objectifs, échanges et évaluations",
+        "learning": "Formations et sessions",
+        "recruitment": "Suivi des recrutements",
+        "onboarding": "Parcours d’intégration",
+        "interview": "Évaluation des candidats"
+      },
+      "myProfile": "Mon profil"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "trigger": "{count, plural, =0 {Notifications} one {Notifications, # non lue} other {Notifications, # non lues}}",
+      "markAllRead": "Tout marquer comme lu",
+      "filterByModule": "Filtrer par module",
+      "all": "Toutes",
+      "empty": "Aucune notification pour l’instant",
+      "unread": "Non lue",
+      "moduleFailed": "Impossible de charger les notifications {module}",
+      "stamp": {
+        "now": "maintenant",
+        "minutes": "{count} min",
+        "hours": "{count} h",
+        "yesterday": "Hier"
+      }
+    },
+    "work": {
+      "empty": "Rien ne vous attend pour l’instant",
+      "loadingModule": "Chargement des tâches {module}",
+      "moduleFailed": "Impossible de charger les tâches {module}",
+      "due": {
+        "late": "{count, plural, one {# jour de retard} other {# jours de retard}}",
+        "today": "Échéance aujourd’hui",
+        "tomorrow": "Échéance demain",
+        "left": "{count, plural, one {# jour restant} other {# jours restants}}"
+      },
+      "open": "Ouvrir"
+    },
+    "home": {
+      "whereThisStands": "Avancement",
+      "stepDone": " (terminé)",
+      "stepNow": " (en cours)",
+      "mostImportant": "Le plus important",
+      "next": "Ensuite",
+      "leadUnit": {
+        "late": "{count, plural, one {jour de retard} other {jours de retard}}",
+        "today": "échéance aujourd’hui",
+        "left": "{count, plural, one {jour restant} other {jours restants}}"
+      },
+      "dueOn": "Échéance le {date}",
+      "nothingToday": "Rien ne vous attend aujourd’hui",
+      "today": "Aujourd’hui",
+      "tomorrow": "Demain",
+      "inDays": "{count, plural, one {Dans # jour} other {Dans # jours}}",
+      "openOneOnOne": "Ouvrir l’entretien",
+      "view": "Voir",
+      "nothingNow": "Rien ne vous attend pour l’instant",
+      "nothingScheduledLead": "Aucune tâche ni rendez-vous dans les deux prochaines semaines",
+      "nothingScheduled": "Rien de prévu dans les deux prochaines semaines",
+      "agendaDue": "Échéance : {title}",
+      "datesFailed": "Impossible de charger les dates {module}"
+    },
+    "states": {
+      "loading": "Chargement",
+      "loadingList": "Chargement de la liste",
+      "loadingPage": "Chargement de la page",
+      "tryAgain": "Réessayer"
+    },
+    "breadcrumb": {
+      "details": "Détails"
+    },
+    "password": {
+      "show": "Afficher les caractères",
+      "hide": "Masquer les caractères",
+      "strength": "Robustesse du mot de passe",
+      "met": " — respecté",
+      "notMet": " — pas encore respecté"
+    },
+    "invitation": {
+      "loading": "Chargement de l’invitation"
+    },
+    "table": {
+      "search": "Rechercher…",
+      "clearSearch": "Effacer la recherche",
+      "noResults": "Aucun résultat",
+      "row": "ligne",
+      "rows": "lignes",
+      "range": "<strong>{from}–{to}</strong> sur {total} {noun}",
+      "rowsPerPage": "Lignes par page",
+      "pagination": "Pagination",
+      "previousPage": "Page précédente",
+      "nextPage": "Page suivante",
+      "page": "Page {page}",
+      "addFilter": "Ajouter un filtre",
+      "filter": "Filtrer",
+      "filterBy": "Filtrer par…",
+      "active": "Actif",
+      "all": "Tous",
+      "is": "est",
+      "isAnyOf": "est l’un de",
+      "between": "entre",
+      "after": "après le",
+      "before": "avant le",
+      "editFilter": "{field} {operator} {value}. Modifier",
+      "removeFilter": "Retirer le filtre {field}",
+      "clear": "Effacer",
+      "clearFilters": "Effacer les filtres",
+      "noOptions": "Aucun résultat"
+    }
+  }
+}

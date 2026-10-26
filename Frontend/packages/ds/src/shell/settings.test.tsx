@@ -3,6 +3,8 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { FusionSidebar } from "./fusion-sidebar";
 import { LastChange, SettingsPage, SettingsSaveBar } from "./settings";
 import type { FusionSidebarProps, FusionSidebarSettings } from "./types";
+import { renderWithIntl } from "../testing/intl";
+import fr from "../messages/fr.json";
 
 beforeEach(() => {
   vi.stubGlobal("matchMedia", (query: string) => ({
@@ -22,11 +24,12 @@ const settings: FusionSidebarSettings = {
   groups: [
     {
       key: "you",
-      label: "You",
+      // As @repo/api serves them: message keys, which the sidebar shows in the person's language.
+      label: "settings.you",
       status: "ready",
       sections: [
-        { id: "preferences", label: "Preferences", path: "/settings", access: "manage" },
-        { id: "notifications", label: "Notifications", path: "/settings/notifications", access: "manage" },
+        { id: "preferences", label: "settings.preferences", path: "/settings", access: "manage" },
+        { id: "notifications", label: "settings.notifications", path: "/settings/notifications", access: "manage" },
       ],
     },
     {
@@ -34,14 +37,18 @@ const settings: FusionSidebarSettings = {
       label: "Core HR",
       status: "ready",
       viewOnly: true,
-      sections: [{ id: "employee-fields", label: "Employee fields", path: "/core/settings/employee-fields", access: "view" }],
+      sections: [
+        { id: "employee-fields", label: "Employee fields", path: "/core/settings/employee-fields", access: "view" },
+        // A section the server added before the catalogue knew it: shown as the module named it.
+        { id: "payroll-export", label: "Payroll export", path: "/core/settings/payroll-export", access: "view" },
+      ],
     },
     { key: "performance", label: "Performance", status: "error", sections: [], retry: vi.fn() },
   ],
 };
 
-function renderSettings(props: Partial<FusionSidebarProps> = {}) {
-  return render(
+function renderSettings(props: Partial<FusionSidebarProps> = {}, locale: "en" | "fr" = "en") {
+  return renderWithIntl(
     <FusionSidebar
       mode="settings"
       settings={settings}
@@ -53,6 +60,7 @@ function renderSettings(props: Partial<FusionSidebarProps> = {}) {
       person={{ name: "Sami Ferchichi", detail: "HR partner", onSignOut: vi.fn() }}
       {...props}
     />,
+    locale === "fr" ? { locale, messages: fr } : {},
   );
 }
 
@@ -88,6 +96,23 @@ describe("FusionSidebar in settings mode", () => {
     expect(screen.getByRole("link", { name: "Employee fields" })).toBeInTheDocument();
   });
 
+  it("speaks French when the person's language is French, naming known sections from the catalogue", () => {
+    renderSettings({ settings: { ...settings, back: { href: "/", label: "settings.place.home" } } }, "fr");
+    const nav = screen.getByRole("complementary", { name: "Navigation Fusion" });
+    expect(within(nav).getByRole("link", { name: "Retour à l’accueil" })).toHaveAttribute("href", "/");
+    expect(within(nav).getAllByRole("group").map((group) => group.getAttribute("aria-label"))).toEqual([
+      "Vous",
+      "Core HR, lecture seule",
+      "Performance",
+    ]);
+    expect(screen.getByRole("link", { name: "Préférences" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Champs collaborateur" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Payroll export" })).toBeInTheDocument();
+    expect(screen.getByText("Échec du chargement")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Réessayer" })).toBeInTheDocument();
+    expect(screen.getByText("Vous").closest("[lang]")).toHaveAttribute("lang", "fr");
+  });
+
   it("outside settings, remembers the page so Back can return to it", () => {
     window.history.replaceState(null, "", "/core/people?tab=all");
     render(
@@ -113,6 +138,16 @@ describe("Settings page parts", () => {
     expect(screen.getByText("Amira Khelifi")).toBeInTheDocument();
     rerender(<LastChange setUpAt="2026-10-20T09:00:00Z" now={now} />);
     expect(screen.getByText(/Set up on 20 Oct 2026/)).toBeInTheDocument();
+  });
+
+  it("says who changed it and when in French", () => {
+    const now = new Date("2026-10-24T10:00:00Z");
+    renderWithIntl(<LastChange change={{ actorName: "Amira Khelifi", at: "2026-10-24T09:48:00Z" }} now={now} />, {
+      locale: "fr",
+      messages: fr,
+    });
+    expect(screen.getByText(/Dernière modification par/)).toHaveTextContent("Dernière modification par Amira Khelifi il y a 12 min");
+    expect(screen.getByText("Amira Khelifi")).toHaveClass("font-semibold");
   });
 
   it("marks a view-only page and renders the title before values load", () => {
@@ -163,5 +198,25 @@ describe("SettingsSaveBar", () => {
     expect(screen.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Reload" }));
     expect(handlers.onReload).toHaveBeenCalled();
+  });
+
+  it("speaks French, naming the section from the catalogue", () => {
+    renderWithIntl(
+      <SettingsSaveBar
+        changes={2}
+        conflict={{ actorName: "Amira Khelifi", section: "Reviews", sectionId: "reviews", at: new Date().toISOString() }}
+        {...handlers}
+      />,
+      { locale: "fr", messages: fr },
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Amira Khelifi a enregistré « Évaluations » à l’instant.");
+    expect(screen.getByRole("button", { name: "Recharger" })).toBeInTheDocument();
+  });
+
+  it("counts staged changes in French", () => {
+    renderWithIntl(<SettingsSaveBar changes={2} {...handlers} />, { locale: "fr", messages: fr });
+    expect(screen.getByText("2 modifications")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enregistrer" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Annuler" })).toBeInTheDocument();
   });
 });

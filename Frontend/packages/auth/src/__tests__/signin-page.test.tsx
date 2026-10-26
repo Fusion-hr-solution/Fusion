@@ -6,6 +6,9 @@ import { SignInPage } from "../components/signin-page";
 import { AuthProvider } from "../auth-context";
 import * as authService from "../auth-service";
 import { makeAuthResponse, makeApiError, makeStoredAuth } from "./helpers";
+import { IntlTestProvider } from "@repo/ds/testing";
+import dsFr from "@repo/ds/messages/fr.json";
+import fr from "../messages/fr.json";
 
 // Mock next/navigation
 const mockSearchParamGet = vi.fn<(key: string) => string | null>();
@@ -227,6 +230,40 @@ describe("SignInPage", () => {
       await waitFor(() => {
         expect(screen.getByText(/invalid email or password/i)).toBeInTheDocument();
       });
+    });
+
+    it("names wrong credentials in the catalogue's words", async () => {
+      mockedService.login.mockRejectedValue(makeApiError(["Invalid credentials."], 401));
+      renderSignInPage();
+
+      await userEvent.type(screen.getByLabelText(/email/i), "test@example.com");
+      await userEvent.type(screen.getByLabelText(/password/i), "wrongpassword");
+      await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+      expect(await screen.findByText("Invalid credentials.")).toBeInTheDocument();
+    });
+
+    it("says a failed sign-in in French, never with the server's English", async () => {
+      mockedService.login.mockRejectedValueOnce(makeApiError(["Invalid credentials."], 401));
+      render(
+        <IntlTestProvider locale="fr" messages={{ ...dsFr, ...fr }}>
+          <AuthProvider>
+            <SignInPage />
+          </AuthProvider>
+        </IntlTestProvider>
+      );
+
+      expect(screen.getByRole("heading", { name: "Connexion" })).toBeInTheDocument();
+      await userEvent.type(screen.getByLabelText("Adresse e-mail"), "test@example.com");
+      await userEvent.type(screen.getByLabelText("Mot de passe"), "wrongpassword");
+      await userEvent.click(screen.getByRole("button", { name: "Se connecter" }));
+      expect(await screen.findByText("Adresse e-mail ou mot de passe incorrect.")).toBeInTheDocument();
+
+      mockedService.login.mockRejectedValueOnce(makeApiError(["Something exploded"], 500));
+      await userEvent.click(screen.getByRole("button", { name: "Se connecter" }));
+      expect(await screen.findByText("Connexion impossible. Réessayez.")).toBeInTheDocument();
+      expect(screen.queryByText("Something exploded")).not.toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Conditions d’utilisation" })).toBeInTheDocument();
     });
 
     it("resets isSubmitting after submission", async () => {

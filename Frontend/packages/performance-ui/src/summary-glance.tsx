@@ -145,7 +145,7 @@ export function SummaryGlance({
       aria-label="At a glance"
       className="grid gap-6 rounded-surface bg-card p-5 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)] md:divide-x md:divide-border md:gap-0"
     >
-      <div className="md:pr-6">
+      <div className="md:pe-6">
         <h3 className="mb-3 type-meta text-muted-foreground">{cycle ? `Plan, ${cycle.cycleName}` : "Plan"}</h3>
         <PlanFact cycle={cycle} />
       </div>
@@ -155,7 +155,7 @@ export function SummaryGlance({
             <h3 className="mb-3 type-meta text-muted-foreground">Review</h3>
             <ReviewStepTrack reviews={reviews} />
           </div>
-          <div className="md:pl-6">
+          <div className="md:ps-6">
             <h3 className="mb-3 type-meta text-muted-foreground">Results</h3>
             <ResultsOverTime reviews={reviews} />
           </div>

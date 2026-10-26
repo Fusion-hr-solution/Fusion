@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "../lib/utils";
 
 /**
@@ -31,10 +32,10 @@ export function InvitationWordmark({ className }: { className?: string }) {
 function BrandBackdrop() {
   return (
     <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-      <span className="absolute -top-32 -left-24 h-[34rem] w-[34rem] rounded-full bg-primary/10 blur-[130px]" />
-      <span className="absolute top-1/2 right-[-22rem] aspect-square w-[52rem] -translate-y-1/2 rounded-full border border-white/[0.06]" />
-      <span className="absolute top-1/2 right-[-16rem] aspect-square w-[40rem] -translate-y-1/2 rounded-full border border-white/[0.05]" />
-      <span className="absolute top-1/2 right-[-10rem] aspect-square w-[28rem] -translate-y-1/2 rounded-full border border-white/[0.04]" />
+      <span className="absolute -top-32 -inset-s-24 h-[34rem] w-[34rem] rounded-full bg-primary/10 blur-[130px]" />
+      <span className="absolute top-1/2 inset-e-[-22rem] aspect-square w-[52rem] -translate-y-1/2 rounded-full border border-white/[0.06]" />
+      <span className="absolute top-1/2 inset-e-[-16rem] aspect-square w-[40rem] -translate-y-1/2 rounded-full border border-white/[0.05]" />
+      <span className="absolute top-1/2 inset-e-[-10rem] aspect-square w-[28rem] -translate-y-1/2 rounded-full border border-white/[0.04]" />
     </div>
   );
 }
@@ -59,7 +60,7 @@ export function InvitationTransactionFrame({
 }) {
   return (
     <main className="dark min-h-screen bg-background text-foreground lg:grid lg:grid-cols-[44fr_56fr]">
-      <div className="relative isolate overflow-hidden border-b border-border bg-[oklch(0.18_0.018_264)] px-6 py-10 sm:px-10 lg:border-b-0 lg:border-r lg:py-12">
+      <div className="relative isolate overflow-hidden border-b border-border bg-[oklch(0.18_0.018_264)] px-6 py-10 sm:px-10 lg:border-b-0 lg:border-e lg:py-12">
         <BrandBackdrop />
         <div className="relative h-full">{context}</div>
       </div>
@@ -75,6 +76,7 @@ export function InvitationTransactionFrame({
 /** Shared token-resolution state. It preserves the split transaction geometry
  * while the server determines which invitation journey is safe to show. */
 export function InvitationTransactionLoading() {
+  const t = useTranslations("ds.invitation");
   return (
     <InvitationTransactionFrame
       context={
@@ -90,7 +92,7 @@ export function InvitationTransactionLoading() {
         </div>
       }
     >
-      <div className="animate-pulse space-y-5 motion-reduce:animate-none" aria-label="Loading invitation">
+      <div className="animate-pulse space-y-5 motion-reduce:animate-none" aria-label={t("loading")}>
         <div className="h-8 w-3/4 rounded-control bg-muted" />
         <div className="grid grid-cols-2 gap-5">
           <div className="h-11 rounded-control bg-muted" />

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Check, Eye, EyeOff, Lock, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   Field,
   FieldError,
@@ -52,6 +53,7 @@ export function PasswordStrengthField({
   error?: string;
   autoComplete?: string;
 }) {
+  const t = useTranslations("ds.password");
   const [reveal, setReveal] = useState(false);
 
   // Advisory strength, scored over required rules plus optional complexity.
@@ -79,7 +81,7 @@ export function PasswordStrengthField({
           <InputGroupButton
             size="icon-sm"
             onClick={() => setReveal((shown) => !shown)}
-            aria-label={reveal ? "Hide characters" : "Show characters"}
+            aria-label={reveal ? t("hide") : t("show")}
           >
             {reveal ? <EyeOff /> : <Eye />}
           </InputGroupButton>
@@ -93,7 +95,7 @@ export function PasswordStrengthField({
         aria-valuemin={0}
         aria-valuemax={5}
         aria-valuenow={score}
-        aria-label="Password strength"
+        aria-label={t("strength")}
       >
         {Array.from({ length: 5 }).map((_, i) => (
           <span
@@ -129,7 +131,7 @@ export function PasswordStrengthField({
               >
                 {check.label}
                 <span className="sr-only">
-                  {check.satisfied ? " — met" : " — not yet met"}
+                  {check.satisfied ? t("met") : t("notMet")}
                 </span>
               </span>
             </li>

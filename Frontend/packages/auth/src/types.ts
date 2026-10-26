@@ -43,6 +43,8 @@ export interface AuthResponse {
   employeeId?: string | null;
   accessProfiles: AccessProfileAssignmentSummaryDto[];
   effectivePermissions: EffectivePermissionGrantDto[];
+  /** The person's language: their choice, else their tenant's, else `en`. */
+  language: string;
 }
 
 // ── Client-side auth state ───────────────────────────────────────────
@@ -64,6 +66,8 @@ export interface AuthUser {
   employeeId?: string | null;
   accessProfiles: AccessProfileAssignmentSummaryDto[];
   effectivePermissions: EffectivePermissionGrantDto[];
+  /** As Identity resolved it. Sessions stored before it existed lack it. */
+  language?: string;
 }
 
 export interface AuthState {
@@ -79,4 +83,10 @@ export interface StoredAuth {
   refreshToken: string;
   accessTokenExpiration: string;
   user: AuthUser;
+}
+
+/** Why a sign-in didn't succeed: the server's status (null when it couldn't be reached) and its messages. */
+export interface LoginFailure {
+  status: number | null;
+  messages: string[];
 }

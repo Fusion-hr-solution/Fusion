@@ -14,6 +14,9 @@
     "test:watch": "vitest",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@repo/i18n": "workspace:*"
+  },
   "peerDependencies": {
     "react": ">=18",
     "@tanstack/react-query": ">=5"

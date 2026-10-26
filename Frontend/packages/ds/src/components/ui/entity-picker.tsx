@@ -131,7 +131,7 @@ export function EntityPicker({
         }
       >
         {selection ? (
-          <span className="flex min-w-0 items-center gap-2.5 text-left">
+          <span className="flex min-w-0 items-center gap-2.5 text-start">
             {selection.media}
             <span className="min-w-0 truncate text-sm font-medium text-foreground">
               {selection.title}

@@ -64,7 +64,9 @@ describe("useFusionSettings", () => {
     });
     await waitFor(() => expect(result.current.groups.every((group) => group.status === "ready")).toBe(true));
     expect(result.current.groups.map((group) => group.key)).toEqual(["you", "core", "performance"]);
-    expect(result.current.groups[0]!.sections.map((s) => s.label)).toEqual(["Preferences", "Notifications"]);
+    expect(result.current.groups[0]!.sections.map((s) => s.label)).toEqual(["settings.preferences", "settings.notifications"]);
+    // @repo/ds message keys: the sidebar shows them in the person's language.
+    expect(result.current.groups[0]!.label).toBe("settings.you");
     expect(result.current.groups[1]!.viewOnly).toBe(false);
     expect(result.current.groups[2]!.viewOnly).toBe(true);
   });
@@ -115,10 +117,10 @@ describe("settings return", () => {
   });
 
   it("falls back to Home, or the Platform console for a platform administrator", () => {
-    expect(readSettingsReturn(window.sessionStorage)).toEqual({ href: "/", label: "Home" });
+    expect(readSettingsReturn(window.sessionStorage)).toEqual({ href: "/", label: "settings.place.home" });
     expect(readSettingsReturn(window.sessionStorage, { platformAdministrator: true })).toEqual({
       href: "/platform",
-      label: "Platform console",
+      label: "settings.place.platformConsole",
     });
   });
 

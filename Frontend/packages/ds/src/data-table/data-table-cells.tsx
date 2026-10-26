@@ -86,7 +86,7 @@ export function DataTableCellProgress({
           style={{ width: `${clamped}%` }}
         />
       </span>
-      <span className="w-9 shrink-0 text-right text-sm font-medium tabular-nums text-foreground">
+      <span className="w-9 shrink-0 text-end text-sm font-medium tabular-nums text-foreground">
         {Math.round(clamped)}%
       </span>
     </div>
@@ -109,7 +109,7 @@ export function DataTableRowChevron() {
   return (
     <ChevronRight
       aria-hidden
-      className="ml-auto size-4 text-muted-foreground/50 transition-colors group-hover/row:text-primary group-focus-visible/row:text-primary"
+      className="ms-auto size-4 text-muted-foreground/50 transition-colors group-hover/row:text-primary group-focus-visible/row:text-primary"
     />
   );
 }

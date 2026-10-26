@@ -46,7 +46,7 @@ export function SummaryObjectives({ cycle, renderLink }: { cycle: PersonSummaryC
                         </span>
                       </span>
                       {objective.weight !== null ? (
-                        <span className="w-12 shrink-0 text-right type-meta tabular-nums text-muted-foreground">
+                        <span className="w-12 shrink-0 text-end type-meta tabular-nums text-muted-foreground">
                           {weightPercent(objective.weight)}%
                         </span>
                       ) : null}
@@ -57,7 +57,7 @@ export function SummaryObjectives({ cycle, renderLink }: { cycle: PersonSummaryC
                             style={{ width: `${Math.min(objective.progress ?? 0, 100)}%` }}
                           />
                         </span>
-                        <span className="w-9 text-right type-meta tabular-nums text-foreground">
+                        <span className="w-9 text-end type-meta tabular-nums text-foreground">
                           {objective.progress === null ? "–" : `${percent(objective.progress)}%`}
                         </span>
                       </span>

@@ -1,0 +1,22 @@
+{
+  "auth": {
+    "signIn": {
+      "title": "Connexion",
+      "subtitle": "Connectez-vous à votre compte",
+      "email": "Adresse e-mail",
+      "emailPlaceholder": "nom@entreprise.com",
+      "password": "Mot de passe",
+      "showCharacters": "Afficher les caractères",
+      "hideCharacters": "Masquer les caractères",
+      "rememberMe": "Se souvenir de moi",
+      "forgotPassword": "Mot de passe oublié ?",
+      "submit": "Se connecter",
+      "submitting": "Connexion…",
+      "or": "ou",
+      "sso": "Se connecter avec le SSO",
+      "agreement": "En vous connectant, vous acceptez nos <terms>Conditions d’utilisation</terms> et notre <privacy>Politique de confidentialité</privacy>.",
+      "invalidCredentials": "Adresse e-mail ou mot de passe incorrect.",
+      "failed": "Connexion impossible. Réessayez."
+    }
+  }
+}

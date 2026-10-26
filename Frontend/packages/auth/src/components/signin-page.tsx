@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, Landmark, Lock, Mail } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   Alert,
   AlertDescription,
@@ -20,7 +21,7 @@ import {
 } from "@repo/ds";
 import { useAuth } from "../auth-context";
 import { loadAuth } from "../auth-service";
-import type { AuthUser } from "../types";
+import type { AuthUser, LoginFailure } from "../types";
 import {
   landingRequiresOrganizationReadiness,
   resolvePostSignInDestination,
@@ -40,6 +41,21 @@ function intendedDestination(searchParams: Pick<URLSearchParams, "get">): string
   return searchParams.get("callbackUrl") ?? searchParams.get("next");
 }
 
+/**
+ * What a failed sign-in says. Identity answers wrong credentials with a 401 and no code, so that case is the
+ * catalogue's line; any other answer reads as the server wrote it in English, and as a generic line in other
+ * languages (server text is translated in a later phase).
+ */
+function failureMessages(
+  failure: LoginFailure,
+  locale: string,
+  t: ReturnType<typeof useTranslations<"auth.signIn">>,
+): string[] {
+  if (failure.status === 401) return [t("invalidCredentials")];
+  if (locale === "en" && failure.messages.length > 0) return failure.messages;
+  return [t("failed")];
+}
+
 function navigateToRedirectTarget(target: string, mode: "push" | "replace") {
   if (mode === "replace") {
     window.location.replace(target);
@@ -51,6 +67,8 @@ function navigateToRedirectTarget(target: string, mode: "push" | "replace") {
 export function SignInPage({
   onSuccess,
 }: SignInPageProps) {
+  const t = useTranslations("auth.signIn");
+  const locale = useLocale();
   const searchParams = useSearchParams();
   const { login, user, isLoading: authLoading, isAuthenticated } = useAuth();
   const intended = intendedDestination(searchParams);
@@ -108,7 +126,7 @@ export function SignInPage({
     try {
       const result = await login({ email, password });
       if (result) {
-        setErrors(result);
+        setErrors(failureMessages(result, locale, t));
       } else {
         await finishSignIn(loadAuth()?.user ?? null, "push");
       }
@@ -118,7 +136,7 @@ export function SignInPage({
   };
 
   return (
-    <div className="dark relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10 text-foreground">
+    <div lang={locale} className="dark relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10 text-foreground">
       {/* Ambient brand glow — quiet, token-driven, never competes with the card. */}
       <div
         aria-hidden
@@ -131,9 +149,9 @@ export function SignInPage({
             <Wordmark />
 
             <div className="flex flex-col items-center gap-1 text-center">
-              <h1 className="type-page-title text-card-foreground">Sign in</h1>
+              <h1 className="type-page-title text-card-foreground">{t("title")}</h1>
               <p className="type-body text-muted-foreground">
-                Sign in to your account
+                {t("subtitle")}
               </p>
             </div>
           </div>
@@ -155,7 +173,7 @@ export function SignInPage({
 
               <Field>
                 <FieldLabel htmlFor="email" className="text-card-foreground">
-                  Email
+                  {t("email")}
                 </FieldLabel>
                 <InputGroup className="h-11">
                   <InputGroupAddon>
@@ -164,7 +182,7 @@ export function SignInPage({
                   <InputGroupInput
                     id="email"
                     type="email"
-                    placeholder="name@company.com"
+                    placeholder={t("emailPlaceholder")}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -175,7 +193,7 @@ export function SignInPage({
 
               <Field>
                 <FieldLabel htmlFor="password" className="text-card-foreground">
-                  Password
+                  {t("password")}
                 </FieldLabel>
                 <InputGroup className="h-11">
                   <InputGroupAddon>
@@ -195,7 +213,7 @@ export function SignInPage({
                       size="icon-sm"
                       onClick={() => setShowPassword((prev) => !prev)}
                       aria-label={
-                        showPassword ? "Hide characters" : "Show characters"
+                        showPassword ? t("hideCharacters") : t("showCharacters")
                       }
                     >
                       {showPassword ? <EyeOff /> : <Eye />}
@@ -214,13 +232,13 @@ export function SignInPage({
                     checked={rememberMe}
                     onCheckedChange={(value) => setRememberMe(value === true)}
                   />
-                  Remember me
+                  {t("rememberMe")}
                 </Label>
                 <button
                   type="button"
                   className="type-label text-primary transition-colors hover:text-primary/80 focus-visible:underline focus-visible:outline-none"
                 >
-                  Forgot password?
+                  {t("forgotPassword")}
                 </button>
               </div>
 
@@ -231,17 +249,17 @@ export function SignInPage({
                 disabled={isSubmitting || authLoading}
               >
                 {isSubmitting ? (
-                  "Signing in…"
+                  t("submitting")
                 ) : (
                   <>
-                    Sign in
+                    {t("submit")}
                     <ArrowRight />
                   </>
                 )}
               </Button>
 
               <FieldSeparator className="[&_[data-slot=field-separator-content]]:bg-card">
-                or
+                {t("or")}
               </FieldSeparator>
 
               <Button
@@ -251,22 +269,25 @@ export function SignInPage({
                 className="h-11 w-full text-sm"
               >
                 <Landmark />
-                Sign in with SSO
+                {t("sso")}
               </Button>
             </FieldGroup>
           </form>
         </div>
 
         <p className="mt-6 px-6 text-center type-meta text-muted-foreground">
-          By signing in, you agree to our{" "}
-          <a href="#" className="text-primary hover:underline">
-            Terms
-          </a>{" "}
-          and{" "}
-          <a href="#" className="text-primary hover:underline">
-            Privacy Policy
-          </a>
-          .
+          {t.rich("agreement", {
+            terms: (chunks) => (
+              <a href="#" className="text-primary hover:underline">
+                {chunks}
+              </a>
+            ),
+            privacy: (chunks) => (
+              <a href="#" className="text-primary hover:underline">
+                {chunks}
+              </a>
+            ),
+          })}
         </p>
       </div>
     </div>

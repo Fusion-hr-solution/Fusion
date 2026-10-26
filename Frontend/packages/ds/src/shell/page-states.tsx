@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 import { AlertTriangle, Inbox, Lock } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "../lib/utils";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
@@ -67,10 +68,11 @@ export function PageError({
   title,
   description,
   onRetry,
-  retryLabel = "Try again",
+  retryLabel,
   className,
   headingLevel,
 }: PageErrorProps) {
+  const t = useTranslations("ds.states");
   return (
     <StateShell
       icon={AlertTriangle}
@@ -81,7 +83,7 @@ export function PageError({
       action={
         onRetry ? (
           <Button variant="outline" size="sm" onClick={onRetry}>
-            {retryLabel}
+            {retryLabel ?? t("tryAgain")}
           </Button>
         ) : undefined
       }
@@ -98,8 +100,9 @@ export interface PageLoadingProps {
 
 /** Calm, specific loading state (skeleton rows). */
 export function PageLoading({ rows = 5, className, label }: PageLoadingProps) {
+  const t = useTranslations("ds.states");
   return (
-    <div className={cn("space-y-2", className)} aria-busy aria-label={label ?? "Loading"}>
+    <div className={cn("space-y-2", className)} aria-busy aria-label={label ?? t("loading")}>
       {Array.from({ length: rows }).map((_, i) => (
         <Skeleton key={i} className="h-12 w-full" />
       ))}
@@ -121,8 +124,9 @@ export interface PageListSkeletonProps {
  * a full list regardless of how many rows load.
  */
 export function PageListSkeleton({ rows = 3, className, label }: PageListSkeletonProps) {
+  const t = useTranslations("ds.states");
   return (
-    <div className={cn("space-y-3", className)} aria-busy aria-label={label ?? "Loading list"}>
+    <div className={cn("space-y-3", className)} aria-busy aria-label={label ?? t("loadingList")}>
       <div className="rounded-surface border border-border bg-card p-6">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
           <div className="min-w-0 flex-1 space-y-2.5">
@@ -172,9 +176,10 @@ export interface PageSkeletonProps {
  * loading boundaries and access-resolution holds inside the app shell.
  */
 export function PageSkeleton({ rows = 6, width = "default", label }: PageSkeletonProps) {
+  const t = useTranslations("ds.states");
   return (
     <PageContainer width={width}>
-      <div aria-busy aria-label={label ?? "Loading page"}>
+      <div aria-busy aria-label={label ?? t("loadingPage")}>
         <div className="mb-6 space-y-2">
           <Skeleton className="h-7 w-48" />
           <Skeleton className="h-4 w-80 max-w-full" />

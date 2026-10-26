@@ -2,6 +2,7 @@
 
 import type { RowData } from "@tanstack/react-table";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "../components/ui/button";
 import {
   Select,
@@ -52,7 +53,7 @@ const DEFAULT_PAGE_SIZES = [5, 10, 25, 50];
  */
 export function DataTablePagination<TData extends RowData>({
   model,
-  noun = ["row", "rows"],
+  noun,
   pageSizes = DEFAULT_PAGE_SIZES,
   className,
 }: {
@@ -63,7 +64,9 @@ export function DataTablePagination<TData extends RowData>({
   pageSizes?: number[];
   className?: string;
 }) {
+  const t = useTranslations("ds.table");
   const { table } = model;
+  const [one, many] = noun ?? [t("row"), t("rows")];
   const total = table.getRowCount();
   const { pageIndex, pageSize } = table.state.pagination;
   const pageCount = Math.max(1, table.getPageCount());
@@ -81,21 +84,24 @@ export function DataTablePagination<TData extends RowData>({
       )}
     >
       <p className="text-sm tabular-nums text-muted-foreground">
-        <span className="text-foreground">
-          {from}–{to}
-        </span>{" "}
-        of {total} {total === 1 ? noun[0] : noun[1]}
+        {t.rich("range", {
+          from,
+          to,
+          total,
+          noun: total === 1 ? one : many,
+          strong: (chunks) => <span className="text-foreground">{chunks}</span>,
+        })}
       </p>
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="hidden sm:inline">Rows per page</span>
+          <span className="hidden sm:inline">{t("rowsPerPage")}</span>
           <Select
             value={String(pageSize)}
             onValueChange={(value) => table.setPageSize(Number(value))}
           >
             <SelectTrigger
               size="sm"
-              aria-label="Rows per page"
+              aria-label={t("rowsPerPage")}
               className="tabular-nums"
             >
               <SelectValue />
@@ -113,11 +119,11 @@ export function DataTablePagination<TData extends RowData>({
             </SelectContent>
           </Select>
         </div>
-        <nav aria-label="Pagination" className="flex items-center gap-0.5">
+        <nav aria-label={t("pagination")} className="flex items-center gap-0.5">
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Previous page"
+            aria-label={t("previousPage")}
             disabled={!table.getCanPreviousPage()}
             onClick={() => table.previousPage()}
           >
@@ -134,7 +140,7 @@ export function DataTablePagination<TData extends RowData>({
                 key={slot}
                 variant="ghost"
                 size="icon-sm"
-                aria-label={`Page ${slot + 1}`}
+                aria-label={t("page", { page: slot + 1 })}
                 aria-current={slot === pageIndex ? "page" : undefined}
                 onClick={() => table.setPageIndex(slot)}
                 className={cn(
@@ -158,7 +164,7 @@ export function DataTablePagination<TData extends RowData>({
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Next page"
+            aria-label={t("nextPage")}
             disabled={!table.getCanNextPage()}
             onClick={() => table.nextPage()}
           >

@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NotificationBell, relativeStamp, type NotificationBellItem } from "./notification-bell";
+import { renderWithIntl } from "../testing/intl";
+import fr from "../messages/fr.json";
 
 const now = new Date("2026-10-15T12:00:00Z");
 const performance = { key: "performance", label: "Performance", status: "ready" as const };
@@ -87,6 +89,18 @@ describe("NotificationBell", () => {
     await userEvent.click(screen.getByRole("button", { name: "Core HR" }));
     expect(screen.getByText("Core item")).toBeInTheDocument();
     expect(screen.queryByText("Nour submitted their plan 1")).not.toBeInTheDocument();
+  });
+
+  it("speaks French around the notifications themselves", async () => {
+    renderWithIntl(
+      <NotificationBell items={[item("1")]} unreadCount={1} modules={[performance]} onOpenItem={vi.fn()} onMarkAllRead={vi.fn()} now={now} />,
+      { locale: "fr", messages: fr },
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Notifications, 1 non lue" }));
+    expect(screen.getByRole("button", { name: "Tout marquer comme lu" })).toBeInTheDocument();
+    expect(screen.getByText("30 min")).toBeInTheDocument();
+    // The notification's own words come from the server and stay as sent until phase 5.
+    expect(screen.getByText("Nour submitted their plan 1")).toBeInTheDocument();
   });
 
   it("stamps time relatively", () => {

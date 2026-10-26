@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import {
   ArrowLeft,
   Award,
@@ -113,10 +114,10 @@ function initials(name: string): string {
 function Count({ value, collapsed }: { value?: number; collapsed: boolean }) {
   if (!value) return null;
   if (collapsed) {
-    return <span aria-hidden className="absolute top-1 right-1 size-1.5 rounded-full bg-foreground" />;
+    return <span aria-hidden className="absolute top-1 inset-e-1 size-1.5 rounded-full bg-foreground" />;
   }
   return (
-    <span className="ml-auto inline-grid h-5 min-w-[22px] place-items-center rounded-detail bg-inlay px-1.5 text-[11.5px] font-semibold tabular-nums text-foreground ring-1 ring-inset ring-border">
+    <span className="ms-auto inline-grid h-5 min-w-[22px] place-items-center rounded-detail bg-inlay px-1.5 text-[11.5px] font-semibold tabular-nums text-foreground ring-1 ring-inset ring-border">
       {value}
     </span>
   );
@@ -145,7 +146,7 @@ const BRAND_MARK =
   "grid size-9 shrink-0 place-items-center rounded-detail bg-primary text-base font-bold text-primary-foreground";
 
 function ActiveMark({ active }: { active: boolean }) {
-  return active ? <span className="absolute top-1/2 left-0 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" /> : null;
+  return active ? <span className="absolute top-1/2 inset-s-0 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary" /> : null;
 }
 
 function moduleIcon(module: Pick<FusionSidebarModule, "key" | "icon">) {
@@ -187,7 +188,13 @@ export function FusionSidebar({
   recent = [],
   person,
 }: FusionSidebarProps) {
+  const t = useTranslations("ds.sidebar");
+  const locale = useLocale();
   const [collapsed, setCollapsed] = useState(false);
+  const describeModule = (module: FusionSidebarModule) => {
+    const key = `moduleDescriptions.${module.key}` as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : module.description;
+  };
   const inSettings = mode === "settings" && settings !== undefined;
   const onHome = !currentModuleKey && !inSettings;
   const current = inSettings ? undefined : modules.find((module) => module.key === currentModuleKey);
@@ -213,12 +220,12 @@ export function FusionSidebar({
         collapsed,
         current.label,
         <DropdownMenuTrigger
-          aria-label={collapsed ? `Switch module, current: ${current.label}` : undefined}
+          aria-label={collapsed ? t("switchModuleCurrent", { module: current.label }) : undefined}
           className={cn(
-            "relative flex w-full items-center gap-2.5 rounded-control text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+            "relative flex w-full items-center gap-2.5 rounded-control text-start outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
             collapsed
               ? "justify-center p-1.5 hover:bg-inlay"
-              : "border border-border bg-card py-2 pr-2.5 pl-2 hover:bg-inlay data-[state=open]:ring-2 data-[state=open]:ring-ring",
+              : "border border-border bg-card py-2 pe-2.5 ps-2 hover:bg-inlay data-[state=open]:ring-2 data-[state=open]:ring-ring",
           )}
         >
           <ModuleMark module={current} emphasis />
@@ -232,22 +239,21 @@ export function FusionSidebar({
       )}
       <DropdownMenuContent align="start" side={collapsed ? "right" : "bottom"} className="w-[316px] p-1.5">
         <DropdownMenuLabel className="px-2.5 pt-2 pb-1.5 type-meta font-normal text-muted-foreground">
-          Switch module
+          {t("switchModule")}
         </DropdownMenuLabel>
         {modules.map((module) => {
           const active = module.key === current.key;
+          const description = describeModule(module);
           return (
             <DropdownMenuItem key={module.key} asChild className={cn("gap-2.5 rounded-inset px-2.5 py-2", active && "bg-inlay")}>
               <a href={module.href}>
                 <ModuleMark module={module} emphasis={active} />
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-sm font-semibold text-foreground">{module.label}</span>
-                  {module.description ? (
-                    <span className="truncate text-xs text-muted-foreground">{module.description}</span>
-                  ) : null}
+                  {description ? <span className="truncate text-xs text-muted-foreground">{description}</span> : null}
                 </span>
                 <Count value={module.count} collapsed={false} />
-                {active ? <Check aria-label="Current module" className="size-4 shrink-0 text-primary" /> : null}
+                {active ? <Check aria-label={t("currentModule")} className="size-4 shrink-0 text-primary" /> : null}
               </a>
             </DropdownMenuItem>
           );
@@ -260,9 +266,10 @@ export function FusionSidebar({
     <TooltipProvider delayDuration={300}>
       <aside
         data-collapsed={collapsed}
-        aria-label="Fusion navigation"
+        lang={locale}
+        aria-label={t("navigation")}
         className={cn(
-          "dark relative flex h-screen shrink-0 flex-col border-r border-border bg-section text-foreground transition-[width] duration-200",
+          "dark relative flex h-screen shrink-0 flex-col border-e border-border bg-section text-foreground transition-[width] duration-200",
           collapsed ? "w-[68px]" : "w-[264px]",
         )}
       >
@@ -271,8 +278,8 @@ export function FusionSidebar({
           {collapsed ? (
             withTooltip(
               true,
-              "Expand sidebar",
-              <button type="button" onClick={() => setCollapsed(false)} aria-label="Expand sidebar" className={BRAND_MARK}>
+              t("expand"),
+              <button type="button" onClick={() => setCollapsed(false)} aria-label={t("expand")} className={BRAND_MARK}>
                 F
               </button>,
             )
@@ -294,7 +301,7 @@ export function FusionSidebar({
               <button
                 type="button"
                 onClick={() => setCollapsed(true)}
-                aria-label="Collapse sidebar"
+                aria-label={t("collapse")}
                 className="grid size-7 shrink-0 place-items-center rounded-detail text-muted-foreground/70 transition-colors hover:bg-inlay hover:text-foreground"
               >
                 <PanelLeftClose className="size-4" />
@@ -316,11 +323,11 @@ export function FusionSidebar({
           {/* Home, always first */}
           {withTooltip(
             collapsed,
-            homeCount ? `Home ${homeCount}` : "Home",
-            <a href="/" aria-current={onHome ? "page" : undefined} aria-label={collapsed ? "Home" : undefined} className={rowClass(onHome, collapsed)}>
+            homeCount ? `${t("home")} ${homeCount}` : t("home"),
+            <a href="/" aria-current={onHome ? "page" : undefined} aria-label={collapsed ? t("home") : undefined} className={rowClass(onHome, collapsed)}>
               <ActiveMark active={onHome} />
               <Home className="size-4 shrink-0" />
-              {!collapsed ? <span className="flex-1 truncate">Home</span> : null}
+              {!collapsed ? <span className="flex-1 truncate">{t("home")}</span> : null}
               <Count value={homeCount} collapsed={collapsed} />
             </a>,
           )}
@@ -331,7 +338,7 @@ export function FusionSidebar({
             // Home has no current module: the modules are listed here instead of the switcher.
             <div>
               {!collapsed ? (
-                <p className="px-2.5 pt-1.5 pb-1.5 type-eyebrow text-muted-foreground/70">Modules</p>
+                <p className="px-2.5 pt-1.5 pb-1.5 type-eyebrow text-muted-foreground/70">{t("modules")}</p>
               ) : null}
               <ul className="flex flex-col gap-0.5">
                 {modules.map((module) => {
@@ -357,7 +364,7 @@ export function FusionSidebar({
               <div className="mb-2">{switcher}</div>
               {pending ? (
                 // Sections not known yet (session or workspace access resolving): stable rows in place.
-                <div aria-busy aria-label="Loading navigation" className="flex flex-col gap-0.5">
+                <div aria-busy aria-label={t("loadingNavigation")} className="flex flex-col gap-0.5">
                   {Array.from({ length: 5 }).map((_, i) => (
                     <div key={i} className={cn("flex items-center gap-3 px-2.5 py-2", collapsed && "justify-center")}>
                       <Skeleton className="size-4 shrink-0 rounded-detail" />
@@ -390,7 +397,7 @@ export function FusionSidebar({
 
               {recent.length > 0 && !collapsed ? (
                 <div className="mt-2">
-                  <p className="px-2.5 pt-3 pb-1.5 type-eyebrow text-muted-foreground/70">Recent</p>
+                  <p className="px-2.5 pt-3 pb-1.5 type-eyebrow text-muted-foreground/70">{t("recent")}</p>
                   <ul className="flex flex-col gap-0.5">
                     {recent.map((record) => (
                       <li key={record.href}>
@@ -495,9 +502,10 @@ function PersonPanel({
   links = [],
   onSignOut,
 }: FusionSidebarProps["person"] & { collapsed: boolean }) {
+  const t = useTranslations("ds.sidebar");
   if (pending) {
     return (
-      <div className={cn("flex items-center gap-2.5 p-1.5", collapsed && "justify-center")} aria-busy aria-label="Loading account">
+      <div className={cn("flex items-center gap-2.5 p-1.5", collapsed && "justify-center")} aria-busy aria-label={t("loadingAccount")}>
         <Skeleton className="size-8 shrink-0 rounded-full" />
         {!collapsed ? (
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -519,7 +527,7 @@ function PersonPanel({
         )}
       >
         <LogOut className="size-4 rotate-180" />
-        {!collapsed ? <span>Sign in</span> : null}
+        {!collapsed ? <span>{t("signIn")}</span> : null}
       </a>
     );
   }
@@ -529,7 +537,7 @@ function PersonPanel({
       <DropdownMenuTrigger
         aria-label={collapsed ? name : undefined}
         className={cn(
-          "flex w-full items-center gap-2.5 rounded-control p-1.5 text-left outline-none transition-colors hover:bg-inlay focus-visible:ring-2 focus-visible:ring-ring",
+          "flex w-full items-center gap-2.5 rounded-control p-1.5 text-start outline-none transition-colors hover:bg-inlay focus-visible:ring-2 focus-visible:ring-ring",
           collapsed && "justify-center",
         )}
       >
@@ -565,19 +573,44 @@ function PersonPanel({
         <DropdownMenuItem asChild>
           <a href={SETTINGS_HREF} onClick={rememberReturn} className="flex items-center gap-2.5">
             <Settings className="size-4" />
-            Settings
+            {t("settings")}
           </a>
         </DropdownMenuItem>
         {onSignOut ? <DropdownMenuSeparator /> : null}
         {onSignOut ? (
           <DropdownMenuItem onSelect={onSignOut} className="flex items-center gap-2.5">
             <LogOut className="size-4" />
-            Sign out
+            {t("signOut")}
           </DropdownMenuItem>
         ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/**
+ * Settings mode speaks the person's language. The You group, its sections and the Back place arrive from `@repo/api`
+ * as `ds` message keys; a module's own groups arrive as product names and are shown as they are.
+ */
+function useSettingsLabel(): (label: string) => string {
+  const t = useTranslations("ds");
+  return (label) => {
+    const key = label as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : label;
+  };
+}
+
+/**
+ * A settings section's name in the person's language: the catalogue's name for a section id Fusion knows, else the
+ * label the module sent (a section added on the server before its translation).
+ */
+export function useSettingsSectionName(): (section: { id: string; label: string }) => string {
+  const t = useTranslations("ds.settings.sections");
+  const label = useSettingsLabel();
+  return (section) => {
+    const key = section.id as Parameters<typeof t>[0];
+    return t.has(key) ? t(key) : label(section.label);
+  };
 }
 
 /** Settings mode: the way back, then each group with its sections (fusion-settings). */
@@ -592,7 +625,10 @@ function SettingsNavigation({
   basePath: string;
   collapsed: boolean;
 }) {
-  const backLabel = `Back to ${settings.back.label}`;
+  const t = useTranslations("ds.settings");
+  const locale = useLocale();
+  const label = useSettingsLabel();
+  const backLabel = t("back", { place: label(settings.back.label) });
   // The open section is the one whose address matches most of the path: Preferences (`/settings`) is not current on
   // Notifications (`/settings/notifications`).
   const current = settings.groups
@@ -600,7 +636,7 @@ function SettingsNavigation({
     .filter((section) => activePath === section.path || activePath.startsWith(`${section.path}/`))
     .sort((a, b) => b.path.length - a.path.length)[0]?.path;
   return (
-    <>
+    <div lang={locale} className="contents">
       {withTooltip(
         collapsed,
         backLabel,
@@ -626,7 +662,7 @@ function SettingsNavigation({
           collapsed={collapsed}
         />
       ))}
-    </>
+    </div>
   );
 }
 
@@ -643,18 +679,26 @@ function SettingsGroup({
   basePath: string;
   collapsed: boolean;
 }) {
+  const t = useTranslations("ds.settings");
+  const label = useSettingsLabel();
+  const sectionName = useSettingsSectionName();
+  const groupLabel = label(group.label);
   return (
-    <div className={cn(!first && "mt-2")} role="group" aria-label={group.viewOnly ? `${group.label}, view only` : group.label}>
+    <div
+      className={cn(!first && "mt-2")}
+      role="group"
+      aria-label={group.viewOnly ? t("groupViewOnly", { group: groupLabel }) : groupLabel}
+    >
       {!collapsed ? (
         <p className="flex items-center gap-1.5 px-2.5 pt-3 pb-1.5 type-eyebrow text-muted-foreground/70">
-          {group.label}
-          {group.viewOnly ? <Eye aria-label="View only" className="size-3.5" /> : null}
+          {groupLabel}
+          {group.viewOnly ? <Eye aria-label={t("viewOnly")} className="size-3.5" /> : null}
         </p>
       ) : !first ? (
         <div className="mx-2 my-2 h-px bg-border" />
       ) : null}
       {group.status === "loading" ? (
-        <div aria-busy aria-label={`Loading ${group.label}`} className="flex flex-col gap-0.5">
+        <div aria-busy aria-label={t("loadingGroup", { group: groupLabel })} className="flex flex-col gap-0.5">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className={cn("flex items-center gap-3 px-2.5 py-2", collapsed && "justify-center")}>
               <Skeleton className="size-4 shrink-0 rounded-detail" />
@@ -665,19 +709,19 @@ function SettingsGroup({
       ) : group.status === "error" ? (
         withTooltip(
           collapsed,
-          `${group.label} didn't load`,
+          t("groupDidNotLoad", { group: groupLabel }),
           <div className={cn("flex items-start gap-3 px-2.5 py-2 text-sm text-muted-foreground", collapsed && "justify-center")}>
             <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" />
             {!collapsed ? (
               <span className="flex flex-col items-start">
-                <span>Didn&apos;t load</span>
+                <span>{t("didNotLoad")}</span>
                 {group.retry ? (
                   <button
                     type="button"
                     onClick={group.retry}
                     className="rounded-detail font-semibold text-foreground outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    Try again
+                    {t("tryAgain")}
                   </button>
                 ) : null}
               </span>
@@ -687,28 +731,29 @@ function SettingsGroup({
       ) : (
         <ul className="flex flex-col gap-0.5">
           {group.sections.map((section) => {
+            const sectionLabel = sectionName(section);
             const active = section.path === currentPath;
             const Icon = SETTINGS_SECTION_ICONS[section.id] ?? Settings;
             const content = (
               <span className={rowClass(active, collapsed)}>
                 <ActiveMark active={active} />
                 <Icon className="size-4 shrink-0" />
-                {!collapsed ? <span className="flex-1 truncate">{section.label}</span> : null}
+                {!collapsed ? <span className="flex-1 truncate">{sectionLabel}</span> : null}
               </span>
             );
-            const label = collapsed ? section.label : undefined;
+            const ariaLabel = collapsed ? sectionLabel : undefined;
             const sameApp = basePath !== "" && section.path.startsWith(`${basePath}/`);
             const link = sameApp ? (
-              <Link href={section.path.slice(basePath.length)} aria-label={label} aria-current={active ? "page" : undefined}>
+              <Link href={section.path.slice(basePath.length)} aria-label={ariaLabel} aria-current={active ? "page" : undefined}>
                 {content}
               </Link>
             ) : (
               // Another module, or the shell: a document load, as with the module switcher.
-              <a href={section.path} aria-label={label} aria-current={active ? "page" : undefined}>
+              <a href={section.path} aria-label={ariaLabel} aria-current={active ? "page" : undefined}>
                 {content}
               </a>
             );
-            return <li key={section.path}>{withTooltip(collapsed, section.label, link)}</li>;
+            return <li key={section.path}>{withTooltip(collapsed, sectionLabel, link)}</li>;
           })}
         </ul>
       )}

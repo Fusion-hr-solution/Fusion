@@ -2,6 +2,7 @@
 
 import React, { useMemo } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -23,9 +24,10 @@ function resolveLabel(
   segment: string,
   navItems: ShellNavItem[],
   overrides: Map<string, string>,
+  details: string,
 ): string {
   if (UUID_SEGMENT_REGEX.test(segment)) {
-    return overrides.get(segment) ?? "Details";
+    return overrides.get(segment) ?? details;
   }
   const fromOverride = overrides.get(segment);
   if (fromOverride) return fromOverride;
@@ -67,6 +69,7 @@ export function AppBreadcrumb({
   overrides = new Map(),
   buildHref,
 }: AppBreadcrumbProps) {
+  const t = useTranslations("ds.breadcrumb");
   const segments = useMemo(() => {
     const clean = pathname.replace(/^\/+/, "") || "";
     return clean ? clean.split("/").filter(Boolean) : [];
@@ -92,7 +95,7 @@ export function AppBreadcrumb({
             {segments.map((segment, index) => {
               const isLast = index === segments.length - 1;
               const href = "/" + segments.slice(0, index + 1).join("/");
-              const label = resolveLabel(segment, navItems, overrides);
+              const label = resolveLabel(segment, navItems, overrides, t("details"));
               return (
                 <React.Fragment key={href}>
                   <BreadcrumbSeparator />

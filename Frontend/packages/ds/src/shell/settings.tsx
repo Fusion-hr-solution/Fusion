@@ -2,11 +2,13 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Check, ChevronRight, Eye } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { cn } from "../lib/utils";
-import { formatDate, formatRelative } from "../lib/dates";
+import { formatDate, formatRelative, recencyOf } from "../lib/dates";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
 import { Spinner } from "../components/ui/spinner";
+import { useSettingsSectionName } from "./fusion-sidebar";
 
 // ── Fusion Settings page parts (B-071 D4) ──
 //
@@ -29,6 +31,31 @@ export function settingsWhen(at: string, now: Date = new Date()): string {
   return `on ${formatDate(date, { year: "always", now })}`;
 }
 
+/**
+ * {@link settingsWhen} in the person's language, to end a sentence: "just now", "12 min ago", "on 2 Sep 2026" or
+ * "à l’instant", "il y a 12 min", "le 2 sept. 2026".
+ */
+export function useSettingsWhen(): (at: string, now?: Date) => string {
+  const t = useTranslations("ds.settings.when");
+  const locale = useLocale();
+  return (at, now = new Date()) => {
+    const date = new Date(at);
+    const recency = now.getTime() - date.getTime() < 86_400_000 ? recencyOf(date, now) : null;
+    switch (recency?.unit) {
+      case "now":
+        return t("now");
+      case "minutes":
+        return t("minutes", { count: recency.count });
+      case "hours":
+        return t("hours", { count: recency.count });
+      case "yesterday":
+        return t("yesterday");
+      default:
+        return t("on", { date: formatDate(date, { year: "always", now, locale }) });
+    }
+  };
+}
+
 export interface SettingsLastChangeValue {
   at: string;
   actorName: string;
@@ -44,9 +71,12 @@ export function LastChange({
   setUpAt?: string | null;
   now?: Date;
 }) {
+  const t = useTranslations("ds.settings");
+  const locale = useLocale();
+  const when = useSettingsWhen();
   if (change) {
     return (
-      <p className="flex items-center gap-2 type-meta text-muted-foreground">
+      <p lang={locale} className="flex items-center gap-2 type-meta text-muted-foreground">
         <span
           aria-hidden
           className="grid size-5 shrink-0 place-items-center rounded-full bg-inlay text-[9px] font-semibold text-foreground/85 ring-1 ring-border"
@@ -54,34 +84,47 @@ export function LastChange({
           {initials(change.actorName)}
         </span>
         <span>
-          <span className="font-semibold text-foreground">{change.actorName}</span> changed it {settingsWhen(change.at, now)}
+          {t.rich("changedBy", {
+            actor: change.actorName,
+            when: when(change.at, now),
+            b: (chunks) => <span className="font-semibold text-foreground">{chunks}</span>,
+          })}
         </span>
       </p>
     );
   }
   if (setUpAt) {
-    return <p className="type-meta text-muted-foreground">Set up {settingsWhen(setUpAt, now)}</p>;
+    return (
+      <p lang={locale} className="type-meta text-muted-foreground">
+        {t("setUp", { when: when(setUpAt, now) })}
+      </p>
+    );
   }
   return null;
 }
 
 /** The quiet "View only" mark on a section a person can read but not change. */
 export function ViewOnlyBadge({ className }: { className?: string }) {
+  const t = useTranslations("ds.settings");
+  const locale = useLocale();
   return (
     <span
+      lang={locale}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-control border border-border bg-inlay px-2 py-1 type-meta text-muted-foreground",
         className,
       )}
     >
       <Eye aria-hidden className="size-3.5" />
-      View only
+      {t("viewOnly")}
     </span>
   );
 }
 
 /** "Saved", shown for a moment after a personal setting saves on change. */
 export function SettingsSaved({ at }: { at: number | null }) {
+  const t = useTranslations("ds.settings");
+  const locale = useLocale();
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     if (at === null) return;
@@ -91,6 +134,7 @@ export function SettingsSaved({ at }: { at: number | null }) {
   }, [at]);
   return (
     <span
+      lang={locale}
       role="status"
       aria-live="polite"
       className={cn(
@@ -99,7 +143,7 @@ export function SettingsSaved({ at }: { at: number | null }) {
       )}
     >
       <Check aria-hidden className="size-3.5" />
-      {visible ? "Saved" : null}
+      {visible ? t("saved") : null}
     </span>
   );
 }
@@ -149,14 +193,15 @@ export function SettingsPage({ title, lastChange, setUpAt, note, viewOnly, aside
 
 /** Stable placeholders while a section's values load. */
 export function SettingsSkeleton({ rows = 4 }: { rows?: number }) {
+  const t = useTranslations("ds.settings");
   return (
-    <div aria-busy aria-label="Loading settings" className="flex flex-col gap-3">
+    <div aria-busy aria-label={t("loading")} className="flex flex-col gap-3">
       <Skeleton className="h-5 w-32" />
       <div className="overflow-hidden rounded-surface border border-border bg-card">
         {Array.from({ length: rows }).map((_, index) => (
           <div key={index} className="flex items-center gap-4 border-b border-border px-5 py-4 last:border-b-0">
             <Skeleton className="h-4 w-40" />
-            <Skeleton className="ml-auto h-4 w-24" />
+            <Skeleton className="ms-auto h-4 w-24" />
           </div>
         ))}
       </div>
@@ -232,15 +277,17 @@ export function SettingsRow({ label, description, children, htmlFor, className }
 
 /** A value read, not edited. */
 export function SettingsValue({ children, className }: { children: ReactNode; className?: string }) {
-  return <span className={cn("text-right text-sm font-semibold text-foreground", className)}>{children}</span>;
+  return <span className={cn("text-end text-sm font-semibold text-foreground", className)}>{children}</span>;
 }
 
 export interface SettingsConflict {
   /** Who saved first, and when. */
   actorName: string;
   at: string;
-  /** The section they saved. */
+  /** The section they saved, as the module named it. */
   section: string;
+  /** Its id, which names it in the person's language. */
+  sectionId?: string;
 }
 
 export interface SettingsSaveBarProps {
@@ -274,15 +321,19 @@ export function SettingsSaveBar({
   onDiscard,
   onSave,
   onReload,
-  saveLabel = "Save",
+  saveLabel,
 }: SettingsSaveBarProps) {
+  const t = useTranslations("ds.settings");
+  const locale = useLocale();
+  const when = useSettingsWhen();
+  const sectionName = useSettingsSectionName();
   const conflicted = Boolean(conflict) || conflictPending;
   if (changes === 0 && !conflicted) return null;
   return (
-    <div className="sticky bottom-6 z-10 mt-10">
+    <div lang={locale} className="sticky bottom-6 z-10 mt-10">
       <div
         role="region"
-        aria-label="Unsaved changes"
+        aria-label={t("unsavedChanges")}
         className={cn(
           "flex items-center gap-4 rounded-surface border bg-popover px-5 py-3.5 shadow-overlay",
           conflicted ? "border-destructive/40" : "border-border",
@@ -293,17 +344,23 @@ export function SettingsSaveBar({
           <p className="min-w-0 flex-1 text-sm text-foreground/85" role="alert">
             {conflict ? (
               <span className="font-semibold text-foreground">
-                {conflict.actorName} saved {conflict.section} {settingsWhen(conflict.at)}.
+                {t("conflictBy", {
+                  actor: conflict.actorName,
+                  section: conflict.sectionId
+                    ? sectionName({ id: conflict.sectionId, label: conflict.section })
+                    : conflict.section,
+                  when: when(conflict.at),
+                })}
               </span>
             ) : (
-              <span className="font-semibold text-foreground">Someone saved this section after you opened it.</span>
+              <span className="font-semibold text-foreground">{t("conflictSomeone")}</span>
             )}{" "}
-            Reload to see their version; your change is lost.
+            {t("conflictReload")}
           </p>
         ) : (
           <>
             <span className="shrink-0 text-sm font-semibold text-foreground">
-              {changes === 1 ? "1 change" : `${changes} changes`}
+              {t("changes", { count: changes })}
             </span>
             <p className={cn("min-w-0 flex-1 text-sm", error ? "text-destructive" : "text-foreground/85")} role={error ? "alert" : undefined}>
               {error ?? consequence}
@@ -313,16 +370,16 @@ export function SettingsSaveBar({
         <div className="flex shrink-0 items-center gap-2">
           {conflicted ? (
             <Button size="sm" onClick={onReload}>
-              Reload
+              {t("reload")}
             </Button>
           ) : (
             <>
               <Button size="sm" variant="ghost" onClick={onDiscard} disabled={saving}>
-                Discard
+                {t("discard")}
               </Button>
               <Button size="sm" onClick={onSave} disabled={saving}>
                 {saving ? <Spinner className="size-3.5" /> : null}
-                {saveLabel}
+                {saveLabel ?? t("save")}
               </Button>
             </>
           )}
@@ -334,12 +391,14 @@ export function SettingsSaveBar({
 
 /** "Settings › Core HR › Company": where the person is inside Settings. Earlier steps are quiet text. */
 export function SettingsBreadcrumb({ trail }: { trail: readonly string[] }) {
+  const t = useTranslations("ds.settings");
+  const locale = useLocale();
   return (
-    <nav aria-label="Breadcrumb">
+    <nav aria-label={t("breadcrumb")}>
       <ol className="flex min-w-0 items-center gap-2 text-sm">
-        <li>
+        <li lang={locale}>
           <a href="/settings" className="text-muted-foreground transition-colors hover:text-foreground">
-            Settings
+            {t("title")}
           </a>
         </li>
         {trail.map((step, index) => {

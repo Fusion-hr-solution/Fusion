@@ -13,7 +13,7 @@ import { FusionViewerProvider, type FusionViewerState } from "@repo/api/react";
 import { getSidebarAccountLabel } from "./account-label";
 import { resolveFusionAttentionModules } from "./customer-workspace-access";
 import { canAccessOwnCoreProfile } from "./roles";
-import type { AuthState, AuthUser, LoginRequest, RegisterRequest } from "./types";
+import type { AuthState, AuthUser, LoginFailure, LoginRequest, RegisterRequest } from "./types";
 import {
   AUTH_STORAGE_EVENT,
   login as apiLogin,
@@ -28,7 +28,8 @@ import {
 // ── Context types ────────────────────────────────────────────────────
 
 export interface AuthContextValue extends AuthState {
-  login: (req: LoginRequest) => Promise<string[] | null>;
+  /** Null once signed in; otherwise why not, with the HTTP status when the server answered. */
+  login: (req: LoginRequest) => Promise<LoginFailure | null>;
   register: (req: RegisterRequest) => Promise<string[] | null>;
   logout: () => Promise<void>;
 }
@@ -82,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 employeeId: d.employeeId ?? null,
                 accessProfiles: d.accessProfiles ?? [],
                 effectivePermissions: d.effectivePermissions ?? [],
+                language: d.language,
               },
             };
 
@@ -122,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [applyStoredAuth]);
 
   const login = useCallback(
-    async (req: LoginRequest): Promise<string[] | null> => {
+    async (req: LoginRequest): Promise<LoginFailure | null> => {
       try {
         const d = await apiLogin(req);
         const authUser: AuthUser = {
@@ -136,6 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           employeeId: d.employeeId ?? null,
           accessProfiles: d.accessProfiles ?? [],
           effectivePermissions: d.effectivePermissions ?? [],
+          language: d.language,
         };
         setUser(authUser);
         setAccessToken(d.accessToken);
@@ -148,10 +151,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         return null;
       } catch (err) {
-        if (err instanceof ApiError) {
-          return err.errors.length > 0 ? err.errors : ["Login failed. Please try again."];
-        }
-        return ["Login failed. Please try again."];
+        if (err instanceof ApiError) return { status: err.status, messages: err.errors };
+        return { status: null, messages: [] };
       }
     },
     [],
@@ -172,6 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           employeeId: d.employeeId ?? null,
           accessProfiles: d.accessProfiles ?? [],
           effectivePermissions: d.effectivePermissions ?? [],
+          language: d.language,
         };
         setUser(authUser);
         setAccessToken(d.accessToken);

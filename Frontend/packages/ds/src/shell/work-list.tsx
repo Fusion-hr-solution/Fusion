@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { cn } from "../lib/utils";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { Skeleton } from "../components/ui/skeleton";
@@ -47,13 +48,38 @@ export function daysUntil(dueOn: string, today: Date): number {
   return dayNumber(dueOn) - todayNumber;
 }
 
-export function dueLabel(dueOn: string, today: Date): string {
+/** The words of a due line, in one language. */
+export interface DueWords {
+  late: (days: number) => string;
+  today: string;
+  tomorrow: string;
+  left: (days: number) => string;
+}
+
+const ENGLISH_DUE: DueWords = {
+  late: (days) => (days === 1 ? "1 day late" : `${days} days late`),
+  today: "Due today",
+  tomorrow: "Due tomorrow",
+  left: (days) => `${days} days left`,
+};
+
+export function dueLabel(dueOn: string, today: Date, words: DueWords = ENGLISH_DUE): string {
   const days = daysUntil(dueOn, today);
-  if (days < -1) return `${-days} days late`;
-  if (days === -1) return "1 day late";
-  if (days === 0) return "Due today";
-  if (days === 1) return "Due tomorrow";
-  return `${days} days left`;
+  if (days < 0) return words.late(-days);
+  if (days === 0) return words.today;
+  if (days === 1) return words.tomorrow;
+  return words.left(days);
+}
+
+/** {@link DueWords} in the person's language. */
+export function useDueWords(): DueWords {
+  const t = useTranslations("ds.work.due");
+  return {
+    late: (count) => t("late", { count }),
+    today: t("today"),
+    tomorrow: t("tomorrow"),
+    left: (count) => t("left", { count }),
+  };
 }
 
 function initials(name: string): string {
@@ -80,18 +106,21 @@ export function WorkList({
   modules,
   today,
   renderLink = defaultLink,
-  emptyLabel = "Nothing needs you right now",
+  emptyLabel,
   className,
 }: WorkListProps) {
+  const t = useTranslations("ds.work");
+  const locale = useLocale();
+  const dueWords = useDueWords();
   const reference = today ?? new Date();
   const labels = new Map(modules.map((module) => [module.key, module.label]));
   const loading = modules.filter((module) => module.status === "loading");
   const failed = modules.filter((module) => module.status === "error");
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div lang={locale} className={cn("space-y-2", className)}>
       {items.length === 0 && loading.length === 0 && failed.length === 0 ? (
-        <p className="py-2 type-body-secondary text-muted-foreground">{emptyLabel}</p>
+        <p className="py-2 type-body-secondary text-muted-foreground">{emptyLabel ?? t("empty")}</p>
       ) : null}
       {items.length > 0 || loading.length > 0 ? (
         <ul className="divide-y divide-border overflow-hidden rounded-surface bg-card">
@@ -117,7 +146,7 @@ export function WorkList({
                       </span>
                       {item.dueOn && days !== null ? (
                         <span className={cn("shrink-0 type-meta", days < 0 ? "text-warning" : "text-muted-foreground")}>
-                          {dueLabel(item.dueOn, reference)}
+                          {dueLabel(item.dueOn, reference, dueWords)}
                         </span>
                       ) : null}
                       <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" aria-hidden />
@@ -128,7 +157,7 @@ export function WorkList({
             );
           })}
           {loading.map((module) => (
-            <li key={`loading-${module.key}`} aria-busy aria-label={`Loading ${module.label} work`} className="flex min-h-14 items-center gap-3 px-4 py-2.5">
+            <li key={`loading-${module.key}`} aria-busy aria-label={t("loadingModule", { module: module.label })} className="flex min-h-14 items-center gap-3 px-4 py-2.5">
               <Skeleton className="size-8 rounded-full" />
               <div className="flex-1 space-y-1.5">
                 <Skeleton className="h-3.5 w-1/2" />
@@ -140,7 +169,7 @@ export function WorkList({
       ) : null}
       {failed.map((module) => (
         <p key={module.key} role="status" className="type-meta text-muted-foreground">
-          {module.label} work couldn&apos;t be loaded
+          {t("moduleFailed", { module: module.label })}
         </p>
       ))}
     </div>

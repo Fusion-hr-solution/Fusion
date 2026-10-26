@@ -8,6 +8,7 @@ import { cn } from "../../lib/utils"
 import { Button } from "./button"
 import { Calendar } from "./calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "./popover"
+import { formatDateParts } from "../../lib/dates"
 
 /**
  * A single-date picker composed from the DS Popover + Calendar primitives.
@@ -59,7 +60,7 @@ function DatePicker({
           disabled={disabled}
           data-empty={!selected}
           className={cn(
-            "w-full justify-start text-left font-normal data-[empty=true]:text-muted-foreground",
+            "w-full justify-start text-start font-normal data-[empty=true]:text-muted-foreground",
             className
           )}
         >
@@ -106,7 +107,7 @@ function formatISODate(date: Date): string {
 }
 
 function formatDisplay(date: Date): string {
-  return date.toLocaleDateString("en-GB", {
+  return formatDateParts(date, {
     day: "numeric",
     month: "short",
     year: "numeric",

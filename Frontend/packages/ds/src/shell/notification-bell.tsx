@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { Bell } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { cn } from "../lib/utils";
 import { Avatar, AvatarFallback } from "../components/ui/avatar";
 import { Button } from "../components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import { Skeleton } from "../components/ui/skeleton";
+import { formatDateParts } from "../lib/dates";
 
 export interface NotificationBellItem {
   id: string;
@@ -43,22 +45,42 @@ function initials(name: string): string {
   return parts.map((part) => part[0]?.toUpperCase() ?? "").join("") || "?";
 }
 
-/** Short relative stamp: "now", "12m", "3h", "Yesterday", then a date. */
-export function relativeStamp(iso: string, now: Date): string {
+/** The words of a short stamp, in one language. */
+export interface StampWords {
+  now: string;
+  minutes: (count: number) => string;
+  hours: (count: number) => string;
+  yesterday: string;
+}
+
+const ENGLISH_STAMP: StampWords = {
+  now: "now",
+  minutes: (count) => `${count}m`,
+  hours: (count) => `${count}h`,
+  yesterday: "Yesterday",
+};
+
+/** Short relative stamp: "now", "12m", "3h", "Yesterday", then a date; in another language with its words and locale. */
+export function relativeStamp(iso: string, now: Date, words: StampWords = ENGLISH_STAMP, locale?: string): string {
   const at = new Date(iso);
   const minutes = Math.max(0, Math.round((now.getTime() - at.getTime()) / 60_000));
-  if (minutes < 1) return "now";
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 1) return words.now;
+  if (minutes < 60) return words.minutes(minutes);
   const hours = Math.round(minutes / 60);
-  if (hours < 24 && at.getDate() === now.getDate()) return `${hours}h`;
+  if (hours < 24 && at.getDate() === now.getDate()) return words.hours(hours);
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  if (at.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return at.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    ...(at.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
-  });
+  if (at.toDateString() === yesterday.toDateString()) return words.yesterday;
+  return formatDateParts(
+    at,
+    {
+      day: "numeric",
+      month: "short",
+      ...(at.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+    },
+    "–",
+    locale,
+  );
 }
 
 /**
@@ -75,6 +97,14 @@ export function NotificationBell({
   now,
   className,
 }: NotificationBellProps) {
+  const t = useTranslations("ds.notifications");
+  const locale = useLocale();
+  const stampWords: StampWords = {
+    now: t("stamp.now"),
+    minutes: (count) => t("stamp.minutes", { count }),
+    hours: (count) => t("stamp.hours", { count }),
+    yesterday: t("stamp.yesterday"),
+  };
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<string | null>(null);
   const reference = now ?? new Date();
@@ -82,7 +112,7 @@ export function NotificationBell({
   const visible = filter ? items.filter((item) => item.module === filter) : items;
   const loading = items.length === 0 && modules.some((module) => module.status === "loading");
   const failed = modules.filter((module) => module.status === "error" && (!filter || module.key === filter));
-  const label = unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications";
+  const label = t("trigger", { count: unreadCount });
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -92,24 +122,24 @@ export function NotificationBell({
           {unreadCount > 0 ? (
             <span
               data-testid="notification-unread-mark"
-              className="absolute top-1 right-1 size-2 rounded-full bg-primary ring-2 ring-background"
+              className="absolute top-1 inset-e-1 size-2 rounded-full bg-primary ring-2 ring-background"
             />
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-96 max-w-[calc(100vw-2rem)] gap-0 p-0">
+      <PopoverContent lang={locale} align="end" sideOffset={8} className="w-96 max-w-[calc(100vw-2rem)] gap-0 p-0">
         <div className="flex h-12 items-center justify-between gap-3 border-b border-border px-4">
-          <h2 className="type-panel-title text-foreground">Notifications</h2>
+          <h2 className="type-panel-title text-foreground">{t("title")}</h2>
           {unreadCount > 0 ? (
             <Button variant="ghost" size="xs" onClick={onMarkAllRead}>
-              Mark all read
+              {t("markAllRead")}
             </Button>
           ) : null}
         </div>
 
         {modules.length > 1 ? (
-          <div role="group" aria-label="Filter by module" className="flex gap-1 border-b border-border px-3 py-2">
-            {[{ key: null, label: "All" }, ...modules.map((module) => ({ key: module.key as string | null, label: module.label }))].map(
+          <div role="group" aria-label={t("filterByModule")} className="flex gap-1 border-b border-border px-3 py-2">
+            {[{ key: null, label: t("all") }, ...modules.map((module) => ({ key: module.key as string | null, label: module.label }))].map(
               (option) => (
                 <Button
                   key={option.key ?? "all"}
@@ -139,7 +169,7 @@ export function NotificationBell({
               ))}
             </div>
           ) : visible.length === 0 && failed.length === 0 ? (
-            <p className="px-3 py-6 text-center type-body-secondary text-muted-foreground">No notifications yet</p>
+            <p className="px-3 py-6 text-center type-body-secondary text-muted-foreground">{t("empty")}</p>
           ) : (
             <ul className="space-y-0.5">
               {visible.map((item) => {
@@ -152,7 +182,7 @@ export function NotificationBell({
                         setOpen(false);
                         onOpenItem(item);
                       }}
-                      className="flex w-full items-start gap-3 rounded-inset px-2.5 py-2.5 text-left transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                      className="flex w-full items-start gap-3 rounded-inset px-2.5 py-2.5 text-start transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
                     >
                       <Avatar className="mt-0.5 size-8 shrink-0">
                         <AvatarFallback className="text-xs">
@@ -169,9 +199,9 @@ export function NotificationBell({
                       </span>
                       <span className="flex shrink-0 items-center gap-2 pt-0.5">
                         <time dateTime={item.occurredAt} className="type-meta text-muted-foreground">
-                          {relativeStamp(item.occurredAt, reference)}
+                          {relativeStamp(item.occurredAt, reference, stampWords, locale)}
                         </time>
-                        {unread ? <span aria-label="Unread" className="size-2 rounded-full bg-primary" /> : <span className="size-2" />}
+                        {unread ? <span aria-label={t("unread")} className="size-2 rounded-full bg-primary" /> : <span className="size-2" />}
                       </span>
                     </button>
                   </li>
@@ -181,7 +211,7 @@ export function NotificationBell({
           )}
           {failed.map((module) => (
             <p key={module.key} role="status" className="px-3 py-2 type-meta text-muted-foreground">
-              {module.label} notifications couldn&apos;t be loaded
+              {t("moduleFailed", { module: module.label })}
             </p>
           ))}
         </div>

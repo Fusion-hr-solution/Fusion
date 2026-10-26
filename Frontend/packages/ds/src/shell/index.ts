@@ -2,7 +2,7 @@
 // (sidebar, app frame, and page-layout kit).
 
 export { ModuleSidebar } from "./module-sidebar";
-export { FusionSidebar, sectionPaths } from "./fusion-sidebar";
+export { FusionSidebar, sectionPaths, useSettingsSectionName } from "./fusion-sidebar";
 export { FUSION_MODULE_ICONS, FUSION_MODULES } from "./modules";
 export { ShellUserPanel } from "./shell-user-panel";
 export type {
@@ -12,8 +12,6 @@ export type {
 export { AppShell } from "./app-shell";
 export type { AppShellProps } from "./app-shell";
 export { ThemeProvider, ThemeToggle, useTheme } from "./theme";
-export { LanguageSwitcher, useFusionLocale } from "./language-switcher";
-export type { FusionLocale } from "./language-switcher";
 export { TopBar } from "./top-bar";
 export type { TopBarProps } from "./top-bar";
 export { AppBreadcrumb } from "./app-breadcrumb";
@@ -84,13 +82,14 @@ export type {
   FusionSidebarSettingsSection,
 } from "./types";
 export { NotificationBell, relativeStamp } from "./notification-bell";
+export type { StampWords } from "./notification-bell";
 export type {
   NotificationBellItem,
   NotificationBellModule,
   NotificationBellProps,
 } from "./notification-bell";
-export { WorkList, daysUntil, dueLabel } from "./work-list";
-export type { RenderWorkLink, WorkListItem, WorkListModule, WorkListProps } from "./work-list";
+export { WorkList, daysUntil, dueLabel, useDueWords } from "./work-list";
+export type { DueWords, RenderWorkLink, WorkListItem, WorkListModule, WorkListProps } from "./work-list";
 export { HomeAgenda, LeadFocus, agendaEntries, momentDay, selectLead, shortDay } from "./home";
 export type { HomeAgendaProps, HomeLead, HomeMoment, HomeWorkItem, LeadFocusProps } from "./home";
 export {
@@ -106,6 +105,7 @@ export {
   SettingsValue,
   ViewOnlyBadge,
   settingsWhen,
+  useSettingsWhen,
 } from "./settings";
 export type {
   SettingsBlockProps,

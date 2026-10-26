@@ -1,0 +1,22 @@
+{
+  "auth": {
+    "signIn": {
+      "title": "Sign in",
+      "subtitle": "Sign in to your account",
+      "email": "Email",
+      "emailPlaceholder": "name@company.com",
+      "password": "Password",
+      "showCharacters": "Show characters",
+      "hideCharacters": "Hide characters",
+      "rememberMe": "Remember me",
+      "forgotPassword": "Forgot password?",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "or": "or",
+      "sso": "Sign in with SSO",
+      "agreement": "By signing in, you agree to our <terms>Terms</terms> and <privacy>Privacy Policy</privacy>.",
+      "invalidCredentials": "Invalid credentials.",
+      "failed": "Login failed. Please try again."
+    }
+  }
+}

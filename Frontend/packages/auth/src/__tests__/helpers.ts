@@ -18,6 +18,7 @@ export function makeAuthResponse(
     accessToken: "access-token-123",
     refreshToken: "refresh-token-456",
     accessTokenExpiration: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    language: "en",
     ...overrides,
   };
 }

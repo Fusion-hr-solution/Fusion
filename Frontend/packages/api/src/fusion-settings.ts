@@ -53,11 +53,16 @@ export const fusionSettingsQueryKeys = {
 export const PREFERENCES_PATH = "/settings";
 export const NOTIFICATIONS_PATH = "/settings/notifications";
 
-/** Everyone has Preferences; a tenant member also has Notifications. A platform administrator has no tenant. */
+/**
+ * Everyone has Preferences; a tenant member also has Notifications. A platform administrator has no tenant.
+ * Labels here and in {@link YOU_GROUP_LABEL} are `@repo/ds` message keys: the sidebar shows them in the person's language.
+ */
+export const YOU_GROUP_LABEL = "settings.you";
+
 export function youSections(hasTenant: boolean): FusionSettingsSection[] {
   const preferences: FusionSettingsSection = {
     id: "preferences",
-    label: "Preferences",
+    label: "settings.preferences",
     order: 1,
     path: PREFERENCES_PATH,
     access: "manage",
@@ -66,7 +71,7 @@ export function youSections(hasTenant: boolean): FusionSettingsSection[] {
   if (!hasTenant) return [preferences];
   return [
     preferences,
-    { id: "notifications", label: "Notifications", order: 2, path: NOTIFICATIONS_PATH, access: "manage", lastChange: null },
+    { id: "notifications", label: "settings.notifications", order: 2, path: NOTIFICATIONS_PATH, access: "manage", lastChange: null },
   ];
 }
 
@@ -101,7 +106,7 @@ export function rememberSettingsReturn(storage: Pick<Storage, "setItem"> | null 
 
 export interface SettingsReturn {
   href: string;
-  /** What "Back to …" names: the module of the path, or Home. */
+  /** What "Back to …" names: the module of the path, or a `@repo/ds` message key for Home or the Platform console. */
   label: string;
 }
 
@@ -123,8 +128,8 @@ export function readSettingsReturn(
 
 export function settingsReturnLabel(path: string): string {
   const zone = path.split(/[/?#]/)[1] ?? "";
-  if (zone === "platform") return "Platform console";
-  return FUSION_MODULE_REGISTRY.find((entry) => entry.href === `/${zone}`)?.label ?? "Home";
+  if (zone === "platform") return "settings.place.platformConsole";
+  return FUSION_MODULE_REGISTRY.find((entry) => entry.href === `/${zone}`)?.label ?? "settings.place.home";
 }
 
 // ── Notifications (Performance's groups, the caller's own email choices) ──

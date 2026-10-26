@@ -8,6 +8,7 @@ import { cn } from "../../lib/utils"
 import { Button } from "./button"
 import { Calendar } from "./calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "./popover"
+import { formatDateParts } from "../../lib/dates"
 
 /** A selected range in `YYYY-MM-DD` string space — the shape the API and native date inputs use. */
 export interface DateRangeValue {
@@ -76,7 +77,7 @@ function DateRangePicker({
           disabled={disabled}
           data-empty={!from}
           className={cn(
-            "justify-start text-left font-normal data-[empty=true]:text-muted-foreground",
+            "justify-start text-start font-normal data-[empty=true]:text-muted-foreground",
             className
           )}
         >
@@ -133,7 +134,7 @@ function formatISODate(date: Date): string {
 }
 
 function formatOne(date: Date, withYear = true): string {
-  return date.toLocaleDateString("en-GB", {
+  return formatDateParts(date, {
     day: "numeric",
     month: "short",
     ...(withYear ? { year: "numeric" } : {}),

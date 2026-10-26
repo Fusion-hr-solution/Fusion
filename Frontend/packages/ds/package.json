@@ -13,13 +13,23 @@
     "./components/ui/use-toast": "./src/components/ui/use-toast.ts",
     "./lib/utils": "./src/lib/utils.ts",
     "./lib/dates": "./src/lib/dates.ts",
+    "./lib/numbers": "./src/lib/numbers.ts",
+    "./lib/use-relative": "./src/lib/use-relative.ts",
+    "./lib/use-format": "./src/lib/use-format.ts",
+    "./lib/say": "./src/lib/say.ts",
+    "./i18n": "./src/i18n.ts",
+    "./messages/en.json": "./src/messages/en.json",
+    "./messages/fr.json": "./src/messages/fr.json",
+    "./testing": "./src/testing/intl.tsx",
+    "./testing/intl-by-default": "./src/testing/intl-by-default.tsx",
+    "./scripts/check-messages.cjs": "./scripts/check-messages.cjs",
     "./tokens.css": "./src/styles/tokens.css",
     "./components.json": "./components.json"
   },
   "scripts": {
     "lint": "eslint . --max-warnings 0",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "node scripts/check-messages.cjs src/messages && vitest run"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
@@ -35,8 +45,10 @@
     "dagre": "^0.8.5",
     "embla-carousel-react": "^8.5.1",
     "input-otp": "^1.4.1",
+    "intl-messageformat": "^11.2.8",
     "lucide-react": "^0.469.0",
     "next": "^15.1.0",
+    "next-intl": "^4.13.0",
     "next-themes": "^0.4.4",
     "radix-ui": "^1.3.2",
     "react-day-picker": "^9.8.0",

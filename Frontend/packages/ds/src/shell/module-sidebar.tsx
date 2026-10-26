@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import {
   ChevronLeft,
   ChevronRight,
@@ -53,6 +54,7 @@ export function ModuleSidebar({
   collapsible = true,
   pending = false,
 }: ModuleSidebarProps) {
+  const t = useTranslations("ds.sidebar");
   const [collapsed, setCollapsed] = useState(false);
   const switchable = (modules?.length ?? 0) > 1;
   const currentModule = modules?.find((m) => m.key === currentModuleKey);
@@ -77,7 +79,7 @@ export function ModuleSidebar({
       <aside
         data-collapsed={collapsed}
         className={cn(
-          "dark relative flex h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200",
+          "dark relative flex h-screen shrink-0 flex-col border-e border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200",
           collapsed ? "w-[68px]" : "w-[264px]"
         )}
       >
@@ -87,7 +89,7 @@ export function ModuleSidebar({
             <DropdownMenu>
               <DropdownMenuTrigger
                 className={cn(
-                  "flex items-center gap-2.5 rounded-control p-1.5 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+                  "flex items-center gap-2.5 rounded-control p-1.5 text-start outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring",
                   collapsed && "justify-center"
                 )}
               >
@@ -111,7 +113,7 @@ export function ModuleSidebar({
                 ) : null}
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-60">
-                <DropdownMenuLabel>Switch module</DropdownMenuLabel>
+                <DropdownMenuLabel>{t("switchModule")}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 {modules!.map((m) => {
                   const Icon = m.icon;
@@ -177,7 +179,7 @@ export function ModuleSidebar({
           {pending ? (
             // Nav content unknown (auth hydrating): skeleton rows matching real
             // item geometry so resolution swaps in place without layout shift.
-            <div aria-busy aria-label="Loading navigation">
+            <div aria-busy aria-label={t("loadingNavigation")}>
               {Array.from({ length: 2 }).map((_, gi) => (
                 <div key={gi} className="mb-4">
                   {!collapsed ? (
@@ -225,7 +227,7 @@ export function ModuleSidebar({
                       )}
                     >
                       {active ? (
-                        <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-sidebar-primary" />
+                        <span className="absolute inset-s-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-e-full bg-sidebar-primary" />
                       ) : null}
                       <Icon className="h-4 w-4 shrink-0" />
                       {!collapsed ? (
@@ -235,7 +237,7 @@ export function ModuleSidebar({
                         <Lock className="h-3.5 w-3.5 shrink-0 opacity-70" />
                       ) : null}
                       {!collapsed && item.badge != null && !item.disabled ? (
-                        <span className="ml-auto rounded-full bg-sidebar-primary/15 px-1.5 py-0.5 text-[11px] font-semibold text-sidebar-primary">
+                        <span className="ms-auto rounded-full bg-sidebar-primary/15 px-1.5 py-0.5 text-[11px] font-semibold text-sidebar-primary">
                           {item.badge}
                         </span>
                       ) : null}
@@ -310,8 +312,8 @@ export function ModuleSidebar({
           <button
             type="button"
             onClick={() => setCollapsed((v) => !v)}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className="absolute -right-5 top-7 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/70 shadow-raised transition-colors hover:text-sidebar-foreground md:-right-3 md:top-9 md:h-6 md:w-6"
+            aria-label={collapsed ? t("expand") : t("collapse")}
+            className="absolute -inset-e-5 top-7 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/70 shadow-raised transition-colors hover:text-sidebar-foreground md:-inset-e-3 md:top-9 md:h-6 md:w-6"
           >
             {collapsed ? (
               <ChevronRight className="h-3.5 w-3.5" />

@@ -3,6 +3,7 @@ import { PRAISE_REACTIONS, PRAISE_REACTION_LABEL, type PraiseDto, type PraiseRea
 import { cn } from "@repo/ds";
 import { AvatarStack, joinNames } from "./people";
 import { ValueChip } from "./values";
+import { formatDateParts } from "@repo/ds/lib/dates";
 
 export { initials, joinNames } from "./people";
 
@@ -35,7 +36,7 @@ export function praiseTime(iso: string, now: Date = new Date()): string {
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (at.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return at.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(at.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }) });
+  return formatDateParts(at, { day: "numeric", month: "short", ...(at.getFullYear() === now.getFullYear() ? {} : { year: "numeric" }) });
 }
 
 /**
@@ -64,7 +65,7 @@ export function PraiseCard({ praise, reactionIcons, onReact, onOpen, pendingReac
         <span className="self-start rounded-detail bg-primary/15 px-2 py-0.5 type-meta font-semibold text-primary">To you</span>
       ) : null}
       {onOpen ? (
-        <button type="button" onClick={onOpen} className="block w-full rounded-control text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <button type="button" onClick={onOpen} className="block w-full rounded-control text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           {message}
         </button>
       ) : (

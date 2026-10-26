@@ -2,6 +2,7 @@
 
 import type { ComponentType } from "react";
 import { ChevronsUpDown, LogOut } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "../lib/utils";
 import {
   DropdownMenu,
@@ -47,12 +48,13 @@ export function ShellUserPanel({
   signInHref = "/auth/signin",
   pending = false,
 }: ShellUserPanelProps) {
+  const t = useTranslations("ds.sidebar");
   if (pending) {
     return (
       <div
         className={cn("flex items-center gap-2.5 p-1.5", collapsed && "justify-center")}
         aria-busy
-        aria-label="Loading account"
+        aria-label={t("loadingAccount")}
       >
         <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
         {!collapsed ? (
@@ -75,7 +77,7 @@ export function ShellUserPanel({
         )}
       >
         <LogOut className="h-4 w-4 rotate-180" />
-        {!collapsed ? <span>Sign in</span> : null}
+        {!collapsed ? <span>{t("signIn")}</span> : null}
       </a>
     );
   }
@@ -91,7 +93,7 @@ export function ShellUserPanel({
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "flex w-full items-center gap-2.5 rounded-control p-1.5 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+          "flex w-full items-center gap-2.5 rounded-control p-1.5 text-start outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring",
           collapsed && "justify-center"
         )}
       >
@@ -124,7 +126,7 @@ export function ShellUserPanel({
         {onSignOut ? (
           <DropdownMenuItem onSelect={onSignOut} className="flex items-center gap-2.5">
             <LogOut className="h-4 w-4" />
-            Sign out
+            {t("signOut")}
           </DropdownMenuItem>
         ) : null}
       </DropdownMenuContent>

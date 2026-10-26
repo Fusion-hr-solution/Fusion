@@ -42,13 +42,13 @@ function AuthConsumer() {
       <button
         data-testid="login-btn"
         onClick={async () => {
-          const errors = await auth.login({
+          const failure = await auth.login({
             email: "john@example.com",
             password: "P@ss1",
           });
-          if (errors) {
+          if (failure) {
             const el = document.getElementById("errors");
-            if (el) el.textContent = errors.join(",");
+            if (el) el.textContent = failure.messages.join(",");
           }
         }}
       />

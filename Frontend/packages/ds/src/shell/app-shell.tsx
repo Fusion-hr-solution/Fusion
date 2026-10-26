@@ -23,6 +23,7 @@ export function AppShell({ sidebar, header, banner, children, contentClassName }
       {sidebar}
       <div className="flex min-w-0 flex-1 flex-col">
         {header ? (
+          // eslint-disable-next-line no-restricted-syntax -- the sticky header blurs what scrolls under it, so it is translucent at rest
           <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             {header}
           </header>

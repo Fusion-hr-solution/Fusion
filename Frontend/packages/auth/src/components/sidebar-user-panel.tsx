@@ -84,7 +84,7 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
               className="fixed inset-0 z-40"
               onClick={() => setMenuOpen(false)}
             />
-            <div className="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-surface border border-border bg-popover py-1 text-popover-foreground shadow-lg">
+            <div className="absolute bottom-full inset-s-0 inset-e-0 z-50 mb-2 rounded-surface border border-border bg-popover py-1 text-popover-foreground shadow-lg">
               {canOpenProfile ? (
                 <a
                   href="/profile"
@@ -133,7 +133,7 @@ export function SidebarUserPanel({ collapsed }: SidebarUserPanelProps) {
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-xs font-bold text-background dark:bg-secondary dark:text-secondary-foreground">
             {initial}
           </div>
-          <div className="flex-1 min-w-0 text-left">
+          <div className="flex-1 min-w-0 text-start">
             <p className="truncate text-sm font-medium text-foreground">
               {user.fullName}
             </p>

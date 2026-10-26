@@ -9,6 +9,7 @@ import {
   fusionSettingsQueryKeys,
   readSettingsReturn,
   youSections,
+  YOU_GROUP_LABEL,
   type FieldVisibility,
   type FusionSettingsApi,
   type FusionSettingsGroupKey,
@@ -72,7 +73,7 @@ export function useFusionSettings(options: UseFusionSettingsOptions = {}): {
   });
 
   const groups: FusionSettingsGroup[] = [
-    { key: "you", label: "You", status: "ready", sections: youSections(Boolean(tenantId)), viewOnly: false },
+    { key: "you", label: YOU_GROUP_LABEL, status: "ready", sections: youSections(Boolean(tenantId)), viewOnly: false },
   ];
   modules.forEach((module, index) => {
     const query = queries[index]!;
@@ -149,7 +150,7 @@ export function useFieldVisibility(options: UseFusionSettingsOptions & { enabled
 export function useSettingsReturn(): SettingsReturn {
   const { viewer } = useFusionViewer();
   const platformAdministrator = viewer !== null && !viewer.tenantId;
-  const [value, setValue] = useState<SettingsReturn>({ href: "/", label: "Home" });
+  const [value, setValue] = useState<SettingsReturn>({ href: "/", label: "settings.place.home" });
   useEffect(() => {
     setValue(readSettingsReturn(window.sessionStorage, { platformAdministrator }));
   }, [platformAdministrator]);
@@ -161,6 +162,8 @@ export interface SettingsConflictSaver {
   actorName: string;
   at: string;
   section: string;
+  /** The section's id, which names it in the person's language. */
+  sectionId: string;
 }
 
 /**
@@ -182,5 +185,5 @@ export function useSettingsConflictSaver(
   const latest = (sections.data ?? [])
     .filter((section) => sectionIds.includes(section.id) && section.lastChange)
     .sort((a, b) => b.lastChange!.at.localeCompare(a.lastChange!.at))[0];
-  return latest?.lastChange ? { actorName: latest.lastChange.actorName, at: latest.lastChange.at, section: latest.label } : null;
+  return latest?.lastChange ? { actorName: latest.lastChange.actorName, at: latest.lastChange.at, section: latest.label, sectionId: latest.id } : null;
 }

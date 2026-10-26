@@ -1,4 +1,4 @@
-import { createPlatformApiClient } from "@repo/api";
+import { createPlatformApiClient, persistLanguageCookie } from "@repo/api";
 import type {
   LoginRequest,
   RegisterRequest,
@@ -37,6 +37,12 @@ export async function logout(accessToken: string): Promise<void> {
   });
 }
 
+/** Saves the signed-in person's language on their account; resolves with the language sessions will now report. */
+export async function saveLanguage(language: string): Promise<string> {
+  const result = await client.put<{ language: string }>("/identity/account/language", { language });
+  return result.language;
+}
+
 // ── Token storage (localStorage + cookie) ────────────────────────────
 
 const STORAGE_KEY = "ey_hr_auth";
@@ -45,6 +51,7 @@ export function persistAuth(auth: StoredAuth): void {
   if (typeof window !== "undefined") {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
     document.cookie = `ey_hr_authenticated=true; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+    persistLanguageCookie(auth.user.language);
     window.dispatchEvent(new CustomEvent(AUTH_STORAGE_EVENT));
   }
 }

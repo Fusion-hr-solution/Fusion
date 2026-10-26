@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { WorkList, dueLabel, type WorkListItem } from "./work-list";
+import { renderWithIntl } from "../testing/intl";
+import fr from "../messages/fr.json";
 
 const today = new Date(2026, 9, 15);
 const modules = [
@@ -29,6 +31,17 @@ const access: WorkListItem = {
   dueOn: "2026-10-20",
   href: "/core/workforce-access",
 };
+
+describe("WorkList in French", () => {
+  it("says what is due and what failed in French", () => {
+    renderWithIntl(<WorkList items={[selfAssessment]} modules={[modules[0]!, { ...modules[1]!, status: "error" }]} today={today} />, {
+      locale: "fr",
+      messages: fr,
+    });
+    expect(screen.getByText("2 jours restants")).toBeInTheDocument();
+    expect(screen.getByText("Impossible de charger les tâches Performance")).toBeInTheDocument();
+  });
+});
 
 describe("dueLabel", () => {
   it("reads days left and late", () => {

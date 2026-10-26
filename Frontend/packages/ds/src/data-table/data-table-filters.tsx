@@ -5,7 +5,9 @@ import type { RowData } from "@tanstack/react-table";
 import { FilterHorizontalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Plus, Search, X } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import type { DateRange } from "react-day-picker";
+import { fr } from "react-day-picker/locale";
 import { Button } from "../components/ui/button";
 import { Calendar } from "../components/ui/calendar";
 import {
@@ -36,6 +38,7 @@ import {
   type DataTableFilterValue,
   type DataTableModel,
 } from "./use-data-table";
+import { dateFormatter } from "../lib/dates";
 
 /*
  * The filter bar: the one way a Fusion table narrows its rows. Every filter is a chip that reads as a
@@ -63,6 +66,7 @@ export function DataTableFilters<TData extends RowData>({
   const addable = fields.filter((f) => !f.pinned);
   const active = addable.filter((f) => isFilterActive(state[f.id]));
   const anyActive = fields.some((f) => isFilterActive(state[f.id]));
+  const t = useTranslations("ds.table");
 
   return (
     <>
@@ -103,7 +107,7 @@ export function DataTableFilters<TData extends RowData>({
             set(Object.fromEntries(fields.map((f) => [f.id, undefined])))
           }
         >
-          Clear
+          {t("clear")}
         </Button>
       ) : null}
     </>
@@ -125,6 +129,7 @@ function AddFilter({
   countsFor: (field: Field) => Record<string, number> | undefined;
   onCommit: (changes: DataTableFilterState) => void;
 }) {
+  const t = useTranslations("ds.table");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   // Choices are held here and become chips when the menu closes. Committing mid-choice would insert a
@@ -175,14 +180,14 @@ function AddFilter({
               <Button
                 variant="outline"
                 size={compact ? "icon" : "default"}
-                aria-label="Add filter"
+                aria-label={t("addFilter")}
               >
                 {compact ? (
                   <Plus aria-hidden />
                 ) : (
                   <HugeiconsIcon icon={FilterHorizontalIcon} aria-hidden />
                 )}
-                {compact ? null : "Filter"}
+                {compact ? null : t("filter")}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
@@ -190,7 +195,7 @@ function AddFilter({
                 <MenuSearch
                   value={query}
                   onChange={setQuery}
-                  placeholder="Filter by…"
+                  placeholder={t("filterBy")}
                 />
               ) : null}
               {visible.map((field) => {
@@ -210,8 +215,8 @@ function AddFilter({
                       {field.label}
                       {isFilterActive(current) ? (
                         <span
-                          aria-label="Active"
-                          className="ml-auto size-1.5 rounded-full bg-primary"
+                          aria-label={t("active")}
+                          className="ms-auto size-1.5 rounded-full bg-primary"
                         />
                       ) : null}
                     </DropdownMenuItem>
@@ -226,8 +231,8 @@ function AddFilter({
                       {field.label}
                       {isFilterActive(current) ? (
                         <span
-                          aria-label="Active"
-                          className="ml-auto size-1.5 rounded-full bg-primary"
+                          aria-label={t("active")}
+                          className="ms-auto size-1.5 rounded-full bg-primary"
                         />
                       ) : null}
                     </DropdownMenuSubTrigger>
@@ -274,15 +279,10 @@ function AddFilter({
 
 // ── An active filter, as a sentence ─────────────────────────────────────────────
 
-const DATE_FORMAT = new Intl.DateTimeFormat("en-GB", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-});
-const DATE_FORMAT_SHORT = new Intl.DateTimeFormat("en-GB", {
-  month: "short",
-  day: "numeric",
-});
+const DATE_FORMAT = { month: "short", day: "numeric", year: "numeric" } as const;
+const DATE_FORMAT_SHORT = { month: "short", day: "numeric" } as const;
+
+type TableT = ReturnType<typeof useTranslations<"ds.table">>;
 
 function parseDate(value?: string): Date | undefined {
   const match = value ? /^(\d{4})-(\d{2})-(\d{2})/.exec(value) : null;
@@ -297,16 +297,18 @@ function isoDate(date: Date): string {
 
 function describe(
   field: Field,
-  value: DataTableFilterValue | undefined
+  value: DataTableFilterValue | undefined,
+  t: TableT,
+  locale: string
 ): { operator: string; text: string } {
-  if (!isFilterActive(value)) return { operator: "is", text: "All" };
+  if (!isFilterActive(value)) return { operator: t("is"), text: t("all") };
   if (field.type === "options") {
     const selected = value as string[];
     const labels = selected.map(
       (v) => field.options.find((o) => o.value === v)?.label ?? v
     );
     return {
-      operator: selected.length === 1 ? "is" : "is any of",
+      operator: selected.length === 1 ? t("is") : t("isAnyOf"),
       text:
         labels.length <= 2
           ? labels.join(", ")
@@ -315,16 +317,17 @@ function describe(
   }
   const { from, to } = value as DataTableDateRange;
   const f = parseDate(from);
-  const t = parseDate(to);
-  if (f && t) {
-    const sameYear = f.getFullYear() === t.getFullYear();
+  const e = parseDate(to);
+  const full = dateFormatter(DATE_FORMAT, locale);
+  if (f && e) {
+    const sameYear = f.getFullYear() === e.getFullYear();
     return {
-      operator: "between",
-      text: `${(sameYear ? DATE_FORMAT_SHORT : DATE_FORMAT).format(f)} – ${DATE_FORMAT.format(t)}`,
+      operator: t("between"),
+      text: `${(sameYear ? dateFormatter(DATE_FORMAT_SHORT, locale) : full).format(f)} – ${full.format(e)}`,
     };
   }
-  if (f) return { operator: "after", text: DATE_FORMAT.format(f) };
-  return { operator: "before", text: t ? DATE_FORMAT.format(t) : "" };
+  if (f) return { operator: t("after"), text: full.format(f) };
+  return { operator: t("before"), text: e ? full.format(e) : "" };
 }
 
 function FilterChip({
@@ -338,14 +341,16 @@ function FilterChip({
   counts?: Record<string, number>;
   onChange: (next: DataTableFilterValue | undefined) => void;
 }) {
+  const t = useTranslations("ds.table");
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
-  const { operator, text } = describe(field, value);
+  const { operator, text } = describe(field, value, t, locale);
   const FieldIcon = field.icon;
   const valueButton = (
     <button
       type="button"
-      aria-label={`${field.label} ${operator} ${text}. Edit`}
-      className="min-w-0 truncate px-1.5 last:pr-2.5 font-medium text-foreground outline-none transition-colors hover:bg-muted focus-visible:bg-muted data-[state=open]:bg-muted"
+      aria-label={t("editFilter", { field: field.label, operator, value: text })}
+      className="min-w-0 truncate px-1.5 last:pe-2.5 font-medium text-foreground outline-none transition-colors hover:bg-muted focus-visible:bg-muted data-[state=open]:bg-muted"
     >
       {text}
     </button>
@@ -353,7 +358,7 @@ function FilterChip({
 
   return (
     <div className="inline-flex h-8 max-w-full items-stretch overflow-hidden rounded-control border border-border bg-inlay text-sm">
-      <span className="flex items-center gap-1.5 pl-2.5 pr-1.5 text-muted-foreground">
+      <span className="flex items-center gap-1.5 ps-2.5 pe-1.5 text-muted-foreground">
         {FieldIcon ? <FieldIcon className="size-3.5 text-primary-ink" /> : null}
         {field.label}
         <span className="hidden text-muted-foreground/70 sm:inline">
@@ -389,9 +394,9 @@ function FilterChip({
       {field.pinned ? null : (
         <button
           type="button"
-          aria-label={`Remove ${field.label} filter`}
+          aria-label={t("removeFilter", { field: field.label })}
           onClick={() => onChange(undefined)}
-          className="flex w-7 items-center justify-center border-l border-border text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted"
+          className="flex w-7 items-center justify-center border-s border-border text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:bg-muted"
         >
           <X className="size-3.5" aria-hidden />
         </button>
@@ -416,6 +421,7 @@ function ValueMenu({
   /** A choice is complete (a single option, a full range); `final` is that value. */
   onDone: (final?: DataTableFilterValue) => void;
 }) {
+  const t = useTranslations("ds.table");
   const [query, setQuery] = useState("");
   if (field.type !== "options") return null;
 
@@ -427,11 +433,11 @@ function ValueMenu({
   // With counts, a row keeps no empty gutter: the count sits at the edge, and a checked row shows its
   // check mark there instead.
   const itemClass = counts
-    ? "group/option pr-2.5 data-[state=checked]:pr-8"
+    ? "group/option pe-2.5 data-[state=checked]:pe-8"
     : undefined;
   const count = (option: DataTableFilterOption<unknown>) =>
     counts ? (
-      <span className="ml-auto pl-3 text-xs tabular-nums text-muted-foreground group-data-[state=checked]/option:hidden">
+      <span className="ms-auto ps-3 text-xs tabular-nums text-muted-foreground group-data-[state=checked]/option:hidden">
         {counts[option.value] ?? 0}
       </span>
     ) : null;
@@ -456,7 +462,7 @@ function ValueMenu({
         >
           {field.pinned ? (
             <DropdownMenuRadioItem value="" className={itemClass}>
-              All
+              {t("all")}
             </DropdownMenuRadioItem>
           ) : null}
           {options.map((option) => (
@@ -501,7 +507,7 @@ function ValueMenu({
         })
       )}
       {options.length === 0 ? (
-        <p className="px-2.5 py-2 text-sm text-muted-foreground">No results</p>
+        <p className="px-2.5 py-2 text-sm text-muted-foreground">{t("noOptions")}</p>
       ) : null}
     </>
   );
@@ -550,6 +556,7 @@ function DateRangeEditor({
   onChange: (next: DataTableDateRange) => void;
   onDone: (final?: DataTableFilterValue) => void;
 }) {
+  const locale = useLocale();
   const clicks = useRef(0);
   const from = parseDate(value.from);
   const to = parseDate(value.to);
@@ -558,6 +565,7 @@ function DateRangeEditor({
   return (
     <Calendar
       mode="range"
+      locale={locale === "fr" ? fr : undefined}
       numberOfMonths={1}
       selected={selected}
       defaultMonth={from}

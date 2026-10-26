@@ -46,10 +46,10 @@ export function AvatarStack({
           key={`${name}-${index}`}
           name={name}
           size={size}
-          className={cn("ring-2 ring-background", index > 0 && (size === "xl" ? "-ml-4" : size === "lg" ? "-ml-2.5" : "-ml-1.5"))}
+          className={cn("ring-2 ring-background", index > 0 && (size === "xl" ? "-ms-4" : size === "lg" ? "-ms-2.5" : "-ms-1.5"))}
         />
       ))}
-      {rest > 0 ? <span className="ml-1.5 type-meta tabular-nums text-muted-foreground">+{rest}</span> : null}
+      {rest > 0 ? <span className="ms-1.5 type-meta tabular-nums text-muted-foreground">+{rest}</span> : null}
     </span>
   );
 }

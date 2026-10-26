@@ -3,6 +3,7 @@
 import { Fragment, type KeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import type { Column, RowData } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "../components/ui/button";
 import { Skeleton } from "../components/ui/skeleton";
 import { cn } from "../lib/utils";
@@ -20,9 +21,9 @@ import type { DataTableModel } from "./use-data-table";
  */
 const INSET = "px-4";
 const ALIGN_TEXT = {
-  start: "text-left",
+  start: "text-start",
   center: "text-center",
-  end: "text-right",
+  end: "text-end",
 } as const;
 const ALIGN_FLEX = {
   start: "justify-start",
@@ -104,8 +105,8 @@ export function DataTable<TData extends RowData>({
   error,
   isRefreshing = false,
   notice,
-  noResults = "No matches",
-  noun = ["row", "rows"],
+  noResults,
+  noun,
   pageSizes,
   onRowClick,
   canClickRow,
@@ -113,6 +114,7 @@ export function DataTable<TData extends RowData>({
   rowGroup,
   className,
 }: DataTableProps<TData>) {
+  const t = useTranslations("ds.table");
   const { table } = model;
   const columns = table.getVisibleLeafColumns() as AnyColumn<TData>[];
   const rows = table.getRowModel().rows;
@@ -165,7 +167,7 @@ export function DataTable<TData extends RowData>({
               ) : null}
               <DataTableFilters model={model} />
               {actions ? (
-                <div className="ml-auto flex items-center gap-2">{actions}</div>
+                <div className="ms-auto flex items-center gap-2">{actions}</div>
               ) : null}
             </>
           )}
@@ -290,7 +292,7 @@ export function DataTable<TData extends RowData>({
                     colSpan={columns.length}
                     className="px-6 py-14 text-center"
                   >
-                    <p className="text-sm text-muted-foreground">{noResults}</p>
+                    <p className="text-sm text-muted-foreground">{noResults ?? t("noResults")}</p>
                     {model.isFiltered ? (
                       <Button
                         variant="outline"
@@ -298,7 +300,7 @@ export function DataTable<TData extends RowData>({
                         className="mt-3"
                         onClick={model.reset}
                       >
-                        Clear filters
+                        {t("clearFilters")}
                       </Button>
                     ) : null}
                   </td>
@@ -316,7 +318,7 @@ export function DataTable<TData extends RowData>({
                         <th
                           scope="colgroup"
                           colSpan={columns.length}
-                          className={cn("h-9 text-left text-xs font-semibold text-foreground", INSET)}
+                          className={cn("h-9 text-start text-xs font-semibold text-foreground", INSET)}
                         >
                           {group.label}
                         </th>
