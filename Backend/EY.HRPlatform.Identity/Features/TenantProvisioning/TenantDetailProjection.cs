@@ -17,6 +17,12 @@ public sealed record TenantDetailDto
     /// yet accepted control.
     /// </summary>
     public bool IsActive { get; init; }
+
+    /// <summary>
+    /// Offboarded for good: inactive, out of the platform list, and offering no
+    /// lifecycle or invitation actions.
+    /// </summary>
+    public bool IsArchived { get; init; }
     public string AdministratorActivationStatus { get; init; } = string.Empty;
     public string Locale { get; init; } = string.Empty;
     public string TimeZone { get; init; } = string.Empty;
@@ -135,7 +141,8 @@ public sealed class TenantDetailProjection(AppIdentityDbContext dbContext) : ITe
                 ExpiresAt = invitation.ExpiresAt,
                 CreatedAt = invitation.CreatedAt,
                 LastDelivery = lastAttempt,
-                AllowedActions = AllowedActionsFor(invitation.State),
+                // Recovery refuses an archived tenant, so it offers nothing.
+                AllowedActions = tenant.IsArchived ? [] : AllowedActionsFor(invitation.State),
             };
         }
 
@@ -190,6 +197,7 @@ public sealed class TenantDetailProjection(AppIdentityDbContext dbContext) : ITe
             Name = tenant.Name,
             Slug = tenant.Slug,
             IsActive = tenant.IsActive,
+            IsArchived = tenant.IsArchived,
             AdministratorActivationStatus = tenant.AdministratorActivationStatus.ToString(),
             Locale = tenant.Locale,
             TimeZone = tenant.TimeZone,

@@ -1,4 +1,5 @@
 using EY.HRPlatform.Identity.Domain.Enums;
+using EY.HRPlatform.Identity.Features.Eligibility;
 using EY.HRPlatform.Identity.Features.TenantProvisioning;
 using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -850,6 +851,97 @@ public sealed class TenantProvisioningIntegrationTests : IAsyncLifetime
         Assert.Equal(InvitationState.Superseded, superseded.State);
         Assert.Empty(TenantDetailProjection.AllowedActionsFor(superseded.State));
         Assert.Empty(TenantDetailProjection.AllowedActionsFor(InvitationState.Accepted));
+    }
+
+    // ── Archival ─────────────────────────────────────────
+
+    [SkippableFact]
+    public async Task Archiving_ends_access_and_takes_the_tenant_out_of_the_list()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        await using var db = await CreateAsync();
+        var (tenantId, _) = await ProvisionAsync(db);
+
+        var result = await new TenantLifecycleService(db).ArchiveAsync(tenantId, Actor);
+
+        Assert.True(result.IsSuccess);
+        db.ChangeTracker.Clear();
+        var tenant = await db.Tenants.IgnoreQueryFilters().AsNoTracking().SingleAsync(t => t.Id == tenantId);
+        Assert.True(tenant.IsArchived);
+        Assert.False(tenant.IsActive);
+
+        var overview = await new TenantOverviewProjection(db).GetAsync(new TenantOverviewQuery());
+        Assert.Empty(overview.Rows);
+        Assert.Equal(0, overview.Counts.All);
+
+        // The record stays reachable, says what happened, and offers nothing.
+        var detail = await new TenantDetailProjection(db).GetAsync(tenantId);
+        Assert.True(detail!.IsArchived);
+        Assert.False(detail.IsActive);
+        Assert.Empty(detail.BootstrapInvitation!.AllowedActions);
+        Assert.Equal("TenantArchived", detail.History[0].EventType);
+    }
+
+    [SkippableFact]
+    public async Task Archival_cannot_be_repeated_or_undone()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        await using var db = await CreateAsync();
+        var (tenantId, _) = await ProvisionAsync(db);
+        var lifecycle = new TenantLifecycleService(db);
+        Assert.True((await lifecycle.ArchiveAsync(tenantId, Actor)).IsSuccess);
+
+        Assert.Equal("tenant.invalid_lifecycle_state", (await lifecycle.ArchiveAsync(tenantId, Actor)).Error.Code);
+        Assert.Equal("tenant.invalid_lifecycle_state", (await lifecycle.ReactivateAsync(tenantId, Actor)).Error.Code);
+        Assert.Equal("tenant.invalid_lifecycle_state", (await lifecycle.DeactivateAsync(tenantId, Actor)).Error.Code);
+    }
+
+    [SkippableFact]
+    public async Task Archiving_an_unknown_tenant_is_not_found()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        await using var db = await CreateAsync();
+
+        var result = await new TenantLifecycleService(db).ArchiveAsync(Guid.NewGuid(), Actor);
+
+        Assert.Equal("tenant.not_found", result.Error.Code);
+    }
+
+    [SkippableFact]
+    public async Task An_archived_tenant_sends_no_further_invitations()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        await using var db = await CreateAsync();
+        var (tenantId, invitationId) = await ProvisionAsync(db);
+        Assert.True((await new TenantLifecycleService(db).ArchiveAsync(tenantId, Actor)).IsSuccess);
+        db.ChangeTracker.Clear();
+        var recovery = CreateRecovery(db, out var delivery);
+
+        var resend = await recovery.ResendAsync(tenantId, invitationId, Actor);
+        var replace = await recovery.ReplaceAsync(tenantId, invitationId, "next@atlas.example", Actor);
+
+        Assert.Equal("bootstrap.invalid_state", resend.Error.Code);
+        Assert.Equal("bootstrap.invalid_state", replace.Error.Code);
+        Assert.Equal(0, delivery.Calls);
+    }
+
+    [SkippableFact]
+    public async Task An_archived_tenant_refuses_every_access_decision()
+    {
+        Skip.IfNot(Available, "No PostgreSQL connection configured.");
+        await using var db = await CreateAsync();
+        var (tenantId, _) = await ProvisionAsync(db);
+        var eligibility = new EligibilityDecisionService(db);
+        var request = new EligibilityEvaluationRequest(
+            tenantId, Guid.NewGuid(), "core.employee.read", "read", null, null, null, false);
+
+        // Live tenant: the decision gets past the tenant to the (unknown) account.
+        Assert.Equal(EligibilityDenialReason.AccountInactive, (await eligibility.EvaluateAsync(request)).DenialReason);
+
+        Assert.True((await new TenantLifecycleService(db).ArchiveAsync(tenantId, Actor)).IsSuccess);
+        db.ChangeTracker.Clear();
+
+        Assert.Equal(EligibilityDenialReason.TenantInactive, (await eligibility.EvaluateAsync(request)).DenialReason);
     }
 
     // ── plumbing ─────────────────────────────────────────

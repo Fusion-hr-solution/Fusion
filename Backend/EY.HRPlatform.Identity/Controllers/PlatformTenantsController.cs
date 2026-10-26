@@ -154,6 +154,14 @@ public sealed class PlatformTenantsController(
         => RunLifecycleAsync(() => lifecycle.ReactivateAsync(tenantId, User.GetUserId(), ct));
 
     /// <summary>
+    /// Offboards a customer: access ends for good and the tenant leaves the
+    /// platform list. Its record and data are kept; archival cannot be undone.
+    /// </summary>
+    [HttpPost("{tenantId:guid}/archive")]
+    public Task<ActionResult<ApiResponse<object?>>> Archive(Guid tenantId, CancellationToken ct = default)
+        => RunLifecycleAsync(() => lifecycle.ArchiveAsync(tenantId, User.GetUserId(), ct));
+
+    /// <summary>
     /// Renames the tenant's organization display name. The tenant key and other
     /// immutable provisioning facts are unaffected.
     /// </summary>

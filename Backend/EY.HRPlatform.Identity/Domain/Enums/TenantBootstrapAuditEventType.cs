@@ -18,4 +18,5 @@ public enum TenantBootstrapAuditEventType
     TenantDeactivated = 8,
     TenantReactivated = 9,
     TenantProfileChanged = 10,
+    TenantArchived = 11,
 }

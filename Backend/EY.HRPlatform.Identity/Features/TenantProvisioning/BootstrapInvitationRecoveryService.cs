@@ -207,9 +207,21 @@ public sealed class BootstrapInvitationRecoveryService(
                     && item.Purpose == InvitationPurpose.OrganizationBootstrap,
                 ct);
 
-        return invitation is null
+        if (invitation is null)
+        {
+            return Result.Failure<InviteToken>(new Error(
+                "bootstrap.invitation_not_found", "Bootstrap invitation not found."));
+        }
+
+        // An archived tenant can never be activated, so nothing may send its
+        // administrator a fresh link.
+        var archived = await dbContext.Tenants
+            .IgnoreQueryFilters()
+            .AnyAsync(tenant => tenant.Id == tenantId && tenant.IsArchived, ct);
+
+        return archived
             ? Result.Failure<InviteToken>(new Error(
-                "bootstrap.invitation_not_found", "Bootstrap invitation not found."))
+                "bootstrap.invalid_state", "This tenant is archived."))
             : Result.Success<InviteToken>(invitation);
     }
 

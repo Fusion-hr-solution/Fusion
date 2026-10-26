@@ -10,16 +10,19 @@ public interface ITenantLifecycleService
 {
     Task<Result> DeactivateAsync(Guid tenantId, Guid actorAccountId, CancellationToken ct = default);
     Task<Result> ReactivateAsync(Guid tenantId, Guid actorAccountId, CancellationToken ct = default);
+    Task<Result> ArchiveAsync(Guid tenantId, Guid actorAccountId, CancellationToken ct = default);
 }
 
 /// <summary>
-/// Platform-owned tenant lifecycle: the single Active↔Deactivated transition.
+/// Platform-owned tenant lifecycle: the Active↔Deactivated transition, and
+/// archival, which offboards a customer for good.
 ///
 /// Deactivation removes customer access — enforced downstream by
 /// <see cref="TenantContext.TenantOperationalStatus"/>, which reports a
 /// deactivated tenant as suspended — while preserving all tenant data, so the
-/// change is reversible. It governs access only; nothing here touches the
-/// customer's workforce, configuration, or module data.
+/// change is reversible. Archival also ends access but cannot be undone, and it
+/// takes the tenant out of the platform list. Both govern access only; nothing
+/// here touches the customer's workforce, configuration, or module data.
 ///
 /// The transition is validated against the stored tenant, so a command built
 /// from a stale view returns a conflict rather than forcing a redundant state.
@@ -40,6 +43,14 @@ public sealed class TenantLifecycleService(AppIdentityDbContext dbContext) : ITe
             actorAccountId,
             apply: tenant => tenant.Reactivate(),
             eventType: TenantBootstrapAuditEventType.TenantReactivated,
+            ct);
+
+    public Task<Result> ArchiveAsync(Guid tenantId, Guid actorAccountId, CancellationToken ct = default)
+        => TransitionAsync(
+            tenantId,
+            actorAccountId,
+            apply: tenant => tenant.Archive(),
+            eventType: TenantBootstrapAuditEventType.TenantArchived,
             ct);
 
     private async Task<Result> TransitionAsync(

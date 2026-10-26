@@ -179,8 +179,11 @@ public sealed class TenantOverviewProjection(AppIdentityDbContext dbContext) : I
 
     private async Task<List<TenantOverviewRowDto>> BuildRowsAsync(CancellationToken cancellationToken)
     {
+        // Archived tenants are offboarded customers: they leave the working list,
+        // and their records stay reachable directly.
         var tenants = await dbContext.Tenants
             .AsNoTracking().IgnoreQueryFilters()
+            .Where(tenant => !tenant.IsArchived)
             .Select(tenant => new
             {
                 tenant.Id,
