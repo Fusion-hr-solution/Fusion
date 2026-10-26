@@ -268,6 +268,22 @@
     "defaultRole": "Employee",
     "roleSentence": "Rôle des nouveaux comptes modifié",
     "none": "Aucun",
-    "otherSentence": "{name} modifié"
+    "otherSentence": "{name} modifié",
+    "roles": {
+      "gave": "A attribué le rôle « {role} » à {person}",
+      "took": "A retiré le rôle « {role} » à {person}",
+      "held": "Attribué",
+      "notHeld": "Non attribué",
+      "someone": "Quelqu’un",
+      "created": "A créé le rôle « {role} »",
+      "deleted": "A supprimé le rôle « {role} »",
+      "name": "Nom",
+      "renamed": "A renommé le rôle « {before} » en « {after} »",
+      "canNone": "Les titulaires du rôle « {role} » ne voient plus {what}",
+      "canView": "Les titulaires du rôle « {role} » peuvent désormais voir {what}",
+      "canManage": "Les titulaires du rôle « {role} » peuvent désormais gérer {what}",
+      "changedWhat": "A modifié ce que permet le rôle « {role} »",
+      "changed": "A modifié le rôle « {role} »"
+    }
   }
 }

@@ -23,7 +23,7 @@ import { IntlTestProvider } from "@repo/ds/testing";
 import dsFr from "@repo/ds/messages/fr.json";
 import { loadCoreMessages } from "@/i18n/messages";
 import type { Say } from "./say";
-import { describeChange, periodOf } from "./sections/change-history";
+import { describeChange, periodOf, roleChange } from "./sections/change-history";
 import { invitationsConsequence } from "./sections/invitations";
 import { roleConsequence } from "./sections/roles";
 import { CoreSettingsSectionHost } from "./section-host";
@@ -137,6 +137,89 @@ describe("In French", () => {
     expect(describeChange("provisioning.inviteExpiryDays", 7, 14, sayInFrench).after).toBe("14 jours");
     expect(periodOf(new Date(2026, 8, 3), new Date(2026, 9, 24), sayInFrench, "fr")).toBe("Septembre");
     expect(periodOf(new Date(2026, 9, 22), new Date(2026, 9, 24), sayInFrench, "fr")).toBe("Cette semaine");
+  });
+});
+
+const holder = (roles: string[], person = { userId: "u1", fullName: "Khaled Sassi", email: "khaled.sassi@example.test" }) => ({
+  ...person,
+  accessProfiles: roles.map((name) => ({ id: `id-${name}`, name, type: "Custom", isSystemProtected: false })),
+});
+const role = (name: string, keys: string[]) => ({ id: "r1", name, grants: keys.map((permissionKey) => ({ permissionKey, scope: "Tenant" })) });
+const json = (value: unknown) => JSON.stringify(value);
+
+describe("Role changes in change history", () => {
+  it("says who gained or lost which role", () => {
+    const gained = roleChange("access.assignment.updated", json(holder(["Employee"])), json(holder(["Employee", "Performance lead"])));
+    expect(gained).toEqual({
+      headline: "Gave Khaled Sassi the Performance lead role",
+      lines: [{ label: "Khaled Sassi · Performance lead", before: "Not held", after: "Held", sentence: "Gave Khaled Sassi the Performance lead role" }],
+    });
+    expect(
+      roleChange("access.assignment.updated", json(holder(["Employee", "Recruiter"])), json(holder(["Employee", "Performance lead"])))?.headline
+    ).toBe("Gave Khaled Sassi the Performance lead role, and 1 more");
+    expect(
+      roleChange("access.assignment.updated", json(holder(["Recruiter"])), json(holder([])))?.lines[0]?.sentence
+    ).toBe("Took the Recruiter role from Khaled Sassi");
+  });
+
+  it("names a first assignment, a person without a name, and each person of a bulk change", () => {
+    expect(roleChange("access.assignment.updated", null, json(holder(["Employee"])))?.headline).toBe("Gave Khaled Sassi the Employee role");
+    const unnamed = { userId: "u2", fullName: null, email: "rim@example.test" };
+    expect(roleChange("access.assignment.updated", null, json(holder(["Employee"], unnamed as never)))?.headline).toBe(
+      "Gave rim@example.test the Employee role"
+    );
+    const bulk = roleChange(
+      "access.assignment.bulkUpdated",
+      json([holder([]), holder([], unnamed as never)]),
+      json([holder(["Recruiter"]), holder(["Recruiter"], unnamed as never)])
+    );
+    expect(bulk?.lines.map((line) => line.sentence)).toEqual([
+      "Gave Khaled Sassi the Recruiter role",
+      "Gave rim@example.test the Recruiter role",
+    ]);
+  });
+
+  it("says what a role was created, renamed or changed to do", () => {
+    const created = roleChange("access.profile.created", null, json(role("Performance lead", ["performance.cycle.manage"])));
+    expect(created?.headline).toBe("Created the Performance lead role");
+    expect(created?.lines).toEqual([
+      { label: "Cycles", before: "None", after: "Manage", sentence: "People holding Performance lead can now manage cycles" },
+    ]);
+    expect(roleChange("access.profile.deleted", json(role("Recruiter", [])), null)).toEqual({ headline: "Deleted the Recruiter role", lines: [] });
+    expect(
+      roleChange("access.profile.updated", json(role("Recruiter", [])), json(role("Talent", ["core.employee.view"])))?.headline
+    ).toBe("Renamed the Recruiter role to Talent, and 1 more");
+    expect(
+      roleChange("access.profile.updated", json(role("Talent", ["core.employee.view"])), json(role("Talent", [])))?.lines[0]?.sentence
+    ).toBe("People holding Talent no longer see people");
+    expect(
+      roleChange("access.profile.updated", json(role("Talent", [])), json(role("Talent", ["performance.goal.view"])))
+    ).toEqual({ headline: "Changed what the Talent role can do", lines: [] });
+  });
+
+  it("leaves what it can't read to the fallback", () => {
+    expect(roleChange("access.assignment.updated", "{not json", "{not json")).toBeNull();
+    expect(roleChange("access.profile.updated", null, null)).toBeNull();
+    expect(roleChange("access.invitation.sent", null, json(holder(["Employee"])))).toBeNull();
+    expect(roleChange("access.assignment.updated", json(holder(["Employee"])), json(holder(["Employee"])))).toBeNull();
+  });
+
+  it("says it in French and Arabic", async () => {
+    const ar = await loadCoreMessages("ar");
+    const arabic = createTranslator({ locale: "ar", messages: ar, namespace: "settings" });
+    const sayInArabic: Say = (key, values) => arabic(key as never, values as never);
+    const gave = ["access.assignment.updated", json(holder([])), json(holder(["Performance lead"]))] as const;
+    expect(roleChange(...gave, sayInFrench)?.headline).toBe("A attribué le rôle « Performance lead » à Khaled Sassi");
+    expect(roleChange(...gave, sayInArabic)?.headline).toBe("منح Khaled Sassi دور Performance lead");
+    expect(
+      roleChange("access.profile.updated", json(role("Recruteur", [])), json(role("Recruteur", ["performance.review.calibrate"])), sayInFrench)
+        ?.lines[0]
+    ).toEqual({
+      label: "Calibrage",
+      before: "Aucun",
+      after: "Gestion",
+      sentence: "Les titulaires du rôle « Recruteur » peuvent désormais gérer le calibrage",
+    });
   });
 });
 

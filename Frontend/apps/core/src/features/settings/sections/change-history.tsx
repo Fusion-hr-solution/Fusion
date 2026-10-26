@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useLocale } from "next-intl";
 import { ChevronRight } from "lucide-react";
-import type { AccessAuditEventDto, FusionSettingsSection, SettingsAuditEventDto } from "@repo/api";
+import type { AccessAuditEventDto, AccessProfileSummaryDto, FusionSettingsSection, SettingsAuditEventDto } from "@repo/api";
 import { cn, NativeSelect, NativeSelectOption } from "@repo/ds";
 import { formatDate, formatDateParts, formatTime } from "@repo/ds/lib/dates";
 import { PageError, SettingsPage, useSettingsSectionName } from "@repo/ds/shell";
@@ -11,6 +11,7 @@ import { useAccessAudit } from "@/features/settings/api/use-core-access";
 import { useSettingsAudit } from "@/features/settings/api/use-tenant-settings";
 import { AUDIT_SECTION_IDS } from "@/features/settings/core-settings";
 import { sayInEnglish, useSettingsSay, type Say } from "@/features/settings/say";
+import { levelsOf, ROLE_AREAS } from "@/features/settings/sections/roles";
 
 /** The profile fields Employee fields names (`employeeFields.fields.<key>.label`). */
 const FIELDS = new Set(["firstName", "lastName", "email", "hireDate", "phone", "jobTitle", "workLocation", "employmentType"]);
@@ -164,15 +165,111 @@ function fromSettings(entry: SettingsAuditEventDto, say: Say, english: boolean):
   };
 }
 
-/** A role change: Identity's own wording in English (B-109 turns it into sentences), a plain line otherwise. */
+/** A person's roles as Identity's audit records them (`UserAccessAssignmentDto`). */
+interface Holder {
+  userId?: string;
+  fullName?: string | null;
+  email?: string;
+  accessProfiles?: { id: string; name: string }[];
+}
+
+/** A role as Identity's audit records it (`AccessProfileSummaryDto`). */
+interface RoleRecord {
+  name?: string;
+  grants?: { permissionKey: string }[];
+}
+
+const AREAS = ROLE_AREAS.flatMap((group) => group.areas);
+
+function headlineOf(lines: ChangeLine[], say: Say): string {
+  const first = lines[0]!.sentence;
+  return lines.length > 1 ? say("changeHistory.andMore", { sentence: first, count: lines.length - 1 }) : first;
+}
+
+function holdersOf(value: unknown): Holder[] {
+  if (Array.isArray(value)) return value as Holder[];
+  return value && typeof value === "object" ? [value as Holder] : [];
+}
+
+/** Who gained or lost which role, one line per role. */
+function assignmentLines(before: unknown, after: unknown, say: Say): ChangeLine[] {
+  const said = (key: string, values?: Record<string, string | number>) => say(`changeHistory.roles.${key}`, values);
+  const earlier = new Map(holdersOf(before).map((holder) => [holder.userId, holder]));
+  return holdersOf(after).flatMap((holder) => {
+    const person = holder.fullName || holder.email || said("someone");
+    const had = earlier.get(holder.userId)?.accessProfiles ?? [];
+    const has = holder.accessProfiles ?? [];
+    const line = (role: string, gained: boolean): ChangeLine => ({
+      label: `${person} · ${role}`,
+      before: said(gained ? "notHeld" : "held"),
+      after: said(gained ? "held" : "notHeld"),
+      sentence: said(gained ? "gave" : "took", { person, role }),
+    });
+    return [
+      ...has.filter((role) => !had.some((old) => old.id === role.id)).map((role) => line(role.name, true)),
+      ...had.filter((role) => !has.some((now) => now.id === role.id)).map((role) => line(role.name, false)),
+    ];
+  });
+}
+
+/** What a role can do in each Roles area, as lines from one set of grants to another. */
+function grantLines(role: string, before: RoleRecord | null, after: RoleRecord | null, say: Say): ChangeLine[] {
+  const was = levelsOf({ grants: (before?.grants ?? []) as AccessProfileSummaryDto["grants"] });
+  const is = levelsOf({ grants: (after?.grants ?? []) as AccessProfileSummaryDto["grants"] });
+  return AREAS.filter((area) => was[area.id] !== is[area.id]).map((area) => ({
+    label: say(`roles.areas.${area.id}.label`),
+    before: say(`roles.levels.${was[area.id]}`),
+    after: say(`roles.levels.${is[area.id]}`),
+    sentence: say(`changeHistory.roles.can${is[area.id]}`, { role, what: say(`roles.areas.${area.id}.what`) }),
+  }));
+}
+
+/**
+ * A role change as a headline and lines, from the before and after Identity records. Null when the action or its
+ * records aren't ones it knows, so the entry keeps the plain fallback.
+ */
+export function roleChange(
+  action: string,
+  beforeJson: string | null,
+  afterJson: string | null,
+  say: Say = sayInEnglish
+): { headline: string; lines: ChangeLine[] } | null {
+  const said = (key: string, values?: Record<string, string | number>) => say(`changeHistory.roles.${key}`, values);
+  const before = parse(beforeJson);
+  const after = parse(afterJson);
+  if (action === "access.assignment.updated" || action === "access.assignment.bulkUpdated") {
+    const lines = assignmentLines(before, after, say);
+    return lines.length ? { headline: headlineOf(lines, say), lines } : null;
+  }
+  const was = before && typeof before === "object" ? (before as RoleRecord) : null;
+  const is = after && typeof after === "object" ? (after as RoleRecord) : null;
+  if (action === "access.profile.created" && is?.name)
+    return { headline: said("created", { role: is.name }), lines: grantLines(is.name, null, is, say) };
+  if (action === "access.profile.deleted" && was?.name) return { headline: said("deleted", { role: was.name }), lines: [] };
+  if (action === "access.profile.updated" && was?.name && is?.name) {
+    const lines = [
+      ...(was.name !== is.name
+        ? [{ label: said("name"), before: was.name, after: is.name, sentence: said("renamed", { before: was.name, after: is.name }) }]
+        : []),
+      ...grantLines(is.name, was, is, say),
+    ];
+    if (lines.length) return { headline: headlineOf(lines, say), lines };
+    const keys = (role: RoleRecord) => JSON.stringify((role.grants ?? []).map((grant) => grant.permissionKey).sort());
+    return { headline: said(keys(was) !== keys(is) ? "changedWhat" : "changed", { role: is.name }), lines: [] };
+  }
+  return null;
+}
+
+/** A role change as sentences; Identity's own wording in English, a plain line otherwise, when it can't be read. */
 function fromAccess(entry: AccessAuditEventDto, say: Say, english: boolean): HistoryEntry {
+  const change = roleChange(entry.action, entry.beforeJson, entry.afterJson, say);
   return {
     id: `access:${entry.id}`,
     at: new Date(entry.occurredAt),
     actor: actorOf(entry.actorName),
     section: "roles",
-    headline: english ? entry.summary : say("changeHistory.roleChange"),
-    lines: [],
+    headline: change?.headline ?? (english ? entry.summary : say("changeHistory.roleChange")),
+    lines: change?.lines ?? [],
   };
 }
 

@@ -268,6 +268,22 @@
     "defaultRole": "Employee",
     "roleSentence": "Role for new accounts changed",
     "none": "None",
-    "otherSentence": "{name} changed"
+    "otherSentence": "{name} changed",
+    "roles": {
+      "gave": "Gave {person} the {role} role",
+      "took": "Took the {role} role from {person}",
+      "held": "Held",
+      "notHeld": "Not held",
+      "someone": "Someone",
+      "created": "Created the {role} role",
+      "deleted": "Deleted the {role} role",
+      "name": "Name",
+      "renamed": "Renamed the {before} role to {after}",
+      "canNone": "People holding {role} no longer see {what}",
+      "canView": "People holding {role} can now see {what}",
+      "canManage": "People holding {role} can now manage {what}",
+      "changedWhat": "Changed what the {role} role can do",
+      "changed": "Changed the {role} role"
+    }
   }
 }

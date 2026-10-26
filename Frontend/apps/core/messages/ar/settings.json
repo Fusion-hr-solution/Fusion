@@ -268,6 +268,22 @@
     "defaultRole": "موظف",
     "roleSentence": "تغيّر دور الحسابات الجديدة",
     "none": "لا شيء",
-    "otherSentence": "تغيّر {name}"
+    "otherSentence": "تغيّر {name}",
+    "roles": {
+      "gave": "منح {person} دور {role}",
+      "took": "سحب دور {role} من {person}",
+      "held": "مُسنَد",
+      "notHeld": "غير مُسنَد",
+      "someone": "شخص ما",
+      "created": "أنشأ دور {role}",
+      "deleted": "حذف دور {role}",
+      "name": "الاسم",
+      "renamed": "غيّر اسم دور {before} إلى {after}",
+      "canNone": "لم يعد شاغلو {role} يرون {what}",
+      "canView": "أصبح بإمكان شاغلي {role} رؤية {what}",
+      "canManage": "أصبح بإمكان شاغلي {role} إدارة {what}",
+      "changedWhat": "عدّل ما يتيحه دور {role}",
+      "changed": "عدّل دور {role}"
+    }
   }
 }
