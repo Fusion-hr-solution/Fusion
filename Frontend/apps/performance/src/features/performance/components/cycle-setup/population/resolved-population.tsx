@@ -171,7 +171,7 @@ export function ResolvedPopulation({
           label="Excluded"
           caption="Won't participate in this cycle"
         />
-        <div className="col-span-2 md:col-span-4 md:mt-6 md:border-t md:border-border md:pt-6 xl:col-span-1 xl:mt-0 xl:border-0 xl:pt-0 xl:pl-5">
+        <div className="col-span-2 md:col-span-4 md:mt-6 md:border-t md:border-border md:pt-6 xl:col-span-1 xl:mt-0 xl:border-0 xl:pt-0 xl:ps-5">
           <div className="flex gap-3">
             <Chip tone="muted">
               <ShieldCheck className="size-5" />
@@ -187,7 +187,7 @@ export function ResolvedPopulation({
                 <span className="type-body-secondary text-muted-foreground">
                   / {population.reviewerRequiredCount}
                 </span>
-                <span className="ml-auto type-label tabular-nums text-foreground">
+                <span className="ms-auto type-label tabular-nums text-foreground">
                   {coverage}%
                 </span>
               </div>
@@ -222,7 +222,7 @@ function Metric({
   caption: string;
 }) {
   return (
-    <div className="flex gap-3 md:px-5 md:first:pl-0">
+    <div className="flex gap-3 md:px-5 md:first:ps-0">
       <Chip tone={tone}>{icon}</Chip>
       <div className="min-w-0">
         <p className="type-metric text-foreground tabular-nums leading-none">

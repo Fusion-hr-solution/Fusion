@@ -1,4 +1,5 @@
 import type { MeasurementMethod, PlanLifecycleState, PlanReadinessDto } from "@repo/api";
+import { formatNumber } from "@repo/ds/lib/numbers";
 
 export const PLAN_STATE_LABEL: Record<PlanLifecycleState, string> = {
   Draft: "Draft",
@@ -39,12 +40,11 @@ export function pct(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/\.?0+$/, "");
 }
 
-const plainNumber = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
-const compactNumber = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
-
-/** A measurement number on its own: grouped, float noise trimmed, compact from a million ("1.2M"). */
+/** A measurement number on its own: grouped, float noise trimmed, compact from a million ("1.2m"). */
 export function formatMeasureNumber(value: number): string {
-  return Math.abs(value) >= 1_000_000 ? compactNumber.format(value) : plainNumber.format(value);
+  return Math.abs(value) >= 1_000_000
+    ? formatNumber(value, { notation: "compact", maximumFractionDigits: 1 })
+    : formatNumber(value, { maximumFractionDigits: 2 });
 }
 
 /** Symbol units hug the number (45%, $3, 2x, 5kg); anything wordier is a label read once, apart from it. */

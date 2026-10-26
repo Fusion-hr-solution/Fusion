@@ -112,7 +112,7 @@ export function Chips({ chips, word }: { chips: OverviewChipDto[]; word: (chip: 
           </>
         );
         const className = cn(
-          "flex items-center gap-2.5 rounded-control py-1.5 pr-3 pl-1.5",
+          "flex items-center gap-2.5 rounded-control py-1.5 pe-3 ps-1.5",
           chip.needsYou
             ? "bg-primary/10 ring-1 ring-inset ring-primary/50"
             : chip.state === "NotStarted"
@@ -163,9 +163,9 @@ export function ProgressLine({ value, has, className }: { value: number; has: bo
   return (
     <span className={cn("flex items-center gap-3", className)}>
       <span className="relative h-1.5 min-w-16 flex-1 overflow-hidden rounded-full bg-inlay">
-        {has ? <span className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${clamped}%` }} /> : null}
+        {has ? <span className="absolute inset-y-0 inset-s-0 rounded-full bg-primary" style={{ width: `${clamped}%` }} /> : null}
       </span>
-      <span className={cn("w-10 shrink-0 text-right type-label tabular-nums", has ? "text-foreground" : "text-muted-foreground")}>
+      <span className={cn("w-10 shrink-0 text-end type-label tabular-nums", has ? "text-foreground" : "text-muted-foreground")}>
         {has ? `${Math.round(value)}%` : "—"}
       </span>
     </span>
@@ -190,9 +190,9 @@ export function StepsStrip({ steps }: { steps: { label: string; detail?: string 
   return (
     <ol className="mt-5 flex items-start" aria-label="Where this stands">
       {steps.map((step, index) => (
-        <li key={`${step.label}-${index}`} className="relative min-w-0 flex-1 pr-3">
+        <li key={`${step.label}-${index}`} className="relative min-w-0 flex-1 pe-3">
           {index < steps.length - 1 ? (
-            <span aria-hidden className={cn("absolute top-3 right-1 left-8 h-px", step.state === "done" ? "bg-success" : "bg-border")} />
+            <span aria-hidden className={cn("absolute top-3 inset-e-1 inset-s-8 h-px", step.state === "done" ? "bg-success" : "bg-border")} />
           ) : null}
           <span
             className={cn(

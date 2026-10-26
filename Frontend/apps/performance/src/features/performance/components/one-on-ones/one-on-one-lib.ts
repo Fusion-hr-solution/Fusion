@@ -1,5 +1,5 @@
 import type { OneOnOneCadence } from "@repo/api";
-import { formatDate } from "@repo/ds/lib/dates";
+import { formatDate, formatDateParts } from "@repo/ds/lib/dates";
 
 export const CADENCE_LABEL: Record<OneOnOneCadence, string> = {
   Weekly: "Weekly",
@@ -16,12 +16,12 @@ function sameDay(a: Date, b: Date) {
 /** "Today 14:00", "Tomorrow 10:00", then "Tue 21 Oct · 10:00": a meeting time reads by how near it is. */
 export function meetingTime(iso: string, now: Date = new Date()): string {
   const at = new Date(iso);
-  const time = at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const time = formatDateParts(at, { hour: "2-digit", minute: "2-digit" });
   const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
   if (sameDay(at, now)) return `Today ${time}`;
   if (sameDay(at, tomorrow)) return `Tomorrow ${time}`;
-  const day = at.toLocaleDateString("en-GB", {
+  const day = formatDateParts(at, {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -33,7 +33,7 @@ export function meetingTime(iso: string, now: Date = new Date()): string {
 /** The long form for a heading: "Tuesday 21 October, 10:00". */
 export function meetingHeading(iso: string): string {
   const at = new Date(iso);
-  return `${at.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}, ${at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+  return `${formatDateParts(at, { weekday: "long", day: "numeric", month: "long" })}, ${formatDateParts(at, { hour: "2-digit", minute: "2-digit" })}`;
 }
 
 export function isSoon(iso: string | null, now: Date = new Date()): boolean {
@@ -93,7 +93,7 @@ export function nextOccurrences(fromIso: string, cadence: OneOnOneCadence, count
 /** A meeting time as a block: "Today" over "14:00", a weekday this week, else the date. */
 export function timeBlock(iso: string, now: Date = new Date()): { day: string; time: string; today: boolean } {
   const at = new Date(iso);
-  const time = at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  const time = formatDateParts(at, { hour: "2-digit", minute: "2-digit" });
   const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
   const days = (at.getTime() - now.getTime()) / 86_400_000;
@@ -102,8 +102,8 @@ export function timeBlock(iso: string, now: Date = new Date()): { day: string; t
     : sameDay(at, tomorrow)
       ? "Tomorrow"
       : days > 0 && days < 6
-        ? at.toLocaleDateString("en-GB", { weekday: "short" })
-        : at.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+        ? formatDateParts(at, { weekday: "short" })
+        : formatDateParts(at, { day: "numeric", month: "short" });
   return { day, time, today: sameDay(at, now) || at.getTime() < now.getTime() };
 }
 

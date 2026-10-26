@@ -101,7 +101,7 @@ export function RoundSetup({ round }: { round: ReviewRoundDto }) {
             <span className="type-meta text-muted-foreground">to</span>
             <DateField label="Review period ends" value={round.periodEnd} min={round.periodStart} max={round.cycleEnd}
               onCommit={(value) => void save({ periodEnd: value })} />
-            <span className="ml-auto type-meta text-muted-foreground">{months(round.periodStart, round.periodEnd)} · {formatDateRange(round.periodStart, round.periodEnd)}</span>
+            <span className="ms-auto type-meta text-muted-foreground">{months(round.periodStart, round.periodEnd)} · {formatDateRange(round.periodStart, round.periodEnd)}</span>
           </div>
         </SetupSection>
 
@@ -292,7 +292,7 @@ function SetupSection({ number, title, aside, children }: { number: string; titl
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <span className="flex size-8 items-center justify-center rounded-control bg-primary-tint type-label tabular-nums text-primary">{number}</span>
         <h2 id={`setup-${number}`} className="type-panel-title text-foreground">{title}</h2>
-        {aside ? <span className="ml-auto type-meta text-muted-foreground">{aside}</span> : null}
+        {aside ? <span className="ms-auto type-meta text-muted-foreground">{aside}</span> : null}
       </div>
       {children}
     </section>
@@ -444,7 +444,7 @@ function Reviewers({ round, onAssign }: { round: ReviewRoundDto; onAssign: (subj
             <li key={subject.participantId} className="flex flex-wrap items-center gap-3 px-4 py-2.5">
               <PersonInitials name={subject.subjectDisplayName} size="sm" />
               <span className="min-w-36 flex-1 type-label text-foreground">{subject.subjectDisplayName}
-                {subject.readinessIssues.length ? <span className="ml-2 type-meta text-destructive">{issueText(subject.readinessIssues[0]!.code)}</span> : null}
+                {subject.readinessIssues.length ? <span className="ms-2 type-meta text-destructive">{issueText(subject.readinessIssues[0]!.code)}</span> : null}
               </span>
               {changing === subject.participantId ? (
                 <NativeSelect aria-label={`Reviewer for ${subject.subjectDisplayName}`} className="w-56"

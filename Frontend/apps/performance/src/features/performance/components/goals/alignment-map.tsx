@@ -146,7 +146,7 @@ const DirectionNode = memo(function DirectionNode({
         type="button"
         aria-label={nodeAccessibleName(node)}
         onClick={() => data.onOpen(node.id)}
-        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden rounded-control px-3.5 pt-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden rounded-control px-3.5 pt-3 text-start outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span className="flex items-center justify-between gap-2">
           <span
@@ -200,9 +200,9 @@ const DirectionNode = memo(function DirectionNode({
           <span className="tabular-nums">{counts.total} personal</span>
           <MixBar counts={counts} />
           {data.personalOpen ? (
-            <ChevronDown className="ml-auto size-3.5" aria-hidden />
+            <ChevronDown className="ms-auto size-3.5" aria-hidden />
           ) : (
-            <ChevronRight className="ml-auto size-3.5" aria-hidden />
+            <ChevronRight className="ms-auto size-3.5" aria-hidden />
           )}
         </button>
       ) : null}
@@ -261,7 +261,7 @@ const PersonalNode = memo(function PersonalNode({
         type="button"
         aria-label={nodeAccessibleName(node)}
         onClick={() => data.onOpen(node.id)}
-        className="flex h-full w-full flex-col justify-between rounded-control px-3 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-full w-full flex-col justify-between rounded-control px-3 py-2 text-start outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span className="line-clamp-2 text-xs font-medium leading-snug text-foreground">
           {node.title}

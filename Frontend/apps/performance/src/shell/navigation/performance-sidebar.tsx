@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { User } from "@/lib/icons";
 import { useFusionNavigation, useFusionSettings, useSettingsReturn } from "@repo/api/query";
 import { useFusionViewer } from "@repo/api/react";
@@ -39,6 +40,7 @@ function SidebarFrame({ sections, pending }: { sections: ShellNavSection[]; pend
   const pathname = usePathname();
   const activePath = pathname.replace(/^\/performance/, "") || "/";
   const { logout, isLoading: isAuthLoading } = useAuth();
+  const t = useTranslations("ds.sidebar");
   const { viewer } = useFusionViewer();
   const navigation = useFusionNavigation("performance", sectionPaths("/performance", sections));
   // Inside Settings the same sidebar switches to settings mode (fusion-settings).
@@ -62,7 +64,7 @@ function SidebarFrame({ sections, pending }: { sections: ShellNavSection[]; pend
       person={{
         ...navigation.person,
         pending: isAuthLoading,
-        links: viewer?.canOpenOwnProfile ? [{ label: "My profile", href: "/core/profile", icon: User }] : [],
+        links: viewer?.canOpenOwnProfile ? [{ label: t("myProfile"), href: "/core/profile", icon: User }] : [],
         onSignOut: async () => {
           await logout();
           window.location.href = "/auth/signin";

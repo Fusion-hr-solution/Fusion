@@ -107,7 +107,7 @@ function DrawerBody({ detail, readOnly, potentialEnabled, mutations, onClose }: 
   const weighted = person.attainment === null ? null : Math.round(person.attainment);
   return (
     <>
-      <div className="px-7 pt-6 pb-4 pr-14">
+      <div className="px-7 pt-6 pb-4 pe-14">
         <div className="flex items-center gap-4">
           <PersonInitials name={person.name} size="lg" />
           <SheetTitle className="min-w-0 flex-1 type-page-title text-foreground">{person.name}</SheetTitle>
@@ -158,7 +158,7 @@ function DrawerBody({ detail, readOnly, potentialEnabled, mutations, onClose }: 
                   <p className="min-w-0 type-body text-foreground">
                     {objective.title}{objective.weight !== null ? <span className="text-muted-foreground"> · {Math.round(objective.weight)}%</span> : null}
                   </p>
-                  <span className="text-right type-label tabular-nums text-foreground">{objective.progress === null ? "—" : `${Math.round(objective.progress)}%`}</span>
+                  <span className="text-end type-label tabular-nums text-foreground">{objective.progress === null ? "—" : `${Math.round(objective.progress)}%`}</span>
                   <ObjectiveStatusBadge status={objective.status} />
                 </li>
               ))}

@@ -80,7 +80,7 @@ export function StatusCell({ candidate }: { candidate: PopulationCandidateDto })
         <span className={cn("size-1.5 shrink-0 rounded-full", config.dot)} aria-hidden />
         <span className={cn("type-label", config.label_class)}>{config.label}</span>
       </span>
-      <span className="type-meta pl-3.5 text-muted-foreground">{config.caption}</span>
+      <span className="type-meta ps-3.5 text-muted-foreground">{config.caption}</span>
     </div>
   );
 }

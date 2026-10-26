@@ -280,7 +280,7 @@ function AttentionCell({ member }: { member: TeamRosterMemberDto }) {
         <span className="min-w-0">{line.title}</span>
       </p>
       {/* The owner's reason, clamped to two lines: the full text is on the objective. */}
-      {line.detail ? <p className="mt-0.5 line-clamp-2 pl-4 text-xs text-muted-foreground" title={line.detail}>{line.detail}</p> : null}
+      {line.detail ? <p className="mt-0.5 line-clamp-2 ps-4 text-xs text-muted-foreground" title={line.detail}>{line.detail}</p> : null}
     </div>
   );
 }
@@ -291,9 +291,9 @@ function PlanProgressCell({ member }: { member: TeamRosterMemberDto }) {
   return (
     <span className="flex items-center gap-3">
       <span className="relative h-1.5 min-w-12 flex-1 overflow-hidden rounded-full bg-inlay">
-        {member.hasProgress ? <span className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${value}%` }} /> : null}
+        {member.hasProgress ? <span className="absolute inset-y-0 inset-s-0 rounded-full bg-primary" style={{ width: `${value}%` }} /> : null}
       </span>
-      <span className={cn("w-9 shrink-0 text-right text-sm font-medium tabular-nums", member.hasProgress ? "text-foreground" : "text-muted-foreground")}>
+      <span className={cn("w-9 shrink-0 text-end text-sm font-medium tabular-nums", member.hasProgress ? "text-foreground" : "text-muted-foreground")}>
         {Math.round(value)}%
       </span>
     </span>

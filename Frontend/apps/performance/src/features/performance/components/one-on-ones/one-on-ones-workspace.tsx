@@ -94,7 +94,7 @@ function Workspace({ data }: { data: OneOnOnesDto }) {
             <button
               type="button"
               onClick={() => setStarting(data.startWithManager!.with)}
-              className="mt-3 flex w-full items-center gap-3 rounded-surface border border-dashed border-border px-4 py-3 text-left hover:bg-card"
+              className="mt-3 flex w-full items-center gap-3 rounded-surface border border-dashed border-border px-4 py-3 text-start hover:bg-card"
             >
               <PersonInitials name={data.startWithManager.with.displayName} size="lg" />
               <span className="min-w-0 flex-1">
@@ -191,7 +191,7 @@ function NextUp({ row, isManager }: { row: OneOnOneRowDto; isManager: boolean })
                   <span className={cn("min-w-0 truncate type-body", item.discussed ? "text-muted-foreground line-through" : "text-foreground")}>{item.text}</span>
                 </li>
               ))}
-              {agenda.length > 3 ? <li className="pl-9 type-meta text-muted-foreground">+{agenda.length - 3} more</li> : null}
+              {agenda.length > 3 ? <li className="ps-9 type-meta text-muted-foreground">+{agenda.length - 3} more</li> : null}
             </ul>
           )}
         </div>
@@ -370,7 +370,7 @@ function ThisWeek({ rows, managerSeriesId }: { rows: OneOnOneRowDto[]; managerSe
         const last = index === sorted.length - 1;
         return (
           <li key={row.seriesId} className="grid grid-cols-[4.5rem_1rem_minmax(0,1fr)] gap-3">
-            <span className="text-right">
+            <span className="text-end">
               <span className="block type-label text-foreground">{day}</span>
               <span className="block type-meta tabular-nums text-muted-foreground">{time}</span>
             </span>

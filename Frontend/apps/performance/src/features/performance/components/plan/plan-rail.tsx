@@ -187,7 +187,7 @@ function ReturnNote({
       </div>
       {decision.feedback ? (
         <blockquote className="relative rounded-control border border-border bg-inlay px-4 py-3.5 shadow-raised">
-          <span className="absolute -top-[7px] left-[10px] size-3 rotate-45 rounded-tl-detail border-l border-t border-border bg-inlay" aria-hidden />
+          <span className="absolute -top-[7px] inset-s-[10px] size-3 rotate-45 rounded-ss-detail border-s border-t border-border bg-inlay" aria-hidden />
           <ClampedText text={decision.feedback} />
         </blockquote>
       ) : null}
@@ -252,7 +252,7 @@ function Step({ step, last }: { step: StatusStep; last: boolean }) {
     <li className="relative flex gap-3 pb-5 last:pb-0">
       {!last ? (
         <span
-          className={cn("absolute bottom-0 left-2.5 top-6 w-px -translate-x-1/2", step.tone === "done" ? "bg-success/40" : "bg-border")}
+          className={cn("absolute bottom-0 inset-s-2.5 top-6 w-px -translate-x-1/2 rtl:translate-x-1/2", step.tone === "done" ? "bg-success/40" : "bg-border")}
           aria-hidden
         />
       ) : null}

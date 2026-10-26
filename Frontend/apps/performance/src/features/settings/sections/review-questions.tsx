@@ -1,23 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Archive, ArrowDown, ArrowUp, ChevronRight, Pencil, Plus, Trash2 } from "@/lib/icons";
 import { ApiError, type FusionSettingsSection, type ReviewQuestionAudience, type ReviewQuestionDto } from "@repo/api";
 import { Button, cn, Input } from "@repo/ds";
 import { formatDate } from "@repo/ds/lib/dates";
-import { PageError, SettingsPage } from "@repo/ds/shell";
+import { PageError, SettingsPage, useSettingsSectionName } from "@repo/ds/shell";
 import { useReviewQuestionCommands, useReviewQuestions } from "@/features/performance/api/use-review-work";
 import { useRefreshSettingsSections } from "../api";
 
-const AUDIENCES: { value: ReviewQuestionAudience; label: string }[] = [
-  { value: "Person", label: "Asked of the person" },
-  { value: "Manager", label: "Asked of the manager" },
-  { value: "Peer", label: "Asked of peers" },
-];
+/** Who answers, in order; each audience's words are `questions.audiences.<audience>`. */
+const AUDIENCES: readonly ReviewQuestionAudience[] = ["Person", "Manager", "Peer"];
 
-function failure(error: unknown): string {
-  if (error instanceof ApiError && error.status === 409) return "Someone changed the questions after you opened them. They're up to date now.";
-  return error instanceof ApiError && error.errors[0] ? error.errors[0] : "That didn't save. Try again.";
+type QuestionsT = ReturnType<typeof useTranslations<"settings.questions">>;
+
+/** A failed change: the conflict by its status, other refusals as the service wrote them in English, else a plain line. */
+function useFailure(): (error: unknown) => string {
+  const t: QuestionsT = useTranslations("settings.questions");
+  const english = useLocale() === "en";
+  return (error) => {
+    if (error instanceof ApiError && error.status === 409) return t("conflict");
+    return english && error instanceof ApiError && error.errors[0] ? error.errors[0] : t("notSaved");
+  };
 }
 
 type Commands = ReturnType<typeof useReviewQuestionCommands> & {
@@ -41,6 +46,9 @@ function QuestionRow({
   onSaved: () => void;
   onError: (message: string) => void;
 }) {
+  const t = useTranslations("settings.questions");
+  const locale = useLocale();
+  const failure = useFailure();
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(question.text);
   const inUse = Boolean(question.firstUsedAt);
@@ -49,17 +57,17 @@ function QuestionRow({
   if (editing) {
     return (
       <li className="flex flex-col gap-3 bg-inlay px-5 py-3">
-        <Input aria-label="Question" value={text} onChange={(event) => setText(event.target.value)} autoFocus />
+        <Input aria-label={t("question")} value={text} onChange={(event) => setText(event.target.value)} autoFocus />
         <div className="flex justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={() => { setText(question.text); setEditing(false); }}>
-            Cancel
+            {t("cancel")}
           </Button>
           <Button
             size="sm"
             disabled={!text.trim() || text.trim() === question.text || commands.update.isLoading}
             onClick={() => run(commands.update.mutateAsync({ id: question.id, text: text.trim(), version: question.version }).then(() => setEditing(false)))}
           >
-            Save
+            {t("save")}
           </Button>
         </div>
       </li>
@@ -70,26 +78,26 @@ function QuestionRow({
     <li className="flex min-h-12 items-center gap-3 px-5 py-2">
       <span className="min-w-0 flex-1 type-label font-semibold text-foreground">{question.text}</span>
       <span className="w-36 shrink-0 type-meta text-muted-foreground">
-        {inUse ? `In use since ${formatDate(question.firstUsedAt)}` : "Not used"}
+        {inUse ? t("inUseSince", { date: formatDate(question.firstUsedAt, { locale }) }) : t("notUsed")}
       </span>
       {editable ? (
         <span className="flex shrink-0 items-center gap-0.5">
-          <Button variant="ghost" size="icon-sm" aria-label={`Move up: ${question.text}`} disabled={first} onClick={() => run(commands.reorderMove(question, -1))}>
+          <Button variant="ghost" size="icon-sm" aria-label={t("moveUp", { text: question.text })} disabled={first} onClick={() => run(commands.reorderMove(question, -1))}>
             <ArrowUp className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon-sm" aria-label={`Move down: ${question.text}`} disabled={last} onClick={() => run(commands.reorderMove(question, 1))}>
+          <Button variant="ghost" size="icon-sm" aria-label={t("moveDown", { text: question.text })} disabled={last} onClick={() => run(commands.reorderMove(question, 1))}>
             <ArrowDown className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon-sm" aria-label={`Edit: ${question.text}`} onClick={() => setEditing(true)}>
+          <Button variant="ghost" size="icon-sm" aria-label={t("edit", { text: question.text })} onClick={() => setEditing(true)}>
             <Pencil className="size-4" />
           </Button>
           {inUse ? (
-            <Button variant="ghost" size="icon-sm" aria-label={`Archive: ${question.text}`}
+            <Button variant="ghost" size="icon-sm" aria-label={t("archive", { text: question.text })}
               onClick={() => run(commands.archive.mutateAsync({ id: question.id, version: question.version }))}>
               <Archive className="size-4" />
             </Button>
           ) : (
-            <Button variant="ghost" size="icon-sm" aria-label={`Delete: ${question.text}`} className="text-destructive"
+            <Button variant="ghost" size="icon-sm" aria-label={t("delete", { text: question.text })} className="text-destructive"
               onClick={() => run(commands.remove.mutateAsync({ id: question.id, version: question.version }))}>
               <Trash2 className="size-4" />
             </Button>
@@ -101,26 +109,28 @@ function QuestionRow({
 }
 
 function AddQuestion({ audience, commands, onSaved, onError }: { audience: ReviewQuestionAudience; commands: Commands; onSaved: () => void; onError: (message: string) => void }) {
+  const t = useTranslations("settings.questions");
+  const failure = useFailure();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   if (!open) {
     return (
       <li>
         <button type="button" onClick={() => setOpen(true)}
-          className="flex w-full items-center gap-2 px-5 py-2.5 text-left text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
+          className="flex w-full items-center gap-2 px-5 py-2.5 text-start text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground">
           <Plus aria-hidden className="size-4" />
-          Add a question
+          {t("addQuestion")}
         </button>
       </li>
     );
   }
   return (
     <li className="flex flex-col gap-3 bg-inlay px-5 py-3">
-      <Input aria-label={`New question, ${AUDIENCES.find((a) => a.value === audience)?.label.toLowerCase()}`} value={text}
+      <Input aria-label={t(`newQuestion.${audience}`)} value={text}
         onChange={(event) => setText(event.target.value)} autoFocus />
       <div className="flex justify-end gap-2">
         <Button variant="ghost" size="sm" onClick={() => { setText(""); setOpen(false); }}>
-          Cancel
+          {t("cancel")}
         </Button>
         <Button
           size="sm"
@@ -132,7 +142,7 @@ function AddQuestion({ audience, commands, onSaved, onError }: { audience: Revie
               .catch((error: unknown) => onError(failure(error)))
           }
         >
-          Add question
+          {t("add")}
         </Button>
       </div>
     </li>
@@ -141,6 +151,8 @@ function AddQuestion({ audience, commands, onSaved, onError }: { audience: Revie
 
 /** Settings › Review questions: the library, grouped by who answers. Questions used in a round archive; unused ones delete. */
 export function ReviewQuestionsSettings({ section }: { section: FusionSettingsSection }) {
+  const t = useTranslations("settings.questions");
+  const title = useSettingsSectionName()(section);
   const editable = section.access === "manage";
   const query = useReviewQuestions();
   const base = useReviewQuestionCommands();
@@ -169,29 +181,29 @@ export function ReviewQuestionsSettings({ section }: { section: FusionSettingsSe
 
   if (query.error && !query.data) {
     return (
-      <SettingsPage title={section.label}>
-        <PageError title="Review questions didn't load" onRetry={() => void query.refetch()} />
+      <SettingsPage title={title}>
+        <PageError title={t("didNotLoad")} onRetry={() => void query.refetch()} />
       </SettingsPage>
     );
   }
 
   return (
-    <SettingsPage title={section.label} lastChange={section.lastChange} setUpAt={section.setUpAt} viewOnly={!editable} loading={query.isLoading}>
+    <SettingsPage title={title} lastChange={section.lastChange} setUpAt={section.setUpAt} viewOnly={!editable} loading={query.isLoading}>
       {error ? <p role="alert" className="-mt-4 type-meta text-destructive">{error}</p> : null}
       <div className="overflow-hidden rounded-surface border border-border bg-card">
         {AUDIENCES.map((audience) => {
-          const list = active(audience.value);
+          const list = active(audience);
           return (
-            <section key={audience.value} aria-label={audience.label}>
+            <section key={audience} aria-label={t(`audiences.${audience}`)}>
               <h2 className="border-y border-border bg-inlay px-5 py-2 type-meta font-semibold text-foreground first:border-t-0">
-                {audience.label}
+                {t(`audiences.${audience}`)}
               </h2>
               <ul className="divide-y divide-border">
                 {list.map((question, index) => (
                   <QuestionRow key={question.id} question={question} first={index === 0} last={index === list.length - 1}
                     editable={editable} commands={commands} onSaved={onSaved} onError={setError} />
                 ))}
-                {editable ? <AddQuestion audience={audience.value} commands={commands} onSaved={onSaved} onError={setError} /> : null}
+                {editable ? <AddQuestion audience={audience} commands={commands} onSaved={onSaved} onError={setError} /> : null}
               </ul>
             </section>
           );
@@ -202,7 +214,7 @@ export function ReviewQuestionsSettings({ section }: { section: FusionSettingsSe
           <button type="button" aria-expanded={showArchived} onClick={() => setShowArchived((value) => !value)}
             className="inline-flex w-fit items-center gap-2 type-meta font-semibold text-muted-foreground hover:text-foreground">
             <Archive aria-hidden className="size-3.5" />
-            Archived {archived.length}
+            {t("archived", { count: archived.length })}
             <ChevronRight aria-hidden className={cn("size-3.5 transition-transform", showArchived && "rotate-90")} />
           </button>
           {showArchived ? (
@@ -210,7 +222,7 @@ export function ReviewQuestionsSettings({ section }: { section: FusionSettingsSe
               {archived.map((question) => (
                 <li key={question.id} className="flex items-center gap-3 px-5 py-3 text-sm text-muted-foreground">
                   <span className="flex-1">{question.text}</span>
-                  <span className="type-meta">{AUDIENCES.find((a) => a.value === question.audience)?.label}</span>
+                  <span className="type-meta">{t(`audiences.${question.audience}`)}</span>
                 </li>
               ))}
             </ul>

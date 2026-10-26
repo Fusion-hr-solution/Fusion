@@ -1,5 +1,9 @@
 import path from "node:path";
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// Reads the language from NEXT_LOCALE through `src/i18n/request.ts`.
+const withNextIntl = createNextIntlPlugin();
 
 const frontendWorkspaceRoot = path.resolve(process.cwd(), "../..");
 
@@ -12,7 +16,7 @@ const nextConfig: NextConfig = {
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
   basePath: "/performance",
   outputFileTracingRoot: frontendWorkspaceRoot,
-  transpilePackages: ["@repo/auth", "@repo/api", "@repo/ds", "@repo/workforce-ui", "@repo/performance-ui"],
+  transpilePackages: ["@repo/auth", "@repo/api", "@repo/ds", "@repo/workforce-ui", "@repo/performance-ui", "@repo/i18n"],
   allowedDevOrigins: ["http://localhost:3000"],
   async redirects() {
     return [
@@ -30,4 +34,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

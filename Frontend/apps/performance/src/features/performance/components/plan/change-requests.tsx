@@ -107,7 +107,7 @@ export function ChangeRequestDraft({ value, onSave, onRemove }: {
   }
 
   return (
-    <Button variant="ghost" size="sm" className="-ml-2" onClick={() => { setText(""); setEditing(true); }}>
+    <Button variant="ghost" size="sm" className="-ms-2" onClick={() => { setText(""); setEditing(true); }}>
       <MessageSquare className="size-3.5" data-icon="inline-start" /> Request a change
     </Button>
   );
@@ -184,7 +184,7 @@ export function OwnerChangeRequest({ request, reviewerName, decidedAt, canAddres
         ) : null}
       </div>
       {replying ? (
-        <div className="mt-3 space-y-2 pl-10">
+        <div className="mt-3 space-y-2 ps-10">
           <label className="text-xs font-medium text-muted-foreground" htmlFor={`reply-${request.id}`}>
             Reply <span className="font-normal">(optional)</span>
           </label>

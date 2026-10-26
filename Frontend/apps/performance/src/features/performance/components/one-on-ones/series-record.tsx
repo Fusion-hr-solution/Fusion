@@ -48,6 +48,7 @@ import {
 } from "./one-on-one-lib";
 import { SOURCE_LABEL, SourceWell } from "./one-on-one-parts";
 import { useRecentRecord } from "@repo/api/react";
+import { formatDateParts } from "@repo/ds/lib/dates";
 
 /** The app's own routes drop the basePath the server's hrefs carry. */
 const appHref = (href: string) => href.replace(/^\/performance/, "");
@@ -519,7 +520,7 @@ function EarlierMeetings({ series, meetings, names, title }: { series: OneOnOneS
             <Collapsible>
               <CollapsibleTrigger
                 disabled={meeting.state === "NotHeld"}
-                className="group flex w-full items-center gap-4 px-5 py-3.5 text-left hover:bg-inlay/50 disabled:cursor-default disabled:hover:bg-transparent"
+                className="group flex w-full items-center gap-4 px-5 py-3.5 text-start hover:bg-inlay/50 disabled:cursor-default disabled:hover:bg-transparent"
               >
                 <DateBlock iso={meeting.scheduledAt} />
                 <span className="min-w-0 flex-1">
@@ -560,7 +561,7 @@ function DateBlock({ iso }: { iso: string }) {
   const at = new Date(iso);
   return (
     <span className="flex w-12 shrink-0 flex-col items-center rounded-control bg-inlay py-1.5">
-      <span className="type-eyebrow text-muted-foreground">{at.toLocaleDateString("en-GB", { month: "short" })}</span>
+      <span className="type-eyebrow text-muted-foreground">{formatDateParts(at, { month: "short" })}</span>
       <span className="type-label tabular-nums text-foreground">{at.getDate()}</span>
     </span>
   );
@@ -738,7 +739,7 @@ function SeriesSidebar({ series, onCadence }: { series: OneOnOneSeriesDto; onCad
                   <Link href={appHref(objective.href)} className="flex items-center gap-2.5 hover:underline">
                     <span className="min-w-0 flex-1 truncate type-body text-foreground">{objective.title}</span>
                     {objective.status ? <ObjectiveStatusBadge status={objective.status} /> : null}
-                    <span className="w-9 text-right type-meta tabular-nums text-muted-foreground">
+                    <span className="w-9 text-end type-meta tabular-nums text-muted-foreground">
                       {objective.progress !== null ? `${Math.round(objective.progress)}%` : ""}
                     </span>
                   </Link>

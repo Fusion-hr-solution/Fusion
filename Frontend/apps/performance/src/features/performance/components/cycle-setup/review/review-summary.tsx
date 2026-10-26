@@ -92,7 +92,7 @@ function Fact({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 items-start gap-3 [&:not(:first-child)]:pl-[var(--fact-gap,0px)]">
+    <div className="flex min-w-0 items-start gap-3 [&:not(:first-child)]:ps-[var(--fact-gap,0px)]">
       <Icon className="mt-0.5 size-5 shrink-0 text-muted-foreground" strokeWidth={1.75} aria-hidden />
       <div className="min-w-0">
         <dt className="type-meta text-muted-foreground">{label}</dt>

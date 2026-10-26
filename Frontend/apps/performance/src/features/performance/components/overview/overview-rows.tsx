@@ -25,6 +25,7 @@ import {
   StepsStrip,
   type Tone,
 } from "./overview-primitives";
+import { dateFormatter } from "@repo/ds/lib/dates";
 
 const insights = (cycleId: string, unitId?: string | null) =>
   withCycle(`/cycle?view=insights${unitId ? `&unit=${unitId}` : ""}`, cycleId);
@@ -567,8 +568,8 @@ export function DevelopmentRow({ row }: { row: Row<"development"> }) {
   );
 }
 
-const WEEKDAY = new Intl.DateTimeFormat("en-GB", { weekday: "short" });
-const TIME = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit" });
+const WEEKDAY = dateFormatter({ weekday: "short" });
+const TIME = dateFormatter({ hour: "2-digit", minute: "2-digit" });
 
 export function ConversationsRow({ row }: { row: Row<"conversations"> }) {
   const soon = row.meetings[0] ? daysFrom(row.meetings[0].at) : null;
@@ -633,7 +634,7 @@ export function DirectionRow({ row, cycleId }: { row: Row<"direction">; cycleId:
             <button
               type="button"
               onClick={() => record.open({ cycleId, objectiveId: node.id })}
-              className="group flex w-full items-center gap-4 rounded-control py-3 text-left transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="group flex w-full items-center gap-4 rounded-control py-3 text-start transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="min-w-0 flex-1">
                 <span className="block truncate type-label text-foreground">{node.title}</span>

@@ -105,14 +105,14 @@ export function AddInclusionSheet({
         <div className="border-b border-border px-6 py-3">
           <div className="relative">
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden
             />
             <Input
               value={term}
               onChange={(event) => setTerm(event.target.value)}
               placeholder="Search by name, email, or ID"
-              className="pl-9"
+              className="ps-9"
               autoFocus
             />
           </div>
@@ -166,7 +166,7 @@ export function AddInclusionSheet({
               {tray.map((person) => (
                 <li
                   key={person.employeeId}
-                  className="flex items-center gap-1.5 rounded-full border border-border bg-muted py-1 pl-3 pr-1.5"
+                  className="flex items-center gap-1.5 rounded-full border border-border bg-muted py-1 ps-3 pe-1.5"
                 >
                   <span className="type-meta text-foreground">
                     {person.displayName}
@@ -282,7 +282,7 @@ function ResultRow({
         onClick={onToggle}
         aria-pressed={selected}
         className={cn(
-          "flex w-full items-center gap-3 rounded-control px-3 py-2 text-left transition-colors",
+          "flex w-full items-center gap-3 rounded-control px-3 py-2 text-start transition-colors",
           selected
             ? "bg-primary/[0.06] ring-1 ring-primary/30"
             : "hover:bg-muted/50"

@@ -56,7 +56,7 @@ export function RequestUpdateDialog({ cycleId, planId, personName, objective, on
               value={note}
               onChange={(event) => setNote(event.target.value)}
             />
-            <span className="pointer-events-none absolute bottom-2 right-3 text-[0.6875rem] tabular-nums text-muted-foreground/70">
+            <span className="pointer-events-none absolute bottom-2 inset-e-3 text-[0.6875rem] tabular-nums text-muted-foreground/70">
               {note.length}/{NOTE_MAX}
             </span>
           </div>

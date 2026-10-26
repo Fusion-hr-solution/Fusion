@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Archive, ChevronRight, Plus, Trash2, X } from "@/lib/icons";
 import { ApiError, type CompetencyDto, type FusionSettingsSection } from "@repo/api";
 import { useStagedSettings } from "@repo/api/react";
 import { Button, cn, Input, Label, Textarea } from "@repo/ds";
 import { formatDate } from "@repo/ds/lib/dates";
-import { PageError, SettingsPage, StatusBadge } from "@repo/ds/shell";
+import { PageError, SettingsPage, StatusBadge, useSettingsSectionName } from "@repo/ds/shell";
 import { ValueDot } from "@repo/performance-ui";
 import { useCompetencies, useCompetencyMutations } from "@/features/performance/api/use-performance";
 import { useRefreshSettingsSections } from "../api";
@@ -31,10 +32,11 @@ function clean(draft: CompetencyDraft) {
   };
 }
 
-function message(error: unknown, fallback: string): string | null {
+/** A failed save: the conflict by its status, other refusals as the service wrote them in English, else `fallback`. */
+function message(error: unknown, fallback: string, conflict: string, english: boolean): string | null {
   if (!error) return null;
-  if (error instanceof ApiError && error.status === 409) return "Someone changed this competency after you opened it. Close it and open it again.";
-  return error instanceof ApiError && error.errors[0] ? error.errors[0] : fallback;
+  if (error instanceof ApiError && error.status === 409) return conflict;
+  return english && error instanceof ApiError && error.errors[0] ? error.errors[0] : fallback;
 }
 
 /** One competency open for editing: it saves on its own. In use, it archives; unused, it can be deleted. */
@@ -47,6 +49,8 @@ function CompetencyEditor({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useTranslations("settings.competencies");
+  const locale = useLocale();
   const mutations = useCompetencyMutations();
   const saved = useMemo(() => (item ? draftOf(item) : EMPTY), [item]);
   const { create, update, archive, remove } = mutations;
@@ -59,12 +63,17 @@ function CompetencyEditor({
     [item, update, create, onSaved]
   );
   const staged = useStagedSettings(saved, persist, {
-    leaveMessage: `Leave without saving? Your changes to ${item?.name ?? "the new competency"} are discarded.`,
+    leaveMessage: item ? t("leave", { name: item.name }) : t("leaveNew"),
   });
   const draft = staged.draft ?? saved;
   const inUse = Boolean(item?.firstUsedAt);
   const busy = staged.saving || archive.isLoading || remove.isLoading;
-  const error = message(staged.error ?? (staged.conflict ? new ApiError(409, "Conflict", [], null) : null) ?? archive.error ?? remove.error, "The competency didn't save. Try again.");
+  const error = message(
+    staged.error ?? (staged.conflict ? new ApiError(409, "Conflict", [], null) : null) ?? archive.error ?? remove.error,
+    t("notSaved"),
+    t("conflict"),
+    locale === "en"
+  );
   const setBehaviors = (behaviors: string[]) => staged.update((current) => ({ ...current, behaviors }));
   const prefix = item?.id ?? "new";
 
@@ -72,17 +81,17 @@ function CompetencyEditor({
     <div className="flex flex-col gap-4 bg-inlay px-5 py-5">
       <div className="flex items-center gap-3">
         {item ? <ValueDot id={item.id} className="size-2.5" /> : null}
-        <span className="flex-1 type-label font-semibold text-foreground">{item?.name ?? "New competency"}</span>
+        <span className="flex-1 type-label font-semibold text-foreground">{item?.name ?? t("new")}</span>
         {item && inUse ? (
-          <StatusBadge tone="neutral">{`In use since ${formatDate(item.firstUsedAt, { year: "always" })}`}</StatusBadge>
+          <StatusBadge tone="neutral">{t("inUseSince", { date: formatDate(item.firstUsedAt, { year: "always", locale }) })}</StatusBadge>
         ) : null}
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${prefix}-name`}>Name</Label>
+        <Label htmlFor={`${prefix}-name`}>{t("name")}</Label>
         <Input id={`${prefix}-name`} value={draft.name} onChange={(event) => staged.update((current) => ({ ...current, name: event.target.value }))} />
       </div>
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor={`${prefix}-description`}>What it means</Label>
+        <Label htmlFor={`${prefix}-description`}>{t("meaning")}</Label>
         <Textarea
           id={`${prefix}-description`}
           rows={2}
@@ -91,11 +100,11 @@ function CompetencyEditor({
         />
       </div>
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-1.5 type-label font-semibold text-foreground">Behaviours</legend>
+        <legend className="mb-1.5 type-label font-semibold text-foreground">{t("behaviours")}</legend>
         {draft.behaviors.map((behavior, index) => (
           <div key={index} className="flex items-center gap-2">
             <Input
-              aria-label={`Behaviour ${index + 1}`}
+              aria-label={t("behaviour", { number: index + 1 })}
               value={behavior}
               onChange={(event) => setBehaviors(draft.behaviors.map((b, i) => (i === index ? event.target.value : b)))}
             />
@@ -104,7 +113,7 @@ function CompetencyEditor({
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                aria-label={`Remove behaviour ${index + 1}`}
+                aria-label={t("removeBehaviour", { number: index + 1 })}
                 onClick={() => setBehaviors(draft.behaviors.filter((_, i) => i !== index))}
               >
                 <X className="size-4" />
@@ -118,7 +127,7 @@ function CompetencyEditor({
           className="inline-flex w-fit items-center gap-2 rounded-control px-1 py-1 text-sm font-semibold text-foreground hover:underline"
         >
           <Plus aria-hidden className="size-4" />
-          Add a behaviour
+          {t("addBehaviour")}
         </button>
       </fieldset>
       {error ? <p role="alert" className="type-meta text-destructive">{error}</p> : null}
@@ -132,7 +141,7 @@ function CompetencyEditor({
               onClick={() => void archive.mutateAsync({ id: item.id, expectedVersion: item.version }).then(onSaved).catch(() => undefined)}
             >
               <Archive aria-hidden className="size-4" />
-              Archive
+              {t("archive")}
             </Button>
           ) : (
             <Button
@@ -142,16 +151,16 @@ function CompetencyEditor({
               onClick={() => void remove.mutateAsync({ id: item.id, expectedVersion: item.version }).then(onSaved).catch(() => undefined)}
             >
               <Trash2 aria-hidden className="size-4" />
-              Delete
+              {t("delete")}
             </Button>
           )
         ) : null}
         <span className="flex-1" />
         <Button variant="ghost" size="sm" onClick={onClose} disabled={busy}>
-          Cancel
+          {t("cancel")}
         </Button>
         <Button size="sm" disabled={busy || !draft.name.trim() || (Boolean(item) && !staged.dirty)} onClick={() => void staged.submit()}>
-          {item ? "Save" : "Add competency"}
+          {item ? t("save") : t("add")}
         </Button>
       </div>
     </div>
@@ -159,6 +168,7 @@ function CompetencyEditor({
 }
 
 function CompetencyRow({ item, onOpen }: { item: CompetencyDto; onOpen?: () => void }) {
+  const t = useTranslations("settings.competencies");
   const content = (
     <>
       <ValueDot id={item.id} className="mt-1.5 size-2.5" />
@@ -167,13 +177,13 @@ function CompetencyRow({ item, onOpen }: { item: CompetencyDto; onOpen?: () => v
         <span className="type-meta text-muted-foreground">{item.description}</span>
       </span>
       <span className="shrink-0 type-meta text-muted-foreground">
-        {item.behaviors.length === 1 ? "1 behaviour" : `${item.behaviors.length} behaviours`}
+        {t("behaviourCount", { count: item.behaviors.length })}
       </span>
       {onOpen ? <ChevronRight aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" /> : null}
     </>
   );
   return onOpen ? (
-    <button type="button" onClick={onOpen} className="flex w-full items-start gap-3 px-5 py-4 text-left transition-colors hover:bg-inlay/60">
+    <button type="button" onClick={onOpen} className="flex w-full items-start gap-3 px-5 py-4 text-start transition-colors hover:bg-inlay/60">
       {content}
     </button>
   ) : (
@@ -183,6 +193,8 @@ function CompetencyRow({ item, onOpen }: { item: CompetencyDto; onOpen?: () => v
 
 /** Settings › Competencies: the company's competencies, each with its own hue wherever it appears. */
 export function CompetenciesSettings({ section }: { section: FusionSettingsSection }) {
+  const t = useTranslations("settings.competencies");
+  const title = useSettingsSectionName()(section);
   const editable = section.access === "manage";
   const query = useCompetencies();
   const refresh = useRefreshSettingsSections();
@@ -193,8 +205,8 @@ export function CompetenciesSettings({ section }: { section: FusionSettingsSecti
 
   if (query.error && !query.data) {
     return (
-      <SettingsPage title={section.label}>
-        <PageError title="Competencies didn't load" onRetry={() => void query.refetch()} />
+      <SettingsPage title={title}>
+        <PageError title={t("didNotLoad")} onRetry={() => void query.refetch()} />
       </SettingsPage>
     );
   }
@@ -206,7 +218,7 @@ export function CompetenciesSettings({ section }: { section: FusionSettingsSecti
 
   return (
     <SettingsPage
-      title={section.label}
+      title={title}
       lastChange={section.lastChange}
       setUpAt={section.setUpAt}
       viewOnly={!editable}
@@ -215,13 +227,13 @@ export function CompetenciesSettings({ section }: { section: FusionSettingsSecti
         editable ? (
           <Button variant="outline" size="sm" onClick={() => setOpen("new")} disabled={open === "new"}>
             <Plus aria-hidden className="size-4" />
-            Add competency
+            {t("add")}
           </Button>
         ) : null
       }
     >
       {active.length === 0 && open !== "new" ? (
-        <p className="type-body-secondary text-muted-foreground">No competencies yet.</p>
+        <p className="type-body-secondary text-muted-foreground">{t("empty")}</p>
       ) : (
         <ul className="divide-y divide-border overflow-hidden rounded-surface border border-border bg-card">
           {open === "new" ? (
@@ -249,7 +261,7 @@ export function CompetenciesSettings({ section }: { section: FusionSettingsSecti
             className="inline-flex w-fit items-center gap-2 type-meta font-semibold text-muted-foreground hover:text-foreground"
           >
             <Archive aria-hidden className="size-3.5" />
-            Archived {archived.length}
+            {t("archived", { count: archived.length })}
             <ChevronRight aria-hidden className={cn("size-3.5 transition-transform", showArchived && "rotate-90")} />
           </button>
           {showArchived ? (

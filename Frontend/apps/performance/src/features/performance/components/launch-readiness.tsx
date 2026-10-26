@@ -51,7 +51,7 @@ export function LaunchReadiness({
                   ? { type: "button" as const, onClick: () => onOpenArea?.(area.key) }
                   : {})}
                 className={cn(
-                  "flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors",
+                  "flex w-full items-center gap-3.5 px-4 py-3.5 text-start transition-colors",
                   interactive &&
                     "cursor-pointer hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 )}

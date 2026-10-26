@@ -1,0 +1,196 @@
+{
+  "didNotLoad": "Performance settings didn't load",
+  "on": "On",
+  "off": "Off",
+  "more": "{sentences} And {count, plural, one {# more change} other {# more changes}}.",
+  "dayCount": "{count, plural, one {# day} other {# days}}",
+  "cycle": {
+    "didNotLoad": "{section} didn't load",
+    "notSaved": "{section} didn't save. Try again.",
+    "leave": "Leave without saving? Your changes to {section} are discarded."
+  },
+  "ratingScale": {
+    "didNotLoad": "The rating scale didn't load",
+    "notSaved": "The rating scale didn't save. Try again.",
+    "leave": "Leave without saving? Your changes to the rating scale are discarded.",
+    "previewTitle": "An objective in a review",
+    "previewDetail": "How a manager rates an objective",
+    "unnamed": "Unnamed",
+    "levels": "Levels",
+    "levelName": "Level {value} name",
+    "levelDescription": "Level {value} description",
+    "addDescription": "Add a description",
+    "inReview": "In a review",
+    "versions": "Versions",
+    "version": "Version {version}",
+    "current": "Current",
+    "since": "Since {date}",
+    "consequence": "Saves as version {version}. Reviews already started keep the version they began with.",
+    "save": "Save version {version}"
+  },
+  "competencies": {
+    "didNotLoad": "Competencies didn't load",
+    "conflict": "Someone changed this competency after you opened it. Close it and open it again.",
+    "notSaved": "The competency didn't save. Try again.",
+    "leave": "Leave without saving? Your changes to {name} are discarded.",
+    "leaveNew": "Leave without saving? Your changes to the new competency are discarded.",
+    "new": "New competency",
+    "inUseSince": "In use since {date}",
+    "name": "Name",
+    "meaning": "What it means",
+    "behaviours": "Behaviours",
+    "behaviour": "Behaviour {number}",
+    "removeBehaviour": "Remove behaviour {number}",
+    "addBehaviour": "Add a behaviour",
+    "archive": "Archive",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save",
+    "add": "Add competency",
+    "behaviourCount": "{count, plural, one {# behaviour} other {# behaviours}}",
+    "empty": "No competencies yet.",
+    "archived": "Archived {count}"
+  },
+  "questions": {
+    "didNotLoad": "Review questions didn't load",
+    "conflict": "Someone changed the questions after you opened them. They're up to date now.",
+    "notSaved": "That didn't save. Try again.",
+    "audiences": {
+      "Person": "Asked of the person",
+      "Manager": "Asked of the manager",
+      "Peer": "Asked of peers"
+    },
+    "newQuestion": {
+      "Person": "New question, asked of the person",
+      "Manager": "New question, asked of the manager",
+      "Peer": "New question, asked of peers"
+    },
+    "question": "Question",
+    "cancel": "Cancel",
+    "save": "Save",
+    "inUseSince": "In use since {date}",
+    "notUsed": "Not used",
+    "moveUp": "Move up: {text}",
+    "moveDown": "Move down: {text}",
+    "edit": "Edit: {text}",
+    "archive": "Archive: {text}",
+    "delete": "Delete: {text}",
+    "addQuestion": "Add a question",
+    "add": "Add question",
+    "archived": "Archived {count}"
+  },
+  "reviews": {
+    "includes": "What a review includes",
+    "selfAssessment": "Self-assessment",
+    "ratings": "A rating for each objective",
+    "calibration": "Calibration before results are released",
+    "dueDates": "Due dates",
+    "peerInput": "Peer input",
+    "managerAssessment": "Manager assessment",
+    "acknowledgement": "Acknowledgement reminder",
+    "selfDueLabel": "Self-assessment due, in days after launch",
+    "peerDueLabel": "Peer input due, in days after launch",
+    "managerDueLabel": "Manager assessment due, in days after the self-assessment",
+    "ackLabel": "Acknowledgement reminder, in days after release",
+    "afterLaunch": "days after launch",
+    "afterSelf": "days after the self-assessment",
+    "afterRelease": "days after release",
+    "nineBox": "Nine-box performance bands",
+    "nineBoxDetail": "Where calibration splits the rating scale into low, middle and high",
+    "cutPoints": "Nine-box cut points",
+    "low": "Low",
+    "middle": "Middle",
+    "high": "High",
+    "bands": "Bands",
+    "bandsValue": "Low up to {low}, middle up to {middle}",
+    "consequence": {
+      "selfOn": "New review rounds include a self-assessment.",
+      "selfOff": "New review rounds no longer include a self-assessment.",
+      "ratingsOn": "New review rounds include a rating for each objective.",
+      "ratingsOff": "New review rounds no longer include a rating for each objective.",
+      "calibrationOn": "New review rounds go through calibration before results are released.",
+      "calibrationOff": "New review rounds release results without calibration.",
+      "selfDue": "New review rounds give people {days} for their self-assessment.",
+      "peerDue": "New review rounds give peers {days}.",
+      "managerDue": "New review rounds give managers {days}.",
+      "ackReminder": "Unacknowledged results are reminded after {days}.",
+      "bands": "Calibration sessions opened from now on use the new bands.",
+      "keepDates": "{sentences} Rounds already created keep their dates."
+    }
+  },
+  "planning": {
+    "measured": "How progress is measured",
+    "plans": "Plans",
+    "objectivesPerPlan": "Objectives per plan",
+    "fewest": "Fewest objectives per plan",
+    "most": "Most objectives per plan",
+    "to": "to",
+    "range": "{min} to {max}",
+    "plansDue": "Plans due",
+    "plansDueLabel": "Plans due, in days after the cycle starts",
+    "afterStart": "days after start",
+    "alignment": "Alignment to company objectives",
+    "required": "Required",
+    "measurement": {
+      "NumericTarget": {
+        "label": "Toward a number",
+        "detail": "From a baseline to a target, like 12 → 40 releases"
+      },
+      "ManualPercentage": {
+        "label": "A percentage the owner sets",
+        "detail": "The owner says how far along it is"
+      },
+      "WeightedMilestones": {
+        "label": "Weighted milestones",
+        "detail": "Done milestones add up by weight"
+      }
+    },
+    "alignments": {
+      "EveryObjectiveConnected": "Every objective",
+      "AtLeastOneConnected": "At least one objective",
+      "Optional": "Not required"
+    },
+    "consequence": {
+      "measurement": {
+        "NumericTarget": "New objectives start measured toward a number.",
+        "ManualPercentage": "New objectives start measured a percentage the owner sets.",
+        "WeightedMilestones": "New objectives start measured weighted milestones."
+      },
+      "count": "Plans suggest {min} to {max} objectives.",
+      "due": "Plans in new cycles are due {days} after the cycle starts.",
+      "alignment": {
+        "EveryObjectiveConnected": "Plans in new cycles connect every objective to company objectives.",
+        "AtLeastOneConnected": "Plans in new cycles connect at least one objective to company objectives.",
+        "Optional": "Plans in new cycles don't need to connect to company objectives."
+      },
+      "keep": "Cycles already active keep theirs."
+    }
+  },
+  "conversations": {
+    "rhythm": "1:1 rhythm",
+    "cadence": {
+      "Weekly": "Weekly",
+      "EveryTwoWeeks": "Every two weeks",
+      "Monthly": "Monthly"
+    },
+    "consequence": {
+      "Weekly": "New 1:1 series start weekly. Series already running keep their rhythm.",
+      "EveryTwoWeeks": "New 1:1 series start every two weeks. Series already running keep their rhythm.",
+      "Monthly": "New 1:1 series start monthly. Series already running keep their rhythm."
+    }
+  },
+  "aiAndData": {
+    "assistance": "AI assistance",
+    "suggestions": "Suggestions in Performance",
+    "suggestionsDetail": "Plan coach, review starters, calibration summaries",
+    "evidence": "Evidence",
+    "keepFiles": "Keep files attached to objectives",
+    "keepLabel": "Keep evidence, in months after its cycle closes",
+    "months": "months",
+    "consequence": {
+      "on": "Suggestions come back for everyone.",
+      "off": "Suggestions disappear everywhere at once, open reviews included.",
+      "retention": "Evidence is kept {count} months after its cycle closes, closed cycles included."
+    }
+  }
+}

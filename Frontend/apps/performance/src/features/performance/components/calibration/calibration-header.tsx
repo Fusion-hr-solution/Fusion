@@ -104,7 +104,7 @@ export function SessionStats({ header }: { header: CalibrationHeaderDto }) {
 
 function Stat({ label, value, suffix, children }: { label: string; value: number; suffix?: string; children?: ReactNode }) {
   return (
-    <div className="border-border p-5 [&:not(:first-child)]:md:border-l">
+    <div className="border-border p-5 [&:not(:first-child)]:md:border-s">
       <dt className="type-meta text-muted-foreground">{label}</dt>
       <dd className="mt-2 flex items-baseline gap-1.5">
         <span className="type-metric tabular-nums text-foreground">{value}</span>
@@ -162,7 +162,7 @@ function OptionFilter({ label, value, options, onChange }: {
   const chosen = options.find((option) => option.id === value);
   if (chosen) {
     return (
-      <span className="inline-flex h-9 items-center gap-2 rounded-control border border-primary bg-primary-tint pl-3 pr-1.5 type-label text-primary-ink">
+      <span className="inline-flex h-9 items-center gap-2 rounded-control border border-primary bg-primary-tint ps-3 pe-1.5 type-label text-primary-ink">
         {label} <span className="text-foreground">{chosen.name}</span>
         <button type="button" aria-label={`Clear ${label.toLowerCase()}`} onClick={() => onChange(null)}
           className="rounded-detail p-0.5 hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -181,7 +181,7 @@ function OptionFilter({ label, value, options, onChange }: {
           {options.map((option) => (
             <DropdownMenuRadioItem key={option.id} value={option.id}>
               <span className="flex-1">{option.name}</span>
-              <span className="ml-4 type-meta tabular-nums text-muted-foreground">{option.count}</span>
+              <span className="ms-4 type-meta tabular-nums text-muted-foreground">{option.count}</span>
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
@@ -210,10 +210,10 @@ function SearchBox({ value, onChange }: { value: string; onChange: (value: strin
   }, [text, value, onChange]);
   return (
     <label className="relative flex h-9 w-48 items-center">
-      <Search className="pointer-events-none absolute left-3 size-4 text-muted-foreground" aria-hidden />
+      <Search className="pointer-events-none absolute inset-s-3 size-4 text-muted-foreground" aria-hidden />
       <span className="sr-only">Find a person</span>
       <input value={text} onChange={(event) => setText(event.target.value)} placeholder="Find a person"
-        className="h-9 w-full rounded-control border border-input bg-transparent pl-9 pr-3 type-body text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+        className="h-9 w-full rounded-control border border-input bg-transparent ps-9 pe-3 type-body text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
     </label>
   );
 }

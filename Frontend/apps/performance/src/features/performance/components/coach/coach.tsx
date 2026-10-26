@@ -118,7 +118,7 @@ export function CoachField({
         role="group"
         aria-label={`Suggested ${label}`}
         className={cn(
-          "flex animate-in items-center gap-2.5 py-1.5 pr-1.5 pl-2.5 fade-in-0",
+          "flex animate-in items-center gap-2.5 py-1.5 pe-1.5 ps-2.5 fade-in-0",
           children && "border-t border-border"
         )}
       >
@@ -165,7 +165,7 @@ export function CoachNothing() {
 /** Marks a field the author filled from a suggestion, until they edit it. */
 export function AiSuggestedTag() {
   return (
-    <span className="ml-1.5 inline-flex items-center gap-1 text-xs font-normal text-primary-ink">
+    <span className="ms-1.5 inline-flex items-center gap-1 text-xs font-normal text-primary-ink">
       <Sparkles className="size-3" aria-hidden />
       AI-suggested
     </span>

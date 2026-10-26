@@ -182,7 +182,7 @@ function GoalCard({ goal, plan, cycleId, employeeId, onEdit }: {
       </div>
 
       {goal.actions.length > 0 ? (
-        <ul className="mt-4 space-y-1.5 border-t border-border/60 pt-4 pl-10">
+        <ul className="mt-4 space-y-1.5 border-t border-border/60 pt-4 ps-10">
           {goal.actions.map((action, index) => (
             <li key={index} className="flex gap-2.5 text-sm text-foreground/85">
               <span className="mt-2 size-1 shrink-0 rounded-full bg-muted-foreground/50" aria-hidden />
@@ -428,7 +428,7 @@ function GoalComposer({ plan, cycleId, employeeId, goal, onClose }: {
               </div>
             ))}
             {actions.length < MAX_ACTIONS ? (
-              <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setActions((all) => [...all, ""])}>
+              <Button variant="ghost" size="sm" className="-ms-2" onClick={() => setActions((all) => [...all, ""])}>
                 <Plus className="size-4" data-icon="inline-start" /> Add an action
               </Button>
             ) : null}

@@ -1,3 +1,4 @@
+import { formatNumber as formatSharedNumber } from "@repo/ds/lib/numbers";
 import type {
   CoachMeasureDto,
   ImprovementDirection,
@@ -74,7 +75,7 @@ export function measurePreview(measure: CoachMeasureDto): string {
 }
 
 function formatNumber(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return Number.isInteger(value) ? String(value) : formatSharedNumber(value, { maximumFractionDigits: 2 });
 }
 
 /** The composer's milestone rows for a suggested measure (no dates: the author adds them). */

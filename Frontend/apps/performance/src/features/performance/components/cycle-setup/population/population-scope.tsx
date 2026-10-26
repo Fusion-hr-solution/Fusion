@@ -160,7 +160,7 @@ export function PopulationScope({
                   <button
                     type="button"
                     onClick={() => onInspectInclusion(candidate)}
-                    className="min-w-0 flex-1 text-left"
+                    className="min-w-0 flex-1 text-start"
                   >
                     <p className="type-label truncate text-foreground">
                       {candidate.displayName}
@@ -210,7 +210,7 @@ function ScopeTile({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        "group flex min-w-0 items-center gap-3 rounded-surface border px-4 py-4 text-left transition-colors sm:gap-4 sm:px-5",
+        "group flex min-w-0 items-center gap-3 rounded-surface border px-4 py-4 text-start transition-colors sm:gap-4 sm:px-5",
         selected
           ? "border-primary/80 bg-primary/[0.07] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--primary)_35%,transparent)]"
           : "border-border bg-inlay hover:border-muted-foreground/30 hover:bg-muted"

@@ -82,7 +82,7 @@ export function ValueDial({
             <button
               type="button"
               onClick={() => onChange(null)}
-              className="mr-1 inline-flex items-center gap-1 rounded-detail text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="me-1 inline-flex items-center gap-1 rounded-detail text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <RotateCcw className="size-3.5" aria-hidden />
               Reset
@@ -132,7 +132,7 @@ export function ValueDial({
           {/* Overachievement run past the target reads as an extension, not more of the same track. */}
           {domain.targetPos != null && domain.targetPos < domain.max ? (
             <span
-              className="absolute inset-y-0 right-0 bg-[repeating-linear-gradient(135deg,transparent_0_4px,color-mix(in_oklab,var(--muted-foreground)_14%,transparent)_4px_8px)]"
+              className="absolute inset-y-0 inset-e-0 bg-[repeating-linear-gradient(135deg,transparent_0_4px,color-mix(in_oklab,var(--muted-foreground)_14%,transparent)_4px_8px)]"
               style={{ left: at(domain.targetPos) }}
             />
           ) : null}
@@ -229,7 +229,7 @@ function NudgeButton({
 /** A caption pinned under a point on the rail; near either end it anchors to that edge instead of centring past it. */
 function Caption({ left, edge, value, label }: { left: string; edge: number; value: string; label: string }) {
   const transform = edge < 0.12 ? "translateX(0)" : edge > 0.88 ? "translateX(-100%)" : "translateX(-50%)";
-  const align = edge < 0.12 ? "text-left" : edge > 0.88 ? "text-right" : "text-center";
+  const align = edge < 0.12 ? "text-start" : edge > 0.88 ? "text-end" : "text-center";
   return (
     <div className={cn("absolute top-0 whitespace-nowrap leading-tight", align)} style={{ left, transform }}>
       <p className="font-medium text-foreground">{value}</p>

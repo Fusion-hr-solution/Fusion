@@ -48,7 +48,7 @@ export function ProgressHistoryTimeline({
       {hasMore ? (
         <li className="relative flex gap-3">
           <span className="relative z-10 mt-1 size-2.5 shrink-0 rounded-full border-2 border-muted-foreground/30 bg-background" />
-          <AsyncButton pending={loadingMore} variant="ghost" size="sm" onClick={onLoadMore} className="-ml-1 -mt-1 text-muted-foreground">
+          <AsyncButton pending={loadingMore} variant="ghost" size="sm" onClick={onLoadMore} className="-ms-1 -mt-1 text-muted-foreground">
             <ChevronDown className="size-3.5" data-icon="inline-start" /> Show earlier updates
           </AsyncButton>
         </li>
@@ -93,7 +93,7 @@ function HistoryRow({
 
   return (
     <li className="relative flex gap-3 pb-5">
-      <span className="absolute left-[5px] top-4 bottom-0 w-px bg-border" aria-hidden />
+      <span className="absolute inset-s-[5px] top-4 bottom-0 w-px bg-border" aria-hidden />
       <span className={cn("relative z-10 mt-1 size-2.5 shrink-0 rounded-full", toneClass.replace("text-", "bg-"))} />
       <div className="min-w-0 flex-1">
         <Wrapper
@@ -105,7 +105,7 @@ function HistoryRow({
               }
             : {})}
           className={cn(
-            "block w-full text-left",
+            "block w-full text-start",
             expandable &&
               "-mx-2 -my-1 rounded-control px-2 py-1 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           )}
@@ -276,7 +276,7 @@ function DeltaBadge({ delta, correction }: { delta: number; correction: boolean 
       )}
     >
       <Triangle className={cn("size-2.5 fill-current", !up && "rotate-180")} aria-hidden />
-      {up ? `+${rounded}` : rounded}%{correction ? <span className="ml-1 font-medium opacity-80">· correction</span> : null}
+      {up ? `+${rounded}` : rounded}%{correction ? <span className="ms-1 font-medium opacity-80">· correction</span> : null}
     </span>
   );
 }

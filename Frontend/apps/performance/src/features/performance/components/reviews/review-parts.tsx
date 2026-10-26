@@ -52,7 +52,7 @@ export function StageTrack({ steps, className, label }: { steps: Step[]; classNa
           <div className="flex items-center">
             <StepDot state={step.state} />
             {index < steps.length - 1 ? (
-              <span aria-hidden className={cn("ml-2 h-px flex-1", step.state === "done" ? "bg-success/60" : "bg-border")} />
+              <span aria-hidden className={cn("ms-2 h-px flex-1", step.state === "done" ? "bg-success/60" : "bg-border")} />
             ) : null}
           </div>
           <p className={cn("mt-2.5 type-label",
@@ -193,7 +193,7 @@ export function LevelCards({
         return (
           <button key={level.value} type="button" role="radio" aria-checked={selected} disabled={disabled || !onChange}
             onClick={() => onChange?.(level.value)}
-            className={cn("relative rounded-control border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            className={cn("relative rounded-control border px-3 py-2.5 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               selected ? "border-primary bg-primary-tint text-primary-ink" : "border-transparent bg-inlay text-foreground hover:border-border",
               "disabled:cursor-default")}>
             <span className="block type-label tabular-nums">{level.value}</span>
@@ -234,7 +234,7 @@ export function SectionHeading({ title, count, aside, id }: { title: string; cou
     <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
       <h2 id={id} className="type-section-title text-foreground">
         {title}
-        {count !== undefined ? <span className="ml-1.5 type-meta tabular-nums text-muted-foreground">{count}</span> : null}
+        {count !== undefined ? <span className="ms-1.5 type-meta tabular-nums text-muted-foreground">{count}</span> : null}
       </h2>
       {aside ? <div className="type-meta text-muted-foreground">{aside}</div> : null}
     </div>

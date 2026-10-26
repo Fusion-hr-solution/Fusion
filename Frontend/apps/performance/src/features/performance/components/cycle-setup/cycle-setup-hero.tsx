@@ -26,7 +26,7 @@ export function CycleSetupHero() {
       <SummitArt />
 
       {/* People · Progress · Possibility — pinned to the top-right corner */}
-      <div className="absolute right-7 top-6 z-10 hidden items-center gap-2.5 lg:flex lg:right-9">
+      <div className="absolute inset-e-7 top-6 z-10 hidden items-center gap-2.5 lg:flex lg:inset-e-9">
         {["People", "Progress", "Possibility"].map((w, i) => (
           <span key={w} className="flex items-center gap-2.5">
             {i > 0 && <span className="size-1 rounded-full bg-amber-400/60" aria-hidden />}
@@ -67,7 +67,7 @@ function SummitArt() {
       aria-hidden
       viewBox="0 0 520 240"
       preserveAspectRatio="xMaxYMax meet"
-      className="pointer-events-none absolute bottom-0 right-0 hidden h-full w-[56%] opacity-90 md:block"
+      className="pointer-events-none absolute bottom-0 inset-e-0 hidden h-full w-[56%] opacity-90 md:block"
     >
       <defs>
         <linearGradient id="peak" x1="0" y1="0" x2="0" y2="1">

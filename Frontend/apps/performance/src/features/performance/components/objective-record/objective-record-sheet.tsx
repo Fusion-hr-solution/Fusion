@@ -121,7 +121,7 @@ export function ObjectiveRecordSheet({
       >
         {state.status === "ready" ? (
           <>
-            <div className="border-b border-border p-5 pr-12">{header(state.record)}</div>
+            <div className="border-b border-border p-5 pe-12">{header(state.record)}</div>
             <SheetDescription className="sr-only">Objective record for {state.record.title}.</SheetDescription>
             {task ?? (
               <>
@@ -173,7 +173,7 @@ function recordBack(record: ObjectiveRecord, viewerEmployeeId: string | null): {
 function RecordLoading() {
   return (
     <>
-      <div className="border-b border-border p-5 pr-12">
+      <div className="border-b border-border p-5 pe-12">
         <SheetTitle className="sr-only">Objective</SheetTitle>
         <SheetDescription className="sr-only">Loading the objective.</SheetDescription>
         <div className="flex items-start gap-3.5">

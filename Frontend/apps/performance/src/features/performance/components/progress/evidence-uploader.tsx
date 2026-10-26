@@ -75,7 +75,7 @@ export function EvidenceUploader({
               <span className="min-w-0 flex-1 truncate">
                 {item.kind === "File" ? item.fileName : item.kind === "Link" ? item.label || item.url : item.referenceText}
                 {item.kind === "File" && item.sizeBytes ? (
-                  <span className="ml-1.5 text-xs text-muted-foreground">{humanSize(item.sizeBytes)}</span>
+                  <span className="ms-1.5 text-xs text-muted-foreground">{humanSize(item.sizeBytes)}</span>
                 ) : null}
               </span>
               <Button

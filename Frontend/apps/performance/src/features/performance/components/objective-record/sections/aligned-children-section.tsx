@@ -29,7 +29,7 @@ export function AlignedChildrenSection({
                 <button
                   type="button"
                   onClick={() => onOpen({ cycleId: record.ref.cycleId, objectiveId: child.id })}
-                  className="group flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-(--type-tint) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                  className="group flex w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-(--type-tint) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium text-foreground">{child.title}</span>

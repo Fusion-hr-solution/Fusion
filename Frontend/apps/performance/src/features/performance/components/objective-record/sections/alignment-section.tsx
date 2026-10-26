@@ -36,7 +36,7 @@ export function AlignmentSection({
       <button
         type="button"
         onClick={() => onOpen(parent.ref)}
-        className="group flex w-full items-center gap-3 rounded-surface border border-border bg-popover p-4 text-left transition-colors hover:border-(--type-ring) hover:bg-(--type-tint) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-card"
+        className="group flex w-full items-center gap-3 rounded-surface border border-border bg-popover p-4 text-start transition-colors hover:border-(--type-ring) hover:bg-(--type-tint) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-card"
       >
         <span className="flex size-9 shrink-0 items-center justify-center rounded-control bg-(--type-tint) text-(--type-ink) ring-1 ring-(--type-ring)">
           <ScopeMark className="size-6" />

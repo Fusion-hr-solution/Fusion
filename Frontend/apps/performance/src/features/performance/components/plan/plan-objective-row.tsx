@@ -122,7 +122,7 @@ export function PlanObjectiveRow({
               type="button"
               onClick={onViewDetails}
               aria-pressed={active}
-              className="rounded-control text-left font-medium tracking-tight text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="rounded-control text-start font-medium tracking-tight text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {objective.title}
             </button>
@@ -209,7 +209,7 @@ export function PlanObjectiveRow({
 
       {/* Metadata line: measurement, its target, duration — separated cells, only ones that carry meaning.
           The inspect affordance closes the row on the reading/authoring states. */}
-      <div className="mt-4 flex items-end gap-3 pl-14">
+      <div className="mt-4 flex items-end gap-3 ps-14">
         <dl className="flex min-w-0 flex-1 flex-col gap-3 text-sm sm:flex-row sm:gap-0 sm:divide-x sm:divide-border">
           <MetaCell icon={Measurement} label="Measurement">
             {measurement ? MEASUREMENT_METHOD_LABEL[measurement.method] : "—"}
@@ -244,7 +244,7 @@ export function PlanObjectiveRow({
             )}
           </MetaCell>
         </dl>
-        <div className="shrink-0 text-right">
+        <div className="shrink-0 text-end">
           <p className="type-meta text-muted-foreground/70">Weight</p>
           <p
             className={cn(
@@ -446,7 +446,7 @@ function MetaCell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-w-0 sm:px-5 sm:first:pl-0">
+    <div className="min-w-0 sm:px-5 sm:first:ps-0">
       <dt className="flex items-center gap-1.5 type-meta text-muted-foreground/70">
         <Icon className="size-4 shrink-0" aria-hidden />
         {label}

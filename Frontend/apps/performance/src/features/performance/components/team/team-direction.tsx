@@ -403,7 +403,7 @@ function DirectionCard({
       <button
         type="button"
         onClick={() => onInspect(node.id)}
-        className="mt-3 rounded-detail text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="mt-3 rounded-detail text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <h3 className="text-lg font-semibold leading-snug tracking-tight text-foreground hover:underline">
           {node.title}
@@ -415,7 +415,7 @@ function DirectionCard({
         </p>
       ) : null}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-3 sm:divide-x sm:divide-border [&>*]:sm:pl-4 [&>*:first-child]:sm:pl-0">
+      <div className="mt-4 grid gap-3 sm:grid-cols-3 sm:divide-x sm:divide-border [&>*]:sm:ps-4 [&>*:first-child]:sm:ps-0">
         <DirectionFact
           icon={<UserRound aria-hidden />}
           label="Accountable owner"
@@ -440,7 +440,7 @@ function DirectionCard({
           </p>
           <div className="relative mt-2 h-1.5 rounded-full bg-muted">
             <span
-              className="absolute inset-y-0 left-0 rounded-full bg-primary"
+              className="absolute inset-y-0 inset-s-0 rounded-full bg-primary"
               style={{ width: `${progress}%` }}
             />
             <span
@@ -475,7 +475,7 @@ function EligibleRow({
     <button
       type="button"
       onClick={onClick}
-      className="group mt-3 flex items-center gap-3 border-t border-border/60 pt-3 text-left focus-visible:outline-none"
+      className="group mt-3 flex items-center gap-3 border-t border-border/60 pt-3 text-start focus-visible:outline-none"
     >
       <span className="flex size-8 shrink-0 items-center justify-center rounded-control border border-border bg-inlay text-muted-foreground">
         <Layers className="size-4" aria-hidden />
@@ -679,7 +679,7 @@ function IllustrationNode({
 function DirectionIllustration() {
   return (
     <div
-      className="pointer-events-none absolute right-5 top-1/2 hidden w-96 -translate-y-1/2 xl:block"
+      className="pointer-events-none absolute inset-e-5 top-1/2 hidden w-96 -translate-y-1/2 xl:block"
       aria-hidden
     >
       <svg viewBox="0 0 256 170" className="h-auto w-full overflow-visible">
@@ -871,7 +871,7 @@ function TeamObjectivesEmpty({
           aria-hidden
         />
         <Flag
-          className="absolute -right-2 -top-3 size-6 rotate-12 fill-primary/80 text-primary-ink"
+          className="absolute -inset-e-2 -top-3 size-6 rotate-12 fill-primary/80 text-primary-ink"
           aria-hidden
         />
       </div>
@@ -967,7 +967,7 @@ function TeamObjectiveRow({
             <button
               type="button"
               onClick={() => onInspect(node.id)}
-              className="min-w-0 truncate text-left text-base font-semibold tracking-tight text-foreground hover:underline"
+              className="min-w-0 truncate text-start text-base font-semibold tracking-tight text-foreground hover:underline"
             >
               {node.title}
             </button>
@@ -985,7 +985,7 @@ function TeamObjectiveRow({
               ) : null}
             </div>
             {/* Facts, divided: who answers for it, how it is read, how far it is, when it is due. */}
-            <div className="flex flex-wrap items-center gap-y-4 lg:flex-nowrap lg:border-l lg:border-border lg:pl-2">
+            <div className="flex flex-wrap items-center gap-y-4 lg:flex-nowrap lg:border-s lg:border-border lg:ps-2">
               <RowFact label="Accountable owner">
                 <span className="inline-flex items-center gap-2.5">
                   <OwnerAvatar
@@ -1035,7 +1035,7 @@ function TeamObjectiveRow({
                   {formatDate(node.endDate)}
                 </span>
               </RowFact>
-              <div className="flex items-center pl-4 lg:border-l lg:border-border">
+              <div className="flex items-center ps-4 lg:border-s lg:border-border">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -1108,7 +1108,7 @@ function TeamObjectiveRow({
                 </span>
                 <button
                   type="button"
-                  className="min-w-0 truncate text-left font-medium text-primary-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="min-w-0 truncate text-start font-medium text-primary-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   onClick={() => onViewDirection(item)}
                 >
                   {item.parent.title}
@@ -1130,7 +1130,7 @@ function TeamObjectiveRow({
 /** One divided fact column: a quiet sentence-case label over its value. */
 function RowFact({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="min-w-0 px-4 lg:border-l lg:border-border lg:first:border-l-0">
+    <div className="min-w-0 px-4 lg:border-s lg:border-border lg:first:border-s-0">
       <p className="text-xs text-muted-foreground">{label}</p>
       <div className="mt-1.5 flex min-h-8 min-w-0 items-center text-sm font-medium text-foreground">
         {children}

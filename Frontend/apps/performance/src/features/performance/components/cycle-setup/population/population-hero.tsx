@@ -25,7 +25,7 @@ export function PopulationHero() {
             anything that needs your attention.
           </p>
         </div>
-        <p className="hidden shrink-0 border-l border-white/10 pl-6 type-body-secondary text-zinc-300 lg:block">
+        <p className="hidden shrink-0 border-s border-white/10 ps-6 type-body-secondary text-zinc-300 lg:block">
           The right people.
           <br />
           Greater conversations.
@@ -55,7 +55,7 @@ function NetworkArt() {
       aria-hidden
       viewBox="0 0 420 220"
       preserveAspectRatio="xMaxYMid meet"
-      className="pointer-events-none absolute bottom-0 right-[27%] hidden h-full w-[45%] opacity-90 md:block"
+      className="pointer-events-none absolute bottom-0 inset-e-[27%] hidden h-full w-[45%] opacity-90 md:block"
     >
       {nodes.map((node, index) => (
         <line

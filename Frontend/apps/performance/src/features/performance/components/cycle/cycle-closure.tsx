@@ -191,7 +191,7 @@ export function ClosureSection({ closure, loading }: { closure: CycleClosureDto 
                   <p className="type-body-secondary truncate text-muted-foreground">{row.orgUnitName}</p>
                 ) : null}
               </div>
-              <span className="type-body-secondary text-muted-foreground sm:max-w-[60%] sm:shrink-0 sm:text-right">
+              <span className="type-body-secondary text-muted-foreground sm:max-w-[60%] sm:shrink-0 sm:text-end">
                 {closed ? row.exceptionReason : STANDING_LABEL[row.standing]}
               </span>
             </li>

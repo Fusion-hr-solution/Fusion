@@ -77,7 +77,7 @@ export function Attainment({ value }: { value: number | null }) {
       <span className="h-1.5 w-16 overflow-hidden rounded-full bg-inlay" aria-hidden>
         <span className={cn("block h-full rounded-full", share >= 50 ? "bg-success" : "bg-warning")} style={{ width: `${share}%` }} />
       </span>
-      <span className="w-9 text-right type-label tabular-nums text-foreground">{share}%</span>
+      <span className="w-9 text-end type-label tabular-nums text-foreground">{share}%</span>
     </span>
   );
 }
@@ -111,7 +111,7 @@ export function DistributionView({ view, onManager }: { view: CalibrationDistrib
       <section aria-labelledby="by-manager-title">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-3">
           <h2 id="by-manager-title" className="type-section-title text-foreground">
-            By manager<span className="ml-1.5 type-meta tabular-nums text-muted-foreground">{view.managers.length}</span>
+            By manager<span className="ms-1.5 type-meta tabular-nums text-muted-foreground">{view.managers.length}</span>
           </h2>
           <p className="type-meta text-muted-foreground">Furthest from the session average first</p>
         </div>
@@ -119,7 +119,7 @@ export function DistributionView({ view, onManager }: { view: CalibrationDistrib
           <p className="rounded-surface bg-card px-6 py-10 text-center type-body text-muted-foreground">No one matches these filters</p>
         ) : (
           <div className="overflow-x-auto rounded-surface bg-card">
-            <table className="w-full min-w-[44rem] text-left">
+            <table className="w-full min-w-[44rem] text-start">
               <thead>
                 <tr className="border-b border-border type-meta text-muted-foreground">
                   <th className="px-5 py-3 font-medium">Manager</th>
@@ -175,7 +175,7 @@ function ManagerRow({ manager, top, onOpen }: { manager: CalibrationManagerDto; 
   return (
     <tr className="cursor-pointer hover:bg-inlay/50" onClick={onOpen}>
       <td className="px-5 py-3.5">
-        <button type="button" onClick={onOpen} className="flex items-center gap-3 rounded-control text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        <button type="button" onClick={onOpen} className="flex items-center gap-3 rounded-control text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <PersonInitials name={manager.reviewerName} size="md" />
           <span className="type-label text-foreground">{manager.reviewerName}</span>
         </button>
@@ -185,7 +185,7 @@ function ManagerRow({ manager, top, onOpen }: { manager: CalibrationManagerDto; 
         <span className="flex h-2.5 w-full min-w-40 overflow-hidden rounded-full bg-inlay" role="img"
           aria-label={manager.currentMix.map((count, index) => `${count} at ${index + 1}`).join(", ")}>
           {manager.currentMix.map((count, index) => count === 0 ? null : (
-            <span key={index} className={cn("h-full border-r border-card last:border-r-0", MIX[Math.min(MIX.length - 1, index + MIX.length - top)])}
+            <span key={index} className={cn("h-full border-e border-card last:border-e-0", MIX[Math.min(MIX.length - 1, index + MIX.length - top)])}
               style={{ width: `${(count / total) * 100}%` }} />
           ))}
         </span>
@@ -193,7 +193,7 @@ function ManagerRow({ manager, top, onOpen }: { manager: CalibrationManagerDto; 
       <td className="whitespace-nowrap px-3 py-3.5">
         <span className={cn("type-label tabular-nums", manager.lenient ? "text-info" : "text-foreground")}>{average(manager.originalAverage)}</span>
         {manager.currentAverage !== manager.originalAverage ? (
-          <span className="ml-1.5 type-meta tabular-nums text-muted-foreground">→ {average(manager.currentAverage)}</span>
+          <span className="ms-1.5 type-meta tabular-nums text-muted-foreground">→ {average(manager.currentAverage)}</span>
         ) : null}
       </td>
       <td className="px-5 py-3.5">{manager.lenient ? <FlagChip>{leniencyText(manager.delta)}</FlagChip> : <span className="type-meta text-muted-foreground">—</span>}</td>
@@ -225,7 +225,7 @@ export function PeopleView({ view, top, lenient, onOpen }: {
   }
   return (
     <div className="overflow-x-auto rounded-surface bg-card">
-      <table className="w-full min-w-[60rem] text-left">
+      <table className="w-full min-w-[60rem] text-start">
         <thead>
           <tr className="border-b border-border type-meta text-muted-foreground">
             <th className="px-4 py-3 font-medium">Person</th>
@@ -253,7 +253,7 @@ function Group({ group, top, lenient, onOpen }: { group: CalibrationGroupDto; to
       <tr>
         <td colSpan={7} className="px-4 py-3">
           <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} disabled={group.count === 0}
-            className="flex items-center gap-3 rounded-control text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            className="flex items-center gap-3 rounded-control text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <LevelMark value={group.value} top={top} />
             <span className="type-label text-foreground">{group.label}</span>
             <span className="type-meta tabular-nums text-muted-foreground">
@@ -268,7 +268,7 @@ function Group({ group, top, lenient, onOpen }: { group: CalibrationGroupDto; to
         <tr>
           <td colSpan={7} className="px-4 py-2.5 type-meta text-muted-foreground">
             {group.people.length - rows.length} more at {group.label}
-            <Button variant="ghost" size="sm" className="ml-2" onClick={() => setAll(true)}>Show</Button>
+            <Button variant="ghost" size="sm" className="ms-2" onClick={() => setAll(true)}>Show</Button>
           </td>
         </tr>
       ) : null}
@@ -281,7 +281,7 @@ function PersonRow({ person, top, lenient, onOpen }: { person: CalibrationPerson
     <tr className="cursor-pointer border-t border-border hover:bg-inlay/50" onClick={onOpen}>
       <td className="px-4 py-3">
         <button type="button" onClick={(event) => { event.stopPropagation(); onOpen(); }}
-          className="flex items-center gap-3 rounded-control text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          className="flex items-center gap-3 rounded-control text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <PersonInitials name={person.name} size="md" />
           <span className="min-w-0">
             <span className="block type-label text-foreground">{person.name}</span>
@@ -291,7 +291,7 @@ function PersonRow({ person, top, lenient, onOpen }: { person: CalibrationPerson
       </td>
       <td className="whitespace-nowrap px-3 py-3 type-body text-foreground">
         {person.reviewerName}
-        {lenient ? <Flag className="ml-1.5 inline size-3 text-info" aria-label="Manager flagged" /> : null}
+        {lenient ? <Flag className="ms-1.5 inline size-3 text-info" aria-label="Manager flagged" /> : null}
       </td>
       <td className="px-3 py-3"><RatingChange original={person.originalRating} current={person.currentRating} top={top} /></td>
       <td className="px-3 py-3"><PotentialBadge value={person.currentPotential} was={person.originalPotential} /></td>
@@ -317,7 +317,7 @@ export function ChangesView({ view, top }: { view: CalibrationChangesViewDto; to
       </section>
       <section aria-labelledby="changes-title">
         <h2 id="changes-title" className="mb-3 type-section-title text-foreground">
-          Changes<span className="ml-1.5 type-meta tabular-nums text-muted-foreground">{view.changes.length}</span>
+          Changes<span className="ms-1.5 type-meta tabular-nums text-muted-foreground">{view.changes.length}</span>
         </h2>
         {view.changes.length === 0 ? (
           <p className="rounded-surface bg-card px-6 py-10 text-center type-body text-muted-foreground">Every rating stayed as managers gave it</p>

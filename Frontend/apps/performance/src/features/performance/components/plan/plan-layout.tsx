@@ -65,7 +65,7 @@ export function PlanWeightStrip({ segments }: { segments: { weight: number; alig
         {segments.map((segment, i) => (
           <span
             key={i}
-            className={cn("h-full first:rounded-l-full", segment.aligned ? "bg-primary" : "bg-info")}
+            className={cn("h-full first:rounded-s-full", segment.aligned ? "bg-primary" : "bg-info")}
             style={{ width: `${Math.min(segment.weight, 100)}%` }}
           />
         ))}

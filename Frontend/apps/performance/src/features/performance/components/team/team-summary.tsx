@@ -51,7 +51,7 @@ function Breakdown({ title, segments, trailing }: { title: string; segments: Seg
           </li>
         ))}
       </ul>
-      {trailing ? <div className="type-body-secondary text-muted-foreground lg:border-l lg:border-border lg:pl-8">{trailing}</div> : null}
+      {trailing ? <div className="type-body-secondary text-muted-foreground lg:border-s lg:border-border lg:ps-8">{trailing}</div> : null}
     </div>
   );
 }

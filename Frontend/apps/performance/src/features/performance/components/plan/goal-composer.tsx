@@ -382,7 +382,7 @@ export function PlanGoalComposer({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[92vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
         {/* Header — identity + a compact snapshot of the plan's current allocation. */}
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5 pr-14">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5 pe-14">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-3">
               <DialogTitle>
@@ -489,7 +489,7 @@ export function PlanGoalComposer({
                     >
                       <SelectTrigger
                         aria-label="Select organizational objective"
-                        className="h-auto w-full items-center whitespace-normal py-2.5 text-left data-[size=default]:h-auto [&>svg]:self-center"
+                        className="h-auto w-full items-center whitespace-normal py-2.5 text-start data-[size=default]:h-auto [&>svg]:self-center"
                       >
                         {selectedTarget ? (
                           <TargetSummary target={selectedTarget} />
@@ -680,11 +680,11 @@ export function PlanGoalComposer({
                       min={0}
                       max={100}
                       onChange={(e) => setWeight(e.target.value)}
-                      className="pr-7 text-right tabular-nums"
+                      className="pe-7 text-end tabular-nums"
                       placeholder="0"
                       aria-label="Plan weight percent"
                     />
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    <span className="pointer-events-none absolute inset-e-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                       %
                     </span>
                   </div>
@@ -816,7 +816,7 @@ function ChoiceTile({
       disabled={disabled}
       aria-pressed={active}
       className={cn(
-        "flex items-start gap-3 rounded-surface border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "flex items-start gap-3 rounded-surface border p-4 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         active
           ? TILE_TONES[tone].active
           : cn("border-border hover:bg-muted/40", TILE_TONES[tone].hover),

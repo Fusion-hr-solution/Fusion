@@ -55,7 +55,7 @@ function defaultDeadline(start: string, end: string, offsetDays: number): string
 }
 
 function Required() {
-  return <span className="ml-0.5 text-destructive" aria-hidden>*</span>;
+  return <span className="ms-0.5 text-destructive" aria-hidden>*</span>;
 }
 
 /**
@@ -201,7 +201,7 @@ export function CycleDetailsStep({ detail }: { detail: CycleDetailDto | null }) 
             </Field>
             <Field
               htmlFor="cycle-description"
-              label={<>Description <span className="ml-1 font-normal text-muted-foreground">(optional)</span></>}
+              label={<>Description <span className="ms-1 font-normal text-muted-foreground">(optional)</span></>}
               hint="Add a brief description to provide context for this cycle."
               aside={
                 <span className="type-meta tabular-nums text-muted-foreground">
@@ -396,7 +396,7 @@ function DateTrigger({ id, empty, children }: { id: string; empty: boolean; chil
         type="button"
         variant="outline"
         data-empty={empty}
-        className="h-11 w-full justify-start gap-3 text-left font-normal data-[empty=true]:text-muted-foreground"
+        className="h-11 w-full justify-start gap-3 text-start font-normal data-[empty=true]:text-muted-foreground"
       >
         <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         <span className="flex-1 truncate tabular-nums">{children}</span>

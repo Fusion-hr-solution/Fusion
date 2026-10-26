@@ -49,7 +49,7 @@ export function YearBand({ year, cycleName }: { year: OverviewYearDto; cycleName
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="type-section-title text-foreground">{phase}</h2>
         {left ? <span className="type-section-title tabular-nums text-primary">{left}</span> : null}
-        {next ? <p className="ml-auto type-body-secondary text-muted-foreground">{next}</p> : null}
+        {next ? <p className="ms-auto type-body-secondary text-muted-foreground">{next}</p> : null}
       </div>
       <div className="relative pt-6">
         <div className="flex h-3 gap-[3px]" aria-hidden>
@@ -67,7 +67,7 @@ export function YearBand({ year, cycleName }: { year: OverviewYearDto; cycleName
               >
                 {filled > 0 ? (
                   <span
-                    className={cn("absolute inset-y-0 left-0", p.state === "Current" ? "bg-primary" : "bg-primary/60")}
+                    className={cn("absolute inset-y-0 inset-s-0", p.state === "Current" ? "bg-primary" : "bg-primary/60")}
                     style={{ width: `${filled * 100}%` }}
                   />
                 ) : null}
@@ -89,7 +89,7 @@ export function YearBand({ year, cycleName }: { year: OverviewYearDto; cycleName
         ))}
         {showToday ? (
           <span className="absolute top-0 h-10 w-0.5 rounded-full bg-foreground" style={{ left: `${today * 100}%` }} aria-hidden>
-            <span className={cn("absolute top-[-2px] whitespace-nowrap type-meta font-semibold text-foreground", today > 0.9 ? "right-2" : "left-2")}>
+            <span className={cn("absolute top-[-2px] whitespace-nowrap type-meta font-semibold text-foreground", today > 0.9 ? "inset-e-2" : "inset-s-2")}>
               Today
             </span>
           </span>

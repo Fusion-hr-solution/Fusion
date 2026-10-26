@@ -92,7 +92,7 @@ export function ContributionSection({ record }: { record: ObjectiveRecord }) {
                 value={weights[child.id] ?? ""}
                 disabled={!canEdit}
                 onChange={(event) => setWeights((prev) => ({ ...prev, [child.id]: event.target.value }))}
-                className="w-20 text-right"
+                className="w-20 text-end"
                 placeholder="0"
               />
               <span className="text-sm text-muted-foreground">%</span>

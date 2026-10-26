@@ -281,7 +281,7 @@ function TeamTable({ rows, cycleId, title }: { rows: ReviewsWorkspaceTeamRowDto[
     <section aria-labelledby="team-heading">
       <SectionHeading id="team-heading" title={title} count={rows.length} />
       <div className="overflow-x-auto rounded-surface bg-card">
-        <table className="w-full min-w-[56rem] text-left">
+        <table className="w-full min-w-[56rem] text-start">
           <thead className="bg-inlay">
             <tr className="type-meta text-muted-foreground">
               <th scope="col" className="px-5 py-3 font-semibold">Person</th>
@@ -369,7 +369,7 @@ function TeamRow({ row, cycleId, primary }: { row: ReviewsWorkspaceTeamRowDto; c
           : row.reviewStep === "Closed" ? <span className="type-body-secondary text-muted-foreground">Closed</span>
           : <StepCell state="done">{row.reviewStep === "Released" ? "Released" : "Submitted"}</StepCell>}
       </td>
-      <td className="px-5 py-3.5 text-right">
+      <td className="px-5 py-3.5 text-end">
         {row.summaryToCheck ? (
           <Button size="sm" asChild><Link href={href}>Check summary</Link></Button>
         ) : row.nextAction === "WriteReview" ? (
@@ -400,7 +400,7 @@ function SessionLead({ session, cycleId }: { session: ReviewsWorkspaceSessionDto
       <dl className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-4">
         <div>
           <dt className="type-meta text-muted-foreground">Discussed</dt>
-          <dd className="mt-1 type-metric tabular-nums text-foreground">{session.discussed}<span className="ml-1.5 type-meta text-muted-foreground">of {session.people}</span></dd>
+          <dd className="mt-1 type-metric tabular-nums text-foreground">{session.discussed}<span className="ms-1.5 type-meta text-muted-foreground">of {session.people}</span></dd>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-inlay" aria-hidden><div className="h-full rounded-full bg-success" style={{ width: `${discussed}%` }} /></div>
         </div>
         <div><dt className="type-meta text-muted-foreground">People</dt><dd className="mt-1 type-metric tabular-nums text-foreground">{session.people}</dd></div>

@@ -52,7 +52,7 @@ export function CycleTimeline({
         <div className="relative h-full">
           <div
             className={cn(
-              "absolute inset-y-0 left-2 w-0.5 -translate-x-1/2 rounded-full",
+              "absolute inset-y-0 inset-s-2 w-0.5 -translate-x-1/2 rtl:translate-x-1/2 rounded-full",
               hasRange ? "bg-(--timeline-accent)" : "bg-border",
             )}
           />
@@ -123,7 +123,7 @@ function Tick({ left, className }: { left: string; className: string }) {
   return (
     <span
       style={{ left }}
-      className={cn("absolute w-0 -translate-x-1/2 border-l border-dashed border-(--timeline-accent)/60", className)}
+      className={cn("absolute w-0 -translate-x-1/2 border-s border-dashed border-(--timeline-accent)/60", className)}
       aria-hidden
     />
   );
@@ -145,7 +145,7 @@ function Label({
   return (
     <div
       style={{ left, transform: alignEnd ? "translateX(-100%)" : "translateX(0.5rem)" }}
-      className={cn("absolute whitespace-nowrap leading-tight", alignEnd ? "text-right" : "text-left", className)}
+      className={cn("absolute whitespace-nowrap leading-tight", alignEnd ? "text-end" : "text-start", className)}
     >
       <div className={cn("text-[0.8125rem] font-semibold leading-(--tl-lh) tabular-nums", date ? "text-foreground" : "text-muted-foreground")}>
         {date ? formatDate(date) : "—"}
@@ -160,7 +160,7 @@ function VNode({ top, filled, ring }: { top: string; filled?: boolean; ring?: bo
     <span
       style={{ top }}
       className={cn(
-        "absolute left-2 z-10 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full",
+        "absolute inset-s-2 z-10 size-4 -translate-x-1/2 rtl:translate-x-1/2 -translate-y-1/2 rounded-full",
         filled ? "bg-(--timeline-accent) ring-4 ring-(--timeline-accent)/15" : "",
         ring ? "border-2 border-(--timeline-accent) bg-card" : "",
         !filled && !ring ? "border-2 border-border bg-card" : "",
@@ -172,7 +172,7 @@ function VNode({ top, filled, ring }: { top: string; filled?: boolean; ring?: bo
 
 function VLabel({ top, date, label }: { top: string; date: string; label: string }) {
   return (
-    <div style={{ top }} className="absolute left-7 -translate-y-1/2 whitespace-nowrap leading-tight">
+    <div style={{ top }} className="absolute inset-s-7 -translate-y-1/2 whitespace-nowrap leading-tight">
       <div className={cn("text-[0.8125rem] font-semibold leading-(--tl-lh) tabular-nums", date ? "text-foreground" : "text-muted-foreground")}>
         {date ? formatDate(date) : "—"}
       </div>

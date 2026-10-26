@@ -66,7 +66,7 @@ export function CycleSetupStepper({
               // Connector: from just past this node's centre to just before the next one's.
               <span
                 className={cn(
-                  "absolute top-[17px] left-[calc(50%+30px)] right-[calc(-50%+30px)] h-0.5 rounded-full transition-colors",
+                  "absolute top-[17px] inset-s-[calc(50%+30px)] inset-e-[calc(-50%+30px)] h-0.5 rounded-full transition-colors",
                   view.complete ? "bg-primary" : "bg-border",
                 )}
                 aria-hidden

@@ -94,7 +94,7 @@ function UnitFilter({ data, onUnit }: { data: InsightsDto; onUnit: (unitId: stri
         <DropdownMenuRadioGroup value={data.unitId ?? ""} onValueChange={(value) => onUnit(value || null)}>
           <DropdownMenuRadioItem value="">The whole organization</DropdownMenuRadioItem>
           {data.units.map((unit) => (
-            <DropdownMenuRadioItem key={unit.unitId} value={unit.unitId} style={{ paddingLeft: `${0.5 + unit.depth * 0.75}rem` }}>
+            <DropdownMenuRadioItem key={unit.unitId} value={unit.unitId} style={{ paddingInlineStart: `${0.5 + unit.depth * 0.75}rem` }}>
               {unit.name}
             </DropdownMenuRadioItem>
           ))}
@@ -112,7 +112,7 @@ function Figure({ onOpen, label, children, className }: { onOpen: () => void; la
       onClick={onOpen}
       aria-label={label}
       className={cn(
-        "rounded-detail text-left tabular-nums hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "rounded-detail text-start tabular-nums hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className,
       )}
     >
@@ -127,7 +127,7 @@ function Tile({ label, value, of, detail, onOpen }: { label: string; value: Reac
   const body = (
     <>
       <span className="font-display text-4xl font-semibold leading-none text-foreground">{value}</span>
-      {of ? <span className="ml-1.5 type-body-secondary text-muted-foreground">{of}</span> : null}
+      {of ? <span className="ms-1.5 type-body-secondary text-muted-foreground">{of}</span> : null}
     </>
   );
   return (
@@ -187,7 +187,7 @@ function Bar({ value, total }: { value: number; total: number }) {
   const pct = total > 0 ? Math.min(100, (value / total) * 100) : 0;
   return (
     <span className="relative block h-2 w-28 overflow-hidden rounded-full bg-inlay ring-1 ring-inset ring-border">
-      <span className="absolute inset-y-0 left-0 rounded-full bg-success" style={{ width: `${pct}%` }} />
+      <span className="absolute inset-y-0 inset-s-0 rounded-full bg-success" style={{ width: `${pct}%` }} />
     </span>
   );
 }
@@ -208,7 +208,7 @@ function StatusBar({ status }: { status: StatusMixDto }) {
   );
 }
 
-const TH = "h-10 px-4 text-left text-xs font-medium whitespace-nowrap text-muted-foreground";
+const TH = "h-10 px-4 text-start text-xs font-medium whitespace-nowrap text-muted-foreground";
 const TD = "h-12 px-4 align-middle text-sm";
 
 function Frame({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
@@ -255,7 +255,7 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
         <thead className="bg-inlay">
           <tr className="border-b border-border">
             <th scope="col" className={TH}>Unit</th>
-            <th scope="col" className={cn(TH, "text-right")}>People</th>
+            <th scope="col" className={cn(TH, "text-end")}>People</th>
             {reviews ? (
               <>
                 <th scope="col" className={TH}>Manager reviews on time</th>
@@ -263,7 +263,7 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
                 {levels.map((l) => (
                   <th key={l.value} scope="col" className={cn(TH, "text-center")} title={l.label}>{l.value}</th>
                 ))}
-                <th scope="col" className={cn(TH, "text-right")}>Calibration</th>
+                <th scope="col" className={cn(TH, "text-end")}>Calibration</th>
               </>
             ) : (
               <>
@@ -272,7 +272,7 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
                   <>
                     <th scope="col" className={TH}>Updated in the last 30 days</th>
                     <th scope="col" className={TH}>Objective status, as owners set it</th>
-                    <th scope="col" className={cn(TH, "text-right")}>Aligned</th>
+                    <th scope="col" className={cn(TH, "text-end")}>Aligned</th>
                   </>
                 ) : null}
               </>
@@ -284,8 +284,8 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
             const drill = drillFor(row, total);
             return (
               <tr key={row.unitId ?? (total ? "total" : row.name)} className={cn("border-b border-border last:border-0", total && "bg-inlay font-semibold")}>
-                <th scope="row" className={cn(TD, "text-left font-semibold text-foreground")}>{total ? (data.unitId ? `All of ${data.scopeName}` : "All units") : row.name}</th>
-                <td className={cn(TD, "text-right tabular-nums")}>
+                <th scope="row" className={cn(TD, "text-start font-semibold text-foreground")}>{total ? (data.unitId ? `All of ${data.scopeName}` : "All units") : row.name}</th>
+                <td className={cn(TD, "text-end tabular-nums")}>
                   <Figure onOpen={() => drill("people")} label={`${row.people} people in ${row.name}`}>{row.people}</Figure>
                 </td>
                 {reviews ? (
@@ -323,7 +323,7 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
                         </td>
                       );
                     })}
-                    <td className={cn(TD, "text-right whitespace-nowrap tabular-nums")}>
+                    <td className={cn(TD, "text-end whitespace-nowrap tabular-nums")}>
                       {(row.raised ?? 0) + (row.lowered ?? 0) === 0 ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (
@@ -361,7 +361,7 @@ function ByUnit({ data, open }: { data: InsightsDto; open: Open }) {
                             </Figure>
                           </span>
                         </td>
-                        <td className={cn(TD, "text-right tabular-nums")}>{share(row.aligned, row.objectives) ?? 0}%</td>
+                        <td className={cn(TD, "text-end tabular-nums")}>{share(row.aligned, row.objectives) ?? 0}%</td>
                       </>
                     ) : null}
                   </>
@@ -383,22 +383,22 @@ function CompanyDirection({ data }: { data: InsightsDto }) {
           <tr className="border-b border-border">
             <th scope="col" className={TH}>Company objective</th>
             <th scope="col" className={TH}>Owner</th>
-            <th scope="col" className={cn(TH, "text-right")}>Aligned objectives</th>
-            <th scope="col" className={cn(TH, "text-right")}>Units contributing</th>
+            <th scope="col" className={cn(TH, "text-end")}>Aligned objectives</th>
+            <th scope="col" className={cn(TH, "text-end")}>Units contributing</th>
             <th scope="col" className={TH}>Progress</th>
           </tr>
         </thead>
         <tbody>
           {data.direction.map((o) => (
             <tr key={o.objectiveId} className="border-b border-border">
-              <th scope="row" className={cn(TD, "text-left font-semibold text-foreground")}>{o.title}</th>
+              <th scope="row" className={cn(TD, "text-start font-semibold text-foreground")}>{o.title}</th>
               <td className={TD}>{o.owner ?? "—"}</td>
-              <td className={cn(TD, "text-right tabular-nums")}>{o.alignedObjectives}</td>
-              <td className={cn(TD, "text-right tabular-nums")}>{o.unitsContributing} of {o.units}</td>
+              <td className={cn(TD, "text-end tabular-nums")}>{o.alignedObjectives}</td>
+              <td className={cn(TD, "text-end tabular-nums")}>{o.unitsContributing} of {o.units}</td>
               <td className={TD}>
                 <span className="flex items-center gap-3">
                   <span className="relative block h-1.5 w-28 overflow-hidden rounded-full bg-inlay">
-                    {o.hasProgress ? <span className="absolute inset-y-0 left-0 rounded-full bg-primary" style={{ width: `${Math.min(100, o.progress)}%` }} /> : null}
+                    {o.hasProgress ? <span className="absolute inset-y-0 inset-s-0 rounded-full bg-primary" style={{ width: `${Math.min(100, o.progress)}%` }} /> : null}
                   </span>
                   <span className="tabular-nums">{o.hasProgress ? `${Math.round(o.progress)}%` : "—"}</span>
                 </span>
@@ -406,8 +406,8 @@ function CompanyDirection({ data }: { data: InsightsDto }) {
             </tr>
           ))}
           <tr className="bg-inlay">
-            <th scope="row" className={cn(TD, "text-left font-semibold text-foreground")} colSpan={2}>Not aligned to any company objective</th>
-            <td className={cn(TD, "text-right font-semibold tabular-nums")}>{data.notAligned}</td>
+            <th scope="row" className={cn(TD, "text-start font-semibold text-foreground")} colSpan={2}>Not aligned to any company objective</th>
+            <td className={cn(TD, "text-end font-semibold tabular-nums")}>{data.notAligned}</td>
             <td colSpan={2} />
           </tr>
         </tbody>
@@ -428,7 +428,7 @@ function ByManager({ data, open }: { data: InsightsDto; open: Open }) {
         <thead className="bg-inlay">
           <tr className="border-b border-border">
             <th scope="col" className={TH}>Manager</th>
-            <th scope="col" className={cn(TH, "text-right")}>People</th>
+            <th scope="col" className={cn(TH, "text-end")}>People</th>
             <th scope="col" className={TH}>Late manager reviews</th>
             <th scope="col" className={TH}>Acknowledged</th>
           </tr>
@@ -436,7 +436,7 @@ function ByManager({ data, open }: { data: InsightsDto; open: Open }) {
         <tbody>
           {managers.map((m) => (
             <tr key={m.employeeId} className="border-b border-border">
-              <th scope="row" className={cn(TD, "text-left")}>
+              <th scope="row" className={cn(TD, "text-start")}>
                 <span className="flex items-center gap-3">
                   <PersonInitials name={m.name} size="sm" />
                   <span className="min-w-0">
@@ -445,7 +445,7 @@ function ByManager({ data, open }: { data: InsightsDto; open: Open }) {
                   </span>
                 </span>
               </th>
-              <td className={cn(TD, "text-right tabular-nums")}>{m.people}</td>
+              <td className={cn(TD, "text-end tabular-nums")}>{m.people}</td>
               <td className={TD}>
                 {m.late > 0 ? (
                   <Figure onOpen={() => drill(m, "late")} label={`Late reviews by ${m.name}`} className="text-warning">
@@ -543,7 +543,7 @@ function PeopleDrawer({ cycleId, cycleName, drill, onClose }: { cycleId: string;
                         {[p.jobTitle, p.unitName, p.managerName ? `Manager ${p.managerName}` : null].filter(Boolean).join(" · ")}
                       </span>
                     </span>
-                    <span className="shrink-0 text-right type-meta text-muted-foreground">
+                    <span className="shrink-0 text-end type-meta text-muted-foreground">
                       {facts.map((f) => <span key={f} className="block">{f}</span>)}
                     </span>
                   </>

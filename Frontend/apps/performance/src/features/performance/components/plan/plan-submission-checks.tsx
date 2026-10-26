@@ -42,7 +42,7 @@ export function PlanSubmissionChecks({ readiness, bare = false }: { readiness: P
             <Button
               variant="ghost"
               size="icon-sm"
-              className="-mr-1 shrink-0"
+              className="-me-1 shrink-0"
               onClick={() => setOpen((v) => !v)}
               aria-expanded={open}
               aria-label={open ? "Hide checks" : "View checks"}

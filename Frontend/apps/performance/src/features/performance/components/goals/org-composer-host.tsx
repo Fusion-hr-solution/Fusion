@@ -190,7 +190,7 @@ function ComposerSkeleton({
   return (
     <Dialog open onOpenChange={(o) => (!o ? onClose() : undefined)}>
       <DialogContent className="flex max-h-[92vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
-        <div className="border-b border-border px-6 py-5 pr-14">
+        <div className="border-b border-border px-6 py-5 pe-14">
           <DialogTitle>
             {isCreate ? "Create team objective" : "Edit team objective"}
           </DialogTitle>

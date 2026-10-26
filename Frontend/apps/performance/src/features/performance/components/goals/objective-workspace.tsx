@@ -437,7 +437,7 @@ function SubjectCard({
           <button
             type="button"
             onClick={() => actions.onInspect(node.id)}
-            className="mt-1 block rounded-detail text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="mt-1 block rounded-detail text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <h3 className="text-xl font-semibold leading-snug tracking-tight text-foreground hover:underline">
               {node.title}
@@ -574,14 +574,14 @@ function DirectionStrip({
           <button
             type="button"
             onClick={() => onInspect(node.id)}
-            className="block rounded-detail text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="block rounded-detail text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <span className="text-base font-semibold tracking-tight text-foreground hover:underline">
               {node.title}
             </span>
           </button>
         </div>
-        <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1.5">
+        <div className="ms-auto flex flex-wrap items-center gap-x-4 gap-y-1.5">
           <StatusBadge tone={STATE_TONE[node.state]} dot>
             {STATE_LABEL[node.state]}
           </StatusBadge>
@@ -626,7 +626,7 @@ function AlignmentGroup({
             key={child.id}
             className={cn(
               "relative",
-              depth === 0 ? "pl-7 sm:pl-8" : "pl-11 sm:pl-12",
+              depth === 0 ? "ps-7 sm:ps-8" : "ps-11 sm:ps-12",
               (hasNodeBelow || open) && "pb-2.5"
             )}
           >
@@ -635,26 +635,26 @@ function AlignmentGroup({
             {hasNodeAbove ? (
               <span
                 aria-hidden
-                className="absolute left-3 top-0 h-9 w-px -translate-x-1/2 bg-border"
+                className="absolute inset-s-3 top-0 h-9 w-px -translate-x-1/2 rtl:translate-x-1/2 bg-border"
               />
             ) : null}
             {hasNodeBelow ? (
               <span
                 aria-hidden
-                className="absolute left-3 top-9 bottom-0 w-px -translate-x-1/2 bg-border"
+                className="absolute inset-s-3 top-9 bottom-0 w-px -translate-x-1/2 rtl:translate-x-1/2 bg-border"
               />
             ) : null}
             <span
               aria-hidden
               className={cn(
-                "absolute left-3 top-9 h-px -translate-y-1/2 bg-border",
+                "absolute inset-s-3 top-9 h-px -translate-y-1/2 bg-border",
                 depth === 0 ? "w-3.5" : "w-8"
               )}
             />
             <span
               aria-hidden
               className={cn(
-                "absolute left-3 top-9 z-10 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full",
+                "absolute inset-s-3 top-9 z-10 size-3 -translate-x-1/2 rtl:translate-x-1/2 -translate-y-1/2 rounded-full",
                 child.state === "Draft"
                   ? "border-2 border-primary bg-background"
                   : "bg-primary"
@@ -679,16 +679,16 @@ function AlignmentGroup({
         );
       })}
       {canAdd ? (
-        <div className="relative pl-7 sm:pl-8">
+        <div className="relative ps-7 sm:ps-8">
           {count > 0 ? (
             <span
               aria-hidden
-              className="absolute left-3 top-0 h-4 w-px -translate-x-1/2 bg-border"
+              className="absolute inset-s-3 top-0 h-4 w-px -translate-x-1/2 rtl:translate-x-1/2 bg-border"
             />
           ) : null}
           <span
             aria-hidden
-            className="absolute left-3 top-4 h-px w-3.5 -translate-y-1/2 bg-border"
+            className="absolute inset-s-3 top-4 h-px w-3.5 -translate-y-1/2 bg-border"
           />
           <AddAligned onClick={() => tree.onCreate(parent.id, null)} />
         </div>
@@ -759,7 +759,7 @@ function ObjectiveRow({
             <button
               type="button"
               onClick={() => tree.onInspect(node.id)}
-              className="min-w-0 rounded-detail text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-w-0 rounded-detail text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span
                 className={cn(
@@ -941,11 +941,11 @@ function GroupHeader({
     <div
       className={cn(
         "mb-3 flex items-start justify-between gap-3",
-        prominent && "relative pl-7 sm:pl-8"
+        prominent && "relative ps-7 sm:ps-8"
       )}
     >
       {prominent ? (
-        <span aria-hidden className="absolute inset-y-0 left-0 flex w-6 justify-center">
+        <span aria-hidden className="absolute inset-y-0 inset-s-0 flex w-6 justify-center">
           <span className="absolute -top-5 h-6 w-px bg-border" />
           <span className="relative mt-1.5 size-2.5 rounded-full bg-primary ring-4 ring-background" />
         </span>
@@ -1053,7 +1053,7 @@ function LineageChips({ ancestors }: { ancestors: GoalNodeDto[] }) {
   return (
     <div className="mb-3 inline-flex max-w-full flex-wrap items-center gap-x-1.5 gap-y-1 rounded-control border border-border/70 bg-inlay px-2.5 py-1.5 text-xs text-muted-foreground">
       <ScopeMark
-        className="mr-0.5 size-3.5 shrink-0 text-muted-foreground/60"
+        className="me-0.5 size-3.5 shrink-0 text-muted-foreground/60"
         muted
       />
       {ordered.map((node, index) => (
@@ -1222,7 +1222,7 @@ function DirectionSelector({
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="type-meta mr-1 text-muted-foreground">
+      <span className="type-meta me-1 text-muted-foreground">
         Align under
       </span>
       {directions.map((direction) => {
@@ -1286,7 +1286,7 @@ function NoPublishedDirection({
             </div>
           </div>
 
-          <div className="grid content-center gap-5 border-l border-border pl-6 sm:pl-8 lg:pl-10">
+          <div className="grid content-center gap-5 border-s border-border ps-6 sm:ps-8 lg:ps-10">
             <DirectionValue
               icon={BarChart3}
               title="Set the strategic direction"
@@ -1306,9 +1306,9 @@ function NoPublishedDirection({
         </div>
       </section>
 
-      <section className="relative pl-8 sm:pl-12">
-        <span className="absolute bottom-10 left-3.5 top-[-2.25rem] w-px bg-border sm:left-5.5" aria-hidden />
-        <span className="absolute left-2 top-0 size-3 rounded-full border-2 border-primary bg-background sm:left-4.5" aria-hidden />
+      <section className="relative ps-8 sm:ps-12">
+        <span className="absolute bottom-10 inset-s-3.5 top-[-2.25rem] w-px bg-border sm:inset-s-5.5" aria-hidden />
+        <span className="absolute inset-s-2 top-0 size-3 rounded-full border-2 border-primary bg-background sm:inset-s-4.5" aria-hidden />
 
         <div>
           <h2 className="type-section-title text-foreground">Organizational alignment</h2>
@@ -1473,7 +1473,7 @@ function ProgressFact({
           />
         ) : null}
       </div>
-      <span className="min-w-9 shrink-0 text-right text-xs font-semibold tabular-nums text-foreground">
+      <span className="min-w-9 shrink-0 text-end text-xs font-semibold tabular-nums text-foreground">
         {value === null ? emptyLabel : `${value}%`}
       </span>
     </div>

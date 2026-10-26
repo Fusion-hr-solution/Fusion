@@ -271,7 +271,7 @@ function SortableMilestoneRow({
           value={row.weight}
           onChange={(event) => onWeight(event.target.value)}
           placeholder="0"
-          className="text-right tabular-nums"
+          className="text-end tabular-nums"
         />
         <ButtonGroupText>%</ButtonGroupText>
       </ButtonGroup>

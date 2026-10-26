@@ -205,7 +205,7 @@ function ReceivedBand({ summary, onAnswer }: { summary: FeedbackSummaryDto; onAn
         {/* A share needs at least two parts; one subject is just its line below. */}
         {summary.subjects.length > 1 ? <div className="flex h-2.5 gap-0.5 overflow-hidden rounded-full" aria-hidden>
           {summary.subjects.map((s) => (
-            <span key={`${s.kind}-${s.objectiveId ?? s.competencyId ?? "none"}`} className={cn("h-full first:rounded-l-full last:rounded-r-full", fill(s))} style={{ width: `${(s.count / total) * 100}%` }} />
+            <span key={`${s.kind}-${s.objectiveId ?? s.competencyId ?? "none"}`} className={cn("h-full first:rounded-s-full last:rounded-e-full", fill(s))} style={{ width: `${(s.count / total) * 100}%` }} />
           ))}
         </div> : null}
         <ul className="flex flex-wrap gap-x-4 gap-y-1">
@@ -219,7 +219,7 @@ function ReceivedBand({ summary, onAnswer }: { summary: FeedbackSummaryDto; onAn
         </ul>
       </div>
       {summary.toAnswer > 0 ? (
-        <button type="button" onClick={onAnswer} className="group flex items-center gap-3 rounded-control bg-inlay px-4 py-3 text-left hover:bg-inlay/70">
+        <button type="button" onClick={onAnswer} className="group flex items-center gap-3 rounded-control bg-inlay px-4 py-3 text-start hover:bg-inlay/70">
           <span className="grid size-9 place-items-center rounded-control border border-primary-ring bg-primary-tint text-primary-ink" aria-hidden>
             <MessageSquare className="size-4" />
           </span>
@@ -348,7 +348,7 @@ export function FeedbackCard({
       <button
         type="button"
         onClick={() => onOpen(feedback.id)}
-        className="flex w-full flex-col gap-3.5 rounded-surface bg-card p-5 text-left transition-colors hover:bg-inlay/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex w-full flex-col gap-3.5 rounded-surface bg-card p-5 text-start transition-colors hover:bg-inlay/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <span className="flex w-full items-center gap-3">
           <PersonInitials name={person.name} />
@@ -595,9 +595,9 @@ function GivePraiseBar({ onGive }: { onGive: (value?: string) => void }) {
   const { user } = useAuth();
   const values = useCompanyValues();
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-surface bg-card py-3 pr-3 pl-4">
+    <div className="flex flex-wrap items-center gap-3 rounded-surface bg-card py-3 pe-3 ps-4">
       <PersonInitials name={user?.fullName} />
-      <button type="button" onClick={() => onGive()} className="min-w-40 flex-1 text-left type-body text-muted-foreground hover:text-foreground">
+      <button type="button" onClick={() => onGive()} className="min-w-40 flex-1 text-start type-body text-muted-foreground hover:text-foreground">
         Praise a colleague for…
       </button>
       <div className="hidden flex-wrap gap-1.5 lg:flex">

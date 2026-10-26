@@ -264,14 +264,14 @@ export function PeopleInScope({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
           <div className="relative lg:max-w-sm lg:flex-1">
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              className="pointer-events-none absolute inset-s-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
               aria-hidden
             />
             <Input
               value={term}
               onChange={(event) => setTerm(event.target.value)}
               placeholder="Search employees, organization, or reviewer…"
-              className="pl-9"
+              className="ps-9"
             />
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -332,7 +332,7 @@ export function PeopleInScope({
       </div>
 
       <div className="border-t border-border">
-        <Table className="table-fixed [&_th:first-child]:pl-3 [&_td:first-child]:pl-3 [&_th:last-child]:pr-3 [&_td:last-child]:pr-3 md:table-auto md:[&_th:first-child]:pl-5 md:[&_td:first-child]:pl-5 md:[&_th:last-child]:pr-5 md:[&_td:last-child]:pr-5">
+        <Table className="table-fixed [&_th:first-child]:ps-3 [&_td:first-child]:ps-3 [&_th:last-child]:pe-3 [&_td:last-child]:pe-3 md:table-auto md:[&_th:first-child]:ps-5 md:[&_td:first-child]:ps-5 md:[&_th:last-child]:pe-5 md:[&_td:last-child]:pe-5">
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               {selectionVisible ? (

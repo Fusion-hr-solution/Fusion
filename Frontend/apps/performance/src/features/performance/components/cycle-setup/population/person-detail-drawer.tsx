@@ -56,7 +56,7 @@ export function PersonDetailDrawer({
                   <SheetTitle className="truncate">{candidate.displayName}</SheetTitle>
                   <p className="type-meta truncate text-muted-foreground">{candidate.jobTitle ?? "—"}</p>
                 </div>
-                <div className="ml-auto">
+                <div className="ms-auto">
                   {status === "ready" ? (
                     <StatusBadge tone="success" dot>Ready</StatusBadge>
                   ) : status === "attention" ? (

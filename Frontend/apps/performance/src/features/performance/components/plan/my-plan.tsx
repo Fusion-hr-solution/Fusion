@@ -466,7 +466,7 @@ function PlanNotStarted({
           Define your objectives and align them to your team.
         </p>
 
-        <ul className="mt-8 grid w-full max-w-3xl gap-5 text-left sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-border">
+        <ul className="mt-8 grid w-full max-w-3xl gap-5 text-start sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-border">
           {PLAN_PILLARS.map(({ icon: Icon, title }) => (
             <li key={title} className="flex items-center justify-center gap-3 sm:px-5">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-inlay text-muted-foreground">
@@ -501,8 +501,8 @@ function PlanIllustration() {
         <path d="M58 100 C 70 80, 80 70, 100 64" stroke="currentColor" strokeDasharray="3 4" />
         <path d="M188 88 C 205 88, 215 80, 230 72" stroke="currentColor" strokeDasharray="3 4" />
       </svg>
-      <span className="absolute left-[98px] top-[60px] size-2 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
-      <span className="absolute left-[184px] top-[84px] size-2 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
+      <span className="absolute inset-s-[98px] top-[60px] size-2 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
+      <span className="absolute inset-s-[184px] top-[84px] size-2 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
       <div className="absolute left-1/2 top-2 flex h-32 w-28 -translate-x-1/2 flex-col gap-2 rounded-surface border border-border bg-card p-3 shadow-lg">
         <span className="flex size-9 items-center justify-center rounded-full bg-primary-tint text-primary-ink">
           <Target className="size-5" />
@@ -511,10 +511,10 @@ function PlanIllustration() {
         <span className="h-1.5 w-full rounded-full bg-muted" />
         <span className="h-1.5 w-2/3 rounded-full bg-muted" />
       </div>
-      <span className="absolute left-9 top-[92px] flex size-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
+      <span className="absolute inset-s-9 top-[92px] flex size-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
         <User className="size-4" />
       </span>
-      <span className="absolute right-9 top-[48px] flex size-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
+      <span className="absolute inset-e-9 top-[48px] flex size-10 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
         <Users className="size-4" />
       </span>
     </div>

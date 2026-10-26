@@ -190,7 +190,7 @@ function RoundRunning({ round }: { round: ReviewRoundDto }) {
       <section aria-labelledby="teams-heading">
         <SectionHeading id="teams-heading" title="By team" count={progress.teams.length} aside="Furthest behind first" />
         <div className="overflow-x-auto rounded-surface bg-card">
-          <table className="w-full min-w-[52rem] text-left">
+          <table className="w-full min-w-[52rem] text-start">
             <thead className="bg-inlay">
               <tr className="type-meta text-muted-foreground">
                 <th scope="col" className="px-5 py-3 font-semibold">Team</th>
@@ -215,7 +215,7 @@ function RoundRunning({ round }: { round: ReviewRoundDto }) {
                   {round.selfAssessmentEnabled ? <td className="px-3 py-3.5"><RatioBar done={team.self.done} total={team.self.total} warn={index === 0 && team.self.done * 2 < team.self.total} /></td> : null}
                   {round.peerInputEnabled ? <td className="px-3 py-3.5"><RatioBar done={team.peers.done} total={team.peers.total} /></td> : null}
                   <td className="px-3 py-3.5"><span className="type-body tabular-nums text-foreground">{team.manager.done}/{team.manager.total}</span></td>
-                  <td className="px-5 py-3.5 text-right">
+                  <td className="px-5 py-3.5 text-end">
                     {team.listsToApprove ? <StatusBadge tone="warning" dot>{team.listsToApprove} {team.listsToApprove === 1 ? "list" : "lists"} to approve</StatusBadge> : null}
                   </td>
                 </tr>

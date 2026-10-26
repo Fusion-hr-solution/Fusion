@@ -24,7 +24,7 @@ export function PlanSurfaceSkeleton() {
                       <Skeleton className="h-3 w-2/5" />
                     </div>
                   </div>
-                  <div className="mt-4 flex items-end gap-3 pl-14">
+                  <div className="mt-4 flex items-end gap-3 ps-14">
                     <div className="flex min-w-0 flex-1 gap-8">
                       {["w-28", "w-24", "w-40"].map((width, j) => (
                         <div key={j} className={j === 2 ? "hidden space-y-2 sm:block" : "space-y-2"}>

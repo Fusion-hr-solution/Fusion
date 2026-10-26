@@ -125,10 +125,10 @@ export function PeerListDrawer({ reviewId, open, onOpenChange }: { reviewId: str
                       <ColleaguePicker value={null} exclude={exclude} placeholder="Add a colleague"
                         onChange={(picked) => use({ employeeId: picked.employeeId, displayName: picked.displayName, detail: picked.subtitle })} />
                     ) : (
-                      <button type="button" onClick={() => setAdding(true)} className="flex w-full items-center gap-3 rounded-control py-1 text-left type-body text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <button type="button" onClick={() => setAdding(true)} className="flex w-full items-center gap-3 rounded-control py-1 text-start type-body text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                         <span className="flex size-10 items-center justify-center rounded-full border border-dashed border-border"><Plus className="size-4" aria-hidden /></span>
                         Add a colleague
-                        <span className="ml-auto type-meta">Up to 5</span>
+                        <span className="ms-auto type-meta">Up to 5</span>
                       </button>
                     )}
                   </li>

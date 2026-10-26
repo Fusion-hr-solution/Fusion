@@ -59,7 +59,7 @@ function HeroSkeleton({ tall = false }: { tall?: boolean }) {
         tall ? "min-h-60" : "min-h-44"
       )}
     >
-      {tall ? <DarkBar className="absolute right-9 top-6 hidden h-4 w-56 lg:block" /> : null}
+      {tall ? <DarkBar className="absolute inset-e-9 top-6 hidden h-4 w-56 lg:block" /> : null}
       <DarkBar className="h-3 w-40" />
       <DarkBar className="mt-3 h-8 w-80 max-w-full" />
       <DarkBar className="mt-3 h-4 w-[28rem] max-w-full" />
@@ -85,7 +85,7 @@ function PopulationHeroSkeleton() {
         <DarkBar className="mt-3 h-4 w-full" />
         <DarkBar className="mt-2 h-4 w-2/3" />
       </div>
-      <div className="hidden shrink-0 space-y-2 border-l border-white/10 pl-6 lg:block">
+      <div className="hidden shrink-0 space-y-2 border-s border-white/10 ps-6 lg:block">
         <DarkBar className="h-3.5 w-28" />
         <DarkBar className="h-3.5 w-36" />
         <DarkBar className="h-3.5 w-32" />
@@ -136,10 +136,10 @@ export function DetailsStepSkeleton() {
           </div>
           <div className="mt-6 border-t border-border/70 pt-5">
             <Skeleton className="h-4 w-20" />
-            <Skeleton className="ml-[24%] mt-5 h-8 w-24" />
+            <Skeleton className="ms-[24%] mt-5 h-8 w-24" />
             <div className="relative mt-3 h-4">
               <Skeleton className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2" />
-              {["left-0", "left-[24%]", "right-0"].map((pos) => (
+              {["inset-s-0", "inset-s-[24%]", "inset-e-0"].map((pos) => (
                 <Skeleton key={pos} className={cn("absolute top-0 size-4 rounded-full", pos)} />
               ))}
             </div>
@@ -194,7 +194,7 @@ export function PopulationStepSkeleton() {
         </div>
         <div className="grid grid-cols-2 gap-y-6 px-5 py-6 md:grid-cols-4 md:gap-0 md:divide-x md:divide-border xl:grid-cols-[repeat(4,minmax(0,1fr))_minmax(0,1.5fr)]">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className={cn("flex items-start gap-3 md:px-5 md:first:pl-0", i === 4 && "col-span-2 md:col-span-4 xl:col-span-1")}>
+            <div key={i} className={cn("flex items-start gap-3 md:px-5 md:first:ps-0", i === 4 && "col-span-2 md:col-span-4 xl:col-span-1")}>
               <Skeleton className="size-10 shrink-0 rounded-full" />
               <div className="flex-1 space-y-2">
                 <Skeleton className="h-7 w-14" />
@@ -231,7 +231,7 @@ export function PopulationStepSkeleton() {
         <div className="flex items-center gap-4 border-y border-border bg-inlay px-5 py-2.5">
           <Skeleton className="size-4" />
           <Skeleton className="h-3 w-20" />
-          <Skeleton className="ml-auto hidden h-3 w-24 md:block" />
+          <Skeleton className="ms-auto hidden h-3 w-24 md:block" />
           <Skeleton className="hidden h-3 w-20 md:block" />
           <Skeleton className="h-3 w-14" />
         </div>
@@ -243,7 +243,7 @@ export function PopulationStepSkeleton() {
               <Skeleton className="h-4 w-32" />
               <Skeleton className="h-3 w-40" />
             </div>
-            <Skeleton className="ml-auto hidden h-4 w-32 md:block" />
+            <Skeleton className="ms-auto hidden h-4 w-32 md:block" />
             <Skeleton className="hidden h-4 w-28 md:block" />
             <div className="w-24 space-y-1.5">
               <Skeleton className="h-4 w-16" />
@@ -347,7 +347,7 @@ export function SetupShellSkeleton({ step, label }: { step: SetupStep; label?: s
             <div key={i} className="relative flex flex-1 flex-col items-center">
               <Skeleton className="size-9 rounded-full" />
               {i < 2 ? (
-                <Skeleton className="absolute top-[17px] left-[calc(50%+30px)] right-[calc(-50%+30px)] h-0.5" />
+                <Skeleton className="absolute top-[17px] inset-s-[calc(50%+30px)] inset-e-[calc(-50%+30px)] h-0.5" />
               ) : null}
               <Skeleton className="mt-3 h-4 w-24" />
               <Skeleton className="mt-1.5 h-3 w-20" />

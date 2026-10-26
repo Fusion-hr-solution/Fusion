@@ -18,6 +18,7 @@ import { ContentUnavailable } from "../content-unavailable";
 import { PerformancePageHeading } from "../performance-page-heading";
 import { FEEDBACK_MAX } from "./composers";
 import { DueBlock, SubjectChip, firstName } from "./conversation-parts";
+import { formatCount } from "@repo/ds/lib/numbers";
 
 /**
  * R8, one feedback request (S-03, D-13). The question is the page. The requester (and their manager or HR) see who
@@ -200,7 +201,7 @@ function InviteeView({ request }: { request: FeedbackRequestDto }) {
           <span className="flex items-center gap-1.5 type-meta text-muted-foreground">
             <Eye className="size-3.5" aria-hidden /> {name} and their manager read it, with your name
           </span>
-          <span className="type-meta tabular-nums text-muted-foreground">{message.length.toLocaleString("en-GB")} / {FEEDBACK_MAX.toLocaleString("en-GB")}</span>
+          <span className="type-meta tabular-nums text-muted-foreground">{formatCount(message.length)} / {formatCount(FEEDBACK_MAX)}</span>
         </div>
       </div>
       {commands.answer.error ? <p className="type-body text-destructive" role="alert">{commands.answer.error.message}</p> : null}

@@ -262,7 +262,7 @@ function SelfAssessmentWriter({ record }: { record: PerformanceReviewDto }) {
         <StageTrack label="Your review's stages" steps={reviewSteps(record, "subject").map((s, i) => i === 1 ? { ...s, detail: "Sees yours once you submit" } : s)} />
         <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-border pt-4">
           <PeersAsked record={record} />
-          <div className="ml-auto"><YearChips record={record} /></div>
+          <div className="ms-auto"><YearChips record={record} /></div>
         </div>
       </section>
 
@@ -369,7 +369,7 @@ function PeersAsked({ record }: { record: PerformanceReviewDto }) {
         <p className="type-label text-foreground">Who should give peer input? <span className="type-meta text-muted-foreground">1 to 5 colleagues, {reviewer} approves</span></p>
         <ul className="flex flex-wrap gap-2">
           {picked.map((person) => (
-            <li key={person.employeeId} className="inline-flex items-center gap-1.5 rounded-control bg-inlay py-1 pr-1 pl-2 type-meta text-foreground">
+            <li key={person.employeeId} className="inline-flex items-center gap-1.5 rounded-control bg-inlay py-1 pe-1 ps-2 type-meta text-foreground">
               {person.displayName}
               <Button size="icon" variant="ghost" className="size-6" aria-label={`Remove ${person.displayName}`}
                 onClick={() => setPicked(picked.filter((p) => p.employeeId !== person.employeeId))}>×</Button>
@@ -489,7 +489,7 @@ function Disclosure({ id, title, summary, open, setOpen, children }: {
   return (
     <li>
       <button type="button" aria-expanded={expanded} onClick={() => setOpen(expanded ? null : id)}
-        className="flex w-full items-center gap-4 px-5 py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        className="flex w-full items-center gap-4 px-5 py-3.5 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <span className="min-w-0 flex-1">
           <span className="block type-label text-foreground">{title}</span>
           <span className="block truncate type-meta text-muted-foreground">{summary}</span>
@@ -637,7 +637,7 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
     <div className="pb-16">
       <PerformancePageHeading
         back={{ href: "/reviews", label: "Reviews" }}
-        leading={<span className="flex"><PersonInitials name={record.subjectDisplayName} size="xl" /><PersonInitials name={record.reviewerDisplayName} size="xl" className="-ml-4 ring-2 ring-background" /></span>}
+        leading={<span className="flex"><PersonInitials name={record.subjectDisplayName} size="xl" /><PersonInitials name={record.reviewerDisplayName} size="xl" className="-ms-4 ring-2 ring-background" /></span>}
         title={record.subjectDisplayName}
         description={[record.reviewRoundName, record.subjectJobTitle,
           selfIn ? `self-assessment came in ${dayLabel(record.selfAssessment!.submittedAt!.slice(0, 10))}` : null,
@@ -674,14 +674,14 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
                 {objectives.map((item) => (
                   <ObjectiveCard key={item.itemId} record={record} item={item}>
                     <div className="mt-4 grid border-t border-border md:grid-cols-2">
-                      <div className="py-4 md:pr-5">
+                      <div className="py-4 md:pe-5">
                         <p className="mb-2 flex items-center justify-between gap-2 type-label text-foreground">
                           <span className="inline-flex items-center gap-2"><PersonInitials name={record.subjectDisplayName} size="xs" />{subject}</span>
                           {item.selfRating ? <span className="rounded-control-sm px-1.5 type-label tabular-nums text-info ring-1 ring-info">{item.selfRating}</span> : null}
                         </p>
                         <p className="type-narrative text-foreground">{item.selfReflection ?? <span className="text-muted-foreground">No reflection</span>}</p>
                       </div>
-                      <div className="border-border py-4 md:border-l md:pl-5">
+                      <div className="border-border py-4 md:border-s md:ps-5">
                         <div className="mb-2 flex items-center justify-between gap-2">
                           <span className="inline-flex items-center gap-2 type-label text-foreground"><PersonInitials name={record.reviewerDisplayName} size="xs" />You</span>
                           {record.objectiveRatingsEnabled ? (
@@ -706,7 +706,7 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
             <section className="mt-10" aria-labelledby="m-competencies">
               <SectionHeading id="m-competencies" title="Competencies" count={`${competencies.filter((c) => draft.items[keyOf(c)]?.managerRating !== null).length} of ${competencies.length}`} />
               <div className="overflow-x-auto rounded-surface bg-card">
-                <table className="w-full min-w-[48rem] text-left">
+                <table className="w-full min-w-[48rem] text-start">
                   <thead className="bg-inlay"><tr className="type-meta text-muted-foreground">
                     <th scope="col" className="px-5 py-3 font-semibold">Competency</th>
                     <th scope="col" className="px-3 py-3 font-semibold">{subject}</th>
@@ -786,7 +786,7 @@ function ReviewerView({ record }: { record: PerformanceReviewDto }) {
                   const selected = draft.potential === level;
                   return (
                     <button key={level} type="button" role="radio" aria-checked={selected} disabled={!editable} onClick={() => draft.setPotential(level)}
-                      className={cn("rounded-surface border px-4 py-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      className={cn("rounded-surface border px-4 py-3 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                         selected ? "border-success bg-success/10" : "border-transparent bg-card hover:border-border")}>
                       <span className="block type-label text-foreground">{level}</span>
                       <span className="block type-meta text-muted-foreground">{POTENTIAL_COPY[level]}</span>
@@ -838,7 +838,7 @@ function PeerAnswers({ record }: { record: PerformanceReviewDto }) {
         ) : null}
         {declined.map((peer) => (
           <p key={peer.employeeId} className="border-t border-border px-5 py-3 type-meta text-muted-foreground">
-            <Ban className="mr-1.5 inline size-3.5" aria-hidden />{peer.displayName} declined{peer.declineNote ? `: “${peer.declineNote}”` : ""}
+            <Ban className="me-1.5 inline size-3.5" aria-hidden />{peer.displayName} declined{peer.declineNote ? `: “${peer.declineNote}”` : ""}
           </p>
         ))}
       </div>

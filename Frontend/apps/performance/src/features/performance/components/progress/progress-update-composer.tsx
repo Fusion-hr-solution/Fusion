@@ -278,7 +278,7 @@ function MilestoneForm({
                 {change ? (
                   <span className={cn("shrink-0 text-xs font-semibold", change === "New" ? "text-primary-ink" : "text-warning")}>{change}</span>
                 ) : (
-                  <span className="w-9 shrink-0 text-right text-xs font-medium tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
+                  <span className="w-9 shrink-0 text-end text-xs font-medium tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
                 )}
               </li>
             );
@@ -320,7 +320,7 @@ function StatusPicker({ value, onChange, disabled }: { value: ObjectiveStatus | 
               disabled={disabled}
               onClick={() => onChange(option.value)}
               className={cn(
-                "flex flex-col items-start gap-3 rounded-control border px-3 py-3 text-left text-sm font-semibold text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "flex flex-col items-start gap-3 rounded-control border px-3 py-3 text-start text-sm font-semibold text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 on ? cn("ring-2", option.selected) : "border-border hover:border-foreground/30"
               )}
             >
@@ -417,9 +417,9 @@ function NumberField({
         className="min-w-0 flex-1 bg-transparent px-3.5 text-base tabular-nums text-foreground outline-none placeholder:text-muted-foreground/60 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
       {suffix ? (
-        <span className="flex items-center pr-1 text-sm font-medium text-muted-foreground">{suffix}</span>
+        <span className="flex items-center pe-1 text-sm font-medium text-muted-foreground">{suffix}</span>
       ) : null}
-      <div className="flex w-9 shrink-0 flex-col border-l border-input">
+      <div className="flex w-9 shrink-0 flex-col border-s border-input">
         <button
           type="button"
           aria-label="Increase"
@@ -505,7 +505,7 @@ function NoteField({
           placeholder={risky ? undefined : "e.g. Key activities completed, outcomes, or context…"}
           className="resize-none pb-6"
         />
-        <span className="pointer-events-none absolute bottom-2 right-3 text-[0.6875rem] tabular-nums text-muted-foreground/70">
+        <span className="pointer-events-none absolute bottom-2 inset-e-3 text-[0.6875rem] tabular-nums text-muted-foreground/70">
           {value.length}/{NOTE_MAX}
         </span>
       </div>

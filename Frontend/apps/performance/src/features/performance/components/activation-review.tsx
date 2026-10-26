@@ -67,7 +67,7 @@ export function ActivationReview({
           {locked.map((item) => (
             <div key={item.label} className="flex items-baseline justify-between gap-4 py-2.5">
               <dt className="text-sm font-medium text-foreground">{item.label}</dt>
-              <dd className="text-right text-sm text-muted-foreground">{item.value}</dd>
+              <dd className="text-end text-sm text-muted-foreground">{item.value}</dd>
             </div>
           ))}
         </dl>

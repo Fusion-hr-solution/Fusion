@@ -1,6 +1,8 @@
 "use client";
 
 import { ApiQueryProvider, SHARED_QUERY_DEFAULTS } from "@repo/api/query";
+import { DirectionProvider } from "@repo/ds";
+import type { WritingDirection } from "@repo/ds/i18n";
 import { ThemeProvider } from "@repo/ds/shell";
 
 // Adopt the shared volatility-appropriate baseline: revisiting a surface within
@@ -9,12 +11,14 @@ import { ThemeProvider } from "@repo/ds/shell";
 // skeleton. Correctness-sensitive reads still override staleTime/invalidate per
 // query. This replaces the former blanket staleTime:0 that re-skeletoned on every
 // visit — expressed as an opt-in shared default, so no other MFE is affected.
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({ dir, children }: { dir: WritingDirection; children: React.ReactNode }) {
   return (
-    <ThemeProvider>
-      <ApiQueryProvider queryClientConfig={SHARED_QUERY_DEFAULTS}>
-        {children}
-      </ApiQueryProvider>
-    </ThemeProvider>
+    <DirectionProvider dir={dir}>
+      <ThemeProvider>
+        <ApiQueryProvider queryClientConfig={SHARED_QUERY_DEFAULTS}>
+          {children}
+        </ApiQueryProvider>
+      </ThemeProvider>
+    </DirectionProvider>
   );
 }

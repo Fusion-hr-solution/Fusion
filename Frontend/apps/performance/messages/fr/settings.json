@@ -1,0 +1,196 @@
+{
+  "didNotLoad": "Impossible de charger les paramètres Performance",
+  "on": "Activé",
+  "off": "Désactivé",
+  "more": "{sentences} Et {count, plural, one {# autre modification} other {# autres modifications}}.",
+  "dayCount": "{count, plural, one {# jour} other {# jours}}",
+  "cycle": {
+    "didNotLoad": "Impossible de charger « {section} »",
+    "notSaved": "Les modifications de « {section} » n’ont pas été enregistrées. Réessayez.",
+    "leave": "Quitter sans enregistrer ? Vos modifications de « {section} » seront perdues."
+  },
+  "ratingScale": {
+    "didNotLoad": "Impossible de charger l’échelle de notation",
+    "notSaved": "L’échelle de notation n’a pas été enregistrée. Réessayez.",
+    "leave": "Quitter sans enregistrer ? Vos modifications de l’échelle de notation seront perdues.",
+    "previewTitle": "Un objectif dans une évaluation",
+    "previewDetail": "Comment un manager note un objectif",
+    "unnamed": "Sans nom",
+    "levels": "Niveaux",
+    "levelName": "Nom du niveau {value}",
+    "levelDescription": "Description du niveau {value}",
+    "addDescription": "Ajouter une description",
+    "inReview": "Dans une évaluation",
+    "versions": "Versions",
+    "version": "Version {version}",
+    "current": "Actuelle",
+    "since": "Depuis le {date}",
+    "consequence": "Enregistre la version {version}. Les évaluations déjà commencées gardent leur version de départ.",
+    "save": "Enregistrer la version {version}"
+  },
+  "competencies": {
+    "didNotLoad": "Impossible de charger les compétences",
+    "conflict": "Quelqu’un a modifié cette compétence après son ouverture. Fermez-la puis rouvrez-la.",
+    "notSaved": "La compétence n’a pas été enregistrée. Réessayez.",
+    "leave": "Quitter sans enregistrer ? Vos modifications de « {name} » seront perdues.",
+    "leaveNew": "Quitter sans enregistrer ? La nouvelle compétence sera perdue.",
+    "new": "Nouvelle compétence",
+    "inUseSince": "Utilisée depuis le {date}",
+    "name": "Nom",
+    "meaning": "Ce qu’elle signifie",
+    "behaviours": "Comportements",
+    "behaviour": "Comportement {number}",
+    "removeBehaviour": "Retirer le comportement {number}",
+    "addBehaviour": "Ajouter un comportement",
+    "archive": "Archiver",
+    "delete": "Supprimer",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "add": "Ajouter une compétence",
+    "behaviourCount": "{count, plural, one {# comportement} other {# comportements}}",
+    "empty": "Aucune compétence pour l’instant.",
+    "archived": "Archivées {count}"
+  },
+  "questions": {
+    "didNotLoad": "Impossible de charger les questions d’évaluation",
+    "conflict": "Quelqu’un a modifié les questions après leur ouverture. Elles sont maintenant à jour.",
+    "notSaved": "La modification n’a pas été enregistrée. Réessayez.",
+    "audiences": {
+      "Person": "Posées au collaborateur",
+      "Manager": "Posées au manager",
+      "Peer": "Posées aux pairs"
+    },
+    "newQuestion": {
+      "Person": "Nouvelle question pour le collaborateur",
+      "Manager": "Nouvelle question pour le manager",
+      "Peer": "Nouvelle question pour les pairs"
+    },
+    "question": "Question",
+    "cancel": "Annuler",
+    "save": "Enregistrer",
+    "inUseSince": "Utilisée depuis le {date}",
+    "notUsed": "Non utilisée",
+    "moveUp": "Monter : {text}",
+    "moveDown": "Descendre : {text}",
+    "edit": "Modifier : {text}",
+    "archive": "Archiver : {text}",
+    "delete": "Supprimer : {text}",
+    "addQuestion": "Ajouter une question",
+    "add": "Ajouter la question",
+    "archived": "Archivées {count}"
+  },
+  "reviews": {
+    "includes": "Ce que comprend une évaluation",
+    "selfAssessment": "Auto-évaluation",
+    "ratings": "Une note pour chaque objectif",
+    "calibration": "Calibrage avant la publication des résultats",
+    "dueDates": "Échéances",
+    "peerInput": "Avis des pairs",
+    "managerAssessment": "Évaluation du manager",
+    "acknowledgement": "Rappel de prise de connaissance",
+    "selfDueLabel": "Échéance de l’auto-évaluation, en jours après le lancement",
+    "peerDueLabel": "Échéance des avis des pairs, en jours après le lancement",
+    "managerDueLabel": "Échéance de l’évaluation du manager, en jours après l’auto-évaluation",
+    "ackLabel": "Rappel de prise de connaissance, en jours après la publication",
+    "afterLaunch": "jours après le lancement",
+    "afterSelf": "jours après l’auto-évaluation",
+    "afterRelease": "jours après la publication",
+    "nineBox": "Bandes de la matrice 9 cases",
+    "nineBoxDetail": "Où le calibrage partage l’échelle de notation en bas, milieu et haut",
+    "cutPoints": "Seuils de la matrice 9 cases",
+    "low": "Bas",
+    "middle": "Milieu",
+    "high": "Haut",
+    "bands": "Bandes",
+    "bandsValue": "Bas jusqu’à {low}, milieu jusqu’à {middle}",
+    "consequence": {
+      "selfOn": "Les nouvelles campagnes d’évaluation comprennent une auto-évaluation.",
+      "selfOff": "Les nouvelles campagnes d’évaluation ne comprennent plus d’auto-évaluation.",
+      "ratingsOn": "Les nouvelles campagnes d’évaluation comprennent une note pour chaque objectif.",
+      "ratingsOff": "Les nouvelles campagnes d’évaluation ne comprennent plus de note par objectif.",
+      "calibrationOn": "Les nouvelles campagnes d’évaluation passent par un calibrage avant la publication des résultats.",
+      "calibrationOff": "Les nouvelles campagnes d’évaluation publient les résultats sans calibrage.",
+      "selfDue": "Les nouvelles campagnes d’évaluation laissent {days} aux collaborateurs pour leur auto-évaluation.",
+      "peerDue": "Les nouvelles campagnes d’évaluation laissent {days} aux pairs.",
+      "managerDue": "Les nouvelles campagnes d’évaluation laissent {days} aux managers.",
+      "ackReminder": "Un rappel est envoyé après {days} si la prise de connaissance des résultats n’est pas confirmée.",
+      "bands": "Les séances de calibrage ouvertes à partir de maintenant utilisent les nouvelles bandes.",
+      "keepDates": "{sentences} Les campagnes déjà créées gardent leurs dates."
+    }
+  },
+  "planning": {
+    "measured": "Mesure de l’avancement",
+    "plans": "Plans",
+    "objectivesPerPlan": "Objectifs par plan",
+    "fewest": "Nombre minimal d’objectifs par plan",
+    "most": "Nombre maximal d’objectifs par plan",
+    "to": "à",
+    "range": "{min} à {max}",
+    "plansDue": "Échéance des plans",
+    "plansDueLabel": "Échéance des plans, en jours après le début du cycle",
+    "afterStart": "jours après le début",
+    "alignment": "Alignement sur les objectifs de l’entreprise",
+    "required": "Requis",
+    "measurement": {
+      "NumericTarget": {
+        "label": "Vers un nombre",
+        "detail": "D’une valeur de départ à une cible, par exemple 12 → 40 mises en production"
+      },
+      "ManualPercentage": {
+        "label": "Un pourcentage fixé par le responsable",
+        "detail": "Le responsable indique où il en est"
+      },
+      "WeightedMilestones": {
+        "label": "Jalons pondérés",
+        "detail": "Les jalons atteints s’additionnent selon leur poids"
+      }
+    },
+    "alignments": {
+      "EveryObjectiveConnected": "Chaque objectif",
+      "AtLeastOneConnected": "Au moins un objectif",
+      "Optional": "Non requis"
+    },
+    "consequence": {
+      "measurement": {
+        "NumericTarget": "Les nouveaux objectifs se mesurent d’abord vers un nombre.",
+        "ManualPercentage": "Les nouveaux objectifs se mesurent d’abord par un pourcentage fixé par le responsable.",
+        "WeightedMilestones": "Les nouveaux objectifs se mesurent d’abord par des jalons pondérés."
+      },
+      "count": "Les plans proposent de {min} à {max} objectifs.",
+      "due": "Dans les nouveaux cycles, les plans sont dus {days} après le début du cycle.",
+      "alignment": {
+        "EveryObjectiveConnected": "Dans les nouveaux cycles, chaque objectif des plans est relié aux objectifs de l’entreprise.",
+        "AtLeastOneConnected": "Dans les nouveaux cycles, au moins un objectif de chaque plan est relié aux objectifs de l’entreprise.",
+        "Optional": "Dans les nouveaux cycles, les plans n’ont pas besoin d’être reliés aux objectifs de l’entreprise."
+      },
+      "keep": "Les cycles déjà actifs gardent les leurs."
+    }
+  },
+  "conversations": {
+    "rhythm": "Rythme des entretiens individuels",
+    "cadence": {
+      "Weekly": "Hebdomadaire",
+      "EveryTwoWeeks": "Toutes les deux semaines",
+      "Monthly": "Mensuel"
+    },
+    "consequence": {
+      "Weekly": "Les nouvelles séries d’entretiens individuels démarrent chaque semaine. Les séries en cours gardent leur rythme.",
+      "EveryTwoWeeks": "Les nouvelles séries d’entretiens individuels démarrent toutes les deux semaines. Les séries en cours gardent leur rythme.",
+      "Monthly": "Les nouvelles séries d’entretiens individuels démarrent chaque mois. Les séries en cours gardent leur rythme."
+    }
+  },
+  "aiAndData": {
+    "assistance": "Assistance IA",
+    "suggestions": "Suggestions dans Performance",
+    "suggestionsDetail": "Coach de plan, amorces d’évaluation, synthèses de calibrage",
+    "evidence": "Pièces justificatives",
+    "keepFiles": "Conserver les fichiers joints aux objectifs",
+    "keepLabel": "Conservation, en mois après la clôture du cycle",
+    "months": "mois",
+    "consequence": {
+      "on": "Les suggestions reviennent pour tout le monde.",
+      "off": "Les suggestions disparaissent partout immédiatement, évaluations en cours comprises.",
+      "retention": "Les pièces justificatives sont conservées {count} mois après la clôture de leur cycle, cycles clôturés compris."
+    }
+  }
+}

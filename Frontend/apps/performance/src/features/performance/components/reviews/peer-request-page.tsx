@@ -89,7 +89,7 @@ function PeerRequestForm({ request }: { request: PeerRequestDto }) {
         <div className="flex flex-wrap items-center gap-3 rounded-surface bg-card px-4 py-3">
           <Eye className="size-4 text-muted-foreground" aria-hidden />
           <span className="type-label text-foreground">Read by</span>
-          <span className="ml-auto flex flex-wrap items-center gap-3">
+          <span className="ms-auto flex flex-wrap items-center gap-3">
             <span className="type-body text-foreground">{first}&apos;s reviewer</span>
             <span className="type-body text-foreground">HR</span>
             <span className="inline-flex items-center gap-1 type-meta text-muted-foreground"><Lock className="size-3.5" aria-hidden />Not {first}</span>
@@ -143,7 +143,7 @@ function PeerRequestForm({ request }: { request: PeerRequestDto }) {
             ) : (
               <div className="flex flex-wrap items-center gap-3">
                 <Button variant="ghost" onClick={() => setDeclining(true)}><Ban className="size-4" aria-hidden />Decline</Button>
-                <span className="ml-auto type-meta text-muted-foreground">
+                <span className="ms-auto type-meta text-muted-foreground">
                   {commands.save.isLoading ? "Saving…" : savedAt ? `Saved ${formatTime(savedAt)}` : null}
                 </span>
                 <AsyncButton pending={commands.send.isLoading} onClick={() => void send()}><Send className="size-4" aria-hidden />Send input</AsyncButton>

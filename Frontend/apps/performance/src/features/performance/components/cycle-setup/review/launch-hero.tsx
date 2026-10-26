@@ -33,7 +33,7 @@ function Stat({
 }) {
   const done = tone === "done";
   return (
-    <div className="flex min-w-0 items-center gap-3.5 py-1 lg:px-5 lg:first:pl-0 lg:last:pr-0 xl:px-6">
+    <div className="flex min-w-0 items-center gap-3.5 py-1 lg:px-5 lg:first:ps-0 lg:last:pe-0 xl:px-6">
       <span
         className={cn(
           "flex size-12 shrink-0 items-center justify-center rounded-full border",
@@ -149,7 +149,7 @@ export function LaunchHero({
         </div>
 
         {!ready && blockers.length > 0 && (
-          <ul className="mt-4 space-y-1.5 sm:pl-[5.25rem]">
+          <ul className="mt-4 space-y-1.5 sm:ps-[5.25rem]">
             {blockers.map((blocker) => (
               <li key={blocker} className="flex items-start gap-2 type-body text-zinc-200">
                 <span className="mt-2 size-1 shrink-0 rounded-full bg-amber-400" aria-hidden />
@@ -197,7 +197,7 @@ function LaunchGlow() {
         }}
       />
       <div
-        className="absolute -right-10 -top-16 h-72 w-[28rem] opacity-60"
+        className="absolute -inset-e-10 -top-16 h-72 w-[28rem] opacity-60"
         style={{
           background:
             "repeating-conic-gradient(from 200deg at 85% 0%, rgba(253,230,176,0.10) 0deg 2deg, transparent 2deg 9deg)",

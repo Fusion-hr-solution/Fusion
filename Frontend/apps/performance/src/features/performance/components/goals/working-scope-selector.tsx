@@ -128,19 +128,19 @@ export function WorkingScopeSelector({
       >
         <div className="relative">
           <Search
-            className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute inset-s-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
             aria-hidden
           />
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search organization…"
-            className="pl-8"
+            className="ps-8"
             aria-label="Search working scope"
           />
         </div>
         <ScrollArea className="h-80">
-          <div className="pr-2">
+          <div className="pe-2">
             <ScopeOption
               label="Organization-wide"
               active={value === null}
@@ -223,10 +223,10 @@ function ScopeOption({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-2 rounded-inset py-2 pr-2 text-left text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex w-full items-center gap-2 rounded-inset py-2 pe-2 text-start text-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         active && "bg-primary/[0.10] text-foreground"
       )}
-      style={{ paddingLeft: `${0.625 + depth * 1.25}rem` }}
+      style={{ paddingInlineStart: `${0.625 + depth * 1.25}rem` }}
     >
       <Building2
         className="size-3.5 shrink-0 text-muted-foreground"

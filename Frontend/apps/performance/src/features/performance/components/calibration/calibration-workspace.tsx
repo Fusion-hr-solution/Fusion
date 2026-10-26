@@ -151,14 +151,14 @@ function StillWithManagers({ header }: { header: CalibrationHeaderDto }) {
   return (
     <section aria-labelledby="still-title" className="mt-6 rounded-surface bg-card p-5">
       <h2 id="still-title" className="type-label text-foreground">
-        Still with managers<span className="ml-1.5 type-meta tabular-nums text-muted-foreground">{header.outstanding}</span>
+        Still with managers<span className="ms-1.5 type-meta tabular-nums text-muted-foreground">{header.outstanding}</span>
       </h2>
       <ul className="mt-3 grid gap-3 md:grid-cols-3">
         {header.outstandingByReviewer.map((group) => (
           <li key={group.reviewerId} className="flex items-start gap-3 rounded-control bg-inlay px-3.5 py-3">
             <PersonInitials name={group.reviewerName} size="md" />
             <span className="min-w-0">
-              <span className="block type-label text-foreground">{group.reviewerName}<span className="ml-1.5 type-meta tabular-nums text-muted-foreground">{group.count}</span></span>
+              <span className="block type-label text-foreground">{group.reviewerName}<span className="ms-1.5 type-meta tabular-nums text-muted-foreground">{group.count}</span></span>
               <span className="block truncate type-meta text-muted-foreground">{group.people.join(", ")}</span>
             </span>
           </li>

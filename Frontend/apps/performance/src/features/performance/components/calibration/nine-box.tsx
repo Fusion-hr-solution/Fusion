@@ -104,7 +104,7 @@ export function NineBoxView({ view, scale, readOnly, onOpen, onMove }: {
                           onKeyDown={(event) => {
                             if (!readOnly && (event.key === "m" || event.key === "M")) { event.preventDefault(); setPicked({ person, from: cell }); }
                           }}
-                          className={cn("inline-flex items-center gap-2 rounded-full bg-inlay py-1 pl-1 pr-3 type-meta font-semibold text-foreground transition-colors hover:bg-section focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          className={cn("inline-flex items-center gap-2 rounded-full bg-inlay py-1 ps-1 pe-3 type-meta font-semibold text-foreground transition-colors hover:bg-section focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                             person.moved && "ring-1 ring-primary", picked?.person.reviewId === person.reviewId && "opacity-50",
                             !readOnly && "cursor-grab active:cursor-grabbing")}>
                           <span className="flex size-6 items-center justify-center rounded-full bg-card text-[0.6rem]">{initials(person.name)}</span>
@@ -165,7 +165,7 @@ function DropForm({ drop, bands, onClose, onConfirm }: {
           <div role="radiogroup" aria-label="Rating" className="grid gap-2" style={{ gridTemplateColumns: `repeat(${levels.length}, minmax(0, 1fr))` }}>
             {levels.map((level) => (
               <button key={level.value} type="button" role="radio" aria-checked={rating === level.value} onClick={() => setRating(level.value)}
-                className={cn("rounded-control border px-3 py-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                className={cn("rounded-control border px-3 py-2.5 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   rating === level.value ? "border-primary bg-primary-tint text-primary-ink" : "border-transparent bg-inlay text-foreground hover:border-border")}>
                 <span className="block type-label tabular-nums">{level.value}</span>
                 <span className="block type-meta text-muted-foreground">{level.label}</span>

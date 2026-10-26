@@ -19,6 +19,7 @@ import { localDate } from "../one-on-ones/one-on-one-lib";
 import { ColleaguePicker, ColleaguesPicker, type PickedColleague } from "./colleague-picker";
 import { firstName } from "./conversation-parts";
 import { REACTION_ICONS } from "./reaction-icons";
+import { formatCount } from "@repo/ds/lib/numbers";
 
 export const FEEDBACK_MAX = 2_000;
 export const QUESTION_MAX = 300;
@@ -58,7 +59,7 @@ function Field({ label, htmlFor, meta, children }: { label: string; htmlFor?: st
 }
 
 function Count({ value, max }: { value: string; max: number }) {
-  return <span className="type-meta tabular-nums text-muted-foreground">{value.length.toLocaleString("en-GB")} / {max.toLocaleString("en-GB")}</span>;
+  return <span className="type-meta tabular-nums text-muted-foreground">{formatCount(value.length)} / {formatCount(max)}</span>;
 }
 
 const CHIP = "inline-flex h-8 items-center gap-1.5 rounded-control border px-3 type-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -135,7 +136,7 @@ function VisibilityChoice({ value, onChange, receiver }: { value: FeedbackVisibi
       people: (
         <span className="flex items-center">
           {receiver ? <PersonInitials name={receiver.displayName} size="xs" className="ring-2 ring-popover" /> : null}
-          <span className={cn("grid size-6 place-items-center rounded-full bg-inlay ring-2 ring-popover", receiver && "-ml-1.5")}><Users className="size-3.5 text-muted-foreground" /></span>
+          <span className={cn("grid size-6 place-items-center rounded-full bg-inlay ring-2 ring-popover", receiver && "-ms-1.5")}><Users className="size-3.5 text-muted-foreground" /></span>
         </span>
       ),
       who: `${name} and their manager`,
@@ -159,7 +160,7 @@ function VisibilityChoice({ value, onChange, receiver }: { value: FeedbackVisibi
             aria-checked={on}
             onClick={() => onChange(option.value)}
             className={cn(
-              "flex items-start gap-3 rounded-control border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "flex items-start gap-3 rounded-control border p-3 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               on ? "border-primary-ring bg-primary-tint" : "border-border hover:bg-inlay/60",
             )}
           >
@@ -412,7 +413,7 @@ export function PraiseComposer({ initialValue, onClose }: { initialValue?: strin
                     aria-checked={on}
                     onClick={() => setValue(v.id)}
                     className={cn(
-                      "flex h-11 items-center gap-2.5 rounded-control border px-3.5 text-left type-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      "flex h-11 items-center gap-2.5 rounded-control border px-3.5 text-start type-label transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       on ? VALUE_TONE[toneOf(v.id)].selected : "border-border text-foreground hover:bg-inlay/60",
                     )}
                   >
@@ -435,7 +436,7 @@ export function PraiseComposer({ initialValue, onClose }: { initialValue?: strin
           </Field>
           {give.error ? <p className="type-body text-destructive" role="alert">{give.error.message}</p> : null}
         </div>
-        <div className="flex flex-col gap-4 border-t border-border p-6 md:border-t-0 md:border-l">
+        <div className="flex flex-col gap-4 border-t border-border p-6 md:border-t-0 md:border-s">
           <p className="type-meta text-muted-foreground">Everyone will see</p>
           <div aria-hidden className={cn(!ready && "opacity-80")}>
             <PraiseCard praise={preview} reactionIcons={REACTION_ICONS} reading />

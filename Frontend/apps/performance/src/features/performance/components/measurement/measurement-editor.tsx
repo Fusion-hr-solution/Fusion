@@ -164,7 +164,7 @@ function MethodTile({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex items-start gap-3 rounded-surface border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "flex items-start gap-3 rounded-surface border p-4 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         active
           ? "border-primary bg-primary/[0.05] ring-1 ring-primary/30"
           : "border-border hover:border-primary/40 hover:bg-muted/40"

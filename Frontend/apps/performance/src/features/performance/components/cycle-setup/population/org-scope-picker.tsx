@@ -186,12 +186,12 @@ export function OrgScopePicker({
       <li key={node.unit.id}>
         <div
           className={cn(
-            "group relative flex min-h-14 items-center rounded-control border py-2 pr-2.5 transition-colors",
+            "group relative flex min-h-14 items-center rounded-control border py-2 pe-2.5 transition-colors",
             state?.selected
               ? "border-primary/40 bg-primary/10"
               : cn("border-transparent", !state?.inherited && "hover:bg-muted/40")
           )}
-          style={{ paddingLeft: depth * INDENT + 4 }}
+          style={{ paddingInlineStart: depth * INDENT + 4 }}
         >
           <Guides depth={depth} />
           <span className="grid size-6 shrink-0 place-items-center">
@@ -223,7 +223,7 @@ export function OrgScopePicker({
             )}
           >
             <Checkbox
-              className="ml-2 size-5 disabled:cursor-default disabled:opacity-100"
+              className="ms-2 size-5 disabled:cursor-default disabled:opacity-100"
               checked={checked}
               disabled={state?.inherited}
               onCheckedChange={() => toggleUnit(node.unit.id)}
@@ -232,13 +232,13 @@ export function OrgScopePicker({
             <span
               aria-hidden
               className={cn(
-                "ml-3 hidden size-9 shrink-0 place-items-center rounded-full sm:mr-3 sm:grid",
+                "ms-3 hidden size-9 shrink-0 place-items-center rounded-full sm:me-3 sm:grid",
                 covered ? "bg-primary-tint text-primary-ink" : "bg-muted text-foreground/80"
               )}
             >
               <OrgTypeIcon typeName={node.unit.typeName} />
             </span>
-            <span className="ml-3 min-w-0 flex-1 sm:ml-0">
+            <span className="ms-3 min-w-0 flex-1 sm:ms-0">
               <span
                 className={cn(
                   "block truncate type-body font-semibold",
@@ -259,7 +259,7 @@ export function OrgScopePicker({
               Inherited via parent
             </span>
           ) : state?.selected && hasChildren ? (
-            <label className="flex shrink-0 cursor-pointer items-center gap-2.5 rounded-full border border-primary/35 py-1 pl-1 pr-1 sm:pl-3.5">
+            <label className="flex shrink-0 cursor-pointer items-center gap-2.5 rounded-full border border-primary/35 py-1 ps-1 pe-1 sm:ps-3.5">
               <span
                 className={cn(
                   "hidden type-meta sm:inline",
@@ -303,7 +303,7 @@ export function OrgScopePicker({
               <Network className="size-4 text-primary-ink" aria-hidden />
               <span className="font-semibold text-foreground">{selectedList.length}</span>
               {selectedList.length === 1 ? "unit" : "units"}
-              <span className="-ml-1 hidden sm:inline">selected</span>
+              <span className="-ms-1 hidden sm:inline">selected</span>
             </span>
             <span className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap px-2.5 sm:flex-none sm:px-3.5">
               <Users2 className="size-4" aria-hidden />
@@ -311,20 +311,20 @@ export function OrgScopePicker({
                 {matchedCount === null ? "—" : matchedCount}
               </span>
               {matchedCount === 1 ? "person" : "people"}
-              <span className="-ml-1 hidden sm:inline">matched</span>
+              <span className="-ms-1 hidden sm:inline">matched</span>
             </span>
           </div>
         </div>
         <div className="relative mt-4">
           <Search
-            className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            className="pointer-events-none absolute inset-s-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
           />
           <Input
             value={term}
             onChange={(event) => setTerm(event.target.value)}
             placeholder="Search organization units..."
-            className="h-11 pl-10"
+            className="h-11 ps-10"
           />
         </div>
         {hiddenSelections.length > 0 ? (
@@ -332,7 +332,7 @@ export function OrgScopePicker({
             {hiddenSelections.map((selection) => (
               <li
                 key={selection.orgUnitId}
-                className="flex items-center gap-1 rounded-control bg-primary-tint py-0.5 pl-2 pr-0.5 type-meta font-medium text-primary-ink"
+                className="flex items-center gap-1 rounded-control bg-primary-tint py-0.5 ps-2 pe-0.5 type-meta font-medium text-primary-ink"
               >
                 {names.get(selection.orgUnitId)}
                 <button
@@ -355,8 +355,8 @@ export function OrgScopePicker({
             {[0, 1, 2, 2, 1, 2].map((depth, index) => (
               <div
                 key={index}
-                className="flex min-h-14 items-center gap-3 pr-3"
-                style={{ paddingLeft: depth * INDENT + 38 }}
+                className="flex min-h-14 items-center gap-3 pe-3"
+                style={{ paddingInlineStart: depth * INDENT + 38 }}
               >
                 <Skeleton className="size-5 shrink-0" />
                 <Skeleton className="hidden size-9 shrink-0 rounded-full sm:block" />
@@ -390,17 +390,17 @@ export function OrgScopePicker({
 function Guides({ depth }: { depth: number }) {
   if (depth === 0) return null;
   return (
-    <span aria-hidden className="pointer-events-none absolute inset-y-0 left-0">
+    <span aria-hidden className="pointer-events-none absolute inset-y-0 inset-s-0">
       {Array.from({ length: depth }, (_, level) => (
         <span
           key={level}
-          className="absolute inset-y-0 border-l border-border"
-          style={{ left: level * INDENT + 4 + 11 }}
+          className="absolute inset-y-0 border-s border-border"
+          style={{ insetInlineStart: level * INDENT + 4 + 11 }}
         />
       ))}
       <span
         className="absolute top-1/2 w-3 border-t border-border"
-        style={{ left: (depth - 1) * INDENT + 4 + 11 }}
+        style={{ insetInlineStart: (depth - 1) * INDENT + 4 + 11 }}
       />
     </span>
   );

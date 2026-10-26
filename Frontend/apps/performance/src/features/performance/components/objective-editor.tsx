@@ -230,7 +230,7 @@ export function ObjectiveEditor({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[92vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
         {/* Header — identity only; the numbered sections lead the scrolling body. */}
-        <div className="border-b border-border px-6 py-5 pr-14">
+        <div className="border-b border-border px-6 py-5 pe-14">
           <DialogTitle>
             {isEdit ? "Edit strategic objective" : "New strategic objective"}
           </DialogTitle>

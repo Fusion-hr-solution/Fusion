@@ -52,9 +52,15 @@ import {
   ReviewsSettings,
   aiAndDataConsequence,
   conversationsConsequence,
+  planningConsequence,
   reviewsConsequence,
 } from "./sections/cycle-sections";
 import { RatingScaleSettings } from "./sections/rating-scale";
+import { createTranslator } from "next-intl";
+import { IntlTestProvider } from "@repo/ds/testing";
+import dsFr from "@repo/ds/messages/fr.json";
+import { loadPerformanceMessages } from "@/i18n/messages";
+import type { Say } from "./say";
 import { ReviewQuestionsSettings } from "./sections/review-questions";
 
 const SETTINGS: CycleSettingsDto = {
@@ -191,5 +197,37 @@ describe("Review questions", () => {
     expect(m.archive).toHaveBeenCalledWith({ id: "q1", version: 2 });
     fireEvent.click(screen.getByRole("button", { name: "Delete: How did they support the team?" }));
     expect(m.remove).toHaveBeenCalledWith({ id: "q2", version: 1 });
+  });
+});
+
+const fr = await loadPerformanceMessages("fr");
+
+describe("In French", () => {
+  const french = createTranslator({ locale: "fr", messages: fr, namespace: "settings" });
+  const sayInFrench: Say = (key, values) => french(key as never, values as never);
+
+  it("says what a save does in French", () => {
+    expect(reviewsConsequence(SETTINGS, { ...SETTINGS, managerAssessmentDueDays: 10 }, sayInFrench)).toBe(
+      "Les nouvelles campagnes d’évaluation laissent 10 jours aux managers. Les campagnes déjà créées gardent leurs dates."
+    );
+    expect(planningConsequence(SETTINGS, { ...SETTINGS, planAlignmentPolicy: "Optional" }, sayInFrench)).toBe(
+      "Dans les nouveaux cycles, les plans n’ont pas besoin d’être reliés aux objectifs de l’entreprise. Les cycles déjà actifs gardent les leurs."
+    );
+    expect(conversationsConsequence(SETTINGS, { ...SETTINGS, defaultOneOnOneCadence: "Monthly" }, sayInFrench)).toBe(
+      "Les nouvelles séries d’entretiens individuels démarrent chaque mois. Les séries en cours gardent leur rythme."
+    );
+  });
+
+  it("renders Reviews in French, named from the catalogue", () => {
+    m.settings = SETTINGS;
+    render(
+      <IntlTestProvider locale="fr" messages={{ ...dsFr, ...fr }}>
+        <ReviewsSettings section={section("reviews", "Reviews", "view")} />
+      </IntlTestProvider>
+    );
+    expect(screen.getByRole("heading", { level: 1, name: "Évaluations" })).toBeTruthy();
+    expect(screen.getByText("Ce que comprend une évaluation")).toBeTruthy();
+    expect(screen.getAllByText("Activé").length).toBeGreaterThan(0);
+    expect(screen.getByText("Bas")).toBeTruthy();
   });
 });

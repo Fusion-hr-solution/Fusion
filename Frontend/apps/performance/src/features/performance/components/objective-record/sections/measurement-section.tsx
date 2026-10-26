@@ -11,7 +11,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-2.5">
       <dt className="shrink-0 type-meta text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 text-right type-label text-foreground">{children}</dd>
+      <dd className="min-w-0 text-end type-label text-foreground">{children}</dd>
     </div>
   );
 }
@@ -47,7 +47,7 @@ function MilestoneList({ measurement }: { measurement: MeasurementDto | null }) 
         <li key={m.id} className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1 px-3.5 py-2.5">
           <span className="min-w-[8rem] flex-1 break-words type-label text-foreground">{m.title}</span>
           <MilestoneDue milestone={m} />
-          <span className="w-10 shrink-0 text-right type-meta tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
+          <span className="w-10 shrink-0 text-end type-meta tabular-nums text-muted-foreground">{pct(m.weight)}%</span>
         </li>
       ))}
     </ul>

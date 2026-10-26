@@ -467,7 +467,7 @@ export function OrgObjectiveComposer({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[92vh] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-4xl">
         {/* Header — identity only; the fixed parent context leads the scrolling body. */}
-        <div className="border-b border-border px-6 py-5 pr-14">
+        <div className="border-b border-border px-6 py-5 pe-14">
           <DialogTitle>
             {isEdit ? "Edit team objective" : "Create team objective"}
           </DialogTitle>
@@ -1034,12 +1034,12 @@ export function AlignmentTargetPicker({
         }
       >
         {value === "__standalone__" ? (
-          <span className="inline-flex min-w-0 items-center gap-2 text-left font-medium text-info">
+          <span className="inline-flex min-w-0 items-center gap-2 text-start font-medium text-info">
             <Waypoints className="size-4 shrink-0" aria-hidden />
             <span className="truncate">No alignment</span>
           </span>
         ) : selected ? (
-          <span className="min-w-0 text-left">
+          <span className="min-w-0 text-start">
             <span className="block truncate font-medium text-foreground">
               {selected.title}
             </span>
@@ -1197,7 +1197,7 @@ function SourceCard({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "group flex items-start gap-3 rounded-surface border p-3.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+        "group flex items-start gap-3 rounded-surface border p-3.5 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         active
           ? "border-primary bg-primary/[0.06] ring-1 ring-primary/40"
           : "border-border hover:border-primary/40 hover:bg-muted/40"

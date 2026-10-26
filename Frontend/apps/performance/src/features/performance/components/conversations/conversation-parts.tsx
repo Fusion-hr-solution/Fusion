@@ -6,6 +6,7 @@ import type { FeedbackSubjectDto } from "@repo/api";
 import { cn } from "@repo/ds/lib/utils";
 import { ValueChip } from "@repo/performance-ui";
 import { Target } from "@/lib/icons";
+import { formatDateParts } from "@repo/ds/lib/dates";
 
 /** Paths from the server carry the app's base path; the router adds it itself. */
 export function inApp(href: string) {
@@ -49,7 +50,7 @@ export function ByMonth<T>({ items, at, render }: { items: readonly T[]; at: (it
     if (!group || group.key !== key) {
       group = {
         key,
-        label: date.toLocaleDateString("en-GB", { month: "long", ...(date.getFullYear() === thisYear ? {} : { year: "numeric" }) }),
+        label: formatDateParts(date, { month: "long", ...(date.getFullYear() === thisYear ? {} : { year: "numeric" }) }),
         items: [],
       };
       groups.push(group);
@@ -73,8 +74,8 @@ export function DueBlock({ date, overdue }: { date: string; overdue: boolean }) 
   const due = new Date(`${date}T00:00:00`);
   const days = Math.round((due.getTime() - new Date().setHours(0, 0, 0, 0)) / 86_400_000);
   const label = days === 0 ? "Today" : days === 1 ? "Tomorrow" : days > 1 && days < 7
-    ? due.toLocaleDateString("en-GB", { weekday: "short" })
-    : due.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    ? formatDateParts(due, { weekday: "short" })
+    : formatDateParts(due, { day: "numeric", month: "short" });
   return (
     <span
       className={cn(

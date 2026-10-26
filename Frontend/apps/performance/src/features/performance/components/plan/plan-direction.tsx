@@ -55,7 +55,7 @@ export function PlanDirectionSection({
           return (
             <li key={level.key} className="relative flex gap-3 pb-5 last:pb-0">
               {index < levels.length - 1 ? (
-                <span className="absolute bottom-0 left-4 top-9 w-px -translate-x-1/2 bg-border" aria-hidden />
+                <span className="absolute bottom-0 inset-s-4 top-9 w-px -translate-x-1/2 rtl:translate-x-1/2 bg-border" aria-hidden />
               ) : null}
               <span
                 className={
