@@ -5,7 +5,9 @@ using EY.HRPlatform.Identity.Infrastructure.Persistence;
 using EY.HRPlatform.Identity.Infrastructure.Services;
 using EY.HRPlatform.Identity.Models.Responses;
 using EY.HRPlatform.SharedKernel.Auth;
+using EY.HRPlatform.SharedKernel.Localization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace EY.HRPlatform.Identity.Features.Accounts;
 
@@ -74,6 +76,16 @@ public sealed class AuthSessionFactory(
                 })
                 .ToList();
 
+        // The company's language is the fallback only for the tenant this session
+        // authorizes; a Platform Administrator has none and falls back to English.
+        var tenantLocale = context is null
+            ? null
+            : await dbContext.Tenants
+                .IgnoreQueryFilters()
+                .Where(tenant => tenant.Id == context.TenantId)
+                .Select(tenant => tenant.Locale)
+                .FirstOrDefaultAsync(cancellationToken);
+
         return new AuthResponse
         {
             UserId = user.Id,
@@ -86,6 +98,7 @@ public sealed class AuthSessionFactory(
             EmployeeId = context?.EmployeeId,
             AccessProfiles = assignedProfiles,
             EffectivePermissions = effectivePermissions,
+            Language = FusionLanguages.Resolve(user.PreferredLanguage, tenantLocale),
             AccessToken = accessToken,
             RefreshToken = refreshTokenString,
             AccessTokenExpiration = DateTime.UtcNow.AddMinutes(

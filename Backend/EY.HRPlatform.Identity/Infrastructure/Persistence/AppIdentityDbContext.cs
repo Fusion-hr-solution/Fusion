@@ -1,6 +1,7 @@
 ﻿using EY.HRPlatform.Identity.Domain.Entities;
 using EY.HRPlatform.Identity.Domain.Enums;
 using EY.HRPlatform.Identity.Infrastructure.Persistence.Configurations;
+using EY.HRPlatform.SharedKernel.Localization;
 using EY.HRPlatform.SharedKernel.Multitenancy;
 using EY.HRPlatform.SharedKernel.Persistence;
 using Microsoft.AspNetCore.Identity;
@@ -87,6 +88,9 @@ public class AppIdentityDbContext : IdentityDbContext<ApplicationUser, IdentityR
 
             entity.Property(u => u.JobTitle)
                 .HasMaxLength(100);
+
+            entity.Property(u => u.PreferredLanguage)
+                .HasMaxLength(FusionLanguages.MaxLength);
 
             // The account carries no tenant. Participation is expressed only by
             // TenantMembership, so there is no account-owned tenancy left to

@@ -40,6 +40,13 @@ public class ApplicationUser : IdentityUser<Guid>
     public DateTime? LastLoginAt { get; set; }
 
     /// <summary>
+    /// The language the person chose, one of <c>FusionLanguages.Supported</c>.
+    /// Null until they choose; their company's language, then English, applies
+    /// meanwhile. It sits on the account so it follows them across devices.
+    /// </summary>
+    public string? PreferredLanguage { get; set; }
+
+    /// <summary>
     /// Customer tenants this account participates in. Membership is the only
     /// tenancy authority: the account row itself carries no tenant, so a Platform
     /// Administrator simply has none and no code path can infer one.

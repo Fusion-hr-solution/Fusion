@@ -23,6 +23,12 @@ public class AuthResponse
     public Guid? EmployeeId { get; set; }
     public List<AccessProfileAssignmentSummaryDto> AccessProfiles { get; set; } = [];
     public List<EffectivePermissionGrantDto> EffectivePermissions { get; set; } = [];
+
+    /// <summary>
+    /// The person's language: their own choice, else their tenant's language,
+    /// else <c>en</c>. Every app reads it from the cookie the client writes from this.
+    /// </summary>
+    public string Language { get; set; } = string.Empty;
     public string AccessToken { get; set; } = string.Empty;
     public string RefreshToken { get; set; } = string.Empty;
     public DateTime AccessTokenExpiration { get; set; }

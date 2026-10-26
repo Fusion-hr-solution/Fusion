@@ -85,10 +85,21 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next, ILogger<Ten
         if (IsPlatformControlPlaneRoute(context))
             return false;
 
+        // The caller's own language changes only the account named by their token,
+        // which belongs to no tenant. A Platform Administrator has an account too,
+        // and no tenant claim to offer. Exact route only, so a later account
+        // endpoint does not inherit the exemption by sharing the prefix.
+        if (IsOwnLanguageRoute(context))
+            return false;
+
         // Authenticated request to a tenant-scoped protected endpoint.
         return true;
     }
 
     private static bool IsPlatformControlPlaneRoute(HttpContext context)
         => context.Request.Path.StartsWithSegments("/api/identity/platform-admin", StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsOwnLanguageRoute(HttpContext context)
+        => string.Equals(context.Request.Path.Value?.TrimEnd('/'), "/api/identity/account/language",
+            StringComparison.OrdinalIgnoreCase);
 }
